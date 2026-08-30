@@ -15,7 +15,7 @@ The normal Window surface is:
 Include `desktop/display_info.h`, `desktop/cursor.h`, `desktop/child_surface.h`,
 `desktop/clipboard.h`, `desktop/renderer_bridge.h`, or `desktop/native/win32.h`
 only when using rich display inspection, custom native cursors, native child
-hosts, Clipboard/data transfer, renderer feedback, or Win32 interop.
+hosts, Clipboard/data transfer, renderer integration, or Win32 interop.
 
 ## Installed CMake
 

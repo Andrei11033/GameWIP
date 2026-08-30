@@ -9,6 +9,12 @@ dependencies, generated export headers, and shared-library symbol policy.
 
 Individual APIs stay in their library manuals and generated reference pages.
 
+IO, FileSystem, and Terminal install focused public headers plus their existing
+complete umbrella headers. Consumers may choose either include style without an
+API, ABI, or runtime behavior difference. Logger installs private formatting
+support required by `logger/logger.h`; that detail header is not a standalone
+supported entry point.
+
 ## Packages and targets
 
 | Package | Imported target | Library form |

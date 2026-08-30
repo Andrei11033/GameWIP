@@ -14,7 +14,7 @@ fixed-capacity event queue. The thread that opens it also mutates it, pumps its
 events, and consumes that queue. Native callbacks first update cached state and
 then publish typed events, allowing getters to remain current even if the queue
 overflows. Display APIs describe monitors and modes independently of a Window;
-opt-in headers expose renderer feedback and deliberate native interoperation.
+opt-in headers expose renderer integration and deliberate native interoperation.
 
 ## Consumer manual
 
@@ -40,12 +40,12 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
   exclusive modes and handle monitor or topology changes.
 - @subpage desktop_native_interop — Access a native handle without taking
   ownership or bypassing portable lifetime rules.
-- @subpage desktop_renderer_integration — Attach renderer feedback and consume
-  the packed pointer snapshot.
+- @subpage desktop_renderer_integration — Enable concurrent presentation reads,
+  attach renderer feedback, and publish packed pointer data.
 - @subpage desktop_examples — See lifecycle, events, displays, fullscreen,
   custom chrome, and renderer integration in context.
 - @subpage desktop_troubleshooting — Diagnose ownership, capabilities, queue
-  pressure, display transitions, native destruction, and renderer feedback.
+  pressure, display transitions, native destruction, and renderer integration.
 - @subpage desktop_future_extensions — Understand where proposed accessibility,
   drag/drop, dialogs, and related features belong.
 
@@ -63,18 +63,21 @@ Use @ref GameWIP::Desktop for library-wide capability operations and the non-cop
 live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, Clipboard
 results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`, and renderer-bridge values under
 `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`, display inspection under
-`Desktop::Display`, and renderer feedback under `Desktop::Renderer`. Win32 consumers use @ref GameWIP::Desktop::Native::Win32 deliberately.
+`Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers use @ref GameWIP::Desktop::Native::Win32 deliberately.
 
 ## Key behavior
 
 Every successful `open()` creates one process-local `Types::WindowId` and one fixed event queue. `Window` is non-copyable and non-movable, keeping its
-address and thread affinity stable. Cached getters are allocation-free and never query the operating system.
+address and thread affinity stable. Cached getters are allocation-free and never query the operating system. By default they remain owner-thread-only.
+The optional renderer bridge can lazily enable atomic publication for the documented presentation subset.
 
 Native callbacks update cached state before inserting events, so queue overflow loses notification history without making current state stale. Close
 requests remain sticky even when their `Types::Events::CloseRequested` payload cannot be retained.
 
-The opening thread owns native mutation, queue consumption, and event pumping. `wakeEventWait()` is the only intentionally cross-thread object
-operation. A thread-local dispatcher pumps every Window opened by that thread; no WindowManager is involved.
+The opening thread owns native mutation, queue consumption, and event pumping. `wakeEventWait()` is always cross-thread-safe. Renderer-facing
+presentation reads become a narrow additional exception only after explicit opt-in. A thread-local dispatcher pumps each owner thread's Windows.
+
+Cross-thread presentation reads do not make concurrent destruction safe. Applications must ensure the `Window` object outlives every renderer read.
 
 Destruction on another thread transfers complete state ownership to that dispatcher without allocation. Dispatcher or thread shutdown closes remaining
 native windows and restores exclusive-mode, cursor, class, and identity resources. Unexpected native destruction retains portable state and a typed

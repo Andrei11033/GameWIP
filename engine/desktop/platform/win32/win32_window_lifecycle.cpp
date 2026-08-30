@@ -219,6 +219,11 @@ namespace GameWIP::Desktop::Detail::Platform
             state.presentation = IsIconic(state.platform->handle)   ? Types::PresentationState::Minimized
                                  : IsZoomed(state.platform->handle) ? Types::PresentationState::Maximized
                                                                     : Types::PresentationState::Normal;
+            if (state.presentationPublication != nullptr)
+            {
+                state.presentationPublication->publishVisible(state.visible);
+                state.presentationPublication->publishPresentationState(state.presentation);
+            }
             if (description.requestFocus && description.focusable && description.visible)
             {
                 static_cast<void>(requestFocus(state));

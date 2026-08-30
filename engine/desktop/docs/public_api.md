@@ -19,7 +19,7 @@ Window exposes one public `GameWIP::Desktop::Types` tree and focused headers by 
 - `desktop/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.
 - `desktop/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
   resources, Clipboard/data transfer, renderer integration, or native interop.
-- `desktop/renderer_bridge.h` is the opt-in renderer feedback bridge.
+- `desktop/renderer_bridge.h` owns concurrent presentation-read opt-in, renderer feedback, and packed pointer publication.
 - `desktop/native/win32.h` is explicit Win32 interoperability.
 
 Passive data stays under `Types`; stateless domain operations live in the matching service namespace.
@@ -33,13 +33,23 @@ whether a custom cursor is selected or a renderer provider is currently attached
 ## Window ownership and state
 
 `Window` is default-constructible, non-copyable, and non-movable. `open()` establishes one owner thread and one process-local `Types::WindowId`.
-`WindowId::isValid()` reports whether an ID is nonzero. Except `wakeEventWait()`, open-object operations require the owner thread.
+`WindowId::isValid()` reports whether an ID is nonzero. Mutations, queue operations, and most cached getters require the owner thread.
 
 Cached getters do not issue native queries. Expected failures are returned as `IO::Types::Status` or typed result structs. Explicit `close()` is
 synchronous and observable through its return status.
 
-Plain cached properties use direct names such as `visible()`, `focused()`, `resizable()`, `userInteractionEnabled()`, and
-`ownedByCurrentThread()`. `isOpen()` retains its prefix to distinguish the lifetime query from the checked `open()` operation; `isValid()` remains a
+By default, all cached getters are owner-thread-only. After `Renderer::enableConcurrentPresentationReads()` succeeds, `clientSize()`,
+`framebufferSize()`, `contentScale()`, `effectiveDpi()`, `currentMonitor()`, `presentationState()`, `minimized()`, `maximized()`, `visible()`,
+`interactiveMoveResizeActive()`, and `occluded()` may also be read concurrently while the owner updates the Window. Each compound return value is
+coherent, but separate getter calls may observe successive states.
+
+The opt-in allocation is lazy, stable, one-way for the C++ object, and reused across close/reopen. It must complete before renderer reads begin.
+Concurrent object destruction remains unsafe; the caller must keep the `Window` alive through all renderer reads.
+
+Plain cached properties use direct names such as `visible()`, `focused()`,
+`interactiveMoveResizeActive()`, `resizable()`, `userInteractionEnabled()`,
+and `ownedByCurrentThread()`. `isOpen()` retains its prefix to distinguish the lifetime query from the checked
+`open()` operation; `isValid()` remains a
 classification query on identity and resource values. Presence, capability, and support queries retain meaningful forms such as `hasCloseRequest()`,
 `hasCustomCursor()`, and `supports()`.
 
@@ -77,7 +87,7 @@ and custom-format semantics.
 ## Events
 
 Event payloads live under `Types::Events` and do not repeat the `Event` suffix. Examples are `CloseRequested`, `ClientPositionChanged`,
-`FilesDropped`, and `NativeDestroyed`.
+`InteractiveMoveResizeStarted`, `InteractiveMoveResizeEnded`, `FilesDropped`, and `NativeDestroyed`.
 
 `Types::Events::Payload` is the payload variant. `Types::Event` remains the queued envelope and carries a monotonic sequence plus typed `getIf<T>()`
 access. Queue metadata lives in `Types::Events::StorageKind` and `QueueInfo`; pump results use `Types::Events::PumpResult`.
@@ -89,7 +99,8 @@ Calling-thread pumping is grouped under `Window::Events`:
 - `Events::kDefaultQueueCapacity` is used by the default `Window::open()` overload.
 
 Explicit `close()` emits no destruction event. Unexpected native destruction queues `Types::Events::NativeDestroyed`, changes `lifetimeState()` to
-`NativeDestroyedPendingFinalize`, and keeps cached state and queued events available until controlled finalization.
+`NativeDestroyedPendingFinalize`, and keeps owner-thread cached state and queued events available until controlled finalization. When concurrent
+presentation reads are enabled, their atomic publication resets to closed defaults when the native resource is destroyed.
 
 ## Displays
 
@@ -117,4 +128,5 @@ maintaining a second UTF-8 decoder. Native title operations additionally reject 
 ## Renderer bridge
 
 `Window::Renderer` contains renderer-to-Window integration behavior only: occlusion-provider attachment/reporting and pointer hit-mask publication.
-Passive bridge values live under `Window::Types::Renderer`.
+`enableConcurrentPresentationReads()` opts one Window object into the narrow atomic getter contract, and
+`concurrentPresentationReadsEnabled()` reports that one-way state. Passive bridge values live under `Window::Types::Renderer`.

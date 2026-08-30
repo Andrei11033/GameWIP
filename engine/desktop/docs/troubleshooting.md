@@ -81,14 +81,15 @@ rendering.
 ## Clipboard text, file, or image input is rejected
 
 Text must be strict UTF-8 and Win32 text cannot preserve embedded U+0000. File lists must be nonempty absolute paths, but paths need not exist and no
-file-system query occurs. Image dimensions must be positive, stride must hold `width * 4` bytes, and the byte span must equal the resolved stride times
-height exactly. See @ref desktop_clipboard.
+file-system query occurs. Image dimensions must be positive, stride must hold `width * 4` bytes, and the byte span must equal the resolved stride
+times height exactly. See @ref desktop_clipboard.
 
 ## Custom cursor selection fails
 
 Include `desktop/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns `InvalidArgument` for an empty variant set, invalid
 dimensions or hotspot, zero or duplicate intended DPI, an undersized stride, or a payload whose size does not exactly match its resolved rows.
-`setCursor()` additionally requires a valid `Cursor` and an open Window on its owner thread. See @ref desktop_custom_cursors for the complete contract.
+`setCursor()` additionally requires a valid `Cursor` and an open Window on its owner thread. See @ref desktop_custom_cursors for the complete
+contract.
 
 ## Occlusion reporting is unavailable
 
@@ -99,6 +100,15 @@ attached. Include `desktop/renderer_bridge.h`, check `Renderer::hasOcclusionProv
 Attachment, reporting, and detachment must run on the Window owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after
 detachment. Forward only an authoritative Renderer presentation result; minimization, visibility, or focus alone are not equivalent to renderer
 occlusion.
+
+## Concurrent presentation reads are unavailable
+
+Include `desktop/renderer_bridge.h` and call `Renderer::enableConcurrentPresentationReads(window)` on the open Window's owner thread before starting
+the renderer thread. `NotOpen` means no native lifetime is committed, `ResourceBusy` means the caller is not the owner thread, and `OutOfMemory`
+means the lazy publication allocation was not installed. A failed call leaves ordinary owner-thread getters unchanged and the feature disabled.
+
+Do not retry enablement from a renderer getter or race enablement with reads. After success, enablement is idempotent, remains active across
+close/reopen, and has no disable operation. Stop or join renderer reads before destroying the C++ `Window` object.
 
 ## Display color is unknown or stale
 
@@ -122,5 +132,6 @@ is not advertised by the current Win32 backend.
 
 - @ref desktop_package_abi
 - @ref desktop_coordinates_and_dpi
+- @ref desktop_renderer_integration
 - @ref desktop_manual_validation
 - @ref desktop_clipboard

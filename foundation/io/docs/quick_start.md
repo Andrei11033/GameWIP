@@ -10,6 +10,10 @@ memory-backed destination.
 #include "io/io.h"
 ```
 
+`io/io.h` is the simplest complete-library include. Narrow consumers may include
+`io/status.h`, `io/stream.h`, `io/memory.h`, or `io/transfer.h` directly.
+Choosing a focused header changes dependencies and intent, not API behavior.
+
 ## Installed CMake
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.

@@ -10,6 +10,11 @@ consumer needs.
 #include "filesystem/filesystem.h"
 ```
 
+`filesystem/filesystem.h` is the complete convenience include. Consumers may
+instead include `filesystem/path.h`, `filesystem/entry.h`,
+`filesystem/file.h`, or `filesystem/directory.h` for the concepts they use.
+The selected valid header does not change API behavior.
+
 ## Installed CMake
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.

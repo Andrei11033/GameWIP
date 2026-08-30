@@ -34,6 +34,10 @@ target_sources(
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${TERMINAL_GENERATED_INCLUDE_DIR}"
             FILES
+                "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/output.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/session.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/style.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"
                 "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
@@ -74,7 +78,13 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME Terminal
         PAGE_ID terminal
-        PUBLIC_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/style.h" "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"
+        PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/input.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/output.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/session.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/style.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/terminal.h"
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()

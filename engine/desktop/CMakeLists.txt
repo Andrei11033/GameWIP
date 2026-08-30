@@ -48,6 +48,7 @@ target_sources(
         internal/clipboard_platform.h
         internal/child_surface_platform.h
         internal/child_surface_state.h
+        internal/presentation_publication_state.h
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS

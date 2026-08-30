@@ -4,6 +4,7 @@
 #pragma once
 
 #include "desktop/internal/renderer_integration_state.h"
+#include "desktop/internal/presentation_publication_state.h"
 #include "desktop/window.h"
 
 #include <memory>
@@ -96,7 +97,9 @@ namespace GameWIP::Desktop::Detail
         bool closeRequested = false;
         bool visible = false;
         bool focused = false;
-        RendererIntegrationState *rendererIntegration = nullptr;
+        bool interactiveMoveResizeActive = false;
+        RendererIntegrationState *rendererIntegration = nullptr;             ///< Optional lazy renderer bridge owned by Window.
+        PresentationPublicationState *presentationPublication = nullptr;     ///< Optional non-owning link to stable atomic publication.
 
         bool cursorInside = false;
         bool resizable = true;
@@ -112,6 +115,31 @@ namespace GameWIP::Desktop::Detail
     [[nodiscard]] bool isCoalescible(const Types::Events::Payload &data) noexcept;
     [[nodiscard]] EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept;
     [[nodiscard]] EnqueueResult requestClose(WindowState &state, Types::Events::CloseRequestSource source) noexcept;
+    [[nodiscard]] EnqueueResult setInteractiveMoveResizeActive(WindowState &state, bool active) noexcept;
+
+    inline void publishCachedPresentationState(PresentationPublicationState &publication, const WindowState &state) noexcept
+    {
+        publication.publishClientSize(state.clientSize);
+        publication.publishFramebufferSize(state.framebufferSize);
+        publication.publishContentScale(state.contentScale);
+        publication.publishDpi(state.dpi);
+        publication.publishMonitor(state.monitor);
+        publication.publishPresentationState(state.presentation);
+        publication.publishVisible(state.visible);
+        publication.publishInteractiveMoveResizeActive(state.interactiveMoveResizeActive);
+    }
+
+    inline void publishCachedPresentationState(WindowState &state) noexcept
+    {
+        if (state.presentationPublication != nullptr)
+            publishCachedPresentationState(*state.presentationPublication, state);
+    }
+
+    inline void resetPresentationPublication(WindowState &state) noexcept
+    {
+        if (state.presentationPublication != nullptr)
+            state.presentationPublication->reset();
+    }
 
     inline void invalidatePointerHitMask(WindowState &state) noexcept
     {
@@ -177,6 +205,21 @@ namespace GameWIP::Desktop::Detail
         static void bindRendererIntegration(Window &window, WindowState &state) noexcept
         {
             state.rendererIntegration = window.rendererIntegration_.get();
+        }
+
+        static void bindPresentationPublication(Window &window, WindowState &state) noexcept
+        {
+            state.presentationPublication = window.presentationPublication_.get();
+        }
+
+        [[nodiscard]] static PresentationPublicationState *presentationPublication(const Window &window) noexcept
+        {
+            return window.presentationPublication_.get();
+        }
+
+        [[nodiscard]] static std::unique_ptr<PresentationPublicationState> &presentationPublicationOwner(Window &window) noexcept
+        {
+            return window.presentationPublication_;
         }
     };
 } // namespace GameWIP::Desktop::Detail

@@ -56,9 +56,15 @@ function Show-GameWipGitStatus
 
 function Invoke-GameWipGitFetch
 {
-    Invoke-GameWipMutation -Summary 'Fetch and prune Git remote references.' -Risk local -Plan @('git fetch --all --prune') -Body {
+    param([switch]$PassThru)
+
+    $applied = Invoke-GameWipMutation -Summary 'Fetch and prune Git remote references.' -Risk local -Plan @('git fetch --all --prune') -Body {
         Invoke-GameWipNative -Name 'git-fetch-prune' -FilePath 'git' -Arguments @('-C', $RepositoryRoot, 'fetch', '--all', '--prune')
-    } | Out-Null
+    }
+    if ($PassThru)
+    {
+        return $applied
+    }
 }
 
 function Get-GameWipBranchNames
@@ -194,6 +200,11 @@ function Show-GameWipRecentCommit
 
 function Invoke-GameWipBranchCleanup
 {
+    if (-not (Invoke-GameWipGitFetch -PassThru))
+    {
+        return
+    }
+
     Assert-GameWipCleanTrackedTree
     $current = Get-GameWipCurrentBranch
     $defaultName = [string]$ProjectConfig.defaultBranch

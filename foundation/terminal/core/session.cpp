@@ -1,7 +1,7 @@
 /// @file session.cpp
 /// @brief Managed Terminal input ownership, Session lifecycle, and checked read entry points.
 
-#include "terminal/terminal.h"
+#include "terminal/session.h"
 
 #include "terminal/internal/terminal_input.h"
 #include "terminal/internal/terminal_platform.h"

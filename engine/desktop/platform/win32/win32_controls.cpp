@@ -19,6 +19,8 @@ namespace GameWIP::Desktop::Detail::Platform
             if (visible != state.visible)
             {
                 state.visible = visible;
+                if (state.presentationPublication != nullptr)
+                    state.presentationPublication->publishVisible(visible);
                 routeEvent(state, Types::Events::VisibilityChanged{visible});
             }
         }
@@ -31,6 +33,8 @@ namespace GameWIP::Desktop::Detail::Platform
             if (value != state.presentation)
             {
                 state.presentation = value;
+                if (state.presentationPublication != nullptr)
+                    state.presentationPublication->publishPresentationState(value);
                 routeEvent(state, Types::Events::PresentationStateChanged{value});
             }
         }

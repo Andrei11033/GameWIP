@@ -1,7 +1,31 @@
 @page desktop_renderer_integration Renderer integration
 
-`desktop/renderer_bridge.h` is an optional integration surface. It contains only renderer-to-Window feedback and renderer-published pointer data;
-operating-system display/HDR inspection lives in `desktop/display_info.h`.
+`desktop/renderer_bridge.h` is an optional integration surface. It contains concurrent presentation-read opt-in, renderer-to-Window feedback, and
+renderer-published pointer data. Operating-system display/HDR inspection lives in `desktop/display_info.h`.
+
+## Concurrent presentation reads
+
+By default, renderer-facing presentation getters are ordinary owner-thread cached getters. Call
+`Renderer::enableConcurrentPresentationReads(window)` on an open Window's owner thread before starting renderer reads. It lazily allocates a stable,
+one-way publication sidecar and immediately publishes the current authoritative state. Repeated calls are idempotent; close/reopen reuses it.
+
+The enable operation returns `NotOpen` for a closed Window, `ResourceBusy` on the wrong thread, and `OutOfMemory` when the lazy allocation fails.
+`Renderer::concurrentPresentationReadsEnabled(window)` reports the one-way object state and remains true across close/reopen. Do not race enablement
+with getter reads or destruction.
+
+Once enabled, `clientSize()`, `framebufferSize()`, `contentScale()`, `effectiveDpi()`, `currentMonitor()`, `presentationState()`, `minimized()`,
+`maximized()`, `visible()`, `interactiveMoveResizeActive()`, and `occluded()` are safe for renderer-thread reads while the owner handles native
+messages. Individual compound values cannot tear; separate getter calls may observe successive states.
+
+Occlusion reporting remains usable without this facility: owner-thread `occluded()` reads authoritative renderer-integration state. When concurrent
+reads are enabled, occlusion transitions are additionally mirrored to the atomic publication. Reads remain observational and never queue events.
+
+During open, an existing sidecar stays reset and unbound while native candidate creation is uncommitted. Successful open binds and publishes the
+final authoritative state immediately before commit; failed open exposes only closed defaults. Close and unexpected native destruction reset the
+published values without freeing or disabling the sidecar.
+
+This read contract lasts only while the C++ `Window` object remains alive. The application must stop or join the renderer before destroying the
+object. Desktop does not create a render thread, schedule frames, resize renderer resources, or invoke renderer callbacks from native messages.
 
 ## Occlusion provider
 

@@ -1,6 +1,15 @@
 @page io_public_api Public API
 
-Include `io/io.h`. Installed consumers link `GameWIP::IO`; source-tree consumers link `IO`. See @ref io_quick_start for complete CMake usage.
+Include `io/io.h` for the complete API. Focused entry points are:
+
+- `io/status.h`: error codes, status values, and status helpers;
+- `io/stream.h`: stream enums, transfer results, `Reader`, and `Writer`;
+- `io/memory.h`: memory-backed streams and `CopyTextResult`;
+- `io/transfer.h`: whole-stream results, constants, and transfer helpers.
+
+Narrow includes reduce dependencies and clarify intent. They expose the same API
+and behavior as the corresponding declarations reached through `io/io.h`.
+Installed consumers link `GameWIP::IO`; source-tree consumers link `IO`.
 
 ## Constants
 

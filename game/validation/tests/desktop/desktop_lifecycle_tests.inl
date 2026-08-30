@@ -178,6 +178,7 @@ void testFailureInjection(TestSupport::Context &context)
         const IO::Types::Status status = candidate.open(description, 8);
         static_cast<void>(context.expectEq(name, expected, status.code));
         static_cast<void>(context.expectFalse("failed open rolls back native ownership", candidate.isOpen()));
+        static_cast<void>(context.expectFalse("failed open publishes no candidate monitor", candidate.currentMonitor().isValid()));
         Desktop::TestHooks::resetFailures();
     };
 
@@ -190,6 +191,7 @@ void testFailureInjection(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("open succeeds after injected rollback", window.open(description, 16).ok()));
     if (!window.isOpen())
         return;
+    static_cast<void>(context.expectTrue("successful open commits current monitor publication", window.currentMonitor().isValid()));
 
     const std::string originalTitle(window.title());
     Desktop::TestHooks::failNext(FailurePoint::TitleConversion);
@@ -299,10 +301,22 @@ void testExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("unexpected-destruction fixture opens", unexpected.open(description, 1).ok()));
     if (unexpected.isOpen())
     {
+        static_cast<void>(context.expectTrue(
+            "unexpected-destruction fixture enables concurrent reads",
+            Desktop::Renderer::enableConcurrentPresentationReads(unexpected).ok()));
         static_cast<void>(Desktop::TestHooks::enqueue(unexpected, Desktop::Types::Events::RedrawRequested{}));
         static_cast<void>(
             context.expectTrue("test hook destroys native HWND unexpectedly", Desktop::TestHooks::destroyNativeWindow(unexpected).ok()));
         static_cast<void>(context.expectFalse("unexpectedly destroyed HWND is not open", unexpected.isOpen()));
+        static_cast<void>(context.expectEq(
+            "native destruction clears renderer-facing framebuffer size",
+            Desktop::Types::PixelSize{},
+            unexpected.framebufferSize()));
+        static_cast<void>(context.expectFalse("native destruction clears renderer-facing visibility", unexpected.visible()));
+        static_cast<void>(context.expectFalse("native destruction clears renderer-facing current monitor", unexpected.currentMonitor().isValid()));
+        static_cast<void>(
+            context.expectFalse("native destruction clears renderer-facing interactive state", unexpected.interactiveMoveResizeActive()));
+        static_cast<void>(context.expectFalse("native destruction clears renderer-facing occlusion", unexpected.occluded()));
         static_cast<void>(context.expectEq(
             "unexpected destruction enters pending finalize",
             Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize,

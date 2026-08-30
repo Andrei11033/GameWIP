@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "filesystem/filesystem.h"
+#include "filesystem/path.h"
 #include "desktop/types.h"
 
 #include <cstddef>

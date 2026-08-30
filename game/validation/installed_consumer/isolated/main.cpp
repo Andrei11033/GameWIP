@@ -10,10 +10,17 @@
 #if defined(GAMEWIP_CONSUMER_Unicode)
 #include "unicode/unicode.h"
 #elif defined(GAMEWIP_CONSUMER_IO)
+#include "io/status.h"
+#include "io/stream.h"
 #include "io/io.h"
 #elif defined(GAMEWIP_CONSUMER_FileSystem)
+#include "filesystem/path.h"
+#include "filesystem/file.h"
 #include "filesystem/filesystem.h"
 #elif defined(GAMEWIP_CONSUMER_Terminal)
+#include "terminal/input.h"
+#include "terminal/output.h"
+#include "terminal/session.h"
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Desktop)
 #include "desktop/cursor.h"

@@ -7,6 +7,14 @@
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
+#include "io/status.h"
+#include "io/stream.h"
+#include "filesystem/path.h"
+#include "filesystem/file.h"
+#include "terminal/input.h"
+#include "terminal/output.h"
+#include "terminal/session.h"
+
 #include "debug/assert/assert.h"
 #include "filesystem/filesystem.h"
 #include "io/io.h"

@@ -1,7 +1,7 @@
 /// @file io.cpp
 /// @brief Implements IO status helpers, default interfaces, memory streams, and whole-transfer algorithms.
 
-#include "io/io.h"
+#include "io/memory.h"
 #include "io/internal/io_test_hooks.h"
 #include "unicode/unicode.h"
 

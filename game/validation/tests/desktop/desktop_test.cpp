@@ -144,6 +144,7 @@ namespace GameWIP::Test
         runner.runSuite("Window deterministic failure paths", testFailureInjection);
         runner.runSuite("Window threading contracts", testThreadingContracts);
         runner.runSuite("Window exceptional lifetime", testExceptionalLifetime);
+        runner.runSuite("Window cross-thread presentation publication", testPresentationPublication);
         runner.runSuite("Window packed pointer hit mask", testPointerHitMask);
 #else
         runner.runSuite(

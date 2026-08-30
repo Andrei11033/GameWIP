@@ -37,6 +37,13 @@ positions describe confirmed native geometry rather than an unverified request.
 unit and `effectiveDpi()` reports the effective DPI snapshot. Applications should resize renderer-owned attachments from
 `Types::Events::FramebufferSizeChanged` or the cached framebuffer getter.
 
+After `Renderer::enableConcurrentPresentationReads()` succeeds, these four getters use coherent atomic publication and may be read from a renderer
+thread while the owner processes native geometry and DPI messages. A returned pair never mixes components from different publications. Separate
+getter calls are not a transactional Window snapshot. Before opt-in they are ordinary owner-thread cached getters.
+
+Once enabled, `currentMonitor()` uses the same cross-thread publication contract. Renderers may use it to select output-dependent color, HDR, or
+presentation policy, then re-query detailed display information through the owner-thread APIs where required.
+
 ## DPI resize policy
 
 `DpiResizePolicy::PreserveLogicalClientSize` is the default. A DPI transition keeps the logical client extent and changes its physical pixel extent,
@@ -57,7 +64,7 @@ position and extent are derived from that logical rectangle at the new effective
 ## Events and authority
 
 Native geometry and DPI callbacks update cached position, logical client size, framebuffer size, scale, DPI, and current monitor before publishing
-events. Geometry events may coalesce, so cached getters are the authoritative current snapshot when intermediate notifications are dropped.
+events. Geometry events may coalesce, so cached getters are the authoritative current observation when intermediate notifications are dropped.
 
 ## Related pages
 

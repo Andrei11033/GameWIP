@@ -1,8 +1,16 @@
 @page terminal_public_api Public API
 
-Include `terminal/terminal.h` for the normal umbrella API. Code that only needs portable styling values/factories may include the independently
-supported `terminal/style.h`. Installed consumers link `GameWIP::Terminal`; source-tree consumers link `Terminal`. Exact signatures and default
-arguments are in the generated reference; this page maps every public family and explains how the pieces fit together.
+Include `terminal/terminal.h` for the complete API. Focused entry points are:
+
+- `terminal/types.h`: vocabulary shared by input and output;
+- `terminal/style.h`: style types and color factories;
+- `terminal/input.h`: input options, results, events, and direct reads;
+- `terminal/output.h`: output, formatting, controls, buffers, and state scopes;
+- `terminal/session.h`: `SessionOptions` and the managed `Session` owner.
+
+Focused headers reduce dependencies and clarify intent without changing API
+behavior. Installed consumers link `GameWIP::Terminal`; source-tree consumers
+link `Terminal`.
 
 ## Namespace layout
 

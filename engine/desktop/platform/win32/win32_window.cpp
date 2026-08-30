@@ -611,6 +611,13 @@ namespace GameWIP::Desktop::Detail::Platform
             static_cast<std::uint32_t>(std::max(0, physicalToLogical(frame.bottom - (clientOrigin.y + static_cast<LONG>(physicalHeight)), dpi)))};
         state.dpi = {static_cast<float>(dpi), static_cast<float>(dpi)};
         state.contentScale = {static_cast<float>(dpi) / static_cast<float>(kBaselineDpi), static_cast<float>(dpi) / static_cast<float>(kBaselineDpi)};
+        if (state.presentationPublication != nullptr)
+        {
+            state.presentationPublication->publishFramebufferSize(state.framebufferSize);
+            state.presentationPublication->publishClientSize(state.clientSize);
+            state.presentationPublication->publishDpi(state.dpi);
+            state.presentationPublication->publishContentScale(state.contentScale);
+        }
         refreshChildSurfaceScreenRectsForParent(state.id);
         return IO::successStatus();
     }
@@ -630,6 +637,8 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const Types::Display::MonitorId previous = state.monitor;
             state.monitor = info.monitor.id;
+            if (state.presentationPublication != nullptr)
+                state.presentationPublication->publishMonitor(state.monitor);
             routeEvent(state, Types::Events::MonitorChanged{previous, state.monitor});
         }
     }

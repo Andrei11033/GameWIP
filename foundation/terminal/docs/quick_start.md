@@ -9,6 +9,11 @@ explicit move-only `Session` that owns input and binds one primary output; direc
 #include "terminal/terminal.h"
 ```
 
+`terminal/terminal.h` is the complete convenience include. Narrow consumers may
+use `terminal/types.h`, `terminal/style.h`, `terminal/input.h`,
+`terminal/output.h`, or `terminal/session.h`. Header choice does not alter
+Terminal behavior.
+
 ## Installed CMake
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.

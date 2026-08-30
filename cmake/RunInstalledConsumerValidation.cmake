@@ -39,16 +39,29 @@ endif()
 set(expected_gamewip_headers
     debug/assert/assert.h
     debug/assert/assert_export.h
+    filesystem/directory.h
+    filesystem/entry.h
+    filesystem/file.h
     filesystem/filesystem.h
+    filesystem/path.h
+    io/memory.h
     io/io.h
+    io/status.h
+    io/stream.h
+    io/transfer.h
     logger/config.h
+    logger/detail/formatting.h
     logger/logger.h
     logger/logger_export.h
     logger/logger_macros.h
     logger/types.h
+    terminal/input.h
+    terminal/output.h
+    terminal/session.h
     terminal/style.h
     terminal/terminal.h
     terminal/terminal_export.h
+    terminal/types.h
     test_support/files.h
     test_support/process.h
     test_support/reporting.h

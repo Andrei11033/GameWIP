@@ -43,6 +43,7 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/config.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/detail/formatting.h"
                 "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
 )
 

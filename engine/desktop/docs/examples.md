@@ -2,7 +2,7 @@
 
 These focused examples build on the owner-thread lifecycle from
 @ref desktop_quick_start and demonstrate displays, custom cursors, native child
-hosts, Clipboard data exchange, renderer feedback, and native interop without
+hosts, Clipboard data exchange, renderer integration, and native interop without
 hiding status handling.
 
 ## Open a normal Window
@@ -135,10 +135,17 @@ if (host.open(window, hostDescription).ok())
 Shut external technology down before `host.close()` when its SDK requires explicit teardown. See @ref desktop_child_surfaces for ownership, parent
 loss, event queues, geometry, DPI, and sibling ordering.
 
-## Renderer feedback
+## Renderer integration
 
 ```cpp
 #include "desktop/renderer_bridge.h"
+
+const auto concurrentReads = GameWIP::Desktop::Renderer::enableConcurrentPresentationReads(window);
+if (concurrentReads.ok())
+{
+    // Start the renderer thread only after enablement completes. It may now use the documented
+    // presentation getters directly, including framebufferSize(), currentMonitor(), and occluded().
+}
 
 if (window.supports(GameWIP::Desktop::Types::Capability::OcclusionReporting))
 {
@@ -147,6 +154,9 @@ if (window.supports(GameWIP::Desktop::Types::Capability::OcclusionReporting))
         static_cast<void>(GameWIP::Desktop::Renderer::reportOcclusion(window, true));
 }
 ```
+
+Concurrent presentation reads and occlusion feedback are independent opt-ins. Stop or join every renderer reader before destroying the C++
+`Window` object. See @ref desktop_renderer_integration for the exact getter set and close/reopen behavior.
 
 ## Native Win32 view
 

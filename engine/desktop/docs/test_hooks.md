@@ -11,6 +11,10 @@ fullscreen rollback/restoration, close, event pumping, unexpected native destruc
 notification, Window and ChildSurface DPI transitions, ChildSurface unexpected native destruction, refresh-rate conversion, and exact exclusive-mode
 matching.
 
+Presentation-publication hooks replace the authoritative renderer-facing subset on the owner thread, mirror it only when concurrent reads are
+enabled, and expose allocation identity for lazy, idempotent, close/reopen tests. Allocation failure uses the shared one-shot allocation failure
+point.
+
 Clipboard hooks provide one-shot failures for allocation, text/path/image preparation, helper owner creation, access, native clear/read/enumeration,
 registered-format creation, and close. `failClipboardPublicationAt()` selects a zero-based caller item, while
 `failClipboardEnumerationAfter()` preserves a requested materialized prefix before failure. `resetFailures()` clears these thread-local controls.

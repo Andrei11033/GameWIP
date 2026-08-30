@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "io/io.h"
+#include "io/status.h"
 #include "desktop/description.h"
 #include "desktop/display.h"
 #include "desktop/events.h"
@@ -22,6 +22,7 @@ namespace GameWIP::Desktop
     namespace Detail
     {
         struct RendererIntegrationState;
+        class PresentationPublicationState;
         struct WindowState;
         struct WindowAccess;
     } // namespace Detail
@@ -140,9 +141,10 @@ namespace GameWIP::Desktop
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool supports(Types::Capability capability) noexcept;
 
     /// @brief Non-copyable, non-movable RAII owner of one native top-level desktop Window.
-    /// @details Except wakeEventWait(), open-object operations require the opening thread. Cached
-    /// getters do not query the backend and are not synchronized. The stable object address and
-    /// thread affinity last until explicit close or destruction.
+    /// @details Except wakeEventWait(), operations require the opening thread by default. Cached
+    /// getters do not query the backend and are unsynchronized until the documented presentation
+    /// subset is opted into with Renderer::enableConcurrentPresentationReads(). Concurrent
+    /// destruction is not safe; callers must stop renderer reads first.
     class GAMEWIP_DESKTOP_EXPORT Window final
     {
     public:
@@ -150,24 +152,29 @@ namespace GameWIP::Desktop
         /// @{
 
         /// @brief Constructs a closed Window owner.
+        /// @details Does not allocate concurrent presentation-publication storage.
         Window() noexcept;
         Window(const Window &) = delete;
         Window &operator=(const Window &) = delete;
         Window(Window &&) = delete;
         Window &operator=(Window &&) = delete;
         /// @brief Closes the native lifetime and releases owned state.
+        /// @details Renderer readers must already be stopped or joined before C++ object destruction.
         ~Window() noexcept;
 
         /// @brief Opens with Events::kDefaultQueueCapacity internal slots.
+        /// @details Previously enabled concurrent presentation state remains at closed defaults until open commits successfully.
         /// @param description Initial Window properties and policies.
         /// @return Success, or a status explaining why no native Window was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Description &description = {}) noexcept;
         /// @brief Opens with a requested number of internally owned event slots.
+        /// @details Previously enabled concurrent presentation state remains at closed defaults until open commits successfully.
         /// @param description Initial Window properties and policies.
         /// @param eventQueueCapacity Number of event slots to allocate; must be greater than zero.
         /// @return Success, or a status explaining why no native Window was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::size_t eventQueueCapacity) noexcept;
         /// @brief Opens while borrowing caller-owned event storage until close.
+        /// @details Previously enabled concurrent presentation state remains at closed defaults until open commits successfully.
         /// @param description Initial Window properties and policies.
         /// @param eventStorage Non-empty storage that must remain alive and unmoved until close.
         /// @return Success, or a status explaining why no native Window was opened.
@@ -180,6 +187,7 @@ namespace GameWIP::Desktop
         /// @return The current lifecycle state, including pending owner-thread finalization.
         [[nodiscard]] Types::LifetimeState lifetimeState() const noexcept;
         /// @brief Closes the native lifetime on its owner thread.
+        /// @details Resets enabled presentation publication to closed defaults without freeing or disabling its stable allocation.
         /// @return Success when closed or already closed; ResourceBusy on the wrong thread; otherwise the native cleanup failure.
         [[nodiscard]] IO::Types::Status close() noexcept;
         /// @}
@@ -250,9 +258,11 @@ namespace GameWIP::Desktop
         /// @return A view valid until the title changes or the Window closes.
         [[nodiscard]] std::string_view title() const noexcept;
         /// @brief Returns the cached logical client extent.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return Client width and height in logical units.
         [[nodiscard]] Types::LogicalSize clientSize() const noexcept;
         /// @brief Returns the cached physical framebuffer extent.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return Framebuffer width and height in physical pixels.
         [[nodiscard]] Types::PixelSize framebufferSize() const noexcept;
         /// @brief Returns the cached virtual-screen client position.
@@ -265,15 +275,18 @@ namespace GameWIP::Desktop
         /// @return Physical inset from each outer frame edge to the client area.
         [[nodiscard]] Types::Insets frameInsets() const noexcept;
         /// @brief Returns the cached logical-to-physical scale.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return Horizontal and vertical content scale.
         [[nodiscard]] Types::ContentScale contentScale() const noexcept;
         /// @brief Returns the cached effective content DPI.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return Horizontal and vertical effective DPI.
         [[nodiscard]] Types::Dpi effectiveDpi() const noexcept;
         /// @brief Returns the cached DPI resize policy.
         /// @return The policy applied when the effective DPI changes.
         [[nodiscard]] Types::DpiResizePolicy dpiResizePolicy() const noexcept;
         /// @brief Returns the cached current monitor identity.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return Current monitor ID, or an invalid ID when no monitor is known.
         [[nodiscard]] Types::Display::MonitorId currentMonitor() const noexcept;
         /// @brief Returns the cached top-level mode.
@@ -283,6 +296,7 @@ namespace GameWIP::Desktop
         /// @return Current monitor and display-mode selection for the fullscreen state.
         [[nodiscard]] Types::FullscreenInfo fullscreenInfo() const noexcept;
         /// @brief Returns the cached presentation state.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return Current normal, minimized, or maximized presentation state.
         [[nodiscard]] Types::PresentationState presentationState() const noexcept;
         /// @brief Returns the cached decoration policy.
@@ -316,18 +330,26 @@ namespace GameWIP::Desktop
         /// @return Current whole-Window opacity.
         [[nodiscard]] float opacity() const noexcept;
         /// @brief Returns the cached visibility state.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return true when the Window is requested visible; otherwise false.
         [[nodiscard]] bool visible() const noexcept;
         /// @brief Returns the cached keyboard-focus state.
         /// @return true when the Window currently has keyboard focus.
         [[nodiscard]] bool focused() const noexcept;
+        /// @brief Returns whether an OS-managed interactive move or resize is active.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
+        /// @return true while the native interactive move/resize operation is active.
+        [[nodiscard]] bool interactiveMoveResizeActive() const noexcept;
         /// @brief Returns whether the cached presentation state is minimized.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return true when presentationState() is Minimized.
         [[nodiscard]] bool minimized() const noexcept;
         /// @brief Returns whether the cached presentation state is maximized.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return true when presentationState() is Maximized.
         [[nodiscard]] bool maximized() const noexcept;
         /// @brief Returns renderer-supplied occlusion state when a provider is attached.
+        /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return The last attached renderer report, or false without a provider.
         [[nodiscard]] bool occluded() const noexcept;
         /// @brief Returns whether the cursor is cached inside the client area.
@@ -505,6 +527,7 @@ namespace GameWIP::Desktop
 
     private:
         friend struct Detail::WindowAccess;
+        std::unique_ptr<Detail::PresentationPublicationState> presentationPublication_; ///< Lazy, one-way concurrent-read state.
         std::unique_ptr<Detail::WindowState> state_;
         std::unique_ptr<Detail::RendererIntegrationState> rendererIntegration_;
     };

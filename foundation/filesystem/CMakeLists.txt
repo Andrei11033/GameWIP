@@ -17,7 +17,16 @@ add_library(GameWIP::FileSystem ALIAS FileSystem)
 target_sources(
     FileSystem
     PRIVATE core/filesystem.cpp core/path.cpp
-    PUBLIC FILE_SET public_headers TYPE HEADERS BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
+    PUBLIC
+        FILE_SET public_headers
+            TYPE HEADERS
+            BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.."
+            FILES
+                "${CMAKE_CURRENT_SOURCE_DIR}/path.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/entry.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/file.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/directory.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
 )
 
 gamewip_target_platform_backend(TARGET FileSystem ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
@@ -39,7 +48,12 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME FileSystem
         PAGE_ID filesystem
-        PUBLIC_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
+        PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/path.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/entry.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/file.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/directory.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/filesystem.h"
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()

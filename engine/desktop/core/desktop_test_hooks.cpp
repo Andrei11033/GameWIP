@@ -165,6 +165,11 @@ namespace GameWIP::Desktop::TestHooks
         return Detail::WindowAccess::rendererIntegration(window) != nullptr;
     }
 
+    const void *presentationPublicationStorage(const Window &window) noexcept
+    {
+        return Detail::WindowAccess::presentationPublication(window);
+    }
+
     void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept
     {
         Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
@@ -199,6 +204,11 @@ namespace GameWIP::Desktop::TestHooks
             state->eventStorage = storage;
             state->eventStorageKind = Types::Events::StorageKind::External;
             Detail::WindowAccess::bindRendererIntegration(window, *state);
+            if (Detail::WindowAccess::presentationPublication(window) != nullptr)
+            {
+                Detail::WindowAccess::bindPresentationPublication(window, *state);
+                Detail::publishCachedPresentationState(*state);
+            }
             Detail::WindowAccess::stateOwner(window) = std::move(state);
             return IO::successStatus();
         }
@@ -228,6 +238,24 @@ namespace GameWIP::Desktop::TestHooks
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         static_cast<void>(Detail::requestClose(*state, source));
         return IO::successStatus();
+    }
+
+    void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept
+    {
+        Detail::WindowState *state = Detail::WindowAccess::state(window);
+        if (state == nullptr)
+            return;
+        state->clientSize = snapshot.clientSize;
+        state->framebufferSize = snapshot.framebufferSize;
+        state->contentScale = snapshot.contentScale;
+        state->dpi = snapshot.dpi;
+        state->monitor = snapshot.monitor;
+        state->presentation = snapshot.presentation;
+        state->visible = snapshot.visible;
+        state->interactiveMoveResizeActive = snapshot.interactiveMoveResizeActive;
+        Detail::publishCachedPresentationState(*state);
+        if (Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+            publication->publishOccluded(snapshot.occluded);
     }
 
     std::uint64_t pointerHitMaskGeneration(const Window &window) noexcept

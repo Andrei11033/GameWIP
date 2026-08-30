@@ -13,6 +13,10 @@ cleanup, pump reentrancy, custom cursor validation, materialization, DPI reselec
 transactionality, timeouts, partial publication and cleanup precedence, ChildSurface parent loss, geometry, queues, DPI,
 ordering, native hosting, and injected failure and rollback paths.
 
+Renderer-facing publication coverage checks default allocation-free owner-thread getters, enablement validation, allocation failure, idempotent stable
+storage, and immediate publication. Enabled high-frequency tests cover compound coherence, DPI, scale, current monitor, presentation, visibility,
+interactive state, occlusion, transactional open, close/reopen reuse, and native destruction.
+
 Occlusion coverage distinguishes stable backend capability
 (`supports(Capability::OcclusionReporting)`) from current provider state
 (`Renderer::hasOcclusionProvider()`).
@@ -64,7 +68,7 @@ file drops, taskbar/ownership behavior, DPI/fullscreen transitions, and
 shell-visible state. See @ref desktop_manual_validation for the operator
 checklist.
 
-`--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`, `files-shell`,
-`fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow; `borderless`, `exclusive`, and
-`topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and record before/after mode-transition
-geometry so evidence survives a driver reset or process interruption.
+`--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`,
+`files-shell`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow; `borderless`,
+`exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and record before/after
+mode-transition geometry so evidence survives a driver reset or process interruption.

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <new>
 
 namespace GameWIP::Desktop::Renderer
@@ -41,6 +42,45 @@ namespace GameWIP::Desktop::Renderer
     } // namespace
 
     // ------------------------------------------------------------
+    // Concurrent presentation reads
+    // ------------------------------------------------------------
+    IO::Types::Status enableConcurrentPresentationReads(Window &window) noexcept
+    {
+        Detail::WindowState *state = nullptr;
+        IO::Types::Status status = requireOwner(window, state);
+        if (!status.ok())
+            return status;
+        if (Detail::WindowAccess::presentationPublication(window) != nullptr)
+            return IO::successStatus();
+        if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+
+        try
+        {
+            auto publication = std::make_unique<Detail::PresentationPublicationState>();
+            Detail::publishCachedPresentationState(*publication, *state);
+            const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+            publication->publishOccluded(renderer != nullptr && renderer->occlusionProviderAttached && renderer->occluded);
+            Detail::WindowAccess::presentationPublicationOwner(window) = std::move(publication);
+            Detail::WindowAccess::bindPresentationPublication(window, *state);
+            return IO::successStatus();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
+        }
+    }
+
+    bool concurrentPresentationReadsEnabled(const Window &window) noexcept
+    {
+        return Detail::WindowAccess::presentationPublication(window) != nullptr;
+    }
+
+    // ------------------------------------------------------------
     // Occlusion reporting
     // ------------------------------------------------------------
     IO::Types::Status attachOcclusionProvider(Window &window) noexcept
@@ -60,6 +100,8 @@ namespace GameWIP::Desktop::Renderer
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         renderer->occlusionProviderAttached = true;
         renderer->occluded = false;
+        if (Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+            publication->publishOccluded(false);
         return IO::successStatus();
     }
 
@@ -82,6 +124,8 @@ namespace GameWIP::Desktop::Renderer
             return IO::successStatus();
 
         renderer->occluded = occluded;
+        if (Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+            publication->publishOccluded(occluded);
         static_cast<void>(Detail::enqueueEvent(*state, Types::Events::OcclusionChanged{occluded}));
         return IO::successStatus();
     }
@@ -97,6 +141,8 @@ namespace GameWIP::Desktop::Renderer
             return IO::successStatus();
 
         renderer->occlusionProviderAttached = false;
+        if (Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+            publication->publishOccluded(false);
         if (renderer->occluded)
         {
             renderer->occluded = false;

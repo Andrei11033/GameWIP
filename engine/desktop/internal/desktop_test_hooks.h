@@ -52,6 +52,20 @@ namespace GameWIP::Desktop::TestHooks
         bool valid = false;
     };
 
+    /// @brief Complete deterministic input for renderer-facing presentation publication tests.
+    struct PresentationPublicationSnapshot
+    {
+        Types::LogicalSize clientSize;
+        Types::PixelSize framebufferSize;
+        Types::ContentScale contentScale;
+        Types::Dpi dpi;
+        Types::Display::MonitorId monitor;
+        Types::PresentationState presentation = Types::PresentationState::Normal;
+        bool visible = false;
+        bool interactiveMoveResizeActive = false;
+        bool occluded = false;
+    };
+
     enum class FailurePoint
     {
         None,
@@ -93,10 +107,16 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
+    /// @brief Applies renderer-facing test state and mirrors it when concurrent reads are enabled.
+    GAMEWIP_DESKTOP_EXPORT void applyPresentationPublicationSnapshot(
+        Window &window,
+        const PresentationPublicationSnapshot &snapshot) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept;
     GAMEWIP_DESKTOP_EXPORT void enablePointerHitMaskBridge(Window &window) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool hasRendererIntegrationState(const Window &window) noexcept;
+    /// @brief Returns the stable publication allocation identity, or nullptr while disabled.
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT const void *presentationPublicationStorage(const Window &window) noexcept;
     GAMEWIP_DESKTOP_EXPORT void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool pointerHitMaskAccepts(const Window &window, Types::LogicalPosition position) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;

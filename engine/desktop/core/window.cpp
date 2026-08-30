@@ -6,6 +6,7 @@
 
 #include "desktop/internal/window_platform.h"
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/internal/presentation_publication_state.h"
 
 #include <cmath>
 #include <limits>
@@ -222,12 +223,15 @@ namespace GameWIP::Desktop
 
     Window::~Window() noexcept
     {
+        if (presentationPublication_)
+            presentationPublication_->reset();
         if (state_)
         {
             Detail::invalidatePointerHitMask(*state_);
             if (rendererIntegration_)
                 rendererIntegration_->finishWindowLifetime();
             state_->rendererIntegration = nullptr;
+            state_->presentationPublication = nullptr;
             if (!Detail::Platform::ownedByCurrentThread(*state_) && Detail::Platform::deferCleanupToOwner(state_))
                 return;
             Detail::Platform::closeBestEffort(*state_);
@@ -244,6 +248,8 @@ namespace GameWIP::Desktop
     {
         if (state_)
             return error(ErrorCode::AlreadyOpen);
+        if (presentationPublication_)
+            presentationPublication_->reset();
         if (eventQueueCapacity == 0)
             return error(ErrorCode::InvalidArgument);
 
@@ -259,7 +265,11 @@ namespace GameWIP::Desktop
             Detail::WindowAccess::bindRendererIntegration(*this, *candidate);
             initializeCachedState(*candidate, description);
             if (eventQueueCapacity > candidate->internalEvents.max_size())
+            {
+                if (presentationPublication_)
+                    presentationPublication_->reset();
                 return error(ErrorCode::InvalidArgument);
+            }
             candidate->internalEvents.resize(eventQueueCapacity);
             candidate->eventStorage = candidate->internalEvents;
             candidate->eventStorageKind = Types::Events::StorageKind::Internal;
@@ -268,18 +278,29 @@ namespace GameWIP::Desktop
             if (!status.ok())
             {
                 Detail::Platform::closeBestEffort(*candidate);
+                if (presentationPublication_)
+                    presentationPublication_->reset();
                 return status;
             }
             candidate->suppressEvents = false;
+            if (presentationPublication_)
+            {
+                Detail::WindowAccess::bindPresentationPublication(*this, *candidate);
+                Detail::publishCachedPresentationState(*candidate);
+            }
             state_ = std::move(candidate);
             return IO::successStatus();
         }
         catch (const std::bad_alloc &)
         {
+            if (presentationPublication_)
+                presentationPublication_->reset();
             return error(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
+            if (presentationPublication_)
+                presentationPublication_->reset();
             return error(ErrorCode::Unknown);
         }
     }
@@ -288,6 +309,8 @@ namespace GameWIP::Desktop
     {
         if (state_)
             return error(ErrorCode::AlreadyOpen);
+        if (presentationPublication_)
+            presentationPublication_->reset();
         if (eventStorage.empty())
             return error(ErrorCode::InvalidArgument);
 
@@ -308,18 +331,29 @@ namespace GameWIP::Desktop
             if (!status.ok())
             {
                 Detail::Platform::closeBestEffort(*candidate);
+                if (presentationPublication_)
+                    presentationPublication_->reset();
                 return status;
             }
             candidate->suppressEvents = false;
+            if (presentationPublication_)
+            {
+                Detail::WindowAccess::bindPresentationPublication(*this, *candidate);
+                Detail::publishCachedPresentationState(*candidate);
+            }
             state_ = std::move(candidate);
             return IO::successStatus();
         }
         catch (const std::bad_alloc &)
         {
+            if (presentationPublication_)
+                presentationPublication_->reset();
             return error(ErrorCode::OutOfMemory);
         }
         catch (...)
         {
+            if (presentationPublication_)
+                presentationPublication_->reset();
             return error(ErrorCode::Unknown);
         }
     }
@@ -346,6 +380,8 @@ namespace GameWIP::Desktop
                 releaseEventStorage(*state_);
             if (rendererIntegration_)
                 rendererIntegration_->finishWindowLifetime();
+            if (presentationPublication_)
+                presentationPublication_->reset();
             state_.reset();
             return IO::successStatus();
         }
@@ -359,6 +395,8 @@ namespace GameWIP::Desktop
             releaseEventStorage(*state_);
             if (rendererIntegration_)
                 rendererIntegration_->finishWindowLifetime();
+            if (presentationPublication_)
+                presentationPublication_->reset();
             state_.reset();
         }
         return result.status;
@@ -485,11 +523,11 @@ namespace GameWIP::Desktop
     }
     Types::LogicalSize Window::clientSize() const noexcept
     {
-        return state_ ? state_->clientSize : Types::LogicalSize{};
+        return presentationPublication_ ? presentationPublication_->clientSize() : state_ ? state_->clientSize : Types::LogicalSize{};
     }
     Types::PixelSize Window::framebufferSize() const noexcept
     {
-        return state_ ? state_->framebufferSize : Types::PixelSize{};
+        return presentationPublication_ ? presentationPublication_->framebufferSize() : state_ ? state_->framebufferSize : Types::PixelSize{};
     }
     Types::ScreenPosition Window::clientPosition() const noexcept
     {
@@ -505,11 +543,11 @@ namespace GameWIP::Desktop
     }
     Types::ContentScale Window::contentScale() const noexcept
     {
-        return state_ ? state_->contentScale : Types::ContentScale{};
+        return presentationPublication_ ? presentationPublication_->contentScale() : state_ ? state_->contentScale : Types::ContentScale{};
     }
     Types::Dpi Window::effectiveDpi() const noexcept
     {
-        return state_ ? state_->dpi : Types::Dpi{};
+        return presentationPublication_ ? presentationPublication_->dpi() : state_ ? state_->dpi : Types::Dpi{};
     }
     Types::DpiResizePolicy Window::dpiResizePolicy() const noexcept
     {
@@ -517,7 +555,7 @@ namespace GameWIP::Desktop
     }
     Types::Display::MonitorId Window::currentMonitor() const noexcept
     {
-        return state_ ? state_->monitor : Types::Display::MonitorId{};
+        return presentationPublication_ ? presentationPublication_->monitor() : state_ ? state_->monitor : Types::Display::MonitorId{};
     }
     Types::Mode Window::mode() const noexcept
     {
@@ -529,7 +567,8 @@ namespace GameWIP::Desktop
     }
     Types::PresentationState Window::presentationState() const noexcept
     {
-        return state_ ? state_->presentation : Types::PresentationState::Normal;
+        return presentationPublication_ ? presentationPublication_->presentation()
+                                        : state_ ? state_->presentation : Types::PresentationState::Normal;
     }
     Types::DecorationMode Window::decorationMode() const noexcept
     {
@@ -573,22 +612,29 @@ namespace GameWIP::Desktop
     }
     bool Window::visible() const noexcept
     {
-        return state_ && state_->visible;
+        return presentationPublication_ ? presentationPublication_->visible() : state_ && state_->visible;
     }
     bool Window::focused() const noexcept
     {
         return state_ && state_->focused;
     }
+    bool Window::interactiveMoveResizeActive() const noexcept
+    {
+        return presentationPublication_ ? presentationPublication_->interactiveMoveResizeActive()
+                                        : state_ && state_->interactiveMoveResizeActive;
+    }
     bool Window::minimized() const noexcept
     {
-        return state_ && state_->presentation == Types::PresentationState::Minimized;
+        return presentationState() == Types::PresentationState::Minimized;
     }
     bool Window::maximized() const noexcept
     {
-        return state_ && state_->presentation == Types::PresentationState::Maximized;
+        return presentationState() == Types::PresentationState::Maximized;
     }
     bool Window::occluded() const noexcept
     {
+        if (presentationPublication_)
+            return presentationPublication_->occluded();
         const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(*this);
         return state_ && renderer != nullptr && renderer->occluded;
     }
