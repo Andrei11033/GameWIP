@@ -59,7 +59,7 @@ code `1`.
 | `assertStressIterations` | Assert stress repetition count. |
 | `writeReport` | Enables the retained aggregate report. |
 | `appendReport` | Makes the first selected module append rather than replace the report. |
-| `reportPath` | Absolute report path or a relative path resolved under the GameWIP temporary root. |
+| `reportPath` | Absolute report path or a relative path resolved beneath the running executable directory. |
 
 Command-line arguments may override the corresponding policy fields. The runner takes `RunOptions` by value so those overrides do not mutate the
 caller's object.
@@ -67,7 +67,7 @@ caller's object.
 ### `run()`
 
 `Tests::run()` performs one complete runner invocation. It is intended to run once at a time in a process; it coordinates process-wide module
-registration, standard streams, report paths, and module code that may mutate other global state.
+registration, standard streams, report paths, scoped temporary-directory environment, and module code that may mutate other global state.
 
 The runner catches exceptions from module callbacks and converts them into failed module results. Allocation or setup exceptions outside those
 protected callbacks are not a general exception-free API promise.
@@ -149,24 +149,32 @@ than one reserved selector, returns a handled validation failure without running
 
 ## Report paths and output
 
-Relative report paths are lexically normalized under the GameWIP directory in the operating-system temporary root. A relative path that still contains
-a parent-traversal component after normalization is rejected. Absolute paths are normalized and honored as explicit destinations.
+Relative report paths are lexically normalized beneath the running executable's directory. The default therefore produces
+`logs/validation/latest_test_report.txt` inside the active preset folder, such as `build/test`, `build/dev`, or `build/profile`, regardless of the caller's
+current directory. A relative path that still contains a parent-traversal component after normalization is rejected. Absolute paths are normalized
+and honored as explicit caller-selected destinations.
 
-On Windows, temporary-root containment accepts only an ordinary relative path with neither a root name nor a root directory. Drive-relative forms such
-as `D:report.txt`, root-relative forms such as `\report.txt`, and normalized parent traversal are rejected. Fully absolute paths remain explicit
-caller-selected destinations.
+On Windows, executable-directory containment accepts only an ordinary relative path with neither a root name nor a root directory.
+Drive-relative forms such as `D:report.txt`, root-relative forms, and normalized parent traversal are rejected. Fully absolute paths remain explicit;
+Caller-selected absolute destinations remain explicit.
 
 An empty or invalid report path disables retained file reporting and emits a console diagnostic; it does not fail the tests. `--no-test-report` has
 the same execution semantics without treating the path as invalid.
 
-The runner prints:
+The runner prints and retains in the aggregate report:
 
 - The resolved report path when retained output is active.
 - One module result line with the module's exact callback code.
-- One aggregate result with selected and failed counts.
+- One final aggregate result with selected and failed counts.
 
-TestSupport owns suite detail and report-file behavior. After the first selected module writes an aggregate report, subsequent modules receive
-`appendReport == true` so earlier evidence is preserved.
+The resolved path itself is printed to the console. TestSupport owns suite detail and report-file behavior. After the first selected module writes an
+aggregate report, subsequent modules receive `appendReport == true` so earlier evidence is preserved. Every module adapter must forward the shared
+report path and append policy; otherwise it would split or replace the aggregate report.
+
+Before matching child routes or invoking modules, the runner creates `temp` beneath the running executable directory and temporarily points `TEMP`,
+`TMP`, and `TMPDIR` at it. This keeps TestSupport workspaces, subsystem fixtures, and inherited child-process temporary activity within the active
+`build/<preset>` tree. The prior environment is restored when validation returns, including when embedded startup validation continues into the game
+runtime. Failure to establish the owned temporary root fails validation before a module can fall back to an unrelated host directory.
 
 Validation modules that use TestSupport infrastructure must convert a failed infrastructure `status` into a recorded failure at the call site before
 reading the result payload. They must not reinterpret a child process's nonzero exit or timeout as a launch failure: the child result keeps

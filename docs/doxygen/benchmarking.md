@@ -209,8 +209,9 @@ Benchmarks must:
 
 Logger scenarios report queue, drop, flush, or error counters where necessary so a fast producer result cannot hide lost work.
 
-FileSystem fixtures are created below the operating-system temporary directory and reused across scenarios. Set the host temporary-directory
-environment to a representative local or network volume before launching the benchmark when comparing storage backends.
+Benchmark fixtures are created below `build/benchmark/temp` for standalone runs and below the active game preset's `temp` directory for embedded
+runs. The runner scopes and restores `TEMP`, `TMP`, and `TMPDIR`, so fixture and Logger benchmark files do not spill into the host temporary directory.
+To compare storage backends, place the applicable preset build tree on the representative local or network volume.
 
 ## Outputs and artifacts
 

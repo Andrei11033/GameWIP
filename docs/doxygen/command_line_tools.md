@@ -129,7 +129,7 @@ Use `gamewip.bat list` for current presets, modules, project commands, bundles, 
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
 | `-Changed` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
 | `-Json` | Emit the final structured operation result as JSON. |
-| `-NoWorkspaceTemp` | Keep the caller's TEMP/TMP instead of using operation-owned workspace temp. |
+| `-NoWorkspaceTemp` | Keep the caller's TEMP/TMP instead of using operation-owned helper temp. Validation and benchmark executables still scope their own fixtures beneath the active preset tree. |
 | `-Preview` | Print the planned scope and perform only action-specific read-only discovery or preflight. Do not apply the requested local, tracked, machine, or remote mutation; diagnostic run logs and receipts are still retained under `build/gamewip/runs/`. |
 | `-NonInteractive` | Disable prompts. This never grants mutation consent at any risk class. |
 | `-Yes` | Approve the printed mutation plan for non-interactive execution. |

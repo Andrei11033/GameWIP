@@ -13,6 +13,9 @@ cleanup, pump reentrancy, custom cursor validation, materialization, DPI reselec
 transactionality, timeouts, partial publication and cleanup precedence, ChildSurface parent loss, geometry, queues, DPI,
 ordering, native hosting, and injected failure and rollback paths.
 
+Display-color shutdown coverage uses routed child processes so failures after a suite function returns remain observable. It verifies exact zero exit
+codes after a standalone color query, a normal `WM_CLOSE` and final-Window close path, and owner-thread exit with retained Window state.
+
 Renderer-facing publication coverage checks default allocation-free owner-thread getters, enablement validation, allocation failure, idempotent stable
 storage, and immediate publication. Enabled high-frequency tests cover compound coherence, DPI, scale, current monitor, presentation, visibility,
 interactive state, occlusion, transactional open, close/reopen reuse, and native destruction.

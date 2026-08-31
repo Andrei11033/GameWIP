@@ -247,6 +247,15 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         Dispatcher &current = dispatcher();
         current.windows.erase(std::remove(current.windows.begin(), current.windows.end(), &state), current.windows.end());
+        if (current.windows.empty())
+            releaseDisplayColorResources();
+    }
+
+    bool hasOpenWindowsOnCurrentThread() noexcept
+    {
+        std::scoped_lock lock(dispatcherRegistryMutex);
+        const auto found = dispatcherRegistry.find(GetCurrentThreadId());
+        return found != dispatcherRegistry.end() && found->second != nullptr && !found->second->windows.empty();
     }
 
     void registerOpenChildSurface(ChildSurfaceState &state)
@@ -326,6 +335,11 @@ namespace GameWIP::Desktop::Detail::Platform
 
     Dispatcher::~Dispatcher() noexcept
     {
+        // Thread-exit cleanup cannot safely enter DXGI Release. Normal query and
+        // final-window paths release eagerly; this exceptional path leaves the
+        // remaining reference for process reclamation.
+        abandonDisplayColorResources();
+
         // Keep the registry locked through shutdown. A concurrent wrong-thread
         // destructor either transfers before this point or waits until every
         // owner-thread-affine native resource has been released.

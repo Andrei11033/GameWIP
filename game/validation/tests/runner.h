@@ -41,8 +41,8 @@ namespace GameWIP::Validation::Tests
         bool writeReport = true;
         /// @brief Appends the first selected module instead of truncating reportPath.
         bool appendReport = false;
-        /// @brief Absolute report path or path resolved under the GameWIP OS-temp root after lexical validation.
-        std::filesystem::path reportPath = "logs/tests/latest_test_report.txt";
+        /// @brief Absolute report path or path resolved beneath the running executable directory after lexical validation.
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
     };
 
     /// @brief Routes child protocols, applies selection policy, and aggregates correctness modules.
@@ -50,6 +50,7 @@ namespace GameWIP::Validation::Tests
     /// @param argv Borrowed original process arguments; recognized options are not removed before module callbacks.
     /// @param options Shared policy copied into the runner; recognized command-line arguments may override the copy.
     /// @return Aggregate result, or an exact routed-child result when handledChildInvocation is true.
-    /// @note Intended for one invocation at a time because modules and reporting may coordinate process-global state.
+    /// @note Intended for one invocation at a time because modules, reporting, and scoped temporary-environment policy coordinate process-global
+    /// state.
     [[nodiscard]] TestResult run(int argc, char **argv, RunOptions options = {});
 } // namespace GameWIP::Validation::Tests

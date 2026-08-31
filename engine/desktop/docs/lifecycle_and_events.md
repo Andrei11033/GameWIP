@@ -36,6 +36,11 @@ Wrong-thread destruction does not destroy owner-thread-affine resources directly
 allocating, the dispatcher is woken, and cleanup is completed on the owner thread. Dispatcher teardown also drains deferred cleanup and finalizes
 registered Windows.
 
+Display-color queries retain a current-thread DXGI factory only while that thread owns an open Window. Standalone queries release the factory before
+returning, and closing the final Window releases it during controlled Desktop execution. If an owner thread exits with a Window still registered,
+dispatcher teardown drops the remaining factory reference without entering DXGI from thread-detach cleanup; the operating system reclaims that
+exceptional-path reference at process termination.
+
 ## Close intent
 
 `requestClose()` represents intent, not destruction. It sets the sticky `hasCloseRequest()` state and queues one `Types::Events::CloseRequested`

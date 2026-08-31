@@ -51,6 +51,12 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept;
     [[nodiscard]] Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept;
     [[nodiscard]] bool consumeDisplayColorConfigurationChange() noexcept;
+    /// @brief Releases display-color resources retained by the calling thread.
+    void releaseDisplayColorResources() noexcept;
+    /// @brief Drops process-reclaimable display-color state during owner-thread teardown.
+    void abandonDisplayColorResources() noexcept;
+    /// @brief Returns whether the calling thread currently owns an open top-level Window.
+    [[nodiscard]] bool hasOpenWindowsOnCurrentThread() noexcept;
 
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;
     [[nodiscard]] CloseResult close(WindowState &state) noexcept;

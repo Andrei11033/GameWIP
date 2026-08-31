@@ -36,7 +36,7 @@ function(gamewip_add_test_module)
     if(GAMEWIP_BUILD_TESTS)
         add_test(
             NAME "validation.tests.${MODULE_NAME}"
-            COMMAND $<TARGET_FILE:GameWIPTests> "--test-module=${MODULE_NAME}" "--test-report=logs/tests/${MODULE_NAME}_test_report.txt"
+            COMMAND $<TARGET_FILE:GameWIPTests> "--test-module=${MODULE_NAME}" "--test-report=logs/validation/${MODULE_NAME}_test_report.txt"
         )
         set_tests_properties(
             "validation.tests.${MODULE_NAME}"

@@ -47,3 +47,7 @@ invalid while a fullscreen mode is active.
 The Win32 backend recovers fullscreen state when display topology changes and queues `Types::Events::DisplayConfigurationChanged` / `MonitorChanged` /
 `ModeChanged` as appropriate. Color configuration changes are also surfaced through display-configuration events; callers re-query
 `Display::getColorInfo()` for current facts.
+
+The Win32 color query uses a current-thread DXGI factory to observe configuration currency while the calling thread owns a Window. Standalone monitor
+queries release that factory before returning. Closing the thread's final Window also releases it, keeping COM cleanup inside an ordinary Desktop
+operation rather than process-exit thread-local destruction.

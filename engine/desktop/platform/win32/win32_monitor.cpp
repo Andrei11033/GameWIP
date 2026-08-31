@@ -75,7 +75,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         struct DisplayColorFactoryState
         {
-            ComReference<IDXGIFactory1> factory;
+            // Explicit cleanup keeps DXGI Release calls inside an active Desktop
+            // operation instead of relying on process-exit thread-local teardown.
+            IDXGIFactory1 *factory = nullptr;
             bool queried = false;
 #if DESKTOP_INTERNAL_TEST_HOOKS
             bool forceConfigurationChange = false;
@@ -87,11 +89,11 @@ namespace GameWIP::Desktop::Detail::Platform
 
         [[nodiscard]] bool ensureDisplayColorFactory() noexcept
         {
-            if (displayColorFactory.factory && displayColorFactory.factory->IsCurrent() != FALSE)
+            if (displayColorFactory.factory != nullptr && displayColorFactory.factory->IsCurrent() != FALSE)
                 return true;
 
-            displayColorFactory.factory.reset();
-            return SUCCEEDED(CreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(displayColorFactory.factory.put())));
+            releaseDisplayColorResources();
+            return SUCCEEDED(CreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(&displayColorFactory.factory)));
         }
 
         void addDxgiColorMetadata(HMONITOR monitor, DisplayColorSnapshot &snapshot) noexcept
@@ -754,17 +756,22 @@ namespace GameWIP::Desktop::Detail::Platform
             if (!status.ok())
                 return {.status = std::move(status)};
 
+            const bool releaseAfterQuery = !hasOpenWindowsOnCurrentThread();
             displayColorFactory.queried = true;
             DisplayColorSnapshot snapshot;
 #if DESKTOP_INTERNAL_TEST_HOOKS
             if (displayColorFactory.forceMetadataUnavailable)
             {
                 displayColorFactory.forceMetadataUnavailable = false;
+                if (releaseAfterQuery)
+                    releaseDisplayColorResources();
                 return {.status = IO::successStatus(), .info = makeDisplayColorInfo(monitor, snapshot)};
             }
 #endif
             addDisplayConfigColorMetadata(active, snapshot);
             addDxgiColorMetadata(native, snapshot);
+            if (releaseAfterQuery)
+                releaseDisplayColorResources();
             return {.status = IO::successStatus(), .info = makeDisplayColorInfo(monitor, snapshot)};
         }
         catch (const std::bad_alloc &)
@@ -783,14 +790,33 @@ namespace GameWIP::Desktop::Detail::Platform
         if (displayColorFactory.forceConfigurationChange)
         {
             displayColorFactory.forceConfigurationChange = false;
-            displayColorFactory.factory.reset();
+            releaseDisplayColorResources();
             return true;
         }
 #endif
-        if (!displayColorFactory.queried || !displayColorFactory.factory || displayColorFactory.factory->IsCurrent() != FALSE)
+        if (!displayColorFactory.queried || displayColorFactory.factory == nullptr || displayColorFactory.factory->IsCurrent() != FALSE)
             return false;
-        displayColorFactory.factory.reset();
+        releaseDisplayColorResources();
         return true;
+    }
+
+    void releaseDisplayColorResources() noexcept
+    {
+        if (displayColorFactory.factory != nullptr)
+        {
+            displayColorFactory.factory->Release();
+            displayColorFactory.factory = nullptr;
+        }
+        displayColorFactory.queried = false;
+    }
+
+    void abandonDisplayColorResources() noexcept
+    {
+        // DXGI Release may raise a facility exception from Windows thread-exit
+        // cleanup. The process reclaims this exceptional-path reference after
+        // ordinary standalone and final-window paths have released it eagerly.
+        displayColorFactory.factory = nullptr;
+        displayColorFactory.queried = false;
     }
 } // namespace GameWIP::Desktop::Detail::Platform
 

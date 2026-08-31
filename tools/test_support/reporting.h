@@ -34,12 +34,12 @@ namespace GameWIP::TestSupport
         /// @brief Runtime report-output settings shared by test suites.
         struct Options
         {
-            bool writeConsole = true;                                               ///< Mirrors enabled report categories to stdout.
-            bool writeReport = true;                                                ///< Enables report-file setup when reportPath is non-empty.
-            bool appendReport = false;                                              ///< Appends instead of truncating when the report sink opens.
-            bool flushReportEachLine = false;                                       ///< Flushes report-file output after each written line.
-            ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full;             ///< Categories mirrored to stdout.
-            std::filesystem::path reportPath = "logs/tests/latest_test_report.txt"; ///< Report-file destination.
+            bool writeConsole = true;                                   ///< Mirrors enabled report categories to stdout.
+            bool writeReport = true;                                    ///< Enables report-file setup when reportPath is non-empty.
+            bool appendReport = false;                                  ///< Appends instead of truncating when the report sink opens.
+            bool flushReportEachLine = false;                           ///< Flushes report-file output after each written line.
+            ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full; ///< Categories mirrored to stdout.
+            std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report-file destination.
         };
 
         /// @brief Pass/fail/skip counts for one context, suite, or run.

@@ -31,6 +31,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <filesystem>
 #include <format>
 #include <functional>
 #include <limits>
@@ -51,6 +52,9 @@ namespace
     using ErrorCode = IO::Types::ErrorCode;
 
     inline constexpr wchar_t kManualTestAppUserModelId[] = L"GameWIP.Validation.DesktopManualTests";
+    inline constexpr std::string_view kStandaloneColorChildArgument = "--desktop-test-child=standalone-color-shutdown";
+    inline constexpr std::string_view kWindowColorChildArgument = "--desktop-test-child=window-color-shutdown";
+    inline constexpr std::string_view kOwnerExitColorChildArgument = "--desktop-test-child=owner-exit-color-shutdown";
 
     static_assert(!std::is_move_constructible_v<Desktop::Window>);
     static_assert(!std::is_move_assignable_v<Desktop::Window>);
@@ -67,6 +71,111 @@ namespace
     static_assert(noexcept(Desktop::Display::getColorInfo(std::declval<const Desktop::Window &>())));
     static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.paths)::value_type, GameWIP::FileSystem::Types::Path>);
 
+    [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected) noexcept
+    {
+        const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+        return std::ranges::any_of(
+            arguments.subspan(std::min<std::size_t>(1, arguments.size())),
+            [expected](const char *value)
+            {
+                return value != nullptr && std::string_view(value) == expected;
+            });
+    }
+
+    [[nodiscard]] int runStandaloneColorShutdownChild() noexcept
+    {
+        const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
+        if (!primary.status.ok())
+            return 2;
+        return Desktop::Display::getColorInfo(primary.monitor.id).status.ok() ? 0 : 3;
+    }
+
+    [[nodiscard]] int runWindowColorShutdownChild() noexcept
+    {
+        const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
+        if (!primary.status.ok() || !Desktop::Display::getColorInfo(primary.monitor.id).status.ok())
+            return 2;
+
+        Desktop::Types::Description description;
+        description.title = "Desktop color shutdown child";
+        description.clientSize = {160, 100};
+        description.visible = false;
+        Desktop::Window window;
+        if (!window.open(description, 4).ok())
+            return 3;
+        if (!Desktop::Display::getColorInfo(window).status.ok())
+            return 4;
+
+        const auto handle = Desktop::Native::Win32::getHandle(window);
+        if (!handle.status.ok() || handle.handle.window == nullptr || PostMessageW(static_cast<HWND>(handle.handle.window), WM_CLOSE, 0, 0) == FALSE)
+        {
+            return 5;
+        }
+        if (!Desktop::Events::poll().status.ok() || !window.hasCloseRequest())
+            return 6;
+        return window.close().ok() ? 0 : 7;
+    }
+
+    [[nodiscard]] int runOwnerExitColorShutdownChild() noexcept
+    {
+        std::unique_ptr<Desktop::Window> survivingWindow;
+        int workerResult = 0;
+        std::thread owner(
+            [&]
+            {
+                auto window = std::make_unique<Desktop::Window>();
+                Desktop::Types::Description description;
+                description.title = "Desktop owner-exit color shutdown child";
+                description.clientSize = {160, 100};
+                description.visible = false;
+                if (!window->open(description, 4).ok())
+                {
+                    workerResult = 2;
+                    return;
+                }
+                if (!Desktop::Display::getColorInfo(*window).status.ok())
+                {
+                    workerResult = 3;
+                    return;
+                }
+                survivingWindow = std::move(window);
+            });
+        owner.join();
+        if (workerResult != 0)
+            return workerResult;
+        if (!survivingWindow || survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+            return 4;
+        survivingWindow.reset();
+        return 0;
+    }
+
+    void testDisplayColorProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
+    {
+        constexpr std::array childArguments{
+            kStandaloneColorChildArgument,
+            kWindowColorChildArgument,
+            kOwnerExitColorChildArgument,
+        };
+        for (const std::string_view argument : childArguments)
+        {
+            TestSupport::Types::Process::Options child;
+            child.executablePath = executablePath;
+            child.arguments = {std::string(argument)};
+            child.timeout = std::chrono::seconds(10);
+            child.captureOutput = true;
+            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
+            const std::string name = std::format("{} exits cleanly", argument);
+            if (!result.status.ok())
+            {
+                context.fail(name, TestSupport::formatInfrastructureStatus(result.status));
+                continue;
+            }
+            static_cast<void>(
+                context.expectEq(std::format("{} reports an exact exit", argument), TestSupport::Types::Process::Outcome::Exited, result.outcome));
+            static_cast<void>(context.expectEq(name, std::uint32_t{0}, result.exitCode));
+        }
+    }
+
 #include "validation/tests/desktop/desktop_manual_tests.inl"
 #include "validation/tests/desktop/desktop_lifecycle_tests.inl"
 #include "validation/tests/desktop/desktop_event_tests.inl"
@@ -81,6 +190,13 @@ namespace GameWIP::Test
 {
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
+        if (hasArgument(argc, argv, kStandaloneColorChildArgument))
+            return runStandaloneColorShutdownChild();
+        if (hasArgument(argc, argv, kWindowColorChildArgument))
+            return runWindowColorShutdownChild();
+        if (hasArgument(argc, argv, kOwnerExitColorChildArgument))
+            return runOwnerExitColorShutdownChild();
+
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
         std::optional<std::string_view> selectedManualSuite;
@@ -159,6 +275,12 @@ namespace GameWIP::Test
         runner.runSuite("Window native event translation", testNativeEventTranslation);
         runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
         runner.runSuite("Window display color information", testDisplayColorInformation);
+        runner.runSuite(
+            "Window display color process shutdown",
+            [&](TestSupport::Context &context)
+            {
+                testDisplayColorProcessShutdown(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+            });
         runner.runSuite("Window monitors and display modes", testMonitors);
         const bool validManualSelection = !selectedManualSuite || std::ranges::find(manualSuiteNames, *selectedManualSuite) != manualSuiteNames.end();
         if (!validManualSelection)

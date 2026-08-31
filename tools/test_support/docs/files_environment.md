@@ -44,9 +44,10 @@ parent-directory creation and before a truncating destination open. Existing des
 `ScopedTemporaryDirectory` and `ScopedCurrentPath` remain non-copyable/non-movable inert-on-failure guards. Their constructors are `noexcept`; inspect
 `status()` before using the requested state. Destructors perform best-effort non-throwing cleanup/restoration.
 
-`ScopedTemporaryDirectory` creates a unique child below the operating-system temporary directory using a sanitized readable purpose plus bounded
-collision retries. Its destructor attempts recursive removal and then removes empty TestSupport parent directories; open handles, abnormal
-termination, or external filesystem activity can still leave artifacts.
+`ScopedTemporaryDirectory` creates a unique child below the process temporary directory using a sanitized readable purpose plus bounded collision
+retries. GameWIP validation scopes that process directory to the active `build/<preset>/temp` tree; standalone library consumers use the host default.
+Its destructor attempts recursive removal and then removes empty TestSupport parent directories; open handles, abnormal termination, or external
+filesystem activity can still leave artifacts.
 
 `ScopedCurrentPath` captures and changes process-global current-directory state. Safe use requires strict LIFO ownership and no unrelated
 relative-path resolution or direct current-directory mutation during the scope.

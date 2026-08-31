@@ -12,12 +12,20 @@
 
 namespace GameWIP::Test
 {
-    int runBaseTests()
+    int runBaseTests(const BaseTestOptions &options)
     {
         namespace Base = GameWIP::Base;
         namespace TestSupport = GameWIP::TestSupport;
 
-        TestSupport::Runner runner({});
+        TestSupport::Types::Reporting::Options reportOptions;
+        reportOptions.writeConsole = true;
+        reportOptions.consoleVerbosity =
+            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
+        reportOptions.writeReport = options.writeReport;
+        reportOptions.appendReport = options.appendReport;
+        reportOptions.reportPath = options.reportPath;
+
+        TestSupport::Runner runner(reportOptions);
         runner.runSuite(
             "Base checked arithmetic",
             [](TestSupport::Context &context)

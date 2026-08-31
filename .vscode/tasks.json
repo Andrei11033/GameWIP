@@ -97,7 +97,7 @@
     {
       "label": "GameWIP: Profile Startup Tests",
       "type": "shell",
-      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe' --startup-tests",
+      "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; Push-Location '${workspaceFolder}\\build\\profile'; & '.\\GameWIP.exe' --startup-tests; $exitCode = $LASTEXITCODE; Pop-Location; exit $exitCode",
       "options": {
         "cwd": "${workspaceFolder}",
         "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },

@@ -16,6 +16,9 @@ async record.
 
 Fatal termination remains isolated in a child process; the real popup path remains manual/opt-in. Failure hooks remain one-shot and resettable.
 
+Windows thread-exit coverage exercises per-thread formatting scratch. MinGW teardown additionally owns and unregisters the FLS index so its cleanup
+callback cannot remain registered after the Logger module is unloaded.
+
 The Logger correctness module stays one logical module while behavior-focused private `.inl` fragments keep configuration,
 output, filters, reports, health, and process/manual cases easier to scan without promoting Logger-specific fixtures to TestSupport.
 

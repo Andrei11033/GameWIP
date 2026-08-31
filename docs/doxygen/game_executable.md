@@ -59,6 +59,11 @@ startup-benchmark build may reject arguments forwarded to Google Benchmark.
 Use `GameWIPTests.exe --help` and `GameWIPBenchmarks.exe --help` for their
 complete current option sets, or start at @ref project_command_line_tools.
 
+Embedded validation retains relative reports under `logs/validation` beside the game
+executable and scopes disposable validation or benchmark fixtures to its preset's
+`temp` directory. Those temporary environment changes are restored before the
+ordinary game runtime begins.
+
 ## Runtime sequence
 
 `main.cpp` follows one process-level sequence:
@@ -112,6 +117,9 @@ uncaught-exception behavior.
    the window receives a close request. On Windows, `Alt+F4` is the expected
    manual exit path.
 6. Close the window, report shutdown, and shut Logger down.
+
+The final Window close releases current-thread display-color resources before `GameWIP::Game::run()` returns. Process-level Desktop regression
+children verify that standalone color discovery, `WM_CLOSE`, and owner-thread cleanup do not replace the intended successful process exit code.
 
 Failure to enumerate displays, open or close the window, or pump events is
 logged and returns `EXIT_FAILURE`. A failed HDR/color query is included in the
