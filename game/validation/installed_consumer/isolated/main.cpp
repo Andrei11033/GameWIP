@@ -24,6 +24,7 @@
 #include "terminal/terminal.h"
 #elif defined(GAMEWIP_CONSUMER_Desktop)
 #include "desktop/cursor.h"
+#include "desktop/drag_drop.h"
 #include "desktop/display_info.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"

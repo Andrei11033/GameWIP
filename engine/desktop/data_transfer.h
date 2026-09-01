@@ -1,5 +1,5 @@
 /// @file data_transfer.h
-/// @brief Shared portable data-transfer values for Clipboard and future drag and drop.
+/// @brief Shared portable data-transfer values for Clipboard and native drag and drop.
 
 #pragma once
 

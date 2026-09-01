@@ -9,6 +9,8 @@
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
+#include "desktop/drag_drop.h"
+#include "desktop/internal/drag_drop_state.h"
 #include "desktop/internal/cursor_selection.h"
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
@@ -36,6 +38,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <ranges>
 #include <string>
 #include <thread>
@@ -55,6 +58,8 @@ namespace
     inline constexpr std::string_view kStandaloneColorChildArgument = "--desktop-test-child=standalone-color-shutdown";
     inline constexpr std::string_view kWindowColorChildArgument = "--desktop-test-child=window-color-shutdown";
     inline constexpr std::string_view kOwnerExitColorChildArgument = "--desktop-test-child=owner-exit-color-shutdown";
+    inline constexpr std::string_view kOwnerExitDragDropChildArgument = "--desktop-test-child=owner-exit-drag-drop-shutdown";
+    inline constexpr std::string_view kOwnerExitDragDropFailureChildArgument = "--desktop-test-child=owner-exit-drag-drop-revocation-failure";
 
     static_assert(!std::is_move_constructible_v<Desktop::Window>);
     static_assert(!std::is_move_assignable_v<Desktop::Window>);
@@ -149,12 +154,70 @@ namespace
         return 0;
     }
 
-    void testDisplayColorProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
+    [[nodiscard]] int runOwnerExitDragDropShutdownChild(bool forceRepeatedRevocationFailure) noexcept
+    {
+        std::unique_ptr<Desktop::Window> survivingWindow;
+        std::unique_ptr<Desktop::DragDropTarget> survivingTarget;
+        Desktop::Types::WindowId retainedWindowId;
+        int workerResult = 0;
+        std::thread owner(
+            [&]
+            {
+                auto window = std::make_unique<Desktop::Window>();
+                auto target = std::make_unique<Desktop::DragDropTarget>();
+                Desktop::Types::Description description;
+                description.title = "Desktop owner-exit DragDrop shutdown child";
+                description.clientSize = {160, 100};
+                description.visible = false;
+                if (!window->open(description, 4).ok())
+                {
+                    workerResult = 2;
+                    return;
+                }
+                namespace DD = Desktop::Types::DragDrop;
+                namespace Transfer = Desktop::Types::DataTransfer;
+                std::array formats{Transfer::FormatView{Transfer::FormatKind::Text, {}}};
+                std::array regions{DD::RegionDescription{DD::RegionId{1}, std::nullopt, formats, DD::Effect::Copy, DD::Effect::Copy}};
+                if (!target->open(*window, DD::TargetDescription{regions}, 2).ok())
+                {
+                    workerResult = 3;
+                    return;
+                }
+#if DESKTOP_INTERNAL_TEST_HOOKS
+                if (forceRepeatedRevocationFailure)
+                    Desktop::TestHooks::failDragDropRevocations(64);
+#else
+                static_cast<void>(forceRepeatedRevocationFailure);
+#endif
+                retainedWindowId = window->id();
+                survivingWindow = std::move(window);
+                survivingTarget = std::move(target);
+            });
+        owner.join();
+        if (workerResult != 0)
+            return workerResult;
+        if (!survivingWindow || !survivingTarget)
+            return 4;
+        if (survivingTarget->isOpen() || survivingTarget->lifetimeState() != Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize ||
+            survivingTarget->windowId() != retainedWindowId)
+            return 5;
+        if (survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+            return 6;
+        if (!survivingTarget->close().ok())
+            return 7;
+        survivingTarget.reset();
+        survivingWindow.reset();
+        return 0;
+    }
+
+    void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
     {
         constexpr std::array childArguments{
             kStandaloneColorChildArgument,
             kWindowColorChildArgument,
             kOwnerExitColorChildArgument,
+            kOwnerExitDragDropChildArgument,
+            kOwnerExitDragDropFailureChildArgument,
         };
         for (const std::string_view argument : childArguments)
         {
@@ -184,6 +247,7 @@ namespace
 #include "validation/tests/desktop/desktop_cursor_tests.inl"
 #include "validation/tests/desktop/desktop_child_surface_tests.inl"
 #include "validation/tests/desktop/desktop_clipboard_tests.inl"
+#include "validation/tests/desktop/desktop_drag_drop_tests.inl"
 } // namespace
 
 namespace GameWIP::Test
@@ -196,6 +260,10 @@ namespace GameWIP::Test
             return runWindowColorShutdownChild();
         if (hasArgument(argc, argv, kOwnerExitColorChildArgument))
             return runOwnerExitColorShutdownChild();
+        if (hasArgument(argc, argv, kOwnerExitDragDropChildArgument))
+            return runOwnerExitDragDropShutdownChild(false);
+        if (hasArgument(argc, argv, kOwnerExitDragDropFailureChildArgument))
+            return runOwnerExitDragDropShutdownChild(true);
 
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
@@ -216,6 +284,7 @@ namespace GameWIP::Test
             std::string_view{"cursor"},
             std::string_view{"child-surface"},
             std::string_view{"files-shell"},
+            std::string_view{"drag-drop"},
             std::string_view{"fullscreen"},
             std::string_view{"borderless"},
             std::string_view{"exclusive"},
@@ -248,6 +317,7 @@ namespace GameWIP::Test
         runner.runSuite("Window Clipboard values and validation", testClipboardValuesAndValidation);
         runner.runSuite("Window Clipboard native round trips", testClipboardRoundTrips);
         runner.runSuite("Window Clipboard multi-format and failure semantics", testClipboardMultiFormatAndFailures);
+        runner.runSuite("Window native data drag and drop", testDragDrop);
         runner.runSuite("Window description validation", testDescriptionValidation);
         runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
         runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
@@ -276,10 +346,10 @@ namespace GameWIP::Test
         runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
         runner.runSuite("Window display color information", testDisplayColorInformation);
         runner.runSuite(
-            "Window display color process shutdown",
+            "Window process-isolated shutdown",
             [&](TestSupport::Context &context)
             {
-                testDisplayColorProcessShutdown(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                testDesktopProcessShutdown(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
             });
         runner.runSuite("Window monitors and display modes", testMonitors);
         const bool validManualSelection = !selectedManualSuite || std::ranges::find(manualSuiteNames, *selectedManualSuite) != manualSuiteNames.end();
@@ -322,6 +392,7 @@ namespace GameWIP::Test
         runManualSuite("Window manual cursor behavior", "cursor", testManualCursor);
         runManualSuite("Window manual native child surface", "child-surface", testManualChildSurface);
         runManualSuite("Window manual files and shell behavior", "files-shell", testManualFilesAndShell);
+        runManualSuite("Window manual native data drag and drop", "drag-drop", testManualDragDrop);
         runManualSuite(
             "Window manual fullscreen and topology",
             "fullscreen",

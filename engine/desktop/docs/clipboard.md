@@ -12,7 +12,7 @@ widgets, editor commands, or drag and drop. Higher-level UI owns those choices.
 
 ## Shared transfer values
 
-`Types::DataTransfer` is shared with the later native drag-and-drop feature:
+`Types::DataTransfer` is shared with native drag and drop:
 
 - `FormatView` borrows a caller-supplied format description; `Format` owns the
   custom name returned by enumeration.
@@ -156,11 +156,12 @@ worker, or per-Window storage is added.
 
 ## Relationship to drag and drop
 
-GitHub issue 52 owns `desktop/data_transfer.h`. The future issue 58 native drag-and-drop feature
-must reuse its exact shared values and semantics while keeping drag lifecycle,
-effects, regions, and events in the drag-and-drop surface. Clipboard adds no
-drag/drop behavior and the existing lightweight `FilesDropped` Window event is
-unchanged.
+`desktop/drag_drop.h` reuses this exact transfer vocabulary while keeping drag
+lifecycle, effects, regions, sessions, and target events in its own opt-in
+surface. Clipboard and DragDrop share private Win32 wire-format conversion but
+retain separate native ownership and transaction rules. Clipboard adds no drag
+behavior, and the lightweight `FilesDropped` Window event remains separate. See
+@ref desktop_drag_drop.
 
 ## Related pages
 
@@ -169,3 +170,4 @@ unchanged.
 - @ref desktop_testing
 - @ref desktop_troubleshooting
 - @ref desktop_manual_validation
+- @ref desktop_drag_drop

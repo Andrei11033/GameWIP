@@ -2,16 +2,7 @@
 /// @brief Win32 event pumping and wait dispatch.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
-#include "desktop/platform/win32/internal/win32_compat.h"
-
-#include "desktop/native/win32.h"
-
 #include <algorithm>
-#include <array>
-#include <cmath>
-#include <format>
-#include <limits>
-#include <new>
 #include <utility>
 
 namespace GameWIP::Desktop::Detail::Platform

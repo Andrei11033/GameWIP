@@ -15,10 +15,11 @@ Window exposes one public `GameWIP::Desktop::Types` tree and focused headers by 
 - `desktop/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `desktop/cursor.h` is the opt-in custom native cursor resource and selection surface.
 - `desktop/child_surface.h` is the opt-in managed native child-host resource, passive description, and typed event surface.
-- `desktop/data_transfer.h` is the opt-in shared non-owning/owning transfer vocabulary for Clipboard and future drag and drop.
+- `desktop/data_transfer.h` is the opt-in shared non-owning/owning transfer vocabulary for Clipboard and drag and drop.
+- `desktop/drag_drop.h` is the opt-in native data target/source API, declarative regions, effects, and typed target events.
 - `desktop/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.
 - `desktop/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
-  resources, Clipboard/data transfer, renderer integration, or native interop.
+  resources, Clipboard/data transfer, native drag and drop, renderer integration, or native interop.
 - `desktop/renderer_bridge.h` owns concurrent presentation-read opt-in, renderer feedback, and packed pointer publication.
 - `desktop/native/win32.h` is explicit Win32 interoperability.
 
@@ -83,6 +84,9 @@ opt-in resource surface. See @ref desktop_custom_cursors for image validation, D
 arbitrary named opaque bytes. `desktop/clipboard.h` owns `Types::Clipboard` results and the stateless `Window::Clipboard` operations. It adds no
 `Window` capability because operations require no Window object or event pump. See @ref desktop_clipboard for timeout, transaction, native ownership,
 and custom-format semantics.
+
+`desktop/drag_drop.h` owns the non-movable `DragDropTarget`, passive `Types::DragDrop` contract, and synchronous `DragDrop::beginDrag()`. See
+@ref desktop_drag_drop for lifecycle, queue, region, effect, and OLE rules.
 
 ## Events
 

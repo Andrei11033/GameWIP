@@ -20,6 +20,8 @@ namespace
             std::string_view{"--desktop-test-child=standalone-color-shutdown"},
             std::string_view{"--desktop-test-child=window-color-shutdown"},
             std::string_view{"--desktop-test-child=owner-exit-color-shutdown"},
+            std::string_view{"--desktop-test-child=owner-exit-drag-drop-shutdown"},
+            std::string_view{"--desktop-test-child=owner-exit-drag-drop-revocation-failure"},
         };
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
         return std::ranges::any_of(

@@ -6,6 +6,8 @@
 #if DESKTOP_INTERNAL_TEST_HOOKS
 #include "desktop/internal/cursor_platform.h"
 #include "desktop/internal/cursor_state.h"
+#include "desktop/internal/drag_drop_state.h"
+#include "desktop/internal/drag_drop_platform.h"
 #include "desktop/internal/window_platform.h"
 #include "desktop/internal/window_state.h"
 
@@ -21,6 +23,7 @@ namespace
     thread_local std::size_t cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
+    thread_local std::size_t dragDropRevocationFailures = 0;
     std::atomic_size_t customCursorsCreated = 0;
     std::atomic_size_t customCursorsDestroyed = 0;
 } // namespace
@@ -67,6 +70,14 @@ namespace GameWIP::Desktop::Detail
         return true;
     }
 
+    bool consumeDragDropRevocationFailure() noexcept
+    {
+        if (dragDropRevocationFailures == 0)
+            return false;
+        --dragDropRevocationFailures;
+        return true;
+    }
+
     void recordCustomCursorCreated() noexcept
     {
         customCursorsCreated.fetch_add(1, std::memory_order_relaxed);
@@ -81,7 +92,7 @@ namespace GameWIP::Desktop::Detail
 namespace GameWIP::Desktop::TestHooks
 {
     // ------------------------------------------------------------
-    // Failure and cursor controls
+    // Failure controls
     // ------------------------------------------------------------
     void failNext(FailurePoint point) noexcept
     {
@@ -94,7 +105,104 @@ namespace GameWIP::Desktop::TestHooks
         cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
         clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
         clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
+        dragDropRevocationFailures = 0;
     }
+
+    // ------------------------------------------------------------
+    // DragDrop policy and lifecycle controls
+    // ------------------------------------------------------------
+
+    Types::DragDrop::Effect negotiateDragDropEffect(
+        Types::DragDrop::Effect source,
+        Types::DragDrop::Effect target,
+        Types::DragDrop::Effect preferred) noexcept
+    {
+        return Detail::negotiateDragDropEffect(source, target, preferred);
+    }
+
+    IO::Types::Status enqueueDragDrop(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
+    {
+        Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        if (!state)
+            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        return Detail::enqueueDragDropEvent(*state, std::move(data), terminal) ? IO::successStatus()
+                                                                               : IO::makeStatus(IO::Types::ErrorCode::StorageFull);
+    }
+
+    Types::DragDrop::SessionId nextDragDropSessionId(DragDropTarget &target, std::uint64_t nextValue) noexcept
+    {
+        Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        if (state == nullptr)
+            return {};
+        state->nextSessionId = nextValue;
+        return Detail::allocateDragDropSessionId(*state);
+    }
+
+    IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept
+    {
+        return Detail::Platform::prepareDragDropSource(description);
+    }
+
+    IO::Types::Status testDragDropOleInitialization() noexcept
+    {
+        return Detail::Platform::testDragDropOleInitialization();
+    }
+
+    IO::Types::Status testDragDropMaterialization() noexcept
+    {
+        return Detail::Platform::testDragDropMaterialization();
+    }
+
+    bool dragDropComContractsValid() noexcept
+    {
+        return Detail::Platform::testDragDropComContracts();
+    }
+
+    void failDragDropRevocations(std::size_t attempts) noexcept
+    {
+        dragDropRevocationFailures = attempts;
+    }
+
+    Types::Events::PumpResult routeDragDropDuringPump(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
+    {
+        Types::Events::PumpResult result;
+        Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        if (state == nullptr)
+        {
+            result.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            return result;
+        }
+        return Detail::Platform::testRouteDragDropDuringPump(*state, std::move(data), terminal);
+    }
+
+    std::size_t dragDropRegionCount(const DragDropTarget &target) noexcept
+    {
+        const Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        return state == nullptr ? 0 : state->regions.size();
+    }
+
+    std::size_t activeDragDropTargetCount() noexcept
+    {
+        return Detail::Platform::testActiveDragDropTargetCount();
+    }
+
+    std::size_t deferredDragDropTargetCount() noexcept
+    {
+        return Detail::Platform::testDeferredDragDropTargetCount();
+    }
+
+    Types::DragDrop::RegionId matchDragDropRegion(
+        const DragDropTarget &target,
+        Types::LogicalPosition position,
+        std::span<const Types::DataTransfer::FormatView> offered) noexcept
+    {
+        const Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        return state == nullptr ? Types::DragDrop::RegionId{} : Detail::Platform::testMatchDragDropRegion(*state, position, offered);
+    }
+
+    // ------------------------------------------------------------
+    // Cursor and Clipboard controls
+    // ------------------------------------------------------------
 
     void failCursorNativeCreationAfter(std::size_t successfulVariants) noexcept
     {

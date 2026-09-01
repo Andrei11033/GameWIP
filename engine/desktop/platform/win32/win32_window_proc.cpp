@@ -2,14 +2,9 @@
 /// @brief Win32 native message callback and event translation.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
-#include "desktop/platform/win32/internal/win32_compat.h"
-
-#include "desktop/native/win32.h"
-
+#include "desktop/internal/drag_drop_platform.h"
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <format>
 #include <limits>
 #include <new>
 #include <utility>
@@ -480,6 +475,7 @@ namespace GameWIP::Desktop::Detail::Platform
             resetPresentationPublication(*state);
             return 0;
         case WM_NCDESTROY:
+            static_cast<void>(windowClosingDragDrop(*state, true));
             releaseCustomCursorBinding(window);
             state->interactiveMoveResizeActive = false;
             resetPresentationPublication(*state);

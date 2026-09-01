@@ -1,8 +1,11 @@
 @page desktop_library Desktop
 
-`GameWIP::Desktop` provides standalone portable ownership of native top-level desktop windows, optional managed child hosts, and synchronous desktop
-Clipboard data exchange. Its API provides checked lifecycle and mutation operations, fixed-capacity typed event queues, cached state, display
-discovery and inspection, and an explicit native interoperability boundary.
+`GameWIP::Desktop` provides standalone portable ownership of native top-level
+desktop windows, optional managed child hosts, synchronous desktop Clipboard
+data exchange, and native data drag and drop. Its API provides checked lifecycle
+and mutation operations, fixed-capacity typed event queues, cached state,
+display discovery and inspection, and an explicit native interoperability
+boundary.
 
 Desktop is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and invokes no user callbacks
 from a native window procedure.
@@ -32,6 +35,8 @@ opt-in headers expose renderer integration and deliberate native interoperation.
   inside an optional managed child HWND.
 - @subpage desktop_clipboard — Exchange UTF-8 text, paths, RGBA8 images, and
   arbitrary named opaque data without opening a Window.
+- @subpage desktop_drag_drop — Exchange portable data through native drag
+  sources and declarative target regions.
 - @subpage desktop_lifecycle_events — Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage desktop_chrome_and_pointer_input — Configure system and custom chrome,
@@ -60,10 +65,11 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 ## Generated API reference
 
 Use @ref GameWIP::Desktop for library-wide capability operations and the non-copyable, non-movable @ref GameWIP::Desktop::Window owner. Passive values
-live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, Clipboard
-results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`, and renderer-bridge values under
-`Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`, display inspection under
-`Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers use @ref GameWIP::Desktop::Native::Win32 deliberately.
+live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, drag-and-drop
+values under `Types::DragDrop`, Clipboard results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`,
+and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`,
+drag sources under `Desktop::DragDrop`, display inspection under `Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers
+use @ref GameWIP::Desktop::Native::Win32 deliberately.
 
 ## Key behavior
 
@@ -99,8 +105,8 @@ its physical client pixels.
 The normal portable surface is assembled by `desktop/window.h` from focused `desktop/types.h`, `desktop/description.h`, `desktop/events.h`, and
 `desktop/display.h`. Rich monitor/color inspection is opt-in through `desktop/display_info.h`. Renderer integration is opt-in through
 `desktop/renderer_bridge.h`, custom native cursors are opt-in through `desktop/cursor.h`, native child hosts are opt-in through
-`desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, and Win32
-interoperability is opt-in through `desktop/native/win32.h`.
+`desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, native data drag
+and drop is opt-in through `desktop/drag_drop.h`, and Win32 interoperability is opt-in through `desktop/native/win32.h`.
 
 Installed consumers link `GameWIP::Desktop`. Window is intentionally built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked

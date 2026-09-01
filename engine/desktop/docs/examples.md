@@ -2,7 +2,7 @@
 
 These focused examples build on the owner-thread lifecycle from
 @ref desktop_quick_start and demonstrate displays, custom cursors, native child
-hosts, Clipboard data exchange, renderer integration, and native interop without
+hosts, Clipboard data exchange, native drag and drop, renderer integration, and native interop without
 hiding status handling.
 
 ## Open a normal Window
@@ -83,6 +83,47 @@ The UI decides when a shortcut or menu command calls these operations. For
 multi-format publication, construct ordered `Types::DataTransfer::ItemView`
 values and call `Clipboard::write()`; inspect both `commitState` and
 `formatsPublished` on failure. See @ref desktop_clipboard.
+
+## Accept native text and file drops
+
+```cpp
+#include "desktop/drag_drop.h"
+
+#include <array>
+#include <optional>
+
+namespace Desktop = GameWIP::Desktop;
+namespace DD = GameWIP::Desktop::Types::DragDrop;
+namespace Transfer = GameWIP::Desktop::Types::DataTransfer;
+
+std::array formats{
+    Transfer::FormatView{Transfer::FormatKind::Text, {}},
+    Transfer::FormatView{Transfer::FormatKind::FileList, {}}};
+std::array regions{DD::RegionDescription{
+    DD::RegionId{1}, std::nullopt, formats,
+    DD::Effect::Copy, DD::Effect::Copy}};
+
+Desktop::DragDropTarget target;
+if (const auto status = target.open(window, DD::TargetDescription{regions});
+    !status.ok())
+{
+    return;
+}
+
+DD::Event event;
+while (target.popEvent(event))
+{
+    if (const auto *dropped = event.getIf<DD::Events::Dropped>())
+    {
+        // Visit dropped->payload; every selected item is fully owned.
+    }
+}
+```
+
+The Window and target share an owner thread but retain separate queues. Continue
+pumping `Desktop::Events`; call `target.close()` before `window.close()` during
+ordinary controlled shutdown. See @ref desktop_drag_drop for regions, source
+dragging, effects, and failure handling.
 
 ## Borderless fullscreen
 

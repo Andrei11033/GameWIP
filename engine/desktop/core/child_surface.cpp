@@ -10,7 +10,6 @@
 #include "desktop/internal/desktop_test_hooks.h"
 
 #include <cmath>
-#include <limits>
 #include <new>
 #include <thread>
 #include <utility>

@@ -2,17 +2,13 @@
 /// @brief Win32 process runtime, registries, dispatcher ownership, and native operations.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
-#include "desktop/platform/win32/internal/win32_compat.h"
-
-#include "desktop/native/win32.h"
 #include "desktop/internal/child_surface_platform.h"
+#include "desktop/internal/drag_drop_platform.h"
 
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <format>
 #include <limits>
-#include <new>
 #include <utility>
 
 namespace GameWIP::Desktop::Detail::Platform
@@ -326,6 +322,22 @@ namespace GameWIP::Desktop::Detail::Platform
             closeChildSurfaceBestEffort(*childCleanup);
             childCleanup = std::move(next);
         }
+        std::unique_ptr<DragDropState> dragDropCleanup;
+        {
+            std::scoped_lock lock(current.deferredMutex);
+            dragDropCleanup = std::move(current.deferredDragDropCleanupHead);
+        }
+        while (dragDropCleanup)
+        {
+            if (!closeDragDropTargetBestEffort(*dragDropCleanup))
+            {
+                static_cast<void>(deferDragDropCleanupToOwner(dragDropCleanup));
+                break;
+            }
+            std::unique_ptr<DragDropState> next{dragDropCleanup->deferredCleanupNext};
+            dragDropCleanup->deferredCleanupNext = nullptr;
+            dragDropCleanup = std::move(next);
+        }
     }
 
     Dispatcher::Dispatcher(DWORD owningThreadId) noexcept
@@ -344,6 +356,30 @@ namespace GameWIP::Desktop::Detail::Platform
         // destructor either transfers before this point or waits until every
         // owner-thread-affine native resource has been released.
         std::scoped_lock registryLock(dispatcherRegistryMutex);
+        std::unique_ptr<DragDropState> deferredDragDrop;
+        {
+            std::scoped_lock lock(deferredMutex);
+            deferredDragDrop = std::move(deferredDragDropCleanupHead);
+        }
+        while (deferredDragDrop)
+        {
+            std::unique_ptr<DragDropState> next{deferredDragDrop->deferredCleanupNext};
+            deferredDragDrop->deferredCleanupNext = nullptr;
+            finalizeDragDropTargetForDispatcherExit(*deferredDragDrop);
+            deferredDragDrop = std::move(next);
+        }
+
+        while (dragDropTargets && !dragDropTargets->empty())
+        {
+            DragDropState *state = dragDropTargets->back();
+            if (state == nullptr)
+            {
+                dragDropTargets->pop_back();
+                continue;
+            }
+            finalizeDragDropTargetForDispatcherExit(*state);
+        }
+
         const auto found = dispatcherRegistry.find(threadId);
         if (found != dispatcherRegistry.end() && found->second == this)
             dispatcherRegistry.erase(found);
@@ -832,6 +868,27 @@ namespace GameWIP::Desktop::Detail::Platform
             std::scoped_lock lock(owner->deferredMutex);
             state->deferredCleanupNext = owner->deferredChildCleanupHead.release();
             owner->deferredChildCleanupHead = std::move(state);
+        }
+        static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
+        return true;
+    }
+
+    bool deferDragDropCleanupToOwner(std::unique_ptr<DragDropState> &state) noexcept
+    {
+        if (!state || state->ownerNativeThreadId == 0)
+            return false;
+        std::scoped_lock registryLock(dispatcherRegistryMutex);
+        const auto found = dispatcherRegistry.find(static_cast<DWORD>(state->ownerNativeThreadId));
+        Dispatcher *owner = found == dispatcherRegistry.end() ? nullptr : found->second;
+        if (owner == nullptr)
+            return false;
+        DragDropState *tail = state.get();
+        while (tail->deferredCleanupNext != nullptr)
+            tail = tail->deferredCleanupNext;
+        {
+            std::scoped_lock lock(owner->deferredMutex);
+            tail->deferredCleanupNext = owner->deferredDragDropCleanupHead.release();
+            owner->deferredDragDropCleanupHead = std::move(state);
         }
         static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
         return true;

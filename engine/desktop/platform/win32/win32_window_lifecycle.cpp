@@ -2,14 +2,11 @@
 /// @brief Win32 Window open, close, deferred cleanup, and native-handle access.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/internal/drag_drop_platform.h"
 #include "desktop/platform/win32/internal/win32_compat.h"
 
 #include "desktop/native/win32.h"
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <format>
 #include <limits>
 #include <new>
 #include <utility>
@@ -261,6 +258,8 @@ namespace GameWIP::Desktop::Detail::Platform
         state.platform->cursorClipApplied = false;
 
         HWND handle = state.platform->handle;
+        if (!windowClosingDragDrop(state))
+            return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
         state.platform->destroying = true;
         if (handle != nullptr && DestroyWindow(handle) == FALSE)
         {
@@ -316,6 +315,7 @@ namespace GameWIP::Desktop::Detail::Platform
             static_cast<void>(ClipCursor(nullptr));
         if (state.platform->handle != nullptr)
         {
+            static_cast<void>(windowClosingDragDrop(state));
             state.platform->destroying = true;
             static_cast<void>(DestroyWindow(state.platform->handle));
         }

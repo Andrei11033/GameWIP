@@ -9,10 +9,8 @@
 #include <dxgi1_6.h>
 
 #include <algorithm>
-#include <cwchar>
 #include <limits>
 #include <new>
-#include <optional>
 #include <unordered_map>
 
 namespace GameWIP::Desktop::Detail::Platform

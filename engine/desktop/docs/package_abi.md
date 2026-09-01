@@ -8,6 +8,12 @@ identity/state per consuming module.
 The exported `Window` object keeps a pImpl boundary. Public C++ types remain part of the exact-version package contract and are not a stable
 cross-version C ABI.
 
+`DragDropTarget` uses the same exported pImpl resource boundary. The passive
+`Types::DragDrop` aggregates and variants are exact-version C++ package types;
+changing their layout, alternatives, enum representation, or field types is an
+ABI change. `DragDrop::beginDrag()` is an exported free operation in the same
+shared library.
+
 ## Installed headers
 
 The supported public headers are:
@@ -20,6 +26,7 @@ The supported public headers are:
 - `desktop/cursor.h`
 - `desktop/child_surface.h`
 - `desktop/data_transfer.h`
+- `desktop/drag_drop.h`
 - `desktop/clipboard.h`
 - `desktop/window.h`
 - `desktop/renderer_bridge.h`
@@ -29,8 +36,8 @@ The supported public headers are:
 Internal headers and test hooks are source-tree-only. Every supported entry header is compiled in isolation by repository validation.
 
 `desktop/window.h` intentionally includes the normal shared vocabulary, description, fundamental display-mode surface, and events. Rich display
-inspection, custom cursor resources, native child hosts, Clipboard/data transfer, renderer integration, and native interop remain explicit opt-in
-includes.
+inspection, custom cursor resources, native child hosts, Clipboard/data transfer, native drag and drop, renderer integration, and native interop remain
+explicit opt-in includes.
 
 ## Dependencies
 
@@ -39,6 +46,10 @@ dependency used by the shared Desktop library for strict native text conversion;
 
 The package remains exact-version matched. On Win32 the installed package also propagates the Window application manifest resource required for
 Per-Monitor-V2 awareness.
+
+OLE and COM remain private implementation dependencies. The Win32 backend links
+`ole32`; public and installed headers expose no COM interfaces, HRESULT values,
+or raw drag/drop handles.
 
 ## Internal definitions
 

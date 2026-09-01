@@ -4,6 +4,71 @@ Most Window failures identify a lifecycle, owner-thread, capability, or native
 state boundary. Start with the returned status and `lifetimeState()`, then use
 the matching case below.
 
+## DragDrop target or source is busy
+
+For target open, check `Window::fileDropEnabled()`, owner-thread affinity, and
+whether another full target owns the Window. Disable lightweight file drops
+explicitly before opening a full target; neither mode silently replaces the
+other.
+
+An incompatible COM apartment also fails instead of creating a hidden STA
+thread. Source `beginDrag()` reports `ResourceBusy` for a nested source drag on
+the owner thread. Post later work to that thread after the synchronous call
+returns.
+
+## DragDrop source reports `InvalidArgument`
+
+The source Window must be open on the calling thread, `items` must be nonempty,
+allowed effects may contain only Copy/Move/Link and cannot be None, formats must
+be unique, and every transfer item must satisfy @ref desktop_clipboard format
+validation. The explicit Left/Right/Middle trigger button must already be down
+when `beginDrag()` starts; Desktop deliberately does not infer it.
+
+## A target region never accepts
+
+Confirm the ID is nonzero and unique, the custom name is exact strict UTF-8,
+the region accepts at least one offered portable format, and source/target
+allowed effects intersect. Explicit rectangles use logical client coordinates;
+an absent rectangle means the complete current client. In overlap, the last
+matching supplied region wins.
+
+Modifier keys do not change the negotiated portable effect. Configure
+`preferredEffect` and allowed masks instead.
+
+## DragDrop events or payloads appear missing
+
+Inspect the target's own `eventQueueInfo()`, not the Window queue. Compatible
+movement events can coalesce, and overflow increments `droppedEvents`. A final
+accepted Dropped event has priority over retained movement noise.
+
+No Dropped event is queued when any selected native format is malformed,
+unavailable, unsupported, or fails conversion/allocation. This all-or-nothing
+behavior prevents a partial payload from looking successful. Final retrieval
+can also block on a foreign synchronous provider; there is no worker thread or
+portable cancellation after native retrieval begins.
+
+## DragDrop target lost its Window
+
+When the Window or registration is destroyed, target `isOpen()` becomes false
+and `lifetimeState()` reports `NativeDestroyedPendingFinalize`. Stop consuming
+native session state and call target `close()` on the inherited owner thread.
+The retained `windowId()` describes the ended Window lifetime until
+finalization. Reopen only after `close()` succeeds.
+
+If the owner thread itself has already exited, its dispatcher finalized native
+DragDrop resources before terminating. A surviving public owner may be closed or
+destroyed from its current thread because only portable pending state remains.
+See @ref desktop_drag_drop for the authoritative lifetime distinctions.
+
+## DragDrop custom data or image is rejected
+
+Custom producer names use Win32 registered-format identity and require an
+agreed schema. An exact zero-byte custom source block is `Unsupported` through
+the immediate movable-`HGLOBAL` path. Images must have positive dimensions,
+valid checked stride/extent, top-to-bottom RGBA8 input, and a native DIB layout
+the receiver can represent. Malformed foreign DIB masks or extents reject the
+entire selected Drop.
+
 ## `InvalidArgument` during open
 
 Check for a zero client dimension, invalid UTF-8 or embedded NUL in the title, inverted size limits, a zero aspect-ratio component, opacity outside
@@ -135,3 +200,4 @@ is not advertised by the current Win32 backend.
 - @ref desktop_renderer_integration
 - @ref desktop_manual_validation
 - @ref desktop_clipboard
+- @ref desktop_drag_drop

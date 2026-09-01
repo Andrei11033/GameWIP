@@ -76,6 +76,7 @@ set(expected_gamewip_headers
     desktop/description.h
     desktop/display.h
     desktop/display_info.h
+    desktop/drag_drop.h
     desktop/events.h
     desktop/native/win32.h
     desktop/renderer_bridge.h

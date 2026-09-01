@@ -11,6 +11,17 @@ fullscreen rollback/restoration, close, event pumping, unexpected native destruc
 notification, Window and ChildSurface DPI transitions, ChildSurface unexpected native destruction, refresh-rate conversion, and exact exclusive-mode
 matching.
 
+DragDrop hooks expose portable effect negotiation and deterministic target-event
+injection for queue/coalescing/terminal-event tests. They do not expose COM
+objects and remain source-tree-only. One-shot DragDrop failure points cover OLE
+initialization for target and source paths, target registration, revocation,
+source preparation, and final materialization. A consecutive-revocation control
+also validates retryable close, whole-chain deferred cleanup, Window-destruction
+finalization, and process-isolated dispatcher exit. Passive active/deferred target
+counts prove that multi-target cleanup retains every state without exposing COM
+objects. The COM contract fixture checks source enumeration/data-query rules
+without exposing a native interface to tests.
+
 Presentation-publication hooks replace the authoritative renderer-facing subset on the owner thread, mirror it only when concurrent reads are
 enabled, and expose allocation identity for lazy, idempotent, close/reopen tests. Allocation failure uses the shared one-shot allocation failure
 point.

@@ -38,6 +38,7 @@ target_sources(
         core/cursor.cpp
         core/display.cpp
         core/display_info.cpp
+        core/drag_drop.cpp
         core/events.cpp
         core/renderer_bridge.cpp
         core/window.cpp
@@ -45,6 +46,8 @@ target_sources(
         internal/cursor_platform.h
         internal/cursor_selection.h
         internal/cursor_state.h
+        internal/drag_drop_platform.h
+        internal/drag_drop_state.h
         internal/clipboard_platform.h
         internal/child_surface_platform.h
         internal/child_surface_state.h
@@ -61,6 +64,7 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
@@ -109,6 +113,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
