@@ -4,7 +4,7 @@
 #include "desktop/renderer_bridge.h"
 #include "base/checked_arithmetic.h"
 
-#include "desktop/internal/window_platform.h" // NOLINT(misc-include-cleaner): Supplies the complete internal Window definitions used below.
+#include "desktop/internal/window_platform.h"
 #include "desktop/internal/desktop_test_hooks.h"
 
 #include <algorithm>
