@@ -101,7 +101,8 @@ are not canonicalized or queried. Win32 uses normal Unicode `CF_HDROP`.
 An image requires positive dimensions, `width * 4` packed row bytes, a zero
 stride or a stride at least that large, and exactly `resolvedStride * height`
 input bytes. Every multiplication and addition is overflow checked. Win32
-publishes a top-down `CF_DIBV5` with sRGB color space and explicit RGBA masks;
+publishes a top-down `CF_DIBV5` with sRGB color space, image rendering intent,
+and explicit RGBA masks;
 reads support common 24-bit RGB and standard-mask 32-bit DIB forms. RGB sources
 without explicit alpha become alpha 255.
 

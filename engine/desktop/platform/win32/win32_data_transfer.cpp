@@ -323,6 +323,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         h.bV5BlueMask = 0x000000FF;
                         h.bV5AlphaMask = 0xFF000000;
                         h.bV5CSType = 0x73524742;
+                        h.bV5Intent = LCS_GM_IMAGES;
                         std::ranges::copy(std::as_bytes(std::span{&h, std::size_t{1}}), out.bytes.begin());
                         for (std::size_t y = 0; y < value.size.height; ++y)
                             for (std::size_t x = 0; x < value.size.width; ++x)

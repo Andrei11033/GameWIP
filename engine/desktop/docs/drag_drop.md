@@ -264,7 +264,7 @@ to a hidden STA thread.
 | --- | --- |
 | Text | `CF_UNICODETEXT` with strict conversion and native terminator. |
 | File list | Unicode `CF_HDROP`; paths are copied without file IO. |
-| Image | Top-down `CF_DIBV5` source; common `CF_DIB`/DIBV5 target materialization. |
+| Image | Top-down sRGB `CF_DIBV5` source with image rendering intent; common `CF_DIB`/DIBV5 target materialization. |
 | Custom | Case-insensitive registered native clipboard-format identity. |
 
 Clipboard and DragDrop share private Win32 transfer preparation and
