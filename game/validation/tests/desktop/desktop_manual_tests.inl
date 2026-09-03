@@ -1710,7 +1710,8 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     if (malformed == ManualAnswer::Yes)
         static_cast<void>(context.expectEq("malformed provider queues no successful drop", std::size_t{0}, capture.dropped));
 
-    const auto outbound = [&](std::string_view name, std::string_view instruction, std::span<const Transfer::ItemView> items)
+    const auto outbound =
+        [&](std::string_view name, std::string_view instruction, std::span<const Transfer::ItemView> items, DD::Effect allowedEffects)
     {
         const ManualDragDropRun run = runManualDragDropSource(
             context,
@@ -1720,7 +1721,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             nullptr,
             name,
             instruction,
-            DD::Description{items, allEffects, DD::TriggerButton::Left});
+            DD::Description{items, allowedEffects, DD::TriggerButton::Left});
         if (run.answer == ManualAnswer::Yes && run.attempted)
             static_cast<void>(context.expectEq(std::format("{} reports Dropped", name), DD::Outcome::Dropped, run.result.outcome));
     };
@@ -1729,21 +1730,25 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     const std::array<Transfer::ItemView, 1> customItem{{Transfer::CustomView{customName, customBytes}}};
     outbound(
         "GameWIP files to Explorer",
-        "Hold LEFT in the source and drag to Explorer. Verify the two paths arrive and README.md/CMakeLists.txt remain untouched even if Move is "
-        "reported.",
-        fileItem);
+        "Hold LEFT in the source and drag to Explorer. Verify Copy is reported, the two files arrive, and README.md/CMakeLists.txt remain "
+        "untouched.",
+        fileItem,
+        DD::Effect::Copy);
     outbound(
         "GameWIP Unicode text to editor",
         "Hold LEFT in the source and drag into a compatible text editor. Verify the exact accented, Japanese, punctuation, and emoji text.",
-        textItem);
+        textItem,
+        allEffects);
     outbound(
         "GameWIP image to foreign target",
         "Hold LEFT in the source and drag to a DIB-capable image target. Verify orientation, R/G/B order, and supported alpha.",
-        imageItem);
+        imageItem,
+        allEffects);
     outbound(
         "GameWIP custom data to diagnostic consumer",
         "Hold LEFT in the source and drag to a controlled consumer that requests the custom format repeatedly. Answer skip if unavailable.",
-        customItem);
+        customItem,
+        allEffects);
 
     capture.clear(target);
     const ManualDragDropRun modalGeometry = runManualDragDropSource(

@@ -356,8 +356,9 @@ namespace GameWIP::Desktop::DragDrop
 
     /// @brief Runs one synchronous native data drag from an open Window.
     /// @details All item data is validated and snapshotted before native modal dispatch. The call
-    /// pumps the platform drag loop until a drop, cancellation, or native failure occurs. Move is
-    /// only a negotiated result; this function never deletes or mutates source data.
+    /// pumps the platform drag loop until a drop, cancellation, or native failure occurs. This
+    /// function never deletes or mutates source data itself; an external target may apply an
+    /// advertised Move to referenced resources such as FileList paths.
     /// @param source Open Window owned by the calling thread.
     /// @param description Portable data and explicit source effect/button policy.
     /// @return Preparation/native status, terminal outcome, and the selected effect when dropped.

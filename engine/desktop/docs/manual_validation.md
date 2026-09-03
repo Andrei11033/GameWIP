@@ -154,9 +154,11 @@ accepted prompt. Answer `skip`—never `yes`—when a controlled custom or malfo
    from foreign applications into GameWIP. Verify the final event owns the
    complete payload in accepted-region order.
 3. Begin GameWIP source drags for each portable format and consume them in
-   Explorer or another compatible application. Request the same native format
-   repeatedly with a diagnostic consumer and verify every request succeeds after
-   caller source storage has gone out of scope.
+   Explorer or another compatible application. Advertise Copy for repository
+   file paths; use disposable files for any foreign Move check because the
+   target may act on referenced paths. Request the same native format repeatedly
+   with a diagnostic consumer and verify every request succeeds after caller
+   source storage has gone out of scope.
 4. Advertise several source effects. Verify target preference and Copy/Move/Link
    fallback, then advertise one source effect to force it. Hold Ctrl, Shift, and
    Alt during movement and verify they do not alter portable negotiation.
@@ -174,8 +176,10 @@ accepted prompt. Answer `skip`—never `yes`—when a controlled custom or malfo
 8. Enable lightweight file drops and verify full target open reports
    ResourceBusy without disabling them. Disable lightweight mode, open the full
    target, and verify re-enabling lightweight mode likewise reports ResourceBusy.
-9. Cancel and complete source operations using Copy, Move, and Link. Confirm Move
-   never deletes, renames, or mutates the source data.
+9. Cancel and complete source operations using Copy, Move, and Link. Confirm
+   GameWIP itself never deletes, renames, or mutates source data. For file lists,
+   use disposable paths because a foreign target may implement the advertised
+   Move by modifying those resources.
 Win32 immediate publication cannot represent an exact zero-byte custom
 `HGLOBAL`; record `Unsupported` without substituting a byte or delayed provider.
 

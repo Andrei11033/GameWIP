@@ -102,9 +102,11 @@ candidates = source allowedEffects & target allowedEffects
 | Several and preferred is present | The target's `preferredEffect`. |
 | Several without preferred | First available in Copy, Move, Link order. |
 
-A source can force an operation by advertising one effect. `Move` is only the
-negotiated and reported operation; GameWIP never deletes, renames, or mutates
-source data automatically.
+A source can force an operation by advertising one effect. GameWIP never
+deletes, renames, or mutates source data itself. An external target may still
+apply an advertised `Move` to referenced resources such as `FileList` paths;
+advertise only `Copy` when those resources must remain unchanged, and use
+disposable resources when validating foreign Move behavior.
 
 ## Target events and sessions
 
