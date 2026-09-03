@@ -24,6 +24,7 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &) noexcept;
     [[nodiscard]] IO::Types::Status testDragDropOleInitialization() noexcept;
     [[nodiscard]] IO::Types::Status testDragDropMaterialization() noexcept;
+    [[nodiscard]] Types::DragDrop::Result testDroppedDragDropSourceResult(Types::DragDrop::Effect, Types::DragDrop::Effect) noexcept;
     [[nodiscard]] bool testDragDropComContracts() noexcept;
     [[nodiscard]] Types::Events::PumpResult testRouteDragDropDuringPump(DragDropState &, Types::DragDrop::Events::Payload, bool) noexcept;
     [[nodiscard]] Types::DragDrop::RegionId testMatchDragDropRegion(

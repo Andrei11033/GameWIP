@@ -61,7 +61,8 @@ clear it when the suite completes.
 
 DragDrop coverage uses the public target API plus source-tree-only effect and
 event-injection hooks. It validates closed/default behavior, invalid effects and
-IDs, strict custom names, transactional region replacement, internal and
+IDs, strict custom names, rejected native drops as successful cancellation,
+accepted source completion, transactional region replacement, internal and
 external queue ownership, movement coalescing, terminal Drop priority,
 lightweight file-drop conflicts in both directions, native registration
 rollback after OLE acquisition and native-target creation, explicit and Window

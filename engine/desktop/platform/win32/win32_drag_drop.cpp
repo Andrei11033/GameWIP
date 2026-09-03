@@ -60,6 +60,22 @@ namespace GameWIP::Desktop::Detail::Platform
                 result |= DD::Effect::Link;
             return result;
         }
+        [[nodiscard]] DD::Result droppedSourceResult(DWORD performed, DD::Effect allowed) noexcept
+        {
+            constexpr DWORD knownEffects = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
+            DD::Result result;
+            const DWORD native = performed & knownEffects;
+            const DD::Effect effect = portableEffects(performed);
+            if ((performed & ~knownEffects) != 0 || (native & (native - 1U)) != 0 || (effect & allowed) != effect)
+                result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure, E_UNEXPECTED);
+            else
+            {
+                result.status = IO::successStatus();
+                result.outcome = native == 0 ? DD::Outcome::Cancelled : DD::Outcome::Dropped;
+                result.effect = effect;
+            }
+            return result;
+        }
         [[nodiscard]] bool validEffects(DD::Effect effects) noexcept
         {
             constexpr auto all = DD::Effect::Copy | DD::Effect::Move | DD::Effect::Link;
@@ -970,20 +986,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 result.effect = DD::Effect::None;
             }
             else if (hr == DRAGDROP_S_DROP)
-            {
-                constexpr DWORD knownEffects = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
-                const DD::Effect effect = portableEffects(performed);
-                const DWORD native = performed & knownEffects;
-                if ((performed & ~knownEffects) != 0 || native == 0 || (native & (native - 1U)) != 0 ||
-                    (effect & description.allowedEffects) != effect)
-                    result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure, E_UNEXPECTED);
-                else
-                {
-                    result.status = IO::successStatus();
-                    result.outcome = DD::Outcome::Dropped;
-                    result.effect = effect;
-                }
-            }
+                result = droppedSourceResult(performed, description.allowedEffects);
             else
                 result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure, hr);
             return result;
@@ -1016,6 +1019,11 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status testDragDropMaterialization() noexcept
     {
         return materializationStatus();
+    }
+
+    DD::Result testDroppedDragDropSourceResult(DD::Effect performed, DD::Effect allowed) noexcept
+    {
+        return droppedSourceResult(nativeEffects(performed), allowed);
     }
 
     bool testDragDropComContracts() noexcept

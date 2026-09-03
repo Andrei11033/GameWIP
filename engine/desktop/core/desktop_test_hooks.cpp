@@ -153,6 +153,11 @@ namespace GameWIP::Desktop::TestHooks
         return Detail::Platform::testDragDropMaterialization();
     }
 
+    Types::DragDrop::Result droppedDragDropSourceResult(Types::DragDrop::Effect performed, Types::DragDrop::Effect allowed) noexcept
+    {
+        return Detail::Platform::testDroppedDragDropSourceResult(performed, allowed);
+    }
+
     bool dragDropComContractsValid() noexcept
     {
         return Detail::Platform::testDragDropComContracts();

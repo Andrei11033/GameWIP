@@ -42,6 +42,23 @@ void testDragDrop(TestSupport::Context &context)
         DD::Effect::None,
         Desktop::TestHooks::negotiateDragDropEffect(static_cast<DD::Effect>(0x80), all, DD::Effect::Copy)));
 
+    const DD::Result rejectedDrop = Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::None, DD::Effect::Copy);
+    static_cast<void>(context.expectTrue("rejected native drop completes successfully", rejectedDrop.status.ok()));
+    static_cast<void>(context.expectEq("rejected native drop is cancelled", DD::Outcome::Cancelled, rejectedDrop.outcome));
+    static_cast<void>(context.expectEq("rejected native drop performs no effect", DD::Effect::None, rejectedDrop.effect));
+    const DD::Result acceptedDrop = Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Move, all);
+    static_cast<void>(context.expectTrue("accepted native drop completes successfully", acceptedDrop.status.ok()));
+    static_cast<void>(context.expectEq("accepted native drop is dropped", DD::Outcome::Dropped, acceptedDrop.outcome));
+    static_cast<void>(context.expectEq("accepted native drop reports its effect", DD::Effect::Move, acceptedDrop.effect));
+    static_cast<void>(context.expectEq(
+        "multiple native completion effects fail",
+        ErrorCode::NativeFailure,
+        Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Copy | DD::Effect::Move, all).status.code));
+    static_cast<void>(context.expectEq(
+        "unadvertised native completion effect fails",
+        ErrorCode::NativeFailure,
+        Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status.code));
+
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
     DD::Description validSource{validTextItems, DD::Effect::Copy, DD::TriggerButton::Left};
     static_cast<void>(context.expectTrue("valid source data prepares", Desktop::TestHooks::prepareDragDropSource(validSource).ok()));

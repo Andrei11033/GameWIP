@@ -129,6 +129,9 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status testDragDropOleInitialization() noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status testDragDropMaterialization() noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::DragDrop::Result droppedDragDropSourceResult(
+        Types::DragDrop::Effect performed,
+        Types::DragDrop::Effect allowed) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool dragDropComContractsValid() noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Events::PumpResult routeDragDropDuringPump(
         DragDropTarget &target,
