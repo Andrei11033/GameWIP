@@ -155,8 +155,8 @@ current directory. A relative path that still contains a parent-traversal compon
 and honored as explicit caller-selected destinations.
 
 On Windows, executable-directory containment accepts only an ordinary relative path with neither a root name nor a root directory.
-Drive-relative forms such as `D:report.txt`, root-relative forms, and normalized parent traversal are rejected. Fully absolute paths remain explicit;
-Caller-selected absolute destinations remain explicit.
+Drive-relative forms such as `D:report.txt`, root-relative forms, and normalized parent traversal are rejected. Fully absolute paths are treated as
+explicit caller-selected destinations.
 
 An empty or invalid report path disables retained file reporting and emits a console diagnostic; it does not fail the tests. `--no-test-report` has
 the same execution semantics without treating the path as invalid.

@@ -6,7 +6,7 @@ between windowed, borderless, and exclusive fullscreen states.
 
 ## Display types
 
-Monitor identity and physical modes are grouped under `Window::Types::Display`:
+Monitor identity and physical modes are grouped under `Desktop::Types::Display`:
 
 - `MonitorId` is a process-local identity for a currently known monitor and uses `isValid()`.
 - `Mode` describes physical resolution, millihertz refresh, color depth, and interlace state.
@@ -19,7 +19,7 @@ Rich monitor snapshots and OS color state are opt-in through `desktop/display_in
 
 ## Display operations
 
-`Window::Display` owns display discovery and inspection. Mode-only code can include `desktop/display.h` and call `getModes()`, `getCurrentMode()`, or
+`Desktop::Display` owns display discovery and inspection. Mode-only code can include `desktop/display.h` and call `getModes()`, `getCurrentMode()`, or
 `getPreferredMode()`.
 
 Code that needs monitor enumeration or color inspection includes `desktop/display_info.h` and uses `getMonitors()`, `getPrimaryMonitor()`,

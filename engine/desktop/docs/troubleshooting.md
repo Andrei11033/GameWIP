@@ -7,9 +7,9 @@ the matching case below.
 ## DragDrop target or source is busy
 
 For target open, check `Window::fileDropEnabled()`, owner-thread affinity, and
-whether another full target owns the Window. Disable lightweight file drops
-explicitly before opening a full target; neither mode silently replaces the
-other.
+whether another `DragDropTarget` owns the Window. Disable lightweight file
+drops explicitly before opening a full target; neither mode silently replaces
+the other.
 
 An incompatible COM apartment also fails instead of creating a hidden STA
 thread. Source `beginDrag()` reports `ResourceBusy` for a nested source drag on
@@ -19,10 +19,11 @@ returns.
 ## DragDrop source reports `InvalidArgument`
 
 The source Window must be open on the calling thread, `items` must be nonempty,
-allowed effects may contain only Copy/Move/Link and cannot be None, formats must
-be unique, and every transfer item must satisfy @ref desktop_clipboard format
-validation. The explicit Left/Right/Middle trigger button must already be down
-when `beginDrag()` starts; Desktop deliberately does not infer it.
+allowed effects may contain only `Copy`, `Move`, and `Link` and cannot be
+`None`, formats must be unique, and every transfer item must satisfy
+@ref desktop_clipboard format validation. The explicit `Left`, `Right`, or
+`Middle` trigger button must already be down when `beginDrag()` starts; Desktop
+deliberately does not infer it.
 
 ## A target region never accepts
 
@@ -39,9 +40,9 @@ Modifier keys do not change the negotiated portable effect. Configure
 
 Inspect the target's own `eventQueueInfo()`, not the Window queue. Compatible
 movement events can coalesce, and overflow increments `droppedEvents`. A final
-accepted Dropped event has priority over retained movement noise.
+accepted `Dropped` event has priority over retained movement noise.
 
-No Dropped event is queued when any selected native format is malformed,
+No `Dropped` event is queued when any selected native format is malformed,
 unavailable, unsupported, or fails conversion/allocation. This all-or-nothing
 behavior prevents a partial payload from looking successful. Final retrieval
 can also block on a foreign synchronous provider; there is no worker thread or

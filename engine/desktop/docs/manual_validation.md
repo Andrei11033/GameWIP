@@ -129,7 +129,7 @@ interpretation of arbitrary registered formats.
 
 ## Native data drag and drop
 
-Record the source/target applications and exact formats for each direction.
+Record the source and target applications and exact formats for each direction.
 Run the dedicated guided source/target harness from the repository root:
 
 ```powershell
@@ -137,49 +137,54 @@ Run the dedicated guided source/target harness from the repository root:
 ```
 
 The green source Window starts `beginDrag()` when the requested mouse button is
-held inside it. The blue target uses a whole-client Region 1 with Copy preferred;
-its inset green Region 2 overlaps it and prefers Move. Live `Entered`, `Moved`,
-region-transition, `Left`, and `Dropped` counts appear in the diagnostics Window.
+held inside it. The blue target uses a whole-client Region 1 with `Copy`
+preferred; its inset green Region 2 overlaps it and prefers `Move`. Live
+`Entered`, `Moved`, region-transition, `Left`, and `Dropped` counts appear in the
+diagnostics Window.
 The runner checks same-process payload bytes and negotiated effects after each
 accepted prompt. Answer `skip`—never `yes`—when a controlled custom or malformed
 `IDataObject` provider/consumer is unavailable.
 
-1. Open one full target with overlapping whole-client and rectangular regions.
-   Resize the Window and cross region boundaries. Verify the last matching
-   supplied region wins, the whole-client region follows resize, one Entered and
-   one Left delimit the top-level session, and region changes appear only as
-   Moved previous/current IDs.
-2. Drag UTF-8 text, one and several files (including Unicode paths), an image
-   with visible alpha/orientation markers, and an agreed custom binary format
-   from foreign applications into GameWIP. Verify the final event owns the
-   complete payload in accepted-region order.
+1. Open one full `DragDropTarget` with overlapping whole-client and rectangular
+   regions. Resize the Window and cross region boundaries. Verify the last matching
+   supplied region wins, the whole-client region follows resize, one `Entered`
+   and one `Left` delimit the top-level session, and region changes appear only
+   as `Moved` previous/current IDs.
+2. Drag UTF-8 text, a single file, several files (including Unicode paths), an
+   image with visible alpha/orientation markers, and an agreed custom binary
+   format from foreign applications into GameWIP. Verify the final `Dropped`
+   event owns the complete payload in accepted-region order.
 3. Begin GameWIP source drags for each portable format and consume them in
-   Explorer or another compatible application. Advertise Copy for repository
-   file paths; use disposable files for any foreign Move check because the
+   Explorer or another compatible application. Advertise `Copy` for repository
+   file paths; use disposable files for any foreign `Move` check because the
    target may act on referenced paths. Request the same native format repeatedly
    with a diagnostic consumer and verify every request succeeds after caller
    source storage has gone out of scope.
-4. Advertise several source effects. Verify target preference and Copy/Move/Link
-   fallback, then advertise one source effect to force it. Hold Ctrl, Shift, and
-   Alt during movement and verify they do not alter portable negotiation.
-5. Start with Left, Right, and Middle trigger buttons in separate runs. Verify a
-   configured button that is not held rejects before modal entry, releasing the
-   configured button requests completion, Escape reports successful
+4. Advertise several source effects. Verify target preference and
+   `Copy`/`Move`/`Link` fallback, then advertise one source effect to force it.
+   Hold Ctrl, Shift, and Alt during movement and verify they do not alter
+   portable negotiation.
+5. Start with `Left`, `Right`, and `Middle` trigger buttons in separate runs.
+   Verify a configured button that is not held rejects before modal entry,
+   releasing the configured button requests completion, Escape reports successful
    cancellation, and unrelated-button changes do not terminate the drag.
 6. Drag between a GameWIP source Window and a second GameWIP target in the same
    process. Verify normal Window geometry/presentation events continue updating
-   during the modal loop and the target queues a complete Drop.
+   during the modal loop and the target queues a complete `Dropped` event.
 7. Use a diagnostic foreign provider that advertises multiple formats, fails a
-   later selected request, returns malformed Unicode/DIB/HDROP, and exposes an
-   excessive enumeration. Verify every malformed or partial case returns
-   Effect::None and queues no successful Dropped event.
+   later selected request, returns malformed Unicode text, DIB image data, or
+   HDROP file data, and enumerates an excessive number of formats. Verify every
+   malformed or partial case returns `Effect::None` and queues no successful
+   `Dropped` event.
 8. Enable lightweight file drops and verify full target open reports
-   ResourceBusy without disabling them. Disable lightweight mode, open the full
-   target, and verify re-enabling lightweight mode likewise reports ResourceBusy.
-9. Cancel and complete source operations using Copy, Move, and Link. Confirm
-   GameWIP itself never deletes, renames, or mutates source data. For file lists,
-   use disposable paths because a foreign target may implement the advertised
-   Move by modifying those resources.
+   `ResourceBusy` without disabling them. Disable lightweight mode, open the
+   full target, and verify re-enabling lightweight mode likewise reports
+   `ResourceBusy`.
+9. Cancel and complete source operations using `Copy`, `Move`, and `Link`.
+   Confirm GameWIP itself never deletes, renames, or mutates source data. For
+   file lists, use disposable paths because a foreign target may implement the
+   advertised `Move` by modifying those resources.
+
 Win32 immediate publication cannot represent an exact zero-byte custom
 `HGLOBAL`; record `Unsupported` without substituting a byte or delayed provider.
 

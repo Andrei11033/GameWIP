@@ -5,9 +5,9 @@
 Include `filesystem/filesystem.h`. Passive values live in `GameWIP::FileSystem::Types`; resource owners and operations live directly in
 `GameWIP::FileSystem`.
 
-Consumers may include `filesystem/path.h`, `filesystem/entry.h`,
-`filesystem/file.h`, or `filesystem/directory.h` when only one domain is needed.
-The umbrella remains the simplest complete include, with identical behavior.
+The focused public headers are `filesystem/path.h`, `filesystem/entry.h`,
+`filesystem/file.h`, and `filesystem/directory.h`.
+`filesystem/filesystem.h` remains the complete convenience include.
 
 ## How the library is organized
 

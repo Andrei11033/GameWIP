@@ -64,7 +64,7 @@ position and extent are derived from that logical rectangle at the new effective
 ## Events and authority
 
 Native geometry and DPI callbacks update cached position, logical client size, framebuffer size, scale, DPI, and current monitor before publishing
-events. Geometry events may coalesce, so cached getters are the authoritative current observation when intermediate notifications are dropped.
+events. Geometry events may coalesce, so cached getters provide the authoritative current values when intermediate notifications are dropped.
 
 ## Related pages
 

@@ -31,7 +31,7 @@ object. Desktop does not create a render thread, schedule frames, resize rendere
 
 A renderer that can determine presentation occlusion attaches explicitly with `Renderer::attachOcclusionProvider(window)`.
 `Renderer::hasOcclusionProvider(window)` reports current attachment state. This state is deliberately separate from
-`window.supports(Capability::OcclusionReporting)`, which always answers the stable backend capability question.
+`window.supports(Types::Capability::OcclusionReporting)`, which always answers the stable backend capability question.
 
 After attachment, `Renderer::reportOcclusion(window, value)` updates the cached `Window::occluded()` state and queues
 `Types::Events::OcclusionChanged` only when the value changes. `Renderer::detachOcclusionProvider()` clears the provider and restores non-occluded
@@ -41,7 +41,7 @@ Attachment, reporting, and detachment obey Window owner-thread rules. A report w
 
 ## Pointer hit masks
 
-Passive mask values are grouped under `Window::Types::Renderer`:
+Passive mask values are grouped under `Desktop::Types::Renderer`:
 
 - `PointerHitMaskWord`
 - `PointerHitMaskTarget`

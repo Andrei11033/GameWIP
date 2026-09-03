@@ -1,15 +1,17 @@
 @page filesystem_public_api Public API
 
-Include `filesystem/filesystem.h` for the complete API. Focused entry points are:
+Include `filesystem/filesystem.h` for the complete public surface. Focused entry
+headers are:
 
 - `filesystem/path.h`: paths, conversion, and path/current-directory operations;
 - `filesystem/entry.h`: generic entry metadata, queries, and mutations;
 - `filesystem/file.h`: file handles, locks, and whole-file operations;
 - `filesystem/directory.h`: directory cursors, listing, creation, and removal.
 
-Focused headers reduce dependencies and clarify intent without changing API
-behavior. Installed consumers link `GameWIP::FileSystem`; source-tree consumers
-link `FileSystem`.
+Focused headers reduce dependencies and clarify intent. Their declarations have
+the same contracts and runtime behavior as those reached through the umbrella.
+Installed consumers link `GameWIP::FileSystem`; source-tree consumers link
+`FileSystem`.
 
 ## Constants and aliases
 

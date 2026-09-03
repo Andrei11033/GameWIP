@@ -10,9 +10,9 @@ memory-backed destination.
 #include "io/io.h"
 ```
 
-`io/io.h` is the simplest complete-library include. Narrow consumers may include
-`io/status.h`, `io/stream.h`, `io/memory.h`, or `io/transfer.h` directly.
-Choosing a focused header changes dependencies and intent, not API behavior.
+`io/io.h` is the complete convenience include. Consumers may instead include
+`io/status.h`, `io/stream.h`, `io/memory.h`, or `io/transfer.h` for the
+declarations they use.
 
 ## Installed CMake
 

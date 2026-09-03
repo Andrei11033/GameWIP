@@ -1,6 +1,6 @@
 @page io_public_api Public API
 
-Include `io/io.h` for the complete API. Focused entry points are:
+Include `io/io.h` for the complete public surface. Focused entry headers are:
 
 - `io/status.h`: error codes, status values, and status helpers;
 - `io/stream.h`: stream enums, transfer results, `Reader`, and `Writer`;

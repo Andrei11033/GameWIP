@@ -10,7 +10,7 @@ Window exposes one public `GameWIP::Desktop::Types` tree and focused headers by 
 
 - `desktop/types.h` contains shared primitive/value vocabulary such as `WindowId`, geometry, DPI, limits, and `PresentationState`.
 - `desktop/description.h` contains creation/configuration policy and `Types::Description`.
-- `desktop/events.h` contains `Types::Events`, queued `Types::Event`, and calling-thread `Window::Events` pump operations.
+- `desktop/events.h` contains `Types::Events`, queued `Types::Event`, and calling-thread `Desktop::Events` pump operations.
 - `desktop/display.h` contains fundamental `Types::Display::MonitorId`, display `Mode`, and mode queries.
 - `desktop/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `desktop/cursor.h` is the opt-in custom native cursor resource and selection surface.
@@ -48,10 +48,11 @@ The opt-in allocation is lazy, stable, one-way for the C++ object, and reused ac
 Concurrent object destruction remains unsafe; the caller must keep the `Window` alive through all renderer reads.
 
 Plain cached properties use direct names such as `visible()`, `focused()`,
-`interactiveMoveResizeActive()`, `resizable()`, `userInteractionEnabled()`,
-and `ownedByCurrentThread()`. `isOpen()` retains its prefix to distinguish the lifetime query from the checked
-`open()` operation; `isValid()` remains a
-classification query on identity and resource values. Presence, capability, and support queries retain meaningful forms such as `hasCloseRequest()`,
+`interactiveMoveResizeActive()`, `resizable()`, `userInteractionEnabled()`, and
+`ownedByCurrentThread()`. `isOpen()` retains its prefix to distinguish the
+lifetime query from the checked `open()` operation; `isValid()` remains a
+classification query on identity and resource values. Presence, capability,
+and support queries retain meaningful forms such as `hasCloseRequest()`,
 `hasCustomCursor()`, and `supports()`.
 
 `hasCloseRequest()` reports sticky close intent. `requestClose()` queues one `Types::Events::CloseRequested` transition and `clearCloseRequest()`
@@ -81,7 +82,7 @@ opt-in resource surface. See @ref desktop_custom_cursors for image validation, D
 ## Clipboard and data transfer
 
 `desktop/data_transfer.h` owns `Types::DataTransfer` views and owning values for UTF-8 text, ordered paths, sRGB straight-alpha RGBA8 images, and
-arbitrary named opaque bytes. `desktop/clipboard.h` owns `Types::Clipboard` results and the stateless `Window::Clipboard` operations. It adds no
+arbitrary named opaque bytes. `desktop/clipboard.h` owns `Types::Clipboard` results and the stateless `Desktop::Clipboard` operations. It adds no
 `Window` capability because operations require no Window object or event pump. See @ref desktop_clipboard for timeout, transaction, native ownership,
 and custom-format semantics.
 
@@ -96,7 +97,7 @@ Event payloads live under `Types::Events` and do not repeat the `Event` suffix. 
 `Types::Events::Payload` is the payload variant. `Types::Event` remains the queued envelope and carries a monotonic sequence plus typed `getIf<T>()`
 access. Queue metadata lives in `Types::Events::StorageKind` and `QueueInfo`; pump results use `Types::Events::PumpResult`.
 
-Calling-thread pumping is grouped under `Window::Events`:
+Calling-thread pumping is grouped under `Desktop::Events`:
 
 - `Events::poll()` is non-blocking.
 - `Events::wait(timeout)` accepts zero, a finite non-negative timeout, or `Events::kWaitForever`.
@@ -108,7 +109,7 @@ presentation reads are enabled, their atomic publication resets to closed defaul
 
 ## Displays
 
-Fundamental display mode operations are under `Window::Display`:
+Fundamental display mode operations are under `Desktop::Display`:
 
 - `getModes()`
 - `getCurrentMode()`
@@ -131,6 +132,6 @@ maintaining a second UTF-8 decoder. Native title operations additionally reject 
 
 ## Renderer bridge
 
-`Window::Renderer` contains renderer-to-Window integration behavior only: occlusion-provider attachment/reporting and pointer hit-mask publication.
+`Desktop::Renderer` contains renderer-to-Window integration behavior only: occlusion-provider attachment/reporting and pointer hit-mask publication.
 `enableConcurrentPresentationReads()` opts one Window object into the narrow atomic getter contract, and
-`concurrentPresentationReadsEnabled()` reports that one-way state. Passive bridge values live under `Window::Types::Renderer`.
+`concurrentPresentationReadsEnabled()` reports that one-way state. Passive bridge values live under `Desktop::Types::Renderer`.

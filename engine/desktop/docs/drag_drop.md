@@ -20,9 +20,9 @@ interprets modifier keys as effect policy.
 ## Target ownership and lifetime
 
 `DragDropTarget` is closed by default, non-copyable, and non-movable. The public
-owner holds stable heap state used by the native target registration. One full
-target may be open for one open top-level `Window`; child surfaces are not
-supported.
+owner holds stable heap state used by the native target registration. At most
+one full target may be open for each open top-level `Window`; child surfaces are
+not supported.
 
 `open()` inherits the Window owner thread and offers the same queue-storage
 choices as other Desktop resource owners:
@@ -34,7 +34,7 @@ choices as other Desktop resource owners:
 | `open(window, description, eventStorage)` | Nonempty caller-owned storage borrowed until close. |
 
 Descriptions, regions, format names, and source data are copied. Caller views
-are never retained. No DragDrop allocation, OLE initialization, native
+are never retained. No drag-and-drop allocation, OLE initialization, native
 registration, or permanent Window state exists until a target is opened or a
 source drag begins.
 
@@ -62,7 +62,7 @@ fallback prevents later wrong-thread COM use and does not affect other targets.
 
 ## Regions and acceptance
 
-`TargetDescription::regions` is the initial immutable region snapshot.
+`TargetDescription::regions` supplies the initial copied region snapshot.
 `setRegions()` validates and copies a complete replacement before publishing it,
 so failure leaves the prior snapshot unchanged. Region IDs already present in
 queued events remain ordinary values and are not invalidated by replacement.
@@ -83,7 +83,7 @@ all accepting regions has invalid `RegionId{}` and `Effect::None`.
 Standard formats require an empty custom name. Custom formats require a
 nonempty strict UTF-8 native name without embedded U+0000. Duplicate accepted
 formats within one region are invalid. A region may accept several formats; a
-successful Drop materializes every accepted format that the source offers, in
+successful drop materializes every accepted format that the source offers, in
 the region's declared order.
 
 ## Effect negotiation
@@ -110,14 +110,14 @@ disposable resources when validating foreign Move behavior.
 
 ## Target events and sessions
 
-Each native visit receives a nonzero `SessionId`. Each successful target open
-lifetime independently starts event `sequence` at one.
+Each native visit receives a nonzero `SessionId`. Each successfully opened
+target lifetime starts event `sequence` at one.
 
 | Event | Meaning |
 | --- | --- |
 | `Entered` | The native session entered the top-level target. Carries position, current region, selected effect, and immutable offered-format metadata. |
-| `Moved` | The position, region, or selected effect was observed again. Carries previous/current region IDs and reuses the session format snapshot. |
-| `Left` | The session left the top-level target without a successful Drop. |
+| `Moved` | Reports a subsequent position, region, or selected effect. Carries previous/current region IDs and reuses the session format snapshot. |
+| `Left` | The session left the top-level target without a successful drop. |
 | `Dropped` | All selected payload items materialized successfully. Owns the complete `DataTransfer::Payload`. |
 
 `Entered` and `Left` do not represent individual region boundaries. Moving from
@@ -125,7 +125,7 @@ region A to B produces `Moved{previousRegion=A, region=B}`, not a synthetic
 Left/Entered pair.
 
 Drag enter and movement enumerate bounded format metadata but do not retrieve
-payload-sized data. Final Drop retrieval is synchronous and transactional. If
+payload-sized data. Final drop retrieval is synchronous and transactional. If
 one selected format is unavailable, malformed, unsupported, fails conversion,
 or cannot allocate, the target reports `Effect::None` and queues no partial
 `Dropped` event. A foreign provider can block while servicing the final native
@@ -207,14 +207,14 @@ preparation failure enters no modal drag and retains no caller memory.
 
 `beginDrag()` then enters synchronous Win32 `DoDragDrop`:
 
-- release of the configured trigger requests completion/drop;
+- release of the configured trigger requests drop completion;
 - Escape cancels;
 - unrelated mouse-button changes do not terminate the drag;
 - a nested source drag on the same owner thread reports `ResourceBusy`.
 
 Foreign consumers may request one prepared format repeatedly. Each request gets
 fresh native storage copied from the immutable preparation; no caller access,
-conversion, file IO, renderer work, or application callback occurs at that
+conversion, file I/O, renderer work, or application callback occurs at that
 time. The source Window must remain open for the complete call.
 
 ```cpp
@@ -257,13 +257,13 @@ consume its typed queue.
 
 OLE initialization is acquired lazily on the owner thread and balanced when the
 target/source lifetime ends. A compatible existing apartment is reused. An
-incompatible apartment returns `ResourceBusy`; Desktop does not move the operation
-to a hidden STA thread.
+incompatible apartment returns `ResourceBusy`; Desktop does not move the
+operation to a hidden STA thread.
 
 | Portable format | Win32 representation |
 | --- | --- |
 | Text | `CF_UNICODETEXT` with strict conversion and native terminator. |
-| File list | Unicode `CF_HDROP`; paths are copied without file IO. |
+| File list | Unicode `CF_HDROP`; paths are copied without file I/O. |
 | Image | Top-down sRGB `CF_DIBV5` source with image rendering intent; common `CF_DIB`/DIBV5 target materialization. |
 | Custom | Case-insensitive registered native clipboard-format identity. |
 
@@ -281,7 +281,7 @@ than changing the payload extent or opting into delayed rendering.
 
 | Status | Typical meaning |
 | --- | --- |
-| `InvalidArgument` | Zero/duplicate ID, invalid effect/preference, bad format/name/data, empty queue storage/items, or trigger not held. |
+| `InvalidArgument` | Zero or duplicate ID, invalid effect or preference, invalid format, name, or payload, empty queue storage or items, or trigger not held. |
 | `NotOpen` | Source/target Window is closed, or target native access was lost. |
 | `AlreadyOpen` | The same target owner already retains a lifetime. |
 | `ResourceBusy` | Wrong owner thread, another target/lightweight mode, nested source drag, or incompatible apartment. |
@@ -291,7 +291,7 @@ than changing the payload extent or opting into delayed rendering.
 
 Checked public operations are `noexcept`. A failed `open()` leaves the target
 closed; failed transactional region replacement preserves the old snapshot;
-failed final Drop publishes no partial payload.
+failed final drop publishes no partial payload.
 
 ## Related pages
 

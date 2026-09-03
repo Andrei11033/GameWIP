@@ -1,6 +1,7 @@
 @page terminal_public_api Public API
 
-Include `terminal/terminal.h` for the complete API. Focused entry points are:
+Include `terminal/terminal.h` for the complete public surface. Focused entry
+headers are:
 
 - `terminal/types.h`: vocabulary shared by input and output;
 - `terminal/style.h`: style types and color factories;
@@ -8,9 +9,10 @@ Include `terminal/terminal.h` for the complete API. Focused entry points are:
 - `terminal/output.h`: output, formatting, controls, buffers, and state scopes;
 - `terminal/session.h`: `SessionOptions` and the managed `Session` owner.
 
-Focused headers reduce dependencies and clarify intent without changing API
-behavior. Installed consumers link `GameWIP::Terminal`; source-tree consumers
-link `Terminal`.
+Focused headers reduce dependencies and clarify intent. Their declarations have
+the same contracts and runtime behavior as those reached through the umbrella.
+Installed consumers link `GameWIP::Terminal`; source-tree consumers link
+`Terminal`.
 
 ## Namespace layout
 

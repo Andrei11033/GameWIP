@@ -12,8 +12,7 @@ consumer needs.
 
 `filesystem/filesystem.h` is the complete convenience include. Consumers may
 instead include `filesystem/path.h`, `filesystem/entry.h`,
-`filesystem/file.h`, or `filesystem/directory.h` for the concepts they use.
-The selected valid header does not change API behavior.
+`filesystem/file.h`, or `filesystem/directory.h` for the declarations they use.
 
 ## Installed CMake
 

@@ -2,8 +2,8 @@
 
 These focused examples build on the owner-thread lifecycle from
 @ref desktop_quick_start and demonstrate displays, custom cursors, native child
-hosts, Clipboard data exchange, native drag and drop, renderer integration, and native interop without
-hiding status handling.
+hosts, Clipboard data exchange, native drag and drop, renderer integration, and
+native interop without hiding status handling.
 
 ## Open a normal Window
 
@@ -184,8 +184,9 @@ loss, event queues, geometry, DPI, and sibling ordering.
 const auto concurrentReads = GameWIP::Desktop::Renderer::enableConcurrentPresentationReads(window);
 if (concurrentReads.ok())
 {
-    // Start the renderer thread only after enablement completes. It may now use the documented
-    // presentation getters directly, including framebufferSize(), currentMonitor(), and occluded().
+    // Start the renderer thread only after enablement completes. It may now use
+    // the documented presentation getters, including framebufferSize(),
+    // currentMonitor(), and occluded().
 }
 
 if (window.supports(GameWIP::Desktop::Types::Capability::OcclusionReporting))

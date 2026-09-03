@@ -6,13 +6,12 @@ captured when a behavior needs a real Window.
 
 ## Automated suite
 
-The `desktop` validation module retains coverage for closed and default behavior, description validation, internal and external fixed event queues,
-coalescing and overflow, sticky close intent, ownership and thread affinity, native handles, controls, DPI policy, monitor, mode, color inspection,
-renderer occlusion feedback, pointer hit masks, native messages, fullscreen recovery, file drops, redraw, unexpected native destruction, deferred
-cleanup, pump reentrancy, custom cursor validation, materialization, DPI reselection, and lifetime, Clipboard validation, native round trips,
-transactionality, timeouts, partial publication and cleanup precedence, ChildSurface parent loss, geometry, queues, DPI,
-ordering, native hosting, DragDrop IDs/descriptions, effect negotiation, region snapshots, target/lightweight conflicts, target queues, movement
-coalescing, terminal-event preservation, parent loss, and injected registration rollback paths.
+The `desktop` validation module retains coverage for closed and default behavior, description validation, fixed event queues, coalescing and overflow,
+sticky close intent, ownership and thread affinity, native handles and messages, controls, DPI policy, monitor, mode, color inspection, renderer
+integration, fullscreen recovery, file drops, redraw, unexpected native destruction, deferred cleanup, and pump reentrancy. Focused coverage also
+exercises custom cursor validation and lifetime; Clipboard validation, native round trips, transactions, timeouts, and cleanup precedence; ChildSurface
+parent loss, geometry, queues, DPI, ordering, and native hosting; and DragDrop descriptions, negotiation, regions, conflicts, queues, Window loss, and
+registration rollback.
 
 Process-isolated shutdown coverage uses routed child processes so failures after a suite function returns remain observable. It verifies exact zero
 exit codes after a standalone color query, a normal `WM_CLOSE` and final-Window close path, owner-thread exit with retained Window state, and
@@ -74,7 +73,7 @@ on another thread. Shared transfer regressions continue through the Clipboard
 native round-trip suites.
 
 Interactive source-button release, Escape cancellation, Explorer/application
-interop, foreign repeated `IDataObject::GetData` requests, and cross-process
+interoperability, repeated foreign `IDataObject::GetData` requests, and cross-process
 custom schemas require the manual workflow in @ref desktop_manual_validation.
 
 ## Suite organization
@@ -94,6 +93,6 @@ shell-visible state. See @ref desktop_manual_validation for the operator
 checklist.
 
 `--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`,
-`files-shell`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow; `borderless`,
-`exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and record before/after
-mode-transition geometry so evidence survives a driver reset or process interruption.
+`files-shell`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow;
+`borderless`, `exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and
+record before/after mode-transition geometry so evidence survives a driver reset or process interruption.

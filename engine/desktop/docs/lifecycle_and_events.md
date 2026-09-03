@@ -75,7 +75,7 @@ counter.
 
 ## Pumping
 
-`Window::Events::poll()` pumps the calling thread without blocking. `Window::Events::wait()` waits for input up to the requested timeout and then
+`Desktop::Events::poll()` pumps the calling thread without blocking. `Desktop::Events::wait()` waits for input up to the requested timeout and then
 pumps. Their queued and dropped counts include events routed to top-level Windows and optional ChildSurfaces during the call. Pumping with no open
 Window-subsystem object on the calling thread is a successful no-op; recursive pumping returns `ResourceBusy`.
 
