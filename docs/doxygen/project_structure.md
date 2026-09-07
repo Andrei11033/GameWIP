@@ -83,7 +83,7 @@ giving its portable result contracts unrelated higher-level dependencies.
 ## Engine-system status
 
 Desktop is the supported, documented engine library and participates in package,
-public-header, correctness, benchmark, and manual validation. Input and Action
+public-header, correctness, and manual validation. Input and Action
 are compiled source-tree prototypes whose public contracts and package
 boundaries are not yet stable; they are intentionally absent from the reusable
 library manual. WindowManager targets a retired Window surface and is preserved

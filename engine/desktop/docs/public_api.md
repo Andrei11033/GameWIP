@@ -1,12 +1,12 @@
 @page desktop_public_api Public API
 
-Window splits its installed headers by concept while keeping one library and
+Desktop splits its installed headers by concept while keeping one library and
 one passive `Types` tree. Use this map to find the declaration that owns a
 lifecycle, event, display, renderer, or native-interop operation.
 
 ## Header ownership
 
-Window exposes one public `GameWIP::Desktop::Types` tree and focused headers by conceptual ownership:
+Desktop exposes one public `GameWIP::Desktop::Types` tree and focused headers by conceptual ownership:
 
 - `desktop/types.h` contains shared primitive/value vocabulary such as `WindowId`, geometry, DPI, limits, and `PresentationState`.
 - `desktop/description.h` contains creation/configuration policy and `Types::Description`.
@@ -123,11 +123,11 @@ Rich inspection from `desktop/display_info.h` adds:
 - `getColorInfo(Types::Display::MonitorId)`
 - `getColorInfo(const Window&)`
 
-OS HDR/WCG/color facts belong to Window display inspection, not to the renderer bridge.
+OS HDR/WCG/color facts belong to Desktop display inspection, not to the renderer bridge.
 
 ## Text contract
 
-Public Window text is UTF-8. Window uses the Unicode foundation library for strict UTF-8/UTF-16 conversion at native boundaries rather than
+Public Desktop text is UTF-8. Desktop uses the Unicode foundation library for strict UTF-8/UTF-16 conversion at native boundaries rather than
 maintaining a second UTF-8 decoder. Native title operations additionally reject embedded U+0000 because the Win32 APIs consume NUL-terminated strings.
 
 ## Renderer bridge

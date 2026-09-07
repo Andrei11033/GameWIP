@@ -1,6 +1,6 @@
 @page desktop_test_hooks Internal test hooks
 
-Window deterministic failure/state hooks are source-tree-only and are enabled with `DESKTOP_ENABLE_TEST_HOOKS`, which defines
+Desktop deterministic failure/state hooks are source-tree-only and are enabled with `DESKTOP_ENABLE_TEST_HOOKS`, which defines
 `DESKTOP_INTERNAL_TEST_HOOKS` for repository validation targets.
 
 `desktop/internal/desktop_test_hooks.h` is not installed and is not a supported consumer header. Installed package validation explicitly checks that

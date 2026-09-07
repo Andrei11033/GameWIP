@@ -1,8 +1,8 @@
 @page desktop_package_abi Package and ABI contract
 
-Window is intentionally built as a **shared C++23 library**. The Win32 implementation owns process-local Window IDs, the native-window registry,
+Desktop is intentionally built as a **shared C++23 library**. The Win32 implementation owns process-local Window IDs, the native-window registry,
 class-registration state, and per-thread dispatcher registry. A shared module gives those facilities one coherent runtime instance across
-executable/DLL boundaries. Static Window linkage is not advertised; supporting it would first require a runtime design that cannot duplicate process
+executable/DLL boundaries. Static Desktop linkage is not advertised; supporting it would first require a runtime design that cannot duplicate process
 identity/state per consuming module.
 
 The exported `Window` object keeps a pImpl boundary. Public C++ types remain part of the exact-version package contract and are not a stable
@@ -44,7 +44,7 @@ explicit opt-in includes.
 `IO` and `FileSystem` are public package dependencies because installed public types expose their contracts. Unicode is a private implementation
 dependency used by the shared Desktop library for strict native text conversion; no Unicode type leaks through Desktop public headers.
 
-The package remains exact-version matched. On Win32 the installed package also propagates the Window application manifest resource required for
+The package remains exact-version matched. On Win32 the installed package also propagates the Desktop application manifest resource required for
 Per-Monitor-V2 awareness.
 
 OLE and COM remain private implementation dependencies. The Win32 backend links
@@ -53,5 +53,5 @@ or raw drag/drop handles.
 
 ## Internal definitions
 
-Source-tree validation may enable `DESKTOP_INTERNAL_TEST_HOOKS`. Installed imported targets must not expose that definition. Desktop-specific build
-variables likewise use the `WINDOW_INTERNAL_*` prefix rather than project-wide `GAMEWIP_*` names.
+Source-tree validation may enable `DESKTOP_INTERNAL_TEST_HOOKS`. Installed imported targets must not expose that definition. Desktop-specific internal
+build variables and macros use the `DESKTOP_INTERNAL_*` prefix rather than project-wide `GAMEWIP_*` names.

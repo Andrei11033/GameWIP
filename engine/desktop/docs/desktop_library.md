@@ -25,7 +25,7 @@ opt-in headers expose renderer integration and deliberate native interoperation.
   close a Window.
 - @subpage desktop_public_api — Find headers, namespaces, owners, passive types,
   capability groups, and results.
-- @subpage desktop_package_abi — Understand why Window is shared and how its
+- @subpage desktop_package_abi — Understand why Desktop is shared and how its
   package, exports, manifest, and runtime identity work.
 - @subpage desktop_coordinates_and_dpi — Relate logical client units, physical
   pixels, desktop coordinates, framebuffers, scale, and DPI policy.
@@ -52,7 +52,7 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 - @subpage desktop_troubleshooting — Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer integration.
 - @subpage desktop_future_extensions — Understand where proposed accessibility,
-  drag/drop, dialogs, and related features belong.
+  dialogs, shell integration, and related features belong.
 
 ## Maintainer validation
 
@@ -108,17 +108,17 @@ The normal portable surface is assembled by `desktop/window.h` from focused `des
 `desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, native data drag
 and drop is opt-in through `desktop/drag_drop.h`, and Win32 interoperability is opt-in through `desktop/native/win32.h`.
 
-Installed consumers link `GameWIP::Desktop`. Window is intentionally built as a shared library: process-local Window and monitor identities, native
+Installed consumers link `GameWIP::Desktop`. Desktop is intentionally built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked
 modules.
 
 ## Dependency boundary
 
-Window is installed as the shared target `GameWIP::Desktop`. IO and FileSystem
-are public package dependencies because Window headers expose their contracts;
+Desktop is installed as the shared target `GameWIP::Desktop`. IO and FileSystem
+are public package dependencies because Desktop headers expose their contracts;
 Unicode is a private native-text conversion dependency.
 
-Window owns top-level native state, cached geometry, event translation, queried
+Desktop owns top-level native state, cached geometry, event translation, queried
 display/color facts, and the persistent packed pointer mask published through
 `desktop/renderer_bridge.h`.
 

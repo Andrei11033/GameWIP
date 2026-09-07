@@ -30,7 +30,7 @@ target_link_libraries(MyTarget PRIVATE GameWIP::Desktop)
 ## Source-tree CMake
 
 ```cmake
-target_link_libraries(MyTarget PRIVATE Window)
+target_link_libraries(MyTarget PRIVATE GameWIP::Desktop)
 ```
 
 ## Minimal usage
