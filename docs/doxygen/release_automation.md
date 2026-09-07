@@ -146,7 +146,10 @@ milestone handoff exist.
 A maintainer must fill in the final validation evidence, review the release-preparation pull request, and merge it manually. The workflow must not
 write directly to `master`.
 
-Finalization rejects release notes that still contain the generated validation-evidence placeholder or unchecked release checklist items.
+Finalization rejects release notes that still contain the generated
+validation-evidence placeholder. The workflow independently establishes the
+version, review, merge, required-check, tag, and publication preconditions
+described by the generated release-process section.
 
 ## Finalize the release
 

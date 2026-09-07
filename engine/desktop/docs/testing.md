@@ -89,8 +89,8 @@ source-tree hooks documented by @ref desktop_test_hooks.
 Manual Desktop validation is opt-in from an interactive Windows desktop and
 covers native presentation, custom chrome, pointer policies, cursor behavior,
 file drops, taskbar/ownership behavior, DPI/fullscreen transitions, and
-shell-visible state. See @ref desktop_manual_validation for the operator
-checklist.
+shell-visible state. See @ref desktop_manual_validation for the observable
+scenarios and expected results.
 
 `--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`,
 `files-shell`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow;

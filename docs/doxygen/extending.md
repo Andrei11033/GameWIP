@@ -1,13 +1,12 @@
 @page project_extending Extending the project
 
-Use this checklist when a change adds a new project concept or expands an
-existing public boundary. It keeps implementation, tests, documentation,
-packaging, and automation moving together instead of leaving follow-up work
-hidden in another part of the repository.
+This page defines how a new project concept or an expanded public boundary fits
+the repository. The integration rules keep implementation, tests,
+documentation, packaging, and automation consistent across their owning areas.
 
 Library manuals still explain their own APIs, and workflow pages still explain
-how to run their tools. This checklist connects those areas and points to the
-details that need review for each kind of change.
+how to run their tools. This contract connects those areas and identifies the
+required ownership and integration behavior for each kind of change.
 
 ## Scope
 
@@ -33,7 +32,7 @@ Use this page when adding or changing:
 - Add correctness coverage before benchmark coverage.
 - Record exact verification commands in the pull request.
 
-## Add a reusable library
+## Reusable library integration
 
 Place low-level runtime libraries under `foundation/` and diagnostics or development-support libraries under `tools/`.
 
@@ -60,45 +59,41 @@ Use this default structure:
 
 Add `docs/test_hooks.md` only when the library exposes approved source-tree-only validation hooks.
 
-Required integration:
+A reusable library has these integration surfaces:
 
-- Add the library to the owning parent `CMakeLists.txt`.
-- Create one canonical target and imported alias.
-- Require `cxx_std_23`.
-- List sources explicitly.
-- Declare dependency visibility accurately.
-- Install only the public header surface and generated export headers.
-- Add package config and exact version files when the library is installable.
-- Add public-header compile checks and clean installed-consumer validation.
-- Add correctness tests.
-- Add the required library documentation set.
-- Register public headers and docs with `gamewip_register_doxygen_library()`.
+- The owning parent `CMakeLists.txt` includes the library.
+- One canonical target and imported alias define its CMake identity.
+- The target requires `cxx_std_23`, lists sources explicitly, and declares dependency visibility accurately.
+- Installation contains only the public header surface and generated export headers.
+- Installable libraries provide package config and exact-version files.
+- Public-header compilation and clean installed-consumer validation protect the package boundary.
+- Correctness tests cover the supported behavior.
+- The required library documentation set describes the public contract.
+- `gamewip_register_doxygen_library()` registers the public headers and manual pages.
 
 Use `PUBLIC` dependencies only when the dependency appears in installed public headers. Use `PRIVATE` dependencies when the dependency is
 implementation-only.
 
-## Add a public API
+## Public API integration
 
 A public API is any installed symbol, type, macro, option, result type, or supported behavior that external consumers may use.
 
-Required work:
+A public API change spans these owning surfaces:
 
-- Add the declaration to an installed public header.
-- Implement the behavior in portable core code or the appropriate platform backend.
-- Add compact public-header documentation.
-- Update the owning library's public API manual.
-- Add an example when the behavior is non-trivial.
-- Add correctness tests.
-- Update troubleshooting documentation when the API introduces likely failure modes.
-- Update package exports or shared-library allowlists when applicable.
+- Declarations live in installed public headers with compact local contract documentation.
+- Behavior lives in portable core code or the appropriate platform backend.
+- The owning library manual explains the public behavior and likely failure modes.
+- Non-trivial behavior has a supported public example.
+- Correctness tests cover the contract.
+- Package exports and shared-library allowlists reflect the intended public symbols.
 
 Public API documentation requirements are defined in @ref project_documentation.
 
-## Add or change a public macro
+## Public macro behavior
 
 A public macro is public API.
 
-Document and test:
+Macro documentation and tests describe:
 
 - What the macro evaluates.
 - Whether arguments are evaluated once or may be evaluated multiple times.
@@ -108,7 +103,7 @@ Document and test:
 
 Prefer minimal macros that forward to typed implementation functions.
 
-## Add approved internal test hooks
+## Approved internal test hooks
 
 Add test hooks only when ordinary public API tests cannot validate behavior safely or deterministically.
 
@@ -128,7 +123,7 @@ Failure-injection hooks must be deterministic, resettable, and narrow enough to 
 public status, native diagnostic, payload, and cleanup invariants that a real failure promises. Installed-consumer checks must reject the enabling
 compile definition so hooks cannot become accidental package API.
 
-## Add a correctness-test module
+## Correctness-test modules
 
 Create modules under:
 
@@ -155,7 +150,7 @@ ctest --preset test
 
 Detailed runner behavior is documented in @ref project_validation. Test authoring rules are documented in @ref project_testing.
 
-## Add a benchmark module
+## Benchmark modules
 
 Create modules under:
 
@@ -174,7 +169,7 @@ Verify registration before collecting results:
 
 Benchmark authoring rules are documented in @ref project_benchmarking.
 
-## Add documentation
+## Documentation ownership
 
 Choose the owner before writing the page.
 
@@ -191,54 +186,49 @@ Generated Doxygen pages must be registered explicitly. Library pages are registe
 
 Documentation changes must follow @ref project_documentation.
 
-## Add a project workflow or contract page
+## Project workflow and contract pages
 
 A workflow page documents a repeatable action. A contract page documents a rule that keeps the repository consistent.
 
-When adding one:
+A workflow or contract page has the following integration properties:
 
-- Choose one authoritative owner.
-- Put generated manual pages under `docs/doxygen/`.
-- Put long-form planning and policy records under `docs/`.
-- Use the standard page structure from @ref project_documentation.
-- Register generated pages explicitly.
-- Link from the nearest relevant index page.
-- Include copy-paste commands for workflows.
-- Include review guidance for contracts.
+- Each page has one authoritative owner.
+- Generated manual pages live under `docs/doxygen/`; long-form planning and policy records live under `docs/`.
+- Page structure follows @ref project_documentation.
+- Generated pages are registered explicitly and linked from the nearest relevant index.
+- Workflow pages provide copy-paste commands and explain their outputs and failure behavior.
+- Contract pages state their review criteria as repository invariants.
 
-## Add a platform backend
+## Platform backend integration
 
 Platform backend structure and behavior are owned by @ref project_platform_backend_contract.
 
-When adding a backend:
+A backend integrates through these boundaries:
 
-- Implement the owning internal platform contract.
-- Keep the portable public API unchanged.
-- Add backend-local sources, resources, libraries, or compile definitions in `platform.cmake`.
-- Translate native failures into the owning library's status or result model.
-- Keep native handles and platform-specific types out of installed public headers.
-- Add tests or approved hooks when public behavior cannot be validated directly.
-- Update the owning library's testing and troubleshooting docs.
+- The backend implements the owning internal platform contract without changing the portable public API.
+- `platform.cmake` owns backend-local sources, resources, libraries, and compile definitions.
+- Native failures translate into the owning library's status or result model.
+- Installed public headers contain no native handles or platform-specific types.
+- Tests or approved hooks cover behavior that public API tests cannot validate directly.
+- The owning library's testing and troubleshooting pages describe supported backend behavior and limitations.
 
-## Add or change a CMake option
+## CMake option integration
 
 Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/GameWIPOptions.cmake`. Maintainer-facing CMake helper conventions are
 documented in @ref project_cmake_infrastructure.
 
-When adding or changing an option:
+A project option has these owning surfaces:
 
-- Choose the correct ownership prefix.
-- Define the default in the owning CMake file.
-- Set intentional values in relevant presets.
-- Document project-facing controls under @ref project_build.
-- Document consumer-facing library-local controls in the owning library manual.
-- Add validation coverage for meaningful enabled and disabled behavior.
+- Its name uses the correct ownership prefix, and its default lives in the owning CMake file.
+- Relevant presets set intentional values rather than relying on accidental defaults.
+- @ref project_build describes project-facing controls; the owning library manual describes consumer-facing local controls.
+- Validation covers meaningful enabled and disabled behavior.
 
-## Add or change packaging behavior
+## Packaging behavior
 
 Package changes must preserve the installed-consumer boundary.
 
-Update:
+Package behavior spans:
 
 - Install rules.
 - Exported targets.

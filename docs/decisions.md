@@ -261,7 +261,7 @@ exposure.
 Add or change an entry only when the choice is durable and project-wide. State
 the reason and the practical consequence, then update every manual or workflow
 whose instructions changed. Use an issue for the implementation work rather
-than embedding a checklist here.
+than duplicating operational requirements here.
 
 Related detail is available in:
 

@@ -210,21 +210,20 @@ Source comments should explain:
 
 Do not narrate simple assignments, forwarding calls, obvious test expectations, or compile-only includes beyond their file-level purpose.
 
-## Review checklist
+## Integration invariants
 
-When changing executable integration:
+Executable integration preserves these invariants:
 
-- Keep `main.cpp` small and sequencing-focused.
-- Preserve utility-only version behavior.
-- Preserve utility-only help behavior and keep its build-availability text current.
-- Keep disabled validation paths dependency-free.
-- Return child-route results before benchmarks and runtime code.
-- Keep expected runtime failures representable as process exit codes.
-- Update @ref project_validation for runner or command-line changes.
-- Update @ref project_testing for test-module contract changes.
-- Update @ref project_benchmarking for benchmark-runner changes.
-- Update @ref project_versioning for generated identity changes.
-- Update registered source API comments when contracts change.
+- `main.cpp` remains small and sequencing-focused.
+- Version and help requests remain utility-only; help text reflects current build availability.
+- Disabled validation paths introduce no validation dependency.
+- Child-route results return before benchmark or runtime execution.
+- Expected runtime failures remain representable as process exit codes.
+- @ref project_validation owns runner and command-line behavior.
+- @ref project_testing owns test-module contracts.
+- @ref project_benchmarking owns benchmark-runner behavior.
+- @ref project_versioning owns generated identity behavior.
+- Registered source API comments remain synchronized with their contracts.
 
 ## Related pages
 

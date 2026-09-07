@@ -156,7 +156,7 @@ The pull request body should include:
 - What changed.
 - Linked issue numbers when applicable.
 - The validation commands or inspections performed.
-- Checklist items from the pull-request template.
+- Required confirmations from the pull-request template.
 - The intended squash merge message for non-trivial changes.
 
 Use `Draft` only while the pull request is not ready for final review or merge.
@@ -245,7 +245,7 @@ Validation / Docs Check
 Local static-analysis commands and file scope are documented in
 @ref project_static_analysis. The authoritative check ownership, validation
 tiers, manual dispatch map, protected-branch baseline, and repository audit
-checklist are documented in @ref project_repository_maintenance.
+requirements are documented in @ref project_repository_maintenance.
 
 ## Project automation
 

@@ -11,7 +11,7 @@ Use these pages when reviewing whether a change belongs in the project, how it s
   exceptions, ABI, namespaces, and compatibility rules for public C++ APIs.
 - @subpage project_documentation — Where each kind of information belongs and
   what complete project, library, source, and API documentation requires.
-- @subpage project_extending — Cross-repository checklists for new or changed
+- @subpage project_extending — Cross-repository integration rules for new or changed
   libraries, APIs, executables, backends, tests, workflows, and documentation.
 - @subpage project_cmake_infrastructure — Shared CMake helpers for libraries,
   platforms, packages, validation, reports, documentation, and runtime staging.

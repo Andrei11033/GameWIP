@@ -30,7 +30,7 @@ Use GitHub issues for:
 The roadmap defines long-term capability outcomes and what must be true before
 each concrete milestone is complete without duplicating individual issues.
 
-## Historical checklists
+## Historical milestone records
 
 Do not maintain separate source-tree task ledgers. GitHub issues track active
 work, while @ref project_roadmap defines milestone completion criteria.

@@ -273,7 +273,7 @@ warning-free.
 Doxygen validates syntax and links, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice,
 terminology, list, example, and ownership rules in @ref project_documentation.
 
-## Local pre-commit checklist
+## Local validation scope
 
 Run the repository-check commands above when changing documentation or
 GitHub/setup automation. Add the C++ analysis commands when changing maintained

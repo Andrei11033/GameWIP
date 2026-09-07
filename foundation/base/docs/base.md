@@ -54,12 +54,12 @@ The generated namespace pages for `GameWIP::Base` and
 return contracts. Base is documented for source-tree maintainers; it is not an
 installed consumer API.
 
-# Admission checklist
+# Admission criteria
 
-- The mechanism is already duplicated across independent components.
-- Its behavior contains no domain-specific result, error, lifetime, or policy decision.
-- It can remain independent of every GameWIP library target.
-- Its public surface is narrow and directly testable.
+A mechanism belongs in Base only when it is already duplicated across independent
+components, contains no domain-specific result, error, lifetime, or policy
+decision, remains independent of every GameWIP library target, and exposes a
+narrow, directly testable surface.
 
 # Testing
 

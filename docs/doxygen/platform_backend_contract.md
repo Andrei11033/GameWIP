@@ -133,9 +133,9 @@ dependency must be documented in the public API guide, examples, package usage r
 
 Temporary backend limitations may be documented in troubleshooting or testing pages, but they must not silently weaken the public contract.
 
-## Review checklist
+## Review invariants
 
-Reviewers must check that:
+Backend review establishes that:
 
 - Native includes and handles do not leak into installed public headers.
 - Portable core code uses the internal backend contract.
