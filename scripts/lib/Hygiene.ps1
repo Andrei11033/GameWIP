@@ -263,7 +263,7 @@ function Write-GameWipHygieneReport
     Write-Host "  Findings:  $(@($Report.findings).Count)"
     Write-Host "  Planned:   $(@($Report.planned).Count)"
     Write-Host "  Report:    $path"
-    $confidenceCounts = @($Report.findings | Group-Object confidence | Sort-Object Name)
+    $confidenceCounts = @($Report.findings | Group-Object { $_.confidence } | Sort-Object Name)
     if ($confidenceCounts.Count -ne 0)
     {
         Write-Host ('  Confidence: {0}' -f (($confidenceCounts | ForEach-Object { "$($_.Name)=$($_.Count)" }) -join ', '))
