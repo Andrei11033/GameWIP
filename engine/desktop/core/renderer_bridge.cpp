@@ -4,8 +4,8 @@
 #include "desktop/renderer_bridge.h"
 #include "base/checked_arithmetic.h"
 
-#include "desktop/internal/window_platform.h"
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/internal/window_state.h"
 
 #include <algorithm>
 #include <limits>
