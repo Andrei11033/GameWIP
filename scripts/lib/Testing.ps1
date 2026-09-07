@@ -241,7 +241,7 @@ function Invoke-GameWipValidationCommandWizard
     $writeReport = Read-GameWipYesNo -Prompt 'Write retained test report?' -Default $false
     $reportPath = if ($writeReport)
     {
-        Read-GameWipTextValue -Prompt 'Report path' -Default 'logs/tests/latest_test_report.txt'
+        Read-GameWipTextValue -Prompt 'Report path' -Default 'logs/validation/latest_test_report.txt'
     }
     else
     {

@@ -100,6 +100,18 @@ namespace GameWIP::Desktop::Detail
         state.closeRequested = true;
         return enqueueEvent(state, Types::Events::CloseRequested{source});
     }
+
+    EnqueueResult setInteractiveMoveResizeActive(WindowState &state, bool active) noexcept
+    {
+        if (state.interactiveMoveResizeActive == active)
+            return EnqueueResult::Coalesced;
+        state.interactiveMoveResizeActive = active;
+        if (state.presentationPublication != nullptr)
+            state.presentationPublication->publishInteractiveMoveResizeActive(active);
+        if (active)
+            return enqueueEvent(state, Types::Events::InteractiveMoveResizeStarted{});
+        return enqueueEvent(state, Types::Events::InteractiveMoveResizeEnded{});
+    }
 } // namespace GameWIP::Desktop::Detail
 
 namespace GameWIP::Desktop::Events

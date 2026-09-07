@@ -1,7 +1,7 @@
 /// @file output_buffer.cpp
 /// @brief Checked caller-owned Terminal text-buffer implementation.
 
-#include "terminal/terminal.h"
+#include "terminal/output.h"
 #include "terminal/internal/terminal_platform.h"
 #include "unicode/unicode.h"
 

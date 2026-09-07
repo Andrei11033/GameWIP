@@ -3,17 +3,16 @@
 
 #include "desktop/internal/clipboard_platform.h"
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/platform/win32/internal/win32_data_transfer.h"
 
 #include <windows.h>
 #include <shellapi.h>
-#include <shlobj.h>
 
 #include <algorithm>
 #include <array>
 #include <chrono>
 #include <limits>
 #include <new>
-#include <ranges>
 #include <span>
 #include <string>
 #include <thread>
@@ -39,10 +38,6 @@ namespace GameWIP::Desktop::Detail::Platform
             return {static_cast<Value *>(data), count};
         }
 
-        template <typename Value> [[nodiscard]] std::span<const Value> nativeSpan(const void *data, std::size_t count) noexcept
-        {
-            return {static_cast<const Value *>(data), count};
-        }
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif
@@ -57,22 +52,6 @@ namespace GameWIP::Desktop::Detail::Platform
             Result result;
             result.status = status(code, nativeCode);
             return result;
-        }
-
-        [[nodiscard]] bool checkedAdd(std::size_t left, std::size_t right, std::size_t &result) noexcept
-        {
-            if (left > std::numeric_limits<std::size_t>::max() - right)
-                return false;
-            result = left + right;
-            return true;
-        }
-
-        [[nodiscard]] bool checkedMultiply(std::size_t left, std::size_t right, std::size_t &result) noexcept
-        {
-            if (left != 0 && right > std::numeric_limits<std::size_t>::max() / left)
-                return false;
-            result = left * right;
-            return true;
         }
 
         [[nodiscard]] bool validTimeout(std::chrono::milliseconds timeout) noexcept
@@ -131,24 +110,6 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             output.resize(static_cast<std::size_t>(required));
             if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), sourceLength, output.data(), required, nullptr, nullptr) != required)
-            {
-                nativeCode = GetLastError();
-                return false;
-            }
-            return true;
-        }
-
-        [[nodiscard]] bool isValidWide(std::wstring_view text, DWORD &nativeCode) noexcept
-        {
-            nativeCode = ERROR_SUCCESS;
-            if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
-            {
-                nativeCode = ERROR_INSUFFICIENT_BUFFER;
-                return false;
-            }
-            if (text.empty())
-                return true;
-            if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr) <= 0)
             {
                 nativeCode = GetLastError();
                 return false;
@@ -427,194 +388,31 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
-        [[nodiscard]] IO::Types::Status prepareText(const Transfer::TextView &item, PreparedItem &prepared)
-        {
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAllocation))
-                return status(ErrorCode::OutOfMemory);
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardTextConversion))
-                return status(ErrorCode::EncodingFailed);
-            if (item.text.find('\0') != std::string_view::npos)
-                return status(ErrorCode::InvalidArgument);
-            std::wstring wide;
-            DWORD nativeCode = 0;
-            if (!utf8ToWide(item.text, wide, nativeCode))
-                return status(ErrorCode::InvalidArgument, nativeCode);
-            std::size_t units = 0;
-            std::size_t bytes = 0;
-            if (!checkedAdd(wide.size(), 1, units) || !checkedMultiply(units, sizeof(wchar_t), bytes))
-                return status(ErrorCode::SizeLimitExceeded);
-            if (!prepared.memory.allocate(bytes))
-                return status(ErrorCode::OutOfMemory, GetLastError());
-            GlobalLock lock(prepared.memory.get());
-            if (lock.get() == nullptr)
-                return status(ErrorCode::LockFailed, GetLastError());
-            const auto destination = mutableNativeSpan<wchar_t>(lock.get(), units);
-            std::ranges::copy(wide, destination.begin());
-            destination.back() = L'\0';
-            prepared.format = CF_UNICODETEXT;
-            return IO::successStatus();
-        }
-
-        [[nodiscard]] IO::Types::Status prepareFiles(const Transfer::FileListView &item, PreparedItem &prepared)
-        {
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAllocation))
-                return status(ErrorCode::OutOfMemory);
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardPathConversion))
-                return status(ErrorCode::EncodingFailed);
-            if (item.paths.empty())
-                return status(ErrorCode::InvalidArgument);
-            std::vector<std::wstring> paths;
-            paths.reserve(item.paths.size());
-            std::size_t totalUnits = 1;
-            for (const FileSystem::Types::Path &path : item.paths)
-            {
-                if (!path.is_absolute())
-                    return status(ErrorCode::InvalidArgument);
-                std::wstring native = path.native();
-                if (native.find(L'\0') != std::wstring::npos)
-                    return status(ErrorCode::InvalidArgument);
-                std::size_t withTerminator = 0;
-                if (!checkedAdd(native.size(), 1, withTerminator) || !checkedAdd(totalUnits, withTerminator, totalUnits))
-                    return status(ErrorCode::SizeLimitExceeded);
-                paths.push_back(std::move(native));
-            }
-            std::size_t pathBytes = 0;
-            std::size_t totalBytes = 0;
-            if (!checkedMultiply(totalUnits, sizeof(wchar_t), pathBytes) || !checkedAdd(sizeof(DROPFILES), pathBytes, totalBytes))
-                return status(ErrorCode::SizeLimitExceeded);
-            if (totalBytes > static_cast<std::size_t>(std::numeric_limits<UINT>::max()))
-                return status(ErrorCode::SizeLimitExceeded);
-            if (!prepared.memory.allocate(totalBytes))
-                return status(ErrorCode::OutOfMemory, GetLastError());
-            GlobalLock lock(prepared.memory.get());
-            if (lock.get() == nullptr)
-                return status(ErrorCode::LockFailed, GetLastError());
-            const auto destination = mutableNativeSpan<std::byte>(lock.get(), totalBytes);
-            DROPFILES drop{};
-            drop.pFiles = sizeof(DROPFILES);
-            drop.fWide = TRUE;
-            std::ranges::copy(std::as_bytes(std::span{&drop, std::size_t{1}}), destination.begin());
-            std::size_t offset = sizeof(DROPFILES);
-            for (const std::wstring &path : paths)
-            {
-                const auto nativeBytes = std::as_bytes(std::span{path});
-                std::ranges::copy(nativeBytes, destination.subspan(offset, nativeBytes.size()).begin());
-                offset += nativeBytes.size();
-                std::ranges::fill(destination.subspan(offset, sizeof(wchar_t)), std::byte{});
-                offset += sizeof(wchar_t);
-            }
-            std::ranges::fill(destination.subspan(offset, sizeof(wchar_t)), std::byte{});
-            prepared.format = CF_HDROP;
-            return IO::successStatus();
-        }
-
-        [[nodiscard]] IO::Types::Status validateImage(const Transfer::ImageView &item, std::size_t &packedRow, std::size_t &stride) noexcept
-        {
-            if (item.size.width == 0 || item.size.height == 0 ||
-                !checkedMultiply(static_cast<std::size_t>(item.size.width), std::size_t{4}, packedRow))
-                return status(ErrorCode::InvalidArgument);
-            stride = item.rowStrideBytes == 0 ? packedRow : item.rowStrideBytes;
-            if (stride < packedRow)
-                return status(ErrorCode::InvalidArgument);
-            std::size_t expected = 0;
-            if (!checkedMultiply(stride, static_cast<std::size_t>(item.size.height), expected))
-                return status(ErrorCode::SizeLimitExceeded);
-            return item.rgba8.size() == expected ? IO::successStatus() : status(ErrorCode::InvalidArgument);
-        }
-
-        [[nodiscard]] IO::Types::Status prepareImage(const Transfer::ImageView &item, PreparedItem &prepared)
-        {
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAllocation))
-                return status(ErrorCode::OutOfMemory);
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardImagePreparation))
-                return status(ErrorCode::EncodingFailed);
-            std::size_t packedRow = 0;
-            std::size_t stride = 0;
-            IO::Types::Status result = validateImage(item, packedRow, stride);
-            if (!result.ok())
-                return result;
-            if (item.size.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
-                item.size.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
-                return status(ErrorCode::SizeLimitExceeded);
-            std::size_t pixelBytes = 0;
-            std::size_t totalBytes = 0;
-            if (!checkedMultiply(packedRow, static_cast<std::size_t>(item.size.height), pixelBytes) ||
-                !checkedAdd(sizeof(BITMAPV5HEADER), pixelBytes, totalBytes))
-                return status(ErrorCode::SizeLimitExceeded);
-            if (pixelBytes > static_cast<std::size_t>(std::numeric_limits<DWORD>::max()))
-                return status(ErrorCode::SizeLimitExceeded);
-            if (!prepared.memory.allocate(totalBytes))
-                return status(ErrorCode::OutOfMemory, GetLastError());
-            GlobalLock lock(prepared.memory.get());
-            if (lock.get() == nullptr)
-                return status(ErrorCode::LockFailed, GetLastError());
-            const auto destination = mutableNativeSpan<std::byte>(lock.get(), totalBytes);
-            BITMAPV5HEADER header{};
-            header.bV5Size = sizeof(BITMAPV5HEADER);
-            header.bV5Width = static_cast<LONG>(item.size.width);
-            header.bV5Height = -static_cast<LONG>(item.size.height);
-            header.bV5Planes = 1;
-            header.bV5BitCount = 32;
-            header.bV5Compression = BI_BITFIELDS;
-            header.bV5SizeImage = static_cast<DWORD>(pixelBytes);
-            header.bV5RedMask = 0x00FF0000U;
-            header.bV5GreenMask = 0x0000FF00U;
-            header.bV5BlueMask = 0x000000FFU;
-            header.bV5AlphaMask = 0xFF000000U;
-            header.bV5CSType = 0x73524742U; // LCS_sRGB without the SDK's multi-character literal warning.
-            std::ranges::copy(std::as_bytes(std::span{&header, std::size_t{1}}), destination.begin());
-            const auto pixels = destination.subspan(sizeof(BITMAPV5HEADER), pixelBytes);
-            for (std::size_t y = 0; y < item.size.height; ++y)
-            {
-                const auto source = item.rgba8.subspan(y * stride, packedRow);
-                const auto row = pixels.subspan(y * packedRow, packedRow);
-                for (std::size_t x = 0; x < item.size.width; ++x)
-                {
-                    row[x * 4] = source[x * 4 + 2];
-                    row[x * 4 + 1] = source[x * 4 + 1];
-                    row[x * 4 + 2] = source[x * 4];
-                    row[x * 4 + 3] = source[x * 4 + 3];
-                }
-            }
-            prepared.format = CF_DIBV5;
-            return IO::successStatus();
-        }
-
-        [[nodiscard]] IO::Types::Status prepareCustom(const Transfer::CustomView &item, PreparedItem &prepared)
-        {
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAllocation))
-                return status(ErrorCode::OutOfMemory);
-            if (item.formatName.empty() || item.formatName.find('\0') != std::string_view::npos)
-                return status(ErrorCode::InvalidArgument);
-            std::wstring wide;
-            DWORD nativeCode = 0;
-            if (!utf8ToWide(item.formatName, wide, nativeCode))
-                return status(ErrorCode::InvalidArgument, nativeCode);
-            SetLastError(ERROR_SUCCESS);
-            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardRegistration))
-                return status(ErrorCode::NativeFailure, ERROR_GEN_FAILURE);
-            prepared.format = RegisterClipboardFormatW(wide.c_str());
-            if (prepared.format == 0)
-                return status(ErrorCode::NativeFailure, GetLastError());
-            return allocateAndCopy(item.bytes, prepared.memory);
-        }
-
         [[nodiscard]] IO::Types::Status prepareItem(const Transfer::ItemView &item, PreparedItem &prepared)
         {
-            return std::visit(
-                [&](const auto &value) -> IO::Types::Status
-                {
-                    using Value = std::remove_cvref_t<decltype(value)>;
-                    if constexpr (std::is_same_v<Value, Transfer::TextView>)
-                        return prepareText(value, prepared);
-                    else if constexpr (std::is_same_v<Value, Transfer::FileListView>)
-                        return prepareFiles(value, prepared);
-                    else if constexpr (std::is_same_v<Value, Transfer::ImageView>)
-                        return prepareImage(value, prepared);
-                    else
-                        return prepareCustom(value, prepared);
-                },
-                item);
+            if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAllocation))
+                return status(ErrorCode::OutOfMemory);
+            if ((std::holds_alternative<Transfer::TextView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardTextConversion)) ||
+                (std::holds_alternative<Transfer::FileListView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardPathConversion)) ||
+                (std::holds_alternative<Transfer::ImageView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardImagePreparation)))
+                return status(ErrorCode::EncodingFailed);
+            if (std::holds_alternative<Transfer::CustomView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardRegistration))
+                return status(ErrorCode::NativeFailure, ERROR_GEN_FAILURE);
+            DataTransfer::PreparedItem shared;
+            IO::Types::Status result = DataTransfer::prepare(item, shared);
+            if (!result.ok())
+                return result;
+            prepared.format = shared.format;
+            return allocateAndCopy(shared.bytes, prepared.memory);
+        }
+
+        [[nodiscard]] IO::Types::Status materializeClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
+        {
+            SetLastError(ERROR_SUCCESS);
+            HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(nativeFormat));
+            if (!memory)
+                return status(ErrorCode::ReadFailed, GetLastError());
+            return DataTransfer::materializeGlobal(memory, format, item);
         }
 
         [[nodiscard]] IO::Types::Status closePreservingPrimary(ClipboardSession &session, IO::Types::Status primary) noexcept
@@ -633,13 +431,6 @@ namespace GameWIP::Desktop::Detail::Platform
             return format == CF_BITMAP || format == CF_DIB || format == CF_DIBV5;
         }
 
-        [[nodiscard]] std::size_t dibRowStride(std::size_t width, std::size_t bitsPerPixel, bool &valid) noexcept
-        {
-            std::size_t bits = 0;
-            std::size_t rounded = 0;
-            valid = checkedMultiply(width, bitsPerPixel, bits) && checkedAdd(bits, 31, rounded);
-            return valid ? (rounded / 32) * 4 : 0;
-        }
     } // namespace
 
     Types::Clipboard::FormatResult clipboardHasFormat(Transfer::FormatView format, std::chrono::milliseconds timeout) noexcept
@@ -802,36 +593,10 @@ namespace GameWIP::Desktop::Detail::Platform
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             else
             {
-                SetLastError(ERROR_SUCCESS);
-                HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(CF_UNICODETEXT));
-                if (memory == nullptr)
-                    result.status = status(ErrorCode::ReadFailed, GetLastError());
-                else
-                {
-                    const std::size_t byteSize = GlobalSize(memory);
-                    GlobalLock lock(memory);
-                    if (lock.get() == nullptr && byteSize != 0)
-                        result.status = status(ErrorCode::LockFailed, GetLastError());
-                    else if (byteSize < sizeof(wchar_t) || byteSize % sizeof(wchar_t) != 0)
-                        result.status = status(ErrorCode::EncodingFailed);
-                    else
-                    {
-                        const std::size_t capacity = byteSize / sizeof(wchar_t);
-                        const auto text = nativeSpan<wchar_t>(lock.get(), capacity);
-                        const auto terminator = std::ranges::find(text, L'\0');
-                        if (terminator == text.end())
-                            result.status = status(ErrorCode::EncodingFailed);
-                        else
-                        {
-                            DWORD nativeCode = 0;
-                            const auto length = static_cast<std::size_t>(std::ranges::distance(text.begin(), terminator));
-                            if (!wideToUtf8({text.data(), length}, result.text, nativeCode))
-                                result.status = status(ErrorCode::EncodingFailed, nativeCode);
-                            else
-                                result.status = IO::successStatus();
-                        }
-                    }
-                }
+                Transfer::Item item;
+                result.status = materializeClipboardItem(CF_UNICODETEXT, {Transfer::FormatKind::Text, {}}, item);
+                if (result.status.ok())
+                    result.text = std::move(std::get<Transfer::Text>(item).text);
             }
             result.status = closePreservingPrimary(session, std::move(result.status));
         }
@@ -865,42 +630,10 @@ namespace GameWIP::Desktop::Detail::Platform
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             else
             {
-                SetLastError(ERROR_SUCCESS);
-                HDROP drop = static_cast<HDROP>(GetClipboardData(CF_HDROP));
-                if (drop == nullptr)
-                    result.status = status(ErrorCode::ReadFailed, GetLastError());
-                else
-                {
-                    const UINT count = DragQueryFileW(drop, 0xFFFFFFFFU, nullptr, 0);
-                    if (count == 0)
-                        result.status = status(ErrorCode::EncodingFailed);
-                    else
-                        result.status = IO::successStatus();
-                    result.paths.reserve(count);
-                    for (UINT index = 0; index < count; ++index)
-                    {
-                        const UINT length = DragQueryFileW(drop, index, nullptr, 0);
-                        if (length == 0)
-                        {
-                            result.status = status(ErrorCode::EncodingFailed);
-                            break;
-                        }
-                        std::wstring path(static_cast<std::size_t>(length) + 1, L'\0');
-                        if (DragQueryFileW(drop, index, path.data(), length + 1) != length)
-                        {
-                            result.status = status(ErrorCode::ReadFailed, GetLastError());
-                            break;
-                        }
-                        path.resize(length);
-                        DWORD nativeCode = 0;
-                        if (!isValidWide(path, nativeCode))
-                        {
-                            result.status = status(ErrorCode::EncodingFailed, nativeCode);
-                            break;
-                        }
-                        result.paths.emplace_back(std::move(path));
-                    }
-                }
+                Transfer::Item item;
+                result.status = materializeClipboardItem(CF_HDROP, {Transfer::FormatKind::FileList, {}}, item);
+                if (result.status.ok())
+                    result.paths = std::move(std::get<Transfer::FileList>(item).paths);
             }
             result.status = closePreservingPrimary(session, std::move(result.status));
         }
@@ -933,105 +666,10 @@ namespace GameWIP::Desktop::Detail::Platform
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             else
             {
-                SetLastError(ERROR_SUCCESS);
-                HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(format));
-                if (memory == nullptr)
-                    result.status = status(ErrorCode::ReadFailed, GetLastError());
-                else
-                {
-                    const std::size_t totalBytes = GlobalSize(memory);
-                    GlobalLock lock(memory);
-                    if (lock.get() == nullptr)
-                        result.status = status(ErrorCode::LockFailed, GetLastError());
-                    else if (totalBytes < sizeof(BITMAPINFOHEADER))
-                        result.status = status(ErrorCode::ReadFailed);
-                    else
-                    {
-                        const auto storage = nativeSpan<std::byte>(lock.get(), totalBytes);
-                        BITMAPINFOHEADER header{};
-                        std::ranges::copy(storage.first(sizeof(header)), std::as_writable_bytes(std::span{&header, std::size_t{1}}).begin());
-                        const bool dimensionsValid = header.biSize >= sizeof(BITMAPINFOHEADER) && header.biSize <= totalBytes && header.biWidth > 0 &&
-                                                     header.biHeight != 0 && header.biHeight != LONG_MIN;
-                        const bool encodingSupported =
-                            header.biPlanes == 1 &&
-                            ((header.biBitCount == 24 && header.biCompression == BI_RGB) ||
-                             (header.biBitCount == 32 && (header.biCompression == BI_RGB || header.biCompression == BI_BITFIELDS)));
-                        if (!dimensionsValid)
-                            result.status = status(ErrorCode::ReadFailed);
-                        else if (!encodingSupported)
-                            result.status = status(ErrorCode::Unsupported);
-                        else
-                        {
-                            const std::size_t width = static_cast<std::size_t>(header.biWidth);
-                            const std::size_t height = static_cast<std::size_t>(header.biHeight < 0 ? -header.biHeight : header.biHeight);
-                            bool strideValid = false;
-                            const std::size_t sourceStride = dibRowStride(width, header.biBitCount, strideValid);
-                            std::size_t sourceBytes = 0;
-                            std::size_t packedRow = 0;
-                            std::size_t outputBytes = 0;
-                            std::size_t pixelOffset = header.biSize;
-                            bool explicitAlpha = false;
-                            bool masksSupported = true;
-                            if (header.biCompression == BI_BITFIELDS && header.biSize == sizeof(BITMAPINFOHEADER))
-                            {
-                                std::size_t masksEnd = 0;
-                                strideValid = strideValid && checkedAdd(pixelOffset, 3 * sizeof(DWORD), masksEnd) && masksEnd <= totalBytes;
-                                if (strideValid)
-                                {
-                                    std::array<DWORD, 3> masks{};
-                                    std::ranges::copy(storage.subspan(pixelOffset, sizeof(masks)), std::as_writable_bytes(std::span{masks}).begin());
-                                    masksSupported = masks[0] == 0x00FF0000U && masks[1] == 0x0000FF00U && masks[2] == 0x000000FFU;
-                                    pixelOffset = masksEnd;
-                                }
-                            }
-                            else if (header.biCompression == BI_BITFIELDS)
-                            {
-                                if (header.biSize < sizeof(BITMAPV4HEADER))
-                                    masksSupported = false;
-                                else
-                                {
-                                    BITMAPV4HEADER extended{};
-                                    std::ranges::copy(
-                                        storage.first(sizeof(extended)),
-                                        std::as_writable_bytes(std::span{&extended, std::size_t{1}}).begin());
-                                    masksSupported = extended.bV4RedMask == 0x00FF0000U && extended.bV4GreenMask == 0x0000FF00U &&
-                                                     extended.bV4BlueMask == 0x000000FFU &&
-                                                     (extended.bV4AlphaMask == 0 || extended.bV4AlphaMask == 0xFF000000U);
-                                    explicitAlpha = extended.bV4AlphaMask == 0xFF000000U;
-                                }
-                            }
-                            if (!masksSupported)
-                                result.status = status(ErrorCode::Unsupported);
-                            else if (
-                                !strideValid || !checkedMultiply(sourceStride, height, sourceBytes) ||
-                                !checkedMultiply(width, std::size_t{4}, packedRow) || !checkedMultiply(packedRow, height, outputBytes) ||
-                                pixelOffset > totalBytes || sourceBytes > totalBytes - pixelOffset)
-                                result.status = status(ErrorCode::ReadFailed);
-                            else
-                            {
-                                result.image.size = {static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)};
-                                result.image.rgba8.resize(outputBytes);
-                                const auto pixels = storage.subspan(pixelOffset, sourceBytes);
-                                std::span destinationPixels{result.image.rgba8};
-                                for (std::size_t y = 0; y < height; ++y)
-                                {
-                                    const std::size_t sourceY = header.biHeight < 0 ? y : height - 1 - y;
-                                    const auto source = pixels.subspan(sourceY * sourceStride, sourceStride);
-                                    const auto destination = destinationPixels.subspan(y * packedRow, packedRow);
-                                    for (std::size_t x = 0; x < width; ++x)
-                                    {
-                                        const std::size_t sourcePixel = x * (header.biBitCount / 8);
-                                        destination[x * 4] = source[sourcePixel + 2];
-                                        destination[x * 4 + 1] = source[sourcePixel + 1];
-                                        destination[x * 4 + 2] = source[sourcePixel];
-                                        destination[x * 4 + 3] = explicitAlpha ? source[sourcePixel + 3] : std::byte{0xFF};
-                                    }
-                                }
-                                result.status = IO::successStatus();
-                            }
-                        }
-                    }
-                }
+                Transfer::Item item;
+                result.status = materializeClipboardItem(format, {Transfer::FormatKind::Image, {}}, item);
+                if (result.status.ok())
+                    result.image = std::move(std::get<Transfer::Image>(item));
             }
             result.status = closePreservingPrimary(session, std::move(result.status));
         }
@@ -1073,29 +711,10 @@ namespace GameWIP::Desktop::Detail::Platform
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             else
             {
-                SetLastError(ERROR_SUCCESS);
-                HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(format));
-                if (memory == nullptr)
-                    result.status = status(ErrorCode::ReadFailed, GetLastError());
-                else
-                {
-                    const std::size_t byteSize = GlobalSize(memory);
-                    if (byteSize == 0)
-                        result.status = IO::successStatus();
-                    else
-                    {
-                        GlobalLock lock(memory);
-                        if (lock.get() == nullptr)
-                            result.status = status(ErrorCode::LockFailed, GetLastError());
-                        else
-                        {
-                            result.bytes.resize(byteSize);
-                            const auto source = nativeSpan<std::byte>(lock.get(), byteSize);
-                            std::ranges::copy(source, result.bytes.begin());
-                            result.status = IO::successStatus();
-                        }
-                    }
-                }
+                Transfer::Item item;
+                result.status = materializeClipboardItem(format, {Transfer::FormatKind::Custom, std::string(formatName)}, item);
+                if (result.status.ok())
+                    result.bytes = std::move(std::get<Transfer::CustomData>(item).bytes);
             }
             result.status = closePreservingPrimary(session, std::move(result.status));
         }

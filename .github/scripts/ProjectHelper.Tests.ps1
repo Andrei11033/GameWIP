@@ -15,7 +15,7 @@ $powerShellPath = (Get-Process -Id $PID).Path
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
-foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Fresh', '-NoColor', '-Json'))
+foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'quality hygiene', '-Enforce', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Fresh', '-NoColor', '-Json'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -25,6 +25,7 @@ foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Avai
 
 Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
+Assert-GameWipHygieneConfig
 foreach ($freshBundleId in @('local-release-check', 'sanitizer'))
 {
     $freshBundle = Get-GameWipProjectBundle -Id $freshBundleId
@@ -100,11 +101,97 @@ foreach ($compatibility in $expectedToolSemantics.Keys)
     }
 }
 
-$expectedMenuIds = @('root', 'development', 'validation', 'quality', 'tools', 'repository', 'maintenance')
+$expectedMenuIds = @(
+    'root', 'development', 'validation', 'quality', 'repository-quality', 'formatting', 'hygiene',
+    'tools', 'installed-tools', 'tool-updates', 'repository', 'git-workspace', 'github-workflows',
+    'maintenance', 'unicode-data', 'run-history'
+)
 $actualMenuIds = @($CommandConfig.Menus | ForEach-Object { [string]$_.Id })
 if ((($expectedMenuIds | Sort-Object) -join "`n") -cne (($actualMenuIds | Sort-Object) -join "`n"))
 {
     throw 'Project helper interactive menu topology is not fully declarative.'
+}
+$standardHygiene = Get-GameWipHygieneSelection -Selector standard
+if (@($standardHygiene.Checks).Count -ne 4 -or @($standardHygiene.Checks | Where-Object Availability -ne available).Count -ne 0)
+{
+    throw 'The standard hygiene profile must contain exactly the four executable compiler-backed checks.'
+}
+$deepHygiene = Get-GameWipHygieneSelection -Selector deep
+if (@($deepHygiene.Checks | Where-Object Availability -eq planned).Count -eq 0)
+{
+    throw 'The deep hygiene profile does not disclose its planned providers.'
+}
+$publicHeaderExplanation = Get-GameWipHygieneExplanation -CheckId unused-includes -Path 'game/validation/public_headers/example.cpp'
+if ($null -eq $publicHeaderExplanation -or $publicHeaderExplanation.Id -ne 'public-header-isolation')
+{
+    throw 'Public-header isolation findings are not centrally explained.'
+}
+$savedHygieneConfig = $Script:HygieneConfig
+try
+{
+    $unknownReferenceConfig = ConvertTo-GameWipHashtable ($savedHygieneConfig | ConvertTo-Json -Depth 12 | ConvertFrom-Json)
+    $unknownReferenceConfig.Profiles[0].Checks += 'unknown-check'
+    $Script:HygieneConfig = $unknownReferenceConfig
+    $unknownReferenceRejected = $false
+    try
+    {
+        Assert-GameWipHygieneConfig
+    }
+    catch
+    {
+        $unknownReferenceRejected = $_.Exception.Message -like '*references unknown check*'
+    }
+    if (-not $unknownReferenceRejected)
+    {
+        throw 'Hygiene configuration accepted an unknown profile check reference.'
+    }
+
+    $duplicateCheckConfig = ConvertTo-GameWipHashtable ($savedHygieneConfig | ConvertTo-Json -Depth 12 | ConvertFrom-Json)
+    $duplicateCheckConfig.Checks += $duplicateCheckConfig.Checks[0]
+    $Script:HygieneConfig = $duplicateCheckConfig
+    $duplicateCheckRejected = $false
+    try
+    {
+        Assert-GameWipHygieneConfig
+    }
+    catch
+    {
+        $duplicateCheckRejected = $_.Exception.Message -like '*Duplicate hygiene check IDs*'
+    }
+    if (-not $duplicateCheckRejected)
+    {
+        throw 'Hygiene configuration accepted a duplicate check ID.'
+    }
+
+    $invalidPatternConfig = ConvertTo-GameWipHashtable ($savedHygieneConfig | ConvertTo-Json -Depth 12 | ConvertFrom-Json)
+    $invalidPatternConfig.Explanations[0].PathPattern = '('
+    $Script:HygieneConfig = $invalidPatternConfig
+    $invalidPatternRejected = $false
+    try
+    {
+        Assert-GameWipHygieneConfig
+    }
+    catch
+    {
+        $invalidPatternRejected = $_.Exception.Message -like '*invalid path pattern*'
+    }
+    if (-not $invalidPatternRejected)
+    {
+        throw 'Hygiene configuration accepted an invalid explanation path pattern.'
+    }
+}
+finally
+{
+    $Script:HygieneConfig = $savedHygieneConfig
+}
+$syntheticRuleLookup = @{ 'misc-include-cleaner' = Get-GameWipHygieneCheck -Id unused-includes }
+$syntheticFindings = @(ConvertFrom-GameWipClangTidyFinding -Lines @(
+        'D:\GameWIP\game\validation\public_headers\example.cpp:1:1: warning: unused include [misc-include-cleaner]',
+        'D:\GameWIP\game\source.cpp:2:3: warning: unused include [misc-include-cleaner]'
+    ) -RuleLookup $syntheticRuleLookup)
+if ($syntheticFindings.Count -ne 2 -or $syntheticFindings[0].confidence -notin @('EXPLAINED', 'LIKELY') -or @($syntheticFindings | Where-Object confidence -eq EXPLAINED).Count -ne 1)
+{
+    throw 'clang-tidy hygiene findings were not normalized or centrally explained correctly.'
 }
 $originalActionKeyReader = (Get-Command Read-GameWipActionKey).ScriptBlock
 function Read-GameWipActionKey

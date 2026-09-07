@@ -25,6 +25,7 @@ Examples:
 .\gamewip.bat test test
 .\gamewip.bat module unicode
 .\gamewip.bat quality check
+.\gamewip.bat quality hygiene status
 .\gamewip.bat tools status
 .\gamewip.bat tools ensure all
 .\gamewip.bat workflow run release-check -Preview
@@ -76,6 +77,11 @@ The second positional word is the action-specific command or selection; the thir
 .\gamewip.bat format check
 .\gamewip.bat quality check
 .\gamewip.bat quality status
+.\gamewip.bat quality hygiene
+.\gamewip.bat quality hygiene deep
+.\gamewip.bat quality hygiene unused-includes
+.\gamewip.bat quality hygiene list
+.\gamewip.bat quality hygiene status
 .\gamewip.bat tools status
 .\gamewip.bat tools ensure quality
 .\gamewip.bat tools update all -Preview
@@ -128,8 +134,9 @@ Use `gamewip.bat list` for current presets, modules, project commands, bundles, 
 | `-StopOnFailure` | Stop launching new stress work after the first failure. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
 | `-Changed` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
+| `-Enforce` | Fail an optional hygiene audit when it produces a `PROVEN` finding. Likely, informational, and centrally explained findings remain report-only. |
 | `-Json` | Emit the final structured operation result as JSON. |
-| `-NoWorkspaceTemp` | Keep the caller's TEMP/TMP instead of using operation-owned workspace temp. |
+| `-NoWorkspaceTemp` | Keep the caller's TEMP/TMP instead of using operation-owned helper temp. Validation and benchmark executables still scope their own fixtures beneath the active preset tree. |
 | `-Preview` | Print the planned scope and perform only action-specific read-only discovery or preflight. Do not apply the requested local, tracked, machine, or remote mutation; diagnostic run logs and receipts are still retained under `build/gamewip/runs/`. |
 | `-NonInteractive` | Disable prompts. This never grants mutation consent at any risk class. |
 | `-Yes` | Approve the printed mutation plan for non-interactive execution. |
@@ -180,6 +187,15 @@ first-party files, while preserving the documented generated, historical, and
 third-party exclusions. Independent checks aggregate by default; use
 `-FailFast` only for focused diagnosis. `gamewip quality fix` applies deterministic formatters and then runs the same gate.
 `gamewip quality status` reports maintained-file quality ownership.
+
+`gamewip quality hygiene [standard|deep|check-id]` is a separate, optional
+C/C++ investigation. It configures the `analyze` compilation database, runs
+only the selected hygiene rules, and retains normalized evidence as
+`artifacts/hygiene-report.json`. It is not part of normal builds,
+`quality check`, `analyze`, AddressSanitizer, or CI. Report mode succeeds when
+it finds review candidates; add `-Enforce` when a caller intentionally wants
+proven findings to fail the operation. `list` describes configured providers,
+and `status` performs read-only configuration and tool discovery.
 
 `gamewip tools ensure <id|category|all>` installs or repairs exactly the
 versions already declared by the checkout and does not advance pins. `gamewip

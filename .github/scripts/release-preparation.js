@@ -429,14 +429,9 @@ function releaseNotesTemplate({ version, milestoneTitle, releaseIssue, nextMiles
         '',
         'Paste the final validation commands, environment, results, skips, and observed manual UI behavior here before merging this release-preparation pull request.',
         '',
-        '## Release checks',
+        '## Release process',
         '',
-        `- [ ] Root \`project(GameWIP VERSION ...)\` matches \`${version.text}\`.`,
-        '- [ ] Required validation workflows pass on the release-preparation pull request.',
-        '- [ ] The release-preparation pull request is human-reviewed and merged.',
-        '- [ ] Post-merge validation passes on `master`.',
-        `- [ ] Annotated tag \`v${version.text}\` is created on the verified merge commit.`,
-        `- [ ] GitHub release \`GameWIP v${version.text}\` points at \`v${version.text}\`.`,
+        `Release finalization requires the root project version to match \`${version.text}\`, a reviewed and merged release-preparation pull request, and successful required validation on both the pull request and the resulting \`master\` commit. Finalization creates annotated tag \`v${version.text}\` on that verified commit and publishes \`GameWIP v${version.text}\` against the tag.`,
         '',
     ].join('\n');
 }
@@ -469,20 +464,13 @@ function releasePullRequestBody(plan) {
 }
 
 function releaseBodyFromNotes(notes) {
-    const lines = String(notes).replace(/\r\n?/g, '\n').split('\n');
-    return lines
-        .filter((line) => !line.startsWith('- [ ] '))
-        .join('\n')
-        .trim();
+    return String(notes).replace(/\r\n?/g, '\n').trim();
 }
 
 function validateReleaseNotesReady(notes) {
     const normalized = String(notes).replace(/\r\n?/g, '\n');
     if (normalized.includes('Paste the final validation commands, environment, results, skips, and observed manual UI behavior here')) {
         throw new Error('Release notes still contain the generated validation-evidence placeholder.');
-    }
-    if (/^- \[ \] /m.test(normalized)) {
-        throw new Error('Release notes still contain unchecked release checklist items.');
     }
     return true;
 }

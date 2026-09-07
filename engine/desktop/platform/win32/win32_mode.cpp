@@ -450,6 +450,8 @@ namespace GameWIP::Desktop::Detail::Platform
         state.mode = Types::Mode::Windowed;
         state.fullscreen = {};
         state.presentation = Types::PresentationState::Normal;
+        if (state.presentationPublication != nullptr)
+            state.presentationPublication->publishPresentationState(state.presentation);
 
         IO::Types::Status status = applyStyle(state);
         if (!status.ok() && firstFailure.ok())
@@ -464,6 +466,8 @@ namespace GameWIP::Desktop::Detail::Platform
         if (!status.ok() && firstFailure.ok())
             firstFailure = status;
         state.monitor = portablePrimary.monitor.id;
+        if (state.presentationPublication != nullptr)
+            state.presentationPublication->publishMonitor(state.monitor);
         state.suppressEvents = previousSuppression;
 
         routeEvent(state, Types::Events::DisplayConfigurationChanged{});

@@ -87,6 +87,12 @@ Run one validation module directly:
 .\build\test\GameWIPTests.exe --test-module=filesystem
 ```
 
+Validation reports use `build/<preset>/logs/validation` by default. Relative
+`--test-report` paths are resolved beside the running executable, so retained
+results do not spill into the repository root or the operating-system temporary
+directory. Disposable validation workspaces and child-process temporary files
+are scoped to `build/<preset>/temp` and cleaned on normal completion.
+
 Run C++ static-analysis and formatting checks:
 
 ```powershell

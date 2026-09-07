@@ -470,19 +470,27 @@ function Assert-GameWipCommandConfig
     {
         throw "Retired action alias 'analysis' must not be registered."
     }
-    $requiredMenus = @('root', 'development', 'validation', 'quality', 'tools', 'repository', 'maintenance')
+    $requiredMenus = @(
+        'root', 'development', 'validation', 'quality', 'repository-quality', 'formatting', 'hygiene',
+        'tools', 'installed-tools', 'tool-updates', 'repository', 'git-workspace', 'github-workflows',
+        'maintenance', 'unicode-data', 'run-history'
+    )
     $menuIds = @($menus | ForEach-Object { [string]$_.Id })
     if ((($requiredMenus | Sort-Object) -join "`n") -cne (($menuIds | Sort-Object) -join "`n"))
     {
         throw "Interactive menu catalog drift. Required: $($requiredMenus -join ', '); configured: $($menuIds -join ', ')."
     }
     $supportedMenuHandlers = @(
-        'menu-development', 'menu-validation', 'menu-quality', 'menu-tools', 'menu-repository', 'menu-maintenance',
+        'menu-development', 'menu-validation', 'menu-quality', 'menu-repository-quality', 'menu-formatting',
+        'menu-hygiene', 'menu-tools', 'menu-installed-tools', 'menu-tool-updates', 'menu-repository',
+        'menu-git-workspace', 'menu-github-workflows', 'menu-maintenance', 'menu-unicode-data', 'menu-run-history',
         'doctor', 'help', 'configure', 'build', 'run', 'docs', 'test', 'module', 'stress', 'wizard', 'benchmark',
-        'coverage', 'asan', 'quality-check', 'quality-fix', 'format-check', 'format-apply', 'analyze', 'tools-status',
+        'coverage', 'asan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
+        'analyze', 'links', 'hygiene-standard', 'hygiene-deep', 'hygiene-check', 'hygiene-list', 'hygiene-status', 'tools-status',
         'tools-check-updates', 'tools-preview', 'tools-update', 'setup-guidance', 'git-status', 'git-fetch',
-        'git-switch', 'git-update', 'git-cleanup', 'git-log', 'workflow-list', 'workflow-run', 'unicode-status',
-        'unicode-verify', 'unicode-regenerate', 'bundle', 'links'
+        'git-switch', 'git-create', 'git-update', 'git-push', 'git-cleanup', 'git-log', 'workflow-list',
+        'workflow-status', 'workflow-run', 'unicode-status', 'unicode-verify', 'unicode-regenerate',
+        'runs-list', 'runs-show', 'runs-clean'
     )
     foreach ($menu in $menus)
     {

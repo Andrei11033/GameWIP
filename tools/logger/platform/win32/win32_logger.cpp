@@ -87,10 +87,39 @@ namespace
         delete static_cast<FormatScratchStorage *>(value);
     }
 
+    /// @brief Owns the process-wide FLS index while its callback code remains loaded.
+    class FormatScratchSlot final
+    {
+    public:
+        FormatScratchSlot() noexcept
+            : value_(FlsAlloc(destroyFormatScratch))
+        {
+        }
+
+        ~FormatScratchSlot() noexcept
+        {
+            if (value_ != FLS_OUT_OF_INDEXES)
+            {
+                static_cast<void>(FlsFree(value_));
+            }
+        }
+
+        FormatScratchSlot(const FormatScratchSlot &) = delete;
+        FormatScratchSlot &operator=(const FormatScratchSlot &) = delete;
+
+        [[nodiscard]] DWORD value() const noexcept
+        {
+            return value_;
+        }
+
+    private:
+        DWORD value_ = FLS_OUT_OF_INDEXES;
+    };
+
     DWORD formatScratchSlot()
     {
-        static const DWORD slot = FlsAlloc(destroyFormatScratch);
-        return slot;
+        static FormatScratchSlot slot;
+        return slot.value();
     }
 
     FormatScratchStorage &formatScratchStorageForThreadFls()

@@ -32,6 +32,9 @@ compatible compiler/runtime settings.
 Compatibility-relevant changes include public enum/structure layout, signatures, export sets, template requirements, macro behavior, and dependency
 requirements. Internal queue layout, worker implementation, timestamp cache, and private dependency wiring are not ABI promises.
 
+The shared-library implementation unregisters its MinGW formatting-scratch FLS callback during module teardown. Consumers that explicitly unload the
+shared library must first quiesce Logger calls and worker threads, as required for any callable code or retained object owned by that module.
+
 ## Source-tree-only interfaces
 
 The short `Logger` target, `logger/internal/*`, implementation sources, hooks, tests, and benchmarks are repository interfaces only.

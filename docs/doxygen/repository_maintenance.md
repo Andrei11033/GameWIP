@@ -82,7 +82,7 @@ tests, or a local docs build are examples of change-driven checks.
 
 Coverage inspection, profiling captures, benchmark measurement, manual UI
 checks, and full local release validation are optional unless the change or
-release checklist explicitly needs them. Benchmark CI verifies registration,
+release evidence explicitly needs them. Benchmark CI verifies registration,
 not performance thresholds.
 
 Before release preparation, use the `local-release-check` helper bundle and the

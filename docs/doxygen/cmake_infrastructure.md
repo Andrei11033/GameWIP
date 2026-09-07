@@ -22,7 +22,8 @@ Consult this page when adding or changing:
 - Coverage, static-analysis, sanitizer, or documentation targets.
 - Install, package, or exported-target behavior.
 
-Use @ref project_build for normal configure and build commands. Use @ref project_extending for the full add/change checklist.
+Use @ref project_build for normal configure and build commands. Use @ref project_extending for the complete integration rules for new and changed
+repository concepts.
 
 ## File ownership
 
@@ -224,18 +225,18 @@ intentionally changes.
 - Keep installed public headers free of internal and test-hook paths.
 - Document every new maintainer-facing helper before using it widely.
 
-## Add or change checklist
+## Change validation
 
-Before merging a CMake infrastructure change:
+CMake infrastructure changes require the following evidence before merge:
 
-- Confirm the owner file is correct.
-- Confirm all affected presets still configure.
-- Confirm target dependencies use the narrowest correct visibility.
-- Confirm installed public headers and packages still validate when package behavior changes.
-- Confirm Doxygen inputs are registered explicitly when docs change.
-- Confirm validation and benchmark modules still register through the helper layer.
-- Confirm backend changes preserve the platform backend contract.
-- Record the exact configure, build, test, or docs commands in the pull request.
+- The changed behavior lives in its authoritative owner file.
+- Every affected preset still configures.
+- Target dependencies use the narrowest correct visibility.
+- Installed public headers and packages still validate when package behavior changes.
+- Changed Doxygen inputs remain explicitly registered.
+- Validation and benchmark modules register through the helper layer.
+- Backend changes preserve the platform backend contract.
+- Pull-request evidence records the exact configure, build, test, or documentation commands.
 
 ## Related pages
 

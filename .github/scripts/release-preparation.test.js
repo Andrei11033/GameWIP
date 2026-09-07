@@ -554,17 +554,14 @@ test('generates release notes without closing the release issue', () => {
 
     const body = releaseBodyFromNotes(notes);
     assert.match(body, /# GameWIP v0\.0\.1 release notes/);
-    assert.doesNotMatch(body, /- \[ \]/);
+    assert.match(body, /## Release process/);
 
     assert.throws(() => validateReleaseNotesReady(notes), /validation-evidence placeholder/);
     const notesWithEvidence = notes.replace(
         'Paste the final validation commands, environment, results, skips, and observed manual UI behavior here before merging this release-preparation pull request.',
         'Final validation evidence was recorded in this pull request.',
     );
-    assert.throws(() => validateReleaseNotesReady(notesWithEvidence), /unchecked release checklist/);
-
-    const completedNotes = notesWithEvidence.replaceAll('- [ ]', '- [x]');
-    assert.equal(validateReleaseNotesReady(completedNotes), true);
+    assert.equal(validateReleaseNotesReady(notesWithEvidence), true);
 });
 
 test('generates release pull request body for human merge', () => {

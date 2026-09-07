@@ -12,6 +12,9 @@
 
 namespace GameWIP::Desktop::Detail
 {
+    // Keep this as one lazy allocation while its optional renderer features remain small and closely related. If it grows substantially with
+    // independent features such as presentation timing, HDR/color metadata, damage tracking, or frame-latency state, split focused optional
+    // sub-states instead of turning this into a generic renderer-state container.
     struct RendererIntegrationState
     {
         std::vector<Types::Renderer::PointerHitMaskWord> pointerHitMask;

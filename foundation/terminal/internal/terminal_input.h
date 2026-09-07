@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "terminal/terminal.h"
+#include "terminal/input.h"
 
 #include <cstddef>
 #include <mutex>

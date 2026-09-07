@@ -12,6 +12,10 @@ std::span<std::byte> nativeClipboardBytes(void *data, std::size_t size) noexcept
 {
     return {static_cast<std::byte *>(data), size};
 }
+std::span<const std::byte> nativeClipboardBytes(const void *data, std::size_t size) noexcept
+{
+    return {static_cast<const std::byte *>(data), size};
+}
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif
@@ -49,6 +53,21 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
     success = CloseClipboard() != FALSE && success;
     static_cast<void>(DestroyWindow(owner));
     return success;
+}
+
+bool readNativeDibV5Header(BITMAPV5HEADER &header)
+{
+    if (OpenClipboard(nullptr) == FALSE)
+        return false;
+    const HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(CF_DIBV5));
+    const bool largeEnough = memory != nullptr && GlobalSize(memory) >= sizeof(header);
+    const void *data = largeEnough ? GlobalLock(memory) : nullptr;
+    if (data != nullptr)
+        std::ranges::copy(nativeClipboardBytes(data, sizeof(header)), std::as_writable_bytes(std::span{&header, 1}).begin());
+    if (data != nullptr)
+        static_cast<void>(GlobalUnlock(memory));
+    static_cast<void>(CloseClipboard());
+    return data != nullptr;
 }
 
 void testClipboardValuesAndValidation(TestSupport::Context &context)
@@ -174,6 +193,9 @@ void testClipboardRoundTrips(TestSupport::Context &context)
         std::byte{0xD0}, std::byte{0xE0}, std::byte{0xF0}, std::byte{0xFF}, std::byte{0xDD}, std::byte{0xDD}, std::byte{0xDD}, std::byte{0xDD}};
     const auto imageWrite = Clipboard::writeImage({{2, 2}, 12, paddedPixels});
     static_cast<void>(context.expectTrue("padded RGBA8 image publishes", imageWrite.status.ok()));
+    BITMAPV5HEADER publishedHeader{};
+    static_cast<void>(context.expectTrue("published DIBV5 header is readable", readNativeDibV5Header(publishedHeader)));
+    static_cast<void>(context.expectEq("published DIBV5 uses image rendering intent", DWORD{LCS_GM_IMAGES}, publishedHeader.bV5Intent));
     const auto imageRead = Clipboard::readImage();
     const std::vector<std::byte> expectedPixels{
         paddedPixels[0],

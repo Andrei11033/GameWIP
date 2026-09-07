@@ -42,7 +42,7 @@ int main()
     namespace TS = GameWIP::TestSupport;
 
     TS::Types::Reporting::Options options;
-    options.reportPath = "logs/tests/latest_test_report.txt";
+    options.reportPath = "logs/validation/latest_test_report.txt";
 
     TS::Runner runner(options);
     runner.runSuite(

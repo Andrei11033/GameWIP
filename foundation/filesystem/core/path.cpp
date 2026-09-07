@@ -1,7 +1,7 @@
 /// @file path.cpp
 /// @brief FileSystem path conversion, lexical helpers, and process-directory operations.
 
-#include "filesystem/filesystem.h"
+#include "filesystem/path.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>

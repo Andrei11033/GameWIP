@@ -2,14 +2,9 @@
 /// @brief Win32 native message callback and event translation.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
-#include "desktop/platform/win32/internal/win32_compat.h"
-
-#include "desktop/native/win32.h"
-
+#include "desktop/internal/drag_drop_platform.h"
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <format>
 #include <limits>
 #include <new>
 #include <utility>
@@ -163,6 +158,8 @@ namespace GameWIP::Desktop::Detail::Platform
             if (state->visible != visible)
             {
                 state->visible = visible;
+                if (state->presentationPublication != nullptr)
+                    state->presentationPublication->publishVisible(visible);
                 routeEvent(*state, Types::Events::VisibilityChanged{visible});
                 const IO::Types::Status cursorStatus = applyCursorState(*state);
                 if (!cursorStatus.ok())
@@ -199,12 +196,20 @@ namespace GameWIP::Desktop::Detail::Platform
                     recordPumpFailure(cursorStatus);
             }
             return 0;
+        case WM_ENTERSIZEMOVE:
+            static_cast<void>(Detail::setInteractiveMoveResizeActive(*state, true));
+            return 0;
+        case WM_EXITSIZEMOVE:
+            static_cast<void>(Detail::setInteractiveMoveResizeActive(*state, false));
+            return 0;
         case WM_SIZE:
         {
             const Types::PresentationState previousPresentation = state->presentation;
             state->presentation = wParam == SIZE_MINIMIZED   ? Types::PresentationState::Minimized
                                   : wParam == SIZE_MAXIMIZED ? Types::PresentationState::Maximized
                                                              : Types::PresentationState::Normal;
+            if (state->presentationPublication != nullptr)
+                state->presentationPublication->publishPresentationState(state->presentation);
             const Types::ScreenPosition previousPosition = state->clientPosition;
             const Types::LogicalSize previousClient = state->clientSize;
             const Types::PixelSize previousFramebuffer = state->framebufferSize;
@@ -466,9 +471,14 @@ namespace GameWIP::Desktop::Detail::Platform
             state->visible = false;
             state->focused = false;
             state->cursorInside = false;
+            state->interactiveMoveResizeActive = false;
+            resetPresentationPublication(*state);
             return 0;
         case WM_NCDESTROY:
+            static_cast<void>(windowClosingDragDrop(*state, true));
             releaseCustomCursorBinding(window);
+            state->interactiveMoveResizeActive = false;
+            resetPresentationPublication(*state);
             if (state->platform)
             {
                 const bool unexpected = !state->platform->destroying;

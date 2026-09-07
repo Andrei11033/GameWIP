@@ -26,7 +26,7 @@ namespace GameWIP::Test
         /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
         bool appendReport = true;
         /// @brief Report destination used as supplied; the shared runner normally resolves it before invocation.
-        std::filesystem::path reportPath = "logs/tests/latest_test_report.txt";
+        std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
     };
 
     /// @brief Runs the TestSupport library self-tests.

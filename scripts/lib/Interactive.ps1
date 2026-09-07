@@ -222,6 +222,14 @@ function Show-GameWipValidationMenu
             {
                 Invoke-GameWipInteractiveOperation -Label 'benchmark-standard' -Body { Invoke-GameWipMutation -Summary 'Build/run standard benchmark profile.' -Risk local -Plan @('Ensure benchmark executable unless -NoBuild is used.', 'Collect retained benchmark result.') -Body { Invoke-GameWipBenchmark -Mode run -ProfileId standard -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format json -SkipBuild:$NoBuild } | Out-Null } | Out-Null
             }
+            'bundle'
+            {
+                $bundle = Read-GameWipNamedChoice -Prompt 'Bundle' -Choices @($CommandConfig.Bundles | ForEach-Object { $_.Id }) -Default quick
+                if ($null -ne $bundle)
+                {
+                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -Fresh.', 'Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
+                }
+            }
             'coverage'
             {
                 Invoke-GameWipInteractiveOperation -Label 'coverage' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage -Fresh; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null } | Out-Null
@@ -229,6 +237,95 @@ function Show-GameWipValidationMenu
             'asan'
             {
                 Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+            }
+        }
+    }
+}
+
+function Show-GameWipRepositoryQualityMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId repository-quality
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'quality-check'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'quality-check' -Body { Invoke-GameWipQuality -Mode check } | Out-Null
+            }
+            'quality-fix'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'quality-fix' -Body { Invoke-GameWipMutation -Summary 'Apply deterministic repository formatters.' -Risk tracked -Plan @('Format maintained sources/configuration.', 'Run the complete quality gate.') -Body { Invoke-GameWipQuality -Mode fix } | Out-Null } | Out-Null
+            }
+            'quality-status'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'quality-status' -Body { Show-GameWipQualityCoverageStatus } | Out-Null
+            }
+        }
+    }
+}
+
+function Show-GameWipFormattingMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId formatting
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'format-check'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'format-check' -Body { Invoke-GameWipFormat -Mode check } | Out-Null
+            }
+            'format-apply'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'format-apply' -Body { Invoke-GameWipMutation -Summary 'Apply C/C++ formatting.' -Risk tracked -Plan @('Rewrite maintained C/C++ files with repository clang-format.') -Body { Invoke-GameWipFormat -Mode apply } | Out-Null } | Out-Null
+            }
+        }
+    }
+}
+
+function Show-GameWipHygieneMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId hygiene
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'hygiene-standard'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'hygiene-standard' -Body { Invoke-GameWipMutation -Summary 'Run the optional standard hygiene audit.' -Risk local -Plan @('Resolve the selected providers and ensure their local analysis state.', 'Run configured advisory checks.', 'Retain normalized evidence without editing tracked files.') -Body { Invoke-GameWipHygieneAudit -Selector standard } | Out-Null } | Out-Null
+            }
+            'hygiene-deep'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'hygiene-deep' -Body { Invoke-GameWipMutation -Summary 'Run the optional deep hygiene audit.' -Risk local -Plan @('Resolve the selected providers and ensure their local analysis state.', 'Run available deep checks.', 'Report planned providers without claiming results.') -Body { Invoke-GameWipHygieneAudit -Selector deep } | Out-Null } | Out-Null
+            }
+            'hygiene-check'
+            {
+                $id = Read-GameWipNamedChoice -Prompt 'Hygiene check' -Choices @($HygieneConfig.Checks | Where-Object Availability -eq available | ForEach-Object { $_.Id }) -Default unused-includes
+                if ($null -ne $id)
+                {
+                    Invoke-GameWipInteractiveOperation -Label "hygiene-$id" -Body { Invoke-GameWipMutation -Summary "Run optional hygiene check '$id'." -Risk local -Plan @('Ensure the analyze compilation database.', 'Run the selected advisory check.', 'Retain normalized evidence without editing tracked files.') -Body { Invoke-GameWipHygieneAudit -Selector $id } | Out-Null } | Out-Null
+                }
+            }
+            'hygiene-list'
+            {
+                Show-GameWipHygieneList
+            }
+            'hygiene-status'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'hygiene-status' -Body { Show-GameWipHygieneStatus } | Out-Null
             }
         }
     }
@@ -245,49 +342,64 @@ function Show-GameWipQualityMenu
         }
         switch ([string]$choice.Value)
         {
-            'quality-check'
+            'menu-repository-quality'
             {
-                Invoke-GameWipInteractiveOperation -Label 'quality-check' -Body { Invoke-GameWipQuality -Mode check } | Out-Null
+                Show-GameWipRepositoryQualityMenu
             }
-            'quality-fix'
+            'menu-formatting'
             {
-                Invoke-GameWipInteractiveOperation -Label 'quality-fix' -Body { Invoke-GameWipMutation -Summary 'Apply deterministic repository formatters.' -Risk tracked -Plan @('Format maintained sources/configuration.', 'Run the complete quality gate.') -Body { Invoke-GameWipQuality -Mode fix } | Out-Null } | Out-Null
+                Show-GameWipFormattingMenu
             }
-            'format-check'
+            'menu-hygiene'
             {
-                Invoke-GameWipInteractiveOperation -Label 'format-check' -Body { Invoke-GameWipFormat -Mode check } | Out-Null
-            }
-            'format-apply'
-            {
-                Invoke-GameWipInteractiveOperation -Label 'format-apply' -Body { Invoke-GameWipMutation -Summary 'Apply C/C++ formatting.' -Risk tracked -Plan @('Rewrite maintained C/C++ files with repository clang-format.') -Body { Invoke-GameWipFormat -Mode apply } | Out-Null } | Out-Null
+                Show-GameWipHygieneMenu
             }
             'analyze'
             {
                 Invoke-GameWipInteractiveOperation -Label 'analyze' -Body { Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body { Invoke-GameWipConfigurePreset -Name analyze; Invoke-GameWipBuildPreset -Name analyze } | Out-Null } | Out-Null
             }
+            'links'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'links' -Body { Invoke-GameWipMarkdownLink } | Out-Null
+            }
         }
     }
 }
 
-function Show-GameWipToolsMenu
+function Show-GameWipInstalledToolsMenu
 {
     while ($true)
     {
-        $choice = Read-GameWipConfiguredMenuItem -MenuId tools
+        $choice = Read-GameWipConfiguredMenuItem -MenuId installed-tools
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
         switch ([string]$choice.Value)
         {
-            'doctor'
-            {
-                Invoke-GameWipInteractiveOperation -Label 'doctor' -Body { Test-GameWipProjectReadiness | Out-Null } | Out-Null
-            }
             'tools-status'
             {
                 Invoke-GameWipInteractiveOperation -Label 'tools-status' -Body { Show-GameWipToolStatus } | Out-Null
             }
+            'setup-guidance'
+            {
+                Write-Host 'Use .\setup.bat check for environment status or .\setup.bat repair for an idempotent repair.'
+            }
+        }
+    }
+}
+
+function Show-GameWipToolUpdatesMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId tool-updates
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
             'tools-check-updates'
             {
                 Invoke-GameWipInteractiveOperation -Label 'tools-check-updates' -Body { Show-GameWipToolUpdatePlan -Plan @(Get-GameWipToolUpdatePlan -ToolId all) } | Out-Null
@@ -308,9 +420,114 @@ function Show-GameWipToolsMenu
                     Invoke-GameWipInteractiveOperation -Label "tools-update-$id" -Body { Invoke-GameWipToolUpdate -ToolId $id } | Out-Null
                 }
             }
+        }
+    }
+}
+
+function Show-GameWipToolsMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId tools
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'doctor'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'doctor' -Body { Test-GameWipProjectReadiness | Out-Null } | Out-Null
+            }
+            'menu-installed-tools'
+            {
+                Show-GameWipInstalledToolsMenu
+            }
+            'menu-tool-updates'
+            {
+                Show-GameWipToolUpdatesMenu
+            }
             'setup-guidance'
             {
                 Write-Host 'Use .\setup.bat check for environment status or .\setup.bat repair for an idempotent repair.'
+            }
+        }
+    }
+}
+
+function Show-GameWipGitWorkspaceMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId git-workspace
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'git-status'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-status' -Body { Invoke-GameWipGitAction -Name status } | Out-Null
+            }
+            'git-log'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-log' -Body { Invoke-GameWipGitAction -Name log } | Out-Null
+            }
+            'git-fetch'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-fetch' -Body { Invoke-GameWipGitAction -Name fetch } | Out-Null
+            }
+            'git-switch'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-switch' -Body { Invoke-GameWipGitAction -Name switch } | Out-Null
+            }
+            'git-create'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-create' -Body { Invoke-GameWipGitAction -Name create } | Out-Null
+            }
+            'git-update'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-update' -Body { Invoke-GameWipGitAction -Name update } | Out-Null
+            }
+            'git-push'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-push' -Body { Invoke-GameWipGitAction -Name push } | Out-Null
+            }
+            'git-cleanup'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'git-cleanup' -Body { Invoke-GameWipGitAction -Name cleanup } | Out-Null
+            }
+        }
+    }
+}
+
+function Show-GameWipGitHubWorkflowsMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId github-workflows
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'workflow-list'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'workflow-list' -Body { Invoke-GameWipWorkflowAction -Name list } | Out-Null
+            }
+            'workflow-status'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'workflow-status' -Body { Invoke-GameWipWorkflowAction -Name status } | Out-Null
+            }
+            'workflow-run'
+            {
+                $workflow = Read-GameWipNamedChoice -Prompt 'Workflow' -Choices @($CommandConfig.ManualWorkflows | ForEach-Object { $_.Id }) -Default validation
+                if ($null -ne $workflow)
+                {
+                    Invoke-GameWipInteractiveOperation -Label "workflow-$workflow" -Body { Invoke-GameWipWorkflowAction -Name run -WorkflowId $workflow } | Out-Null
+                }
             }
         }
     }
@@ -327,51 +544,23 @@ function Show-GameWipRepositoryMenu
         }
         switch ([string]$choice.Value)
         {
-            'git-status'
+            'menu-git-workspace'
             {
-                Invoke-GameWipInteractiveOperation -Label 'git-status' -Body { Invoke-GameWipGitAction -Name status } | Out-Null
+                Show-GameWipGitWorkspaceMenu
             }
-            'git-fetch'
+            'menu-github-workflows'
             {
-                Invoke-GameWipInteractiveOperation -Label 'git-fetch' -Body { Invoke-GameWipGitAction -Name fetch } | Out-Null
-            }
-            'git-switch'
-            {
-                Invoke-GameWipInteractiveOperation -Label 'git-switch' -Body { Invoke-GameWipGitAction -Name switch } | Out-Null
-            }
-            'git-update'
-            {
-                Invoke-GameWipInteractiveOperation -Label 'git-update' -Body { Invoke-GameWipGitAction -Name update } | Out-Null
-            }
-            'git-cleanup'
-            {
-                Invoke-GameWipInteractiveOperation -Label 'git-cleanup' -Body { Invoke-GameWipGitAction -Name cleanup } | Out-Null
-            }
-            'git-log'
-            {
-                Invoke-GameWipInteractiveOperation -Label 'git-log' -Body { Invoke-GameWipGitAction -Name log } | Out-Null
-            }
-            'workflow-list'
-            {
-                Invoke-GameWipInteractiveOperation -Label 'workflow-list' -Body { Invoke-GameWipWorkflowAction -Name list } | Out-Null
-            }
-            'workflow-run'
-            {
-                $workflow = Read-GameWipNamedChoice -Prompt 'Workflow' -Choices @($CommandConfig.ManualWorkflows | ForEach-Object { $_.Id }) -Default validation
-                if ($null -ne $workflow)
-                {
-                    Invoke-GameWipInteractiveOperation -Label "workflow-$workflow" -Body { Invoke-GameWipWorkflowAction -Name run -WorkflowId $workflow } | Out-Null
-                }
+                Show-GameWipGitHubWorkflowsMenu
             }
         }
     }
 }
 
-function Show-GameWipMaintenanceMenu
+function Show-GameWipUnicodeDataMenu
 {
     while ($true)
     {
-        $choice = Read-GameWipConfiguredMenuItem -MenuId maintenance
+        $choice = Read-GameWipConfiguredMenuItem -MenuId unicode-data
         if ($choice.Status -eq 'Cancelled')
         {
             return
@@ -390,17 +579,55 @@ function Show-GameWipMaintenanceMenu
             {
                 Invoke-GameWipInteractiveOperation -Label 'unicode-regenerate' -Body { Invoke-GameWipMutation -Summary 'Regenerate the tracked Unicode property table.' -Risk tracked -Plan @('Download/verify pinned UCD inputs.', 'Generate and format candidate.', 'Replace tracked table only when content differs.') -Body { Invoke-GameWipUnicodeRegenerate } | Out-Null } | Out-Null
             }
-            'bundle'
+        }
+    }
+}
+
+function Show-GameWipRunHistoryMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId run-history
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'runs-list'
             {
-                $bundle = Read-GameWipNamedChoice -Prompt 'Bundle' -Choices @($CommandConfig.Bundles | ForEach-Object { $_.Id }) -Default quick
-                if ($null -ne $bundle)
-                {
-                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -Fresh.', 'Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
-                }
+                Invoke-GameWipInteractiveOperation -Label 'runs-list' -Body { Show-GameWipRunList } | Out-Null
             }
-            'links'
+            'runs-show'
             {
-                Invoke-GameWipInteractiveOperation -Label 'links' -Body { Invoke-GameWipMarkdownLink } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'runs-show-latest' -Body { Show-GameWipRun -Selector latest } | Out-Null
+            }
+            'runs-clean'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'runs-clean' -Body { Invoke-GameWipRunCleanup -Selector all } | Out-Null
+            }
+        }
+    }
+}
+
+function Show-GameWipMaintenanceMenu
+{
+    while ($true)
+    {
+        $choice = Read-GameWipConfiguredMenuItem -MenuId maintenance
+        if ($choice.Status -eq 'Cancelled')
+        {
+            return
+        }
+        switch ([string]$choice.Value)
+        {
+            'menu-unicode-data'
+            {
+                Show-GameWipUnicodeDataMenu
+            }
+            'menu-run-history'
+            {
+                Show-GameWipRunHistoryMenu
             }
         }
     }

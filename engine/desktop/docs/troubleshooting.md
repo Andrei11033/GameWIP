@@ -4,6 +4,72 @@ Most Window failures identify a lifecycle, owner-thread, capability, or native
 state boundary. Start with the returned status and `lifetimeState()`, then use
 the matching case below.
 
+## DragDrop target or source is busy
+
+For target open, check `Window::fileDropEnabled()`, owner-thread affinity, and
+whether another `DragDropTarget` owns the Window. Disable lightweight file
+drops explicitly before opening a full target; neither mode silently replaces
+the other.
+
+An incompatible COM apartment also fails instead of creating a hidden STA
+thread. Source `beginDrag()` reports `ResourceBusy` for a nested source drag on
+the owner thread. Post later work to that thread after the synchronous call
+returns.
+
+## DragDrop source reports `InvalidArgument`
+
+The source Window must be open on the calling thread, `items` must be nonempty,
+allowed effects may contain only `Copy`, `Move`, and `Link` and cannot be
+`None`, formats must be unique, and every transfer item must satisfy
+@ref desktop_clipboard format validation. The explicit `Left`, `Right`, or
+`Middle` trigger button must already be down when `beginDrag()` starts; Desktop
+deliberately does not infer it.
+
+## A target region never accepts
+
+Confirm the ID is nonzero and unique, the custom name is exact strict UTF-8,
+the region accepts at least one offered portable format, and source/target
+allowed effects intersect. Explicit rectangles use logical client coordinates;
+an absent rectangle means the complete current client. In overlap, the last
+matching supplied region wins.
+
+Modifier keys do not change the negotiated portable effect. Configure
+`preferredEffect` and allowed masks instead.
+
+## DragDrop events or payloads appear missing
+
+Inspect the target's own `eventQueueInfo()`, not the Window queue. Compatible
+movement events can coalesce, and overflow increments `droppedEvents`. A final
+accepted `Dropped` event has priority over retained movement noise.
+
+No `Dropped` event is queued when any selected native format is malformed,
+unavailable, unsupported, or fails conversion/allocation. This all-or-nothing
+behavior prevents a partial payload from looking successful. Final retrieval
+can also block on a foreign synchronous provider; there is no worker thread or
+portable cancellation after native retrieval begins.
+
+## DragDrop target lost its Window
+
+When the Window or registration is destroyed, target `isOpen()` becomes false
+and `lifetimeState()` reports `NativeDestroyedPendingFinalize`. Stop consuming
+native session state and call target `close()` on the inherited owner thread.
+The retained `windowId()` describes the ended Window lifetime until
+finalization. Reopen only after `close()` succeeds.
+
+If the owner thread itself has already exited, its dispatcher finalized native
+DragDrop resources before terminating. A surviving public owner may be closed or
+destroyed from its current thread because only portable pending state remains.
+See @ref desktop_drag_drop for the authoritative lifetime distinctions.
+
+## DragDrop custom data or image is rejected
+
+Custom producer names use Win32 registered-format identity and require an
+agreed schema. An exact zero-byte custom source block is `Unsupported` through
+the immediate movable-`HGLOBAL` path. Images must have positive dimensions,
+valid checked stride/extent, top-to-bottom RGBA8 input, and a native DIB layout
+the receiver can represent. Malformed foreign DIB masks or extents reject the
+entire selected Drop.
+
 ## `InvalidArgument` during open
 
 Check for a zero client dimension, invalid UTF-8 or embedded NUL in the title, inverted size limits, a zero aspect-ratio component, opacity outside
@@ -81,14 +147,15 @@ rendering.
 ## Clipboard text, file, or image input is rejected
 
 Text must be strict UTF-8 and Win32 text cannot preserve embedded U+0000. File lists must be nonempty absolute paths, but paths need not exist and no
-file-system query occurs. Image dimensions must be positive, stride must hold `width * 4` bytes, and the byte span must equal the resolved stride times
-height exactly. See @ref desktop_clipboard.
+file-system query occurs. Image dimensions must be positive, stride must hold `width * 4` bytes, and the byte span must equal the resolved stride
+times height exactly. See @ref desktop_clipboard.
 
 ## Custom cursor selection fails
 
 Include `desktop/cursor.h` and check `Types::Capability::CustomCursor`. `createCursor()` returns `InvalidArgument` for an empty variant set, invalid
 dimensions or hotspot, zero or duplicate intended DPI, an undersized stride, or a payload whose size does not exactly match its resolved rows.
-`setCursor()` additionally requires a valid `Cursor` and an open Window on its owner thread. See @ref desktop_custom_cursors for the complete contract.
+`setCursor()` additionally requires a valid `Cursor` and an open Window on its owner thread. See @ref desktop_custom_cursors for the complete
+contract.
 
 ## Occlusion reporting is unavailable
 
@@ -99,6 +166,15 @@ attached. Include `desktop/renderer_bridge.h`, check `Renderer::hasOcclusionProv
 Attachment, reporting, and detachment must run on the Window owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after
 detachment. Forward only an authoritative Renderer presentation result; minimization, visibility, or focus alone are not equivalent to renderer
 occlusion.
+
+## Concurrent presentation reads are unavailable
+
+Include `desktop/renderer_bridge.h` and call `Renderer::enableConcurrentPresentationReads(window)` on the open Window's owner thread before starting
+the renderer thread. `NotOpen` means no native lifetime is committed, `ResourceBusy` means the caller is not the owner thread, and `OutOfMemory`
+means the lazy publication allocation was not installed. A failed call leaves ordinary owner-thread getters unchanged and the feature disabled.
+
+Do not retry enablement from a renderer getter or race enablement with reads. After success, enablement is idempotent, remains active across
+close/reopen, and has no disable operation. Stop or join renderer reads before destroying the C++ `Window` object.
 
 ## Display color is unknown or stale
 
@@ -122,5 +198,7 @@ is not advertised by the current Win32 backend.
 
 - @ref desktop_package_abi
 - @ref desktop_coordinates_and_dpi
+- @ref desktop_renderer_integration
 - @ref desktop_manual_validation
 - @ref desktop_clipboard
+- @ref desktop_drag_drop

@@ -7,9 +7,15 @@
 
 namespace
 {
-    int run(const GameWIP::Validation::Tests::ModuleInvocation &)
+    /// @brief Maps shared runner report policy into the internal Base test suite.
+    int run(const GameWIP::Validation::Tests::ModuleInvocation &invocation)
     {
-        return GameWIP::Test::runBaseTests();
+        GameWIP::Test::BaseTestOptions options;
+        options.verboseConsole = invocation.options.verboseConsole;
+        options.writeReport = invocation.options.writeReport;
+        options.appendReport = invocation.appendReport;
+        options.reportPath = invocation.options.reportPath;
+        return GameWIP::Test::runBaseTests(options);
     }
 
     const GameWIP::Validation::Tests::Registration registration({.name = "base", .order = 5, .run = run});

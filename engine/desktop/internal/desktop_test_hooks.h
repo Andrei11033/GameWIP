@@ -9,6 +9,7 @@
 #include "desktop/cursor.h"
 #include "desktop/description.h"
 #include "desktop/display_info.h"
+#include "desktop/drag_drop.h"
 #include "desktop/events.h"
 #include "desktop/renderer_bridge.h"
 
@@ -52,6 +53,20 @@ namespace GameWIP::Desktop::TestHooks
         bool valid = false;
     };
 
+    /// @brief Complete deterministic input for renderer-facing presentation publication tests.
+    struct PresentationPublicationSnapshot
+    {
+        Types::LogicalSize clientSize;
+        Types::PixelSize framebufferSize;
+        Types::ContentScale contentScale;
+        Types::Dpi dpi;
+        Types::Display::MonitorId monitor;
+        Types::PresentationState presentation = Types::PresentationState::Normal;
+        bool visible = false;
+        bool interactiveMoveResizeActive = false;
+        bool occluded = false;
+    };
+
     enum class FailurePoint
     {
         None,
@@ -83,7 +98,12 @@ namespace GameWIP::Desktop::TestHooks
         ClipboardRead,
         ClipboardEnumeration,
         ClipboardRegistration,
-        ClipboardClose
+        ClipboardClose,
+        DragDropOleInitialization,
+        DragDropRegistration,
+        DragDropRevocation,
+        DragDropPreparation,
+        DragDropMaterialization
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -93,10 +113,41 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
+    /// @brief Applies renderer-facing test state and mirrors it when concurrent reads are enabled.
+    GAMEWIP_DESKTOP_EXPORT void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::DragDrop::Effect negotiateDragDropEffect(
+        Types::DragDrop::Effect source,
+        Types::DragDrop::Effect target,
+        Types::DragDrop::Effect preferred) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status enqueueDragDrop(
+        DragDropTarget &target,
+        Types::DragDrop::Events::Payload data,
+        bool terminal = false) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::DragDrop::SessionId nextDragDropSessionId(DragDropTarget &target, std::uint64_t nextValue) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status testDragDropOleInitialization() noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status testDragDropMaterialization() noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::DragDrop::Result droppedDragDropSourceResult(
+        Types::DragDrop::Effect performed,
+        Types::DragDrop::Effect allowed) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool dragDropComContractsValid() noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Events::PumpResult routeDragDropDuringPump(
+        DragDropTarget &target,
+        Types::DragDrop::Events::Payload data,
+        bool terminal = false) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t dragDropRegionCount(const DragDropTarget &target) noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t activeDragDropTargetCount() noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t deferredDragDropTargetCount() noexcept;
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::DragDrop::RegionId matchDragDropRegion(
+        const DragDropTarget &target,
+        Types::LogicalPosition position,
+        std::span<const Types::DataTransfer::FormatView> offered) noexcept;
     GAMEWIP_DESKTOP_EXPORT void enablePointerHitMaskBridge(Window &window) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool hasRendererIntegrationState(const Window &window) noexcept;
+    /// @brief Returns the stable publication allocation identity, or nullptr while disabled.
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT const void *presentationPublicationStorage(const Window &window) noexcept;
     GAMEWIP_DESKTOP_EXPORT void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool pointerHitMaskAccepts(const Window &window, Types::LogicalPosition position) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status simulateFullscreenMonitorRemoval(Window &window) noexcept;
@@ -129,6 +180,8 @@ namespace GameWIP::Desktop::TestHooks
     GAMEWIP_DESKTOP_EXPORT void failClipboardPublicationAt(std::size_t itemIndex) noexcept;
     /// @brief Fails Clipboard enumeration after the requested number of materialized formats once.
     GAMEWIP_DESKTOP_EXPORT void failClipboardEnumerationAfter(std::size_t materializedFormats) noexcept;
+    /// @brief Fails the requested number of consecutive native DragDrop revocations.
+    GAMEWIP_DESKTOP_EXPORT void failDragDropRevocations(std::size_t attempts) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t customCursorVariantCount(const Cursor &cursor) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::uint32_t customCursorBindingDpi(const Window &window) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t createdCustomCursorCount() noexcept;
@@ -144,6 +197,7 @@ namespace GameWIP::Desktop::Detail
     [[nodiscard]] bool consumeCursorNativeCreationFailure() noexcept;
     [[nodiscard]] bool consumeClipboardPublicationFailure(std::size_t itemIndex) noexcept;
     [[nodiscard]] bool consumeClipboardEnumerationFailure(std::size_t materializedFormats) noexcept;
+    [[nodiscard]] bool consumeDragDropRevocationFailure() noexcept;
     void recordCustomCursorCreated() noexcept;
     void recordCustomCursorDestroyed() noexcept;
 #else
@@ -160,6 +214,10 @@ namespace GameWIP::Desktop::Detail
         return false;
     }
     [[nodiscard]] constexpr bool consumeClipboardEnumerationFailure(std::size_t) noexcept
+    {
+        return false;
+    }
+    [[nodiscard]] constexpr bool consumeDragDropRevocationFailure() noexcept
     {
         return false;
     }

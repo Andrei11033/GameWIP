@@ -6,6 +6,7 @@
 #include "desktop/internal/desktop_test_hooks.h"
 
 #include "desktop/internal/child_surface_state.h"
+#include "desktop/internal/drag_drop_state.h"
 #include "desktop/internal/window_platform.h"
 
 #include <dwmapi.h>
@@ -88,14 +89,16 @@ namespace GameWIP::Desktop::Detail::Platform
         Dispatcher(const Dispatcher &) = delete;
         Dispatcher &operator=(const Dispatcher &) = delete;
 
-        DWORD threadId = 0;                                          ///< Native identity of the owning thread.
-        std::vector<WindowState *> windows;                          ///< Non-owning registered states on this thread.
-        std::vector<ChildSurfaceState *> childSurfaces;              ///< Lazily registered native child-host states.
-        std::mutex deferredMutex;                                    ///< Synchronizes cross-thread cleanup transfer.
-        std::unique_ptr<WindowState> deferredCleanupHead;            ///< Intrusive chain awaiting owner-thread cleanup.
-        std::unique_ptr<ChildSurfaceState> deferredChildCleanupHead; ///< Child hosts awaiting owner-thread cleanup.
-        bool pumping = false;                                        ///< Reentrancy guard for the native message pump.
-        Types::Events::PumpResult *activeResult = nullptr;           ///< Call-scoped accumulator during a pump.
+        DWORD threadId = 0;                                            ///< Native identity of the owning thread.
+        std::vector<WindowState *> windows;                            ///< Non-owning registered states on this thread.
+        std::vector<ChildSurfaceState *> childSurfaces;                ///< Lazily registered native child-host states.
+        std::mutex deferredMutex;                                      ///< Synchronizes cross-thread cleanup transfer.
+        std::unique_ptr<WindowState> deferredCleanupHead;              ///< Intrusive chain awaiting owner-thread cleanup.
+        std::unique_ptr<ChildSurfaceState> deferredChildCleanupHead;   ///< Child hosts awaiting owner-thread cleanup.
+        std::unique_ptr<DragDropState> deferredDragDropCleanupHead;    ///< OLE targets awaiting owner-thread cleanup.
+        std::unique_ptr<std::vector<DragDropState *>> dragDropTargets; ///< Lazily allocated active OLE target registry.
+        bool pumping = false;                                          ///< Reentrancy guard for the native message pump.
+        Types::Events::PumpResult *activeResult = nullptr;             ///< Call-scoped accumulator during a pump.
     };
 
     /// @name Dispatcher and routing helpers

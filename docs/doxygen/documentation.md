@@ -300,7 +300,7 @@ Use this structure when it fits:
 ## Core rules
 ## Required structure
 ## Allowed exceptions
-## Review checklist
+## Review criteria
 ## Related pages
 ```
 
@@ -433,6 +433,10 @@ details; malformed three-line separator structures remain manual fixes.
 - Leave short labels and fragments without punctuation.
 - Use fenced code blocks with the correct language where possible.
 - Keep consumer examples on supported public APIs.
+- Documentation describes behavior, contracts, workflows, inputs, outputs, and
+  expected results. Task-state checkboxes and completion lists belong only in
+  `docs/roadmap.md`; maintained manuals express the same information as prose,
+  rules, or scenario/expected-result tables.
 
 ## Doxygen verification
 
@@ -490,4 +494,4 @@ After the reviewer rule is active, add
 trusted deployment triggered by a push to `master` remains automatic. Keep the
 marker unset when the repository plan does not support required reviewers.
 
-See @ref project_extending for add/change checklists.
+See @ref project_extending for the integration rules that apply to new and changed repository concepts.

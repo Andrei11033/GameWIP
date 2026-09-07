@@ -6,7 +6,7 @@ between windowed, borderless, and exclusive fullscreen states.
 
 ## Display types
 
-Monitor identity and physical modes are grouped under `Window::Types::Display`:
+Monitor identity and physical modes are grouped under `Desktop::Types::Display`:
 
 - `MonitorId` is a process-local identity for a currently known monitor and uses `isValid()`.
 - `Mode` describes physical resolution, millihertz refresh, color depth, and interlace state.
@@ -19,7 +19,7 @@ Rich monitor snapshots and OS color state are opt-in through `desktop/display_in
 
 ## Display operations
 
-`Window::Display` owns display discovery and inspection. Mode-only code can include `desktop/display.h` and call `getModes()`, `getCurrentMode()`, or
+`Desktop::Display` owns display discovery and inspection. Mode-only code can include `desktop/display.h` and call `getModes()`, `getCurrentMode()`, or
 `getPreferredMode()`.
 
 Code that needs monitor enumeration or color inspection includes `desktop/display_info.h` and uses `getMonitors()`, `getPrimaryMonitor()`,
@@ -47,3 +47,7 @@ invalid while a fullscreen mode is active.
 The Win32 backend recovers fullscreen state when display topology changes and queues `Types::Events::DisplayConfigurationChanged` / `MonitorChanged` /
 `ModeChanged` as appropriate. Color configuration changes are also surfaced through display-configuration events; callers re-query
 `Display::getColorInfo()` for current facts.
+
+The Win32 color query uses a current-thread DXGI factory to observe configuration currency while the calling thread owns a Window. Standalone monitor
+queries release that factory before returning. Closing the thread's final Window also releases it, keeping COM cleanup inside an ordinary Desktop
+operation rather than process-exit thread-local destruction.

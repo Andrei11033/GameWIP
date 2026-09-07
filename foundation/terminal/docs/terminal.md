@@ -7,6 +7,10 @@ Terminal is a shared runtime library. One process-wide implementation coordinate
 such as Logger. Callers may use direct one-operation functions or create a move-only `Session` when interactive input needs persistent ownership and
 native state.
 
+The focused public headers are `terminal/types.h`, `terminal/style.h`,
+`terminal/input.h`, `terminal/output.h`, and `terminal/session.h`.
+`terminal/terminal.h` remains the complete convenience include.
+
 ## How the library is organized
 
 Direct functions temporarily acquire the required stream, perform one

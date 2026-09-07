@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "filesystem/filesystem.h"
-#include "io/io.h"
+#include "filesystem/path.h"
+#include "io/status.h"
 #include "desktop/display.h"
 #include "desktop/desktop_export.h"
 
@@ -33,6 +33,14 @@ namespace GameWIP::Desktop::Types::Events
     };
     /// @brief Signals that the native Window was destroyed externally.
     struct NativeDestroyed
+    {
+    };
+    /// @brief Signals entry into an OS-managed interactive move or resize operation.
+    struct InteractiveMoveResizeStarted
+    {
+    };
+    /// @brief Signals exit from an OS-managed interactive move or resize operation.
+    struct InteractiveMoveResizeEnded
     {
     };
     /// @brief Reports a visibility transition.
@@ -121,6 +129,8 @@ namespace GameWIP::Desktop::Types::Events
     using Payload = std::variant<
         CloseRequested,
         NativeDestroyed,
+        InteractiveMoveResizeStarted,
+        InteractiveMoveResizeEnded,
         VisibilityChanged,
         ClientPositionChanged,
         ClientSizeChanged,

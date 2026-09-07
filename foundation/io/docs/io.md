@@ -5,6 +5,10 @@
 It defines status and result types, abstract reader and writer interfaces, memory-backed implementations, and helpers that complete whole-stream byte
 transfers and strict UTF-8 text transfers. IO does not open operating-system resources and has no platform backend.
 
+The public headers follow those boundaries: `io/status.h`, `io/stream.h`,
+`io/memory.h`, and `io/transfer.h`. `io/io.h` remains the complete convenience
+include. Either form exposes identical contracts and runtime behavior.
+
 ## How the library is organized
 
 `Reader` and `Writer` are the common byte-stream vocabulary. Concrete owners,

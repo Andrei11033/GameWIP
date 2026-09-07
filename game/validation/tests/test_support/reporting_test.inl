@@ -14,7 +14,7 @@ void testSummaryAndTimer(TestSupport::Context &context)
         TestSupport::Types::Reporting::ConsoleVerbosity::Full,
         defaultOptions.consoleVerbosity));
     static_cast<void>(
-        context.expectEq("ReportOptions default path", std::filesystem::path("logs/tests/latest_test_report.txt"), defaultOptions.reportPath));
+        context.expectEq("ReportOptions default path", std::filesystem::path("logs/validation/latest_test_report.txt"), defaultOptions.reportPath));
 
     TestSupport::Types::Reporting::Summary summary;
     summary.passed = 2;

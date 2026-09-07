@@ -17,6 +17,11 @@ The package resolves `IO` with the same exact project version. Source-tree targe
 
 The package installs:
 
+- `terminal/types.h`;
+- `terminal/style.h`;
+- `terminal/input.h`;
+- `terminal/output.h`;
+- `terminal/session.h`;
 - `terminal/terminal.h`;
 - generated `terminal/terminal_export.h`;
 - the `GameWIP::Terminal` imported target and package metadata.

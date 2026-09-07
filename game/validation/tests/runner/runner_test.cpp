@@ -36,6 +36,9 @@ namespace
         bool manualTests = false;
         bool childProcesses = true;
         bool writeReport = true;
+        bool appendReport = false;
+        std::filesystem::path reportPath;
+        std::filesystem::path temporaryRoot;
     };
 
     struct ProbeState
@@ -83,6 +86,10 @@ namespace
         record.manualTests = invocation.options.enableManualTests;
         record.childProcesses = invocation.options.enableTestSupportChildProcessTests;
         record.writeReport = invocation.options.writeReport;
+        record.appendReport = invocation.appendReport;
+        record.reportPath = invocation.options.reportPath;
+        std::error_code temporaryError;
+        record.temporaryRoot = std::filesystem::temp_directory_path(temporaryError);
         probeState.invocationOrder.push_back(name);
     }
 
@@ -328,6 +335,41 @@ namespace
 #endif
     }
 
+    void testReportResolutionAndAggregation(TestSupport::Context &context)
+    {
+        const TestSupport::ScopedTemporaryDirectory workspace("runner_report");
+        if (!context.expectTrue("report workspace is available", workspace.status().ok()))
+        {
+            return;
+        }
+
+        const std::filesystem::path relativeReport = "logs/validation/aggregate.txt";
+        const std::filesystem::path expectedReport = (workspace.path() / relativeReport).lexically_normal();
+        {
+            const TestSupport::ScopedCurrentPath currentPath(workspace.path());
+            if (!context.expectTrue("report workspace becomes current", currentPath.status().ok()))
+            {
+                return;
+            }
+
+            ValidationTests::RunOptions options;
+            options.reportPath = relativeReport;
+            const Validation::TestResult result = runProbe({}, std::move(options));
+            static_cast<void>(context.expectTrue("reported probe invocation succeeds", result.ok()));
+        }
+
+        static_cast<void>(context.expectEq("relative report resolves beneath executable directory", expectedReport, probeState.alpha.reportPath));
+        std::error_code temporaryPathError;
+        const bool temporaryPathMatches = std::filesystem::equivalent(workspace.path() / "temp", probeState.alpha.temporaryRoot, temporaryPathError);
+        static_cast<void>(
+            context.expectTrue("temporary activity resolves beneath executable directory", !temporaryPathError && temporaryPathMatches));
+        static_cast<void>(context.expectFalse("first module truncates aggregate report", probeState.beta.appendReport));
+        static_cast<void>(context.expectTrue("later module appends aggregate report", probeState.alpha.appendReport));
+        static_cast<void>(context.expectFileContains("aggregate report retains first module result", expectedReport, "module=beta result=PASS"));
+        static_cast<void>(context.expectFileContains("aggregate report retains later module result", expectedReport, "module=alpha result=PASS"));
+        static_cast<void>(context.expectFileContains("aggregate report retains final result", expectedReport, "result=PASS modules=2 failed=0"));
+    }
+
     void testModuleFailureIsolation(TestSupport::Context &context)
     {
         constexpr std::array<ValidationTests::Module, 3> failureModules = {{
@@ -443,6 +485,7 @@ namespace GameWIP::Test
         runner.runSuite("Validation runner invalid module selection", testInvalidModuleSelection);
         runner.runSuite("Validation runner removed and retained options", testRemovedAndRetainedOptions);
         runner.runSuite("Validation runner reserved input validation", testReservedChildAndReportValidation);
+        runner.runSuite("Validation runner report resolution and aggregation", testReportResolutionAndAggregation);
         runner.runSuite("Validation runner failure isolation", testModuleFailureIsolation);
         runner.runSuite("Validation runner invalid registrations", testInvalidRegistrations);
         runner.runSuite("Validation runner child routing", testChildRouting);

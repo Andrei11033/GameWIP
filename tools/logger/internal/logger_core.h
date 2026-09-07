@@ -6,9 +6,10 @@
 #include "logger/logger.h"
 #include "logger/internal/logger_platform.h"
 
-#include "filesystem/filesystem.h"
-#include "io/io.h"
-#include "terminal/terminal.h"
+#include "filesystem/file.h"
+#include "filesystem/directory.h"
+#include "io/status.h"
+#include "terminal/output.h"
 #include "unicode/unicode.h"
 
 #ifndef LOGGER_INTERNAL_TEST_HOOKS

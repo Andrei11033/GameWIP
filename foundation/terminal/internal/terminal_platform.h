@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "terminal/terminal.h"
+#include "terminal/input.h"
+#include "terminal/output.h"
 
 #include <cstdint>
 #include <span>

@@ -1,8 +1,11 @@
 @page desktop_library Desktop
 
-`GameWIP::Desktop` provides standalone portable ownership of native top-level desktop windows, optional managed child hosts, and synchronous desktop
-Clipboard data exchange. Its API provides checked lifecycle and mutation operations, fixed-capacity typed event queues, cached state, display
-discovery and inspection, and an explicit native interoperability boundary.
+`GameWIP::Desktop` provides standalone portable ownership of native top-level
+desktop windows, optional managed child hosts, synchronous desktop Clipboard
+data exchange, and native data drag and drop. Its API provides checked lifecycle
+and mutation operations, fixed-capacity typed event queues, cached state,
+display discovery and inspection, and an explicit native interoperability
+boundary.
 
 Desktop is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and invokes no user callbacks
 from a native window procedure.
@@ -14,7 +17,7 @@ fixed-capacity event queue. The thread that opens it also mutates it, pumps its
 events, and consumes that queue. Native callbacks first update cached state and
 then publish typed events, allowing getters to remain current even if the queue
 overflows. Display APIs describe monitors and modes independently of a Window;
-opt-in headers expose renderer feedback and deliberate native interoperation.
+opt-in headers expose renderer integration and deliberate native interoperation.
 
 ## Consumer manual
 
@@ -32,6 +35,8 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
   inside an optional managed child HWND.
 - @subpage desktop_clipboard — Exchange UTF-8 text, paths, RGBA8 images, and
   arbitrary named opaque data without opening a Window.
+- @subpage desktop_drag_drop — Exchange portable data through native drag
+  sources and declarative target regions.
 - @subpage desktop_lifecycle_events — Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage desktop_chrome_and_pointer_input — Configure system and custom chrome,
@@ -40,12 +45,12 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
   exclusive modes and handle monitor or topology changes.
 - @subpage desktop_native_interop — Access a native handle without taking
   ownership or bypassing portable lifetime rules.
-- @subpage desktop_renderer_integration — Attach renderer feedback and consume
-  the packed pointer snapshot.
+- @subpage desktop_renderer_integration — Enable concurrent presentation reads,
+  attach renderer feedback, and publish packed pointer data.
 - @subpage desktop_examples — See lifecycle, events, displays, fullscreen,
   custom chrome, and renderer integration in context.
 - @subpage desktop_troubleshooting — Diagnose ownership, capabilities, queue
-  pressure, display transitions, native destruction, and renderer feedback.
+  pressure, display transitions, native destruction, and renderer integration.
 - @subpage desktop_future_extensions — Understand where proposed accessibility,
   drag/drop, dialogs, and related features belong.
 
@@ -60,21 +65,25 @@ opt-in headers expose renderer feedback and deliberate native interoperation.
 ## Generated API reference
 
 Use @ref GameWIP::Desktop for library-wide capability operations and the non-copyable, non-movable @ref GameWIP::Desktop::Window owner. Passive values
-live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, Clipboard
-results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`, and renderer-bridge values under
-`Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`, display inspection under
-`Desktop::Display`, and renderer feedback under `Desktop::Renderer`. Win32 consumers use @ref GameWIP::Desktop::Native::Win32 deliberately.
+live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, drag-and-drop
+values under `Types::DragDrop`, Clipboard results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`,
+and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`,
+drag sources under `Desktop::DragDrop`, display inspection under `Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers
+use @ref GameWIP::Desktop::Native::Win32 deliberately.
 
 ## Key behavior
 
 Every successful `open()` creates one process-local `Types::WindowId` and one fixed event queue. `Window` is non-copyable and non-movable, keeping its
-address and thread affinity stable. Cached getters are allocation-free and never query the operating system.
+address and thread affinity stable. Cached getters are allocation-free and never query the operating system. By default they remain owner-thread-only.
+The optional renderer bridge can lazily enable atomic publication for the documented presentation subset.
 
 Native callbacks update cached state before inserting events, so queue overflow loses notification history without making current state stale. Close
 requests remain sticky even when their `Types::Events::CloseRequested` payload cannot be retained.
 
-The opening thread owns native mutation, queue consumption, and event pumping. `wakeEventWait()` is the only intentionally cross-thread object
-operation. A thread-local dispatcher pumps every Window opened by that thread; no WindowManager is involved.
+The opening thread owns native mutation, queue consumption, and event pumping. `wakeEventWait()` is always cross-thread-safe. Renderer-facing
+presentation reads become a narrow additional exception only after explicit opt-in. A thread-local dispatcher pumps each owner thread's Windows.
+
+Cross-thread presentation reads do not make concurrent destruction safe. Applications must ensure the `Window` object outlives every renderer read.
 
 Destruction on another thread transfers complete state ownership to that dispatcher without allocation. Dispatcher or thread shutdown closes remaining
 native windows and restores exclusive-mode, cursor, class, and identity resources. Unexpected native destruction retains portable state and a typed
@@ -96,8 +105,8 @@ its physical client pixels.
 The normal portable surface is assembled by `desktop/window.h` from focused `desktop/types.h`, `desktop/description.h`, `desktop/events.h`, and
 `desktop/display.h`. Rich monitor/color inspection is opt-in through `desktop/display_info.h`. Renderer integration is opt-in through
 `desktop/renderer_bridge.h`, custom native cursors are opt-in through `desktop/cursor.h`, native child hosts are opt-in through
-`desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, and Win32
-interoperability is opt-in through `desktop/native/win32.h`.
+`desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, native data drag
+and drop is opt-in through `desktop/drag_drop.h`, and Win32 interoperability is opt-in through `desktop/native/win32.h`.
 
 Installed consumers link `GameWIP::Desktop`. Window is intentionally built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked

@@ -10,6 +10,8 @@ target_sources(
         "${CMAKE_CURRENT_LIST_DIR}/win32_child_surface.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_controls.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_cursor.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/win32_data_transfer.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/win32_drag_drop.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_mode.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_monitor.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_operations.cpp"
@@ -19,6 +21,7 @@ target_sources(
         "${CMAKE_CURRENT_LIST_DIR}/win32_window_lifecycle.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_window_proc.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/internal/win32_compat.h"
+        "${CMAKE_CURRENT_LIST_DIR}/internal/win32_data_transfer.h"
         "${CMAKE_CURRENT_LIST_DIR}/internal/win32_window_backend.h"
 )
 
@@ -30,7 +33,7 @@ target_sources(
 
 target_link_libraries(
     Desktop
-    PRIVATE dwmapi dxgi dxguid gdi32 shell32 shcore user32
+    PRIVATE dwmapi dxgi dxguid gdi32 ole32 shell32 shcore user32
 )
 
 if(MINGW)

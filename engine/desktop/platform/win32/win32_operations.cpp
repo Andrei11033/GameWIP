@@ -4,7 +4,6 @@
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 
 #include <algorithm>
-#include <cmath>
 #include <limits>
 #include <new>
 #include <span>

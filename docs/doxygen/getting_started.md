@@ -68,6 +68,7 @@ Run one module directly when investigating a focused area:
 ```
 
 The validation architecture, module registration, child-process routing, report paths, and startup behavior are documented in @ref project_validation.
+Relative validation reports and disposable fixtures remain within the active `build/<preset>` tree.
 Test authoring rules are documented in @ref project_testing.
 
 ## Read the source tree

@@ -1,7 +1,8 @@
 /// @file line_input.cpp
 /// @brief Terminal-managed Unicode line editing and echo implementation.
 
-#include "terminal/terminal.h"
+#include "terminal/input.h"
+#include "terminal/output.h"
 #include "terminal/internal/terminal_input.h"
 #include "base/checked_arithmetic.h"
 #include "terminal/internal/terminal_platform.h"

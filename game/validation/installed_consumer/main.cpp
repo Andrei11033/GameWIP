@@ -7,6 +7,14 @@
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 
+#include "io/status.h"
+#include "io/stream.h"
+#include "filesystem/path.h"
+#include "filesystem/file.h"
+#include "terminal/input.h"
+#include "terminal/output.h"
+#include "terminal/session.h"
+
 #include "debug/assert/assert.h"
 #include "filesystem/filesystem.h"
 #include "io/io.h"
@@ -19,6 +27,7 @@
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
+#include "desktop/drag_drop.h"
 #include "desktop/display_info.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
@@ -71,6 +80,8 @@ int main()
     const GameWIP::Desktop::Types::LogicalSize windowSize{640, 360};
     GameWIP::Desktop::Window closedWindow;
     GameWIP::Desktop::ChildSurface closedChildSurface;
+    GameWIP::Desktop::DragDropTarget closedDragDropTarget;
+    const GameWIP::Desktop::Types::DragDrop::Result closedDrag = GameWIP::Desktop::DragDrop::beginDrag(closedWindow, {});
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Desktop::Renderer::attachOcclusionProvider(closedWindow);
     const bool rendererProvider = GameWIP::Desktop::Renderer::hasOcclusionProvider(closedWindow);
     const GameWIP::Desktop::Types::Display::ColorInfoResult displayColor = GameWIP::Desktop::Display::getColorInfo(closedWindow);
@@ -100,7 +111,8 @@ int main()
                    !invalidCursor.cursor.isValid() && invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
                    !invalidSingleCursor.cursor.isValid() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
                    !rendererProvider && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
-                   loggerConfig.logDirectory == std::string_view{"logs"} && !closedChildSurface.isOpen()
+                   loggerConfig.logDirectory == std::string_view{"logs"} && !closedChildSurface.isOpen() && !closedDragDropTarget.isOpen() &&
+                   closedDrag.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;
 }

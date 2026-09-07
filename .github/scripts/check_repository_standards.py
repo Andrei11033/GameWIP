@@ -650,6 +650,7 @@ def check_registry_relationships(failures: list[str]) -> None:
         "scripts/config/project-tools.json": "scripts/schemas/project-tools.schema.json",
         "scripts/setup/config/setup.json": "scripts/schemas/setup.schema.json",
         "scripts/setup/config/editors.json": "scripts/schemas/editors.schema.json",
+        "config/quality/hygiene.json": "scripts/schemas/hygiene.schema.json",
     }
     for registry, schema in registry_schemas.items():
         if not (ROOT / registry).is_file() or not (ROOT / schema).is_file():

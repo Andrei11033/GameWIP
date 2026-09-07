@@ -7,8 +7,13 @@
 #include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/registry.h"
 
+#include "test_support/process.h"
+
 #include <algorithm>
 #include <exception>
+#include <filesystem>
+#include <format>
+#include <fstream>
 #include <iostream>
 #include <optional>
 #include <set>
@@ -123,9 +128,23 @@ namespace GameWIP::Validation::Tests
             return selection;
         }
 
-        /// @brief Resolves ordinary relative reports beneath the GameWIP temp root and rejects parent traversal.
+        /// @brief Returns the normalized directory that owns outputs for this executable invocation.
+        [[nodiscard]] std::filesystem::path executableDirectory(ProcessArguments arguments)
+        {
+            if (!arguments.empty() && arguments.front() != nullptr && !std::string_view(arguments.front()).empty())
+            {
+                const std::filesystem::path executablePath = std::filesystem::absolute(arguments.front()).lexically_normal();
+                if (executablePath.has_parent_path())
+                {
+                    return executablePath.parent_path();
+                }
+            }
+            return std::filesystem::current_path();
+        }
+
+        /// @brief Resolves ordinary relative reports beneath the running executable directory and rejects parent traversal.
         /// @details Invalid or empty paths disable file reporting without changing test execution.
-        void resolveReportOutput(RunOptions &options)
+        void resolveReportOutput(const std::filesystem::path &outputRoot, RunOptions &options)
         {
             if (!options.writeReport)
             {
@@ -154,7 +173,7 @@ namespace GameWIP::Validation::Tests
                             throw std::invalid_argument("relative report paths cannot contain '..'");
                         }
                     }
-                    options.reportPath = (std::filesystem::temp_directory_path() / "GameWIP" / normalized).lexically_normal();
+                    options.reportPath = (outputRoot / normalized).lexically_normal();
                 }
                 else
                 {
@@ -165,6 +184,50 @@ namespace GameWIP::Validation::Tests
             {
                 std::cerr << "[VALIDATION] report disabled: " << exception.what() << '\n';
                 options.writeReport = false;
+            }
+        }
+
+        /// @brief Appends runner-owned aggregation output to the retained validation report.
+        void appendValidationLine(const RunOptions &options, std::string_view line) noexcept
+        {
+            if (!options.writeReport)
+            {
+                return;
+            }
+
+            try
+            {
+                const std::filesystem::path parentPath = options.reportPath.parent_path();
+                if (!parentPath.empty())
+                {
+                    std::error_code error;
+                    std::filesystem::create_directories(parentPath, error);
+                    if (error)
+                    {
+                        std::cerr << "[VALIDATION] could not create report directory: " << error.message() << '\n';
+                        return;
+                    }
+                }
+
+                std::ofstream report(options.reportPath, std::ios::out | std::ios::app);
+                if (!report.is_open())
+                {
+                    std::cerr << "[VALIDATION] could not append to report: " << options.reportPath.string() << '\n';
+                    return;
+                }
+                report << line << '\n';
+                if (!report)
+                {
+                    std::cerr << "[VALIDATION] report append failed: " << options.reportPath.string() << '\n';
+                }
+            }
+            catch (const std::exception &exception)
+            {
+                std::cerr << "[VALIDATION] report append failed: " << exception.what() << '\n';
+            }
+            catch (...)
+            {
+                std::cerr << "[VALIDATION] report append failed with an unknown error.\n";
             }
         }
 
@@ -233,6 +296,28 @@ namespace GameWIP::Validation::Tests
         const std::vector<Module> modules = sortedModules(registrations);
         if (!validModules(modules))
         {
+            return {.modulesFailed = 1, .exitCode = 1};
+        }
+
+        // Validation owns disposable process activity beneath its executable's
+        // preset tree. Scoped restoration prevents this policy from leaking to
+        // the game runtime that may follow embedded startup validation.
+        const std::filesystem::path outputRoot = executableDirectory(arguments);
+        const std::filesystem::path temporaryRoot = outputRoot / "temp";
+        std::error_code temporaryError;
+        std::filesystem::create_directories(temporaryRoot, temporaryError);
+        if (temporaryError)
+        {
+            std::cerr << "Validation temporary directory setup failed: " << temporaryError.message() << '\n';
+            return {.modulesFailed = 1, .exitCode = 1};
+        }
+        const std::string temporaryRootText = temporaryRoot.string();
+        TestSupport::ScopedEnvironmentVariable temporaryDirectory("TEMP", temporaryRootText);
+        TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias("TMP", temporaryRootText);
+        TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory("TMPDIR", temporaryRootText);
+        if (!temporaryDirectory.status().ok() || !temporaryDirectoryAlias.status().ok() || !posixTemporaryDirectory.status().ok())
+        {
+            std::cerr << "Validation temporary environment setup failed.\n";
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
@@ -343,7 +428,7 @@ namespace GameWIP::Validation::Tests
 
         // Report validation is intentionally non-fatal: invalid report paths
         // disable retained output but should not hide console failures.
-        resolveReportOutput(options);
+        resolveReportOutput(outputRoot, options);
         if (options.writeReport)
         {
             std::cout << "[VALIDATION] report=" << options.reportPath.string() << '\n';
@@ -365,8 +450,10 @@ namespace GameWIP::Validation::Tests
                 ++result.modulesFailed;
                 result.exitCode = 1;
             }
-            std::cout << "[VALIDATION] module=" << module.name << " result=" << (moduleExitCode == 0 ? "PASS" : "FAIL")
-                      << " exitCode=" << moduleExitCode << '\n';
+            const std::string moduleLine =
+                std::format("[VALIDATION] module={} result={} exitCode={}", module.name, moduleExitCode == 0 ? "PASS" : "FAIL", moduleExitCode);
+            std::cout << moduleLine << '\n';
+            appendValidationLine(options, moduleLine);
 
             // Once one module has written the aggregate report, later modules
             // must append so their summaries do not replace earlier evidence.
@@ -380,8 +467,10 @@ namespace GameWIP::Validation::Tests
             result.exitCode = 1;
         }
 
-        std::cout << "[VALIDATION] result=" << (result.ok() ? "PASS" : "FAIL") << " modules=" << result.modulesRun
-                  << " failed=" << result.modulesFailed << '\n';
+        const std::string resultLine =
+            std::format("[VALIDATION] result={} modules={} failed={}", result.ok() ? "PASS" : "FAIL", result.modulesRun, result.modulesFailed);
+        std::cout << resultLine << '\n';
+        appendValidationLine(options, resultLine);
         return result;
     }
 

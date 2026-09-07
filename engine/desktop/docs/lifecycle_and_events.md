@@ -14,12 +14,32 @@ worker thread.
 
 ## Thread ownership
 
-Except `wakeEventWait()`, operations on an open Window require the owner thread. Cached getters are intentionally unsynchronized. Wrong-thread
-explicit close returns `ResourceBusy`.
+Except `wakeEventWait()`, operations on an open Window require the owner thread by default. Wrong-thread explicit close returns `ResourceBusy`.
+Cached getters are owner-thread-only and unsynchronized unless the renderer-facing presentation facility is explicitly enabled.
+
+After owner-thread `Renderer::enableConcurrentPresentationReads(window)` succeeds, the following cached getters are also safe for concurrent reads:
+
+- `clientSize()` and `framebufferSize()`
+- `contentScale()` and `effectiveDpi()`
+- `currentMonitor()`
+- `presentationState()`, `minimized()`, and `maximized()`
+- `visible()` and `interactiveMoveResizeActive()`
+- `occluded()`
+
+Enabling is one-way for the C++ object and persists across close/reopen. It allocates and publishes the current authoritative state once; default
+Windows pay no allocation or publication cost. Call it before starting renderer reads. Enabling concurrently with reads is unsupported.
+
+Each compound result is internally coherent. Separate calls may observe successive valid states. This contract does not make concurrent destruction
+of the C++ `Window` object safe. The application must keep the object alive until the renderer thread has stopped or joined.
 
 Wrong-thread destruction does not destroy owner-thread-affine resources directly. Private state is transferred to the owner dispatcher without
 allocating, the dispatcher is woken, and cleanup is completed on the owner thread. Dispatcher teardown also drains deferred cleanup and finalizes
 registered Windows.
+
+Display-color queries retain a current-thread DXGI factory only while that thread owns an open Window. Standalone queries release the factory before
+returning, and closing the final Window releases it during controlled Desktop execution. If an owner thread exits with a Window still registered,
+dispatcher teardown drops the remaining factory reference without entering DXGI from thread-detach cleanup; the operating system reclaims that
+exceptional-path reference at process termination.
 
 ## Close intent
 
@@ -37,7 +57,7 @@ destruction directly.
 Unexpected native destruction follows a distinct exceptional lifetime:
 
 1. the native handle disappears;
-2. cached state and the event queue remain retained;
+2. owner-thread cached state and the event queue remain retained, while enabled renderer-facing publication resets to closed defaults;
 3. `lifetimeState()` becomes `NativeDestroyedPendingFinalize` and `isOpen()` becomes false;
 4. `Types::Events::NativeDestroyed` is queued and protected from silent loss when a full queue can evict an older coalescible entry;
 5. native mutations return `NotOpen` until owner-thread `close()` completes retained finalization.
@@ -55,8 +75,18 @@ counter.
 
 ## Pumping
 
-`Window::Events::poll()` pumps the calling thread without blocking. `Window::Events::wait()` waits for input up to the requested timeout and then
+`Desktop::Events::poll()` pumps the calling thread without blocking. `Desktop::Events::wait()` waits for input up to the requested timeout and then
 pumps. Their queued and dropped counts include events routed to top-level Windows and optional ChildSurfaces during the call. Pumping with no open
 Window-subsystem object on the calling thread is a successful no-op; recursive pumping returns `ResourceBusy`.
 
 `wakeEventWait()` is the intentionally cross-thread-safe escape hatch for interrupting an owner thread blocked in `Events::wait()`.
+
+## Interactive move and resize
+
+The native interactive move/resize lifecycle is exposed through the cached `interactiveMoveResizeActive()` state and the non-coalescible
+`Types::Events::InteractiveMoveResizeStarted` and `Types::Events::InteractiveMoveResizeEnded` transition payloads. It is owner-thread-only by default
+and becomes safe for renderer-thread reads after concurrent presentation reads are enabled. Only entry into and exit from the operating system's
+interactive loop changes this state; ordinary programmatic geometry and presentation changes do not synthesize the lifecycle.
+
+Desktop continues to process and report native geometry, DPI, and monitor changes during the interactive loop. Frame scheduling, simulation policy,
+and renderer resource resizing remain application and renderer responsibilities.

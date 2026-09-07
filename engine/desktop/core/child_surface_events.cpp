@@ -3,8 +3,6 @@
 
 #include "desktop/internal/child_surface_state.h"
 
-#include <utility>
-
 namespace GameWIP::Desktop::Detail
 {
     namespace

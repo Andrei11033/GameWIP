@@ -31,7 +31,8 @@ native error mapping.
 
 Project validation also checks:
 
-- `filesystem/filesystem.h` as a self-contained public header;
+- every focused FileSystem header and the umbrella as self-contained headers;
+- focused and umbrella installed-package consumption;
 - exact-version installed-package consumption through `GameWIP::FileSystem`;
 - integration with Logger's file output and other consumers;
 - Doxygen warnings and page references.

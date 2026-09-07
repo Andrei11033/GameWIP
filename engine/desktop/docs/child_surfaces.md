@@ -53,14 +53,14 @@ contexts can be hosted without permanently changing owner-thread policy.
 ## Events and pumping
 
 Each successful open lifetime has its own fixed-capacity queue and sequence beginning at one. The default overload uses
-`Window::Events::kDefaultQueueCapacity`; other overloads allocate a requested capacity or borrow caller-owned
+`Desktop::Events::kDefaultQueueCapacity`; other overloads allocate a requested capacity or borrow caller-owned
 `std::span<Types::ChildSurface::Event>` storage until close.
 
 `PositionChanged`, `SizeChanged`, `PixelSizeChanged`, and `ContentScaleChanged` may coalesce across adjacent compatible observations.
 `VisibilityChanged` remains non-coalescible. Full queues prefer evicting an older coalescible event, and preserve terminal `NativeDestroyed` even when
 that requires evicting the oldest retained entry. `Types::Events::QueueInfo` and `StorageKind` are shared with top-level Window queues.
 
-ChildSurface adds no `poll()` or `wait()`. Continue using `Window::Events::poll()` and `Window::Events::wait()`; their queued and dropped counts include
+ChildSurface adds no `poll()` or `wait()`. Continue using `Desktop::Events::poll()` and `Desktop::Events::wait()`; their queued and dropped counts include
 events routed to top-level Windows and ChildSurfaces during that pump. Every object still owns and consumes its own queue.
 
 ## Visibility, interaction, and sibling order

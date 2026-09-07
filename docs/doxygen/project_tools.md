@@ -164,11 +164,18 @@ Explicit formatter and linter policy is grouped under `config/quality/`:
 - `markdownlint-cli2.jsonc`
 - `psscriptanalyzer.psd1`
 - `file-ownership.json`
+- `hygiene.json`
 
 The project helper passes these paths explicitly, so their location is not a
 hidden discovery dependency. `.clang-format`, `.clang-tidy`, and
 `.editorconfig` intentionally remain at repository root because editor and tool
 upward discovery is useful for C++ and basic text settings.
+
+`hygiene.json` declares optional audit profiles, provider-backed checks,
+confidence levels, and centrally reviewed explanations. Its schema and runtime
+semantic validation reject duplicate IDs and unknown references. The registry
+does not change the required repository quality gate or the root `.clang-tidy`
+policy.
 
 The ownership registry gives every maintained worktree file one quality policy.
 Full quality includes tracked files and non-ignored untracked first-party files,

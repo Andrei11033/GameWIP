@@ -34,7 +34,8 @@ The focused suite covers:
 
 The repository validation also checks:
 
-- Public-header self-containment for `io/io.h`.
+- independent compilation of every focused IO header and the `io/io.h` umbrella;
+- installed consumption through both focused headers and the umbrella;
 - A clean installed consumer using `find_package(IO ... EXACT CONFIG REQUIRED)` and `GameWIP::IO` without source-tree include paths; the IO package
   resolves its Unicode implementation dependency automatically.
 - Project-wide compiler, sanitizer, coverage, and static-analysis workflows where enabled.

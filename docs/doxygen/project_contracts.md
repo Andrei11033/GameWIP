@@ -11,7 +11,7 @@ Use these pages when reviewing whether a change belongs in the project, how it s
   exceptions, ABI, namespaces, and compatibility rules for public C++ APIs.
 - @subpage project_documentation — Where each kind of information belongs and
   what complete project, library, source, and API documentation requires.
-- @subpage project_extending — Cross-repository checklists for new or changed
+- @subpage project_extending — Cross-repository integration rules for new or changed
   libraries, APIs, executables, backends, tests, workflows, and documentation.
 - @subpage project_cmake_infrastructure — Shared CMake helpers for libraries,
   platforms, packages, validation, reports, documentation, and runtime staging.
@@ -69,6 +69,8 @@ for the reference kinds, strict UTF-8 contract, preview behavior, no-op rules,
 and provider rollback boundary.
 
 Explicit formatter/linter configuration lives under `config/quality/` and is passed to each owning tool explicitly.
+Optional hygiene profiles and central explanations follow the same explicit
+configuration rule without becoming part of the required quality gate.
 `.clang-format`, `.clang-tidy`, and `.editorconfig` remain at repository root because their upward-discovery behavior is useful
 to editors and C++ tools.
 

@@ -46,6 +46,9 @@ Consequently, `queued` can exceed `written` even when no queue-drop counter chan
 Formatted overloads reuse nesting-safe per-thread scratch storage. `StrictBounded` constrains formatting growth; `FastNormal` can retain a large
 thread-local capacity after an unusually large message.
 
+MinGW builds store that scratch in a process-wide FLS index so nested formatting remains thread/fiber local without depending on compiler TLS
+destruction. The index owns its callback registration and frees it during Logger module teardown, while the callback code is still loaded.
+
 `inlineMessageCapacity` trades fixed queue storage for fewer heap fallbacks. When `releaseMessageMemoryAfterWrite` is true, Logger also releases
 oversized queue-entry text, worker line/batch scratch, and producer formatting scratch that grew beyond the active message limit.
 `releaseStorageOnShutdown` trades idle memory for reallocation on later initialization.

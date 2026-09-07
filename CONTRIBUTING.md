@@ -19,7 +19,7 @@ automation, and squash commit messages in the order you will use them.
 Maintainers should also use the
 [repository maintenance policy](docs/doxygen/repository_maintenance.md) for
 required checks, branch settings, manual workflow ownership, release gates, and
-the public-repository audit checklist.
+the public-repository baseline.
 
 Use these references when the change reaches their area:
 

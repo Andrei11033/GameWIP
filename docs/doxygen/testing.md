@@ -63,8 +63,12 @@ Run one module and retain a focused report:
 ```powershell
 .\build\test\GameWIPTests.exe `
   --test-module=filesystem `
-  --test-report=logs/tests/filesystem_test_report.txt
+  --test-report=logs/validation/filesystem_test_report.txt
 ```
+
+Relative report paths are rooted beside `GameWIPTests.exe`, not in the caller's
+current directory or the operating-system temporary directory. The example
+above therefore writes `build/test/logs/validation/filesystem_test_report.txt`.
 
 Disable the retained report for quick local iteration:
 
@@ -194,8 +198,12 @@ and fallible, so inspect `status()` before using `path()`; a failed guard is ine
 exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind. Apply the same status-first
 rule to current-directory and environment guards before assuming their requested process-state change took effect.
 
-Final validation reports belong under the operating-system temporary GameWIP root unless a caller supplies an absolute path. Tests must not create
-persistent `logs/` or fixture output in the source or build tree.
+The validation runner scopes `TEMP`, `TMP`, and `TMPDIR` to `build/<preset>/temp` for the complete module invocation and restores their prior values
+before returning. TestSupport workspaces therefore stay inside the active preset tree during standalone and embedded validation, including inherited
+child-process activity. Standalone TestSupport consumers retain the library default of using the host temporary directory.
+
+Final validation reports belong under `build/<preset>/logs/validation` unless a caller explicitly supplies an absolute path. Tests must not create
+persistent `logs/`, reports, or fixture output in the source tree or a different preset tree.
 
 ## Test requirements
 
@@ -212,6 +220,7 @@ Correctness tests must:
   operation returned.
 - Isolate files and restore current directory, environment, terminal state, hooks, and singleton configuration.
 - Keep child protocols uniquely owned and route them before full-suite execution.
+- Use a child process when the behavior under test occurs during thread, static, DLL, or process teardown.
 - Preserve exact failure evidence and continue after ordinary expectation failures.
 - Inspect TestSupport infrastructure status before consuming returned text, boolean, count, path, or child-process fields.
 - Add regression coverage for behavior changes and fixed defects.

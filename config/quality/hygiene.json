@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "defaultProfile": "standard",
+  "analyzePreset": "analyze",
+  "sourceFilter": ".*[\\\\/](foundation|tools|engine|game)[\\\\/].*[.](c|cc|cpp|cxx)$",
+  "headerFilter": ".*[\\\\/](foundation|tools|engine|game)[\\\\/].*",
+  "excludedHeaderFilter": ".*[\\\\/](external|build)[\\\\/].*",
+  "checks": [
+    {
+      "id": "unused-includes",
+      "title": "Unused includes",
+      "description": "Find directly included C/C++ headers that provide no referenced declarations.",
+      "provider": "clang-tidy",
+      "availability": "available",
+      "confidence": "LIKELY",
+      "rules": ["misc-include-cleaner"],
+      "options": {
+        "misc-include-cleaner.MissingIncludes": "false"
+      }
+    },
+    {
+      "id": "unused-declarations",
+      "title": "Unused declarations",
+      "description": "Find unused using declarations and related compiler-proven local declarations.",
+      "provider": "clang-tidy",
+      "availability": "available",
+      "confidence": "LIKELY",
+      "rules": ["misc-unused-using-decls"]
+    },
+    {
+      "id": "dead-stores",
+      "title": "Dead stores",
+      "description": "Find assignments whose stored values cannot affect observable behavior.",
+      "provider": "clang-tidy",
+      "availability": "available",
+      "confidence": "PROVEN",
+      "rules": ["clang-analyzer-deadcode.DeadStores"]
+    },
+    {
+      "id": "unreachable-code",
+      "title": "Unreachable code",
+      "description": "Find control-flow paths that static analysis proves cannot execute.",
+      "provider": "clang-tidy",
+      "availability": "available",
+      "confidence": "PROVEN",
+      "rules": ["clang-analyzer-deadcode.UnreachableCode"]
+    },
+    {
+      "id": "internal-symbols",
+      "title": "Cross-translation-unit symbols",
+      "description": "Analyze whether internal and externally visible symbols are reachable across translation units.",
+      "provider": "future",
+      "availability": "planned",
+      "confidence": "INFORMATION"
+    },
+    {
+      "id": "discarded-sections",
+      "title": "Discarded linker sections",
+      "description": "Inspect linker evidence for functions and data discarded from representative binaries.",
+      "provider": "future",
+      "availability": "planned",
+      "confidence": "INFORMATION"
+    },
+    {
+      "id": "unused-dependencies",
+      "title": "Unused dependencies",
+      "description": "Compare declared link dependencies with representative build and linker evidence.",
+      "provider": "future",
+      "availability": "planned",
+      "confidence": "INFORMATION"
+    },
+    {
+      "id": "orphaned-files",
+      "title": "Orphaned files",
+      "description": "Compare maintained tracked files with their declarative build and validation ownership.",
+      "provider": "future",
+      "availability": "planned",
+      "confidence": "INFORMATION"
+    },
+    {
+      "id": "stale-registrations",
+      "title": "Stale registrations",
+      "description": "Find registry entries whose declared repository targets no longer exist.",
+      "provider": "future",
+      "availability": "planned",
+      "confidence": "INFORMATION"
+    },
+    {
+      "id": "validation-surface",
+      "title": "Validation-only surfaces",
+      "description": "Identify hooks and platform paths that are reachable only from validation configurations.",
+      "provider": "future",
+      "availability": "planned",
+      "confidence": "INFORMATION"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "standard",
+      "title": "Standard audit",
+      "checks": ["unused-includes", "unused-declarations", "dead-stores", "unreachable-code"]
+    },
+    {
+      "id": "deep",
+      "title": "Deep audit",
+      "checks": [
+        "unused-includes",
+        "unused-declarations",
+        "dead-stores",
+        "unreachable-code",
+        "internal-symbols",
+        "discarded-sections",
+        "unused-dependencies",
+        "orphaned-files",
+        "stale-registrations",
+        "validation-surface"
+      ]
+    }
+  ],
+  "explanations": [
+    {
+      "id": "public-header-isolation",
+      "checks": ["unused-includes"],
+      "pathPattern": "(^|/)game/validation/public_headers/",
+      "reason": "Public-header isolation translation units intentionally contain only the include boundary required to compile each public header independently."
+    }
+  ]
+}

@@ -187,6 +187,8 @@ that documented conversion.
 | Game executable | `build/<preset>/GameWIP.exe` | Game target presets |
 | Test executable | `build/test/GameWIPTests.exe` | Test preset |
 | Benchmark executable | `build/benchmark/GameWIPBenchmarks.exe` | Benchmark preset |
+| Validation reports | `build/<preset>/logs/validation/` | Standalone or embedded validation |
+| Validation and benchmark temporary workspaces | `build/<preset>/temp/` | Validation/benchmark runners and child processes |
 | Doxygen HTML | `build/docs/docs/doxygen/html/` | Docs preset |
 | Doxygen warning log | `build/docs/docs/doxygen/doxygen_warnings.log` | Docs preset |
 | Coverage HTML | `build/coverage/coverage/index.html` | Coverage target |

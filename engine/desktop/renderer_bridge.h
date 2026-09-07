@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "io/io.h"
+#include "io/status.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
 
@@ -37,13 +37,37 @@ namespace GameWIP::Desktop::Types::Renderer
     };
 } // namespace GameWIP::Desktop::Types::Renderer
 
-/// @brief Window-side bridge for renderer-owned presentation feedback and integration data.
+/// @brief Optional Window and renderer presentation integration.
 namespace GameWIP::Desktop::Renderer
 {
+    /// @name Concurrent presentation reads
+    /// @{
+
+    /// @brief Enables atomic renderer-facing presentation reads for this Window object.
+    /// @details Requires an open Window on its owner thread. On first success, lazily allocates stable publication storage and immediately publishes
+    /// the current authoritative presentation state. Enablement is one-way for the C++ object, persists across close/reopen, and is idempotent.
+    /// Call this before another thread begins using the documented renderer-facing getters. Enabling concurrently with getter reads is unsupported.
+    /// Failure leaves the facility disabled and ordinary owner-thread cached getter behavior unchanged.
+    /// The broadened contract covers clientSize(), framebufferSize(), contentScale(), effectiveDpi(), currentMonitor(), presentationState(),
+    /// minimized(), maximized(), visible(), interactiveMoveResizeActive(), and occluded() only. Each compound result is coherent; separate calls may
+    /// observe successive states. Concurrent C++ Window destruction remains unsupported; stop or join renderer readers before destruction.
+    /// @param window Window whose renderer-facing getter contract is broadened.
+    /// @return Success, NotOpen for a closed Window, ResourceBusy on the wrong thread, or OutOfMemory when allocation fails.
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status enableConcurrentPresentationReads(Window &window) noexcept;
+
+    /// @brief Returns whether concurrent renderer-facing presentation reads have been enabled.
+    /// @details Returns false by default without allocating. It remains true across close/reopen after the first successful enable. After enablement
+    /// completes, it may be read from another thread. Do not call concurrently with enableConcurrentPresentationReads() or C++ object destruction.
+    /// @param window Window to inspect.
+    /// @return true after this Window object has successfully enabled the facility.
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool concurrentPresentationReadsEnabled(const Window &window) noexcept;
+    /// @}
+
     /// @name Occlusion reporting
     /// @{
 
     /// @brief Attaches the renderer as the Window's sole occlusion provider.
+    /// @details Independent from concurrent presentation-read enablement.
     /// @param window Open Window to update; the call must run on its owner thread.
     /// @return Success, or the open-state, thread, or already-attached failure.
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status attachOcclusionProvider(Window &window) noexcept;

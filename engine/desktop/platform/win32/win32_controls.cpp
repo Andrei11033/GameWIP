@@ -2,6 +2,7 @@
 /// @brief Win32 presentation, chrome, interaction, and cursor operations for Window.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/internal/drag_drop_platform.h"
 
 #include <algorithm>
 #include <cmath>
@@ -19,6 +20,8 @@ namespace GameWIP::Desktop::Detail::Platform
             if (visible != state.visible)
             {
                 state.visible = visible;
+                if (state.presentationPublication != nullptr)
+                    state.presentationPublication->publishVisible(visible);
                 routeEvent(state, Types::Events::VisibilityChanged{visible});
             }
         }
@@ -31,6 +34,8 @@ namespace GameWIP::Desktop::Detail::Platform
             if (value != state.presentation)
             {
                 state.presentation = value;
+                if (state.presentationPublication != nullptr)
+                    state.presentationPublication->publishPresentationState(value);
                 routeEvent(state, Types::Events::PresentationStateChanged{value});
             }
         }
@@ -263,6 +268,8 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status setFileDropEnabled(WindowState &state, bool enabled) noexcept
     {
+        if (enabled && hasDragDropTarget(state))
+            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         DragAcceptFiles(state.platform->handle, enabled ? TRUE : FALSE);
         state.fileDropEnabled = enabled;
         return IO::successStatus();

@@ -42,6 +42,16 @@ function Show-GameWipProjectCatalog
     {
         Write-Host ("  {0,-12} {1}" -f $benchmarkProfile.Id, $benchmarkProfile.Name)
     }
+    Write-GameWipSection 'Hygiene profiles'
+    foreach ($hygieneProfile in $HygieneConfig.Profiles)
+    {
+        Write-Host ("  {0,-12} {1}" -f $hygieneProfile.Id, $hygieneProfile.Title)
+    }
+    Write-GameWipSection 'Hygiene checks'
+    foreach ($check in $HygieneConfig.Checks)
+    {
+        Write-Host ("  {0,-24} [{1,-9}] {2}" -f $check.Id, $check.Availability, $check.Title)
+    }
     Show-GameWipWorkflowCatalog
 }
 
@@ -133,6 +143,7 @@ function Show-GameWipHelp
     Write-Host '  unicode <status|verify|regenerate>'
     Write-Host '  format <check|apply>'
     Write-Host '  quality <check|fix|status> [-Changed] [-FailFast]'
+    Write-Host '  quality hygiene [standard|deep|check-id|list|status] [-Enforce]'
     Write-Host '  tools <list|status|check-updates|ensure|update> [tool-id|category|all]'
     Write-Host '  configure [preset] [-Fresh]'
     Write-Host '  build [preset] [-Fresh]'

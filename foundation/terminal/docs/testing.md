@@ -4,6 +4,9 @@
 
 ## Automated coverage
 
+Compile-only coverage checks every focused Terminal header and the umbrella from
+a clean translation unit. Installed consumers exercise both include styles.
+
 The automated suite also locks the backend-independent Text contract: malformed/incomplete redirected text is rejected before emission, `OutputBuffer`
 preserves valid UTF-8 across failed mutations, invalid text segments fail before output, and byte segments continue to carry arbitrary binary data.
 

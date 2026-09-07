@@ -9,7 +9,7 @@ The opt-in validation runner provides the complete guided workflow:
 .\build\test\GameWIPTests.exe --test-module=desktop --manual-tests
 ```
 
-Answer `yes`, `no`, or `skip` for every manual observation. The runner assigns `GameWIP.Validation.WindowManualTests` as its explicit process
+Answer `yes`, `no`, or `skip` for every manual observation. The runner assigns `GameWIP.Validation.DesktopManualTests` as its explicit process
 AppUserModelID so independent validation Windows appear in a dedicated GameWIP taskbar group instead of being grouped under the launching editor or
 terminal. Windows may combine multiple independent validation Windows into that one group according to the user's taskbar settings. The diagnostics
 companion and intentionally owned tool Windows remain excluded from independent taskbar entries.
@@ -36,137 +36,155 @@ timestamped before/after cached and native mode geometry for every display-chang
 
 ## Lifecycle and multiple windows
 
-1. Create a visible focused Window, resize and move it, minimize, maximize, and restore it, request close through the system button, decline once with
-   `clearCloseRequest()`, request again, and explicitly close.
-2. Open two independent Windows and pump both from one thread without WindowManager. Verify events route to the correct queue and closing one leaves
-   the other operational.
-3. Open an owned tool Window, activate and close it, change or remove its owner at runtime, and verify z-order and minimization behavior remain
-   native and stable.
-4. Show a hidden Window while another application is focused and verify `show()` does not activate it; then call `requestFocus()` and record the
-   OS-policy result.
-5. Where safely reproducible, destroy an open Window object from a non-owner thread, pump the owner dispatcher, and verify that native resources, IDs,
-   icons, cursor state, and exclusive display state are released exactly once.
-6. Trigger unexpected native destruction through the approved test scenario. Verify `isOpen()` returns false,
-   `lifetimeState()==NativeDestroyedPendingFinalize`, one typed `Types::Events::NativeDestroyed`, `NotOpen` from native mutations, `AlreadyOpen`
-   before finalization, successful owner-thread `close()`, and reopen afterward.
-7. Let a Window-owning thread exit while the portable object remains alive elsewhere. Verify the dispatcher restores exclusive state and destroys the
-   HWND before the surviving object is released, with no duplicate cleanup or stale ID.
+| Scenario | Expected behavior |
+| --- | --- |
+| Visible focused Window | Resize, move, minimize, maximize, restore, decline one system close with `clearCloseRequest()`, then accept a later request and close explicitly. |
+| Two independent Windows on one thread | Events route to the correct queue, and closing either Window leaves the other operational without WindowManager. |
+| Owned tool Window | Activation, close, and runtime owner replacement or removal retain native, stable z-order and minimization behavior. |
+| Non-activating show | Showing a hidden Window while another application is focused does not activate it; `requestFocus()` reports the OS-policy result separately. |
+| Wrong-thread destruction | Where safely reproducible, owner-dispatcher pumping releases native resources, IDs, icons, cursor state, and exclusive display state exactly once. |
+| Unexpected native destruction | `isOpen()` becomes false, lifetime state becomes `NativeDestroyedPendingFinalize`, one typed `NativeDestroyed` event is delivered, native mutations return `NotOpen`, reopen returns `AlreadyOpen` before finalization, and owner-thread `close()` permits a later reopen. |
+| Owner-thread exit | The dispatcher restores exclusive state and destroys the HWND before a surviving portable object is released, without duplicate cleanup or a stale ID. |
 
 ## Custom chrome
 
-1. Use the labeled teal drag region and visible system, minimize, maximize, and close regions to validate dragging, edge/corner resizing, snap
-   layouts, system menu, minimize, maximize/restore, and close behavior.
-2. After the surface changes, verify the red old strip and former controls stop responding while only the green replacement strip drags.
-3. Repeat at 100%, 125%, 150%, and 200% scale and after moving between differently scaled monitors.
+| Scenario | Expected behavior |
+| --- | --- |
+| Initial labeled regions | The teal drag region and visible system, minimize, maximize, and close regions provide native dragging, edge/corner resizing, snap layouts, system menu, minimize, maximize/restore, and close behavior. |
+| Runtime region replacement | The red former strip and its controls stop responding; only the green replacement strip remains draggable. |
+| DPI variation | The same behavior holds at 100%, 125%, 150%, and 200% scale and after movement between differently scaled monitors. |
 
 ## Native child surfaces
 
-1. Run `--desktop-manual-suite=child-surface` and verify the labeled Win32 button appears as a real descendant inside the ChildSurface region.
-2. Move the parent across mixed-DPI monitors and verify the host preserves its logical rectangle while its physical extent follows the destination DPI.
-3. Confirm the external descendant is destroyed before `ChildSurface::close()`, then the parent closes without stale native UI or taskbar state.
+| Scenario | Expected behavior |
+| --- | --- |
+| Native descendant | With `--desktop-manual-suite=child-surface`, the labeled Win32 button is a real descendant inside the ChildSurface region. |
+| Mixed-DPI movement | The host preserves its logical rectangle while its physical extent follows the destination DPI. |
+| Shutdown order | The external descendant is destroyed before `ChildSurface::close()`, and the parent then closes without stale native UI or taskbar state. |
 
 ## Layered and pointer behavior
 
-1. Exercise opacity at 1.0, intermediate values, and 0.0; verify input behavior is unchanged.
-2. Create a transparent-framebuffer Window and verify compositor transparency and redraw behavior.
-3. Validate whole-window `ClickThrough` against another interactive application below, including client and system-frame areas. Restore `Normal` and
-   verify the system title bar, resize border, and client input work again.
-4. Verify `AcceptRegions` and `IgnoreRegions` return `Unsupported` without changing the current pointer mode while `PointerRegions` is false.
-5. Test rectangular and per-pixel pass-through only when a future backend advertises the genuine capability. Place a different application underneath;
-   same-thread-only routing is not a pass.
-6. Publish first/last-pixel masks, clear them, move the Window, resize the framebuffer, and complete GPU readbacks out of revision order. Verify
-   movement preserves the mask, resize invalidates it, and stale publication cannot win.
+| Scenario | Expected behavior |
+| --- | --- |
+| Whole-Window opacity | Values of 1.0, intermediate opacity, and 0.0 do not alter input behavior. |
+| Transparent framebuffer | Compositor transparency and redraw remain coherent. |
+| Whole-Window `ClickThrough` | Client and system-frame input reaches a different application below; restoring `Normal` restores title-bar, resize-border, and client input. |
+| Unsupported region modes | `AcceptRegions` and `IgnoreRegions` return `Unsupported` without changing the current pointer mode while `PointerRegions` is false. |
+| Future regional capability | Rectangular or per-pixel pass-through is valid only when a backend advertises it and routing reaches a different underlying application; same-thread-only routing is insufficient. |
+| Pointer-mask revisions | Movement preserves a published first/last-pixel mask, framebuffer resize invalidates it, clearing removes it, and an out-of-order stale GPU readback cannot replace the newest revision. |
 
 ## DPI and coordinates
 
-1. Arrange mixed-DPI monitors on both sides of the primary, including negative x or y origins.
-2. With `PreserveLogicalClientSize`, cross DPI boundaries and verify logical size remains stable while framebuffer pixels change.
-3. With `PreservePhysicalClientSize`, repeat and verify framebuffer pixels remain stable while logical size changes.
-4. Validate `clientToScreen()` and `screenToClient()` near every edge and record expected integral-pixel rounding.
-5. Verify monitor bounds and work areas remain comparable physical virtual-screen rectangles and are not independently scaled.
+| Scenario | Expected behavior |
+| --- | --- |
+| Mixed-DPI topology | Monitors may lie on either side of the primary and use negative x or y virtual-screen origins. |
+| `PreserveLogicalClientSize` | Crossing a DPI boundary preserves logical size while framebuffer pixels change. |
+| `PreservePhysicalClientSize` | Crossing a DPI boundary preserves framebuffer pixels while logical size changes. |
+| Coordinate conversion | `clientToScreen()` and `screenToClient()` produce the expected integral-pixel rounding near every edge. |
+| Display rectangles | Monitor bounds and work areas remain comparable physical virtual-screen rectangles and are not independently scaled. |
 
 ## Cursor
 
-1. Exercise every standard cursor shape after the test positions it at the center of the visible client.
-2. Validate hidden, confined, hidden-confined, and relative modes while focused.
-3. Alt-tab away, minimize, hide, restore, and close while confined/relative; verify the system cursor is always released and exclusive relative
-   centering resumes only while focused.
-4. Warp to client corners and validate logical positions at multiple DPI scales.
-5. Select one custom image, switch through hidden and relative modes, and verify normal mode restores the same custom cursor.
-6. Move a multi-variant custom cursor across mixed-DPI monitors and verify the intended physical size and hotspot follow each destination without a
-   visible resource rebuild.
-7. Share one custom cursor across two Windows, restore a system shape on one Window, and verify the other Window keeps its custom selection.
+| Scenario | Expected behavior |
+| --- | --- |
+| Standard shapes | Every standard cursor renders at the center of the visible client. |
+| Focused cursor modes | Hidden, confined, hidden-confined, and relative modes match their documented behavior. |
+| Focus transitions | Alt-tab, minimize, hide, restore, and close always release confined or relative system state; exclusive relative centering resumes only while focused. |
+| Warping and DPI | Warping to client corners reports the expected logical positions at each DPI scale. |
+| Custom cursor restoration | Normal mode restores the same custom image after hidden and relative modes. |
+| Multi-variant custom cursor | Physical size and hotspot follow the destination DPI without a visible resource rebuild. |
+| Shared custom cursor | Restoring a system shape on one of two Windows does not change the other Window's custom selection. |
 
 ## Files and shell behavior
 
-1. Enable file drops and drag one file, multiple files, Unicode paths, and paths containing spaces; verify one grouped event and optional client
-   position.
-2. Disable drops and confirm no event is produced.
-3. Validate the blue/cyan patterned icon at small/large shell sizes, attention flashing, focusability, disabled interaction, topmost toggling, and
-   standard control disabling.
-4. Exercise every valid resizable/maximizable combination and both invalid transition orders. Verify closable and minimizable remain independent.
-5. Confirm an owned Window has no independent taskbar entry by default; remove and restore the owner and verify styles and taskbar behavior recover.
+| Scenario | Expected behavior |
+| --- | --- |
+| Enabled lightweight file drops | One file, multiple files, Unicode paths, and paths containing spaces arrive as one grouped event with an optional client position. |
+| Disabled lightweight file drops | No file-drop event is produced. |
+| Shell-visible Window state | The blue/cyan patterned icon is correct at small and large shell sizes; attention, focusability, disabled interaction, topmost state, and standard controls follow their requested state. |
+| Resizable/maximizable combinations | Every valid combination works, invalid transition orders fail without partial change, and closable/minimizable remain independent. |
+| Owned Window taskbar state | An owned Window has no independent entry by default; removing and restoring the owner restores the corresponding styles and taskbar behavior. |
 
 ## Clipboard interoperability
 
-These checks use normal desktop applications and do not require an open GameWIP Window:
+These scenarios use normal desktop applications and do not require an open GameWIP Window:
 
-1. Publish ASCII, multibyte UTF-8, and non-BMP text from GameWIP; paste into Notepad and verify exact visible text. Copy text from Notepad and verify
-   `readText()` returns the expected UTF-8.
-2. Publish several absolute Unicode/nonexistent paths and inspect them with a compatible Explorer/desktop drop workflow. Copy real files in Explorer
-   and verify `readFiles()` preserves native order and spelling without reading file contents.
-3. Publish a small RGBA image with transparent and opaque pixels; paste into a common image-capable application and verify orientation, channel order,
-   and alpha. Copy an RGB image from that application and verify GameWIP returns alpha 255 where native alpha is not explicit.
-4. Run two independent processes that agree on one registered format name and schema. Publish binary bytes including `0x00` in one process and verify
-   the other reads the opaque block. Repeat with names differing only by case and confirm they identify the same Win32 format.
-5. Hold the Clipboard open in an external diagnostic process. Verify `kNoWait` returns promptly and a finite explicit timeout remains bounded without
-   busy spinning. Release it and verify the next operation succeeds.
-6. Record that immediate zero-byte custom publication reports `Unsupported` without clearing existing contents; do not substitute a one-byte payload
-   or delayed renderer.
+| Scenario | Expected behavior |
+| --- | --- |
+| Text in both directions | ASCII, multibyte UTF-8, and non-BMP text is exact when pasted into Notepad; text copied from Notepad returns as the expected UTF-8 from `readText()`. |
+| Paths in both directions | Published absolute Unicode or nonexistent paths remain inspectable by a compatible Explorer/desktop workflow; `readFiles()` preserves the native order and spelling of real Explorer files without reading their contents. |
+| Images in both directions | Published RGBA pixels retain orientation, channel order, and alpha in an image-capable application; imported RGB pixels use alpha 255 when native alpha is not explicit. |
+| Registered custom format | Two independent processes agreeing on a name and schema exchange opaque bytes including `0x00`; names differing only by case resolve to the same Win32 format. |
+| Busy Clipboard | `kNoWait` returns promptly, a finite timeout remains bounded without busy spinning, and the next operation succeeds after the external owner releases the Clipboard. |
+| Zero-byte custom publication | Immediate publication reports `Unsupported` without clearing existing contents and without substituting a byte or delayed renderer. |
 
 Record the applications/versions used and whether each direction passed. Custom interoperability proves only the agreed name/schema, not universal
 interpretation of arbitrary registered formats.
 
+## Native data drag and drop
+
+Record the source and target applications and exact formats for each direction.
+Run the dedicated guided source/target harness from the repository root:
+
+```powershell
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=drag-drop
+```
+
+The green source Window starts `beginDrag()` when the requested mouse button is
+held inside it. The blue target uses a whole-client Region 1 with `Copy`
+preferred; its inset green Region 2 overlaps it and prefers `Move`. Live
+`Entered`, `Moved`, region-transition, `Left`, and `Dropped` counts appear in the
+diagnostics Window.
+The runner checks same-process payload bytes and negotiated effects after each
+accepted prompt. Answer `skip`—never `yes`—when a controlled custom or malformed
+`IDataObject` provider/consumer is unavailable.
+
+| Scenario | Expected behavior |
+| --- | --- |
+| Overlapping and resizable regions | The last matching supplied region wins, the whole-client region follows resize, one `Entered` and one `Left` delimit the top-level session, and region changes appear only as `Moved` previous/current IDs. |
+| Foreign sources into GameWIP | UTF-8 text, single and multiple files including Unicode paths, an image with alpha/orientation markers, and an agreed custom binary format produce a final `Dropped` event that owns the complete payload in accepted-region order. |
+| GameWIP sources into foreign targets | Explorer or another compatible application consumes each portable format. Repository paths advertise `Copy`; any foreign `Move` uses disposable files. Repeated requests for one native format continue succeeding after caller source storage has gone out of scope. |
+| Effect negotiation | Target preference and the `Copy`/`Move`/`Link` fallback choose among multiple advertised effects; advertising one source effect forces it. Ctrl, Shift, and Alt do not alter portable negotiation. |
+| Trigger-button termination | Separate Left, Right, and Middle runs reject an unheld configured button before modal entry, complete when that button is released, report Escape as successful cancellation, and ignore unrelated-button changes for termination. |
+| Same-process transfer | A GameWIP source Window can drop onto a second GameWIP target while normal geometry and presentation events continue through the modal loop; the target receives a complete `Dropped` event. |
+| Malformed or pathological foreign provider | A later selected-format failure, malformed Unicode/DIB/HDROP data, or excessive enumeration returns `Effect::None` and never queues a successful `Dropped` event. |
+| Lightweight-mode conflict | Full target open returns `ResourceBusy` without disabling active lightweight file drops, and enabling lightweight mode returns `ResourceBusy` while the full target is open. |
+| Cancellation and source ownership | Cancellation and completed `Copy`, `Move`, and `Link` outcomes never cause GameWIP itself to delete, rename, or mutate source data. Disposable paths isolate any mutation performed by a foreign target implementing `Move`. |
+
+Win32 immediate publication cannot represent an exact zero-byte custom
+`HGLOBAL`; record `Unsupported` without substituting a byte or delayed provider.
+
 ## Fullscreen and display topology
 
-1. Enter and leave borderless fullscreen on each monitor; verify the blue surface and cyan inset marker reach every display edge, native popup and
-   visible styles and HWND bounds match the monitor, the GameWIP Window remains available through the taskbar or Alt+Tab, and saved windowed placement
-   returns.
-2. Enter an enumerated exclusive mode. Use Alt+Tab to move from the terminal to the validation Window, back, to the validation Window again, and
-   finally back to the terminal to answer. Verify the focused Window covers the display, the test observes both active and suspended states, the
-   inactive state reports `suspended=true`, and desktop mode is restored when leaving and closing.
-3. Reject an unsupported exact mode without changing Window or display state.
-4. Move between monitors with different DPI and verify logical client geometry, physical framebuffer extent, scale/DPI events, and current monitor.
-5. Connect/disconnect or enable/disable a monitor where practical, re-enumerate after the display event, and verify stale monitor IDs fail cleanly.
-6. Disconnect the active borderless and exclusive target. Verify exclusive display state is restored and the Window recovers visibly to windowed mode
-   on the surviving primary monitor.
-7. Verify recovery clears `FullscreenInfo` and orders events as display configuration, mode, optional monitor, optional geometry/framebuffer, then
-   optional DPI/content scale. Confirm the pump reports any restoration/repositioning failure without leaving stale fullscreen state.
+| Scenario | Expected behavior |
+| --- | --- |
+| Borderless fullscreen on each monitor | The blue surface and cyan inset marker reach every display edge; native popup/visible styles and HWND bounds match the monitor; the Window remains reachable through the taskbar or Alt+Tab; saved windowed placement returns on exit. |
+| Enumerated exclusive mode | The focused Window covers the display, Alt+Tab exposes active and suspended states, the inactive state reports `suspended=true`, and desktop mode is restored on exit and close. |
+| Unsupported exact mode | The request fails without changing Window or display state. |
+| Movement between different DPI values | Logical client geometry, physical framebuffer extent, scale/DPI events, and current monitor remain coherent. |
+| Display topology change | Re-enumeration follows the display event, and stale monitor IDs fail cleanly. |
+| Active target disconnection | Exclusive display state is restored and the Window visibly recovers to windowed mode on the surviving primary monitor. |
+| Recovery event sequence | Recovery clears `FullscreenInfo` and orders display configuration, mode, optional monitor, optional geometry/framebuffer, then optional DPI/content-scale events; restoration or repositioning failure reaches the pump without stale fullscreen state. |
 
 ## HDR and advanced color
 
-1. On an SDR-only display, query both the monitor and Window forms. Verify the monitor identity matches, HDR is unsupported and disabled, active color
-   is SDR or unknown only when the driver cannot classify it, and unavailable optional metadata remains zero.
-2. On an HDR-capable display with HDR disabled, verify support remains true while `hdrEnabled` is false and the active mode is not reported as HDR
-   merely because channel precision exceeds eight bits.
-3. Enable HDR while the Window remains on that monitor. Pump events, verify `Types::Events::DisplayConfigurationChanged` is delivered, re-query, and
-   confirm HDR enablement and `Hdr10Pq` where the driver reports PQ output. Disable HDR and repeat.
-4. Move a Window between SDR and HDR monitors. Verify `Types::Events::MonitorChanged`, re-query through the Window form, and confirm the returned
-   monitor and state follow the destination.
-5. Where supported, compare minimum, peak, and full-frame luminance against the display/driver report. Verify SDR white level is expressed in nits; at
-   the native value 2500 the public value is 200 nits.
-6. Disconnect and reconnect the queried display. Verify the stale `Types::Display::MonitorId` fails safely, enumerate again, and confirm a new query
-   succeeds without stale metadata.
-7. When a Windows 10 compatibility environment is available, repeat without the Windows 11 advanced-color query. This is optional compatibility
-   coverage outside the supported Windows 11 development host. Verify the documented legacy query remains functional and unavailable WCG-specific
-   metadata stays unknown rather than fabricated.
+| Scenario | Expected behavior |
+| --- | --- |
+| SDR-only display | Monitor and Window queries agree on identity; HDR is unsupported and disabled; active color is SDR or unknown only when the driver cannot classify it; unavailable optional metadata remains zero. |
+| HDR-capable display with HDR disabled | Support remains true, `hdrEnabled` remains false, and extra channel precision alone does not produce an HDR classification. |
+| HDR state change | Pumping delivers `DisplayConfigurationChanged`; a new query reflects enablement and `Hdr10Pq` when the driver reports PQ output, then returns to the disabled state after HDR is disabled. |
+| Movement between SDR and HDR monitors | `MonitorChanged` is delivered, and the Window query follows the destination monitor and its state. |
+| Luminance metadata | Where supported, minimum, peak, and full-frame values agree with the display/driver report; SDR white level uses nits, including 200 nits for native value 2500. |
+| Display disconnect/reconnect | The stale `MonitorId` fails safely, and a newly enumerated ID returns current metadata. |
+| Windows 10 compatibility | Without the Windows 11 advanced-color query, the documented legacy query remains functional and unavailable WCG-specific metadata remains unknown rather than fabricated. This is optional compatibility coverage outside the supported Windows 11 development host. |
 
 ## Modern Windows capabilities
 
-1. On Windows 11 build 22621 or newer, apply and clear every `BackdropEffect`; repeat on an older supported build and verify `Unsupported`.
-2. On Windows 11 build 26100 or newer, validate `DWMWA_REDIRECTIONBITMAP_ALPHA` output using renderer-provided premultiplied alpha. Repeat on an older
-   build and verify open returns `Unsupported` without a partial Window.
-3. Confirm whole-window opacity remains independent from framebuffer alpha.
+| Scenario | Expected behavior |
+| --- | --- |
+| System backdrops | Windows 11 build 22621 or newer applies and clears every `BackdropEffect`; older supported builds return `Unsupported`. |
+| Redirection-bitmap alpha | Windows 11 build 26100 or newer presents renderer-provided premultiplied alpha through `DWMWA_REDIRECTIONBITMAP_ALPHA`; older builds return `Unsupported` from open without a partial Window. |
+| Opacity independence | Whole-Window opacity remains independent from framebuffer alpha. |
 
 ## Failure observations
 

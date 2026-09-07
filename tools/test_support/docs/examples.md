@@ -10,7 +10,7 @@ namespace TS = GameWIP::TestSupport;
 
 TS::Types::Reporting::Options options;
 options.writeConsole = true;
-options.reportPath = "logs/tests/example.txt";
+options.reportPath = "logs/validation/example.txt";
 
 TS::Runner runner(options);
 runner.runSuite(
@@ -61,7 +61,7 @@ else if (result.outcome == TS::Types::Process::Outcome::Exited)
 
 ```cpp
 TS::Types::Reporting::Options options;
-options.reportPath = "logs/tests/shared_report.txt";
+options.reportPath = "logs/validation/shared_report.txt";
 options.appendReport = true;
 
 TS::Context context("Standalone", options);

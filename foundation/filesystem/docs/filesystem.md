@@ -5,6 +5,10 @@
 Include `filesystem/filesystem.h`. Passive values live in `GameWIP::FileSystem::Types`; resource owners and operations live directly in
 `GameWIP::FileSystem`.
 
+The focused public headers are `filesystem/path.h`, `filesystem/entry.h`,
+`filesystem/file.h`, and `filesystem/directory.h`.
+`filesystem/filesystem.h` remains the complete convenience include.
+
 ## How the library is organized
 
 Use whole-file helpers for a complete operation with one call. Use explicit

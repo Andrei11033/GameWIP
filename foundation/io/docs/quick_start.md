@@ -10,6 +10,10 @@ memory-backed destination.
 #include "io/io.h"
 ```
 
+`io/io.h` is the complete convenience include. Consumers may instead include
+`io/status.h`, `io/stream.h`, `io/memory.h`, or `io/transfer.h` for the
+declarations they use.
+
 ## Installed CMake
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.

@@ -17,6 +17,8 @@ FENCED_CODE_PATTERN = re.compile(
     rf"^{FENCE_PATTERN}[^\n]*\n.*?^{FENCE_PATTERN}\s*$",
     re.MULTILINE | re.DOTALL,
 )
+CHECKLIST_WORD_PATTERN = re.compile(r"\bchecklists?\b", re.IGNORECASE)
+TASK_ITEM_PATTERN = re.compile(r"^\s*[-*]\s+\[[ xX]\]\s+", re.MULTILINE)
 LIBRARY_DOCS = (
     (Path("foundation/unicode/docs"), "Unicode", "unicode.md"),
     (Path("foundation/io/docs"), "IO", "io.md"),
@@ -99,6 +101,15 @@ def maintained_manual_files() -> list[Path]:
     for root in (ROOT / "docs", ROOT / "foundation", ROOT / "engine", ROOT / "tools"):
         files.extend(path for path in root.rglob("*.md") if "releases" not in path.relative_to(ROOT).parts)
     return sorted(files)
+
+
+def maintained_documentation_files() -> list[Path]:
+    """Return tracked documentation surfaces governed by the prose standard."""
+    files = list(ROOT.glob("*.md"))
+    for root in (ROOT / "docs", ROOT / "foundation", ROOT / "engine", ROOT / "game", ROOT / "scripts", ROOT / "tools"):
+        files.extend(root.rglob("*.md"))
+    roadmap = ROOT / "docs/roadmap.md"
+    return sorted(path for path in set(files) if path != roadmap)
 
 
 def manual_markup(path: Path) -> str:
@@ -252,6 +263,15 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
             errors.append(f"setup action `{action}` is absent from the environment manual")
 
 
+def check_explanatory_documentation(files: list[Path], errors: list[str]) -> None:
+    for path in files:
+        text = manual_markup(path)
+        if TASK_ITEM_PATTERN.search(text):
+            errors.append(f"documentation contains task-state checkbox items: {relative(path)}")
+        if CHECKLIST_WORD_PATTERN.search(text):
+            errors.append(f"documentation uses checklist framing instead of explanatory prose: {relative(path)}")
+
+
 def main() -> int:
     errors: list[str] = []
     files = maintained_manual_files()
@@ -262,6 +282,7 @@ def main() -> int:
     check_required_library_docs(errors)
     check_source_file_headers(errors)
     check_command_catalog_documentation(errors)
+    check_explanatory_documentation(maintained_documentation_files(), errors)
 
     if errors:
         print("Documentation standards failed:")
@@ -272,7 +293,7 @@ def main() -> int:
     print(
         "Documentation standards are valid: unique pages, one-parent sidebar, "
         "registered project docs, complete library manuals, concise library titles, "
-        "and owned documented sources."
+        "owned documented sources, and explanatory prose without completion lists."
     )
     return 0
 

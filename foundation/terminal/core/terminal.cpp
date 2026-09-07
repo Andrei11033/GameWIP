@@ -1,7 +1,8 @@
 /// @file terminal.cpp
 /// @brief Core implementation for the Terminal library.
 
-#include "terminal/terminal.h"
+#include "terminal/input.h"
+#include "terminal/output.h"
 #include "terminal/internal/terminal_input.h"
 #include "terminal/internal/terminal_platform.h"
 #include "unicode/unicode.h"
