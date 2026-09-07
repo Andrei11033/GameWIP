@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Andrei11033/GameWIP/schemas/hygiene.schema.json",
+  "title": "GameWIP optional repository-hygiene registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "defaultProfile",
+    "analyzePreset",
+    "sourceFilter",
+    "headerFilter",
+    "excludedHeaderFilter",
+    "checks",
+    "profiles",
+    "explanations"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "defaultProfile": { "$ref": "#/$defs/id" },
+    "analyzePreset": { "$ref": "#/$defs/id" },
+    "sourceFilter": { "type": "string", "minLength": 1 },
+    "headerFilter": { "type": "string", "minLength": 1 },
+    "excludedHeaderFilter": { "type": "string", "minLength": 1 },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/profile" }
+    },
+    "explanations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/explanation" }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "provider", "availability", "confidence"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "provider": { "enum": ["clang-tidy", "future"] },
+        "availability": { "enum": ["available", "planned"] },
+        "confidence": { "enum": ["PROVEN", "LIKELY", "INFORMATION"] },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "checks"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "title": { "type": "string", "minLength": 1 },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        }
+      }
+    },
+    "explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "checks", "pathPattern", "reason"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/id" }
+        },
+        "pathPattern": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

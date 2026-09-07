@@ -31,6 +31,7 @@ param(
     [switch]$StopOnFailure,
     [switch]$FailFast,
     [switch]$Changed,
+    [switch]$Enforce,
     [switch]$Json,
     [switch]$NoWorkspaceTemp,
     [switch]$Preview,
@@ -196,7 +197,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            if ($verb -notin @('check', 'fix', 'status'))
+            if ($verb -notin @('check', 'fix', 'status', 'hygiene'))
             {
                 throw "Unknown quality command '$verb'."
             }
@@ -207,6 +208,37 @@ $result = Invoke-GameWipOperation `
             elseif ($verb -eq 'status')
             {
                 Show-GameWipQualityCoverageStatus
+            }
+            elseif ($verb -eq 'hygiene')
+            {
+                $selector = if ([string]::IsNullOrWhiteSpace($Target))
+                {
+                    [string]$HygieneConfig.DefaultProfile
+                }
+                else
+                {
+                    $Target
+                }
+                if ($selector -eq 'list')
+                {
+                    Show-GameWipHygieneList
+                }
+                elseif ($selector -eq 'status')
+                {
+                    Show-GameWipHygieneStatus
+                }
+                else
+                {
+                    $hygieneSelection = Get-GameWipHygieneSelection -Selector $selector
+                    if (@($hygieneSelection.Checks | Where-Object Availability -eq available).Count -eq 0)
+                    {
+                        Invoke-GameWipHygieneAudit -Selector $selector -Enforce:$Enforce
+                    }
+                    else
+                    {
+                        Invoke-GameWipMutation -Summary "Run optional '$selector' repository-hygiene audit." -Risk local -Plan @('Resolve the selected providers and ensure their local analysis state.', 'Run available advisory checks and disclose planned checks.', 'Retain normalized evidence without editing tracked files.') -Body { Invoke-GameWipHygieneAudit -Selector $selector -Enforce:$Enforce } | Out-Null
+                    }
+                }
             }
             else
             {

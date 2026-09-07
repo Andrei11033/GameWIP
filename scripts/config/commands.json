@@ -65,7 +65,7 @@
     {
       "id": "quality",
       "title": "Repository quality",
-      "description": "Run, fix, or inspect repository quality coverage.",
+      "description": "Run, fix, or inspect repository quality and optional hygiene audits.",
       "group": "quality",
       "visible": true,
       "network": false,
@@ -295,7 +295,9 @@
         { "key": "4", "label": "Validation command builder", "handler": "wizard" },
         { "key": "5", "label": "Benchmarks", "handler": "benchmark" },
         { "key": "6", "label": "Coverage", "handler": "coverage" },
-        { "key": "7", "label": "AddressSanitizer", "handler": "asan" }
+        { "key": "7", "label": "Validation bundles", "handler": "bundle" },
+        { "key": "8", "label": "Coverage", "handler": "coverage" },
+        { "key": "9", "label": "AddressSanitizer", "handler": "asan" }
       ]
     },
     {
@@ -304,11 +306,45 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Full quality check", "handler": "quality-check" },
-        { "key": "2", "label": "Apply deterministic formatters, then check", "handler": "quality-fix" },
-        { "key": "3", "label": "C/C++ formatting check", "handler": "format-check" },
-        { "key": "4", "label": "Apply C/C++ formatting", "handler": "format-apply" },
-        { "key": "5", "label": "C++ static analysis", "handler": "analyze" }
+        { "key": "1", "label": "Repository quality", "handler": "menu-repository-quality" },
+        { "key": "2", "label": "C/C++ formatting", "handler": "menu-formatting" },
+        { "key": "3", "label": "Static analysis", "handler": "analyze" },
+        { "key": "4", "label": "Hygiene audits", "handler": "menu-hygiene" },
+        { "key": "5", "label": "Markdown links only", "handler": "links" }
+      ]
+    },
+    {
+      "id": "repository-quality",
+      "title": "Repository quality",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Check", "handler": "quality-check" },
+        { "key": "2", "label": "Apply deterministic fixes, then check", "handler": "quality-fix" },
+        { "key": "3", "label": "Show coverage status", "handler": "quality-status" }
+      ]
+    },
+    {
+      "id": "formatting",
+      "title": "C/C++ formatting",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Check", "handler": "format-check" },
+        { "key": "2", "label": "Apply", "handler": "format-apply" }
+      ]
+    },
+    {
+      "id": "hygiene",
+      "title": "Hygiene audits",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Standard audit", "handler": "hygiene-standard" },
+        { "key": "2", "label": "Deep audit", "handler": "hygiene-deep" },
+        { "key": "3", "label": "Run one check", "handler": "hygiene-check" },
+        { "key": "4", "label": "List checks", "handler": "hygiene-list" },
+        { "key": "5", "label": "Configuration status", "handler": "hygiene-status" }
       ]
     },
     {
@@ -318,11 +354,30 @@
       "exitLabel": "Back",
       "items": [
         { "key": "1", "label": "Project readiness", "handler": "doctor" },
-        { "key": "2", "label": "Tool status (offline)", "handler": "tools-status" },
-        { "key": "3", "label": "Check upstream versions", "handler": "tools-check-updates" },
-        { "key": "4", "label": "Preview tool update", "handler": "tools-preview" },
-        { "key": "5", "label": "Apply tool update", "handler": "tools-update" },
-        { "key": "6", "label": "Setup guidance", "handler": "setup-guidance" }
+        { "key": "2", "label": "Installed tools", "handler": "menu-installed-tools" },
+        { "key": "3", "label": "Tool updates", "handler": "menu-tool-updates" },
+        { "key": "4", "label": "Setup guidance", "handler": "setup-guidance" }
+      ]
+    },
+    {
+      "id": "installed-tools",
+      "title": "Installed tools",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Show status", "handler": "tools-status" },
+        { "key": "2", "label": "Install or repair", "handler": "setup-guidance" }
+      ]
+    },
+    {
+      "id": "tool-updates",
+      "title": "Tool updates",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Check upstream versions", "handler": "tools-check-updates" },
+        { "key": "2", "label": "Preview update", "handler": "tools-preview" },
+        { "key": "3", "label": "Apply update", "handler": "tools-update" }
       ]
     },
     {
@@ -331,14 +386,35 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Git status", "handler": "git-status" },
-        { "key": "2", "label": "Fetch remotes", "handler": "git-fetch" },
-        { "key": "3", "label": "Switch branch", "handler": "git-switch" },
-        { "key": "4", "label": "Update current branch", "handler": "git-update" },
-        { "key": "5", "label": "Workspace cleanup", "handler": "git-cleanup" },
-        { "key": "6", "label": "Git log", "handler": "git-log" },
-        { "key": "7", "label": "List guarded workflows", "handler": "workflow-list" },
-        { "key": "8", "label": "Run guarded workflow", "handler": "workflow-run" }
+        { "key": "1", "label": "Git workspace", "handler": "menu-git-workspace" },
+        { "key": "2", "label": "GitHub workflows", "handler": "menu-github-workflows" }
+      ]
+    },
+    {
+      "id": "git-workspace",
+      "title": "Git workspace",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Status", "handler": "git-status" },
+        { "key": "2", "label": "Log", "handler": "git-log" },
+        { "key": "3", "label": "Fetch", "handler": "git-fetch" },
+        { "key": "4", "label": "Switch branch", "handler": "git-switch" },
+        { "key": "5", "label": "Create branch", "handler": "git-create" },
+        { "key": "6", "label": "Update branch", "handler": "git-update" },
+        { "key": "7", "label": "Push branch", "handler": "git-push" },
+        { "key": "8", "label": "Cleanup", "handler": "git-cleanup" }
+      ]
+    },
+    {
+      "id": "github-workflows",
+      "title": "GitHub workflows",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "List", "handler": "workflow-list" },
+        { "key": "2", "label": "Show status", "handler": "workflow-status" },
+        { "key": "3", "label": "Run", "handler": "workflow-run" }
       ]
     },
     {
@@ -347,11 +423,30 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Unicode status", "handler": "unicode-status" },
-        { "key": "2", "label": "Verify Unicode generated data", "handler": "unicode-verify" },
-        { "key": "3", "label": "Regenerate Unicode tracked table", "handler": "unicode-regenerate" },
-        { "key": "4", "label": "Run command bundle", "handler": "bundle" },
-        { "key": "5", "label": "Validate Markdown links", "handler": "links" }
+        { "key": "1", "label": "Unicode data", "handler": "menu-unicode-data" },
+        { "key": "2", "label": "Run history", "handler": "menu-run-history" }
+      ]
+    },
+    {
+      "id": "unicode-data",
+      "title": "Unicode data",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "Show status", "handler": "unicode-status" },
+        { "key": "2", "label": "Verify generated data", "handler": "unicode-verify" },
+        { "key": "3", "label": "Regenerate tracked data", "handler": "unicode-regenerate" }
+      ]
+    },
+    {
+      "id": "run-history",
+      "title": "Run history",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        { "key": "1", "label": "List", "handler": "runs-list" },
+        { "key": "2", "label": "Show", "handler": "runs-show" },
+        { "key": "3", "label": "Clean", "handler": "runs-clean" }
       ]
     }
   ],

@@ -69,6 +69,8 @@ for the reference kinds, strict UTF-8 contract, preview behavior, no-op rules,
 and provider rollback boundary.
 
 Explicit formatter/linter configuration lives under `config/quality/` and is passed to each owning tool explicitly.
+Optional hygiene profiles and central explanations follow the same explicit
+configuration rule without becoming part of the required quality gate.
 `.clang-format`, `.clang-tidy`, and `.editorconfig` remain at repository root because their upward-discovery behavior is useful
 to editors and C++ tools.
 

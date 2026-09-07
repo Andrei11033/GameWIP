@@ -19,6 +19,7 @@ consistently:
 .\gamewip.bat quality check
 .\gamewip.bat quality fix
 .\gamewip.bat analyze
+.\gamewip.bat quality hygiene status
 ```
 
 `quality check` is the complete non-mutating repository quality gate.
@@ -77,6 +78,52 @@ the `NOLINT` comment.
 Headers are analyzed when they are included by a compiled translation unit. Public headers should also have matching validation translation units
 under `game/validation/public_headers/` so the header can be checked as an include boundary instead of only through incidental implementation
 includes.
+
+## Optional hygiene audits
+
+Repository hygiene is intentionally separate from the authoritative quality
+and static-analysis gates. It is useful for periodic investigation, but its
+results can depend on translation-unit structure, platform selection, and the
+representative build graph.
+
+```powershell
+.\gamewip.bat quality hygiene
+.\gamewip.bat quality hygiene deep
+.\gamewip.bat quality hygiene unused-includes
+.\gamewip.bat quality hygiene list
+.\gamewip.bat quality hygiene status
+```
+
+The standard profile runs the available Clang-backed unused-include,
+unused-declaration, dead-store, and unreachable-code checks. The deep profile
+also lists checks whose cross-translation-unit, linker, dependency, ownership,
+or configuration-path providers are still planned. A planned provider is
+reported as information and never presented as an analysis result.
+
+Each diagnostic records its check, underlying rule, confidence, source
+location, message, evidence, and suggested action in the retained operation
+report. Confidence has four meanings:
+
+- `PROVEN` — the selected provider established the condition within its stated
+  model.
+- `LIKELY` — the diagnostic is a review candidate with known structural sources
+  of false positives.
+- `INFORMATION` — the entry describes capability or context rather than a defect.
+- `EXPLAINED` — a central policy entry documents why the matching structure is
+  intentional.
+
+Report mode does not fail because it found candidates. `-Enforce` fails only
+for `PROVEN` findings; provider, configuration, and tool failures always fail.
+The audit never edits source files. Public-header isolation translation units
+are centrally explained because their sole purpose is to compile a public
+include boundary independently. Aggregated `.inl` validation sources require
+manual review because an include in the owning `.cpp` may be used by appended
+test content that include-cleaner does not attribute reliably.
+
+Hygiene rules and explanations live in `config/quality/hygiene.json` and are
+passed explicitly to the selected tools. Do not enable these rules globally in
+`.clang-tidy` or add file-local include-cleaner suppressions merely to silence
+an advisory audit.
 
 Win32 resource scripts are compiled by the Windows resource compiler and are intentionally not passed to clang-tidy. The root manifest and generated
 CMake inputs are validated by the normal configure and build path.

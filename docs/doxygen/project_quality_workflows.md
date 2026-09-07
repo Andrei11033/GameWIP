@@ -8,7 +8,8 @@ Correctness validation is documented separately in @ref project_validation and @
 ## Analysis and measurement workflows
 
 - @subpage project_static_analysis — Run clang-tidy, formatting,
-  documentation, link, workflow, and repository-consistency checks.
+  optional hygiene audits, documentation, link, workflow, and
+  repository-consistency checks.
 - @subpage project_coverage — Generate and interpret correctness-test coverage
   for the currently instrumented source set.
 - @subpage project_profiling — Capture an instrumented runtime session with

@@ -10,6 +10,7 @@ $ScriptsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $ProjectConfigPath = Join-Path $ScriptsRoot 'config\project.json'
 $CommandConfigPath = Join-Path $ScriptsRoot 'config\commands.json'
 $ProjectToolsPath = Join-Path $ScriptsRoot 'config\project-tools.json'
+$HygieneConfigPath = Join-Path $RepositoryRoot 'config\quality\hygiene.json'
 $PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
 
 # Long-lived terminals do not inherit PATH changes made by WinGet installers.
@@ -61,6 +62,7 @@ $libraryFiles = @(
     'Documentation.ps1',
     'Bundles.ps1',
     'Quality.ps1',
+    'Hygiene.ps1',
     'Help.ps1',
     'Interactive.ps1'
 )
@@ -72,8 +74,10 @@ foreach ($libraryFile in $libraryFiles)
 $ProjectConfig = Read-GameWipJsonConfig -Path $ProjectConfigPath -Name 'project' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project.schema.json')
 $CommandConfig = Read-GameWipJsonConfig -Path $CommandConfigPath -Name 'commands' -SchemaPath (Join-Path $ScriptsRoot 'schemas\commands.schema.json')
 $ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
+$HygieneConfig = Read-GameWipJsonConfig -Path $HygieneConfigPath -Name 'hygiene' -SchemaPath (Join-Path $ScriptsRoot 'schemas\hygiene.schema.json')
 $PresetData = Read-GameWipUtf8Text -Path $PresetsPath | ConvertFrom-Json
 
 Assert-GameWipProjectConfig
 Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
+Assert-GameWipHygieneConfig
