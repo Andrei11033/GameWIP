@@ -90,7 +90,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             if (previous != nullptr)
                 SetFocus(previous);
-            return statusFromWin32(IO::Types::ErrorCode::PermissionDenied, GetLastError(), "request window focus");
+            return IO::makeStatus(IO::Types::ErrorCode::PermissionDenied);
         }
         return IO::successStatus();
     }
