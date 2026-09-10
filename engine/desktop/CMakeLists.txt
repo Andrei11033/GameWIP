@@ -146,4 +146,4 @@ install(
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-gamewip_install_package(TARGET Desktop CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DesktopConfig.cmake.in" PATH_VARS CMAKE_INSTALL_DATADIR)
+gamewip_install_package(TARGET Desktop CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DesktopConfig.cmake.in")

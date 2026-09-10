@@ -7,6 +7,7 @@ foreach(
         PROJECT_BUILD_DIR
         PROJECT_SOURCE_DIR
         INSTALL_PREFIX
+        INSTALL_LIBDIR
         CONSUMER_SOURCE_DIR
         CONSUMER_BUILD_DIR
         GENERATOR
@@ -41,7 +42,7 @@ endif()
 execute_process(
     COMMAND
         "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${CONSUMER_BUILD_DIR}/application-manifests"
-        "-DMODULE_DIR=${INSTALL_PREFIX}/lib/cmake/GameWIPApplication" "-DGENERATOR=${GENERATOR}" "-DCXX_COMPILER=${CXX_COMPILER}"
+        "-DMODULE_DIR=${INSTALL_PREFIX}/${INSTALL_LIBDIR}/cmake/GameWIPApplication" "-DGENERATOR=${GENERATOR}" "-DCXX_COMPILER=${CXX_COMPILER}"
         "-DBUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}" -P
         "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
     RESULT_VARIABLE manifest_result
@@ -127,7 +128,13 @@ function(
     prefix_path
 )
     file(REMOVE_RECURSE "${build_dir}")
-    string(REPLACE ";" "\\;" escaped_prefix_path "${prefix_path}")
+
+    set(package_prefix_path)
+    foreach(prefix IN LISTS prefix_path)
+        list(APPEND package_prefix_path "${prefix}" "${prefix}/${INSTALL_LIBDIR}/cmake")
+    endforeach()
+
+    string(REPLACE ";" "\\;" escaped_prefix_path "${package_prefix_path}")
 
     set(configure_command
         "${CMAKE_COMMAND}"
@@ -203,12 +210,12 @@ endforeach()
 # are discovered from a separate installation root on every supported CMake.
 set(assert_prefix "${CONSUMER_BUILD_DIR}/assert-prefix")
 file(REMOVE_RECURSE "${assert_prefix}")
-file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/lib/cmake" "${assert_prefix}/bin")
+file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/${INSTALL_LIBDIR}/cmake" "${assert_prefix}/bin")
 file(COPY "${INSTALL_PREFIX}/include/debug/assert" DESTINATION "${assert_prefix}/include/debug")
-file(COPY "${INSTALL_PREFIX}/lib/cmake/Assert" DESTINATION "${assert_prefix}/lib/cmake")
-file(GLOB assert_link_files "${INSTALL_PREFIX}/lib/*Assert*")
+file(COPY "${INSTALL_PREFIX}/${INSTALL_LIBDIR}/cmake/Assert" DESTINATION "${assert_prefix}/${INSTALL_LIBDIR}/cmake")
+file(GLOB assert_link_files "${INSTALL_PREFIX}/${INSTALL_LIBDIR}/*Assert*")
 if(assert_link_files)
-    file(COPY ${assert_link_files} DESTINATION "${assert_prefix}/lib")
+    file(COPY ${assert_link_files} DESTINATION "${assert_prefix}/${INSTALL_LIBDIR}")
 endif()
 file(GLOB assert_runtime_files "${INSTALL_PREFIX}/bin/*Assert*")
 if(assert_runtime_files)
