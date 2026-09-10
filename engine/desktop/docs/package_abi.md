@@ -49,6 +49,12 @@ The package remains exact-version matched. Applications using Desktop must call
 shared `GameWIPApplication` package. Desktop never propagates an executable
 resource through its library target.
 
+`find_package(Desktop)` loads the helper through its exact-version
+`GameWIPApplication` dependency. Attach the manifest to the final executable,
+including when a separate library links Desktop. See @ref desktop_quick_start
+for both consumption paths and @ref project_cmake_infrastructure for shared
+manifest requirements and composition.
+
 OLE and COM remain private implementation dependencies. The Win32 backend links
 `ole32`; public and installed headers expose no COM interfaces, HRESULT values,
 or raw drag/drop handles.

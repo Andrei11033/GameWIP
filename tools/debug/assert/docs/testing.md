@@ -28,8 +28,9 @@ suppression. State must be reset after every scenario.
 GameWIP owns module registration, child routing, UI selection, benchmarks, reports, and coverage. See @ref project_testing, @ref project_benchmarking,
 and @ref project_coverage.
 
-Installed-package validation includes a dedicated interface-only Assert configuration with both assertion families disabled and a custom absolute data
-directory. The normal runtime package is also consumed with Assert and Logger in separate prefixes.
+Installed-package validation includes a dedicated interface-only Assert configuration with both assertion families disabled. The normal runtime
+package is also consumed with Assert and its dependencies in separate prefixes. Consumer executables select application manifest requirements through
+the shared helper described in @ref assert_configuration.
 
 ## Related pages
 

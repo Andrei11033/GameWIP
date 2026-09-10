@@ -420,10 +420,7 @@ function Show-GameWipToolUpdatesMenu
                 $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to preview' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
                 if ($null -ne $id)
                 {
-                    foreach ($toolId in @($id))
-                    {
-                        Invoke-GameWipInteractiveOperation -Label "tools-preview-$toolId" -Body { Invoke-GameWipToolUpdate -ToolId $toolId -PreviewOnly } | Out-Null
-                    }
+                    Invoke-GameWipInteractiveOperation -Label "tools-preview-$($id -join '-')" -Body { Invoke-GameWipToolUpdate -ToolId $id -PreviewOnly } | Out-Null
                 }
             }
             'tools-update'
@@ -431,10 +428,9 @@ function Show-GameWipToolUpdatesMenu
                 $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to update' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
                 if ($null -ne $id)
                 {
-                    foreach ($toolId in @($id))
-                    {
-                        Invoke-GameWipInteractiveOperation -Label "tools-update-$toolId" -Body { Invoke-GameWipToolUpdate -ToolId $toolId } | Out-Null
-                    }
+                    # One combined plan keeps earlier selected updates from making
+                    # the tracked tree dirty before the next tool's preflight.
+                    Invoke-GameWipInteractiveOperation -Label "tools-update-$($id -join '-')" -Body { Invoke-GameWipToolUpdate -ToolId $id } | Out-Null
                 }
             }
         }

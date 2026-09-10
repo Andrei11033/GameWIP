@@ -361,6 +361,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().releaseMessageMemoryAfterWrite = config.releaseMessageMemoryAfterWrite;
         loggerState().releaseStorageOnShutdown = config.releaseStorageOnShutdown;
         loggerState().enabledLevelMask = levelMask;
+
         loggerState().sourceRegistry.store(std::move(sourceRegistry), std::memory_order_release);
         loggerState().ringMessageArena = std::move(ringArena);
         loggerState().batchMessageArena = std::move(batchArena);
@@ -376,6 +377,7 @@ namespace GameWIP::Logger::Detail::Core
 #pragma clang unsafe_buffer_usage end
 #endif
         loggerState().workerBatch = std::move(batch);
+
         loggerState().droppedLogs.store(0, std::memory_order_relaxed);
         resetAtomicStats();
         loggerState().workerRunning = false;
@@ -384,6 +386,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().dequeueTicket.store(0, std::memory_order_relaxed);
         loggerState().queueDepth.store(0, std::memory_order_relaxed);
         loggerState().publishedQueueDepth.store(0, std::memory_order_relaxed);
+
         loggerState().maxMessageLengthAtomic.store(messageLength, std::memory_order_release);
         loggerState().formatPolicyAtomic.store(toFormatPolicyValue(config.formatPolicy), std::memory_order_release);
         loggerState().releaseMessageMemoryAfterWriteAtomic.store(config.releaseMessageMemoryAfterWrite, std::memory_order_release);

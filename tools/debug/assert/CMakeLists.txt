@@ -189,28 +189,6 @@ target_compile_definitions(
     INTERFACE ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE} ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
 )
 
-# Validation object libraries need Assert's compile contract without inheriting
-# process-wide application resources.
-add_library(AssertCompileInterface INTERFACE)
-
-target_include_directories(
-    AssertCompileInterface
-    INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools> $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
-)
-
-target_compile_features(AssertCompileInterface INTERFACE cxx_std_23)
-
-target_compile_definitions(
-    AssertCompileInterface
-    INTERFACE
-        ASSERT_INTERNAL_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
-        ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
-        ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
-        ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
-        ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
-        ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
-)
-
 # ------------------------------------------------------------
 # Runtime dependencies and output
 # ------------------------------------------------------------
@@ -259,4 +237,4 @@ else()
     install(TARGETS Assert EXPORT AssertTargets FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
-gamewip_install_package(TARGET Assert CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in" PATH_VARS CMAKE_INSTALL_DATADIR)
+gamewip_install_package(TARGET Assert CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in")

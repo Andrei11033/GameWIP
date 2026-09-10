@@ -59,8 +59,22 @@ Windows manifests are application policy. Libraries must not attach them through
 `INTERFACE_SOURCES`, because a process can contain only one authoritative
 manifest and linked libraries cannot know the executable's complete requirements.
 
-The shared helper accepts independent requirements and attaches one generated
-resource to the final executable:
+Enable the resource compiler in the consuming project's top-level directory,
+after `project()` and before adding subdirectories with Windows applications:
+
+```cmake
+if(WIN32)
+    enable_language(RC)
+endif()
+```
+
+The repository already performs this setup. Installed Assert and Desktop
+packages load the shared helper through their `GameWIPApplication` dependency;
+other installed consumers can request `GameWIPApplication` directly with
+`find_package()` at the matching project version.
+
+The helper accepts independent requirements and attaches one generated resource
+to the final executable:
 
 ```cmake
 gamewip_attach_application_manifest(
@@ -72,9 +86,14 @@ gamewip_attach_application_manifest(
 
 `COMMON_CONTROLS_V6` enables the preferred Assert dialog controls. `PER_MONITOR_V2`
 is required by Desktop's Win32 window backend. The helper merges repeated calls,
-rejects non-executable targets, and does nothing on non-Windows platforms. The
+rejects imported, alias, and non-executable targets, and does nothing on non-Windows platforms. The
 same helper is installed through the `GameWIPApplication` package so source-tree
 and installed consumers make the same explicit application decision.
+
+Calls may come from different directories. Generated files stay beneath the
+owning target's binary directory, with distinct paths for distinct target names.
+The application owns any other resources and must not attach a second process
+manifest. Ordinary icon or version resources may coexist with this manifest.
 
 ## Presets and project options
 

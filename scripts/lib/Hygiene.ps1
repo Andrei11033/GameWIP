@@ -210,13 +210,7 @@ function Invoke-GameWipHygieneClangTidy
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset
-    Invoke-GameWipConfigurePreset -Name $preset | Out-Null
     $databaseRoot = Join-Path $RepositoryRoot "build\$preset"
-    $database = Join-Path $databaseRoot 'compile_commands.json'
-    if (-not (Test-Path -LiteralPath $database -PathType Leaf))
-    {
-        throw "Analyze preset '$preset' did not produce compile_commands.json."
-    }
 
     $ruleLookup = @{}
     $options = [ordered]@{}
@@ -353,6 +347,16 @@ function Invoke-GameWipHygieneAudit
     $findings = @()
     if ($available.Count -ne 0)
     {
+        # Every executable provider consumes the same current compilation database.
+        # Prepare it once here so a compiler-only selection works on a fresh tree.
+        $preset = [string]$HygieneConfig.AnalyzePreset
+        Invoke-GameWipConfigurePreset -Name $preset | Out-Null
+        $database = Join-Path $RepositoryRoot "build\$preset\compile_commands.json"
+        if (-not (Test-Path -LiteralPath $database -PathType Leaf))
+        {
+            throw "Analyze preset '$preset' did not produce compile_commands.json."
+        }
+
         $clangTidyChecks = @($available | Where-Object Provider -eq 'clang-tidy')
         $compilerWarningChecks = @($available | Where-Object Provider -eq 'compiler-warning')
         if ($clangTidyChecks.Count -ne 0)
@@ -364,6 +368,7 @@ function Invoke-GameWipHygieneAudit
             $findings += @(Invoke-GameWipHygieneCompilerWarnings -Checks $compilerWarningChecks)
         }
     }
+
     $report = [ordered]@{
         schemaVersion = 1
         generatedAt = (Get-Date).ToUniversalTime().ToString('o')

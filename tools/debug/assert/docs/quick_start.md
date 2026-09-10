@@ -14,7 +14,7 @@ Include the public header:
 
 ## Installed CMake
 
-Use the package target. The package resolves Logger when Assert was built with runtime support:
+Use the package target. The package resolves the shared application manifest helper and, when runtime support is enabled, Logger:
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 
@@ -30,6 +30,9 @@ When building inside the repository, link the short target:
 ```cmake
 target_link_libraries(MyTarget PRIVATE Assert)
 ```
+
+Applications that use interactive assertions can request Common Controls v6 for the preferred Task Dialog path. See @ref assert_configuration for
+application manifest setup, including composition with Desktop.
 
 ## Minimal usage
 

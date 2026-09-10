@@ -35,15 +35,26 @@ function Get-GameWipRepositoryRelativePath
 
 function Get-GameWipToolUpdatePlan
 {
-    param([string]$ToolId)
-    $selected = @(Get-GameWipProjectToolSelection -Selector $(if ([string]::IsNullOrWhiteSpace($ToolId))
+    param([string[]]$ToolId)
+    if ($null -eq $ToolId -or $ToolId.Count -eq 0 -or ($ToolId.Count -eq 1 -and [string]::IsNullOrWhiteSpace($ToolId[0])))
+    {
+        $ToolId = @('all')
+    }
+
+    # Resolve the complete selection before querying or mutating anything. A
+    # tool selected twice still belongs to this one update plan only once.
+    $selected = [System.Collections.Generic.List[object]]::new()
+    $selectedIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($selector in $ToolId)
+    {
+        foreach ($tool in @(Get-GameWipProjectToolSelection -Selector $selector))
+        {
+            if ($selectedIds.Add([string]$tool.id))
             {
-                'all'
+                $selected.Add($tool)
             }
-            else
-            {
-                $ToolId
-            }))
+        }
+    }
 
     $plan = [System.Collections.Generic.List[object]]::new()
     Write-Host "Checking $($selected.Count) declared tool(s) for upstream versions..."
@@ -476,7 +487,7 @@ function Test-GameWipToolPlanRequiresInstall
 function Invoke-GameWipToolInstallPlan
 {
     param(
-        [Parameter(Mandatory = $true)][object[]]$InstallPlan,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$InstallPlan,
         [Parameter(Mandatory = $true)]$TrackedPlan
     )
 
@@ -544,13 +555,13 @@ function Invoke-GameWipTrackedToolMutation
 
 function Invoke-GameWipToolUpdate
 {
-    param([string]$ToolId, [switch]$PreviewOnly)
-    if ([string]::IsNullOrWhiteSpace($ToolId))
+    param([string[]]$ToolId, [switch]$PreviewOnly)
+    if ($null -eq $ToolId -or $ToolId.Count -eq 0 -or ($ToolId.Count -eq 1 -and [string]::IsNullOrWhiteSpace($ToolId[0])))
     {
-        $ToolId = 'all'
+        $ToolId = @('all')
     }
 
-    Write-GameWipOperationEvent -Phase discover -Severity info -Message "Resolving project-tool state for '$ToolId'..."
+    Write-GameWipOperationEvent -Phase discover -Severity info -Message "Resolving project-tool state for '$($ToolId -join ', ')'..."
     $plan = @(Get-GameWipToolUpdatePlan -ToolId $ToolId)
     $trackedPlan = Get-GameWipTrackedToolMutationPlan -Plan $plan
 

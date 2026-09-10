@@ -59,6 +59,11 @@ and must be attached exactly once.
 Applications that use Assert's preferred Task Dialog path and no Desktop features may request Common Controls v6 through the shared CMake helper:
 
 ```cmake
+# In the consumer's top-level directory, after project() and before subdirectories.
+if(WIN32)
+    enable_language(RC)
+endif()
+
 gamewip_attach_application_manifest(
     TARGET MyApplication
     COMMON_CONTROLS_V6
@@ -77,6 +82,7 @@ gamewip_attach_application_manifest(
 
 The helper is available from the source tree and installed `GameWIPApplication` package. It is a no-op on non-Windows platforms, and repeated calls
 merge requirements without attaching duplicate resources. Linking `GameWIP::Assert` alone never changes the application manifest.
+The repository already enables RC. See @ref project_cmake_infrastructure for the shared helper's target and directory contracts.
 
 ## Test hooks
 

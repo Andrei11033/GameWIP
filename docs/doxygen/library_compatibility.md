@@ -23,11 +23,17 @@ standalone supported entry point.
 | `IO` | `GameWIP::IO` | Static |
 | `FileSystem` | `GameWIP::FileSystem` | Static |
 | `Terminal` | `GameWIP::Terminal` | Shared |
+| `Desktop` | `GameWIP::Desktop` | Shared |
 | `Logger` | `GameWIP::Logger` | Shared |
 | `Assert` | `GameWIP::Assert` | Shared when its runtime is enabled; otherwise interface-only |
 | `TestSupport` | `GameWIP::TestSupport` | Static |
+| `GameWIPApplication` | No library target | Shared CMake application manifest helper and templates |
 
 The `GameWIP::` prefix belongs to CMake target names. It does not add another level to C++ namespaces.
+
+The `GameWIPApplication` package supplies build helpers without a C++ dependency.
+Its application ownership and resource-compiler requirements are documented in
+@ref project_cmake_infrastructure.
 
 ## Consumer workflow
 

@@ -91,6 +91,10 @@ references without applying tracked or machine changes. A real update requires
 a clean tracked tree, requests consent for that validated plan, applies it,
 verifies the planned new declaration, and runs `quality check`.
 
+Interactive multi-selection uses the same complete-plan boundary: all selected
+tools are staged together and shared files are written once. It does not start
+a new update against the dirty tree produced by an earlier selected tool.
+
 Reference behavior comes entirely from each declaration:
 
 - `path` records an informational association and is never rewritten.

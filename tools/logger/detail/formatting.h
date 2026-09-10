@@ -105,6 +105,7 @@ namespace GameWIP::Logger
             {
                 return text.size();
             }
+
             std::size_t boundary = limit;
             while (boundary > 0)
             {
@@ -115,6 +116,7 @@ namespace GameWIP::Logger
                 }
                 --boundary;
             }
+
             return boundary;
         }
 
@@ -132,6 +134,7 @@ namespace GameWIP::Logger
                 scratch.assign(suffix.substr(0, maxMessageLength));
                 return;
             }
+
             scratch.append(suffix);
         }
 
@@ -148,6 +151,7 @@ namespace GameWIP::Logger
             {
                 scratch.clear();
             }
+
             appendTruncationSuffix(scratch, maxMessageLength);
         }
 
@@ -158,6 +162,7 @@ namespace GameWIP::Logger
             {
                 return false;
             }
+
             truncateScratch(scratch, maxMessageLength);
             return true;
         }
@@ -225,11 +230,14 @@ namespace GameWIP::Logger
             std::size_t written = 0;
             bool truncated = false;
             BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+
             std::format_to(output, format, std::forward<Args>(args)...);
+
             if (!truncated)
             {
                 return false;
             }
+
             truncateScratch(scratch, maxMessageLength);
             return true;
         }
@@ -242,11 +250,14 @@ namespace GameWIP::Logger
             std::size_t written = 0;
             bool truncated = false;
             BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+
             std::vformat_to(output, format.text, std::make_format_args(args...));
+
             if (!truncated)
             {
                 return false;
             }
+
             truncateScratch(scratch, maxMessageLength);
             return true;
         }

@@ -49,8 +49,8 @@ namespace GameWIP::TestSupport
         {
             name_.assign(name);
 
-            // Environment variables are process-global, so guards serialize read/modify/write
-            // pairs to avoid restoring a value captured from an overlapping mutation.
+            // Keep capture and mutation together so another guard cannot change the value
+            // between them. Callers still coordinate overlapping guard lifetimes.
             std::lock_guard lock(environmentMutex);
             Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
             if (!readResult.status.ok())
@@ -96,8 +96,8 @@ namespace GameWIP::TestSupport
         {
             name_.assign(name);
 
-            // Environment variables are process-global, so guards serialize read/modify/write
-            // pairs to avoid restoring a value captured from an overlapping mutation.
+            // Keep capture and mutation together so another guard cannot change the value
+            // between them. Callers still coordinate overlapping guard lifetimes.
             std::lock_guard lock(environmentMutex);
             Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
             if (!readResult.status.ok())

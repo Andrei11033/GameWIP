@@ -107,12 +107,12 @@ uncaught-exception behavior.
 
 1. Initialize Logger console output at Debug severity.
 2. Enumerate connected displays and query each display's active mode, supported
-   modes, and HDR/color information.
+   modes, and HDR/color information. Emit one report per display containing
+   its inventory, available modes, and color capabilities.
 3. Open a visible, focused borderless-fullscreen window on the default display.
    Borderless fullscreen uses the desktop resolution and does not change the
    system display mode.
-4. Emit one startup report containing the display inventory, available modes,
-   color capabilities, and active-window state.
+4. Report that the window is active and describe the manual exit path.
 5. Wait for and pump window events at intervals of up to 16 milliseconds until
    the window receives a close request. On Windows, `Alt+F4` is the expected
    manual exit path.

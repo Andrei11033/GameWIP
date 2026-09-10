@@ -34,16 +34,7 @@ generate_export_header(
 
 target_sources(
     Terminal
-    PRIVATE
-        core/line_input.cpp
-        core/output_buffer.cpp
-        core/session.cpp
-        core/session_reads.inl
-        core/style.cpp
-        core/terminal.cpp
-        core/terminal_controls.inl
-        core/terminal_output.inl
-        core/terminal_test_hooks.cpp
+    PRIVATE core/line_input.cpp core/output_buffer.cpp core/session.cpp core/style.cpp core/terminal.cpp core/terminal_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS

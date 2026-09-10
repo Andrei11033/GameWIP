@@ -4,7 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -21,9 +23,36 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def split_command(command: str) -> list[str]:
+    """Decode the host shell's quoting without executing the compiler command."""
+    if os.name != "nt":
+        return shlex.split(command)
+
+    # CMake's Windows commands can quote only part of an argument, such as an
+    # include path. shlex's non-POSIX mode keeps those quotes and splits spaces.
+    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    parse = shell.CommandLineToArgvW
+    parse.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_int)]
+    parse.restype = ctypes.POINTER(ctypes.c_wchar_p)
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
+
+    count = ctypes.c_int()
+    parsed = parse(command, ctypes.byref(count))
+    if not parsed:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return list(parsed[: count.value])
+    finally:
+        kernel.LocalFree(parsed)
+
+
 def command_arguments(entry: dict[str, object], flags: list[str]) -> list[str]:
     command = entry.get("arguments")
-    arguments = [str(value) for value in command] if isinstance(command, list) else shlex.split(str(entry["command"]), posix=False)
+    arguments = [str(value) for value in command] if isinstance(command, list) else split_command(str(entry["command"]))
+    if not arguments:
+        raise ValueError("empty compiler command")
 
     # Reuse the configured compile command's include paths and definitions while
     # preventing this advisory pass from writing object files or treating any
@@ -32,10 +61,10 @@ def command_arguments(entry: dict[str, object], flags: list[str]) -> list[str]:
     index = 1
     while index < len(arguments):
         argument = arguments[index]
-        if argument == "-o" and index + 1 < len(arguments):
+        if argument in {"-o", "-MF", "-MT", "-MQ"} and index + 1 < len(arguments):
             index += 2
             continue
-        if argument == "-c":
+        if argument in {"-c", "-MD", "-MMD", "-MP", "-MG", "-M", "-MM", "-Werror"} or argument.startswith(("-Werror=", "-MF", "-MT", "-MQ")):
             index += 1
             continue
         filtered.append(argument)
@@ -49,6 +78,9 @@ def main() -> int:
     source_pattern = re.compile(options.source_filter)
     entries = json.loads(options.database.read_text(encoding="utf-8"))
     selected_entries = [entry for entry in entries if source_pattern.search(str(entry.get("file", "")).replace("\\", "/"))]
+    if not selected_entries:
+        print("compiler-warning provider failed: no translation units match the source filter", file=sys.stderr)
+        return 1
 
     def run_entry(entry: dict[str, object]) -> tuple[str, int, str]:
         source = str(entry.get("file", "")).replace("\\", "/")
@@ -62,7 +94,7 @@ def main() -> int:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
-        except OSError as error:
+        except (OSError, ValueError, KeyError) as error:
             return "", 1, f"compiler-warning provider failed for {source}: {error}\n"
         return result.stdout or "", result.returncode, ""
 

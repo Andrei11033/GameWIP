@@ -26,6 +26,151 @@ foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Avai
 Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
+
+# An empty installation phase is valid when a caller only needs the separate
+# tracked-file phase. It must return before binding or provider work fails.
+Invoke-GameWipToolInstallPlan -InstallPlan @() -TrackedPlan ([pscustomobject]@{})
+
+$savedDetectedTool = (Get-Command Get-GameWipDetectedTool).ScriptBlock
+$savedLatestQuery = (Get-Command Get-GameWipToolLatestQuery).ScriptBlock
+try
+{
+    Set-Item -Path function:Get-GameWipDetectedTool -Value { param($Tool) [pscustomobject]@{ Version = '1.0.0' } }
+    Set-Item -Path function:Get-GameWipToolLatestQuery -Value {
+        param($Tool)
+        [pscustomobject]@{ State = 'resolved'; Version = '1.0.0'; Metadata = $null }
+    }
+    $multipleToolPlan = @(Get-GameWipToolUpdatePlan -ToolId @('clang-tidy', 'clang-format', 'clang-tidy'))
+    if (($multipleToolPlan.Tool.id -join ',') -ne 'clang-tidy,clang-format')
+    {
+        throw 'Multi-tool planning lost selected tools, changed their order, or queried duplicates.'
+    }
+}
+finally
+{
+    Set-Item -Path function:Get-GameWipDetectedTool -Value $savedDetectedTool
+    Set-Item -Path function:Get-GameWipToolLatestQuery -Value $savedLatestQuery
+}
+
+# Each multi-selection enters one operation. Separate operations would reject
+# the second tool after the first update makes tracked declarations dirty.
+$updateMenuFunctions = @{}
+foreach ($functionName in @('Read-GameWipConfiguredMenuItem', 'Read-GameWipNamedChoice', 'Invoke-GameWipInteractiveOperation', 'Invoke-GameWipToolUpdate'))
+{
+    $updateMenuFunctions[$functionName] = (Get-Command $functionName).ScriptBlock
+}
+try
+{
+    Set-Item -Path function:Read-GameWipConfiguredMenuItem -Value {
+        param([string]$MenuId)
+        $Script:UpdateMenuReadCount++
+        if ($Script:UpdateMenuReadCount -eq 1)
+        {
+            return New-GameWipChoiceResult -Status Selected -Value $Script:UpdateMenuAction
+        }
+        return New-GameWipChoiceResult -Status Cancelled -Value $null
+    }
+    Set-Item -Path function:Read-GameWipNamedChoice -Value {
+        param([string]$Prompt, [string[]]$Choices, [string]$Default, [switch]$AllowMultiple)
+        return @('clang-tidy', 'clang-format')
+    }
+    Set-Item -Path function:Invoke-GameWipInteractiveOperation -Value {
+        param([string]$Label, [scriptblock]$Body)
+        $Script:UpdateOperationCount++
+        & $Body
+    }
+    Set-Item -Path function:Invoke-GameWipToolUpdate -Value {
+        param([string[]]$ToolId, [switch]$PreviewOnly)
+        if (($ToolId -join ',') -ne 'clang-tidy,clang-format' -or [bool]$PreviewOnly -ne ($Script:UpdateMenuAction -eq 'tools-preview'))
+        {
+            throw 'The tool menu did not forward the complete selection and preview policy.'
+        }
+    }
+    foreach ($action in @('tools-preview', 'tools-update'))
+    {
+        $Script:UpdateMenuAction = $action
+        $Script:UpdateMenuReadCount = 0
+        $Script:UpdateOperationCount = 0
+        Show-GameWipToolUpdatesMenu
+        if ($Script:UpdateOperationCount -ne 1)
+        {
+            throw 'The tool menu split one selection into separate update operations.'
+        }
+    }
+}
+finally
+{
+    foreach ($functionName in $updateMenuFunctions.Keys)
+    {
+        Set-Item -Path "function:$functionName" -Value $updateMenuFunctions[$functionName]
+    }
+    Remove-Variable -Name UpdateMenuAction, UpdateMenuReadCount, UpdateOperationCount -Scope Script -ErrorAction SilentlyContinue
+}
+
+# Both advisory providers need setup even when selected alone. Stub execution,
+# but require the audit to create its database before dispatching either one.
+$hygieneFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('gamewip-hygiene-' + [guid]::NewGuid().ToString('N'))
+$savedHygieneRoot = $Script:RepositoryRoot
+$hygieneFunctions = @{}
+foreach ($functionName in @('Invoke-GameWipConfigurePreset', 'Invoke-GameWipHygieneClangTidy', 'Invoke-GameWipHygieneCompilerWarnings', 'Write-GameWipHygieneReport'))
+{
+    $hygieneFunctions[$functionName] = (Get-Command $functionName).ScriptBlock
+}
+try
+{
+    $Script:RepositoryRoot = $hygieneFixtureRoot
+    Set-Item -Path function:Invoke-GameWipConfigurePreset -Value {
+        param([string]$Name)
+        $Script:HygieneConfigureCount++
+        $directory = Join-Path $Script:RepositoryRoot "build\$Name"
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $directory 'compile_commands.json'), '[]')
+    }
+    $providerStub = {
+        param([object[]]$Checks)
+        if ($Script:HygieneConfigureCount -ne 1)
+        {
+            throw 'The hygiene provider ran before shared compilation-database preparation.'
+        }
+        $Script:HygieneProviderCount++
+    }
+    Set-Item -Path function:Invoke-GameWipHygieneClangTidy -Value $providerStub
+    Set-Item -Path function:Invoke-GameWipHygieneCompilerWarnings -Value $providerStub
+    Set-Item -Path function:Write-GameWipHygieneReport -Value { param($Report) }
+
+    foreach ($selector in @('unreachable-code', 'standard'))
+    {
+        $Script:HygieneConfigureCount = 0
+        $Script:HygieneProviderCount = 0
+        Invoke-GameWipHygieneAudit -Selector $selector
+        $expectedProviders = if ($selector -eq 'standard')
+        {
+            2
+        }
+        else
+        {
+            1
+        }
+        if ($Script:HygieneConfigureCount -ne 1 -or $Script:HygieneProviderCount -ne $expectedProviders)
+        {
+            throw "Hygiene selection '$selector' skipped setup or a selected provider."
+        }
+    }
+}
+finally
+{
+    $Script:RepositoryRoot = $savedHygieneRoot
+    foreach ($functionName in $hygieneFunctions.Keys)
+    {
+        Set-Item -Path "function:$functionName" -Value $hygieneFunctions[$functionName]
+    }
+    Remove-Variable -Name HygieneConfigureCount, HygieneProviderCount -Scope Script -ErrorAction SilentlyContinue
+    if (Test-Path -LiteralPath $hygieneFixtureRoot)
+    {
+        Remove-Item -LiteralPath $hygieneFixtureRoot -Recurse -Force
+    }
+}
+
 foreach ($freshBundleId in @('local-release-check', 'sanitizer'))
 {
     $freshBundle = Get-GameWipProjectBundle -Id $freshBundleId

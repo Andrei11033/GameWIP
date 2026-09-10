@@ -502,15 +502,11 @@ namespace GameWIP::TestSupport
                 return;
             }
 
+            DWORD outputWaitError = ERROR_SUCCESS;
             DWORD outputWait = WaitForSingleObject(outputDoneHandle, 2000);
             if (outputWait != WAIT_OBJECT_0)
             {
-                const DWORD outputWaitError = outputWait == WAIT_FAILED ? GetLastError() : outputWait;
-                if (outputStatus.ok())
-                {
-                    outputStatus.error = Types::InfrastructureError::CaptureFailed;
-                    outputStatus.nativeCode = outputWaitError;
-                }
+                outputWaitError = outputWait == WAIT_FAILED ? GetLastError() : outputWait;
 
                 // Cancel the synchronous read before closing the handle that supplies EOF.
                 static_cast<void>(CancelSynchronousIo(reinterpret_cast<HANDLE>(outputReader.native_handle())));
@@ -522,6 +518,14 @@ namespace GameWIP::TestSupport
                 }
             }
             outputReader.join();
+
+            // The reader owns outputStatus until it exits. Even a timed-out
+            // wait must join before reading or publishing a competing failure.
+            if (outputWaitError != ERROR_SUCCESS && outputStatus.ok())
+            {
+                outputStatus.error = Types::InfrastructureError::CaptureFailed;
+                outputStatus.nativeCode = outputWaitError;
+            }
         }
     } // namespace
 #endif

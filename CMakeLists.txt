@@ -80,6 +80,16 @@ if(GAMEWIP_BUILD_TESTS)
             "${PROJECT_SOURCE_DIR}/cmake/ValidateCMakeRequirements.cmake"
     )
     set_tests_properties(validation.version.composition validation.cmake.requirement_propagation PROPERTIES TIMEOUT 120)
+
+    add_test(
+        NAME validation.cmake.application_manifest
+        COMMAND
+            "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${PROJECT_BINARY_DIR}/application-manifest-tests"
+            "-DMODULE_DIR=${PROJECT_SOURCE_DIR}/cmake" "-DGENERATOR=${CMAKE_GENERATOR}" "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DBUILD_TYPE=$<CONFIG>" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}" -P
+            "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
+    )
+    set_tests_properties(validation.cmake.application_manifest PROPERTIES LABELS "validation;cmake" TIMEOUT 120)
 endif()
 
 # ------------------------------------------------------------

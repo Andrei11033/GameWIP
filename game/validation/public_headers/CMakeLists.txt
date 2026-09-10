@@ -38,7 +38,7 @@ gamewip_add_public_header_check(LoggerTypes logger_types_header.cpp GameWIP::Log
 gamewip_add_public_header_check(LoggerConfig logger_config_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(Logger logger_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(LoggerMacros logger_macros_header.cpp GameWIP::Logger)
-gamewip_add_public_header_check(Assert assert_header.cpp AssertCompileInterface)
+gamewip_add_public_header_check(Assert assert_header.cpp GameWIP::Assert)
 gamewip_add_public_header_check(TestSupportTypes test_support_types_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupportReporting test_support_reporting_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupportFiles test_support_files_header.cpp GameWIP::TestSupport)

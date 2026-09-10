@@ -61,7 +61,6 @@ void testDragDrop(TestSupport::Context &context)
         ErrorCode::NativeFailure,
         Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status.code));
 
-    // Reject malformed source payloads before testing target-side state.
     // Validate source payloads before opening a native target, including encoding and allocation failures.
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
     DD::Description validSource{validTextItems, DD::Effect::Copy, DD::TriggerButton::Left};
@@ -182,7 +181,6 @@ void testDragDrop(TestSupport::Context &context)
         Desktop::TestHooks::testDragDropMaterialization().code));
     static_cast<void>(context.expectTrue("source COM data-object and enumerator contracts hold", Desktop::TestHooks::dragDropComContractsValid()));
 
-    // Open a target and validate region identity, geometry, formats, and native registration rollback.
     // Exercise target ownership, region validation, native registration, and queue behavior.
     Desktop::DragDropTarget target;
     static_cast<void>(context.expectFalse("default target is closed", target.isOpen()));

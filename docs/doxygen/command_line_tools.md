@@ -12,8 +12,8 @@ shared console primitive. The project menu hierarchy lives in
 `scripts/setup/config/setup.json`. Their schemas and runtime checks reject
 duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 Indexed tool selections accept one number or a comma-separated list such as
-`2,3,5,6`; each selected tool is processed through its own normal operation
-and validation boundary. Press Enter to use the displayed default, or `q`/Esc
+`2,3,5,6`. Tool previews and updates use one combined plan, consent decision,
+and validation boundary for the selection. Press Enter to use the displayed default, or `q`/Esc
 to cancel.
 
 ## Common syntax

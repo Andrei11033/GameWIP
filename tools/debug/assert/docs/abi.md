@@ -14,8 +14,7 @@ find_package(Assert ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Assert)
 ```
 
-The source-tree target name `Assert`, internal headers, platform backend headers, validation hooks, and `AssertCompileInterface` are not installed
-consumer interfaces.
+The source-tree target name `Assert`, internal headers, platform backend headers, and validation hooks are not installed consumer interfaces.
 
 ## Runtime and interface modes
 
@@ -27,12 +26,11 @@ Assert has two package forms:
 | Runtime disabled | interface-only target | Public macros use header-only disabled behavior. Fatal and recoverable reporting are off. |
 
 The runtime uses Logger for reporting and links Unicode statically for popup text conversion. Unicode is a private implementation dependency, and
-Assert's public headers do not expose Unicode types. The installed package resolves the public Logger package dependency through
-`find_dependency(Logger ... CONFIG)`.
+Assert's public headers do not expose Unicode types. The installed runtime package resolves the matching Logger package through
+`find_dependency(Logger ... CONFIG)` so the required shared runtime is available to consumers.
 
-Assert resolves its installed Common Controls resource paths before dependency discovery and uses `configure_package_config_file(PATH_VARS ...)`.
-Split Assert/Logger prefixes are therefore supported across the minimum CMake range, and relative or absolute `CMAKE_INSTALL_DATADIR` values remain
-valid.
+Both package forms resolve the matching `GameWIPApplication` package, which supplies the shared application manifest helper. Assert does not install
+manifest resources or attach them to consumers. Applications select their process requirements explicitly; see @ref assert_configuration.
 
 ## Exported symbols
 

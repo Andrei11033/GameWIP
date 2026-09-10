@@ -23,15 +23,29 @@ Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock;
 see @ref project_library_compatibility.
 
 ```cmake
+# In the consumer's top-level directory, after project() and before subdirectories.
+if(WIN32)
+    enable_language(RC)
+endif()
+
 find_package(Desktop ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Desktop)
+gamewip_attach_application_manifest(TARGET MyTarget PER_MONITOR_V2)
 ```
 
 ## Source-tree CMake
 
 ```cmake
 target_link_libraries(MyTarget PRIVATE GameWIP::Desktop)
+gamewip_attach_application_manifest(TARGET MyTarget PER_MONITOR_V2)
 ```
+
+`MyTarget` is the application executable. The manifest establishes the
+Per-Monitor-V2 DPI context required by Desktop's Win32 window backend; the helper
+does nothing on other platforms. The installed Desktop package loads the
+helper automatically; the repository already enables RC for source-tree targets.
+See @ref desktop_package_abi for dependency and manifest
+ownership.
 
 ## Minimal usage
 

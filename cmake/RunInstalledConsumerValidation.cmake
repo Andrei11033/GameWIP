@@ -36,6 +36,22 @@ if(NOT install_result EQUAL 0)
     message(FATAL_ERROR "GameWIP package installation failed.\n${install_output}\n${install_error}")
 endif()
 
+# Repeat the independent-directory probes using only the installed helper and
+# templates, so source-tree paths cannot accidentally make package tests pass.
+execute_process(
+    COMMAND
+        "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${CONSUMER_BUILD_DIR}/application-manifests"
+        "-DMODULE_DIR=${INSTALL_PREFIX}/lib/cmake/GameWIPApplication" "-DGENERATOR=${GENERATOR}" "-DCXX_COMPILER=${CXX_COMPILER}"
+        "-DBUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}" -P
+        "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
+    RESULT_VARIABLE manifest_result
+    OUTPUT_VARIABLE manifest_output
+    ERROR_VARIABLE manifest_error
+)
+if(NOT manifest_result EQUAL 0)
+    message(FATAL_ERROR "Installed application manifest validation failed.\n${manifest_output}\n${manifest_error}")
+endif()
+
 set(expected_gamewip_headers
     debug/assert/assert.h
     debug/assert/assert_export.h
@@ -183,11 +199,11 @@ foreach(
     )
 endforeach()
 
-# Assert must retain its own package prefix while Logger and its dependencies
+# Assert must retain its own package prefix while its dependencies
 # are discovered from a separate installation root on every supported CMake.
 set(assert_prefix "${CONSUMER_BUILD_DIR}/assert-prefix")
 file(REMOVE_RECURSE "${assert_prefix}")
-file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/lib/cmake" "${assert_prefix}/share" "${assert_prefix}/bin")
+file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/lib/cmake" "${assert_prefix}/bin")
 file(COPY "${INSTALL_PREFIX}/include/debug/assert" DESTINATION "${assert_prefix}/include/debug")
 file(COPY "${INSTALL_PREFIX}/lib/cmake/Assert" DESTINATION "${assert_prefix}/lib/cmake")
 file(GLOB assert_link_files "${INSTALL_PREFIX}/lib/*Assert*")

@@ -86,6 +86,7 @@ namespace
                         monitor.bounds.position.x,
                         monitor.bounds.position.y,
                         supportedModes.modes.size());
+
                     if (activeMode.status.ok())
                     {
                         std::format_to(
@@ -98,6 +99,7 @@ namespace
                             activeMode.mode.bitsPerPixel,
                             activeMode.mode.interlaced ? ", interlaced" : "");
                     }
+
                     if (colorInfo.status.ok())
                     {
                         std::format_to(
@@ -118,6 +120,7 @@ namespace
                     {
                         std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
+
                     for (const auto &mode : supportedModes.modes)
                     {
                         std::format_to(
@@ -130,6 +133,7 @@ namespace
                             mode.bitsPerPixel,
                             mode.interlaced ? ", interlaced" : "");
                     }
+
                     GameWIP::Logger::info("Startup", "{}", displayReport);
                 }
             }
@@ -208,8 +212,9 @@ namespace GameWIP::Game
 #endif
         // Initialize logging first so every later startup failure has a diagnostic sink.
         initializeLogger();
-        // Capture display topology and color capabilities before creating the fullscreen window.
         Logger::info("Startup", "Logger initialized");
+
+        // Capture display topology and color capabilities before creating the fullscreen window.
         const Desktop::Types::Display::MonitorsResult monitors = inspectDisplays();
         if (!monitors.status.ok())
         {

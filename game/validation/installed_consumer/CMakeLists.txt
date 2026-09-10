@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 
 project(GameWIPInstalledConsumer LANGUAGES CXX)
 
+if(WIN32)
+    enable_language(RC)
+endif()
+
 if(NOT DEFINED GAMEWIP_PACKAGE_VERSION)
     message(FATAL_ERROR "GAMEWIP_PACKAGE_VERSION is required.")
 endif()

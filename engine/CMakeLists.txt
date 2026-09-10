@@ -1,5 +1,5 @@
-# Engine modules are added in dependency order. Desktop consumes the portable
-# input and action contracts while exposing the current public engine boundary.
+# Action consumes Input. Both contracts remain provisional; Desktop is the
+# independently consumable, supported engine boundary.
 add_subdirectory(input)
 add_subdirectory(action)
 
