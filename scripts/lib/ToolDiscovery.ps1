@@ -1,5 +1,9 @@
 # GameWIP deterministic tool discovery and installed-version selection.
 
+# ------------------------------------------------------------
+# Candidate discovery and command selection
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Add-GameWipToolCandidate

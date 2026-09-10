@@ -155,7 +155,7 @@ namespace GameWIP::TestSupport
     } // namespace Detail
 
     // ------------------------------------------------------------
-    // Reporting results
+    // Reporting result values
     // ------------------------------------------------------------
 
     std::size_t Types::Reporting::Summary::total() const noexcept
@@ -173,6 +173,10 @@ namespace GameWIP::TestSupport
         return summary.ok();
     }
 
+    // ------------------------------------------------------------
+    // Timing diagnostics
+    // ------------------------------------------------------------
+
     Timer::Timer() noexcept
         : start_(Clock::now())
     {
@@ -189,6 +193,10 @@ namespace GameWIP::TestSupport
         return std::chrono::duration<double, std::milli>(elapsed).count();
     }
 
+    // ------------------------------------------------------------
+    // Test context
+    // ------------------------------------------------------------
+
     Context::Context(std::string_view suiteName, const Types::Reporting::Options &options)
         : Context(suiteName, std::make_shared<Detail::ReportSink>(options))
     {
@@ -201,10 +209,6 @@ namespace GameWIP::TestSupport
     }
 
     Context::~Context() = default;
-
-    // ------------------------------------------------------------
-    // Test context
-    // ------------------------------------------------------------
 
     void Context::info(std::string_view message)
     {
@@ -388,16 +392,16 @@ namespace GameWIP::TestSupport
         writeLine("FAIL", message.str());
     }
 
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     Runner::Runner(Types::Reporting::Options options)
         : reportSink_(std::make_shared<Detail::ReportSink>(std::move(options)))
     {
     }
 
     Runner::~Runner() = default;
-
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
 
     void Runner::info(std::string_view message)
     {

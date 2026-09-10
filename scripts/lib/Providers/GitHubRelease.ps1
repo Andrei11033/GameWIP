@@ -1,5 +1,9 @@
 # GameWIP verified GitHub-release tool provider.
 
+# ------------------------------------------------------------
+# Release metadata and verified installation
+# ------------------------------------------------------------
+
 function ConvertFrom-GameWipGitHubReleaseTag
 {
     param([Parameter(Mandatory = $true)][string]$Tag)
@@ -31,6 +35,9 @@ function Get-GameWipGitHubReleaseMetadata
 function Install-GameWipGitHubReleaseTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
+
+    # Resolve and verify the immutable release input before creating any
+    # persistent installation state.
     if (-not $Version)
     {
         throw "GitHub release tool '$($Tool.id)' requires a version."
@@ -65,6 +72,8 @@ function Install-GameWipGitHubReleaseTool
         throw "SHA256 mismatch for '$($asset.archive)'."
     }
 
+    # Stage the executable in operation-owned temporary storage so downloads,
+    # extraction, and version checks cannot leave a partial managed install.
     $candidateRoot = Join-Path $Script:OperationContext.Temp "candidate-$($Tool.id)"
     New-Item -ItemType Directory -Path $candidateRoot | Out-Null
     $executableName = $null
@@ -112,6 +121,7 @@ function Install-GameWipGitHubReleaseTool
         throw "Staged '$($Tool.id)' reported version '$candidateVersion'; expected '$Version'."
     }
 
+    # Replace the versioned tool directory and shim as one guarded mutation.
     Initialize-GameWipManagedToolRoot
     $managedRoot = Get-GameWipManagedToolRoot
     $toolsRoot = Join-Path $managedRoot 'tools'
@@ -152,6 +162,8 @@ function Install-GameWipGitHubReleaseTool
         }
         try
         {
+            # Move the verified payload into place before changing the shim;
+            # this keeps the previous shim usable until the new binary exists.
             Move-Item -LiteralPath $incoming -Destination $toolRoot
             $incoming = $null
             if (Test-Path -LiteralPath $shimPath -PathType Leaf)
@@ -207,6 +219,8 @@ function Install-GameWipGitHubReleaseTool
     }
     finally
     {
+        # Remove only operation-owned staging and temporary shim state. A failed
+        # replacement keeps the verified previous installation available.
         if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
         {
             Invoke-GameWipOwnedTreeRemoval -Path $incoming -OwnedRoot $toolsRoot -SuppressMutationTracking

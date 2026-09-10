@@ -1,5 +1,9 @@
 # GameWIP correctness-test, focused-module, stress, and validation-command behavior.
 
+# ------------------------------------------------------------
+# Test and validation execution
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Initialize-GameWipTestPresetBuild

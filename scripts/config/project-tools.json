@@ -378,7 +378,7 @@
         "package": "ruff"
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.16.4",
+      "requiredVersion": "0.16.6",
       "detection": {
         "command": "ruff",
         "versionArguments": ["--version"],
@@ -519,7 +519,7 @@
         ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "10.9.1",
+      "requiredVersion": "10.10.0",
       "detection": {
         "command": "eslint",
         "versionArguments": ["--version"],

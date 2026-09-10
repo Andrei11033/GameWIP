@@ -10,6 +10,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         return;
     }
 
+    // Invalid options and ordinary child outcomes establish the process contract.
     const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::Process::Options &childOptions)
     {
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
@@ -231,8 +232,10 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
     }
 
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
+    // Failure injection covers setup, capture, wait, inspection, and cleanup boundaries independently.
     {
         using FailurePoint = TestSupport::TestHooks::ChildProcessFailurePoint;
+        // Each case maps one injected boundary to its documented infrastructure error and outcome.
         struct FailureCase
         {
             FailurePoint point;

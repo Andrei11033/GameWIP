@@ -1,8 +1,14 @@
+# FileSystem adapts portable path and file operations to the selected platform
+# while keeping its public contracts independent of native handle types.
 include(GNUInstallDirs)
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
+# ------------------------------------------------------------
+# Configuration, target, and source ownership
+# ------------------------------------------------------------
 
 option(FILESYSTEM_ENABLE_TEST_HOOKS "Enable FileSystem internal test hooks" OFF)
 
@@ -31,6 +37,10 @@ target_sources(
 
 gamewip_target_platform_backend(TARGET FileSystem ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
+# ------------------------------------------------------------
+# Compile, test-hook, and dependency contracts
+# ------------------------------------------------------------
+
 target_include_directories(FileSystem PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(FileSystem PUBLIC cxx_std_23)
@@ -43,6 +53,10 @@ target_compile_definitions(
 target_link_libraries(FileSystem PUBLIC IO PRIVATE Unicode $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(FileSystem PROPERTIES POSITION_INDEPENDENT_CODE ON ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+# ------------------------------------------------------------
+# Documentation and installation
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(

@@ -86,6 +86,8 @@ int main()
     const bool rendererProvider = GameWIP::Desktop::Renderer::hasOcclusionProvider(closedWindow);
     const GameWIP::Desktop::Types::Display::ColorInfoResult displayColor = GameWIP::Desktop::Display::getColorInfo(closedWindow);
 
+    // Keep each probe alive through the checks below so this translation unit verifies
+    // construction, mutation, and result types rather than only header parsing.
     CHECK(write.status.ok());
     CHECK(text.status.ok());
     CHECK(path.status.ok());
@@ -95,24 +97,29 @@ int main()
     static_cast<void>(windowCapabilities);
     static_cast<void>(clipboardText);
 
-    return unicodeVersion.major == 17 && unicodeVersion.minor == 0 && unicodeVersion.patch == 0 &&
-                   unicodeEncoding.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded && unicodeEncoding.byteCount == 4 && reserve.ok() &&
-                   write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok() && terminalBufferLineEnding.ok() &&
-                   terminalBufferReserve.ok() && terminalBufferAppend.ok() && terminalBufferPrint.ok() && terminalBufferPrintln.ok() &&
-                   terminalBuffer.text() == std::string_view{"installed terminal buffer\nformatted 7 line\n"} &&
-                   closedSessionWrite.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   closedSessionPrint.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   closedSessionPrintln.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   invalidDirectPrint.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
-                   invalidDirectPrintln.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && infrastructureStatus.ok() &&
-                   infrastructureText == "None" && childResult.status.ok() &&
-                   childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted && childResult.outputBytes.empty() &&
-                   reportingOptions.writeConsole && invalidCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
-                   !invalidCursor.cursor.isValid() && invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
-                   !invalidSingleCursor.cursor.isValid() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                   !rendererProvider && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
-                   loggerConfig.logDirectory == std::string_view{"logs"} && !closedChildSurface.isOpen() && !closedDragDropTarget.isOpen() &&
-                   closedDrag.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
-               ? 0
-               : 1;
+    const bool unicodeProbePassed = unicodeVersion.major == 17 && unicodeVersion.minor == 0 && unicodeVersion.patch == 0 &&
+                                    unicodeEncoding.outcome == GameWIP::Unicode::Types::EncodeOutcome::Encoded && unicodeEncoding.byteCount == 4;
+    const bool ioProbePassed = reserve.ok() && write.status.ok() && text.status.ok() && text.text == "installed consumer" && path.status.ok();
+    const bool terminalProbePassed = terminalBufferLineEnding.ok() && terminalBufferReserve.ok() && terminalBufferAppend.ok() &&
+                                     terminalBufferPrint.ok() && terminalBufferPrintln.ok() &&
+                                     terminalBuffer.text() == std::string_view{"installed terminal buffer\nformatted 7 line\n"};
+    const bool closedTerminalProbePassed = closedSessionWrite.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                                           closedSessionPrint.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                                           closedSessionPrintln.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                                           invalidDirectPrint.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
+                                           invalidDirectPrintln.code == GameWIP::IO::Types::ErrorCode::InvalidArgument;
+    const bool testSupportProbePassed = infrastructureStatus.ok() && infrastructureText == "None" && childResult.status.ok() &&
+                                        childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
+                                        childResult.outputBytes.empty() && reportingOptions.writeConsole;
+    const bool desktopProbePassed = invalidCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidCursor.cursor.isValid() &&
+                                    invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
+                                    !invalidSingleCursor.cursor.isValid() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                                    !rendererProvider && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                                    windowSize.width == 640 && loggerConfig.logDirectory == std::string_view{"logs"} &&
+                                    !closedChildSurface.isOpen() && !closedDragDropTarget.isOpen() &&
+                                    closedDrag.status.code == GameWIP::IO::Types::ErrorCode::NotOpen;
+
+    const bool everyProbePassed =
+        unicodeProbePassed && ioProbePassed && terminalProbePassed && closedTerminalProbePassed && testSupportProbePassed && desktopProbePassed;
+    return everyProbePassed ? 0 : 1;
 }

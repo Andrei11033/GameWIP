@@ -24,6 +24,10 @@ namespace GameWIP::Logger::Detail::Core
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Hook consumption used by Logger internals
+    // ------------------------------------------------------------
+
     bool consumeTestHook(std::atomic_bool &flag) noexcept
     {
         return flag.exchange(false, std::memory_order_acq_rel);
@@ -37,16 +41,20 @@ namespace GameWIP::Logger::Detail::Core
         loggerTestHookState.nextQueueAllocationFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextFatalPopupFailure.store(false, std::memory_order_release);
         loggerTestHookState.nextTimedFlushTimeout.store(false, std::memory_order_release);
+
         loggerTestHookState.pauseBeforeWorkerWait.store(false, std::memory_order_release);
         loggerTestHookState.workerWaitReached.store(false, std::memory_order_release);
         loggerTestHookState.queuePublicationReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseWorkerWait.store(false, std::memory_order_release);
+
         loggerTestHookState.pauseBeforeFinalProducerLeave.store(false, std::memory_order_release);
         loggerTestHookState.finalProducerLeaveReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseFinalProducerLeave.store(false, std::memory_order_release);
+
         loggerTestHookState.pauseBeforeWorkerDelivery.store(false, std::memory_order_release);
         loggerTestHookState.workerDeliveryReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseWorkerDelivery.store(false, std::memory_order_release);
+
         loggerTestHookState.lifecycleLockReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseLifecycleLock.store(false, std::memory_order_release);
     }
@@ -73,6 +81,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             return;
         }
+
         publishHookMilestone(loggerTestHookState.workerDeliveryReached);
         waitForHookMilestone(loggerTestHookState.releaseWorkerDelivery);
     }
@@ -95,6 +104,10 @@ using namespace GameWIP::Logger::Detail::Core;
 #if LOGGER_INTERNAL_TEST_HOOKS
 namespace GameWIP::Logger::TestHooks
 {
+    // ------------------------------------------------------------
+    // One-shot failure hooks
+    // ------------------------------------------------------------
+
     void reset() noexcept
     {
         resetLoggerTestHooks();
@@ -130,11 +143,16 @@ namespace GameWIP::Logger::TestHooks
         loggerTestHookState.nextTimedFlushTimeout.store(true, std::memory_order_release);
     }
 
+    // ------------------------------------------------------------
+    // Worker wait coordination
+    // ------------------------------------------------------------
+
     void armWorkerWaitPause() noexcept
     {
         loggerTestHookState.workerWaitReached.store(false, std::memory_order_release);
         loggerTestHookState.queuePublicationReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseWorkerWait.store(false, std::memory_order_release);
+
         loggerTestHookState.pauseBeforeWorkerWait.store(true, std::memory_order_release);
     }
 
@@ -153,10 +171,15 @@ namespace GameWIP::Logger::TestHooks
         publishHookMilestone(loggerTestHookState.releaseWorkerWait);
     }
 
+    // ------------------------------------------------------------
+    // Final producer coordination
+    // ------------------------------------------------------------
+
     void armFinalProducerLeavePause() noexcept
     {
         loggerTestHookState.finalProducerLeaveReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseFinalProducerLeave.store(false, std::memory_order_release);
+
         loggerTestHookState.pauseBeforeFinalProducerLeave.store(true, std::memory_order_release);
     }
 
@@ -170,10 +193,15 @@ namespace GameWIP::Logger::TestHooks
         publishHookMilestone(loggerTestHookState.releaseFinalProducerLeave);
     }
 
+    // ------------------------------------------------------------
+    // Worker delivery coordination
+    // ------------------------------------------------------------
+
     void armWorkerDeliveryPause() noexcept
     {
         loggerTestHookState.workerDeliveryReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseWorkerDelivery.store(false, std::memory_order_release);
+
         loggerTestHookState.pauseBeforeWorkerDelivery.store(true, std::memory_order_release);
     }
 
@@ -187,10 +215,15 @@ namespace GameWIP::Logger::TestHooks
         publishHookMilestone(loggerTestHookState.releaseWorkerDelivery);
     }
 
+    // ------------------------------------------------------------
+    // Lifecycle mutex coordination
+    // ------------------------------------------------------------
+
     void holdLifecycleLockPause() noexcept
     {
         loggerTestHookState.lifecycleLockReached.store(false, std::memory_order_release);
         loggerTestHookState.releaseLifecycleLock.store(false, std::memory_order_release);
+
         std::lock_guard lock(loggerState().lifecycleMutex);
         publishHookMilestone(loggerTestHookState.lifecycleLockReached);
         waitForHookMilestone(loggerTestHookState.releaseLifecycleLock);

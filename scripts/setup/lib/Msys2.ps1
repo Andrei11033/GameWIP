@@ -1,5 +1,9 @@
 # GameWIP MSYS2 package derivation, full-system update, retry, and toolchain verification.
 
+# ------------------------------------------------------------
+# MSYS2 package discovery and installation
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Invoke-GameWipMsys2

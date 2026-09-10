@@ -3,6 +3,9 @@
 # Library-local helper for explicit Common Controls v6 attachment in source-tree
 # builds. Linking the Assert target alone does not attach this resource.
 
+# The helper attaches the prepared resource to an existing executable. Callers invoke it once per target;
+# applications using Desktop's combined manifest must not attach this one too.
+# Non-Windows calls do nothing; missing/disabled preparation is a configure error.
 function(assert_enable_common_controls_v6 target_name)
     if(NOT WIN32)
         return()

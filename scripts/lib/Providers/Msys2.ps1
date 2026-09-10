@@ -1,5 +1,9 @@
 # GameWIP MSYS2 tool provider.
 
+# ------------------------------------------------------------
+# MSYS2 package operations
+# ------------------------------------------------------------
+
 function Get-GameWipMsys2ToolLatestVersion
 {
     param([hashtable]$Tool)

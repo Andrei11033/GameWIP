@@ -8,8 +8,8 @@ namespace GameWIP::Logger::Detail::Core
 {
     namespace
     {
-        /// Converts an owning array and its allocation-time element count into a bounded view.
-        /// The caller owns both values and keeps the allocation alive for the returned view.
+        /// @brief Converts an owning array and its allocation-time element count into a bounded view.
+        /// @details The caller owns both values and keeps the allocation alive for the returned view.
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif
@@ -23,7 +23,7 @@ namespace GameWIP::Logger::Detail::Core
 #endif
     } // namespace
 
-    /// Allocates overflow-checked contiguous inline message storage for queue entries.
+    /// @brief Allocates overflow-checked contiguous inline message storage for queue entries.
     bool allocateMessageArena(std::size_t entryCount, std::size_t inlineMessageCapacity, std::unique_ptr<char[]> &arena)
     {
         arena.reset();
@@ -41,8 +41,8 @@ namespace GameWIP::Logger::Detail::Core
         return true;
     }
 
-    /// Builds complete ring and worker storage before initialization commits runtime state.
-    /// Failure clears every output so partially initialized queue storage cannot escape.
+    /// @brief Builds complete ring and worker storage before initialization commits runtime state.
+    /// @details Failure clears every output so partially initialized queue storage cannot escape.
     bool prepareQueueStorage(
         std::size_t hardLimit,
         std::size_t workerBatchSize,
@@ -83,6 +83,7 @@ namespace GameWIP::Logger::Detail::Core
             std::span<QueueSlot> ringView = ownedArrayView(ring, ringSize);
             const std::size_t ringArenaSize = ringSize * inlineMessageCapacity;
             const std::size_t batchArenaSize = batch.size() * inlineMessageCapacity;
+
             std::span<char> ringArenaView = ownedArrayView(ringArena, ringArenaSize);
             std::span<char> batchArenaView = ownedArrayView(batchArena, batchArenaSize);
 
@@ -93,11 +94,13 @@ namespace GameWIP::Logger::Detail::Core
                 ringView[index].sequence.store(index, std::memory_order_relaxed);
                 ringView[index].skip = false;
             }
+
             for (std::size_t index = 0; index < batch.size(); ++index)
             {
                 const std::size_t storageOffset = index * inlineMessageCapacity;
                 batch[index].message.configureInlineStorage(batchArenaView.subspan(storageOffset, inlineMessageCapacity));
             }
+
             return true;
         }
         catch (...)
@@ -162,7 +165,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().inlineMessageCapacity = 0;
     }
 
-    /// Clears logical entry state while applying the configured heap-retention policy.
+    /// @brief Clears logical entry state while applying the configured heap-retention policy.
     void clearLogEntry(QueuedLogEntry &entry)
     {
         const bool releaseHeapCapacity = loggerState().releaseMessageMemoryAfterWrite;
@@ -173,7 +176,7 @@ namespace GameWIP::Logger::Detail::Core
         entry.message.clear(releaseHeapCapacity);
     }
 
-    /// Copies only the retained prefix and suffix, avoiding a temporary full-size string.
+    /// @brief Copies only the retained prefix and suffix, avoiding a temporary full-size string.
     void assignRetainedMessage(QueuedLogEntry &entry, std::string_view message, std::size_t maxMessageLength, bool &outTruncated)
     {
         constexpr std::string_view suffix = "... [truncated]";
@@ -190,6 +193,7 @@ namespace GameWIP::Logger::Detail::Core
             entry.message.clear();
             return;
         }
+
         if (maxMessageLength <= suffix.size())
         {
             entry.message.assign(suffix.substr(0, maxMessageLength));
@@ -199,7 +203,7 @@ namespace GameWIP::Logger::Detail::Core
         entry.message.assignJoined(message.substr(0, maxMessageLength - suffix.size()), suffix);
     }
 
-    /// Materializes a non-owning producer entry in queue-owned storage.
+    /// @brief Materializes a non-owning producer entry in queue-owned storage.
     void copyPendingEntryToQueueSlot(QueuedLogEntry &destination, const PendingLogEntry &source, bool &outTruncated)
     {
         destination.level = source.level;
@@ -213,6 +217,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             destination.sourceText.assign(source.sourceText.view());
         }
+
         if (source.alreadyTruncated)
         {
             destination.message.assign(source.message);
@@ -224,7 +229,7 @@ namespace GameWIP::Logger::Detail::Core
         }
     }
 
-    /// Transfers queue-owned text, swapping heap storage when either slot overflowed inline capacity.
+    /// @brief Transfers queue-owned text, swapping heap storage when either slot overflowed inline capacity.
     void moveQueuedEntry(QueuedLogEntry &destination, QueuedLogEntry &source)
     {
         destination.level = source.level;
@@ -238,6 +243,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             destination.sourceText.transferFrom(source.sourceText);
         }
+
         destination.message.transferFrom(source.message);
     }
 
@@ -254,10 +260,12 @@ namespace GameWIP::Logger::Detail::Core
             {
                 return EnqueueStatus::DroppedHard;
             }
+
             if (depth >= loggerState().softQueueSize && isLowPriority(entry.level))
             {
                 return EnqueueStatus::DroppedSoft;
             }
+
             if (loggerState().queueDepth.compare_exchange_weak(depth, depth + 1, std::memory_order_acq_rel, std::memory_order_acquire))
             {
                 outPreviousDepth = depth;
@@ -275,7 +283,9 @@ namespace GameWIP::Logger::Detail::Core
     {
         slot.sequence.store(ticket + 1, std::memory_order_release);
         const bool firstPublishedSlot = loggerState().publishedQueueDepth.fetch_add(1, std::memory_order_acq_rel) == 0;
+
         outNotifyWorker = firstPublishedSlot || ticket == loggerState().dequeueTicket.load(std::memory_order_acquire);
+
 #if LOGGER_INTERNAL_TEST_HOOKS
         recordQueuePublicationForTest();
 #endif
@@ -298,6 +308,7 @@ namespace GameWIP::Logger::Detail::Core
 
         const std::size_t ticket = loggerState().enqueueTicket.fetch_add(1, std::memory_order_acq_rel);
         QueueSlot &slot = loggerState().logRingView[ticket % capacity];
+
         waitForQueueSlot(slot, ticket);
 
         try
@@ -308,6 +319,7 @@ namespace GameWIP::Logger::Detail::Core
                 throw std::bad_alloc{};
             }
 #endif
+
             slot.skip = false;
             copyPendingEntryToQueueSlot(slot.entry, entry, outTruncated);
         }
@@ -320,6 +332,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         publishQueueSlot(slot, ticket, outNotifyWorker);
+
         return EnqueueStatus::Queued;
     }
 

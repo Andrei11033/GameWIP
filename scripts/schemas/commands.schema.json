@@ -23,18 +23,29 @@
     "bundles"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/action" } },
-    "menus": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/menu" } },
-    "defaultConfigurePreset": { "type": "string", "minLength": 1 },
-    "defaultBuildPreset": { "type": "string", "minLength": 1 },
-    "defaultTestPreset": { "type": "string", "minLength": 1 },
-    "defaultModule": { "type": "string", "minLength": 1 },
-    "defaultStressCount": { "type": "integer", "minimum": 1 },
-    "defaultStressParallel": { "type": "integer", "minimum": 1 },
+    "schemaVersion": { "const": 1, "description": "Command-registry contract version." },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Top-level project-helper actions and their safety metadata.",
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "menus": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Interactive menu groups and their visible action entries.",
+      "items": { "$ref": "#/$defs/menu" }
+    },
+    "defaultConfigurePreset": { "type": "string", "minLength": 1, "description": "Configure preset used when no explicit preset is supplied." },
+    "defaultBuildPreset": { "type": "string", "minLength": 1, "description": "Build preset used when no explicit preset is supplied." },
+    "defaultTestPreset": { "type": "string", "minLength": 1, "description": "CTest preset used when no explicit preset is supplied." },
+    "defaultModule": { "type": "string", "minLength": 1, "description": "Validation module used by module and stress commands when omitted." },
+    "defaultStressCount": { "type": "integer", "minimum": 1, "description": "Default number of stress runs." },
+    "defaultStressParallel": { "type": "integer", "minimum": 1, "description": "Default maximum number of concurrent stress workers." },
     "formatting": {
       "type": "object",
       "additionalProperties": false,
+      "description": "C/C++ formatting configuration and maintained source roots.",
       "required": ["configPath", "sourceRoots"],
       "properties": {
         "configPath": { "type": "string", "minLength": 1 },
@@ -44,6 +55,7 @@
     "unicode": {
       "type": "object",
       "additionalProperties": false,
+      "description": "Pinned Unicode input, generator, and generated-output locations.",
       "required": ["version", "generator", "generatedHeader", "ucdUrlTemplate", "requiredFiles"],
       "properties": {
         "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
@@ -53,11 +65,37 @@
         "requiredFiles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
       }
     },
-    "benchmarkProfiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/benchmarkProfile" } },
-    "manualWorkflows": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/manualWorkflow" } },
-    "modules": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
-    "projectCommands": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/projectCommand" } },
-    "bundles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/bundle" } }
+    "benchmarkProfiles": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Named benchmark argument and timing profiles.",
+      "items": { "$ref": "#/$defs/benchmarkProfile" }
+    },
+    "manualWorkflows": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Cataloged GitHub workflow definitions and safety metadata.",
+      "items": { "$ref": "#/$defs/manualWorkflow" }
+    },
+    "modules": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Validation module IDs accepted by module and stress commands.",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+    },
+    "projectCommands": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Executable-backed project commands and their build requirements.",
+      "items": { "$ref": "#/$defs/projectCommand" }
+    },
+    "bundles": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered local validation bundles composed from declared steps.",
+      "items": { "$ref": "#/$defs/bundle" }
+    }
   },
   "$defs": {
     "action": {

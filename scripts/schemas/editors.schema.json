@@ -6,8 +6,19 @@
   "required": ["schemaVersion", "default", "options"],
   "properties": {
     "schemaVersion": { "const": 1, "description": "Registry schema version." },
-    "default": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
-    "options": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/editor" } }
+    "default": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Editor IDs selected when setup runs without an explicit choice."
+    },
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Selectable editor definitions and their setup handlers.",
+      "items": { "$ref": "#/$defs/editor" }
+    }
   },
   "$defs": {
     "editor": {

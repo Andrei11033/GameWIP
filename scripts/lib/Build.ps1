@@ -1,5 +1,9 @@
 # GameWIP configure/build/project-command behavior.
 
+# ------------------------------------------------------------
+# Preset configuration and build operations
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Reset-GameWipPresetBuildTree

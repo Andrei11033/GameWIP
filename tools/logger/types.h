@@ -127,7 +127,7 @@ namespace GameWIP::Logger::Types
             Adjustment adjustments = Adjustment::None;     ///< Recoverable changes made by init().
             OutputMode requestedOutput = OutputMode::None; ///< Caller-requested output mode.
             OutputMode effectiveOutput = OutputMode::None; ///< Output mode actually left active.
-            IO::Types::Status outputSetupStatus;           ///< Direct File/output setup status.
+            IO::Types::Status outputSetupStatus;           ///< File/timestamp setup failure preserved when startup can recover.
         };
     } // namespace Init
 

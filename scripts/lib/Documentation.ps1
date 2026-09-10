@@ -1,5 +1,9 @@
 # GameWIP Documentation helper behavior. Dot-sourced by scripts/GameWIP.ps1.
 
+# ------------------------------------------------------------
+# Documentation and link validation
+# ------------------------------------------------------------
+
 function Invoke-GameWipMarkdownLink
 {
     $checker = Join-Path $RepositoryRoot '.github\scripts\check_markdown_links.py'

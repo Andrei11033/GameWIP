@@ -1,5 +1,9 @@
 # GameWIP Benchmarks helper behavior. Dot-sourced by scripts/GameWIP.ps1.
 
+# ------------------------------------------------------------
+# Benchmark execution and result conversion
+# ------------------------------------------------------------
+
 function Resolve-GameWipBenchmarkOutputPath
 {
     param(

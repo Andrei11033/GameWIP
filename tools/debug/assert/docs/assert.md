@@ -63,8 +63,8 @@ result. Interactive assertions add Break, Abort, Ignore Once, and Always Ignore 
 The public C++ include is `debug/assert/assert.h`. The installed CMake target is `GameWIP::Assert`; source-tree targets may link `Assert`.
 
 When failure-reporting families can be enabled, Assert builds a shared runtime
-and uses Logger privately for diagnostic delivery. With both families forced
-off, it becomes an interface-only target and has no runtime dependency.
+and uses Logger privately for diagnostic delivery and Unicode for popup text conversion. With both families forced off, it becomes an interface-only
+target and has no runtime dependency.
 
 Assert owns assertion policy and platform failure presentation. Logger owns log formatting, sinks, queueing, and report delivery. Engine runtime
 policy, game recovery decisions, validation runner orchestration, and platform backend implementation details belong outside the Assert public manual

@@ -1,7 +1,8 @@
 /// @file assert_test_hooks.h
 /// @brief Source-tree-only test hooks for deterministic Assert validation.
 /// @details This header is excluded from installed public file sets. Hooks are enabled only when
-/// `ASSERT_INTERNAL_TEST_HOOKS` is `1`.
+/// `ASSERT_INTERNAL_TEST_HOOKS` is `1`. Overrides are process-wide; tests must serialize scenarios
+/// that change them and reset state after each scenario.
 
 #pragma once
 
@@ -75,8 +76,10 @@ namespace GameWIP::Debug::Assert::Detail::TestHooks
     /// @brief Consumes the one-shot fallback action-dialog failure hook.
     GAMEWIP_ASSERT_EXPORT bool consumeNextFallbackActionDialogFailure() noexcept;
     /// @brief Reads the debugger-attached override when one is active.
+    /// @return True when attached was assigned; false leaves the output unchanged.
     GAMEWIP_ASSERT_EXPORT bool debuggerAttachedOverride(bool &attached) noexcept;
     /// @brief Reads the popup-suppressed override when one is active.
+    /// @return True when suppressed was assigned; false leaves the output unchanged.
     GAMEWIP_ASSERT_EXPORT bool popupSuppressedOverride(bool &suppressed) noexcept;
 } // namespace GameWIP::Debug::Assert::Detail::TestHooks
 #endif

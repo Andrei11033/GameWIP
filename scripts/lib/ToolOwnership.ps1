@@ -1,5 +1,9 @@
 # GameWIP managed-tool ownership and persistent root policy.
 
+# ------------------------------------------------------------
+# Ownership markers and root validation
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Copy-GameWipValue

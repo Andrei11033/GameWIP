@@ -1,5 +1,9 @@
 # GameWIP Git operations. Query, planning, consent, and mutation are kept separate.
 
+# ------------------------------------------------------------
+# Repository queries and status
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Assert-GameWipGitRepository

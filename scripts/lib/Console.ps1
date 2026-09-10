@@ -1,5 +1,9 @@
 # GameWIP console input and rendering primitives. No operation dispatch belongs here.
 
+# ------------------------------------------------------------
+# Output rendering and input primitives
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipSemanticColor
@@ -219,7 +223,8 @@ function Read-GameWipIndexedChoiceResult
     param(
         [Parameter(Mandatory = $true)][string]$Prompt,
         [Parameter(Mandatory = $true)][string[]]$Choices,
-        [string]$Default
+        [string]$Default,
+        [switch]$AllowMultiple
     )
     Assert-GameWipInteractiveConsole -Purpose $Prompt
     if ($Choices.Count -eq 0)
@@ -251,12 +256,40 @@ function Read-GameWipIndexedChoiceResult
         {
             return New-GameWipChoiceResult -Status Selected -Value $Default
         }
+        if ($AllowMultiple)
+        {
+            $parts = @($answer -split '[,\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            $numbers = [System.Collections.Generic.List[int]]::new()
+            $valid = $parts.Count -gt 0
+            foreach ($part in $parts)
+            {
+                $number = 0
+                if (-not [int]::TryParse($part, [ref]$number) -or $number -lt 1 -or $number -gt $Choices.Count -or $numbers.Contains($number))
+                {
+                    $valid = $false
+                    break
+                }
+                $numbers.Add($number)
+            }
+            if ($valid)
+            {
+                return New-GameWipChoiceResult -Status Selected -Value @($numbers | ForEach-Object { $Choices[$_ - 1] })
+            }
+        }
         $number = 0
         if ([int]::TryParse($answer, [ref]$number) -and $number -ge 1 -and $number -le $Choices.Count)
         {
             return New-GameWipChoiceResult -Status Selected -Value $Choices[($number - 1)]
         }
-        Write-GameWipHost 'Enter one of the listed numbers or Q.' -ForegroundColor Yellow
+        $message = if ($AllowMultiple)
+        {
+            'Enter one or more listed numbers separated by commas, or Q.'
+        }
+        else
+        {
+            'Enter one of the listed numbers or Q.'
+        }
+        Write-GameWipHost $message -ForegroundColor Yellow
     }
 }
 

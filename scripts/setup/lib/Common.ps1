@@ -1,5 +1,9 @@
 # Shared setup state and presentation helpers. Native execution is owned by scripts/lib/Process.ps1.
 
+# ------------------------------------------------------------
+# Setup state and ownership metadata
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipSetupState

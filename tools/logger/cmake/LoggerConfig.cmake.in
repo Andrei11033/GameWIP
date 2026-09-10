@@ -1,6 +1,8 @@
+# The installed package imports Logger and resolves targets referenced by LoggerTargets.cmake.
 @PACKAGE_INIT@
 
 include(CMakeFindDependencyMacro)
+
 find_dependency(IO @PROJECT_VERSION@ EXACT CONFIG)
 find_dependency(Terminal @PROJECT_VERSION@ EXACT CONFIG)
 

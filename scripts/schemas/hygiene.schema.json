@@ -16,24 +16,27 @@
     "explanations"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "defaultProfile": { "$ref": "#/$defs/id" },
-    "analyzePreset": { "$ref": "#/$defs/id" },
-    "sourceFilter": { "type": "string", "minLength": 1 },
-    "headerFilter": { "type": "string", "minLength": 1 },
-    "excludedHeaderFilter": { "type": "string", "minLength": 1 },
+    "schemaVersion": { "const": 1, "description": "Optional-hygiene registry contract version." },
+    "defaultProfile": { "$ref": "#/$defs/id", "description": "Profile selected when quality hygiene runs without an explicit selector." },
+    "analyzePreset": { "$ref": "#/$defs/id", "description": "CMake preset that provides the compile database for analysis checks." },
+    "sourceFilter": { "type": "string", "minLength": 1, "description": "Repository-relative source filter used when selecting analysis inputs." },
+    "headerFilter": { "type": "string", "minLength": 1, "description": "Repository-relative header filter used when selecting analysis inputs." },
+    "excludedHeaderFilter": { "type": "string", "minLength": 1, "description": "Filter for headers excluded from optional analysis." },
     "checks": {
       "type": "array",
       "minItems": 1,
+      "description": "Optional checks and the providers that can execute them.",
       "items": { "$ref": "#/$defs/check" }
     },
     "profiles": {
       "type": "array",
       "minItems": 1,
+      "description": "Named check collections exposed by the hygiene command.",
       "items": { "$ref": "#/$defs/profile" }
     },
     "explanations": {
       "type": "array",
+      "description": "Maintainer-reviewed explanations for optional checks and their confidence.",
       "items": { "$ref": "#/$defs/explanation" }
     }
   },
@@ -47,7 +50,7 @@
         "id": { "$ref": "#/$defs/id" },
         "title": { "type": "string", "minLength": 1 },
         "description": { "type": "string", "minLength": 1 },
-        "provider": { "enum": ["clang-tidy", "future"] },
+        "provider": { "enum": ["clang-tidy", "compiler-warning", "future"] },
         "availability": { "enum": ["available", "planned"] },
         "confidence": { "enum": ["PROVEN", "LIKELY", "INFORMATION"] },
         "rules": {
@@ -59,6 +62,13 @@
         "options": {
           "type": "object",
           "additionalProperties": { "type": "string" }
+        },
+        "flags": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Compiler flags passed by a compiler-warning provider."
         }
       }
     },

@@ -1,5 +1,9 @@
 # GameWIP C/C++ formatting policy and focused changed-file support.
 
+# ------------------------------------------------------------
+# Formatting scope and execution
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipFormatFile

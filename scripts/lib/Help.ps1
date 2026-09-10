@@ -1,5 +1,9 @@
 # GameWIP help, catalog, and structured diagnostic presentation.
 
+# ------------------------------------------------------------
+# Catalog and diagnostic presentation
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Show-GameWipProjectCatalog

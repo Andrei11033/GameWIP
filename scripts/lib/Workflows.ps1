@@ -1,5 +1,9 @@
 # GameWIP guarded GitHub workflow discovery, dispatch, and verification.
 
+# ------------------------------------------------------------
+# Workflow catalog and GitHub queries
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Get-GameWipWorkflow

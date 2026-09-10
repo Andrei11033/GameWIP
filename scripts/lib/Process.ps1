@@ -1,5 +1,9 @@
 # GameWIP native-process execution. Process ownership and logs are centralized here.
 
+# ------------------------------------------------------------
+# Command-line and process launch preparation
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 # ------------------------------------------------------------
@@ -384,6 +388,8 @@ function Invoke-GameWipProcess
     }
     finally
     {
+        # Restore process-wide environment state before removing the process from
+        # the operation registry, so cancellation cleanup sees a coherent state.
         $clock.Stop()
         foreach ($entry in $previousEnvironment.GetEnumerator())
         {
@@ -401,6 +407,8 @@ function Invoke-GameWipProcess
         }
     }
 
+    # Stream live output first, then build one retained combined log for the
+    # result object and operation receipt.
     if ($OutputMode -eq 'Stream')
     {
         Write-GameWipProcessNewOutput -Path $stdoutPath -LineCount ([ref]$stdoutLineCount)
@@ -449,6 +457,7 @@ function Invoke-GameWipProcess
         }
     }
 
+    # Temporary streams are no longer needed once the retained result is built.
     Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
     $resultLogPath = $LogPath
     if ($ephemeralLog)

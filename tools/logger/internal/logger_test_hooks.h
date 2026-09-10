@@ -69,18 +69,27 @@ namespace GameWIP::Logger::TestHooks
     GAMEWIP_LOGGER_EXPORT void releaseFinalProducerLeavePause() noexcept;
 
     /// @brief Arms a worker pause after dequeue and before delivery-time filtering.
+    /// @warning Test-only API. Use to mutate filters while an already-accepted record is paused.
     GAMEWIP_LOGGER_EXPORT void armWorkerDeliveryPause() noexcept;
+
     /// @brief Waits until the worker reaches the delivery pause.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
     GAMEWIP_LOGGER_EXPORT void waitForWorkerDeliveryPause() noexcept;
+
     /// @brief Releases the worker delivery pause.
+    /// @warning Test-only API.
     GAMEWIP_LOGGER_EXPORT void releaseWorkerDeliveryPause() noexcept;
 
     /// @brief Holds the lifecycle mutex until releaseLifecycleLockPause() is called.
-    /// @note Call this blocking function from a dedicated test thread.
+    /// @warning Test-only API. Call this blocking function from a dedicated test thread.
     GAMEWIP_LOGGER_EXPORT void holdLifecycleLockPause() noexcept;
+
     /// @brief Waits until holdLifecycleLockPause() owns the lifecycle mutex.
+    /// @warning Test-only API. Call only from an isolated child-process scenario.
     GAMEWIP_LOGGER_EXPORT void waitForLifecycleLockPause() noexcept;
+
     /// @brief Releases a lifecycle-mutex test pause.
+    /// @warning Test-only API.
     GAMEWIP_LOGGER_EXPORT void releaseLifecycleLockPause() noexcept;
 
 } // namespace GameWIP::Logger::TestHooks

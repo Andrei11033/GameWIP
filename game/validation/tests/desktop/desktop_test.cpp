@@ -239,7 +239,10 @@ namespace
         }
     }
 
-#include "validation/tests/desktop/desktop_manual_tests.inl"
+#include "validation/tests/desktop/desktop_manual_support.inl"
+#include "validation/tests/desktop/desktop_manual_window_tests.inl"
+#include "validation/tests/desktop/desktop_manual_transfer_tests.inl"
+#include "validation/tests/desktop/desktop_manual_display_tests.inl"
 #include "validation/tests/desktop/desktop_lifecycle_tests.inl"
 #include "validation/tests/desktop/desktop_event_tests.inl"
 #include "validation/tests/desktop/desktop_renderer_tests.inl"

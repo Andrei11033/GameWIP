@@ -5,6 +5,10 @@
 
 namespace GameWIP::TestSupport
 {
+    // ------------------------------------------------------------
+    // Start gate
+    // ------------------------------------------------------------
+
     void StartGate::wait()
     {
         std::unique_lock lock(mutex_);
@@ -24,6 +28,10 @@ namespace GameWIP::TestSupport
         }
         condition_.notify_all();
     }
+
+    // ------------------------------------------------------------
+    // Cooperative stop flag
+    // ------------------------------------------------------------
 
     void StopFlag::requestStop() noexcept
     {

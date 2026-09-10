@@ -8,6 +8,7 @@
 
   <description>Enable Common Controls v6 and Per-Monitor-V2 DPI awareness for GameWIP executables.</description>
 
+  <!-- DPI awareness is process-wide; attach this resource to the executable. -->
   <application xmlns="urn:schemas-microsoft-com:asm.v3">
     <windowsSettings>
       <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
@@ -15,6 +16,7 @@
     </windowsSettings>
   </application>
 
+  <!-- Select the Common Controls generation used by the preferred interactive dialog. -->
   <dependency>
     <dependentAssembly>
       <assemblyIdentity

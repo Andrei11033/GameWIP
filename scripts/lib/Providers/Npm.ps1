@@ -1,5 +1,9 @@
 # GameWIP npm tool provider.
 
+# ------------------------------------------------------------
+# npm discovery and installation
+# ------------------------------------------------------------
+
 function Get-GameWipNpmPackageLatestVersion
 {
     param([Parameter(Mandatory = $true)][string]$Package)

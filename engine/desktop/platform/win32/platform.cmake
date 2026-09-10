@@ -1,4 +1,5 @@
 # Own Desktop's Win32 sources, native API, libraries, resources, and documentation inputs.
+# The backend is attached only after the portable target has declared its public contract.
 set(DESKTOP_INTERNAL_APPLICATION_MANIFEST "${CMAKE_CURRENT_LIST_DIR}/../../cmake/desktop_application.manifest")
 set(DESKTOP_INTERNAL_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/desktop_application.rc")
 configure_file("${CMAKE_CURRENT_LIST_DIR}/../../cmake/desktop_application.rc.in" "${DESKTOP_INTERNAL_APPLICATION_RC}" @ONLY)

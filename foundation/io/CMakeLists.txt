@@ -1,8 +1,14 @@
+# IO provides the portable stream contracts and transfer algorithms used by
+# higher foundation layers.
 include(GNUInstallDirs)
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
+# ------------------------------------------------------------
+# Target and source ownership
+# ------------------------------------------------------------
 
 option(IO_ENABLE_TEST_HOOKS "Enable IO internal test hooks" OFF)
 
@@ -24,6 +30,10 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/io.h"
 )
 
+# ------------------------------------------------------------
+# Compile, test-hook, and dependency contracts
+# ------------------------------------------------------------
+
 target_include_directories(IO PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(IO PUBLIC cxx_std_23)
@@ -36,6 +46,10 @@ target_compile_definitions(
 target_link_libraries(IO PRIVATE Unicode)
 
 set_target_properties(IO PROPERTIES POSITION_INDEPENDENT_CODE ON ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+# ------------------------------------------------------------
+# Documentation and installation
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # IO owns its public API docs and Markdown manual pages. The root docs

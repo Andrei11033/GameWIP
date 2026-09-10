@@ -1,5 +1,9 @@
 # GameWIP repository quality orchestration. Checks return evidence; presentation is aggregated here.
 
+# ------------------------------------------------------------
+# Quality scope and policy selection
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 # ------------------------------------------------------------

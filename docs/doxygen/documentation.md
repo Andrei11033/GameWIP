@@ -336,18 +336,51 @@ installed-consumer validation, and do not present them as independent consumer A
 
 ## Source comments
 
-Every maintained `.h`, `.h.in`, `.cpp`, and `.inl` file must start with a
-Doxygen `@file` and `@brief` that describe the file purpose. Provisional or
-preserved source outside the supported documented surface must gain the same
-ownership block before that surface is promoted.
+File ownership rules:
 
-Public headers must document public API and ABI contracts in enough detail for
-generated reference pages, IntelliSense, maintainers, and readers. Internal
-headers and implementation files must document internal helpers, ownership,
-locking, state transitions, platform behavior, fallback behavior, units, and
-performance constraints. Internal helper comments may be shorter than public API
-comments, but they must still explain what the helper does and why it exists
-when that is not obvious from the surrounding code.
+- Every maintained `.h`, `.h.in`, `.cpp`, and `.inl` file must start with a
+  Doxygen `@file` and `@brief` that describe the file purpose.
+- Provisional or preserved source outside the supported documented surface must
+  gain the same ownership block before that surface is promoted.
+- Public headers must document public API and ABI contracts for generated
+  reference pages, IntelliSense, maintainers, and readers.
+- Internal headers and implementation files must document internal helpers,
+  ownership, locking, state transitions, platform behavior, fallback behavior,
+  units, and performance constraints.
+
+Statement comments must explain purpose and intent, not narrate nearby syntax.
+Use them for reasons a maintainer would otherwise have to rediscover:
+
+- Ordering, lifetime, ownership, or memory ordering.
+- Compatibility, platform behavior, encoding, or units.
+- Fallback behavior, performance cost, or a tradeoff between valid designs.
+- Subtle behavior captured by tests, issue history, or backend documentation.
+
+Do not comment obvious assignments, getters, local variables, or direct calls.
+If a statement needs prose to explain what it does, rewrite it or extract a
+named helper first.
+
+When a decision affects observable behavior, keep the source comment focused on
+the implementation reason. Document the external contract in the owning manual
+or API docs.
+
+Internal helper comments may be shorter than public API comments, but they must
+still explain the helper's purpose, contract, and reason for existing when that
+is not obvious from nearby code.
+
+Inside non-trivial functions, use blank lines as visual paragraphs between
+phases of work:
+
+- Validation.
+- Input preparation.
+- Main operation.
+- Fallback or error handling.
+- State publication.
+- Cleanup.
+
+This spacing is for function-body flow. Use section separators only for larger
+file-level groups. Do not pack unrelated steps together merely because the
+formatter permits it, and do not add a blank line after every statement.
 
 Other maintained first-party languages use their own native documentation
 conventions rather than mechanically copying C++ comments:
@@ -360,7 +393,9 @@ conventions rather than mechanically copying C++ comments:
   non-obvious command contracts, side effects, or failure behavior near the
   owning function.
 - Shared CMake modules identify purpose and document helper inputs, side effects,
-  and failure conditions when those are not obvious from the function name.
+  target ownership, generated files, source-tree versus installed behavior,
+  platform scope, dependency visibility, and failure conditions when those are
+  not obvious from the function name.
 - YAML comments explain only non-obvious policy or security constraints.
 - JSON uses its schema and owning documentation; do not invent comment-like
   fields merely to carry prose.
@@ -370,8 +405,6 @@ conventions rather than mechanically copying C++ comments:
 These expectations are review/documentation standards. Do not add a generic CI
 rule merely to require boilerplate header comments; automate drift when it
 protects a meaningful contract.
-
-Do not comment obvious assignments, getters, or local variables.
 
 Use section separators to give long maintained source files a short
 responsibility map:
@@ -384,8 +417,17 @@ responsibility map:
 
 Use exactly 60 hyphens, the language's ordinary line-comment marker, and a
 concise noun phrase. Public headers group consumer concerns; implementations
-group mechanisms; validation sources group suites, fixtures, and runners. Use
-the same domain terms across layers when they describe the same responsibility.
+group mechanisms; validation sources group suites, fixtures, and runners; CMake
+files group configuration, target contracts, dependencies, generated artifacts,
+installation, and documentation registration. Use the same domain terms across
+layers when they describe the same responsibility.
+
+Place a separator where it helps a new reader scan the file before reading the
+details. A section should contain a coherent set of related declarations or
+steps, not a single convenience label. Within a section, order code so policy,
+state, helpers, and public entry points appear in the same sequence a maintainer
+needs to understand the behavior. Prefer small helper functions with meaningful
+names over long blocks that require narration.
 
 Do not add separators to small or single-purpose files, around individual
 symbols or namespaces, or to generated, vendored, or comment-free structured

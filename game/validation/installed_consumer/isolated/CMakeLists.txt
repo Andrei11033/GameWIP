@@ -1,3 +1,4 @@
+# Each isolated consumer intentionally calls find_package only once to test transitive package discovery.
 cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 
 project(GameWIPIsolatedConsumer LANGUAGES CXX)
@@ -16,6 +17,7 @@ set(supported_packages
     Assert
     TestSupport
 )
+# Reject misspelled package selectors before configuring any target sources.
 if(NOT GAMEWIP_CONSUMER_PACKAGE IN_LIST supported_packages)
     message(FATAL_ERROR "GAMEWIP_CONSUMER_PACKAGE must be one of: ${supported_packages}.")
 endif()
@@ -25,6 +27,7 @@ endif()
 find_package(${GAMEWIP_CONSUMER_PACKAGE} ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 
 add_executable(GameWIPIsolatedConsumer main.cpp)
+# Add focused header probes only for the selected package so every installed target is checked independently.
 if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
     target_sources(GameWIPIsolatedConsumer PRIVATE logger_config.cpp logger_macros.cpp logger_types.cpp)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Terminal")

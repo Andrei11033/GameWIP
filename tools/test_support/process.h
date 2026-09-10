@@ -63,6 +63,10 @@ namespace GameWIP::TestSupport
         };
     } // namespace Types::Process
 
+    // ------------------------------------------------------------
+    // Process environment guards
+    // ------------------------------------------------------------
+
     /// @brief Temporarily sets a process environment variable and restores its prior state on destruction.
     class ScopedEnvironmentVariable
     {
@@ -109,6 +113,10 @@ namespace GameWIP::TestSupport
         std::optional<std::string> previousValue_; ///< Captured prior value, or nullopt when absent.
         Types::InfrastructureStatus status_;       ///< Construction status.
     };
+
+    // ------------------------------------------------------------
+    // Child process execution
+    // ------------------------------------------------------------
 
     /// @brief Launches one process directly without a shell and waits for its process tree to finish or be terminated.
     /// @param options Launch path, UTF-8 arguments/environment, timeout, and byte-capture settings.

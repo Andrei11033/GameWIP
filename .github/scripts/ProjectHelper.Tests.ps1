@@ -126,6 +126,15 @@ if ($null -eq $publicHeaderExplanation -or $publicHeaderExplanation.Id -ne 'publ
 {
     throw 'Public-header isolation findings are not centrally explained.'
 }
+$compilerWarningCheck = Get-GameWipHygieneCheck -Id unreachable-code
+$compilerWarningRule = @{ '-Wunreachable-code' = $compilerWarningCheck }
+$compilerWarningFinding = @(ConvertFrom-GameWipClangTidyFinding -Lines @(
+        'D:/GameWIP/game/main.cpp:12:5: warning: code will never be executed [-Wunreachable-code]'
+    ) -RuleLookup $compilerWarningRule)
+if ($compilerWarningFinding.Count -ne 1 -or $compilerWarningFinding[0].evidence -ne "compiler warning '-Wunreachable-code'")
+{
+    throw 'Compiler-warning hygiene diagnostics were not normalized correctly.'
+}
 $savedHygieneConfig = $Script:HygieneConfig
 try
 {

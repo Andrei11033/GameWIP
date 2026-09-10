@@ -1,5 +1,9 @@
 # GameWIP project-helper executable entry point. Library/bootstrap code lives under scripts/lib/.
 
+# ------------------------------------------------------------
+# Command-line contract and bootstrap
+# ------------------------------------------------------------
+
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
@@ -51,6 +55,10 @@ if ($Quiet)
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 
+# ------------------------------------------------------------
+# Early command validation and common exits
+# ------------------------------------------------------------
+
 if ($Action -in @('--help', '-h', '-?'))
 {
     $Action = 'help'
@@ -99,8 +107,14 @@ $result = Invoke-GameWipOperation `
     -SuppressReceipt:$Quiet `
     -SuppressOutput:$Quiet `
     -ScriptBlock {
+    # Dispatch remains in the entry point so the command-line contract is visible
+    # in one place; feature behavior belongs to the focused library functions.
     switch ($Action)
     {
+        # ------------------------------------------------------------
+        # Navigation and repository operations
+        # ------------------------------------------------------------
+
         'doctor'
         {
             Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
@@ -293,6 +307,11 @@ $result = Invoke-GameWipOperation `
         {
             Invoke-GameWipMarkdownLink
         }
+
+        # ------------------------------------------------------------
+        # Configure, build, and validation operations
+        # ------------------------------------------------------------
+
         'configure'
         {
             $preset = if ([string]::IsNullOrWhiteSpace($Command))
@@ -421,6 +440,11 @@ $result = Invoke-GameWipOperation `
             }
             Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -Fresh.', 'Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
         }
+
+        # ------------------------------------------------------------
+        # Documentation, analysis, and retained-run operations
+        # ------------------------------------------------------------
+
         'docs'
         {
             Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body { Invoke-GameWipConfigurePreset -Name docs; Invoke-GameWipBuildPreset -Name docs } | Out-Null

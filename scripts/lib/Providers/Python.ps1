@@ -1,5 +1,9 @@
 # GameWIP Python tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
 
+# ------------------------------------------------------------
+# Python environment and package operations
+# ------------------------------------------------------------
+
 function Get-GameWipPythonToolLatestVersion
 {
     param([hashtable]$Tool)

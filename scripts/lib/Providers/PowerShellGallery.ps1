@@ -1,14 +1,43 @@
 # GameWIP PowerShell Gallery tool provider.
 
+# ------------------------------------------------------------
+# Gallery discovery and installation
+# ------------------------------------------------------------
+
+function Get-GameWipPowerShellGalleryVersions
+{
+    param([Parameter(Mandatory = $true)][string]$Package)
+
+    # PowerShellGet depends on the host's PackageManagement installation, which
+    # may be unavailable even when the gallery itself is reachable. The v2 feed
+    # exposes the same version metadata without requiring that provider.
+    $uri = "https://www.powershellgallery.com/api/v2/FindPackagesById()?id='$Package'"
+    $response = Invoke-GameWipHttpRead -Uri $uri -Headers @{ Accept = 'application/atom+xml' }
+    if ($response.State -ne 'resolved')
+    {
+        throw "PowerShell Gallery metadata request failed: $($response.Reason)"
+    }
+
+    $feed = [xml]$response.Value.Content
+    return @(
+        $feed.SelectNodes("//*[local-name()='entry']") |
+            ForEach-Object { [string]$_.SelectSingleNode(".//*[local-name()='Version']").InnerText } |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+            Sort-Object { [version]$_ } -Descending -Unique
+    )
+}
+
 function Get-GameWipPowerShellGalleryToolLatestVersion
 {
     param([hashtable]$Tool)
-    $query = Get-GameWipToolLatestQuery -Tool $Tool
-    if ($query.State -eq 'resolved')
+    try
     {
-        return [string]$query.Version
+        return [string](@(Get-GameWipPowerShellGalleryVersions -Package $Tool.provider.package) | Select-Object -First 1)
     }
-    return $null
+    catch
+    {
+        return $null
+    }
 }
 
 function Install-GameWipPowerShellGalleryTool
@@ -105,6 +134,8 @@ function Install-GameWipPowerShellGalleryTool
     }
     finally
     {
+        # Roll back the previous module when replacement or verification fails;
+        # empty staging parents are safe to remove after that decision.
         if (-not [string]::IsNullOrWhiteSpace([string]$staging) -and (Test-Path -LiteralPath $staging))
         {
             Invoke-GameWipOwnedTreeRemoval -Path $staging -OwnedRoot $Script:OperationContext.Temp -SuppressMutationTracking

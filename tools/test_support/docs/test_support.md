@@ -68,7 +68,7 @@ class and namespace indexes contain every active helper and passive type.
 
 TestSupport is installed as the static target `GameWIP::TestSupport`. It
 privately depends on foundational Unicode to implement actual UTF-8 text
-semantics, but does not depend on Logger, Assert, IO, FileSystem, Window,
+semantics, but does not depend on Logger, Assert, IO, FileSystem, Desktop,
 Terminal, engine systems, or other higher-level GameWIP libraries. Its public
 status/result model is locally owned, and its public headers do not expose
 Unicode types.

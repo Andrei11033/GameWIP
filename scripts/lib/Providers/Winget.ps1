@@ -1,5 +1,9 @@
 # GameWIP WinGet tool provider.
 
+# ------------------------------------------------------------
+# WinGet discovery and installation
+# ------------------------------------------------------------
+
 function Test-GameWipWingetNoUpdateExitCode
 {
     param([Parameter(Mandatory = $true)][int]$ExitCode); return $ExitCode -eq -1978335189

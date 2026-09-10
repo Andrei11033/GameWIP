@@ -1,4 +1,5 @@
+// Executable resource template; CMake substitutes the source-tree or installed manifest path.
 #include <winuser.h>
 
-// This manifest also establishes the Per-Monitor-V2 contract required by Window.
+// This manifest also establishes the Per-Monitor-V2 contract required by Desktop.
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "@ASSERT_INTERNAL_COMMON_CONTROLS_MANIFEST@"

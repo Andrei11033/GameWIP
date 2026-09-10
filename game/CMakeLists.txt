@@ -1,4 +1,5 @@
 if(GAMEWIP_BUILD_GAME)
+    # Generate the build identity before compiling the executable that embeds it.
     add_custom_target(
         GameWIPVersionHeader
         COMMAND
@@ -12,6 +13,7 @@ if(GAMEWIP_BUILD_GAME)
     add_executable(GameWIP main.cpp runtime/game.cpp)
     add_dependencies(GameWIP GameWIPVersionHeader)
 
+    # Keep executable-only compile settings and generated include paths local to GameWIP.
     target_compile_features(GameWIP PRIVATE cxx_std_23)
     target_compile_definitions(
         GameWIP
@@ -22,6 +24,7 @@ if(GAMEWIP_BUILD_GAME)
     )
     target_include_directories(GameWIP PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}/generated")
 
+    # Tracy is optional; the runtime and validation targets remain usable without it.
     if(GAMEWIP_ENABLE_TRACY)
         target_link_libraries(GameWIP PRIVATE Tracy::TracyClient)
     endif()
@@ -46,9 +49,11 @@ if(GAMEWIP_BUILD_GAME)
 
     set_target_properties(GameWIP PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 
+    # Package the shared-library runtime beside the executable for local runs and tests.
     gamewip_copy_runtime_dependencies(GameWIP)
 
     if(GAMEWIP_BUILD_TESTS)
+        # Utility invocations are tested independently so metadata checks do not start the runtime.
         add_test(
             NAME validation.game.version
             COMMAND
@@ -61,6 +66,7 @@ if(GAMEWIP_BUILD_GAME)
     endif()
 endif()
 
+# Validation modules are object libraries shared by standalone and startup runners.
 if(GAMEWIP_TESTS_REQUIRED OR GAMEWIP_BENCHMARKS_REQUIRED)
     add_subdirectory(validation)
 endif()

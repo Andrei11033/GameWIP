@@ -7,7 +7,8 @@ Inspect those values first, then use the matching case below.
 ## Init succeeded but File is unavailable
 
 Inspect `Types::Init::Result::requestedOutput`, `effectiveOutput`, and `outputSetupStatus`. Successful Console fallback keeps overall `status`
-successful while preserving the File/setup failure directly.
+successful while preserving the File/setup failure directly. If File remains effective but `outputSetupStatus` failed, inspect `getHealth()` for a
+degraded setup such as timestamp conversion failure.
 
 ## Logger became degraded
 

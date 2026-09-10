@@ -1,5 +1,9 @@
 # GameWIP setup documentation build and warning-log verification.
 
+# ------------------------------------------------------------
+# Documentation build orchestration
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Invoke-GameWipDocumentationBuild

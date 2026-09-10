@@ -1,5 +1,9 @@
 # GameWIP project-tool public surface and provider-independent helpers.
 
+# ------------------------------------------------------------
+# Registry and provider selection
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 foreach ($providerFile in @('Msys2.ps1', 'Npm.ps1', 'Python.ps1', 'PowerShellGallery.ps1', 'GitHubRelease.ps1', 'Winget.ps1', 'GitSubmodule.ps1', 'External.ps1'))

@@ -5,11 +5,31 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "excludePrefixes", "historicalPrefixes", "binaryExtensions", "policies"],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "excludePrefixes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-    "historicalPrefixes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
-    "binaryExtensions": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^\\." } },
-    "policies": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/policy" } }
+    "schemaVersion": { "const": 1, "description": "Quality-ownership contract version." },
+    "excludePrefixes": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Prefixes excluded from maintained-file ownership discovery.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "historicalPrefixes": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "Prefixes containing preserved historical files with reduced quality scope.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "binaryExtensions": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "File extensions treated as binary during generic checks.",
+      "items": { "type": "string", "pattern": "^\\." }
+    },
+    "policies": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Formatter and check ownership policies selected for maintained files.",
+      "items": { "$ref": "#/$defs/policy" }
+    }
   },
   "$defs": {
     "policy": {

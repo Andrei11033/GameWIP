@@ -1,5 +1,9 @@
 # GameWIP bounded read-only HTTP policy for metadata queries and downloads.
 
+# ------------------------------------------------------------
+# Retry and request helpers
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Test-GameWipTransientNetworkError
@@ -143,6 +147,9 @@ function Invoke-GameWipHttpRead
         try
         {
             Write-Verbose "HTTP read attempt $attempt/${MaxAttempts}: $Uri"
+
+            # File downloads use a temporary sibling so a failed transfer never
+            # leaves a partial destination behind.
             if (-not [string]::IsNullOrWhiteSpace($OutFile))
             {
                 $fullOutFile = [IO.Path]::GetFullPath($OutFile)
@@ -188,6 +195,8 @@ function Invoke-GameWipHttpRead
                     }
                 }
             }
+            # Metadata requests return parsed values; ordinary reads preserve the
+            # web response object for callers that need its headers or content.
             if ($Json)
             {
                 $value = Invoke-RestMethod -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSeconds

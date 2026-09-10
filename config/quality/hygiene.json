@@ -39,11 +39,12 @@
     {
       "id": "unreachable-code",
       "title": "Unreachable code",
-      "description": "Find control-flow paths that static analysis proves cannot execute.",
-      "provider": "clang-tidy",
+      "description": "Find control-flow paths that Clang's compiler warning proves cannot execute.",
+      "provider": "compiler-warning",
       "availability": "available",
       "confidence": "PROVEN",
-      "rules": ["clang-analyzer-deadcode.UnreachableCode"]
+      "rules": ["-Wunreachable-code"],
+      "flags": ["-Wunreachable-code"]
     },
     {
       "id": "internal-symbols",

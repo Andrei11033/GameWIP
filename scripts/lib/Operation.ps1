@@ -1,5 +1,9 @@
 # GameWIP operation lifecycle, cancellation, consent, events, and result contracts.
 
+# ------------------------------------------------------------
+# Operation lifecycle and result presentation
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 # ------------------------------------------------------------
@@ -571,6 +575,64 @@ function Show-GameWipOperationReceipt
     }
 }
 
+function New-GameWipOperationResult
+{
+    param(
+        [Parameter(Mandatory = $true)]$Context,
+        [Parameter(Mandatory = $true)][string]$Status,
+        [Parameter(Mandatory = $true)][System.Diagnostics.Stopwatch]$Clock,
+        $Failure,
+        $FinalizationFailure
+    )
+
+    $runRoot = if ($null -ne $Context.Run)
+    {
+        [string]$Context.Run.Root
+    }
+    else
+    {
+        ''
+    }
+
+    return [pscustomobject]@{
+        Status = $Status
+        MutationState = $Context.MutationState
+        DurationSeconds = [Math]::Round($Clock.Elapsed.TotalSeconds, 3)
+        RunRoot = $runRoot
+        Failure = $Failure
+        FinalizationFailure = $FinalizationFailure
+        Changes = @($Context.Changes)
+        Preserved = @($Context.Preserved)
+        Warnings = @($Context.Warnings)
+        NextActions = @($Context.NextActions)
+    }
+}
+
+function Show-GameWipOperationResult
+{
+    param(
+        [Parameter(Mandatory = $true)]$Result,
+        [switch]$SuppressReceipt
+    )
+
+    if ($Result.Status -eq 'failed' -and $null -ne $Result.Failure)
+    {
+        Show-GameWipActionFailure -ErrorRecord $Result.Failure
+    }
+    elseif ($Result.Status -eq 'cancelled')
+    {
+        Write-GameWipSemanticText -Object 'Operation cancelled.' -Semantic Warning
+    }
+    if ($null -ne $Result.FinalizationFailure)
+    {
+        Write-Warning "Operation finalization failed: $($Result.FinalizationFailure.Exception.Message)"
+    }
+    if (-not $SuppressReceipt)
+    {
+        Show-GameWipOperationReceipt -Result $Result
+    }
+}
+
 function Invoke-GameWipOperation
 {
     param(
@@ -605,6 +667,7 @@ function Invoke-GameWipOperation
 
     try
     {
+        # Acquire operation-wide resources before invoking the body.
         Enter-GameWipOperationLock
         Initialize-GameWipStorage
         $context.Run = Initialize-GameWipToolRun `
@@ -649,6 +712,8 @@ function Invoke-GameWipOperation
     }
     finally
     {
+        # Stop owned processes, remove temporary state, and persist the receipt
+        # even when the body fails or cancellation interrupts the pipeline.
         Stop-GameWipOwnedProcesses
 
         try
@@ -684,44 +749,15 @@ function Invoke-GameWipOperation
         Exit-GameWipOperationLock
     }
 
+    # Build and present one stable result after all finalization work is complete.
     $clock.Stop()
-    $runRoot = if ($null -ne $context.Run)
-    {
-        [string]$context.Run.Root
-    }
-    else
-    {
-        ''
-    }
-    $result = [pscustomobject]@{
-        Status = $status
-        MutationState = $context.MutationState
-        DurationSeconds = [Math]::Round($clock.Elapsed.TotalSeconds, 3)
-        RunRoot = $runRoot
-        Failure = $failure
-        FinalizationFailure = $finalizationFailure
-        Changes = @($context.Changes)
-        Preserved = @($context.Preserved)
-        Warnings = @($context.Warnings)
-        NextActions = @($context.NextActions)
-    }
-
-    if ($status -eq 'failed' -and $null -ne $failure)
-    {
-        Show-GameWipActionFailure -ErrorRecord $failure
-    }
-    elseif ($status -eq 'cancelled')
-    {
-        Write-GameWipSemanticText -Object 'Operation cancelled.' -Semantic Warning
-    }
-    if ($null -ne $finalizationFailure)
-    {
-        Write-Warning "Operation finalization failed: $($finalizationFailure.Exception.Message)"
-    }
-    if (-not $SuppressReceipt)
-    {
-        Show-GameWipOperationReceipt -Result $result
-    }
+    $result = New-GameWipOperationResult `
+        -Context $context `
+        -Status $status `
+        -Clock $clock `
+        -Failure $failure `
+        -FinalizationFailure $finalizationFailure
+    Show-GameWipOperationResult -Result $result -SuppressReceipt:$SuppressReceipt
 
     $Script:OperationContext = $null
     Remove-Variable -Name RunContext -Scope Script -ErrorAction SilentlyContinue

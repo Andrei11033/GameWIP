@@ -1,9 +1,15 @@
+# Desktop is a shared runtime so process-local native class registration,
+# Window identity, and dispatcher state remain coherent across module boundaries.
 include(GNUInstallDirs)
 include(GenerateExportHeader)
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
+# ------------------------------------------------------------
+# Configuration, generated exports, and target sources
+# ------------------------------------------------------------
 
 option(DESKTOP_ENABLE_TEST_HOOKS "Enable Desktop internal test hooks" OFF)
 
@@ -12,9 +18,10 @@ if(NOT COMMAND gamewip_target_platform_backend)
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
-# Desktop intentionally remains shared-only. Its process-local identities, native-class
-# registration, Window registry, and per-thread dispatcher registry must have one coherent
-# runtime instance when the library is consumed across executable/DLL boundaries.
+# ------------------------------------------------------------
+# Target and source ownership
+# ------------------------------------------------------------
+
 add_library(Desktop SHARED)
 add_library(GameWIP::Desktop ALIAS Desktop)
 
@@ -72,6 +79,10 @@ target_sources(
                 "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
 )
 
+# ------------------------------------------------------------
+# Compile, test-hook, and dependency contracts
+# ------------------------------------------------------------
+
 gamewip_target_platform_backend(TARGET Desktop ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(
@@ -100,6 +111,10 @@ set_target_properties(
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
+
+# ------------------------------------------------------------
+# Output, documentation, and installation
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(

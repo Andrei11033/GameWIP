@@ -1,5 +1,9 @@
 # GameWIP setup repository initialization, branch selection, update, submodule, and dev configuration.
 
+# ------------------------------------------------------------
+# Repository initialization and branch management
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Invoke-GameWipSetupGitQuery

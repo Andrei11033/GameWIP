@@ -1,6 +1,14 @@
 # GameWIP Tracy version matching, reproducible build cache, staging, and persistent tool installation.
 
+# ------------------------------------------------------------
+# Tracy discovery and reproducible staging
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
+
+# ------------------------------------------------------------
+# Installed tool discovery and verification
+# ------------------------------------------------------------
 
 function Get-GameWipTracyVersion
 {
@@ -128,6 +136,10 @@ function Copy-GameWipTracyRuntimeDependency
     }
 }
 
+# ------------------------------------------------------------
+# Compiler compatibility and reproducible build
+# ------------------------------------------------------------
+
 function Write-GameWipTracyCompilerCompatibilityHeader
 {
     param([Parameter(Mandatory = $true)][string]$SetupRoot)
@@ -205,6 +217,9 @@ function Invoke-GameWipTracyToolBuild
     Write-Host "  Build trees: $buildRoot"
     Write-Host "  Staging: $stageRoot"
     Write-Host "  Verified destination: $destination"
+
+    # Rebuild into operation-owned staging; the persistent installation changes
+    # only after every project output and runtime dependency has been verified.
     if (Test-Path -LiteralPath $stageRoot)
     {
         Invoke-GameWipOwnedTreeRemoval -Path $stageRoot -OwnedRoot $Script:OperationContext.Temp -SuppressMutationTracking
@@ -229,6 +244,7 @@ function Invoke-GameWipTracyToolBuild
     $previousGitConfigValue = $env:GIT_CONFIG_VALUE_0
     try
     {
+        # Configure and build each pinned Tracy project in dependency order.
         $env:CPM_SOURCE_CACHE = $cacheRoot
         $env:Path = @($ucrtBin, $previousPath) -join [IO.Path]::PathSeparator
         $env:GIT_CONFIG_COUNT = '1'

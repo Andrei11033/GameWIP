@@ -95,7 +95,10 @@ representative build graph.
 ```
 
 The standard profile runs the available Clang-backed unused-include,
-unused-declaration, dead-store, and unreachable-code checks. The deep profile
+unused-declaration, and dead-store checks, plus the Clang compiler's
+`-Wunreachable-code` warning. The compiler-warning provider reuses the analyze
+compilation database and performs syntax-only compilations, so it does not
+depend on a clang-tidy checker that may be removed between LLVM releases. The deep profile
 also lists checks whose cross-translation-unit, linker, dependency, ownership,
 or configuration-path providers are still planned. A planned provider is
 reported as information and never presented as an analysis result.
@@ -121,7 +124,9 @@ manual review because an include in the owning `.cpp` may be used by appended
 test content that include-cleaner does not attribute reliably.
 
 Hygiene rules and explanations live in `config/quality/hygiene.json` and are
-passed explicitly to the selected tools. Do not enable these rules globally in
+passed explicitly to the selected providers. Clang-tidy rules run through
+`run-clang-tidy`; compiler-warning rules run through the repository's small
+Python provider over the same compilation database. Do not enable these rules globally in
 `.clang-tidy` or add file-local include-cleaner suppressions merely to silence
 an advisory audit.
 

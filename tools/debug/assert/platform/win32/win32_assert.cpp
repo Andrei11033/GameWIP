@@ -5,6 +5,7 @@
 
 #include "debug/assert/internal/assert_platform.h"
 #include "base/platform/win32/dynamic_library.h"
+#include "unicode/unicode.h"
 
 #ifndef ASSERT_INTERNAL_TEST_HOOKS
 #define ASSERT_INTERNAL_TEST_HOOKS 0
@@ -34,6 +35,10 @@
 
 namespace
 {
+    // ------------------------------------------------------------
+    // Popup suppression and test state
+    // ------------------------------------------------------------
+
     /// @brief Returns whether real Assert UI is suppressed by test override or environment state.
     bool popupsSuppressed() noexcept
     {
@@ -44,6 +49,7 @@ namespace
             return overrideValue;
         }
 #endif
+        // Only the exact value "1" suppresses UI. Two code units hold that value and its terminator.
         wchar_t value[2]{};
         const DWORD size = GetEnvironmentVariableW(L"INTERNAL_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
         return size == 1 && value[0] == L'1';
@@ -57,6 +63,8 @@ namespace
     {
         std::atomic_bool nextActionDialogFailure{false};
         std::atomic_bool nextFallbackActionDialogFailure{false};
+        // Separate enable/value fields distinguish a forced false result from no override.
+        // Tests serialize changes; the atomics do not make reset a single transaction.
         std::atomic_bool debuggerAttachedOverrideEnabled{false};
         std::atomic_bool debuggerAttachedOverrideValue{false};
         std::atomic_bool popupSuppressedOverrideEnabled{false};
@@ -73,6 +81,10 @@ namespace
     }
 #endif
 
+    // ------------------------------------------------------------
+    // Popup text conversion
+    // ------------------------------------------------------------
+
     /// @brief Builds printable ASCII-only UTF-16 text when strict UTF-8 conversion fails.
     std::wstring asciiFallbackToWide(std::string_view text)
     {
@@ -83,6 +95,7 @@ namespace
             const unsigned char value = static_cast<unsigned char>(ch);
             output.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
         }
+
         return output;
     }
 
@@ -97,30 +110,36 @@ namespace
                 return {};
             }
 
+            // Oversized input keeps the fallback behavior from the older native conversion path.
             if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
             {
                 return asciiFallbackToWide(text);
             }
 
-            const int inputSize = static_cast<int>(text.size());
-            const int wideSize = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, nullptr, 0);
-            if (wideSize <= 0)
+            // Measurement validates the full input and reserves the exact native string capacity.
+            const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+            if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
             {
                 return asciiFallbackToWide(text);
             }
 
-            std::wstring output(static_cast<std::size_t>(wideSize), L'\0');
-            if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), inputSize, output.data(), wideSize) != wideSize)
+            // Unicode owns decoding and surrogate encoding. Copying scalar-sized results into
+            // wchar_t storage avoids aliasing char16_t memory or allocating an intermediate string.
+            std::wstring output;
+            output.reserve(measurement.requiredCodeUnits);
+            while (!text.empty())
             {
-                return asciiFallbackToWide(text);
-            }
-
-            for (wchar_t &value : output)
-            {
-                if (value == L'\0')
+                const auto decoded = GameWIP::Unicode::Utf8::decodeScalar(text);
+                const auto encoded = GameWIP::Unicode::Utf16::encodeScalar(decoded.scalar);
+                for (std::size_t index = 0; index < encoded.codeUnitCount; ++index)
                 {
-                    value = L'?';
+                    // Native dialogs stop at NUL; replacement keeps the following text visible.
+                    const char16_t codeUnit = encoded.codeUnits[index];
+                    output.push_back(codeUnit == u'\0' ? L'?' : static_cast<wchar_t>(codeUnit));
                 }
+
+                // Successful measurement guarantees complete scalars throughout the borrowed input.
+                text.remove_prefix(decoded.bytesConsumed);
             }
 
             return output;
@@ -150,10 +169,12 @@ namespace
         {
             return text.size();
         }
+
         if (maxCodeUnits > 0 && isHighSurrogate(text[maxCodeUnits - 1]) && isLowSurrogate(text[maxCodeUnits]))
         {
             return maxCodeUnits - 1;
         }
+
         return maxCodeUnits;
     }
 
@@ -172,14 +193,47 @@ namespace
             return;
         }
 
+        // The suffix overwrites discarded text in existing storage, so truncation needs no allocation.
         const std::size_t prefixLimit = maxCodeUnits - suffix.size();
         const std::size_t prefixSize = utf16PrefixBoundary(text, prefixLimit);
         for (std::size_t index = 0; index < suffix.size(); ++index)
         {
             text[prefixSize + index] = suffix[index];
         }
+
         text.resize(prefixSize + suffix.size());
     }
+
+    // Limits count UTF-16 code units in the displayed text, excluding the string terminator.
+    constexpr std::size_t kPopupTitleMaxCodeUnits = 127;
+    constexpr std::size_t kPopupMessageMaxCodeUnits = 1024;
+
+    /// @brief Owns the converted title and message throughout a synchronous native dialog call.
+    struct PopupText
+    {
+        std::wstring title;
+        std::wstring message;
+    };
+
+    /// @brief Converts and bounds both popup fields without separating Unicode scalars.
+    PopupText preparePopupText(std::string_view title, std::string_view message) noexcept
+    {
+        PopupText text{utf8ToWide(title), utf8ToWide(message)};
+        truncateWideForPopup(text.title, kPopupTitleMaxCodeUnits);
+        truncateWideForPopup(text.message, kPopupMessageMaxCodeUnits);
+
+        return text;
+    }
+
+    // ------------------------------------------------------------
+    // Dialog actions and fallback
+    // ------------------------------------------------------------
+
+    // Button construction and both mappings share these IDs to keep choices and results consistent.
+    constexpr int kBreakButtonId = 1001;
+    constexpr int kAbortButtonId = 1002;
+    constexpr int kIgnoreOnceButtonId = 1003;
+    constexpr int kAlwaysIgnoreButtonId = 1004;
 
     /// @brief Maps an Assert failure action to a stable TaskDialog custom-button id.
     int buttonIdForAction(FailureAction action) noexcept
@@ -187,16 +241,16 @@ namespace
         switch (action)
         {
         case FailureAction::Break:
-            return 1001;
+            return kBreakButtonId;
         case FailureAction::Abort:
-            return 1002;
+            return kAbortButtonId;
         case FailureAction::IgnoreOnce:
-            return 1003;
+            return kIgnoreOnceButtonId;
         case FailureAction::AlwaysIgnore:
-            return 1004;
+            return kAlwaysIgnoreButtonId;
         }
 
-        return 1002;
+        return kAbortButtonId;
     }
 
     /// @brief Maps TaskDialog output back to an Assert action with a safe fallback.
@@ -204,13 +258,13 @@ namespace
     {
         switch (buttonId)
         {
-        case 1001:
+        case kBreakButtonId:
             return FailureAction::Break;
-        case 1002:
+        case kAbortButtonId:
             return FailureAction::Abort;
-        case 1003:
+        case kIgnoreOnceButtonId:
             return FailureAction::IgnoreOnce;
-        case 1004:
+        case kAlwaysIgnoreButtonId:
             return FailureAction::AlwaysIgnore;
         default:
             return defaultAction;
@@ -234,6 +288,7 @@ namespace
             return nullptr;
         }
 
+        // The module remains loaded while the returned procedure pointer can be used.
         return GameWIP::Base::Win32::loadProcedure<TaskDialogIndirectFn>(commonControls, "TaskDialogIndirect");
     }
 
@@ -247,6 +302,7 @@ namespace
             return defaultAction;
         }
 #endif
+        // MessageBox uses fixed labels: Retry maps to Break, and Ignore affects this failure only.
         const int result = MessageBoxW(nullptr, message, title, MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_TASKMODAL | MB_SETFOREGROUND);
         switch (result)
         {
@@ -269,6 +325,8 @@ namespace GameWIP::Debug::Assert::TestHooks
     {
         assertTestHookState.nextActionDialogFailure.store(false, std::memory_order_release);
         assertTestHookState.nextFallbackActionDialogFailure.store(false, std::memory_order_release);
+
+        // Disabled overrides restore platform/environment queries; stored values return to defaults.
         assertTestHookState.debuggerAttachedOverrideEnabled.store(false, std::memory_order_release);
         assertTestHookState.debuggerAttachedOverrideValue.store(false, std::memory_order_release);
         assertTestHookState.popupSuppressedOverrideEnabled.store(false, std::memory_order_release);
@@ -287,6 +345,7 @@ namespace GameWIP::Debug::Assert::TestHooks
 
     void setDebuggerAttachedOverride(bool attached) noexcept
     {
+        // The replacement value is published before readers can observe the enabled override.
         assertTestHookState.debuggerAttachedOverrideValue.store(attached, std::memory_order_release);
         assertTestHookState.debuggerAttachedOverrideEnabled.store(true, std::memory_order_release);
     }
@@ -298,6 +357,7 @@ namespace GameWIP::Debug::Assert::TestHooks
 
     void setPopupSuppressedOverride(bool suppressed) noexcept
     {
+        // The replacement value is published before readers can observe the enabled override.
         assertTestHookState.popupSuppressedOverrideValue.store(suppressed, std::memory_order_release);
         assertTestHookState.popupSuppressedOverrideEnabled.store(true, std::memory_order_release);
     }
@@ -342,6 +402,7 @@ namespace GameWIP::Debug::Assert::Detail::TestHooks
         {
             return false;
         }
+
         attached = assertTestHookState.debuggerAttachedOverrideValue.load(std::memory_order_acquire);
         return true;
     }
@@ -352,6 +413,7 @@ namespace GameWIP::Debug::Assert::Detail::TestHooks
         {
             return false;
         }
+
         suppressed = assertTestHookState.popupSuppressedOverrideValue.load(std::memory_order_acquire);
         return true;
     }
@@ -367,25 +429,17 @@ namespace GameWIP::Debug::Assert::Detail::Platform
             return;
         }
 
-        std::wstring titleText = utf8ToWide(title);
-        std::wstring messageText = utf8ToWide(message);
-        truncateWideForPopup(titleText, 127);
-        truncateWideForPopup(messageText, 1024);
-        MessageBoxW(nullptr, messageText.c_str(), titleText.c_str(), MB_ICONERROR | MB_OK | MB_SETFOREGROUND);
+        const PopupText text = preparePopupText(title, message);
+
+        // This informational popup has no action selection; the caller retains failure policy.
+        MessageBoxW(nullptr, text.message.c_str(), text.title.c_str(), MB_ICONERROR | MB_OK | MB_SETFOREGROUND);
     }
 
     FailureAction showFailureActionDialog(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept
     {
-        std::wstring titleText = utf8ToWide(title);
-        std::wstring messageText = utf8ToWide(message);
-        truncateWideForPopup(titleText, 127);
-        truncateWideForPopup(messageText, 1024);
+        const PopupText text = preparePopupText(title, message);
 
-        constexpr int kBreakButtonId = 1001;
-        constexpr int kAbortButtonId = 1002;
-        constexpr int kIgnoreOnceButtonId = 1003;
-        constexpr int kAlwaysIgnoreButtonId = 1004;
-
+        // Task Dialog exposes all four actions, including suppression at the originating call site.
         const TASKDIALOG_BUTTON buttons[] = {
             {kBreakButtonId, L"Break"},
             {kAbortButtonId, L"Abort"},
@@ -393,12 +447,13 @@ namespace GameWIP::Debug::Assert::Detail::Platform
             {kAlwaysIgnoreButtonId, L"Always Ignore"},
         };
 
+        // Pointers borrow the local strings and button array through the synchronous dialog call.
         TASKDIALOGCONFIG config{};
         config.cbSize = sizeof(config);
         config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
-        config.pszWindowTitle = titleText.c_str();
-        config.pszMainInstruction = titleText.c_str();
-        config.pszContent = messageText.c_str();
+        config.pszWindowTitle = text.title.c_str();
+        config.pszMainInstruction = text.title.c_str();
+        config.pszContent = text.message.c_str();
         config.pszMainIcon = TD_ERROR_ICON;
         config.pButtons = buttons;
         config.cButtons = static_cast<UINT>(sizeof(buttons) / sizeof(buttons[0]));
@@ -422,7 +477,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
             }
         }
 
-        return fallbackMessageBoxAction(titleText.c_str(), messageText.c_str(), defaultAction);
+        return fallbackMessageBoxAction(text.title.c_str(), text.message.c_str(), defaultAction);
     }
 
     bool isDebuggerAttached() noexcept
@@ -434,6 +489,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
             return overrideValue;
         }
 #endif
+
         return IsDebuggerPresent() != FALSE;
     }
 

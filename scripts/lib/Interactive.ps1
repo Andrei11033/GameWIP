@@ -1,5 +1,9 @@
 # GameWIP interactive UI. Navigation owns no operation state; every selected action gets a fresh operation.
 
+# ------------------------------------------------------------
+# Interactive context and menu dispatch
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
 
 function Invoke-GameWipInteractiveOperation
@@ -18,8 +22,15 @@ function Invoke-GameWipInteractiveOperation
 
 function Read-GameWipNamedChoice
 {
-    param([string]$Prompt, [string[]]$Choices, [string]$Default)
-    $result = Read-GameWipMenuChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default
+    param([string]$Prompt, [string[]]$Choices, [string]$Default, [switch]$AllowMultiple)
+    $result = if ($AllowMultiple)
+    {
+        Read-GameWipIndexedChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default -AllowMultiple
+    }
+    else
+    {
+        Read-GameWipMenuChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default
+    }
     if ($result.Status -eq 'Cancelled')
     {
         return $null
@@ -406,18 +417,24 @@ function Show-GameWipToolUpdatesMenu
             }
             'tools-preview'
             {
-                $id = Read-GameWipNamedChoice -Prompt 'Tool to preview' -Choices (@('all') + @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id })) -Default all
+                $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to preview' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "tools-preview-$id" -Body { Invoke-GameWipToolUpdate -ToolId $id -PreviewOnly } | Out-Null
+                    foreach ($toolId in @($id))
+                    {
+                        Invoke-GameWipInteractiveOperation -Label "tools-preview-$toolId" -Body { Invoke-GameWipToolUpdate -ToolId $toolId -PreviewOnly } | Out-Null
+                    }
                 }
             }
             'tools-update'
             {
-                $id = Read-GameWipNamedChoice -Prompt 'Tool to update' -Choices (@('all') + @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id })) -Default all
+                $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to update' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "tools-update-$id" -Body { Invoke-GameWipToolUpdate -ToolId $id } | Out-Null
+                    foreach ($toolId in @($id))
+                    {
+                        Invoke-GameWipInteractiveOperation -Label "tools-update-$toolId" -Body { Invoke-GameWipToolUpdate -ToolId $toolId } | Out-Null
+                    }
                 }
             }
         }

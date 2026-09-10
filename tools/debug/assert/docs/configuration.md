@@ -1,6 +1,6 @@
 @page assert_configuration Configuration
 
-Assert behavior is controlled by the Assert CMake target. Consumers should configure the library before it is built and should not redefine `ASSERT_*`
+Assert behavior is controlled by the Assert CMake target. Consumers must configure the library before it is built and must not redefine `ASSERT_*`
 macros in application source after including `debug/assert/assert.h`.
 
 ## CMake options
@@ -32,7 +32,7 @@ The Assert target propagates the compile definitions that the public header cons
 
 | Definition | Owner | Purpose |
 | --- | --- | --- |
-| `ASSERT_INTERNAL_RUNTIME` | Assert CMake target | Indicates whether the runtime bridge symbols are available. Consumers should not set it manually. |
+| `ASSERT_INTERNAL_RUNTIME` | Assert CMake target | Indicates whether the runtime bridge symbols are available. Consumers must not set it manually. |
 | `ASSERT_ENABLED` | `ASSERT_ENABLED` CMake option | Selects fatal assertion macro behavior. |
 | `ASSERT_CHECKS_ENABLED` | `ASSERT_CHECKS_ENABLED` CMake option | Selects recoverable check macro behavior. |
 | `ASSERT_DIAGNOSTICS` | `ASSERT_DIAGNOSTICS` CMake option | Selects diagnostic payload collection and message-expression evaluation. |
@@ -55,7 +55,7 @@ See @ref assert_diagnostics and @ref assert_macro_behavior for the diagnostic an
 ## Windows Common Controls manifest
 
 Assert-only applications may call `assert_enable_common_controls_v6(target)` explicitly. Linking `GameWIP::Assert` alone does not attach the resource.
-Applications linking Window receive Window's combined Common Controls v6 and Per-Monitor-V2 manifest automatically and must not attach Assert's
+Applications linking Desktop receive Desktop's combined Common Controls v6 and Per-Monitor-V2 manifest automatically and must not attach Assert's
 standalone helper as well.
 
 The installed package also provides:
@@ -64,14 +64,20 @@ The installed package also provides:
 assert_enable_common_controls_v6(<target>)
 ```
 
-Call this helper for a Windows executable that uses Assert's preferred Task Dialog path without Window. The target must already exist,
-`ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST` must be `ON`, and Assert must have prepared the resource. The helper is available from both the source tree
-and the installed package; it is a CMake integration API, not a C++ API.
+The helper attaches the manifest to an existing Windows executable that uses Assert's preferred Task Dialog path without Desktop. It is available from
+both the source tree and the installed package as a CMake integration API.
+
+In source-tree builds, `ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST` must be `ON` so Assert prepares the resource before the helper is called.
+The helper is called once per executable.
+
+Installed consumers generate the resource in their own build directory from the installed manifest and resource template. Both files must be
+available; the installed helper does not check `ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST`. Repeated calls for the same target do not attach duplicate
+resources.
 
 ## Test hooks
 
 `ASSERT_ENABLE_TEST_HOOKS=ON` is for repository validation builds. It exposes `debug/assert/internal/assert_test_hooks.h` to approved source-tree
-targets and should not be used by installed consumers.
+targets and must not be used by installed consumers.
 
 See @ref assert_test_hooks for the hook contract.
 

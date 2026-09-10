@@ -20,15 +20,15 @@ Assert's public C++ surface is the installed header `debug/assert/assert.h`. The
 
 ## Runtime namespace
 
-`GameWIP::Debug::Assert` contains the small typed runtime API used by interactive handling and explicit breakpoints:
+When Assert builds a runtime target, `GameWIP::Debug::Assert` contains the small typed API used by interactive handling and explicit breakpoints:
 
 | API | Purpose |
 | --- | --- |
 | `FailureAction` | Interactive action enum with `Break`, `Abort`, `IgnoreOnce`, and `AlwaysIgnore`. |
 | `debugBreak() noexcept` | Calls the platform debugger break instruction when the runtime library is available. |
 
-`debugBreak()` is the function used by `DEBUG_BREAK()` in runtime-enabled builds. Normal fatal assertion handling checks debugger state before
-breaking; `DEBUG_BREAK()` intentionally force-breaks.
+`debugBreak()` is the function used by `DEBUG_BREAK()` in runtime-enabled builds. Interface-only builds keep `DEBUG_BREAK()` available through the
+header fallback path. Normal fatal assertion handling checks debugger state before breaking; `DEBUG_BREAK()` intentionally force-breaks.
 
 ## Configuration API
 

@@ -5,6 +5,43 @@
 
 namespace GameWIP::Logger::Detail::Core
 {
+    namespace
+    {
+        /// @brief Shared source lookup used by mutable and read-only registry callers.
+        /// @details The direct table handles dense SourceId ranges; the sorted table keeps sparse source sets compact.
+        template <typename Registry> [[nodiscard]] auto *findSourceInRegistry(Registry &registry, SourceId source)
+        {
+            if (!registry.directSourceLookup.empty() && source >= registry.directSourceBase)
+            {
+                const SourceId offset = source - registry.directSourceBase;
+                if (offset < registry.directSourceLookup.size())
+                {
+                    const std::size_t index = registry.directSourceLookup[offset];
+                    if (index != kInvalidSourceIndex)
+                    {
+                        return &registry.sources[index];
+                    }
+                }
+            }
+
+            const auto position = std::lower_bound(
+                registry.sources.begin(),
+                registry.sources.end(),
+                source,
+                [](const RegisteredSource &candidate, SourceId id)
+                {
+                    return candidate.id < id;
+                });
+
+            if (position != registry.sources.end() && position->id == source)
+            {
+                return &(*position);
+            }
+
+            return static_cast<decltype(&registry.sources[0])>(nullptr);
+        }
+    } // namespace
+
     // ------------------------------------------------------------
     // Runtime filtering and source lookup
     // ------------------------------------------------------------
@@ -22,34 +59,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @return Pointer to source metadata, or nullptr when the ID is unknown.
     RegisteredSource *findSource(SourceRegistry &registry, SourceId source)
     {
-        if (!registry.directSourceLookup.empty() && source >= registry.directSourceBase)
-        {
-            const SourceId offset = source - registry.directSourceBase;
-            if (offset < registry.directSourceLookup.size())
-            {
-                const std::size_t index = registry.directSourceLookup[offset];
-                if (index != kInvalidSourceIndex)
-                {
-                    return &registry.sources[index];
-                }
-            }
-        }
-
-        const auto position = std::lower_bound(
-            registry.sources.begin(),
-            registry.sources.end(),
-            source,
-            [](const RegisteredSource &candidate, SourceId id)
-            {
-                return candidate.id < id;
-            });
-
-        if (position != registry.sources.end() && position->id == source)
-        {
-            return &(*position);
-        }
-
-        return nullptr;
+        return findSourceInRegistry(registry, source);
     }
 
     /// @brief Finds a registered source by ID in a source registry snapshot.
@@ -58,34 +68,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @return Pointer to source metadata, or nullptr when the ID is unknown.
     const RegisteredSource *findSource(const SourceRegistry &registry, SourceId source)
     {
-        if (!registry.directSourceLookup.empty() && source >= registry.directSourceBase)
-        {
-            const SourceId offset = source - registry.directSourceBase;
-            if (offset < registry.directSourceLookup.size())
-            {
-                const std::size_t index = registry.directSourceLookup[offset];
-                if (index != kInvalidSourceIndex)
-                {
-                    return &registry.sources[index];
-                }
-            }
-        }
-
-        const auto position = std::lower_bound(
-            registry.sources.begin(),
-            registry.sources.end(),
-            source,
-            [](const RegisteredSource &candidate, SourceId id)
-            {
-                return candidate.id < id;
-            });
-
-        if (position != registry.sources.end() && position->id == source)
-        {
-            return &(*position);
-        }
-
-        return nullptr;
+        return findSourceInRegistry(registry, source);
     }
 
     /// @brief Rebuilds compact direct source lookup when registered IDs are dense enough.

@@ -100,6 +100,10 @@ namespace GameWIP::TestSupport
     } // namespace Detail
     /// @endcond
 
+    // ------------------------------------------------------------
+    // Timing diagnostics
+    // ------------------------------------------------------------
+
     /// @brief Monotonic elapsed-time helper for test diagnostics.
     /// @note Timer uses std::chrono::steady_clock and is not benchmark-grade measurement.
     class Timer
@@ -116,6 +120,10 @@ namespace GameWIP::TestSupport
         using Clock = std::chrono::steady_clock;
         Clock::time_point start_; ///< Current measurement origin.
     };
+
+    // ------------------------------------------------------------
+    // Test context
+    // ------------------------------------------------------------
 
     /// @brief Test context that records outcomes and routes categorized report lines.
     class Context
@@ -219,6 +227,10 @@ namespace GameWIP::TestSupport
         void writeFailureLine(std::string_view name, std::string_view reason, const std::source_location &location);
     };
 
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
+
     /// @brief Runs named suites and aggregates one shared report.
     class Runner
     {
@@ -254,6 +266,10 @@ namespace GameWIP::TestSupport
         void recordSuiteResult(const Types::Reporting::SuiteResult &result);
     };
 
+    // ------------------------------------------------------------
+    // Sections and manual checks
+    // ------------------------------------------------------------
+
     /// @brief RAII helper that reports a named section and its elapsed time.
     class Section
     {
@@ -275,6 +291,10 @@ namespace GameWIP::TestSupport
     /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @return Selected answer, or Skipped on end-of-input.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question);
+
+    // ------------------------------------------------------------
+    // Template implementations
+    // ------------------------------------------------------------
 
     template <typename Expected, typename Actual>
     bool Context::expectEq(std::string_view name, const Expected &expected, const Actual &actual, std::source_location location)

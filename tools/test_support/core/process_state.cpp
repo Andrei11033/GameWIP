@@ -18,13 +18,39 @@ namespace GameWIP::TestSupport
         {
             return Types::InfrastructureStatus{.error = error, .nativeCode = code};
         }
+
+        void restoreEnvironmentVariable(std::string_view name, const std::optional<std::string> &previousValue) noexcept
+        {
+            try
+            {
+                std::lock_guard lock(environmentMutex);
+                if (previousValue)
+                {
+                    static_cast<void>(Detail::Platform::setEnvironmentVariableValue(name, *previousValue));
+                }
+                else
+                {
+                    static_cast<void>(Detail::Platform::unsetEnvironmentVariableValue(name));
+                }
+            }
+            catch (...) // NOLINT(bugprone-empty-catch) -- Best-effort restoration cannot propagate from RAII destruction.
+            {
+            }
+        }
     } // namespace
+
+    // ------------------------------------------------------------
+    // Scoped set/restore environment variable
+    // ------------------------------------------------------------
 
     ScopedEnvironmentVariable::ScopedEnvironmentVariable(std::string_view name, std::string_view value) noexcept
     {
         try
         {
             name_.assign(name);
+
+            // Environment variables are process-global, so guards serialize read/modify/write
+            // pairs to avoid restoring a value captured from an overlapping mutation.
             std::lock_guard lock(environmentMutex);
             Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
             if (!readResult.status.ok())
@@ -52,21 +78,7 @@ namespace GameWIP::TestSupport
             return;
         }
 
-        try
-        {
-            std::lock_guard lock(environmentMutex);
-            if (previousValue_)
-            {
-                static_cast<void>(Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_));
-            }
-            else
-            {
-                static_cast<void>(Detail::Platform::unsetEnvironmentVariableValue(name_));
-            }
-        }
-        catch (...) // NOLINT(bugprone-empty-catch) -- Best-effort restoration cannot propagate.
-        {
-        }
+        restoreEnvironmentVariable(name_, previousValue_);
     }
 
     Types::InfrastructureStatus ScopedEnvironmentVariable::status() const noexcept
@@ -74,11 +86,18 @@ namespace GameWIP::TestSupport
         return status_;
     }
 
+    // ------------------------------------------------------------
+    // Scoped unset/restore environment variable
+    // ------------------------------------------------------------
+
     ScopedUnsetEnvironmentVariable::ScopedUnsetEnvironmentVariable(std::string_view name) noexcept
     {
         try
         {
             name_.assign(name);
+
+            // Environment variables are process-global, so guards serialize read/modify/write
+            // pairs to avoid restoring a value captured from an overlapping mutation.
             std::lock_guard lock(environmentMutex);
             Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
             if (!readResult.status.ok())
@@ -106,21 +125,7 @@ namespace GameWIP::TestSupport
             return;
         }
 
-        try
-        {
-            std::lock_guard lock(environmentMutex);
-            if (previousValue_)
-            {
-                static_cast<void>(Detail::Platform::setEnvironmentVariableValue(name_, *previousValue_));
-            }
-            else
-            {
-                static_cast<void>(Detail::Platform::unsetEnvironmentVariableValue(name_));
-            }
-        }
-        catch (...) // NOLINT(bugprone-empty-catch) -- Best-effort restoration cannot propagate.
-        {
-        }
+        restoreEnvironmentVariable(name_, previousValue_);
     }
 
     Types::InfrastructureStatus ScopedUnsetEnvironmentVariable::status() const noexcept

@@ -2,8 +2,15 @@
 
 'use strict';
 
+// The parser records source offsets so mutations can replace only targeted scalar
+// tokens. Formatting, property order, escapes, and unrelated text stay untouched.
+
 const fs = require('fs');
 const { TextDecoder } = require('util');
+
+// ------------------------------------------------------------
+// Source-preserving JSON parser
+// ------------------------------------------------------------
 
 class JsonSourceParser {
     constructor(source) {
@@ -159,6 +166,10 @@ class JsonSourceParser {
     }
 }
 
+// ------------------------------------------------------------
+// Mutation path resolution and verification
+// ------------------------------------------------------------
+
 function scalarValue(node) {
     if (!['string', 'number', 'boolean', 'null'].includes(node.type)) {
         throw new Error('Array selector match fields must be scalar values.');
@@ -276,6 +287,10 @@ function mutateProjectToolsSource(source, specification) {
     }
     return output;
 }
+
+// ------------------------------------------------------------
+// File and command-line boundary
+// ------------------------------------------------------------
 
 function readUtf8(path) {
     const bytes = fs.readFileSync(path);

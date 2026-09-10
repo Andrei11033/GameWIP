@@ -165,6 +165,8 @@ function Assert-GameWipProjectToolConfig
     }
     foreach ($toolInfo in @($ProjectTools.tools))
     {
+        # Validate the provider-independent contract before checking details
+        # that belong to a specific installation provider.
         if ($providerKinds -notcontains $toolInfo.provider.kind)
         {
             throw "Tool '$($toolInfo.id)' uses unsupported provider '$($toolInfo.provider.kind)'."
@@ -194,6 +196,8 @@ function Assert-GameWipProjectToolConfig
         {
             @()
         }
+        # Provider-specific fields are checked together so each provider's
+        # installation code can rely on one complete configuration contract.
         switch ([string]$toolInfo.provider.kind)
         {
             'msys2'
@@ -261,6 +265,8 @@ function Assert-GameWipProjectToolConfig
             }
         }
 
+        # Validate every live reference against the repository before accepting
+        # the registry, because update planning later relies on these paths.
         foreach ($reference in @($toolInfo.references))
         {
             if ($reference -isnot [hashtable] -or -not $reference.Contains('path') -or -not $reference.Contains('kind'))
@@ -285,6 +291,8 @@ function Assert-GameWipProjectToolConfig
             {
                 1
             }
+            # Each reference kind has a different comparison contract; reject
+            # unsupported fields here instead of making mutation code guess.
             switch ([string]$reference.kind)
             {
                 'text'

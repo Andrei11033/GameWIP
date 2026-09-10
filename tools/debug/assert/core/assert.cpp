@@ -16,11 +16,14 @@
 
 #include "logger/logger.h"
 
-#if ASSERT_DIAGNOSTICS
 #include <array>
+
+#if ASSERT_DIAGNOSTICS
+#include <algorithm>
 #include <charconv>
 #include <iterator>
 #include <memory>
+#include <span>
 #endif
 #include <cstdlib>
 #include <string_view>
@@ -36,12 +39,12 @@ namespace
 
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
-#if ASSERT_DIAGNOSTICS
-    /// @brief Returns whether one byte is a UTF-8 continuation byte.
     // ------------------------------------------------------------
     // Diagnostic text construction
     // ------------------------------------------------------------
 
+#if ASSERT_DIAGNOSTICS
+    /// @brief Returns whether one byte is a UTF-8 continuation byte.
     constexpr bool isUtf8ContinuationByte(char value) noexcept
     {
         return (static_cast<unsigned char>(value) & 0xC0u) == 0x80u;
@@ -68,6 +71,9 @@ namespace
     /// @brief Fixed-size stack message builder used to keep failure formatting allocation-free.
     class FixedFailureMessage
     {
+        // Capacity is measured in UTF-8 bytes, including any truncation suffix.
+        static constexpr std::size_t kCapacityBytes = 1024;
+
     public:
         /// @brief Appends UTF-8 text, truncating only at a scalar boundary when fixed storage fills.
         /// @param text UTF-8 text fragment to append.
@@ -78,20 +84,22 @@ namespace
                 return;
             }
 
-            const std::size_t remaining = storage.size() - size;
-            if (text.size() <= remaining)
+            const std::size_t remainingBytes = storage.size() - usedBytes;
+            if (text.size() <= remainingBytes)
             {
-                std::ranges::copy(text, std::span{storage}.subspan(size, text.size()).begin());
-                size += text.size();
+                std::ranges::copy(text, std::span{storage}.subspan(usedBytes, text.size()).begin());
+                usedBytes += text.size();
                 return;
             }
 
-            const std::size_t prefixBytes = utf8PrefixBoundary(text, remaining);
+            // Once a fragment is cut, later fragments must not make the diagnostic look complete.
+            const std::size_t prefixBytes = utf8PrefixBoundary(text, remainingBytes);
             if (prefixBytes > 0)
             {
-                std::ranges::copy(text.substr(0, prefixBytes), std::span{storage}.subspan(size, prefixBytes).begin());
-                size += prefixBytes;
+                std::ranges::copy(text.substr(0, prefixBytes), std::span{storage}.subspan(usedBytes, prefixBytes).begin());
+                usedBytes += prefixBytes;
             }
+
             truncated = true;
         }
 
@@ -101,11 +109,15 @@ namespace
         {
             std::array<char, 32> number;
             const auto result = std::to_chars(number.data(), std::to_address(number.end()), value);
+
             if (result.ec == std::errc{})
             {
-                append(std::string_view(number).substr(0, static_cast<std::size_t>(std::distance(number.data(), result.ptr))));
+                const auto digitsWritten = static_cast<std::size_t>(std::distance(number.data(), result.ptr));
+                append(std::string_view(number).substr(0, digitsWritten));
                 return;
             }
+
+            // Conversion failure retains a visible placeholder in place of the missing number.
             append("?");
         }
 
@@ -118,25 +130,26 @@ namespace
             }
 
             constexpr std::string_view suffix = "... [truncated]";
-            static_assert(suffix.size() < 1024);
+            static_assert(suffix.size() < kCapacityBytes);
+            // The retained prefix leaves room for the suffix without cutting a UTF-8 scalar.
             const std::size_t prefixLimit = storage.size() - suffix.size();
-            size = utf8PrefixBoundary(std::string_view(storage.data(), size), prefixLimit);
-            std::ranges::copy(suffix, std::span{storage}.subspan(size, suffix.size()).begin());
-            size += suffix.size();
+            usedBytes = utf8PrefixBoundary(std::string_view(storage.data(), usedBytes), prefixLimit);
+            std::ranges::copy(suffix, std::span{storage}.subspan(usedBytes, suffix.size()).begin());
+            usedBytes += suffix.size();
         }
 
         /// @brief Returns the active UTF-8 text view.
         /// @return Failure message text.
         std::string_view view() const noexcept
         {
-            return std::string_view(storage.data(), size);
+            return std::string_view(storage.data(), usedBytes);
         }
 
     private:
         /// @brief Fixed stack storage for bounded diagnostics.
-        std::array<char, 1024> storage{};
+        std::array<char, kCapacityBytes> storage{};
         /// @brief Active byte count in storage.
-        std::size_t size = 0;
+        std::size_t usedBytes = 0;
         /// @brief True when an append exceeded fixed capacity.
         bool truncated = false;
     };
@@ -206,11 +219,13 @@ namespace
             {
                 failureMessage.append(file);
             }
+
             if (line > 0)
             {
                 failureMessage.append(":");
                 failureMessage.appendInt(line);
             }
+
             if (!function.empty())
             {
                 failureMessage.append(" (");
@@ -238,19 +253,21 @@ namespace
     }
 #endif
 
-    /// @brief Reports one failure through the synchronous Logger report path.
-    /// @param kind Failure kind used as the Logger source and severity selector.
-    /// @param message Failure message text.
     // ------------------------------------------------------------
     // Failure reporting
     // ------------------------------------------------------------
 
+    /// @brief Reports one failure through the synchronous Logger report path.
+    /// @param kind Failure kind used as the Logger source and severity selector.
+    /// @param message Failure message text.
     void reportFailure(FailureKind kind, std::string_view message) noexcept
     {
         try
         {
             const GameWIP::Logger::Types::Level level =
                 kind == FailureKind::Assert ? GameWIP::Logger::Types::Level::Fatal : GameWIP::Logger::Types::Level::Error;
+            // The synchronous report attempt finishes before debugger or termination handling.
+            // A queued message could remain pending when the process aborts.
             GameWIP::Logger::report(level, sourceText(kind), message);
         }
         catch (...) // NOLINT(bugprone-empty-catch) -- Failure reporting must preserve this noexcept boundary.
@@ -271,35 +288,37 @@ namespace
         GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(popupTitle(kind), message);
     }
 
-    /// @brief Parses a test override action string for interactive asserts.
-    /// @param text Environment value text.
-    /// @param action Output action on success.
-    /// @return True when text names a valid action.
     // ------------------------------------------------------------
     // Interactive failure handling
     // ------------------------------------------------------------
 
+    /// @brief Parses a test override action string for interactive asserts.
+    /// @param text Environment value text.
+    /// @param action Output action on success.
+    /// @return True when text names a valid action.
     bool parseFailureAction(std::string_view text, FailureAction &action) noexcept
     {
-        if (text == "break")
+        // The table keeps accepted environment values and their actions together.
+        struct NamedAction
         {
-            action = FailureAction::Break;
-            return true;
-        }
-        if (text == "abort")
+            std::string_view name;
+            FailureAction action;
+        };
+
+        static constexpr std::array<NamedAction, 4> actions{{
+            {"break", FailureAction::Break},
+            {"abort", FailureAction::Abort},
+            {"ignore_once", FailureAction::IgnoreOnce},
+            {"always_ignore", FailureAction::AlwaysIgnore},
+        }};
+
+        for (const NamedAction &candidate : actions)
         {
-            action = FailureAction::Abort;
-            return true;
-        }
-        if (text == "ignore_once")
-        {
-            action = FailureAction::IgnoreOnce;
-            return true;
-        }
-        if (text == "always_ignore")
-        {
-            action = FailureAction::AlwaysIgnore;
-            return true;
+            if (text == candidate.name)
+            {
+                action = candidate.action;
+                return true;
+            }
         }
 
         return false;
@@ -316,6 +335,7 @@ namespace
             return overrideValue;
         }
 #endif
+
         const char *value = std::getenv("INTERNAL_ASSERT_SUPPRESS_POPUP");
         return value != nullptr && std::string_view(value) == "1";
     }
@@ -324,13 +344,6 @@ namespace
     /// @return Break when a debugger is attached, otherwise Abort.
     FailureAction defaultInteractiveAction() noexcept
     {
-#if ASSERT_INTERNAL_TEST_HOOKS
-        bool attachedOverride = false;
-        if (GameWIP::Debug::Assert::Detail::TestHooks::debuggerAttachedOverride(attachedOverride))
-        {
-            return attachedOverride ? FailureAction::Break : FailureAction::Abort;
-        }
-#endif
         return GameWIP::Debug::Assert::Detail::Platform::isDebuggerAttached() ? FailureAction::Break : FailureAction::Abort;
     }
 
@@ -339,20 +352,25 @@ namespace
     /// @return Selected action from test override, suppression/default policy, or platform UI.
     FailureAction selectInteractiveAction(std::string_view message) noexcept
     {
+        // Forced actions take precedence over UI suppression so child tests can exercise every action.
         if (const char *testActionText = std::getenv("INTERNAL_ASSERT_TEST_ACTION"))
         {
             FailureAction testAction = FailureAction::Abort;
+
             if (parseFailureAction(testActionText, testAction))
             {
                 return testAction;
             }
         }
 
+        // Suppressed UI selects Abort without consulting the debugger or opening a dialog.
         if (popupsSuppressedByEnvironment())
         {
             return FailureAction::Abort;
         }
 
+        // Without an override, debugger state determines the default offered by the action dialog.
+        // Interactive dialogs are independent of the ordinary error-popup compile-time toggles.
         const FailureAction defaultAction = defaultInteractiveAction();
         return GameWIP::Debug::Assert::Detail::Platform::showFailureActionDialog(popupTitle(FailureKind::Assert), message, defaultAction);
     }
@@ -365,6 +383,7 @@ namespace
         switch (action)
         {
         case FailureAction::Break:
+            // Interactive Break permits continuation when execution resumes in the debugger.
             GameWIP::Debug::Assert::Detail::Platform::debugBreak();
             return;
 
@@ -377,6 +396,7 @@ namespace
         case FailureAction::AlwaysIgnore:
             if (alwaysIgnoreFlag != nullptr)
             {
+                // This flag suppresses future reports; it does not publish any associated data.
                 alwaysIgnoreFlag->store(true, std::memory_order_relaxed);
             }
             return;
@@ -385,14 +405,14 @@ namespace
         std::abort();
     }
 
+    // ------------------------------------------------------------
+    // Failure dispatch
+    // ------------------------------------------------------------
+
     /// @brief Returns the active text view for a failure message object or generic string view.
     /// @param message Failure message object.
     /// @return Message text.
 #if ASSERT_DIAGNOSTICS
-    // ------------------------------------------------------------
-    // Public failure dispatch
-    // ------------------------------------------------------------
-
     std::string_view failureTextView(const FixedFailureMessage &message) noexcept
     {
         return message.view();
@@ -404,42 +424,23 @@ namespace
     }
 #endif
 
-    /// @brief Reports one failed non-interactive assertion through Logger and the Assert-owned popup path.
-    /// @param conditionText Expression text, or empty when diagnostics are disabled.
-    /// @param message Caller message, or empty when absent/diagnostics are disabled.
-    /// @param file Source file text, or empty when diagnostics are disabled.
-    /// @param line Source line, or zero when diagnostics are disabled.
-    /// @param function Function text, or empty when diagnostics are disabled.
-    void reportAssertFailure(
+    /// @brief Formats and reports a non-interactive failure, then shows its configured popup.
+    /// @details The owning message stays alive until both synchronous consumers return.
+    void reportNonInteractiveFailure(
+        FailureKind kind,
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
         int line,
         std::string_view function) noexcept
     {
-        const auto failureMessage = buildFailureMessage(FailureKind::Assert, conditionText, message, file, line, function);
+        // The message owns diagnostic storage; the view borrows it through both reporting calls.
+        const auto failureMessage = buildFailureMessage(kind, conditionText, message, file, line, function);
         const std::string_view failureText = failureTextView(failureMessage);
-        reportFailure(FailureKind::Assert, failureText);
-        showPopupIfEnabled(FailureKind::Assert, failureText);
-    }
 
-    /// @brief Reports one failed recoverable check through Logger and optional assert-owned popup path.
-    /// @param conditionText Expression text, or empty when diagnostics are disabled.
-    /// @param message Caller message, or empty when absent/diagnostics are disabled.
-    /// @param file Source file text, or empty when diagnostics are disabled.
-    /// @param line Source line, or zero when diagnostics are disabled.
-    /// @param function Function text, or empty when diagnostics are disabled.
-    void reportCheckFailure(
-        std::string_view conditionText,
-        std::string_view message,
-        std::string_view file,
-        int line,
-        std::string_view function) noexcept
-    {
-        const auto failureMessage = buildFailureMessage(FailureKind::Check, conditionText, message, file, line, function);
-        const std::string_view failureText = failureTextView(failureMessage);
-        reportFailure(FailureKind::Check, failureText);
-        showPopupIfEnabled(FailureKind::Check, failureText);
+        // Logging precedes UI so a blocking dialog cannot hide a report attempt.
+        reportFailure(kind, failureText);
+        showPopupIfEnabled(kind, failureText);
     }
 
     /// @brief Reports one failed interactive assertion and applies the selected action.
@@ -459,8 +460,10 @@ namespace
     {
         const auto failureMessage = buildFailureMessage(FailureKind::Assert, conditionText, message, file, line, function);
         const std::string_view failureText = failureTextView(failureMessage);
+
         reportFailure(FailureKind::Assert, failureText);
 
+        // Action selection happens after reporting, including when a test supplies the action.
         const FailureAction action = selectInteractiveAction(failureText);
         applyInteractiveAction(action, alwaysIgnoreFlag);
     }
@@ -483,18 +486,17 @@ namespace GameWIP::Debug::Assert::Detail
         int line,
         std::string_view function) noexcept
     {
-        reportAssertFailure(conditionText, message, file, line, function);
-#if ASSERT_INTERNAL_TEST_HOOKS
-        bool attachedOverride = false;
-        const bool debuggerAttached =
-            TestHooks::debuggerAttachedOverride(attachedOverride) ? attachedOverride : Detail::Platform::isDebuggerAttached();
-#else
+        // Reporting and optional UI complete before the fatal debugger policy takes effect.
+        reportNonInteractiveFailure(FailureKind::Assert, conditionText, message, file, line, function);
+
+        // Ordinary fatal assertions break only when debugger detection reports an attached debugger.
         const bool debuggerAttached = Detail::Platform::isDebuggerAttached();
-#endif
         if (debuggerAttached)
         {
             Detail::Platform::debugBreak();
         }
+
+        // Resuming after a debugger break still leads to termination on this fatal path.
         std::abort();
     }
 
@@ -516,6 +518,6 @@ namespace GameWIP::Debug::Assert::Detail
         int line,
         std::string_view function) noexcept
     {
-        reportCheckFailure(conditionText, message, file, line, function);
+        reportNonInteractiveFailure(FailureKind::Check, conditionText, message, file, line, function);
     }
 } // namespace GameWIP::Debug::Assert::Detail

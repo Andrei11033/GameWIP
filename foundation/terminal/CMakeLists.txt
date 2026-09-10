@@ -1,9 +1,15 @@
+# Terminal owns the public terminal/session API and delegates native input and
+# output details to the selected platform backend.
 include(GNUInstallDirs)
 include(GenerateExportHeader)
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
+# ------------------------------------------------------------
+# Configuration, generated exports, and target sources
+# ------------------------------------------------------------
 
 option(TERMINAL_ENABLE_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 
@@ -28,7 +34,16 @@ generate_export_header(
 
 target_sources(
     Terminal
-    PRIVATE core/line_input.cpp core/output_buffer.cpp core/session.cpp core/style.cpp core/terminal.cpp core/terminal_test_hooks.cpp
+    PRIVATE
+        core/line_input.cpp
+        core/output_buffer.cpp
+        core/session.cpp
+        core/session_reads.inl
+        core/style.cpp
+        core/terminal.cpp
+        core/terminal_controls.inl
+        core/terminal_output.inl
+        core/terminal_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -44,6 +59,10 @@ target_sources(
 )
 
 gamewip_target_platform_backend(TARGET Terminal ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+
+# ------------------------------------------------------------
+# Compile, test-hook, and dependency contracts
+# ------------------------------------------------------------
 
 target_include_directories(
     Terminal
@@ -71,6 +90,10 @@ set_target_properties(
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
+
+# ------------------------------------------------------------
+# Output, documentation, and installation
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # Terminal owns its public API docs and Markdown manual pages. The root docs

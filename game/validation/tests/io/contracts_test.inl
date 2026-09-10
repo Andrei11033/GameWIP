@@ -4,6 +4,7 @@
 /// @brief Verifies every portable error-code name and the unknown-value fallback.
 void testErrorCodeNames(TestSupport::Context &context)
 {
+    // Keep the table beside the assertions so additions cannot silently miss a name mapping.
     struct ErrorCodeName
     {
         ErrorCode code;
@@ -68,6 +69,7 @@ void testErrorCodeNames(TestSupport::Context &context)
 /// @brief Verifies status helpers and default Reader/Writer optional-operation contracts.
 void testStatusAndDefaultContracts(TestSupport::Context &context)
 {
+    // Verify status construction and then the default behavior of minimal readers and writers.
     const IO::Types::Status success = IO::successStatus();
     static_cast<void>(context.expectTrue("successStatus returns success", success.ok()));
     static_cast<void>(context.expectEq("successStatus native code defaults to zero", std::int64_t{0}, success.nativeCode));

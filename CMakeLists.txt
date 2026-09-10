@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 4.4.2)
 
 project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
 
+# ------------------------------------------------------------
+# Language and platform prerequisites
+# ------------------------------------------------------------
+
 # RC is enabled once at the highest common directory for Windows targets that
 # attach backend-owned manifests and resources.
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -13,6 +17,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
+# ------------------------------------------------------------
+# Shared project infrastructure
+# ------------------------------------------------------------
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -32,6 +40,10 @@ gamewip_configure_version()
 
 gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 
+# ------------------------------------------------------------
+# Repository-level validation tests
+# ------------------------------------------------------------
+
 if(GAMEWIP_BUILD_TESTS)
     enable_testing()
     add_test(
@@ -49,6 +61,10 @@ if(GAMEWIP_BUILD_TESTS)
     set_tests_properties(validation.version.composition validation.cmake.requirement_propagation PROPERTIES TIMEOUT 120)
 endif()
 
+# ------------------------------------------------------------
+# Project composition
+# ------------------------------------------------------------
+
 add_subdirectory(external)
 
 gamewip_enable_project_warnings()
@@ -57,6 +73,10 @@ add_subdirectory(foundation)
 add_subdirectory(tools)
 add_subdirectory(engine)
 add_subdirectory(game)
+
+# ------------------------------------------------------------
+# Cross-cutting generated targets
+# ------------------------------------------------------------
 
 gamewip_create_coverage_target()
 gamewip_create_documentation_target()

@@ -1,4 +1,9 @@
 # GameWIP GitSubmodule tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+
+# ------------------------------------------------------------
+# Repository-owned submodule boundary
+# ------------------------------------------------------------
+
 function Get-GameWipGitSubmoduleToolLatestVersion
 {
     param([hashtable]$Tool)

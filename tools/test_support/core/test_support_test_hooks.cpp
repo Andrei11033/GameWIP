@@ -21,6 +21,10 @@ namespace
 
 namespace GameWIP::TestSupport::TestHooks
 {
+    // ------------------------------------------------------------
+    // Public failure-injection controls
+    // ------------------------------------------------------------
+
     void reset() noexcept
     {
         childProcessNativeCode.store(0, std::memory_order_relaxed);
@@ -52,6 +56,10 @@ namespace GameWIP::TestSupport::TestHooks
 
 namespace GameWIP::TestSupport::Detail::TestHooks
 {
+    // ------------------------------------------------------------
+    // One-shot failure consumption
+    // ------------------------------------------------------------
+
     std::optional<std::uint64_t> consumeChildProcessFailure(TestSupport::TestHooks::ChildProcessFailurePoint point) noexcept
     {
         auto expected = point;

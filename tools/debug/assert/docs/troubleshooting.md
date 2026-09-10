@@ -16,7 +16,7 @@ into the condition expression or surrounding code.
 
 ## A popup appears during automated tests
 
-Automated tests should suppress real UI or use Assert test hooks. See @ref assert_testing and @ref assert_test_hooks.
+Automated tests must not depend on real UI. Suppress popups or use Assert test hooks; see @ref assert_testing and @ref assert_test_hooks.
 
 ## Popup settings did not change after adding a compile definition
 

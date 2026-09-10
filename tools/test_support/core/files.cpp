@@ -51,6 +51,10 @@ namespace GameWIP::TestSupport
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Scoped filesystem state
+    // ------------------------------------------------------------
+
     ScopedTemporaryDirectory::ScopedTemporaryDirectory(std::string_view purpose) noexcept
     {
 #if TEST_SUPPORT_INTERNAL_TEST_HOOKS
@@ -69,6 +73,8 @@ namespace GameWIP::TestSupport
                 status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 return;
             }
+            // Keep TestSupport-owned temporary trees under a predictable parent so
+            // cleanup can remove empty parent directories without touching unrelated temp data.
             root_ /= "GameWIP";
             root_ /= "TestSupport";
             static_cast<void>(std::filesystem::create_directories(root_, error));
@@ -82,6 +88,8 @@ namespace GameWIP::TestSupport
             const auto ticks = std::chrono::steady_clock::now().time_since_epoch().count();
             const std::uint64_t allocationId = temporaryDirectoryCounter.fetch_add(1, std::memory_order_relaxed);
 
+            // The timestamp gives readable names; the atomic counter and bounded retry
+            // handle same-tick construction and rare filesystem collisions.
             for (std::size_t attempt = 0; attempt < 128; ++attempt)
             {
                 const std::filesystem::path candidate = root_ / std::format("{}_{:x}_{:x}_{:x}", prefix, ticks, allocationId, attempt);
@@ -138,10 +146,6 @@ namespace GameWIP::TestSupport
     {
         return path_;
     }
-
-    // ------------------------------------------------------------
-    // Scoped filesystem state
-    // ------------------------------------------------------------
 
     Types::InfrastructureStatus ScopedTemporaryDirectory::status() const noexcept
     {

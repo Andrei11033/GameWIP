@@ -124,34 +124,82 @@
     }
   ],
   "buildPresets": [
-    { "name": "dev", "configurePreset": "dev", "targets": ["GameWIP"] },
-    { "name": "test", "configurePreset": "test", "targets": ["GameWIPTests"] },
-    { "name": "benchmark", "configurePreset": "benchmark", "targets": ["GameWIPBenchmarks"] },
-    { "name": "profile", "configurePreset": "profile", "targets": ["GameWIP"] },
-    { "name": "release", "configurePreset": "release", "targets": ["GameWIP"] },
-    { "name": "coverage", "configurePreset": "coverage", "targets": ["GameWIPTests"] },
-    { "name": "asan", "configurePreset": "asan", "targets": ["GameWIPTests"] },
-    { "name": "analyze", "configurePreset": "analyze", "targets": ["static-analysis"] },
-    { "name": "docs", "configurePreset": "docs", "targets": ["docs"] }
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "targets": ["GameWIP"]
+    },
+    {
+      "name": "test",
+      "configurePreset": "test",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "benchmark",
+      "configurePreset": "benchmark",
+      "targets": ["GameWIPBenchmarks"]
+    },
+    {
+      "name": "profile",
+      "configurePreset": "profile",
+      "targets": ["GameWIP"]
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "targets": ["GameWIP"]
+    },
+    {
+      "name": "coverage",
+      "configurePreset": "coverage",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "analyze",
+      "configurePreset": "analyze",
+      "targets": ["static-analysis"]
+    },
+    {
+      "name": "docs",
+      "configurePreset": "docs",
+      "targets": ["docs"]
+    }
   ],
   "testPresets": [
     {
       "name": "test",
       "configurePreset": "test",
-      "output": { "outputOnFailure": true },
-      "execution": { "noTestsAction": "error" }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
     },
     {
       "name": "coverage",
       "configurePreset": "coverage",
-      "output": { "outputOnFailure": true },
-      "execution": { "noTestsAction": "error" }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
     },
     {
       "name": "asan",
       "configurePreset": "asan",
-      "output": { "outputOnFailure": true },
-      "execution": { "noTestsAction": "error" }
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
     }
   ]
 }

@@ -480,6 +480,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("windowed placement restores", owner.setMode({}).ok()));
     static_cast<void>(context.expectEq("windowed mode is cached", Desktop::Types::Mode::Windowed, owner.mode()));
 
+    // Verify decoration, pointer, opacity, file-drop, and interaction policies together because each changes native styles.
     static_cast<void>(
         context.expectTrue("runtime borderless decorations succeed", owner.setDecorationMode(Desktop::Types::DecorationMode::Borderless).ok()));
     static_cast<void>(context.expectTrue("system decorations restore", owner.setDecorationMode(Desktop::Types::DecorationMode::System).ok()));
@@ -527,6 +528,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("decoration restoration preserves native disabled state", IsWindowEnabled(handle.handle.window) != FALSE));
     static_cast<void>(context.expectTrue("interaction re-enable succeeds", owner.setUserInteractionEnabled(true).ok()));
 
+    // Confirm the cross-property resize and control constraints after the style policies are restored.
     static_cast<void>(
         context.expectEq("resize cannot be disabled while maximize remains enabled", ErrorCode::InvalidArgument, owner.setResizable(false).code));
     Desktop::Types::Controls controls = owner.controls();
@@ -547,6 +549,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("maximize restores after resize", owner.setControls(controls).ok()));
 
     const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
+    // Capability-gated behavior is checked last so unsupported features remain explicit skips or stable errors.
     static_cast<void>(context.expectFalse(
         "Win32 does not advertise cross-application pointer regions",
         capabilities.supports(Desktop::Types::Capability::PointerRegions)));

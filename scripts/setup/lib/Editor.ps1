@@ -1,6 +1,14 @@
 # GameWIP editor selection, installation, workflow-extension packaging, and advisory state.
 
+# ------------------------------------------------------------
+# Editor selection and advisory state
+# ------------------------------------------------------------
+
 Set-StrictMode -Version Latest
+
+# ------------------------------------------------------------
+# Selection persistence and interactive choice
+# ------------------------------------------------------------
 
 function Get-GameWipEditorPreferencePath
 {
@@ -176,6 +184,10 @@ function Install-GameWipEditorSelection
     }
 }
 
+# ------------------------------------------------------------
+# VS Code integration and extension packaging
+# ------------------------------------------------------------
+
 function Get-GameWipEditorFailure
 {
     param(
@@ -259,6 +271,9 @@ function Install-GameWipVsCodeKeybinding
     {
         throw 'APPDATA is unavailable; cannot locate the Visual Studio Code user keybindings file.'
     }
+
+    # Read and validate the declarative extension rules before touching the
+    # user's file, so a malformed package cannot cause a partial update.
     $packagePath = Join-Path $ExtensionSource 'package.json'
     $package = Get-Content -LiteralPath $packagePath -Raw | ConvertFrom-Json
     $rules = @($package.contributes.keybindings)
@@ -267,6 +282,7 @@ function Install-GameWipVsCodeKeybinding
         throw "The GameWIP workflow extension declares no keybindings in $packagePath."
     }
 
+    # Preserve one original backup before replacing only the marked GameWIP block.
     $userDirectory = Join-Path $env:APPDATA 'Code\User'
     $keybindingsPath = Join-Path $userDirectory 'keybindings.json'
     $backupPath = "$keybindingsPath.gamewip-backup"
@@ -286,6 +302,8 @@ function Install-GameWipVsCodeKeybinding
         Write-Host "  Creating VS Code keybindings file: $keybindingsPath"
     }
 
+    # Normalize the existing array body, then append the managed rules with the
+    # separator required by the surrounding user-authored JSON-with-comments.
     $managedPattern = '(?ms)\s*,?\s*// GameWIP managed keybindings begin.*?// GameWIP managed keybindings end\s*'
     $content = [regex]::Replace($content, $managedPattern, '')
     $closingBracket = $content.LastIndexOf(']')
@@ -343,6 +361,8 @@ function Install-GameWipVsCodeKeybinding
     $updatedContent = "$prefix$separator`r`n$managedBlock`r`n$suffix"
     Write-GameWipTextAtomic -Path $keybindingsPath -Content $updatedContent
 
+    # Atomic write is followed by content verification so setup reports a
+    # successful integration only after every declared rule is present.
     $verification = Get-Content -LiteralPath $keybindingsPath -Raw
     foreach ($rule in $rules)
     {

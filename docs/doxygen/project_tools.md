@@ -172,7 +172,9 @@ hidden discovery dependency. `.clang-format`, `.clang-tidy`, and
 upward discovery is useful for C++ and basic text settings.
 
 `hygiene.json` declares optional audit profiles, provider-backed checks,
-confidence levels, and centrally reviewed explanations. Its schema and runtime
+confidence levels, and centrally reviewed explanations. Providers may use
+clang-tidy rules or compiler warning flags such as `-Wunreachable-code`; the
+selected provider owns how each rule is executed and normalized. Its schema and runtime
 semantic validation reject duplicate IDs and unknown references. The registry
 does not change the required repository quality gate or the root `.clang-tidy`
 policy.
