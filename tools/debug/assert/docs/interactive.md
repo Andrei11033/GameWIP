@@ -22,7 +22,7 @@ dialog. When a debugger is attached, the default action favors Break. Without a 
 On Windows, Assert prefers a Task Dialog with Break, Abort, Ignore Once, and Always Ignore. If that path is unavailable, Assert falls back to a
 MessageBox-based dialog with a reduced action mapping.
 
-The Common Controls v6 manifest support used by the preferred dialog is documented in @ref assert_configuration.
+The application-level Common Controls v6 requirement used by the preferred dialog is documented in @ref assert_configuration.
 
 ## Automation
 

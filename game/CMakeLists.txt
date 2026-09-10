@@ -72,12 +72,25 @@ if(GAMEWIP_TESTS_REQUIRED OR GAMEWIP_BENCHMARKS_REQUIRED)
 endif()
 
 if(GAMEWIP_ENABLE_STARTUP_TESTS)
-    # Assert test objects use AssertCompileInterface to avoid attaching
-    # executable resources to the object library. Each runner links the
-    # concrete Assert runtime explicitly.
+    # Assert test objects use AssertCompileInterface so executable resources
+    # are attached only to the final GameWIP application target.
     target_link_libraries(GameWIP PRIVATE GameWIPTestModules Assert)
 endif()
 
 if(GAMEWIP_RUN_BENCHMARKS_AT_STARTUP)
     target_link_libraries(GameWIP PRIVATE GameWIPBenchmarkModules)
+endif()
+
+if(GAMEWIP_BUILD_GAME)
+    # Desktop requires process-wide DPI policy; Assert's preferred dialog uses Common Controls v6.
+    gamewip_attach_application_manifest(TARGET GameWIP COMMON_CONTROLS_V6 PER_MONITOR_V2)
+
+    if(WIN32)
+        get_target_property(gamewip_application_sources GameWIP SOURCES)
+        list(FILTER gamewip_application_sources INCLUDE REGEX "\\.rc$")
+        list(LENGTH gamewip_application_sources gamewip_application_manifest_count)
+        if(NOT gamewip_application_manifest_count EQUAL 1)
+            message(FATAL_ERROR "GameWIP must attach exactly one application manifest resource.")
+        endif()
+    endif()
 endif()

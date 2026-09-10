@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity
+    version="1.0.0.0"
+    processorArchitecture="*"
+    name="GameWIP.Application"
+    type="win32" />
+
+@GAMEWIP_APPLICATION_PER_MONITOR_V2@
+@GAMEWIP_APPLICATION_COMMON_CONTROLS_V6@
+</assembly>

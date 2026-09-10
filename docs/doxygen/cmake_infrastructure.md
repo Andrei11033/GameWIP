@@ -34,6 +34,7 @@ repository concepts.
 | `cmake/GameWIPOptions.cmake` | Project composition options and option compatibility checks. |
 | `cmake/GameWIPPlatform.cmake` | Normalized platform resolution and required backend-file inclusion. |
 | `cmake/GameWIPPackage.cmake` | Shared package configuration, version, and export installation. |
+| `cmake/GameWIPApplication.cmake` | Explicit, single-resource application manifest attachment on Windows. |
 | `cmake/GameWIPWarnings.cmake` | First-party C++ warning policy, including opt-in warnings as errors. |
 | `cmake/LibraryDoxygen.cmake` | Doxygen input registration and generated documentation target creation. |
 | `cmake/GameWIPDocumentation.cmake` | Project-level Doxygen page registration. |
@@ -51,6 +52,29 @@ repository concepts.
 
 Library-local CMake helpers belong under the owning library's `cmake/` directory. Do not put library-specific policy in the root `cmake/` folder
 unless it is genuinely shared by multiple libraries.
+
+## Application manifests
+
+Windows manifests are application policy. Libraries must not attach them through
+`INTERFACE_SOURCES`, because a process can contain only one authoritative
+manifest and linked libraries cannot know the executable's complete requirements.
+
+The shared helper accepts independent requirements and attaches one generated
+resource to the final executable:
+
+```cmake
+gamewip_attach_application_manifest(
+    TARGET MyApplication
+    COMMON_CONTROLS_V6
+    PER_MONITOR_V2
+)
+```
+
+`COMMON_CONTROLS_V6` enables the preferred Assert dialog controls. `PER_MONITOR_V2`
+is required by Desktop's Win32 window backend. The helper merges repeated calls,
+rejects non-executable targets, and does nothing on non-Windows platforms. The
+same helper is installed through the `GameWIPApplication` package so source-tree
+and installed consumers make the same explicit application decision.
 
 ## Presets and project options
 

@@ -61,6 +61,12 @@ target_compile_features(GameWIPIsolatedConsumer PRIVATE cxx_std_23)
 target_compile_definitions(GameWIPIsolatedConsumer PRIVATE "GAMEWIP_CONSUMER_${GAMEWIP_CONSUMER_PACKAGE}=1")
 target_link_libraries(GameWIPIsolatedConsumer PRIVATE "GameWIP::${GAMEWIP_CONSUMER_PACKAGE}")
 
+if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Assert")
+    gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer COMMON_CONTROLS_V6)
+elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
+    gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer PER_MONITOR_V2)
+endif()
+
 if(GAMEWIP_CONSUMER_LINK_COVERAGE)
     target_link_options(GameWIPIsolatedConsumer PRIVATE --coverage)
 endif()

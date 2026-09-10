@@ -11,7 +11,6 @@ set(ASSERT_CHECKS_ENABLED "AUTO" CACHE STRING "Force recoverable checks on, off,
 set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
-option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Prepare the explicit Common Controls v6 resource helper for Assert consumers" ON)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 
 if(NOT COMMAND gamewip_install_package)
@@ -191,7 +190,7 @@ target_compile_definitions(
 )
 
 # Validation object libraries need Assert's compile contract without inheriting
-# executable resources such as the Common Controls manifest.
+# process-wide application resources.
 add_library(AssertCompileInterface INTERFACE)
 
 target_include_directories(

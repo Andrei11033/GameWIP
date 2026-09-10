@@ -22,6 +22,8 @@ target_link_libraries(
     PRIVATE GameWIP::Unicode GameWIP::IO GameWIP::FileSystem GameWIP::Terminal GameWIP::Desktop GameWIP::Logger GameWIP::Assert GameWIP::TestSupport
 )
 
+gamewip_attach_application_manifest(TARGET GameWIPInstalledConsumer COMMON_CONTROLS_V6 PER_MONITOR_V2)
+
 if(GAMEWIP_CONSUMER_LINK_COVERAGE)
     target_link_options(GameWIPInstalledConsumer PRIVATE --coverage)
 endif()

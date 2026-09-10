@@ -44,8 +44,10 @@ explicit opt-in includes.
 `IO` and `FileSystem` are public package dependencies because installed public types expose their contracts. Unicode is a private implementation
 dependency used by the shared Desktop library for strict native text conversion; no Unicode type leaks through Desktop public headers.
 
-The package remains exact-version matched. On Win32 the installed package also propagates the Desktop application manifest resource required for
-Per-Monitor-V2 awareness.
+The package remains exact-version matched. Applications using Desktop must call
+`gamewip_attach_application_manifest(TARGET <executable> PER_MONITOR_V2)` from the
+shared `GameWIPApplication` package. Desktop never propagates an executable
+resource through its library target.
 
 OLE and COM remain private implementation dependencies. The Win32 backend links
 `ole32`; public and installed headers expose no COM interfaces, HRESULT values,

@@ -183,14 +183,13 @@ foreach(
     )
 endforeach()
 
-# Assert must retain its own resource prefix while Logger and its dependencies
+# Assert must retain its own package prefix while Logger and its dependencies
 # are discovered from a separate installation root on every supported CMake.
 set(assert_prefix "${CONSUMER_BUILD_DIR}/assert-prefix")
 file(REMOVE_RECURSE "${assert_prefix}")
 file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/lib/cmake" "${assert_prefix}/share" "${assert_prefix}/bin")
 file(COPY "${INSTALL_PREFIX}/include/debug/assert" DESTINATION "${assert_prefix}/include/debug")
 file(COPY "${INSTALL_PREFIX}/lib/cmake/Assert" DESTINATION "${assert_prefix}/lib/cmake")
-file(COPY "${INSTALL_PREFIX}/share/Assert" DESTINATION "${assert_prefix}/share")
 file(GLOB assert_link_files "${INSTALL_PREFIX}/lib/*Assert*")
 if(assert_link_files)
     file(COPY ${assert_link_files} DESTINATION "${assert_prefix}/lib")

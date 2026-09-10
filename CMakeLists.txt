@@ -6,8 +6,8 @@ project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
 # Language and platform prerequisites
 # ------------------------------------------------------------
 
-# RC is enabled once at the highest common directory for Windows targets that
-# attach backend-owned manifests and resources.
+# RC is enabled once at the highest common directory for Windows application
+# targets that explicitly attach a process manifest.
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     enable_language(RC)
 endif()
@@ -35,6 +35,27 @@ include(GameWIPSanitizers)
 include(GameWIPWarnings)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
+include(GameWIPApplication)
+
+include(CMakePackageConfigHelpers)
+set(GAMEWIP_APPLICATION_PACKAGE_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/GameWIPApplication")
+set(GAMEWIP_APPLICATION_PACKAGE_CONFIG "${CMAKE_CURRENT_BINARY_DIR}/GameWIPApplicationConfig.cmake")
+set(GAMEWIP_APPLICATION_PACKAGE_VERSION "${CMAKE_CURRENT_BINARY_DIR}/GameWIPApplicationConfigVersion.cmake")
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPApplicationConfig.cmake.in"
+    "${GAMEWIP_APPLICATION_PACKAGE_CONFIG}"
+    INSTALL_DESTINATION "${GAMEWIP_APPLICATION_PACKAGE_DIR}"
+)
+write_basic_package_version_file("${GAMEWIP_APPLICATION_PACKAGE_VERSION}" VERSION "${PROJECT_VERSION}" COMPATIBILITY ExactVersion)
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPApplication.cmake"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/application_manifest.manifest.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/application_manifest.rc.in"
+        "${GAMEWIP_APPLICATION_PACKAGE_CONFIG}"
+        "${GAMEWIP_APPLICATION_PACKAGE_VERSION}"
+    DESTINATION "${GAMEWIP_APPLICATION_PACKAGE_DIR}"
+)
 
 gamewip_configure_version()
 

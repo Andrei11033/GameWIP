@@ -190,9 +190,12 @@ and the status is a late cleanup diagnostic. In both cases the object remains va
 
 ## `Unsupported` during open
 
-On Windows, confirm the executable manifest declares Per-Monitor-V2 DPI awareness. Window validates the effective context and does not change process
-policy. System backdrops require Windows 11 build 22621, transparent framebuffer alpha requires build 26100, and rectangular/per-pixel pointer routing
-is not advertised by the current Win32 backend.
+On Windows, confirm the application called `gamewip_attach_application_manifest(TARGET <executable> PER_MONITOR_V2)` and that its single executable
+manifest declares Per-Monitor-V2 DPI awareness. Window validates the effective
+context and does not change process policy. System backdrops require Windows 11
+build 22621, transparent framebuffer alpha requires build 26100, and
+rectangular/per-pixel pointer routing is not advertised by the current Win32
+backend.
 
 ## Related pages
 

@@ -1,9 +1,4 @@
-# Own Desktop's Win32 sources, native API, libraries, resources, and documentation inputs.
-# The backend is attached only after the portable target has declared its public contract.
-set(DESKTOP_INTERNAL_APPLICATION_MANIFEST "${CMAKE_CURRENT_LIST_DIR}/../../cmake/desktop_application.manifest")
-set(DESKTOP_INTERNAL_APPLICATION_RC "${CMAKE_CURRENT_BINARY_DIR}/desktop_application.rc")
-configure_file("${CMAKE_CURRENT_LIST_DIR}/../../cmake/desktop_application.rc.in" "${DESKTOP_INTERNAL_APPLICATION_RC}" @ONLY)
-
+# Own Desktop's Win32 sources, native API, libraries, and documentation inputs.
 target_sources(
     Desktop
     PRIVATE
@@ -28,7 +23,6 @@ target_sources(
 
 target_sources(
     Desktop
-    INTERFACE "$<BUILD_INTERFACE:${DESKTOP_INTERNAL_APPLICATION_RC}>"
     PUBLIC FILE_SET public_headers TYPE HEADERS BASE_DIRS "${CMAKE_CURRENT_LIST_DIR}/../../.." FILES "${CMAKE_CURRENT_LIST_DIR}/../../native/win32.h"
 )
 
@@ -44,8 +38,3 @@ endif()
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_inputs)
     gamewip_register_doxygen_inputs("${CMAKE_CURRENT_LIST_DIR}/../../native/win32.h")
 endif()
-
-install(
-    FILES "${CMAKE_CURRENT_LIST_DIR}/../../cmake/desktop_application.manifest" "${CMAKE_CURRENT_LIST_DIR}/../../cmake/desktop_application.rc.in"
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/Desktop
-)
