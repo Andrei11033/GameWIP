@@ -200,7 +200,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 return CF_DIBV5;
             case Transfer::FormatKind::Custom:
             {
-                if (format.customName.empty() || format.customName.find('\0') != std::string::npos)
+                if (format.customName.empty() || format.customName.contains('\0'))
                 {
                     result = failure(ErrorCode::InvalidArgument);
                     return 0;
@@ -266,7 +266,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     using T = std::remove_cvref_t<decltype(value)>;
                     if constexpr (std::is_same_v<T, Transfer::TextView>)
                     {
-                        if (value.text.find('\0') != std::string_view::npos)
+                        if (value.text.contains('\0'))
                         {
                             return failure(ErrorCode::InvalidArgument);
                         }
@@ -295,7 +295,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         std::size_t units = 1;
                         for (const auto &path : value.paths)
                         {
-                            if (!path.is_absolute() || path.native().find(L'\0') != std::wstring::npos)
+                            if (!path.is_absolute() || path.native().contains(L'\0'))
                             {
                                 return failure(ErrorCode::InvalidArgument);
                             }

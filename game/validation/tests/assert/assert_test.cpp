@@ -52,15 +52,15 @@ namespace
     using AssertTestOptions = GameWIP::Test::AssertTestOptions;
     using namespace std::chrono_literals;
 
-    constexpr std::string_view assertFailureChildArgument = "--assert-test-child=assert-failure";
-    constexpr std::string_view debugBreakChildArgument = "--assert-test-child=debug-break";
-    constexpr std::string_view unreachableChildArgument = "--assert-test-child=unreachable";
-    constexpr std::string_view interactiveAbortChildArgument = "--assert-test-child=interactive-abort";
-    constexpr std::string_view interactiveBreakChildArgument = "--assert-test-child=interactive-break";
-    constexpr std::string_view suppressPopupEnvironmentVariable = "INTERNAL_ASSERT_SUPPRESS_POPUP";
-    constexpr std::string_view testActionEnvironmentVariable = "INTERNAL_ASSERT_TEST_ACTION";
-    constexpr std::string_view childLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
-    constexpr std::string_view assertFailureChildMessage = "assert child logger message";
+    constexpr std::string_view kAssertFailureChildArgument = "--assert-test-child=assert-failure";
+    constexpr std::string_view kDebugBreakChildArgument = "--assert-test-child=debug-break";
+    constexpr std::string_view kUnreachableChildArgument = "--assert-test-child=unreachable";
+    constexpr std::string_view kInteractiveAbortChildArgument = "--assert-test-child=interactive-abort";
+    constexpr std::string_view kInteractiveBreakChildArgument = "--assert-test-child=interactive-break";
+    constexpr std::string_view kSuppressPopupEnvironmentVariable = "INTERNAL_ASSERT_SUPPRESS_POPUP";
+    constexpr std::string_view kTestActionEnvironmentVariable = "INTERNAL_ASSERT_TEST_ACTION";
+    constexpr std::string_view kChildLogDirectoryEnvironmentVariable = "INTERNAL_ASSERT_TEST_CHILD_LOG_DIR";
+    constexpr std::string_view kAssertFailureChildMessage = "assert child logger message";
 
     /// @brief Mutable test state and TestSupport-backed reporting for the Assert suite.
     struct TestContext
@@ -337,23 +337,23 @@ namespace GameWIP::Test
 
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options)
     {
-        if (hasArgument(argc, argv, assertFailureChildArgument))
+        if (hasArgument(argc, argv, kAssertFailureChildArgument))
         {
             return runAssertFailureChild();
         }
-        if (hasArgument(argc, argv, interactiveAbortChildArgument))
+        if (hasArgument(argc, argv, kInteractiveAbortChildArgument))
         {
             return runInteractiveAbortChild();
         }
-        if (hasArgument(argc, argv, interactiveBreakChildArgument))
+        if (hasArgument(argc, argv, kInteractiveBreakChildArgument))
         {
             return runInteractiveBreakChild();
         }
-        if (hasArgument(argc, argv, debugBreakChildArgument))
+        if (hasArgument(argc, argv, kDebugBreakChildArgument))
         {
             return runDebugBreakChild();
         }
-        if (hasArgument(argc, argv, unreachableChildArgument))
+        if (hasArgument(argc, argv, kUnreachableChildArgument))
         {
             return runUnreachableChild();
         }

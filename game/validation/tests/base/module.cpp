@@ -18,5 +18,5 @@ namespace
         return GameWIP::Test::runBaseTests(options);
     }
 
-    const GameWIP::Validation::Tests::Registration registration({.name = "base", .order = 5, .run = run});
+    const GameWIP::Validation::Tests::Registration kRegistration({.name = "base", .order = 5, .run = run});
 } // namespace

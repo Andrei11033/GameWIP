@@ -224,6 +224,8 @@ namespace GameWIP::Input
 
     /// @brief Common keyboard control codes.
     /// @note Values use USB HID keyboard/keypad usage IDs, not platform scan codes.
+    // Public symbolic control codes intentionally use enum-style UpperCamelCase names.
+    // NOLINTBEGIN(readability-identifier-naming)
     namespace KeyboardControlCode
     {
         inline constexpr ControlCode A = 0x04;
@@ -338,6 +340,7 @@ namespace GameWIP::Input
         inline constexpr ControlCode RightAlt = 0xE6;
         inline constexpr ControlCode RightSuper = 0xE7;
     } // namespace KeyboardControlCode
+    // NOLINTEND(readability-identifier-naming)
 
     /// @brief Compares controls for equality.
     /// @param left First control to compare.

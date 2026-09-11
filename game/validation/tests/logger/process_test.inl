@@ -36,7 +36,7 @@ int runFatalTerminateChild()
     config.output = Logger::Types::OutputMode::None;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
-    if (const char *directory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
+    if (const char *directory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = directory;
@@ -44,7 +44,7 @@ int runFatalTerminateChild()
         config.flushFileEveryBatch = true;
     }
     static_cast<void>(Logger::init(config));
-    Logger::fatalTerminate(testSource, fatalTerminateChildMessage);
+    Logger::fatalTerminate(kTestSource, kFatalTerminateChildMessage);
 }
 
 void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &options)
@@ -56,14 +56,14 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
     }
 
     const std::filesystem::path directory = testDirectory(context, "fatal-terminate-child");
-    const TestSupport::ScopedEnvironmentVariable environment(childLogDirectoryEnvironmentVariable, pathText(directory));
+    const TestSupport::ScopedEnvironmentVariable environment(kChildLogDirectoryEnvironmentVariable, pathText(directory));
     if (!environment.status().ok())
     {
         context.fail("set fatalTerminate child directory", TestSupport::formatInfrastructureStatus(environment.status()));
         return;
     }
 
-    const TestSupport::Types::Process::Result child = runChild(context.executablePath, fatalTerminateChildArgument);
+    const TestSupport::Types::Process::Result child = runChild(context.executablePath, kFatalTerminateChildArgument);
     context.expectTrue(
         "fatalTerminate child exits nonzero",
         child.status.ok() && child.outcome == TestSupport::Types::Process::Outcome::Exited && child.exitCode != 0);
@@ -76,7 +76,7 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
             contents += readWholeFile(context, entry.path());
         }
     }
-    context.expectContains("fatalTerminate uses synchronous report", contents, fatalTerminateChildMessage);
+    context.expectContains("fatalTerminate uses synchronous report", contents, kFatalTerminateChildMessage);
 }
 
 void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options)
@@ -91,6 +91,6 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
     Logger::Types::Config config = makeConsoleConfig();
     config.enableFatalPopup = true;
     expectStarted(context, "manual fatal popup init", Logger::init(config));
-    static_cast<void>(Logger::reportFatal(testSource, "Manual Logger fatal popup test. Close this popup to continue."));
+    static_cast<void>(Logger::reportFatal(kTestSource, "Manual Logger fatal popup test. Close this popup to continue."));
     context.pass("manual Logger fatal popup completed");
 }

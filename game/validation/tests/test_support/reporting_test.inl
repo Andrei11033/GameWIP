@@ -155,7 +155,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("Truncated report read succeeds", truncatedResult.status.ok()));
     const std::string &truncatedText = truncatedResult.text;
     static_cast<void>(context.expectContains("Report truncate writes new line", truncatedText, "third line"));
-    static_cast<void>(context.expectFalse("Report truncate removes old line", truncatedText.find("first line") != std::string::npos));
+    static_cast<void>(context.expectFalse("Report truncate removes old line", truncatedText.contains("first line")));
 
     const std::filesystem::path destructionFlushPath = root / "destruction_flush_report.txt";
     {
@@ -186,8 +186,8 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         concise.summary("visible summary");
         conciseOutput = captured.output.str();
     }
-    static_cast<void>(context.expectFalse("Concise console hides info", conciseOutput.find("hidden info") != std::string::npos));
-    static_cast<void>(context.expectFalse("Concise console hides passes", conciseOutput.find("hidden pass") != std::string::npos));
+    static_cast<void>(context.expectFalse("Concise console hides info", conciseOutput.contains("hidden info")));
+    static_cast<void>(context.expectFalse("Concise console hides passes", conciseOutput.contains("hidden pass")));
     static_cast<void>(context.expectContains("Concise console includes failures", conciseOutput, "visible failure"));
     static_cast<void>(context.expectContains("Concise console includes skips", conciseOutput, "visible skip"));
     static_cast<void>(context.expectContains("Concise console includes summaries", conciseOutput, "visible summary"));
@@ -207,9 +207,9 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
         minimal.summary("hidden minimal summary");
         minimalOutput = captured.output.str();
     }
-    static_cast<void>(context.expectFalse("Minimal console hides info", minimalOutput.find("hidden minimal info") != std::string::npos));
-    static_cast<void>(context.expectFalse("Minimal console hides passes", minimalOutput.find("hidden minimal pass") != std::string::npos));
-    static_cast<void>(context.expectFalse("Minimal console hides summaries", minimalOutput.find("hidden minimal summary") != std::string::npos));
+    static_cast<void>(context.expectFalse("Minimal console hides info", minimalOutput.contains("hidden minimal info")));
+    static_cast<void>(context.expectFalse("Minimal console hides passes", minimalOutput.contains("hidden minimal pass")));
+    static_cast<void>(context.expectFalse("Minimal console hides summaries", minimalOutput.contains("hidden minimal summary")));
     static_cast<void>(context.expectContains("Minimal console includes failures", minimalOutput, "visible minimal failure"));
     static_cast<void>(context.expectContains("Minimal console includes skips", minimalOutput, "visible minimal skip"));
     static_cast<void>(context.expectContains("Minimal console includes manual instructions", minimalOutput, "visible minimal instruction"));

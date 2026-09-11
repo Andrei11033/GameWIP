@@ -439,7 +439,7 @@ namespace GameWIP::TestSupport
         Types::BoolResult result{.status = readResult.status};
         if (result.status.ok())
         {
-            result.value = readResult.text.find(text) != std::string::npos;
+            result.value = readResult.text.contains(text);
         }
         return result;
     }

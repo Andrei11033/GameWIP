@@ -19,7 +19,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic IO module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "io",
         .order = 10,
         .run = run,

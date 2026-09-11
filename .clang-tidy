@@ -1,4 +1,19 @@
 ---
+CheckOptions:
+  bugprone-suspicious-stringview-data-usage.AllowedCallees: 'MultiByteToWideChar;WideCharToMultiByte'
+  modernize-use-nullptr.NullMacros: 'NULL'
+  modernize-use-to-underlying.ImpreciseCasts: 'Ignore'
+
+  readability-identifier-naming.GlobalConstexprVariableCase: 'CamelCase'
+  readability-identifier-naming.GlobalConstexprVariablePrefix: 'k'
+  readability-identifier-naming.GlobalConstantCase: 'CamelCase'
+  readability-identifier-naming.GlobalConstantPrefix: 'k'
+
+  readability-identifier-naming.ClassConstexprCase: 'camelBack'
+  readability-identifier-naming.ClassConstexprPrefix: ''
+  readability-identifier-naming.ClassConstantCase: 'camelBack'
+  readability-identifier-naming.ClassConstantPrefix: ''
+
 Checks: >
   -*,
   clang-analyzer-*,
@@ -6,6 +21,7 @@ Checks: >
   concurrency-*,
   performance-*,
   portability-*,
+
   misc-definitions-in-headers,
   misc-misplaced-const,
   misc-new-delete-overloads,
@@ -13,6 +29,7 @@ Checks: >
   misc-redundant-expression,
   misc-static-assert,
   misc-unconventional-assign-operator,
+
   modernize-deprecated-headers,
   modernize-loop-convert,
   modernize-make-shared,
@@ -29,16 +46,21 @@ Checks: >
   modernize-use-noexcept,
   modernize-use-nullptr,
   modernize-use-override,
+  modernize-use-to-underlying,
   modernize-use-using,
+
   readability-avoid-const-params-in-decls,
+  readability-braces-around-statements,
+  readability-container-contains,
   readability-container-size-empty,
   readability-duplicate-include,
+  readability-identifier-naming,
   readability-inconsistent-declaration-parameter-name,
   readability-misleading-indentation,
   readability-redundant-*,
   readability-simplify-boolean-expr,
-  readability-braces-around-statements,
   readability-static-accessed-through-instance,
+
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,
   -bugprone-narrowing-conversions,
@@ -56,12 +78,9 @@ Checks: >
   -readability-redundant-inline-specifier,
   -readability-redundant-member-init,
   -readability-redundant-parentheses
-WarningsAsErrors: '*'
-HeaderFilterRegex: '.*[\\/](foundation|tools|engine|game)[\\/].*'
 ExcludeHeaderFilterRegex: '.*[\\/](external|build)[\\/].*'
-SystemHeaders: false
 FormatStyle: file
-CheckOptions:
-  bugprone-suspicious-stringview-data-usage.AllowedCallees: 'MultiByteToWideChar;WideCharToMultiByte'
-  modernize-use-nullptr.NullMacros: 'NULL'
+HeaderFilterRegex: '.*[\\/](foundation|tools|engine|game)[\\/].*'
+SystemHeaders: false
+WarningsAsErrors: '*'
 ...

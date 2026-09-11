@@ -147,7 +147,7 @@ namespace GameWIP::Desktop
             // U+0000 is valid Unicode, but native Window title APIs are NUL-terminated and cannot
             // represent an embedded NUL. UTF-8 validity itself is checked by the strict conversion
             // performed at the native boundary.
-            if (description.title.find('\0') != std::string::npos || !validSize(description.clientSize) || !validEnum(description.placement.kind) ||
+            if (description.title.contains('\0') || !validSize(description.clientSize) || !validEnum(description.placement.kind) ||
                 (description.placement.kind != Types::PlacementKind::Centered && description.placement.monitor.isValid()) ||
                 !validModeRequest(description.mode) || !validEnum(description.presentation) || !validEnum(description.decoration) ||
                 !validLimits(description.sizeLimits) || !sizeWithin(description.clientSize, description.sizeLimits) ||
@@ -769,7 +769,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
-        if (utf8Title.find('\0') != std::string_view::npos)
+        if (utf8Title.contains('\0'))
         {
             return error(ErrorCode::InvalidArgument);
         }

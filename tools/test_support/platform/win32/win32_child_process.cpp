@@ -200,7 +200,7 @@ namespace GameWIP::TestSupport
         [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path)
         {
             std::wstring text = path.wstring();
-            if (text.find(L'\0') != std::wstring::npos)
+            if (text.contains(L'\0'))
             {
                 throw std::invalid_argument("Child-process executable path contains an embedded null");
             }
@@ -288,7 +288,7 @@ namespace GameWIP::TestSupport
 
         void applyEnvironmentOverride(std::vector<std::wstring> &entries, const Types::Process::EnvironmentOverride &variable)
         {
-            if (variable.name.empty() || variable.name.find('=') != std::string::npos)
+            if (variable.name.empty() || variable.name.contains('='))
             {
                 throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }

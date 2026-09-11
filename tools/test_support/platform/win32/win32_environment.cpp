@@ -33,7 +33,7 @@ namespace
 
     void validateEnvironmentName(std::string_view name)
     {
-        if (name.empty() || name.find('=') != std::string_view::npos)
+        if (name.empty() || name.contains('='))
         {
             throw std::invalid_argument("Environment variable name must be non-empty and cannot contain '='");
         }

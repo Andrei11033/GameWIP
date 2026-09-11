@@ -55,25 +55,25 @@ namespace
     using GameWIP::Input::MouseButton;
     using GameWIP::Input::MouseWheel;
 
-    constexpr DWORD maxGamepadCount = 4;
-    constexpr auto disconnectedGamepadPollInterval = std::chrono::seconds(1);
+    constexpr DWORD kMaxGamepadCount = 4;
+    constexpr auto kDisconnectedGamepadPollInterval = std::chrono::seconds(1);
 
     using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
 
     XInputGetStateFn cachedXInputGetState = nullptr;
     bool attemptedXInputLoad = false;
-    std::array<DWORD, maxGamepadCount> cachedGamepadPacketNumbers{};
-    std::array<std::uint64_t, maxGamepadCount> cachedGamepadClearGenerations{};
-    std::array<const InputState *, maxGamepadCount> cachedGamepadInputStates{};
-    std::array<DeviceIndex, maxGamepadCount> cachedGamepadDeviceIndices{};
-    std::array<bool, maxGamepadCount> cachedGamepadConnected{};
-    std::array<bool, maxGamepadCount> hasCachedGamepadPacket{};
-    std::array<bool, maxGamepadCount> gamepadControlsCleared{true, true, true, true};
+    std::array<DWORD, kMaxGamepadCount> cachedGamepadPacketNumbers{};
+    std::array<std::uint64_t, kMaxGamepadCount> cachedGamepadClearGenerations{};
+    std::array<const InputState *, kMaxGamepadCount> cachedGamepadInputStates{};
+    std::array<DeviceIndex, kMaxGamepadCount> cachedGamepadDeviceIndices{};
+    std::array<bool, kMaxGamepadCount> cachedGamepadConnected{};
+    std::array<bool, kMaxGamepadCount> hasCachedGamepadPacket{};
+    std::array<bool, kMaxGamepadCount> gamepadControlsCleared{true, true, true, true};
     std::chrono::steady_clock::time_point nextDisconnectedGamepadPollTime{};
     DWORD nextDisconnectedGamepadSlotToPoll = 0;
     bool initialXInputScanComplete = false;
 
-    constexpr std::array<GamepadButton, 15> allGamepadButtons{
+    constexpr std::array<GamepadButton, 15> kAllGamepadButtons{
         GamepadButton::North,
         GamepadButton::South,
         GamepadButton::East,
@@ -90,7 +90,7 @@ namespace
         GamepadButton::LeftStick,
         GamepadButton::RightStick};
 
-    constexpr std::array<GamepadAxis, 6> allGamepadAxes{
+    constexpr std::array<GamepadAxis, 6> kAllGamepadAxes{
         GamepadAxis::LeftX,
         GamepadAxis::LeftY,
         GamepadAxis::RightX,
@@ -98,11 +98,11 @@ namespace
         GamepadAxis::LeftTrigger,
         GamepadAxis::RightTrigger};
 
-    constexpr ControlCode hidButtonCodeBase = 0x00010000;
-    constexpr ControlCode hidAxisCodeBase = 0x00020000;
-    constexpr ControlCode hidHatCodeBase = 0x00030000;
-    constexpr std::uint64_t fnvOffset = 14695981039346656037ull;
-    constexpr std::uint64_t fnvPrime = 1099511628211ull;
+    constexpr ControlCode kHidButtonCodeBase = 0x00010000;
+    constexpr ControlCode kHidAxisCodeBase = 0x00020000;
+    constexpr ControlCode kHidHatCodeBase = 0x00030000;
+    constexpr std::uint64_t kFnvOffset = 14695981039346656037ull;
+    constexpr std::uint64_t kFnvPrime = 1099511628211ull;
 
     struct HidButtonRuntime
     {
@@ -164,14 +164,14 @@ namespace
 
     std::uint64_t hashWideIdentity(std::wstring_view text)
     {
-        std::uint64_t hash = fnvOffset;
+        std::uint64_t hash = kFnvOffset;
         for (wchar_t character : text)
         {
             const wchar_t folded = static_cast<wchar_t>(std::towlower(character));
             hash ^= static_cast<std::uint64_t>(folded & 0xFF);
-            hash *= fnvPrime;
+            hash *= kFnvPrime;
             hash ^= static_cast<std::uint64_t>((folded >> 8) & 0xFF);
-            hash *= fnvPrime;
+            hash *= kFnvPrime;
         }
 
         return hash == 0 ? 1 : hash;
@@ -228,12 +228,12 @@ namespace
 
     bool containsMarker(std::string_view text, std::string_view marker)
     {
-        return toLowerAscii(text).find(toLowerAscii(marker)) != std::string::npos;
+        return toLowerAscii(text).contains(toLowerAscii(marker));
     }
 
     bool containsMarker(std::wstring_view text, std::wstring_view marker)
     {
-        return toLowerWide(text).find(toLowerWide(marker)) != std::wstring::npos;
+        return toLowerWide(text).contains(toLowerWide(marker));
     }
 
     bool tryParseHexAfterMarker(std::wstring_view text, std::wstring_view marker, std::uint16_t &outValue)
@@ -488,7 +488,7 @@ namespace
         case 10:
             return static_cast<ControlCode>(GamepadButton::RightStick);
         default:
-            return hidButtonCodeBase + static_cast<ControlCode>(usage);
+            return kHidButtonCodeBase + static_cast<ControlCode>(usage);
         }
     }
 
@@ -515,7 +515,7 @@ namespace
             }
         }
 
-        return hidAxisCodeBase + static_cast<ControlCode>(usage);
+        return kHidAxisCodeBase + static_cast<ControlCode>(usage);
     }
 
     std::string makeHidButtonName(USAGE usage)
@@ -703,7 +703,7 @@ namespace
 
         if (cap.UsagePage == HID_USAGE_PAGE_GENERIC && usage == HID_USAGE_GENERIC_HATSWITCH)
         {
-            valueRuntime.control = makeDeviceButton(runtime.device, hidHatCodeBase + static_cast<ControlCode>(usage));
+            valueRuntime.control = makeDeviceButton(runtime.device, kHidHatCodeBase + static_cast<ControlCode>(usage));
             buildHatControls(valueRuntime, controls);
         }
         else
@@ -1325,12 +1325,12 @@ namespace
 
     void clearGamepadControls(InputState &inputState, DeviceIndex deviceIndex)
     {
-        for (GamepadButton button : allGamepadButtons)
+        for (GamepadButton button : kAllGamepadButtons)
         {
             InputInternal::InputStateAccess::setButton(inputState, makeGamepadButton(deviceIndex, button), false);
         }
 
-        for (GamepadAxis axis : allGamepadAxes)
+        for (GamepadAxis axis : kAllGamepadAxes)
         {
             InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(deviceIndex, axis), 0.0f);
         }
@@ -1338,17 +1338,17 @@ namespace
 
     DWORD chooseDisconnectedGamepadSlot()
     {
-        for (DWORD attempt = 0; attempt < maxGamepadCount; ++attempt)
+        for (DWORD attempt = 0; attempt < kMaxGamepadCount; ++attempt)
         {
-            DWORD userIndex = (nextDisconnectedGamepadSlotToPoll + attempt) % maxGamepadCount;
+            DWORD userIndex = (nextDisconnectedGamepadSlotToPoll + attempt) % kMaxGamepadCount;
             if (!cachedGamepadConnected[static_cast<std::size_t>(userIndex)])
             {
-                nextDisconnectedGamepadSlotToPoll = (userIndex + 1) % maxGamepadCount;
+                nextDisconnectedGamepadSlotToPoll = (userIndex + 1) % kMaxGamepadCount;
                 return userIndex;
             }
         }
 
-        return maxGamepadCount;
+        return kMaxGamepadCount;
     }
 
     bool isRegistryBackendDevice(const InputDeviceRegistry &devices, InputDeviceRef device, InputDeviceBackend backend)
@@ -1411,7 +1411,7 @@ namespace
 
     void markXInputUnavailable(InputState &inputState, InputDeviceRegistry &devices, std::uint64_t clearGeneration)
     {
-        for (DWORD userIndex = 0; userIndex < maxGamepadCount; ++userIndex)
+        for (DWORD userIndex = 0; userIndex < kMaxGamepadCount; ++userIndex)
         {
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
             if (cachedGamepadConnected[cacheIndex] || !gamepadControlsCleared[cacheIndex])
@@ -1500,7 +1500,7 @@ namespace
         deviceInfo.canonical = connected;
         deviceInfo.hasXInputFeed = connected;
 
-        for (GamepadButton button : allGamepadButtons)
+        for (GamepadButton button : kAllGamepadButtons)
         {
             InputControl control = makeGamepadButton(deviceInfo.device.deviceIndex, button);
             deviceInfo.controls.push_back(
@@ -1512,7 +1512,7 @@ namespace
                     .relative = false});
         }
 
-        for (GamepadAxis axis : allGamepadAxes)
+        for (GamepadAxis axis : kAllGamepadAxes)
         {
             InputControl control = makeGamepadAxis(deviceInfo.device.deviceIndex, axis);
             deviceInfo.controls.push_back(
@@ -2049,19 +2049,19 @@ namespace GameWIP::Input::Platform::Win32
             return;
         }
 
-        DWORD disconnectedSlotToPoll = maxGamepadCount;
+        DWORD disconnectedSlotToPoll = kMaxGamepadCount;
         auto now = std::chrono::steady_clock::now();
         const bool pollAllDisconnectedSlots = !initialXInputScanComplete;
         if (!pollAllDisconnectedSlots && now >= nextDisconnectedGamepadPollTime)
         {
             disconnectedSlotToPoll = chooseDisconnectedGamepadSlot();
-            if (disconnectedSlotToPoll != maxGamepadCount)
+            if (disconnectedSlotToPoll != kMaxGamepadCount)
             {
-                nextDisconnectedGamepadPollTime = now + disconnectedGamepadPollInterval;
+                nextDisconnectedGamepadPollTime = now + kDisconnectedGamepadPollInterval;
             }
         }
 
-        for (DWORD userIndex = 0; userIndex < maxGamepadCount; ++userIndex)
+        for (DWORD userIndex = 0; userIndex < kMaxGamepadCount; ++userIndex)
         {
             DeviceIndex deviceIndex = static_cast<DeviceIndex>(userIndex);
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);

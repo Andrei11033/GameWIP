@@ -227,7 +227,7 @@ namespace GameWIP::Logger::Detail::Platform
                 return status;
             }
 
-            if (output.find(L'\0') != std::wstring::npos)
+            if (output.contains(L'\0'))
             {
                 output = escapeEmbeddedNuls(output);
             }
@@ -256,7 +256,7 @@ namespace GameWIP::Logger::Detail::Platform
                 return status;
             }
 
-            if (messageText.find(L'\0') != std::wstring::npos)
+            if (messageText.contains(L'\0'))
             {
                 messageText = escapeEmbeddedNuls(messageText);
             }

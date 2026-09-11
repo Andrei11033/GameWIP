@@ -75,19 +75,10 @@ void testEnsureBehavior(TestContext &context)
 #if ASSERT_CHECKS_ENABLED
     const std::string contents = readFile(context, Logger::getLogFilePath());
 #if ASSERT_DIAGNOSTICS
-    context.expectTrue(
-        "ENSURE diagnostics include caller function",
-        contents.find("testEnsureBehavior") != std::string::npos,
-        "caller function missing");
-    context.expectTrue(
-        "ENSURE diagnostics avoid lambda function",
-        contents.find("operator()") == std::string::npos,
-        "lambda function leaked into diagnostics");
+    context.expectTrue("ENSURE diagnostics include caller function", contents.contains("testEnsureBehavior"), "caller function missing");
+    context.expectTrue("ENSURE diagnostics avoid lambda function", !contents.contains("operator()"), "lambda function leaked into diagnostics");
 #else
-    context.expectTrue(
-        "ENSURE diagnostics stripped message",
-        contents.find("ensure false message") == std::string::npos,
-        "diagnostic message was embedded");
+    context.expectTrue("ENSURE diagnostics stripped message", !contents.contains("ensure false message"), "diagnostic message was embedded");
 #endif
 #endif
 }
@@ -113,10 +104,7 @@ void testCheckOnceLogging(TestContext &context)
     const std::string contents = readFile(context, Logger::getLogFilePath());
     context.expectEq("CHECK_ONCE reports without queueing", stats.queued, std::size_t{0});
     context.expectEq("CHECK_ONCE writes one failure synchronously", stats.written, std::size_t{1});
-    context.expectTrue(
-        "CHECK_ONCE log contains error failure",
-        contents.find("[ERROR][Check]: Check failed") != std::string::npos,
-        "check failure missing from log");
+    context.expectTrue("CHECK_ONCE log contains error failure", contents.contains("[ERROR][Check]: Check failed"), "check failure missing from log");
 #else
     context.pass("CHECK_ONCE logger test skipped because ASSERT_CHECKS_ENABLED=0");
 #endif

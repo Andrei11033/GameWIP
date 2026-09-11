@@ -12,14 +12,14 @@ int runAssertFailureChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
-    if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
+    if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
         config.fallbackToConsoleOnFileFailure = false;
     }
     Logger::init(config);
-    ASSERT_MSG(false, assertFailureChildMessage);
+    ASSERT_MSG(false, kAssertFailureChildMessage);
     Logger::shutdown();
     return 0;
 }
@@ -35,7 +35,7 @@ int runInteractiveAbortChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
-    if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
+    if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
@@ -58,7 +58,7 @@ int runInteractiveBreakChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
-    if (const char *childLogDirectory = std::getenv(std::string(childLogDirectoryEnvironmentVariable).c_str()))
+    if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
@@ -117,30 +117,30 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+    const ScopedEnvironmentVariable suppressPopupOverride(kSuppressPopupEnvironmentVariable, "1");
     if (!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
     {
         return;
     }
 
-    expectAbnormalChildExit(context, assertFailureChildArgument, "ASSERT failure child exits abnormally with popup suppressed");
+    expectAbnormalChildExit(context, kAssertFailureChildArgument, "ASSERT failure child exits abnormally with popup suppressed");
 
     const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
     context.expectTrue(
         "ASSERT failure child logs fatal through Logger",
-        childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+        childLogContents.contains("[FATAL][Assert]: Assert failed"),
         "assert failure missing from child log");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "ASSERT failure child logs diagnostic message",
-        childLogContents.find(assertFailureChildMessage) != std::string::npos,
+        childLogContents.contains(kAssertFailureChildMessage),
         "child assert message missing from log");
 #else
     context.expectTrue(
         "ASSERT failure child strips diagnostic message",
-        childLogContents.find(assertFailureChildMessage) == std::string::npos,
+        !childLogContents.contains(kAssertFailureChildMessage),
         "child assert message was embedded");
 #endif
 #else
@@ -163,30 +163,30 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "abort");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "abort");
     if (!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
     {
         return;
     }
 
-    expectAbnormalChildExit(context, interactiveAbortChildArgument, "ASSERT_INTERACTIVE abort child exits abnormally");
+    expectAbnormalChildExit(context, kInteractiveAbortChildArgument, "ASSERT_INTERACTIVE abort child exits abnormally");
 
     const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
     context.expectTrue(
         "ASSERT_INTERACTIVE abort child logs fatal",
-        childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+        childLogContents.contains("[FATAL][Assert]: Assert failed"),
         "interactive abort child fatal missing");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "ASSERT_INTERACTIVE abort child logs message",
-        childLogContents.find("interactive abort child") != std::string::npos,
+        childLogContents.contains("interactive abort child"),
         "interactive abort child message missing");
 #else
     context.expectTrue(
         "ASSERT_INTERACTIVE abort child strips message",
-        childLogContents.find("interactive abort child") == std::string::npos,
+        !childLogContents.contains("interactive abort child"),
         "interactive abort child message was embedded");
 #endif
 #else
@@ -209,30 +209,30 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "break");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "break");
     if (!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Break action", testAction.status()))
     {
         return;
     }
 
-    expectAbnormalChildExit(context, interactiveBreakChildArgument, "ASSERT_INTERACTIVE break child exits abnormally without debugger");
+    expectAbnormalChildExit(context, kInteractiveBreakChildArgument, "ASSERT_INTERACTIVE break child exits abnormally without debugger");
 
     const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
     context.expectTrue(
         "ASSERT_INTERACTIVE break child logs fatal",
-        childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+        childLogContents.contains("[FATAL][Assert]: Assert failed"),
         "interactive break child fatal missing");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "ASSERT_INTERACTIVE break child logs message",
-        childLogContents.find("interactive break child") != std::string::npos,
+        childLogContents.contains("interactive break child"),
         "interactive break child message missing");
 #else
     context.expectTrue(
         "ASSERT_INTERACTIVE break child strips message",
-        childLogContents.find("interactive break child") == std::string::npos,
+        !childLogContents.contains("interactive break child"),
         "interactive break child message was embedded");
 #endif
 #else
@@ -243,19 +243,19 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
 /// @brief Verifies DEBUG_BREAK exits abnormally in an isolated child process.
 void testDebugBreakChild(TestContext &context)
 {
-    expectAbnormalChildExit(context, debugBreakChildArgument, "DEBUG_BREAK child exits abnormally");
+    expectAbnormalChildExit(context, kDebugBreakChildArgument, "DEBUG_BREAK child exits abnormally");
 }
 
 /// @brief Verifies UNREACHABLE exits abnormally unless disabled unreachable is configured as an optimizer assumption.
 void testUnreachableChild(TestContext &context)
 {
 #if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
-    const ScopedEnvironmentVariable suppressPopupOverride(suppressPopupEnvironmentVariable, "1");
+    const ScopedEnvironmentVariable suppressPopupOverride(kSuppressPopupEnvironmentVariable, "1");
     if (!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
     {
         return;
     }
-    expectAbnormalChildExit(context, unreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
+    expectAbnormalChildExit(context, kUnreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
 #else
     context.pass("UNREACHABLE child test skipped because ASSERT_UNREACHABLE_ASSUME=1");
 #endif

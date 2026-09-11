@@ -305,7 +305,7 @@ namespace GameWIP::TestSupport
 
     bool Context::expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring, std::source_location location)
     {
-        if (text.find(expectedSubstring) != std::string_view::npos)
+        if (text.contains(expectedSubstring))
         {
             pass(name);
             return true;

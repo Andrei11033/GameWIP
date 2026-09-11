@@ -260,7 +260,7 @@ namespace GameWIP::Desktop
             case Kind::Image:
                 return format.customName.empty();
             case Kind::Custom:
-                return !format.customName.empty() && format.customName.find('\0') == std::string_view::npos &&
+                return !format.customName.empty() && !format.customName.contains('\0') &&
                        Unicode::Utf8::validate(format.customName).outcome == Unicode::Types::ValidationOutcome::Valid;
             }
             return false;

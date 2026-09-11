@@ -258,7 +258,7 @@ namespace GameWIP::Desktop::Detail::Platform
             case Transfer::FormatKind::Image:
                 return format.customName.empty() ? IO::successStatus() : status(ErrorCode::InvalidArgument);
             case Transfer::FormatKind::Custom:
-                if (format.customName.empty() || format.customName.find('\0') != std::string_view::npos)
+                if (format.customName.empty() || format.customName.contains('\0'))
                 {
                     return status(ErrorCode::InvalidArgument);
                 }

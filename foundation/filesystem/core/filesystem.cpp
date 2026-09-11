@@ -288,7 +288,7 @@ namespace GameWIP::FileSystem
         /// @brief Detects separators or embedded nulls forbidden in atomic temp prefixes.
         [[nodiscard]] bool hasPathSeparator(std::string_view text) noexcept
         {
-            return text.find('/') != std::string_view::npos || text.find('\\') != std::string_view::npos || text.find('\0') != std::string_view::npos;
+            return text.contains('/') || text.contains('\\') || text.contains('\0');
         }
 
         /// @brief Validates that an atomic temporary prefix is one safe filename component.

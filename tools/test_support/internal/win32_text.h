@@ -20,7 +20,7 @@ namespace GameWIP::TestSupport::Detail::Win32
     /// Converts validated UTF-8 input to the UTF-16 representation used by Win32 APIs.
     [[nodiscard]] inline std::wstring utf8ToWide(std::string_view text)
     {
-        if (text.find('\0') != std::string_view::npos)
+        if (text.contains('\0'))
         {
             throw std::invalid_argument("Win32 text contains an embedded null");
         }

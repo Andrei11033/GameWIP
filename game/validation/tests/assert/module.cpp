@@ -50,7 +50,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic Assert module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "assert",
         .order = 60,
         .run = run,

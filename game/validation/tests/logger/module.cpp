@@ -52,7 +52,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic Logger module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "logger",
         .order = 50,
         .run = run,

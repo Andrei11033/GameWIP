@@ -43,7 +43,7 @@ namespace
         return GameWIP::Test::runDesktopTests(invocation.argc, invocation.argv, options);
     }
 
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "desktop",
         .order = 35,
         .run = run,

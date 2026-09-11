@@ -30,7 +30,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
         return;
     }
 
-    const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "ignore_once");
     if (!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
     {
         return;
@@ -42,19 +42,16 @@ void testInteractiveIgnoreOnce(TestContext &context)
     const std::string contents = readFile(context, Logger::getLogFilePath());
     context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
     context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
-    context.expectTrue(
-        "ASSERT_INTERACTIVE ignore_once logs fatal",
-        contents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
-        "interactive fatal missing");
+    context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.contains("[FATAL][Assert]: Assert failed"), "interactive fatal missing");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "ASSERT_INTERACTIVE ignore_once logs message",
-        contents.find("interactive ignore once test") != std::string::npos,
+        contents.contains("interactive ignore once test"),
         "interactive message missing");
 #else
     context.expectTrue(
         "ASSERT_INTERACTIVE ignore_once strips message",
-        contents.find("interactive ignore once test") == std::string::npos,
+        !contents.contains("interactive ignore once test"),
         "interactive message was embedded");
 #endif
 #else
@@ -73,7 +70,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
         return;
     }
 
-    const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
+    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "always_ignore");
     if (!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
     {
         return;
@@ -111,7 +108,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
     context.expectEq("VERIFY_INTERACTIVE passing evaluates once", passingEvaluations, 1);
 
     int failingEvaluations = 0;
-    const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "ignore_once");
     if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE action", testAction.status()))
     {
         return;
@@ -125,12 +122,12 @@ void testVerifyInteractiveEvaluation(TestContext &context)
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "VERIFY_INTERACTIVE failure logs when enabled",
-        contents.find("verify interactive ignore once test") != std::string::npos,
+        contents.contains("verify interactive ignore once test"),
         "verify interactive message missing");
 #else
     context.expectTrue(
         "VERIFY_INTERACTIVE failure strips message",
-        contents.find("verify interactive ignore once test") == std::string::npos,
+        !contents.contains("verify interactive ignore once test"),
         "verify interactive message was embedded");
 #endif
 #else
@@ -152,7 +149,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     }
 
     int evaluations = 0;
-    const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "always_ignore");
+    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "always_ignore");
     if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE always-ignore action", testAction.status()))
     {
         return;

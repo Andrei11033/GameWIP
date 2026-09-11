@@ -23,7 +23,7 @@ namespace GameWIP::Logger
         /// @brief Converts enum sources to SourceId while preserving string-like sources.
         template <typename Source> constexpr decltype(auto) normalizeSource(Source &&source) noexcept
         {
-            if constexpr (isSourceEnum<Source>)
+            if constexpr (kIsSourceEnum<Source>)
             {
                 return sourceId(source);
             }

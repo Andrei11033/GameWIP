@@ -73,7 +73,7 @@ namespace GameWIP::Logger
     namespace Detail::Core
     {
         template <typename Enum>
-        inline constexpr bool isSourceEnum =
+        inline constexpr bool kIsSourceEnum =
             std::is_enum_v<std::remove_cvref_t<Enum>> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Level> &&
             !std::is_same_v<std::remove_cvref_t<Enum>, Types::OutputMode> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::FormatPolicy> &&
             !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Outcome> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Adjustment> &&
@@ -82,7 +82,7 @@ namespace GameWIP::Logger
             !std::is_same_v<std::remove_cvref_t<Enum>, Types::Health::FailureSource>;
 
         template <typename Enum>
-            requires(isSourceEnum<Enum>)
+            requires(kIsSourceEnum<Enum>)
         constexpr Types::SourceId sourceId(Enum value) noexcept
         {
             using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
@@ -95,7 +95,7 @@ namespace GameWIP::Logger
 
     /// @brief Creates a registered-source definition from an unsigned enum value and UTF-8 name.
     template <typename Enum>
-        requires(Detail::Core::isSourceEnum<Enum>)
+        requires(Detail::Core::kIsSourceEnum<Enum>)
     constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name) noexcept
     {
         return {Detail::Core::sourceId(value), name};

@@ -19,7 +19,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic runner-module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "runner",
         .order = 5,
         .run = run,

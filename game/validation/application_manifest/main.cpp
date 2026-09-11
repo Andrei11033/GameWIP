@@ -45,8 +45,8 @@ int main()
     }
 
     const std::string_view manifest(data, SizeofResource(module, resource));
-    const bool commonControls = manifest.find("Microsoft.Windows.Common-Controls") != std::string_view::npos;
-    if (commonControls != (EXPECT_COMMON_CONTROLS != 0) || manifest.find("PerMonitorV2") == std::string_view::npos)
+    const bool commonControls = manifest.contains("Microsoft.Windows.Common-Controls");
+    if (commonControls != (EXPECT_COMMON_CONTROLS != 0) || !manifest.contains("PerMonitorV2"))
     {
         return 4;
     }

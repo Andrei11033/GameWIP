@@ -31,7 +31,7 @@ void testShutdownAndHealthEpoch(TestContext &context)
             }
         });
     GameWIP::Logger::TestHooks::forceNextFileWriteFailure();
-    Logger::info(testSource, "worker failure");
+    Logger::info(kTestSource, "worker failure");
     static_cast<void>(Logger::flush(2s));
     observeHealth.store(false, std::memory_order_release);
     healthObserver.join();

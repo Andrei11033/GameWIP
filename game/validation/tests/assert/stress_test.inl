@@ -78,7 +78,7 @@ void testInteractiveStressLoops(TestContext &context, const AssertTestOptions &o
     }
 
     const int iterations = static_cast<int>(std::max<std::size_t>(1, options.stressIterations));
-    const ScopedEnvironmentVariable testAction(testActionEnvironmentVariable, "ignore_once");
+    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "ignore_once");
     if (!requireInfrastructure(context, "set interactive stress action", testAction.status()))
     {
         return;

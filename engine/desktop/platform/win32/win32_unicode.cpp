@@ -30,7 +30,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         // U+0000 is valid Unicode, but every native caller of this bridge passes the result to
         // NUL-terminated Win32 text APIs and therefore cannot preserve an embedded NUL.
-        if (text.find('\0') != std::string_view::npos)
+        if (text.contains('\0'))
         {
             nativeCode = ERROR_INVALID_PARAMETER;
             return false;

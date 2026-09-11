@@ -52,10 +52,10 @@ namespace
     using Clock = std::chrono::steady_clock;
     using namespace std::chrono_literals;
 
-    constexpr std::string_view testSource = "LoggerTest";
-    constexpr std::string_view childLogDirectoryEnvironmentVariable = "LOGGER_INTERNAL_TEST_CHILD_LOG_DIR";
-    constexpr std::string_view fatalTerminateChildArgument = "--logger-test-child=fatal-terminate";
-    constexpr std::string_view fatalTerminateChildMessage = "child fatal terminate";
+    constexpr std::string_view kTestSource = "LoggerTest";
+    constexpr std::string_view kChildLogDirectoryEnvironmentVariable = "LOGGER_INTERNAL_TEST_CHILD_LOG_DIR";
+    constexpr std::string_view kFatalTerminateChildArgument = "--logger-test-child=fatal-terminate";
+    constexpr std::string_view kFatalTerminateChildMessage = "child fatal terminate";
 
     enum class TestSource : Logger::Types::SourceId
     {
@@ -254,7 +254,7 @@ namespace GameWIP::Test
 
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {
-        if (hasArgument(argc, argv, fatalTerminateChildArgument))
+        if (hasArgument(argc, argv, kFatalTerminateChildArgument))
         {
             return runFatalTerminateChild();
         }
