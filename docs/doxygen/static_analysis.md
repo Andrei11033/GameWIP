@@ -27,7 +27,7 @@ consistently:
 complete check. The interactive GameWIP `Q` menu exposes both workflows directly.
 
 The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and
-Python. AddressSanitizer is the exception: it uses the MSYS2 CLANG64 environment and is documented in @ref project_build.
+Python. AddressSanitizer and UndefinedBehaviorSanitizer use the MSYS2 CLANG64 environment and are documented in @ref project_build.
 
 When invoking CMake or clang tools directly instead of through `gamewip.bat`, run them from the MSYS2 UCRT64 environment or put that toolchain first
 on `PATH`. Do not mix the analyze configure with an unrelated Visual Studio, standalone LLVM, or different MSYS2 environment. The toolchain that

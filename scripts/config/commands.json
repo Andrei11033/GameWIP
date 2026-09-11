@@ -213,6 +213,16 @@
       "risk": "local"
     },
     {
+      "id": "ubsan",
+      "title": "UndefinedBehaviorSanitizer",
+      "description": "Recreate the CLANG64 tree, then run UndefinedBehaviorSanitizer validation.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
       "id": "benchmark",
       "title": "Benchmarks",
       "description": "Run, list, dry-run, or compare benchmarks.",
@@ -297,7 +307,8 @@
         { "key": "6", "label": "Coverage", "handler": "coverage" },
         { "key": "7", "label": "Validation bundles", "handler": "bundle" },
         { "key": "8", "label": "Coverage", "handler": "coverage" },
-        { "key": "9", "label": "AddressSanitizer", "handler": "asan" }
+        { "key": "9", "label": "AddressSanitizer", "handler": "asan" },
+        { "key": "U", "label": "UndefinedBehaviorSanitizer", "handler": "ubsan" }
       ]
     },
     {
@@ -619,7 +630,7 @@
       ]
     },
     {
-      "name": "CLANG64 AddressSanitizer validation",
+      "name": "CLANG64 sanitizer validation",
       "id": "sanitizer",
       "freshBuildTrees": true,
       "steps": [
@@ -635,7 +646,10 @@
           "useWorkspaceTemp": true,
           "preset": "asan",
           "kind": "CTest"
-        }
+        },
+        { "kind": "Configure", "preset": "ubsan" },
+        { "kind": "Build", "preset": "ubsan" },
+        { "useWorkspaceTemp": true, "preset": "ubsan", "kind": "CTest" }
       ]
     }
   ],

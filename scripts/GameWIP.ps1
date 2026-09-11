@@ -63,7 +63,7 @@ if ($Action -in @('--help', '-h', '-?'))
 {
     $Action = 'help'
 }
-$validActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'benchmark', 'runs', 'list', 'help')
+$validActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'ubsan', 'benchmark', 'runs', 'list', 'help')
 if ($Action -notin $validActions)
 {
     Write-GameWipHost "Unknown project action '$Action'." -ForegroundColor Red
@@ -460,6 +460,10 @@ $result = Invoke-GameWipOperation `
         'asan'
         {
             Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null
+        }
+        'ubsan'
+        {
+            Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null
         }
         'benchmark'
         {

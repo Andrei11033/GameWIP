@@ -249,6 +249,10 @@ function Show-GameWipValidationMenu
             {
                 Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
             }
+            'ubsan'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+            }
         }
     }
 }

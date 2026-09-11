@@ -120,7 +120,7 @@ Completion checklist:
 
 - [x] Repository builds with CMake presets.
 - [x] Windows MSYS2 UCRT64 development workflow exists.
-- [x] MSYS2 CLANG64 AddressSanitizer workflow exists.
+- [x] MSYS2 CLANG64 AddressSanitizer and UndefinedBehaviorSanitizer workflows exist.
 - [x] Root project version and generated runtime build identity exist.
 - [x] Public-header, installed-consumer, and package-boundary checks exist for reusable libraries.
 - [x] `foundation/io` exists with status/result and stream contracts.

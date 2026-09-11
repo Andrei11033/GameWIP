@@ -123,7 +123,7 @@ configuration and build composition, and Ninja is the supported generator for
 normal repository workflows.
 
 Windows 11 with MSYS2 UCRT64 GCC is the primary development environment.
-MSYS2 CLANG64 provides AddressSanitizer validation. Visual Studio Code is the
+MSYS2 CLANG64 provides AddressSanitizer and UndefinedBehaviorSanitizer validation. Visual Studio Code is the
 recommended editor and owns repository-scoped workflow integration; Visual
 Studio Community is optional and is not a compiler prerequisite.
 

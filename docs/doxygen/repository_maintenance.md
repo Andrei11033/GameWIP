@@ -89,7 +89,7 @@ Before release preparation, use the `local-release-check` helper bundle and the
 release readiness dry run. Record actual evidence in the release pull request;
 do not treat an earlier ordinary pull-request run as finalization evidence.
 The bundle recreates every preset tree it owns before executing its declared
-steps. The separate `sanitizer` bundle does the same for `build/asan`; the
+steps. The separate `sanitizer` bundle does the same for `build/asan` and `build/ubsan`; the
 `quick` bundle remains incremental for normal iteration.
 
 GitHub-hosted validation already receives a new workspace for every job.

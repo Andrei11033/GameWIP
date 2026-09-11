@@ -157,7 +157,7 @@ function Show-GameWipHelp
     Write-Host '  stress [name] [-Count N] [-Parallel N] [-StopOnFailure] [-NoBuild]'
     Write-Host '  run [project-command] [-NoBuild] [-ExtraArgs <args>]'
     Write-Host '  bundle [id] [-NoBuild] [-Fresh]'
-    Write-Host '  docs | analyze | coverage | asan | links'
+    Write-Host '  docs | analyze | coverage | asan | ubsan | links'
     Write-Host '  benchmark <run|dry-run|list|compare> [options]'
     Write-Host '  runs list [all] | runs show [latest|run-name] | runs clean [run-name|all]'
     Write-Host '  list | help'

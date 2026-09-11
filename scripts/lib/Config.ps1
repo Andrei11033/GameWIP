@@ -468,7 +468,7 @@ function Assert-GameWipCommandConfig
     Assert-GameWipUniqueId -Label 'action' -Items $actions
     Assert-GameWipUniqueId -Label 'interactive menu' -Items $menus
     Assert-GameWipUniqueId -Label 'project command' -Items $commands
-    $requiredActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'benchmark', 'runs', 'list', 'help')
+    $requiredActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'ubsan', 'benchmark', 'runs', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
     if ((($requiredActions | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
@@ -493,7 +493,7 @@ function Assert-GameWipCommandConfig
         'menu-hygiene', 'menu-tools', 'menu-installed-tools', 'menu-tool-updates', 'menu-repository',
         'menu-git-workspace', 'menu-github-workflows', 'menu-maintenance', 'menu-unicode-data', 'menu-run-history',
         'doctor', 'help', 'configure', 'build', 'run', 'docs', 'test', 'module', 'stress', 'wizard', 'benchmark',
-        'coverage', 'asan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
+        'coverage', 'asan', 'ubsan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
         'analyze', 'links', 'hygiene-standard', 'hygiene-deep', 'hygiene-check', 'hygiene-list', 'hygiene-status', 'tools-status',
         'tools-check-updates', 'tools-preview', 'tools-update', 'setup-guidance', 'git-status', 'git-fetch',
         'git-switch', 'git-create', 'git-update', 'git-push', 'git-cleanup', 'git-log', 'workflow-list',

@@ -63,6 +63,7 @@ Selection words are positional. Do not use the retired nested selector switches 
 | `analyze` | Run the supported C++ static-analysis preset. |
 | `coverage` | Run the coverage validation workflow. |
 | `asan` | Run the CLANG64 AddressSanitizer workflow. |
+| `ubsan` | Run the CLANG64 UndefinedBehaviorSanitizer workflow. |
 | `benchmark` | Measure, dry-run, list, or compare benchmarks. |
 | `runs` | List, inspect, or clean owned helper run history. |
 | `list` | Print the current action/catalog values. |
@@ -175,11 +176,13 @@ of reading or changing partially updated tools, build trees, or retained state.
 caller has already granted consent. `-Preview` never performs the mutation.
 
 Low-level configure, build, test, and ordinary bundle commands remain
-incremental unless `-Fresh` is supplied. The high-level `coverage` and `asan`
+incremental unless `-Fresh` is supplied. The high-level `coverage`, `asan`, and `ubsan`
 actions always recreate their complete preset trees so stale instrumentation or
 runtime artifacts cannot affect authoritative results. The
 `local-release-check` and `sanitizer` bundles declare the same policy in the
-bundle catalog; `quick` remains incremental. Fresh recreation is deliberately
+bundle catalog; `sanitizer` runs AddressSanitizer then UndefinedBehaviorSanitizer
+and owns fresh `build/asan` and `build/ubsan` trees. `quick` remains incremental.
+Fresh recreation is deliberately
 limited to known, direct children of the repository `build` directory and
 refuses reparse points.
 
@@ -196,7 +199,7 @@ third-party exclusions. Independent checks aggregate by default; use
 C/C++ investigation. It configures the `analyze` compilation database, runs
 only the selected hygiene rules, and retains normalized evidence as
 `artifacts/hygiene-report.json`. It is not part of normal builds,
-`quality check`, `analyze`, AddressSanitizer, or CI. Report mode succeeds when
+`quality check`, `analyze`, AddressSanitizer, UndefinedBehaviorSanitizer, or CI. Report mode succeeds when
 it finds review candidates; add `-Enforce` when a caller intentionally wants
 proven findings to fail the operation. `list` describes configured providers,
 and `status` performs read-only configuration and tool discovery.

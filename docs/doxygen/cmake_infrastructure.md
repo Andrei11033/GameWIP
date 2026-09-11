@@ -44,7 +44,7 @@ repository concepts.
 | `cmake/ValidateRuntimeDependencies.cmake` | Windows/MSYS2 regression contract for compiler-runtime replacement and executable launch. |
 | `cmake/GameWIPCoverage.cmake` | Coverage instrumentation and report target. |
 | `cmake/GameWIPStaticAnalysis.cmake` | clang-tidy and clang-format validation targets. |
-| `cmake/GameWIPSanitizers.cmake` | AddressSanitizer availability and flags. |
+| `cmake/GameWIPSanitizers.cmake` | AddressSanitizer and UndefinedBehaviorSanitizer availability and instrumentation. |
 | `cmake/GameWIPVersion.cmake` | Project version detection, display-version composition, and generated version header. |
 | `cmake/RunInstalledConsumerValidation.cmake` | Clean installed-consumer package validation. |
 | `cmake/ValidateExportedSymbols.cmake` | Shared-library exported-symbol allowlist validation. |

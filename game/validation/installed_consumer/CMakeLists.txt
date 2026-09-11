@@ -36,3 +36,11 @@ if(GAMEWIP_CONSUMER_ENABLE_ADDRESS_SANITIZER)
     target_compile_options(GameWIPInstalledConsumer PRIVATE -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(GameWIPInstalledConsumer PRIVATE -fsanitize=address)
 endif()
+
+if(GAMEWIP_CONSUMER_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER)
+    target_compile_options(
+        GameWIPInstalledConsumer
+        PRIVATE -fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer -fno-sanitize-merge
+    )
+    target_link_options(GameWIPInstalledConsumer PRIVATE -fsanitize=undefined)
+endif()

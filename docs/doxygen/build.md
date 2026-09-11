@@ -28,8 +28,8 @@ Before configuring a fresh checkout, initialize submodules:
 git submodule update --init --recursive
 ```
 
-The `asan` preset uses the MSYS2 CLANG64 environment because the Windows AddressSanitizer runtime is provided there. Keep CLANG64 builds in their own
-build directory and place CLANG64 tools first on `PATH` before configuring that preset.
+The `asan` and `ubsan` presets use the MSYS2 CLANG64 environment because the Windows sanitizer runtimes are provided there.
+Keep CLANG64 sanitizer builds in their own build directories and place CLANG64 tools first on `PATH` before configuring those presets.
 
 ## Common workflow
 
@@ -73,7 +73,7 @@ accepts only cataloged preset names whose resolved directory is a direct child
 of the repository build root, and refuses recursive removal through reparse
 points.
 
-The high-level `coverage` and `asan` actions are fresh by default. The
+The high-level `coverage`, `asan`, and `ubsan` actions are fresh by default. The
 authoritative `local-release-check` and `sanitizer` bundles also declare fresh
 build trees, while ordinary low-level commands and the `quick` bundle remain
 incremental. GitHub-hosted validation jobs already start in a new runner
@@ -91,6 +91,7 @@ restore CMake build trees across runs.
 | `release` | `Release` with interprocedural optimization | `GameWIP` | Distributable game without validation, profiling, or assertions. |
 | `coverage` | `Debug` | `GameWIPTests`, coverage target | Correctness tests with coverage instrumentation. |
 | `asan` | `Debug` | `GameWIPTests` | CLANG64 AddressSanitizer validation build. |
+| `ubsan` | `Debug` | `GameWIPTests` | CLANG64 UndefinedBehaviorSanitizer validation build. |
 | `analyze` | `RelWithDebInfo` | `static-analysis` target | clang-tidy and clang-format checks for maintained C++ sources. |
 | `docs` | `Release` | `docs` target | Doxygen documentation only. |
 
@@ -118,7 +119,7 @@ Use this to build the targets selected by the preset.
 ctest --preset test
 ```
 
-CTest presets exist for `test`, `coverage`, and `asan`.
+CTest presets exist for `test`, `coverage`, `asan`, and `ubsan`.
 
 ### Print runtime version information
 
@@ -139,6 +140,17 @@ ctest --preset asan
 
 Use this only from an environment where CLANG64 tools are first on `PATH`.
 
+### Configure UndefinedBehaviorSanitizer
+
+```powershell
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset ubsan
+cmake --build --preset ubsan
+ctest --preset ubsan
+```
+
+Use this only from an environment where CLANG64 tools are first on `PATH`.
+
 ## Project options
 
 Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/GameWIPOptions.cmake`.
@@ -155,6 +167,7 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_ENABLE_ASSERTS` | `ON` | Enables assertions and recoverable checks. |
 | `GAMEWIP_ENABLE_COVERAGE` | `OFF` | Adds coverage instrumentation and the `coverage` target. |
 | `GAMEWIP_ENABLE_ADDRESS_SANITIZER` | `OFF` | Adds AddressSanitizer instrumentation. |
+| `GAMEWIP_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER` | `OFF` | Adds UndefinedBehaviorSanitizer instrumentation. |
 | `GAMEWIP_ENABLE_STATIC_ANALYSIS` | `OFF` | Creates clang-tidy and clang-format validation targets. |
 | `GAMEWIP_BUILD_DOCS` | `OFF` | Builds generated Doxygen documentation. |
 | `GAMEWIP_INSTALL_DOCS` | `OFF` | Installs generated Doxygen HTML documentation. |
@@ -214,7 +227,7 @@ updates its generated version header; the docs target also refreshes the Doxygen
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
 | A preset cannot find Ninja, CMake, or the compiler. | The expected MSYS2 environment is not first on `PATH`. | Start the correct MSYS2 shell or update `PATH` before configuring. |
-| AddressSanitizer configuration fails. | The preset is being configured from UCRT64 instead of CLANG64. | Put `C:\MSYS2\clang64\bin` first on `PATH` and use a separate build tree. |
+| AddressSanitizer or UndefinedBehaviorSanitizer configuration fails. | The preset is being configured from UCRT64 instead of CLANG64. | Put `C:\MSYS2\clang64\bin` first on `PATH` and use a separate build tree. |
 | Docs configuration fails. | Doxygen is not installed or not discoverable. | Install Doxygen or disable `GAMEWIP_BUILD_DOCS`. |
 | Coverage configuration fails. | Tests are disabled while coverage is enabled. | Enable `GAMEWIP_BUILD_TESTS` or use the `coverage` preset. |
 | Startup validation option fails configuration. | Startup validation was enabled while the game executable was disabled. | Enable `GAMEWIP_BUILD_GAME` or disable the startup option. |

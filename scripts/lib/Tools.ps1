@@ -386,7 +386,7 @@ function Get-GameWipToolchainPathPrefix
     {
         return ''
     }
-    if ($PresetName -eq 'asan')
+    if ($PresetName -in @('asan', 'ubsan'))
     {
         return Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'clang64/bin'
     }

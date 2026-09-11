@@ -15,6 +15,7 @@
         "GAMEWIP_ENABLE_TRACY": "OFF",
         "GAMEWIP_ENABLE_COVERAGE": "OFF",
         "GAMEWIP_ENABLE_ADDRESS_SANITIZER": "OFF",
+        "GAMEWIP_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER": "OFF",
         "GAMEWIP_ENABLE_STATIC_ANALYSIS": "OFF",
         "GAMEWIP_BUILD_DOCS": "OFF",
         "GAMEWIP_INSTALL_DOCS": "OFF"
@@ -99,6 +100,17 @@
       }
     },
     {
+      "name": "ubsan",
+      "displayName": "UndefinedBehaviorSanitizer tests",
+      "description": "CLANG64 correctness tests with UndefinedBehaviorSanitizer instrumentation.",
+      "inherits": "test",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "GAMEWIP_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER": "ON"
+      }
+    },
+    {
       "name": "analyze",
       "displayName": "Repository analysis",
       "description": "Compile representative project surfaces and run clang-tidy plus formatting checks.",
@@ -160,6 +172,11 @@
       "targets": ["GameWIPTests"]
     },
     {
+      "name": "ubsan",
+      "configurePreset": "ubsan",
+      "targets": ["GameWIPTests"]
+    },
+    {
       "name": "analyze",
       "configurePreset": "analyze",
       "targets": ["static-analysis"]
@@ -200,6 +217,13 @@
       "execution": {
         "noTestsAction": "error"
       }
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" },
+      "environment": { "UBSAN_OPTIONS": "print_stacktrace=1" }
     }
   ]
 }

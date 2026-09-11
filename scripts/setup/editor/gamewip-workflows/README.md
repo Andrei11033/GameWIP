@@ -38,6 +38,7 @@ build diagnostics separate from the running game's output.
 | `Alt+F9` | Start Tracy and run profiled startup tests. |
 | `F10` | Build and run tests, generate coverage, and open the report. |
 | `F11` | Build and run CLANG64 AddressSanitizer tests. |
+| `Shift+F11` | Build and run CLANG64 UndefinedBehaviorSanitizer tests. |
 | `F12` | Configure, build, and run the release game. |
 
 In the GameWIP workspace, `F5` and `Ctrl+F5` intentionally run repository tasks

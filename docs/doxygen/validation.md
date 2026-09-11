@@ -213,6 +213,7 @@ generated API, is not installed, and must not be used by application or validati
 | `release` | Validation, benchmarks, and development assertions disabled. |
 | `coverage` | Standalone correctness tests with coverage instrumentation; the high-level helper recreates the preset tree. |
 | `asan` | Standalone correctness tests with AddressSanitizer instrumentation; the high-level helper recreates the preset tree. |
+| `ubsan` | Standalone correctness tests with UndefinedBehaviorSanitizer instrumentation; the high-level helper recreates the preset tree. |
 | `docs` | Doxygen only; validation execution disabled. |
 
 ## Maintainer notes

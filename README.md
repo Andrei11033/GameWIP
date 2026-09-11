@@ -52,7 +52,7 @@ provide the same choice with `-Branch <name>`.
 
 After setup, open `GameWIP.code-workspace`. The repository-scoped shortcuts
 installed by setup cover development builds, tests, benchmarks, analysis,
-documentation, profiling, coverage, AddressSanitizer, and release runs; all are
+documentation, profiling, coverage, AddressSanitizer, UndefinedBehaviorSanitizer, and release runs; all are
 also available as `GameWIP: ...` entries under **Terminal > Run Task**.
 
 Use the [command-line tools reference](docs/doxygen/command_line_tools.md) for
@@ -112,12 +112,22 @@ cmake --build --preset asan
 ctest --preset asan
 ```
 
+Run the UndefinedBehaviorSanitizer workflow from an MSYS2 CLANG64 environment:
+
+```powershell
+$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+cmake --preset ubsan
+cmake --build --preset ubsan
+ctest --preset ubsan
+```
+
 For authoritative local coverage and sanitizer results, the project helper
 recreates the complete preset build tree before running the workflow:
 
 ```powershell
 .\gamewip.bat coverage
 .\gamewip.bat asan
+.\gamewip.bat ubsan
 ```
 
 Ordinary helper configure, build, and test commands remain incremental; add
