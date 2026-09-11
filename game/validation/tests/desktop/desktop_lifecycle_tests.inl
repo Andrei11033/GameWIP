@@ -190,7 +190,9 @@ void testFailureInjection(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("open succeeds after injected rollback", window.open(description, 16).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
     static_cast<void>(context.expectTrue("successful open commits current monitor publication", window.currentMonitor().isValid()));
 
     const std::string originalTitle(window.title());
@@ -260,7 +262,9 @@ void testThreadingContracts(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("threading fixture opens", window.open(description, 8).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
 
     ErrorCode mutationCode = ErrorCode::Success;
     ErrorCode closeCode = ErrorCode::Success;
@@ -343,7 +347,9 @@ void testExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("deferred-destruction fixture opens", deferred->open(description, 4).ok()));
     HWND deferredHandle = nullptr;
     if (deferred->isOpen())
+    {
         deferredHandle = Desktop::Native::Win32::getHandle(*deferred).handle.window;
+    }
     std::thread destroyer(
         [owned = std::move(deferred)]() mutable
         {
@@ -361,7 +367,9 @@ void testExceptionalLifetime(TestSupport::Context &context)
         {
             auto owned = std::make_unique<Desktop::Window>();
             if (owned->open(description, 4).ok())
+            {
                 ownerExitHandle = Desktop::Native::Win32::getHandle(*owned).handle.window;
+            }
             survivingObject = std::move(owned);
         });
     ownerThread.join();
@@ -390,7 +398,9 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     const IO::Types::Status openStatus = owner.open(description, 32);
     static_cast<void>(context.expectTrue("hidden native Window opens", openStatus.ok()));
     if (!openStatus.ok())
+    {
         return;
+    }
     static_cast<void>(context.expectTrue("open Window has an id", owner.id().isValid()));
     static_cast<void>(context.expectEq("open Window reports Open lifetime", Desktop::Types::LifetimeState::Open, owner.lifetimeState()));
     static_cast<void>(context.expectEq("title cache matches", std::string_view{description.title}, owner.title()));
@@ -424,7 +434,9 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         const Desktop::Types::LogicalPositionResult roundTrip = owner.screenToClient(screenPoint.position);
         static_cast<void>(context.expectTrue("screen-to-client conversion succeeds", roundTrip.status.ok()));
         if (roundTrip.status.ok())
+        {
             static_cast<void>(context.expectEq("coordinate conversion round trips", localPoint, roundTrip.position));
+        }
     }
 
     static_cast<void>(context.expectTrue(
@@ -626,7 +638,9 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     {
         static_cast<void>(context.expectTrue("runtime-supported transparent framebuffer opens", alphaStatus.ok()));
         if (alphaWindow.isOpen())
+        {
             static_cast<void>(alphaWindow.close());
+        }
     }
     else
     {

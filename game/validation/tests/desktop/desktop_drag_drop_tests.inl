@@ -157,9 +157,13 @@ void testDragDrop(TestSupport::Context &context)
         {
             const HRESULT initialized = OleInitialize(nullptr);
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 compatiblePreinitialized = Desktop::TestHooks::testDragDropOleInitialization().code;
+            }
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 OleUninitialize();
+            }
         });
     compatibleApartmentThread.join();
     static_cast<void>(context.expectEq("compatible preinitialized OLE apartment is reused", ErrorCode::Success, compatiblePreinitialized));
@@ -168,9 +172,13 @@ void testDragDrop(TestSupport::Context &context)
         {
             const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 incompatibleApartment = Desktop::TestHooks::testDragDropOleInitialization().code;
+            }
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 CoUninitialize();
+            }
         });
     incompatibleApartmentThread.join();
     static_cast<void>(context.expectEq("incompatible OLE apartment is ResourceBusy", ErrorCode::ResourceBusy, incompatibleApartment));
@@ -198,7 +206,9 @@ void testDragDrop(TestSupport::Context &context)
     windowDescription.visible = false;
     Desktop::Window window;
     if (!context.expectTrue("DragDrop Window opens", window.open(windowDescription, 8).ok()))
+    {
         return;
+    }
 
     std::array<Transfer::FormatView, 1> textFormat{{{Transfer::FormatKind::Text, {}}}};
     static_cast<void>(
@@ -398,7 +408,9 @@ void testDragDrop(TestSupport::Context &context)
     const auto *coalesced = coalescedMove.getIf<DDEvents::Moved>();
     static_cast<void>(context.expectTrue("coalesced movement keeps its payload type", coalesced != nullptr));
     if (coalesced != nullptr)
+    {
         static_cast<void>(context.expectEq("coalescing preserves earliest previous region", DD::RegionId{1}, coalesced->previousRegion));
+    }
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, {}, {1}, DD::Effect::Copy, formats}));
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, {}, {1}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("unrelated session moves do not coalesce", std::size_t{2}, target.eventQueueInfo().pendingEvents));

@@ -43,7 +43,9 @@ void testPresentationPublication(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("publication fixture opens", window.open(description, 4).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
     static_cast<void>(
         context.expectFalse("default Window has no presentation publication", Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
     static_cast<void>(context.expectEq(
@@ -127,7 +129,9 @@ void testPresentationPublication(TestSupport::Context &context)
 
     start.store(true, std::memory_order_release);
     for (std::size_t iteration = 0; iteration < 200'000; ++iteration)
+    {
         Desktop::TestHooks::applyPresentationPublicationSnapshot(window, (iteration & 1U) == 0 ? second : first);
+    }
     stop.store(true, std::memory_order_release);
     reader.join();
 
@@ -191,7 +195,9 @@ void testPointerHitMask(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("pointer-mask fixture opens", window.open(description, 8).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
 
     static_cast<void>(
         context.expectFalse("unused Window has no renderer-integration sidecar", Desktop::TestHooks::hasRendererIntegrationState(window)));
@@ -217,7 +223,9 @@ void testPointerHitMask(TestSupport::Context &context)
     std::vector<MaskWord> words(wordCount);
     static_cast<void>(context.expectFalse("pointer-mask fixture has nonempty storage", words.empty()));
     if (words.empty())
+    {
         return;
+    }
     words.front() = MaskWord{1};
 
     const std::size_t lastX = static_cast<std::size_t>(size.width) - 1U;
@@ -353,7 +361,9 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("renderer feedback fixture opens", window.open(description, 8).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
     static_cast<void>(context.expectFalse(
         "occlusion feedback works without concurrent presentation publication",
         Feedback::concurrentPresentationReadsEnabled(window)));
@@ -374,7 +384,9 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     const auto *occludedEvent = event.getIf<Desktop::Types::Events::OcclusionChanged>();
     static_cast<void>(context.expectTrue("occluded event has typed payload", occludedEvent != nullptr));
     if (occludedEvent != nullptr)
+    {
         static_cast<void>(context.expectTrue("occluded event carries true", occludedEvent->occluded));
+    }
 
     static_cast<void>(context.expectTrue("duplicate occlusion report succeeds", Feedback::reportOcclusion(window, true).ok()));
     static_cast<void>(context.expectEq("duplicate report does not queue event", std::size_t{0}, window.eventQueueInfo().pendingEvents));
@@ -398,7 +410,9 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     const auto *visibleEvent = event.getIf<Desktop::Types::Events::OcclusionChanged>();
     static_cast<void>(context.expectTrue("detach event has typed payload", visibleEvent != nullptr));
     if (visibleEvent != nullptr)
+    {
         static_cast<void>(context.expectFalse("detach event carries false", visibleEvent->occluded));
+    }
     static_cast<void>(context.expectEq("report after detach is rejected", ErrorCode::NotOpen, Feedback::reportOcclusion(window, false).code));
     static_cast<void>(context.expectTrue("repeated detach succeeds", Feedback::detachOcclusionProvider(window).ok()));
 

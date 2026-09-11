@@ -45,7 +45,9 @@ namespace GameWIP::Desktop::Detail
             if (!eventStorage.empty())
             {
                 for (std::size_t index = 0; index < eventCount; ++index)
+                {
                     eventStorage[(eventHead + index) % eventStorage.size()] = {};
+                }
             }
             eventHead = 0;
             eventCount = 0;
@@ -132,19 +134,25 @@ namespace GameWIP::Desktop::Detail
     inline void publishCachedPresentationState(WindowState &state) noexcept
     {
         if (state.presentationPublication != nullptr)
+        {
             publishCachedPresentationState(*state.presentationPublication, state);
+        }
     }
 
     inline void resetPresentationPublication(WindowState &state) noexcept
     {
         if (state.presentationPublication != nullptr)
+        {
             state.presentationPublication->reset();
+        }
     }
 
     inline void invalidatePointerHitMask(WindowState &state) noexcept
     {
         if (state.rendererIntegration != nullptr)
+        {
             state.rendererIntegration->invalidatePointerHitMask();
+        }
     }
 
     [[nodiscard]] inline bool pointerHitMaskAccepts(const WindowState &state, Types::LogicalPosition position) noexcept
@@ -154,19 +162,25 @@ namespace GameWIP::Desktop::Detail
             renderer->pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 ||
             position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
             static_cast<std::uint32_t>(position.y) >= state.clientSize.height)
+        {
             return true;
+        }
 
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
         if (x >= state.framebufferSize.width || y >= state.framebufferSize.height)
+        {
             return true;
+        }
 
         constexpr std::uint64_t bitsPerWord = std::numeric_limits<Types::Renderer::PointerHitMaskWord>::digits;
         const std::uint64_t width = state.framebufferSize.width;
         const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
         const std::uint64_t word = y * wordsPerRow + x / bitsPerWord;
         if (word >= renderer->pointerHitMask.size())
+        {
             return true;
+        }
         const Types::Renderer::PointerHitMaskWord stableWord = renderer->pointerHitMask[static_cast<std::size_t>(word)];
         return (stableWord & (Types::Renderer::PointerHitMaskWord{1} << static_cast<unsigned int>(x % bitsPerWord))) != 0;
     }
@@ -196,9 +210,13 @@ namespace GameWIP::Desktop::Detail
         [[nodiscard]] static RendererIntegrationState *ensureRendererIntegration(Window &window)
         {
             if (!window.rendererIntegration_)
+            {
                 window.rendererIntegration_ = std::make_unique<RendererIntegrationState>();
+            }
             if (window.state_)
+            {
                 window.state_->rendererIntegration = window.rendererIntegration_.get();
+            }
             return window.rendererIntegration_.get();
         }
 

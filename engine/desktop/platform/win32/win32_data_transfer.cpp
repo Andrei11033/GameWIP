@@ -3,6 +3,7 @@
 
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "base/checked_arithmetic.h"
 
 #include <shellapi.h>
 #include <shlobj.h>
@@ -30,15 +31,19 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         }
         [[nodiscard]] bool multiply(std::size_t a, std::size_t b, std::size_t &out) noexcept
         {
-            if (a && b > std::numeric_limits<std::size_t>::max() / a)
+            if (GameWIP::Base::wouldMultiplyOverflow(a, b))
+            {
                 return false;
+            }
             out = a * b;
             return true;
         }
         [[nodiscard]] bool add(std::size_t a, std::size_t b, std::size_t &out) noexcept
         {
-            if (a > std::numeric_limits<std::size_t>::max() - b)
+            if (GameWIP::Base::wouldAddOverflow(a, b))
+            {
                 return false;
+            }
             out = a + b;
             return true;
         }
@@ -74,7 +79,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             ~GlobalMemoryLock() noexcept
             {
                 if (memory_ != nullptr)
+                {
                     GlobalUnlock(global_);
+                }
             }
             GlobalMemoryLock(const GlobalMemoryLock &) = delete;
             GlobalMemoryLock &operator=(const GlobalMemoryLock &) = delete;
@@ -94,7 +101,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             ~ComOwner() noexcept
             {
                 if (value_ != nullptr)
+                {
                     value_->Release();
+                }
             }
             [[nodiscard]] Interface **out() noexcept
             {
@@ -123,7 +132,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             ~TargetDeviceOwner() noexcept
             {
                 if (format_.ptd != nullptr)
+                {
                     CoTaskMemFree(format_.ptd);
+                }
                 format_.ptd = nullptr;
             }
 
@@ -136,7 +147,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             ~Medium() noexcept
             {
                 if (valid_)
+                {
                     ReleaseStgMedium(&value_);
+                }
             }
             STGMEDIUM *out() noexcept
             {
@@ -160,7 +173,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             FORMATETC request{format, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
             const HRESULT result = object.GetData(&request, medium.out());
             if (FAILED(result))
+            {
                 return failure(ErrorCode::ReadFailed, static_cast<DWORD>(result));
+            }
             medium.acquired();
             return medium.global() ? IO::successStatus() : failure(ErrorCode::ReadFailed);
         }
@@ -199,7 +214,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 }
                 const UINT value = RegisterClipboardFormatW(wide.c_str());
                 if (!value)
+                {
                     result = failure(ErrorCode::NativeFailure, GetLastError());
+                }
                 return static_cast<CLIPFORMAT>(value);
             }
             }
@@ -221,9 +238,13 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     bool equivalent(const Transfer::Format &a, const Transfer::Format &b) noexcept
     {
         if (a.kind != b.kind)
+        {
             return false;
+        }
         if (a.kind != Transfer::FormatKind::Custom)
+        {
             return true;
+        }
         IO::Types::Status leftStatus;
         IO::Types::Status rightStatus;
         const CLIPFORMAT left = nativeFormat(a, leftStatus);
@@ -246,14 +267,20 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     if constexpr (std::is_same_v<T, Transfer::TextView>)
                     {
                         if (value.text.find('\0') != std::string_view::npos)
+                        {
                             return failure(ErrorCode::InvalidArgument);
+                        }
                         std::wstring wide;
                         DWORD code = 0;
                         if (!utf8ToUtf16(value.text, wide, code))
+                        {
                             return failure(ErrorCode::InvalidArgument, code);
+                        }
                         std::size_t units = 0, bytes = 0;
                         if (!add(wide.size(), 1, units) || !multiply(units, sizeof(wchar_t), bytes))
+                        {
                             return failure(ErrorCode::SizeLimitExceeded);
+                        }
                         out.format = CF_UNICODETEXT;
                         out.bytes.assign(bytes, std::byte{});
                         std::ranges::copy(std::as_bytes(std::span{wide}), out.bytes.begin());
@@ -262,24 +289,34 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     else if constexpr (std::is_same_v<T, Transfer::FileListView>)
                     {
                         if (value.paths.empty())
+                        {
                             return failure(ErrorCode::InvalidArgument);
+                        }
                         std::size_t units = 1;
                         for (const auto &path : value.paths)
                         {
                             if (!path.is_absolute() || path.native().find(L'\0') != std::wstring::npos)
+                            {
                                 return failure(ErrorCode::InvalidArgument);
+                            }
                             std::string validated;
                             DWORD code = 0;
                             if (!utf16ToUtf8(path.native(), validated, code))
+                            {
                                 return failure(ErrorCode::InvalidArgument, code);
+                            }
                             std::size_t next = 0;
                             if (!add(units, path.native().size() + 1, next))
+                            {
                                 return failure(ErrorCode::SizeLimitExceeded);
+                            }
                             units = next;
                         }
                         std::size_t pathBytes = 0, total = 0;
                         if (!multiply(units, sizeof(wchar_t), pathBytes) || !add(sizeof(DROPFILES), pathBytes, total) || total > UINT_MAX)
+                        {
                             return failure(ErrorCode::SizeLimitExceeded);
+                        }
                         out.format = CF_HDROP;
                         out.bytes.assign(total, std::byte{});
                         DROPFILES header{};
@@ -299,15 +336,21 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     {
                         std::size_t row = 0, inputBytes = 0;
                         if (!value.size.width || !value.size.height || !multiply(value.size.width, 4, row))
+                        {
                             return failure(ErrorCode::InvalidArgument);
+                        }
                         const std::size_t stride = value.rowStrideBytes ? value.rowStrideBytes : row;
                         if (stride < row || !multiply(stride, value.size.height, inputBytes) || inputBytes != value.rgba8.size())
+                        {
                             return failure(ErrorCode::InvalidArgument);
+                        }
                         std::size_t pixels = 0, total = 0;
                         if (!multiply(row, value.size.height, pixels) || !add(sizeof(BITMAPV5HEADER), pixels, total) ||
                             pixels > std::numeric_limits<DWORD>::max() || value.size.width > static_cast<std::uint32_t>(LONG_MAX) ||
                             value.size.height > static_cast<std::uint32_t>(LONG_MAX))
+                        {
                             return failure(ErrorCode::SizeLimitExceeded);
+                        }
                         out.format = CF_DIBV5;
                         out.bytes.assign(total, std::byte{});
                         BITMAPV5HEADER h{};
@@ -326,6 +369,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         h.bV5Intent = LCS_GM_IMAGES;
                         std::ranges::copy(std::as_bytes(std::span{&h, std::size_t{1}}), out.bytes.begin());
                         for (std::size_t y = 0; y < value.size.height; ++y)
+                        {
                             for (std::size_t x = 0; x < value.size.width; ++x)
                             {
                                 const auto s = value.rgba8.subspan(y * stride + x * 4, 4);
@@ -335,6 +379,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                                 d[2] = s[0];
                                 d[3] = s[3];
                             }
+                        }
                         return IO::successStatus();
                     }
                     else
@@ -343,9 +388,13 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         IO::Types::Status result;
                         out.format = nativeFormat(f, result);
                         if (!result.ok())
+                        {
                             return result;
+                        }
                         if (value.bytes.empty())
+                        {
                             return failure(ErrorCode::Unsupported);
+                        }
                         out.bytes.assign(value.bytes.begin(), value.bytes.end());
                         return IO::successStatus();
                     }
@@ -366,7 +415,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     {
         output = GlobalAlloc(GMEM_MOVEABLE, item.bytes.size());
         if (!output)
+        {
             return failure(ErrorCode::OutOfMemory, GetLastError());
+        }
         GlobalMemoryLock lock(output);
         if (!lock.get())
         {
@@ -390,7 +441,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             ComOwner<IEnumFORMATETC> enumerator;
             HRESULT hr = object.EnumFormatEtc(DATADIR_GET, enumerator.out());
             if (FAILED(hr) || !enumerator)
+            {
                 return failure(ErrorCode::ReadFailed, static_cast<DWORD>(hr));
+            }
             std::size_t seen = 0;
             IO::Types::Status result = IO::successStatus();
             for (;;)
@@ -402,7 +455,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 if (hr != S_OK)
                 {
                     if (FAILED(hr))
+                    {
                         result = failure(ErrorCode::ReadFailed, static_cast<DWORD>(hr));
+                    }
                     break;
                 }
                 if (++seen > 256)
@@ -411,7 +466,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     break;
                 }
                 if (f.dwAspect != DVASPECT_CONTENT || f.lindex != -1 || !(f.tymed & TYMED_HGLOBAL))
+                {
                     continue;
+                }
                 FormatIdentity value;
                 if (f.cfFormat == CF_UNICODETEXT)
                 {
@@ -433,7 +490,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     std::array<wchar_t, 256> name{};
                     int n = GetClipboardFormatNameW(f.cfFormat, name.data(), static_cast<int>(name.size()));
                     if (n <= 0)
+                    {
                         continue;
+                    }
                     value.portable.kind = Transfer::FormatKind::Custom;
                     value.native = f.cfFormat;
                     DWORD code = 0;
@@ -444,14 +503,18 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     }
                 }
                 else
+                {
                     continue;
+                }
                 if (std::ranges::none_of(
                         out,
                         [&](const auto &old)
                         {
                             return old.native == value.native;
                         }))
+                {
                     out.push_back(std::move(value));
+                }
             }
             return result;
         }
@@ -474,7 +537,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         try
         {
             if (!global)
+            {
                 return failure(ErrorCode::ReadFailed);
+            }
             const std::size_t size = GlobalSize(global);
             if (format.kind == Transfer::FormatKind::Custom && size == 0)
             {
@@ -484,41 +549,57 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             GlobalMemoryLock lock(global);
             const void *raw = lock.get();
             if (!raw)
+            {
                 return failure(ErrorCode::LockFailed, GetLastError());
+            }
             if (format.kind == Transfer::FormatKind::Text)
             {
                 if (size < sizeof(wchar_t) || size % sizeof(wchar_t))
+                {
                     return failure(ErrorCode::EncodingFailed);
+                }
                 auto wide = span<const wchar_t>(raw, size / sizeof(wchar_t));
                 auto end = std::ranges::find(wide, L'\0');
                 if (end == wide.end())
+                {
                     return failure(ErrorCode::EncodingFailed);
+                }
                 Transfer::Text text;
                 DWORD code = 0;
                 if (!utf16ToUtf8({wide.data(), static_cast<std::size_t>(end - wide.begin())}, text.text, code))
+                {
                     return failure(ErrorCode::EncodingFailed, code);
+                }
                 out = std::move(text);
             }
             else if (format.kind == Transfer::FormatKind::FileList)
             {
                 const UINT count = DragQueryFileW(static_cast<HDROP>(global), 0xFFFFFFFF, nullptr, 0);
                 if (!count)
+                {
                     return failure(ErrorCode::EncodingFailed);
+                }
                 Transfer::FileList list;
                 list.paths.reserve(count);
                 for (UINT i = 0; i < count; ++i)
                 {
                     UINT n = DragQueryFileW(static_cast<HDROP>(global), i, nullptr, 0);
                     if (!n)
+                    {
                         return failure(ErrorCode::EncodingFailed);
+                    }
                     std::wstring path(n + 1, L'\0');
                     if (DragQueryFileW(static_cast<HDROP>(global), i, path.data(), n + 1) != n)
+                    {
                         return failure(ErrorCode::ReadFailed);
+                    }
                     path.resize(n);
                     std::string validated;
                     DWORD code = 0;
                     if (!utf16ToUtf8(path, validated, code))
+                    {
                         return failure(ErrorCode::EncodingFailed, code);
+                    }
                     list.paths.emplace_back(std::move(path));
                 }
                 out = std::move(list);
@@ -533,7 +614,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             else
             {
                 if (size < sizeof(BITMAPINFOHEADER))
+                {
                     return failure(ErrorCode::ReadFailed);
+                }
                 BITMAPINFOHEADER h{};
                 std::ranges::copy(span<const std::byte>(raw, sizeof(h)), std::as_writable_bytes(std::span{&h, std::size_t{1}}).begin());
                 const bool dimensionsValid =
@@ -542,9 +625,13 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     h.biPlanes == 1 && ((h.biBitCount == 24 && h.biCompression == BI_RGB) ||
                                         (h.biBitCount == 32 && (h.biCompression == BI_RGB || h.biCompression == BI_BITFIELDS)));
                 if (!dimensionsValid)
+                {
                     return failure(ErrorCode::ReadFailed);
+                }
                 if (!encodingSupported)
+                {
                     return failure(ErrorCode::Unsupported);
+                }
                 const std::size_t w = static_cast<std::size_t>(h.biWidth),
                                   height = h.biHeight < 0 ? static_cast<std::size_t>(-h.biHeight) : static_cast<std::size_t>(h.biHeight);
                 std::size_t bits = 0, rounded = 0, row = 0, bytes = 0, packed = 0, pixelRow = 0;
@@ -555,7 +642,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 {
                     std::size_t masksEnd = 0;
                     if (!add(pixelOffset, 3 * sizeof(DWORD), masksEnd) || masksEnd > size)
+                    {
                         masksSupported = false;
+                    }
                     else
                     {
                         std::array<DWORD, 3> masks{};
@@ -569,7 +658,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 else if (h.biCompression == BI_BITFIELDS)
                 {
                     if (h.biSize < sizeof(BITMAPV4HEADER))
+                    {
                         masksSupported = false;
+                    }
                     else
                     {
                         BITMAPV4HEADER extended{};
@@ -582,11 +673,15 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     }
                 }
                 if (!masksSupported)
+                {
                     return failure(ErrorCode::Unsupported);
+                }
                 if (!multiply(w, h.biBitCount, bits) || !add(bits, 31, rounded) || !multiply((rounded / 32), 4, row) ||
                     !multiply(row, height, bytes) || !multiply(w, 4, pixelRow) || !multiply(pixelRow, height, packed) || pixelOffset > size ||
                     bytes > size - pixelOffset)
+                {
                     return failure(ErrorCode::ReadFailed);
+                }
                 Transfer::Image image;
                 image.size = {static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(height)};
                 image.rgba8.resize(packed);
@@ -623,12 +718,16 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         IO::Types::Status result;
         CLIPFORMAT native = nativeFormat(format, result);
         if (!result.ok())
+        {
             return result;
+        }
         if (format.kind == Transfer::FormatKind::Image)
         {
             FORMATETC v5{CF_DIBV5, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
             if (object.QueryGetData(&v5) != S_OK)
+            {
                 native = CF_DIB;
+            }
         }
         Medium medium;
         result = getGlobal(object, native, medium);

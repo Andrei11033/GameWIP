@@ -5,14 +5,18 @@
 void testManualFilesAndShell(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window files and shell behavior"))
+    {
         return;
+    }
 
     const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
     Desktop::Types::Description description;
     description.fileDropEnabled = capabilities.supports(Desktop::Types::Capability::FileDrop);
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP file and shell validation", description))
+    {
         return;
+    }
 
     if (capabilities.supports(Desktop::Types::Capability::FileDrop))
     {
@@ -35,7 +39,9 @@ void testManualFilesAndShell(TestSupport::Context &context, const GameWIP::Test:
                         {
                             const std::u8string utf8 = path.generic_u8string();
                             if (!pathList.empty())
+                            {
                                 pathList.append("\r\n");
+                            }
                             pathList.append(reinterpret_cast<const char *>(utf8.data()), utf8.size());
                         }
                         const std::string observation = std::format(
@@ -45,17 +51,23 @@ void testManualFilesAndShell(TestSupport::Context &context, const GameWIP::Test:
                             drop->clientPosition.has_value(),
                             pathList);
                         if (manualStatusWindow != nullptr)
+                        {
                             manualStatusWindow->setObservation(observation);
+                        }
                         static_cast<void>(window.setTitle(std::format("Drop received: {} path(s)", pathCount)));
                     }
                 }
             };
             static_cast<void>(window.setTitle("Waiting for file drop..."));
             if (manualStatusWindow != nullptr)
+            {
                 manualStatusWindow->setObservation("Waiting for FilesDroppedEvent.");
+            }
             const TestSupport::Types::Reporting::ManualAnswer answer = recordManualCheck(context, window, name, instruction, observeDrops);
             if (answer != TestSupport::Types::Reporting::ManualAnswer::Yes)
+            {
                 return;
+            }
             static_cast<void>(context.expectEq("file drop produces one grouped event", std::size_t{1}, groupedEvents));
             static_cast<void>(context.expectTrue("file drop retains expected paths", pathCount >= minimumPaths));
         };
@@ -70,8 +82,10 @@ void testManualFilesAndShell(TestSupport::Context &context, const GameWIP::Test:
         const TestSupport::Types::Reporting::ManualAnswer disabledAnswer =
             recordManualCheck(context, window, "disabled file drops", "Try dropping a file. Was it rejected with no observable drop behavior?");
         if (disabledAnswer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+        {
             static_cast<void>(
                 context.expectFalse("disabled file drops queue no event", consumeEventOfType<Desktop::Types::Events::FilesDropped>(window)));
+        }
     }
     else
     {
@@ -220,15 +234,21 @@ struct ManualDragDropCapture
         while (target.popEvent(event))
         {
             if (event.getIf<DDEvents::Entered>() != nullptr)
+            {
                 ++entered;
+            }
             else if (const auto *movement = event.getIf<DDEvents::Moved>())
             {
                 ++moved;
                 if (movement->previousRegion != movement->region)
+                {
                     ++regionTransitions;
+                }
             }
             else if (event.getIf<DDEvents::Left>() != nullptr)
+            {
                 ++left;
+            }
             else if (auto *drop = event.getIf<DDEvents::Dropped>())
             {
                 ++dropped;
@@ -255,9 +275,13 @@ struct ManualDragDropCapture
 {
     int key = VK_LBUTTON;
     if (button == Desktop::Types::DragDrop::TriggerButton::Right)
+    {
         key = VK_RBUTTON;
+    }
     else if (button == Desktop::Types::DragDrop::TriggerButton::Middle)
+    {
         key = VK_MBUTTON;
+    }
     return (GetAsyncKeyState(key) & 0x8000) != 0;
 }
 
@@ -265,7 +289,9 @@ struct ManualDragDropCapture
 {
     const Desktop::Native::Win32::HandleResult native = Desktop::Native::Win32::getHandle(window);
     if (!native.status.ok() || native.handle.window == nullptr)
+    {
         return false;
+    }
     POINT pointer{};
     RECT client{};
     return GetCursorPos(&pointer) != FALSE && ScreenToClient(native.handle.window, &pointer) != FALSE &&
@@ -293,15 +319,21 @@ ManualDragDropRun runManualDragDropSource(
     const auto observe = [&]
     {
         if (target != nullptr && capture != nullptr)
+        {
             capture->drain(*target);
+        }
         if (targetWindow != nullptr)
+        {
             paintManualValidationSurface(*targetWindow, ManualSurfaceLayout::DragDropTarget);
+        }
         if (!run.attempted && manualDragButtonDown(description.triggerButton) && manualPointerInside(source))
         {
             run.attempted = true;
             run.result = Desktop::DragDrop::beginDrag(source, description);
             if (target != nullptr && capture != nullptr)
+            {
                 capture->drain(*target);
+            }
             if (manualStatusWindow != nullptr)
             {
                 manualStatusWindow->setObservation(
@@ -319,7 +351,9 @@ ManualDragDropRun runManualDragDropSource(
     {
         static_cast<void>(context.expectTrue(std::format("{} starts from the requested source button", name), run.attempted));
         if (run.attempted)
+        {
             static_cast<void>(context.expectTrue(std::format("{} completes without a native error", name), run.result.status.ok()));
+        }
     }
     return run;
 }
@@ -331,7 +365,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     namespace Transfer = Desktop::Types::DataTransfer;
     using ManualAnswer = TestSupport::Types::Reporting::ManualAnswer;
     if (!beginManualSuite(context, options, "Window native data drag and drop"))
+    {
         return;
+    }
 
     context.manual(
         "This suite requires an interactive Windows desktop. Keep both GameWIP Windows visible. "
@@ -348,7 +384,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     Desktop::Window targetWindow;
     if (!requireManualStatus(context, "drag source Window setup", sourceWindow.open(sourceDescription, 64)) ||
         !requireManualStatus(context, "drop target Window setup", targetWindow.open(targetDescription, 128)))
+    {
         return;
+    }
     static_cast<void>(sourceWindow.setClientPosition({60, 100}));
     static_cast<void>(targetWindow.setClientPosition({700, 100}));
 
@@ -506,7 +544,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             std::format("Hold {} in the source, drag to either target region, then release that same button.", buttonName),
             DD::Description{textItem, allEffects, button});
         if (run.answer == ManualAnswer::Yes && run.attempted)
+        {
             static_cast<void>(context.expectEq(std::format("{} trigger drops", buttonName), DD::Outcome::Dropped, run.result.outcome));
+        }
     }
 
     capture.clear(target);
@@ -542,7 +582,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             std::format("Hold LEFT in the source, keep {} held, drop in green Region 2, then release {}.", modifier, modifier),
             DD::Description{textItem, allEffects, DD::TriggerButton::Left});
         if (run.answer == ManualAnswer::Yes && run.attempted)
+        {
             static_cast<void>(context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.effect));
+        }
     }
 
     const auto observeForeign = [&]
@@ -555,7 +597,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         capture.clear(target);
         const ManualAnswer answer = recordManualCheck(context, targetWindow, name, instruction, observeForeign, ManualSurfaceLayout::DragDropTarget);
         if (answer == ManualAnswer::Yes)
+        {
             static_cast<void>(context.expectEq(std::format("{} yields one complete drop", name), std::size_t{1}, capture.dropped));
+        }
     };
     inbound("Explorer single file", "From Explorer, drop one ordinary file and answer yes after one complete drop is shown.");
     inbound(
@@ -583,7 +627,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         observeForeign,
         ManualSurfaceLayout::DragDropTarget);
     if (malformed == ManualAnswer::Yes)
+    {
         static_cast<void>(context.expectEq("malformed provider queues no successful drop", std::size_t{0}, capture.dropped));
+    }
 
     const auto outbound =
         [&](std::string_view name, std::string_view instruction, std::span<const Transfer::ItemView> items, DD::Effect allowedEffects)
@@ -598,7 +644,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             instruction,
             DD::Description{items, allowedEffects, DD::TriggerButton::Left});
         if (run.answer == ManualAnswer::Yes && run.attempted)
+        {
             static_cast<void>(context.expectEq(std::format("{} reports Dropped", name), DD::Outcome::Dropped, run.result.outcome));
+        }
     };
     const std::array<Transfer::ItemView, 1> fileItem{{Transfer::FileListView{files}}};
     const std::array<Transfer::ItemView, 1> imageItem{{Transfer::ImageView{{2, 2}, 0, pixels}}};
@@ -637,7 +685,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "cross both target regions, then drop. Answer yes only if geometry/presentation stayed coherent with no deadlock.",
         DD::Description{textItem, allEffects, DD::TriggerButton::Left});
     if (modalGeometry.answer == ManualAnswer::Yes && modalGeometry.attempted)
+    {
         static_cast<void>(context.expectEq("modal geometry scenario drops", DD::Outcome::Dropped, modalGeometry.result.outcome));
+    }
 
     static_cast<void>(context.expectTrue("full target closes before lightweight mode", target.close().ok()));
     static_cast<void>(context.expectTrue("lightweight file drop enables after full target", targetWindow.setFileDropEnabled(true).ok()));

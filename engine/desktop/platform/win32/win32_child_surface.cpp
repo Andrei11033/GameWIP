@@ -37,7 +37,9 @@ namespace GameWIP::Desktop::Detail::Platform
             ~DpiHostingScope() noexcept
             {
                 if (previous_ != DPI_HOSTING_BEHAVIOR_INVALID)
+                {
                     static_cast<void>(SetThreadDpiHostingBehavior(previous_));
+                }
             }
 
             [[nodiscard]] bool applied() const noexcept
@@ -54,11 +56,15 @@ namespace GameWIP::Desktop::Detail::Platform
             LONG nativeX = 0;
             LONG nativeY = 0;
             if (!logicalToPhysicalChecked(rect.position.x, dpi, nativeX) || !logicalToPhysicalChecked(rect.position.y, dpi, nativeY))
+            {
                 return false;
+            }
             const Types::PixelSize size = logicalToPhysicalSize(rect.size, dpi);
             if (size.width > static_cast<std::uint32_t>(std::numeric_limits<int>::max()) ||
                 size.height > static_cast<std::uint32_t>(std::numeric_limits<int>::max()))
+            {
                 return false;
+            }
             x = nativeX;
             y = nativeY;
             width = static_cast<int>(size.width);
@@ -69,10 +75,14 @@ namespace GameWIP::Desktop::Detail::Platform
         void refreshChildScreenRect(ChildSurfaceState &state) noexcept
         {
             if (!state.platform || state.platform->handle == nullptr)
+            {
                 return;
+            }
             RECT native{};
             if (GetWindowRect(state.platform->handle, &native) == FALSE)
+            {
                 return;
+            }
             state.screenRect = {
                 {native.left, native.top},
                 {static_cast<std::uint32_t>(std::max<LONG>(0, native.right - native.left)),
@@ -102,7 +112,9 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 const DWORD code = GetLastError();
                 if (code != ERROR_CLASS_ALREADY_EXISTS)
+                {
                     return statusFromWin32(IO::Types::ErrorCode::OpenFailed, code, "register ChildSurface class");
+                }
                 childClassOwned = false;
             }
             else
@@ -118,10 +130,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             std::scoped_lock lock(childClassMutex);
             if (childClassUsers == 0)
+            {
                 return IO::successStatus();
+            }
             --childClassUsers;
             if (childClassUsers != 0 || !childClassOwned)
+            {
                 return IO::successStatus();
+            }
             if (UnregisterClassW(kChildSurfaceClassName, childClassInstance) == FALSE)
             {
                 ++childClassUsers;
@@ -140,13 +156,19 @@ namespace GameWIP::Desktop::Detail::Platform
                 const auto *create = reinterpret_cast<const CREATESTRUCTW *>(lParam);
                 state = static_cast<ChildSurfaceState *>(create->lpCreateParams);
                 if (state == nullptr)
+                {
                     return FALSE;
+                }
                 SetLastError(ERROR_SUCCESS);
                 if (SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state)) == 0 && GetLastError() != ERROR_SUCCESS)
+                {
                     return FALSE;
+                }
             }
             if (state == nullptr)
+            {
                 return DefWindowProcW(window, message, wParam, lParam);
+            }
 
             switch (message)
             {
@@ -159,7 +181,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 const UINT newDpi = dpiForWindow(window);
                 const auto oldDpiValue = static_cast<UINT>(state->dpi.x);
                 if (newDpi == 0 || newDpi == oldDpiValue)
+                {
                     return 0;
+                }
                 const Types::ContentScale previousScale = state->contentScale;
                 const Types::Dpi previousDpi = state->dpi;
                 const Types::PixelSize previousPixels = state->pixelSize;
@@ -187,7 +211,9 @@ namespace GameWIP::Desktop::Detail::Platform
                     *state,
                     Types::ChildSurface::Events::ContentScaleChanged{previousScale, state->contentScale, previousDpi, state->dpi, state->pixelSize});
                 if (previousPixels != state->pixelSize)
+                {
                     routeChildSurfaceEvent(*state, Types::ChildSurface::Events::PixelSizeChanged{state->pixelSize});
+                }
                 return 0;
             }
             case WM_NCDESTROY:
@@ -231,14 +257,18 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
             if (!parent.platform || parent.platform->handle == nullptr)
+            {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+            }
             auto data = std::unique_ptr<ChildSurfaceData, ChildSurfaceDataDeleter>(new ChildSurfaceData{});
             data->owner = &state;
             data->instance = parent.platform->instance;
             data->ownerThreadId = parent.platform->ownerThreadId;
             IO::Types::Status status = acquireChildSurfaceClass(data->instance);
             if (!status.ok())
+            {
                 return status;
+            }
             data->classReferenceHeld = true;
             state.platform = std::move(data);
             registerOpenChildSurface(state);
@@ -250,14 +280,20 @@ namespace GameWIP::Desktop::Detail::Platform
             int width = 0;
             int height = 0;
             if (!physicalRect(state.rect, dpi, x, y, width, height))
+            {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_ARITHMETIC_OVERFLOW, "ChildSurface rect exceeds Win32 range");
+            }
             if (Detail::consumeFailure(TestHooks::FailurePoint::NativeCreation))
+            {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
+            }
 
             {
                 DpiHostingScope hosting;
                 if (!hosting.applied())
+                {
                     return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "enable mixed DPI hosting for ChildSurface");
+                }
                 state.platform->handle = CreateWindowExW(
                     WS_EX_NOPARENTNOTIFY,
                     kChildSurfaceClassName,
@@ -273,7 +309,9 @@ namespace GameWIP::Desktop::Detail::Platform
                     &state);
             }
             if (state.platform->handle == nullptr)
+            {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "create ChildSurface host");
+            }
 
             state.dpi = {static_cast<float>(dpi), static_cast<float>(dpi)};
             state.contentScale = {
@@ -282,7 +320,9 @@ namespace GameWIP::Desktop::Detail::Platform
             state.pixelSize = {static_cast<std::uint32_t>(width), static_cast<std::uint32_t>(height)};
             static_cast<void>(EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE));
             if ((IsWindowEnabled(state.platform->handle) != FALSE) != state.interactionEnabled)
+            {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "set initial ChildSurface interaction");
+            }
             ShowWindow(state.platform->handle, state.visible ? SW_SHOWNOACTIVATE : SW_HIDE);
             state.visible = childVisible(state.platform->handle);
             state.interactionEnabled = IsWindowEnabled(state.platform->handle) != FALSE;
@@ -302,11 +342,17 @@ namespace GameWIP::Desktop::Detail::Platform
     CloseResult closeChildSurface(ChildSurfaceState &state) noexcept
     {
         if (!state.platform)
+        {
             return {IO::successStatus(), true};
+        }
         if (state.platform->ownerThreadId != GetCurrentThreadId())
+        {
             return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
+        }
         if (Detail::consumeFailure(TestHooks::FailurePoint::Close))
+        {
             return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
+        }
         if (state.platform->handle != nullptr)
         {
             state.platform->destroying = true;
@@ -335,13 +381,19 @@ namespace GameWIP::Desktop::Detail::Platform
     void closeChildSurfaceBestEffort(ChildSurfaceState &state) noexcept
     {
         if (!state.platform)
+        {
             return;
+        }
         if (state.platform->ownerThreadId != GetCurrentThreadId())
         {
             if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE)
+            {
                 return;
+            }
             if (state.platform->classReferenceHeld)
+            {
                 static_cast<void>(releaseChildSurfaceClass());
+            }
             state.platform.reset();
             return;
         }
@@ -351,9 +403,13 @@ namespace GameWIP::Desktop::Detail::Platform
             static_cast<void>(DestroyWindow(state.platform->handle));
         }
         if (state.platform->registered)
+        {
             unregisterOpenChildSurface(state);
+        }
         if (state.platform->classReferenceHeld)
+        {
             static_cast<void>(releaseChildSurfaceClass());
+        }
         state.platform.reset();
     }
 
@@ -375,16 +431,22 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status setChildSurfaceRect(ChildSurfaceState &state, Types::LogicalRect rect) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
         int x = 0;
         int y = 0;
         int width = 0;
         int height = 0;
         const UINT dpi = dpiForWindow(state.platform->handle);
         if (!physicalRect(rect, dpi, x, y, width, height))
+        {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+        }
         if (SetWindowPos(state.platform->handle, nullptr, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER) == FALSE)
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "set ChildSurface rect");
+        }
         refreshChildScreenRect(state);
         return IO::successStatus();
     }
@@ -395,10 +457,14 @@ namespace GameWIP::Desktop::Detail::Platform
         LONG y = 0;
         const UINT dpi = dpiForWindow(state.platform->handle);
         if (!logicalToPhysicalChecked(position.x, dpi, x) || !logicalToPhysicalChecked(position.y, dpi, y))
+        {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+        }
         POINT point{x, y};
         if (ClientToScreen(state.platform->handle, &point) == FALSE)
+        {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ChildSurface client to screen")};
+        }
         return {.status = IO::successStatus(), .position = {point.x, point.y}};
     }
 
@@ -406,7 +472,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         POINT point{position.x, position.y};
         if (ScreenToClient(state.platform->handle, &point) == FALSE)
+        {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ChildSurface screen to client")};
+        }
         const UINT dpi = dpiForWindow(state.platform->handle);
         return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
@@ -415,7 +483,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         ShowWindow(state.platform->handle, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
         if (childVisible(state.platform->handle) != visible)
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), visible ? "show ChildSurface" : "hide ChildSurface");
+        }
         return IO::successStatus();
     }
 
@@ -423,14 +493,18 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         static_cast<void>(EnableWindow(state.platform->handle, enabled ? TRUE : FALSE));
         if ((IsWindowEnabled(state.platform->handle) != FALSE) != enabled)
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "set ChildSurface interaction");
+        }
         return IO::successStatus();
     }
 
     IO::Types::Status orderChildSurfaceEdge(ChildSurfaceState &state, bool front) noexcept
     {
         if (SetWindowPos(state.platform->handle, front ? HWND_TOP : HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) == FALSE)
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "order ChildSurface");
+        }
         return IO::successStatus();
     }
 
@@ -441,10 +515,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             insertAfter = GetWindow(sibling->platform->handle, GW_HWNDPREV);
             if (insertAfter == nullptr)
+            {
                 insertAfter = HWND_TOP;
+            }
         }
         if (SetWindowPos(state.platform->handle, insertAfter, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) == FALSE)
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "order ChildSurface relative to sibling");
+        }
         return IO::successStatus();
     }
 } // namespace GameWIP::Desktop::Detail::Platform
@@ -455,9 +533,13 @@ namespace GameWIP::Desktop::Native::Win32
     {
         const Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
         if (state == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*state))
+        {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
+        }
         if (!Detail::Platform::isChildSurfaceOwnedByCurrentThread(*state))
+        {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
+        }
         const Detail::Platform::NativeHandleView handles = Detail::Platform::childSurfaceNativeHandle(*state);
         return {.status = IO::successStatus(), .handle = {static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
     }
@@ -469,7 +551,9 @@ namespace GameWIP::Desktop::TestHooks
     ChildSurfaceDpiTransitionResult calculateChildSurfaceDpiTransition(Types::LogicalRect logicalRect, std::uint32_t newDpi) noexcept
     {
         if (newDpi == 0)
+        {
             return {};
+        }
         return {logicalRect, Detail::Platform::logicalToPhysicalSize(logicalRect.size, newDpi)};
     }
 
@@ -477,12 +561,18 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
         if (state == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*state))
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
         if (!Detail::Platform::isChildSurfaceOwnedByCurrentThread(*state))
+        {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+        }
         const Detail::Platform::NativeHandleView handle = Detail::Platform::childSurfaceNativeHandle(*state);
         if (DestroyWindow(static_cast<HWND>(handle.window)) == FALSE)
+        {
             return Detail::Platform::statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "test-hook destroy ChildSurface");
+        }
         return IO::successStatus();
     }
 } // namespace GameWIP::Desktop::TestHooks

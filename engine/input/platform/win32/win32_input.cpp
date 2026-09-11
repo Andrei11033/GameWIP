@@ -356,7 +356,9 @@ namespace
             const std::size_t length = static_cast<std::size_t>(std::ranges::distance(entries.begin(), terminator));
             hardwareIds.push_back(wideToUtf8(std::wstring_view(entries.data(), length)));
             if (terminator == entries.end())
+            {
                 break;
+            }
             entries = entries.subspan(length + 1);
         }
 
@@ -1220,11 +1222,15 @@ namespace
         const std::size_t reportSize = rawHid.dwSizeHid;
         const std::size_t reportCount = rawHid.dwCount;
         if (reportSize != 0 && reportCount > std::numeric_limits<std::size_t>::max() / reportSize)
+        {
             return false;
+        }
         const std::size_t reportBytes = reportSize * reportCount;
         const std::size_t reportOffsetInInput = offsetof(RAWINPUT, data) + offsetof(RAWHID, bRawData);
         if (reportOffsetInInput > rawInputSize || reportBytes > rawInputSize - reportOffsetInInput)
+        {
             return false;
+        }
 
         // The caller-owned buffer contains rawInputSize bytes; the checks above bound the flexible-array member.
 #if defined(__clang__)

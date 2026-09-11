@@ -37,6 +37,7 @@ Checks: >
   readability-misleading-indentation,
   readability-redundant-*,
   readability-simplify-boolean-expr,
+  readability-braces-around-statements,
   readability-static-accessed-through-instance,
   -bugprone-easily-swappable-parameters,
   -bugprone-exception-escape,

@@ -25,7 +25,9 @@ namespace GameWIP::Desktop::Detail
         void discardAt(WindowState &state, std::size_t index) noexcept
         {
             for (std::size_t current = index; current + 1 < state.eventCount; ++current)
+            {
                 state.eventStorage[physicalIndex(state, current)] = std::move(state.eventStorage[physicalIndex(state, current + 1)]);
+            }
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
             ++state.droppedEvents;
@@ -42,7 +44,9 @@ namespace GameWIP::Desktop::Detail
     EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept
     {
         if (state.suppressEvents)
+        {
             return EnqueueResult::Coalesced;
+        }
 
         if (state.eventStorage.empty())
         {
@@ -56,7 +60,9 @@ namespace GameWIP::Desktop::Detail
             {
                 Types::Event &queued = state.eventStorage[physicalIndex(state, offset - 1)];
                 if (!isCoalescible(queued.data))
+                {
                     break;
+                }
                 if (sameCoalescibleType(queued.data, data))
                 {
                     queued.data = std::move(data);
@@ -78,7 +84,9 @@ namespace GameWIP::Desktop::Detail
             }
 
             if (replaceIndex == state.eventCount && std::holds_alternative<Types::Events::NativeDestroyed>(data))
+            {
                 replaceIndex = 0;
+            }
             if (replaceIndex == state.eventCount)
             {
                 ++state.droppedEvents;
@@ -96,7 +104,9 @@ namespace GameWIP::Desktop::Detail
     EnqueueResult requestClose(WindowState &state, Types::Events::CloseRequestSource source) noexcept
     {
         if (state.closeRequested)
+        {
             return EnqueueResult::Coalesced;
+        }
         state.closeRequested = true;
         return enqueueEvent(state, Types::Events::CloseRequested{source});
     }
@@ -104,12 +114,18 @@ namespace GameWIP::Desktop::Detail
     EnqueueResult setInteractiveMoveResizeActive(WindowState &state, bool active) noexcept
     {
         if (state.interactiveMoveResizeActive == active)
+        {
             return EnqueueResult::Coalesced;
+        }
         state.interactiveMoveResizeActive = active;
         if (state.presentationPublication != nullptr)
+        {
             state.presentationPublication->publishInteractiveMoveResizeActive(active);
+        }
         if (active)
+        {
             return enqueueEvent(state, Types::Events::InteractiveMoveResizeStarted{});
+        }
         return enqueueEvent(state, Types::Events::InteractiveMoveResizeEnded{});
     }
 } // namespace GameWIP::Desktop::Detail
@@ -124,7 +140,9 @@ namespace GameWIP::Desktop::Events
     Types::Events::PumpResult wait(std::chrono::milliseconds timeout) noexcept
     {
         if (timeout < kWaitForever)
+        {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
+        }
         return Detail::Platform::pumpEvents(timeout, true);
     }
 } // namespace GameWIP::Desktop::Events

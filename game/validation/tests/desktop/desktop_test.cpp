@@ -91,7 +91,9 @@ namespace
     {
         const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
         if (!primary.status.ok())
+        {
             return 2;
+        }
         return Desktop::Display::getColorInfo(primary.monitor.id).status.ok() ? 0 : 3;
     }
 
@@ -99,7 +101,9 @@ namespace
     {
         const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
         if (!primary.status.ok() || !Desktop::Display::getColorInfo(primary.monitor.id).status.ok())
+        {
             return 2;
+        }
 
         Desktop::Types::Description description;
         description.title = "Desktop color shutdown child";
@@ -107,9 +111,13 @@ namespace
         description.visible = false;
         Desktop::Window window;
         if (!window.open(description, 4).ok())
+        {
             return 3;
+        }
         if (!Desktop::Display::getColorInfo(window).status.ok())
+        {
             return 4;
+        }
 
         const auto handle = Desktop::Native::Win32::getHandle(window);
         if (!handle.status.ok() || handle.handle.window == nullptr || PostMessageW(static_cast<HWND>(handle.handle.window), WM_CLOSE, 0, 0) == FALSE)
@@ -117,7 +125,9 @@ namespace
             return 5;
         }
         if (!Desktop::Events::poll().status.ok() || !window.hasCloseRequest())
+        {
             return 6;
+        }
         return window.close().ok() ? 0 : 7;
     }
 
@@ -147,9 +157,13 @@ namespace
             });
         owner.join();
         if (workerResult != 0)
+        {
             return workerResult;
+        }
         if (!survivingWindow || survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+        {
             return 4;
+        }
         survivingWindow.reset();
         return 0;
     }
@@ -185,7 +199,9 @@ namespace
                 }
 #if DESKTOP_INTERNAL_TEST_HOOKS
                 if (forceRepeatedRevocationFailure)
+                {
                     Desktop::TestHooks::failDragDropRevocations(64);
+                }
 #else
                 static_cast<void>(forceRepeatedRevocationFailure);
 #endif
@@ -195,16 +211,26 @@ namespace
             });
         owner.join();
         if (workerResult != 0)
+        {
             return workerResult;
+        }
         if (!survivingWindow || !survivingTarget)
+        {
             return 4;
+        }
         if (survivingTarget->isOpen() || survivingTarget->lifetimeState() != Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize ||
             survivingTarget->windowId() != retainedWindowId)
+        {
             return 5;
+        }
         if (survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+        {
             return 6;
+        }
         if (!survivingTarget->close().ok())
+        {
             return 7;
+        }
         survivingTarget.reset();
         survivingWindow.reset();
         return 0;
@@ -258,15 +284,25 @@ namespace GameWIP::Test
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
         if (hasArgument(argc, argv, kStandaloneColorChildArgument))
+        {
             return runStandaloneColorShutdownChild();
+        }
         if (hasArgument(argc, argv, kWindowColorChildArgument))
+        {
             return runWindowColorShutdownChild();
+        }
         if (hasArgument(argc, argv, kOwnerExitColorChildArgument))
+        {
             return runOwnerExitColorShutdownChild();
+        }
         if (hasArgument(argc, argv, kOwnerExitDragDropChildArgument))
+        {
             return runOwnerExitDragDropShutdownChild(false);
+        }
         if (hasArgument(argc, argv, kOwnerExitDragDropFailureChildArgument))
+        {
             return runOwnerExitDragDropShutdownChild(true);
+        }
 
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
@@ -276,7 +312,9 @@ namespace GameWIP::Test
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value).starts_with(manualSuitePrefix))
+            {
                 selectedManualSuite = std::string_view(value).substr(manualSuitePrefix.size());
+            }
         }
         constexpr std::array manualSuiteNames{
             std::string_view{"lifecycle"},
@@ -368,7 +406,9 @@ namespace GameWIP::Test
         const auto runManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
             if (!validManualSelection || (selectedManualSuite && *selectedManualSuite != selector))
+            {
                 return;
+            }
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)
@@ -379,7 +419,9 @@ namespace GameWIP::Test
         const auto runSelectedManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
             if (!validManualSelection || !selectedManualSuite || *selectedManualSuite != selector)
+            {
                 return;
+            }
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)

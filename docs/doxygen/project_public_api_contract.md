@@ -17,6 +17,8 @@ project-wide rule; silence is not an exception.
   would collide with an operation or obscure the question, as in `isScalarValue()` and `isOpen()`. Use `has...` for presence or containment,
   `can...` for capability, `supports...` for advertised semantics, and forms such as `should...`, `would...`, `was...`, and `try...` when those words
   express distinct behavior rather than decoration.
+- Namespace-scope constants use `kUpperCamelCase`. Ordinary function-local constants use `lowerCamelCase`; do not add `k` to mutable namespace
+  state, class data members, enum values, or macros.
 - Keep conventional operation names such as `flush()` when the owning type or namespace already supplies the context. Use a differentiated form such
   as `flushTo(destination)` only when the destination or semantic distinction is real; do not mechanically restate context in the name.
 - Mutating operations use verbs. A name must disclose destructive side effects that are not otherwise obvious; for example, a write-and-clear

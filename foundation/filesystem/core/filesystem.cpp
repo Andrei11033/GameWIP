@@ -126,7 +126,7 @@ namespace GameWIP::FileSystem
         }
 
         /// @brief Returns whether a character range is complete strict UTF-8.
-        [[nodiscard]] bool isValidUtf8(std::string_view text) noexcept
+        [[nodiscard]] bool validUtf8(std::string_view text) noexcept
         {
             return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
         }
@@ -294,7 +294,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates that an atomic temporary prefix is one safe filename component.
         [[nodiscard]] IO::Types::Status validateAtomicTemporaryPrefix(std::string_view prefix) noexcept
         {
-            if (!isValidUtf8(prefix))
+            if (!validUtf8(prefix))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed);
             }

@@ -27,7 +27,9 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
     if (owner == nullptr || OpenClipboard(owner) == FALSE)
     {
         if (owner != nullptr)
+        {
             static_cast<void>(DestroyWindow(owner));
+        }
         return false;
     }
     bool success = EmptyClipboard() != FALSE;
@@ -38,18 +40,26 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
         void *destination = GlobalLock(memory);
         success = destination != nullptr;
         if (success)
+        {
             std::ranges::copy(bytes, nativeClipboardBytes(destination, bytes.size()).begin());
+        }
         if (destination != nullptr)
+        {
             static_cast<void>(GlobalUnlock(memory));
+        }
     }
     if (success)
     {
         success = SetClipboardData(format, memory) != nullptr;
         if (success)
+        {
             memory = nullptr;
+        }
     }
     if (memory != nullptr)
+    {
         static_cast<void>(GlobalFree(memory));
+    }
     success = CloseClipboard() != FALSE && success;
     static_cast<void>(DestroyWindow(owner));
     return success;
@@ -58,14 +68,20 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
 bool readNativeDibV5Header(BITMAPV5HEADER &header)
 {
     if (OpenClipboard(nullptr) == FALSE)
+    {
         return false;
+    }
     const HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(CF_DIBV5));
     const bool largeEnough = memory != nullptr && GlobalSize(memory) >= sizeof(header);
     const void *data = largeEnough ? GlobalLock(memory) : nullptr;
     if (data != nullptr)
+    {
         std::ranges::copy(nativeClipboardBytes(data, sizeof(header)), std::as_writable_bytes(std::span{&header, 1}).begin());
+    }
     if (data != nullptr)
+    {
         static_cast<void>(GlobalUnlock(memory));
+    }
     static_cast<void>(CloseClipboard());
     return data != nullptr;
 }
@@ -408,14 +424,22 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
             holderOpened.store(owner != nullptr && OpenClipboard(owner) != FALSE);
             holderReady.store(true);
             while (!releaseHolder.load())
+            {
                 std::this_thread::yield();
+            }
             if (holderOpened.load())
+            {
                 static_cast<void>(CloseClipboard());
+            }
             if (owner != nullptr)
+            {
                 static_cast<void>(DestroyWindow(owner));
+            }
         });
     while (!holderReady.load())
+    {
         std::this_thread::yield();
+    }
     if (holderOpened.load())
     {
         const auto before = std::chrono::steady_clock::now();
@@ -425,7 +449,9 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("finite timeout is bounded without busy spin", elapsed < std::chrono::seconds{1}));
     }
     else
+    {
         context.skip("finite Clipboard contention timeout", "native holder could not acquire Clipboard");
+    }
     releaseHolder.store(true);
     holder.join();
 

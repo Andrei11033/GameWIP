@@ -15,7 +15,9 @@ namespace GameWIP::Validation
     [[nodiscard]] inline ProcessArguments processArguments(int argc, char **argv) noexcept
     {
         if (argc <= 0 || argv == nullptr)
+        {
             return {};
+        }
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif

@@ -4,10 +4,14 @@
 [[nodiscard]] std::wstring manualDiagnosticWideText(std::string_view text)
 {
     if (text.empty())
+    {
         return {};
+    }
     const int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0);
     if (size <= 0)
+    {
         return std::wstring(text.begin(), text.end());
+    }
     std::wstring wide(static_cast<std::size_t>(size), L'\0');
     MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), wide.data(), size);
     return wide;
@@ -42,10 +46,14 @@ struct ManualFullscreenSections
 {
     ManualNativeWindowState result;
     if (!window.isOpen())
+    {
         return result;
+    }
     const Desktop::Native::Win32::HandleResult native = Desktop::Native::Win32::getHandle(window);
     if (!native.status.ok() || native.handle.window == nullptr)
+    {
         return result;
+    }
 
     RECT client{};
     POINT clientTopLeft{};
@@ -173,10 +181,14 @@ public:
     explicit ManualStatusWindow(bool enabled)
     {
         if (!enabled)
+        {
             return;
+        }
         RECT workArea{};
         if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
+        {
             workArea = {0, 0, 1920, 1080};
+        }
         constexpr int width = 680;
         constexpr int height = 520;
         const int x = std::max<int>(workArea.left, workArea.right - width - 20);
@@ -208,7 +220,9 @@ public:
     ~ManualStatusWindow()
     {
         if (handle_ != nullptr)
+        {
             DestroyWindow(handle_);
+        }
     }
 
     void setScenario(std::string_view scenario, std::string_view expected)
@@ -225,7 +239,9 @@ public:
     void refresh(const Desktop::Window &window)
     {
         if (handle_ == nullptr)
+        {
             return;
+        }
 
         // Capture portable state first, then append native state as an independent cross-check.
         const Desktop::Types::LogicalSize logical = window.clientSize();
@@ -311,7 +327,9 @@ public:
             native.visibleStyle,
             native.fullscreenBounds);
         if (text == lastText_)
+        {
             return;
+        }
         lastText_ = text;
         const std::wstring wide = manualDiagnosticWideText(text);
         SetWindowTextW(handle_, wide.c_str());
@@ -343,17 +361,25 @@ enum class ManualSurfaceLayout : std::uint8_t
 void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLayout layout = ManualSurfaceLayout::Standard)
 {
     if (!window.isOpen())
+    {
         return;
+    }
     const Desktop::Native::Win32::HandleResult native = Desktop::Native::Win32::getHandle(window);
     if (!native.status.ok() || native.handle.window == nullptr)
+    {
         return;
+    }
 
     RECT client{};
     if (GetClientRect(native.handle.window, &client) == FALSE)
+    {
         return;
+    }
     HDC device = GetDC(native.handle.window);
     if (device == nullptr)
+    {
         return;
+    }
 
     const UINT dpi = GetDpiForWindow(native.handle.window);
     const auto logical = [dpi](int value)
@@ -380,7 +406,9 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         SetTextColor(device, color);
         DrawTextW(device, text.data(), static_cast<int>(text.size()), &rect, format | DT_NOPREFIX);
         if (previousFont != nullptr)
+        {
             SelectObject(device, previousFont);
+        }
     };
 
     fill(client, RGB(22, 70, 126));
@@ -484,9 +512,13 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     Rectangle(device, client.left + inset, client.top + inset, client.right - inset, client.bottom - inset);
     SelectObject(device, previousBrush);
     if (previousPen != nullptr)
+    {
         SelectObject(device, previousPen);
+    }
     if (edgePen != nullptr)
+    {
         DeleteObject(edgePen);
+    }
 
     ReleaseDC(native.handle.window, device);
 }
@@ -532,7 +564,9 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     {
         manualStatusWindow->setScenario(name, question);
         if (!observe)
+        {
             manualStatusWindow->setObservation({});
+        }
         paintManualValidationSurface(window, surfaceLayout);
         manualStatusWindow->refresh(window);
     }
@@ -551,22 +585,34 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     {
         const Desktop::Types::Events::PumpResult pump = Desktop::Events::wait(std::chrono::milliseconds{50});
         if (!pump.status.ok() && pumpFailure.ok())
+        {
             pumpFailure = pump.status;
+        }
         if (observe)
+        {
             observe();
+        }
         paintManualValidationSurface(window, surfaceLayout);
         if (manualStatusWindow != nullptr)
+        {
             manualStatusWindow->refresh(window);
+        }
     }
     promptThread.join();
     const Desktop::Types::Events::PumpResult finalPump = Desktop::Events::poll();
     if (!finalPump.status.ok() && pumpFailure.ok())
+    {
         pumpFailure = finalPump.status;
+    }
     if (observe)
+    {
         observe();
+    }
     paintManualValidationSurface(window, surfaceLayout);
     if (manualStatusWindow != nullptr)
+    {
         manualStatusWindow->refresh(window);
+    }
     if (!pumpFailure.ok())
     {
         context.fail(name, pumpFailure.message);
@@ -580,7 +626,9 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
 [[nodiscard]] bool requireManualStatus(TestSupport::Context &context, std::string_view name, const IO::Types::Status &status)
 {
     if (status.ok())
+    {
         return true;
+    }
     if (manualStatusWindow != nullptr)
     {
         manualStatusWindow->setObservation(
@@ -619,7 +667,9 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
 [[nodiscard]] bool beginManualSuite(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options, std::string_view name)
 {
     if (options.enableManualTests)
+    {
         return true;
+    }
     context.skip(name, "disabled by DesktopTestOptions");
     return false;
 }
@@ -629,5 +679,7 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
 {
     const auto deadline = std::chrono::steady_clock::now() + duration;
     while (std::chrono::steady_clock::now() < deadline)
+    {
         static_cast<void>(Desktop::Events::wait(std::chrono::milliseconds{50}));
+    }
 }

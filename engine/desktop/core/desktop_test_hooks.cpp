@@ -36,7 +36,9 @@ namespace GameWIP::Desktop::Detail
     bool consumeFailure(TestHooks::FailurePoint point) noexcept
     {
         if (armedFailure != point)
+        {
             return false;
+        }
         armedFailure = TestHooks::FailurePoint::None;
         return true;
     }
@@ -44,7 +46,9 @@ namespace GameWIP::Desktop::Detail
     bool consumeCursorNativeCreationFailure() noexcept
     {
         if (cursorNativeCreationFailureCountdown == std::numeric_limits<std::size_t>::max())
+        {
             return false;
+        }
         if (cursorNativeCreationFailureCountdown != 0)
         {
             --cursorNativeCreationFailureCountdown;
@@ -57,7 +61,9 @@ namespace GameWIP::Desktop::Detail
     bool consumeClipboardPublicationFailure(std::size_t itemIndex) noexcept
     {
         if (clipboardPublicationFailureIndex != itemIndex)
+        {
             return false;
+        }
         clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
         return true;
     }
@@ -65,7 +71,9 @@ namespace GameWIP::Desktop::Detail
     bool consumeClipboardEnumerationFailure(std::size_t materializedFormats) noexcept
     {
         if (clipboardEnumerationFailureCount != materializedFormats)
+        {
             return false;
+        }
         clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
         return true;
     }
@@ -73,7 +81,9 @@ namespace GameWIP::Desktop::Detail
     bool consumeDragDropRevocationFailure() noexcept
     {
         if (dragDropRevocationFailures == 0)
+        {
             return false;
+        }
         --dragDropRevocationFailures;
         return true;
     }
@@ -124,7 +134,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::DragDropState *state = Detail::DragDropAccess::state(target);
         if (!state)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
         return Detail::enqueueDragDropEvent(*state, std::move(data), terminal) ? IO::successStatus()
                                                                                : IO::makeStatus(IO::Types::ErrorCode::StorageFull);
     }
@@ -133,7 +145,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::DragDropState *state = Detail::DragDropAccess::state(target);
         if (state == nullptr)
+        {
             return {};
+        }
         state->nextSessionId = nextValue;
         return Detail::allocateDragDropSessionId(*state);
     }
@@ -234,7 +248,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform || !Detail::Platform::hasCustomCursor(*state))
+        {
             return 0;
+        }
         return Detail::Platform::customCursorBindingDpi(*state);
     }
 
@@ -252,7 +268,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         const auto &state = Detail::CursorAccess::state(cursor);
         if (!state || index >= state->variants.size())
+        {
             return {};
+        }
         const Detail::Platform::NativeCursorSnapshot snapshot = Detail::Platform::inspectNativeCursor(state->variants[index]);
         return {{snapshot.hotspotX, snapshot.hotspotY}, snapshot.firstBgraPixel, snapshot.valid};
     }
@@ -265,7 +283,9 @@ namespace GameWIP::Desktop::TestHooks
         try
         {
             if (Detail::WindowAccess::state(window) != nullptr)
+            {
                 Detail::WindowAccess::ensureRendererIntegration(window)->pointerHitMaskBackendSupportedForTesting = true;
+            }
         }
         catch (const std::bad_alloc &)
         {
@@ -306,9 +326,13 @@ namespace GameWIP::Desktop::TestHooks
     IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
     {
         if (Detail::WindowAccess::state(window) != nullptr)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
+        }
         if (storage.empty())
+        {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+        }
         try
         {
             auto state = std::make_unique<Detail::WindowState>();
@@ -339,7 +363,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
         static_cast<void>(Detail::enqueueEvent(*state, std::move(data)));
         return IO::successStatus();
     }
@@ -348,7 +374,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
         static_cast<void>(Detail::requestClose(*state, source));
         return IO::successStatus();
     }
@@ -357,7 +385,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr)
+        {
             return;
+        }
         state->clientSize = snapshot.clientSize;
         state->framebufferSize = snapshot.framebufferSize;
         state->contentScale = snapshot.contentScale;
@@ -368,7 +398,9 @@ namespace GameWIP::Desktop::TestHooks
         state->interactiveMoveResizeActive = snapshot.interactiveMoveResizeActive;
         Detail::publishCachedPresentationState(*state);
         if (Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+        {
             publication->publishOccluded(snapshot.occluded);
+        }
     }
 
     std::uint64_t pointerHitMaskGeneration(const Window &window) noexcept

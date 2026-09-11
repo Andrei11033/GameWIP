@@ -24,7 +24,9 @@ namespace GameWIP::Desktop::Detail::Platform
         output.clear();
         nativeCode = ERROR_SUCCESS;
         if (text.empty())
+        {
             return true;
+        }
 
         // U+0000 is valid Unicode, but every native caller of this bridge passes the result to
         // NUL-terminated Win32 text APIs and therefore cannot preserve an embedded NUL.
@@ -47,7 +49,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         output.resize(conversion.codeUnitsWritten);
         for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+        {
             output[index] = static_cast<wchar_t>(converted[index]);
+        }
         return true;
     }
 
@@ -56,7 +60,9 @@ namespace GameWIP::Desktop::Detail::Platform
         output.clear();
         nativeCode = ERROR_SUCCESS;
         if (text.empty())
+        {
             return true;
+        }
 
         // One UTF-16 code unit needs at most three UTF-8 bytes. A surrogate pair uses four bytes
         // for two code units, so 3 * source length is a sufficient caller-owned destination.
@@ -68,7 +74,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         std::vector<char16_t> source(text.size());
         for (std::size_t index = 0; index < text.size(); ++index)
+        {
             source[index] = static_cast<char16_t>(text[index]);
+        }
 
         output.resize(text.size() * 3U);
         const GameWIP::Unicode::Types::Utf16::ToUtf8Result conversion = GameWIP::Unicode::Utf16::convertToUtf8(source, output);

@@ -19,7 +19,9 @@ void testDisplayColorInformation(TestSupport::Context &context)
     const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("display-color primary monitor resolves", primary.status.ok()));
     if (!primary.status.ok())
+    {
         return;
+    }
 
     const Desktop::Types::Display::ColorInfoResult primaryColor = Feedback::getColorInfo(primary.monitor.id);
     static_cast<void>(context.expectTrue("native display-color query succeeds", primaryColor.status.ok()));
@@ -42,12 +44,16 @@ void testDisplayColorInformation(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("display-color Window fixture opens", window.open(description, 8).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
 
     const Desktop::Types::Display::ColorInfoResult windowColor = Feedback::getColorInfo(window);
     static_cast<void>(context.expectTrue("Window display-color query succeeds", windowColor.status.ok()));
     if (windowColor.status.ok())
+    {
         static_cast<void>(context.expectEq("Window color query uses its cached monitor", window.currentMonitor(), windowColor.info.monitor));
+    }
 
     ErrorCode wrongThreadCode = ErrorCode::Success;
     std::thread worker(
@@ -147,7 +153,9 @@ void testMonitors(TestSupport::Context &context)
     const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("primary monitor query succeeds", primary.status.ok()));
     if (!primary.status.ok())
+    {
         return;
+    }
     static_cast<void>(context.expectTrue("primary monitor id is valid", primary.monitor.id.isValid()));
     static_cast<void>(context.expectTrue("primary monitor is marked primary", primary.monitor.primary));
     static_cast<void>(context.expectTrue("monitor identity resolves", Desktop::Display::getMonitor(primary.monitor.id).status.ok()));

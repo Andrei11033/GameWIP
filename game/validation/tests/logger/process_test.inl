@@ -20,7 +20,9 @@
     for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
     {
         if (value != nullptr && std::string_view(value) == argument)
+        {
             return true;
+        }
     }
     return false;
 }
@@ -70,7 +72,9 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
     for (const auto &entry : std::filesystem::directory_iterator(directory))
     {
         if (entry.is_regular_file())
+        {
             contents += readWholeFile(context, entry.path());
+        }
     }
     context.expectContains("fatalTerminate uses synchronous report", contents, fatalTerminateChildMessage);
 }

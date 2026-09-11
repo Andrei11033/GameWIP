@@ -3,6 +3,7 @@
 
 #include "terminal/output.h"
 #include "terminal/internal/terminal_platform.h"
+#include "terminal/internal/terminal_status.h"
 #include "unicode/unicode.h"
 
 #include <cstddef>
@@ -66,30 +67,6 @@ namespace GameWIP::Terminal
             return statusWithMessage(ErrorCode::InvalidArgument, message);
         }
 
-        [[nodiscard]] IO::Types::Status exceptionStatus() noexcept
-        {
-            try
-            {
-                throw;
-            }
-            catch (const std::bad_alloc &)
-            {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
-            }
-            catch (const std::length_error &)
-            {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
-            }
-            catch (const std::format_error &)
-            {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
-            }
-            catch (...)
-            {
-                return IO::makeStatus(ErrorCode::Unknown);
-            }
-        }
-
         void rollbackString(std::string &text, std::size_t previousSize) noexcept
         {
             while (text.size() > previousSize)
@@ -98,7 +75,7 @@ namespace GameWIP::Terminal
             }
         }
 
-        [[nodiscard]] bool isValidUtf8(std::string_view text) noexcept
+        [[nodiscard]] bool validUtf8(std::string_view text) noexcept
         {
             return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
         }
@@ -129,7 +106,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -155,7 +132,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status OutputBuffer::appendText(std::string_view utf8Text) noexcept
     {
-        if (!isValidUtf8(utf8Text))
+        if (!validUtf8(utf8Text))
         {
             return IO::makeStatus(ErrorCode::EncodingFailed);
         }
@@ -169,13 +146,13 @@ namespace GameWIP::Terminal
         catch (...)
         {
             rollbackString(text_, previousSize);
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
     IO::Types::Status OutputBuffer::appendLine(std::string_view utf8Text) noexcept
     {
-        if (!isValidUtf8(utf8Text))
+        if (!validUtf8(utf8Text))
         {
             return IO::makeStatus(ErrorCode::EncodingFailed);
         }
@@ -190,7 +167,7 @@ namespace GameWIP::Terminal
         catch (...)
         {
             rollbackString(text_, previousSize);
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -204,7 +181,7 @@ namespace GameWIP::Terminal
             {
                 text_.append(lineEndingText(lineEnding_));
             }
-            if (!isValidUtf8(std::string_view(text_).substr(previousSize)))
+            if (!validUtf8(std::string_view(text_).substr(previousSize)))
             {
                 rollbackString(text_, previousSize);
                 return IO::makeStatus(ErrorCode::EncodingFailed);
@@ -214,7 +191,7 @@ namespace GameWIP::Terminal
         catch (...)
         {
             rollbackString(text_, previousSize);
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -231,7 +208,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 

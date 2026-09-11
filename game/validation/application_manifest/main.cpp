@@ -6,6 +6,9 @@
 
 #include <string_view>
 
+#ifndef EXPECT_COMMON_CONTROLS
+#define EXPECT_COMMON_CONTROLS 1
+#endif
 namespace
 {
     // Count resource names as well as checking ID 1 so extra manifests cannot

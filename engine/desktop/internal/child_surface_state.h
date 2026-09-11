@@ -41,7 +41,9 @@ namespace GameWIP::Desktop::Detail
             if (!eventStorage.empty())
             {
                 for (std::size_t index = 0; index < eventCount; ++index)
+                {
                     eventStorage[(eventHead + index) % eventStorage.size()] = {};
+                }
             }
             eventHead = 0;
             eventCount = 0;

@@ -8,7 +8,9 @@ void testManualFullscreenAndTopology(
     ManualFullscreenSections sections)
 {
     if (!beginManualSuite(context, options, "Window fullscreen and display topology"))
+    {
         return;
+    }
 
     const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
     const Desktop::Types::Display::MonitorsResult monitors = Desktop::Display::getMonitors();
@@ -20,14 +22,18 @@ void testManualFullscreenAndTopology(
 
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP fullscreen validation"))
+    {
         return;
+    }
     const Desktop::Types::ScreenPosition savedPosition = window.clientPosition();
     const Desktop::Types::LogicalSize savedSize = window.clientSize();
     const auto disconnectableMonitor = []() -> std::optional<Desktop::Types::Display::MonitorId>
     {
         const Desktop::Types::Display::MonitorsResult connected = Desktop::Display::getMonitors();
         if (!connected.status.ok())
+        {
             return std::nullopt;
+        }
         const auto secondary = std::ranges::find_if(
             connected.monitors,
             [](const Desktop::Types::Display::Info &monitor)
@@ -232,17 +238,25 @@ void testManualFullscreenAndTopology(
             else
             {
                 if (sections.exclusive)
+                {
                     context.skip("exclusive fullscreen", "no enumerated exact display mode is available for the current monitor");
+                }
                 if (sections.topology)
+                {
                     context.skip("active exclusive target disconnect", "no enumerated exact display mode is available for the current monitor");
+                }
             }
         }
         else
         {
             if (sections.exclusive)
+            {
                 context.skip("exclusive fullscreen", "backend does not advertise ExclusiveFullscreen");
+            }
             if (sections.topology)
+            {
                 context.skip("active exclusive target disconnect", "backend does not advertise ExclusiveFullscreen");
+            }
         }
     }
 
@@ -303,7 +317,9 @@ void testManualFullscreenAndTopology(
 void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window HDR and advanced color"))
+    {
         return;
+    }
 
     const Desktop::Types::Display::MonitorsResult monitors = Desktop::Display::getMonitors();
     if (!monitors.status.ok() || monitors.monitors.empty())
@@ -314,14 +330,18 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
 
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP HDR validation"))
+    {
         return;
+    }
 
     for (const Desktop::Types::Display::Info &monitor : monitors.monitors)
     {
         const Desktop::Types::Display::ColorInfoResult direct = Desktop::Display::getColorInfo(monitor.id);
         static_cast<void>(context.expectTrue("monitor display-color query succeeds", direct.status.ok()));
         if (!direct.status.ok())
+        {
             continue;
+        }
         const auto &info = direct.info;
         static_cast<void>(context.expectEq("display-color query retains monitor identity", monitor.id, info.monitor));
         static_cast<void>(context.expectTrue("HDR enabled implies HDR supported", !info.hdrEnabled || info.hdrSupported));
@@ -353,7 +373,9 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
     const Desktop::Types::Display::ColorInfoResult windowInfo = Desktop::Display::getColorInfo(window);
     static_cast<void>(context.expectTrue("Window display-color query succeeds", windowInfo.status.ok()));
     if (windowInfo.status.ok())
+    {
         static_cast<void>(context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo.info.monitor));
+    }
 
     const TestSupport::Types::Reporting::ManualAnswer toggle = recordManualCheck(
         context,
@@ -393,12 +415,16 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
 void testManualModernWindowsCapabilities(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window modern Windows capabilities"))
+    {
         return;
+    }
 
     const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP modern capability validation"))
+    {
         return;
+    }
 
     constexpr std::array effects{
         Desktop::Types::BackdropEffect::Automatic,

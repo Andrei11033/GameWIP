@@ -31,7 +31,9 @@ void testFixedEventQueue(TestSupport::Context &context)
     const auto *moved = second.getIf<Desktop::Types::Events::ClientPositionChanged>();
     static_cast<void>(context.expectTrue("post-barrier movement remains", moved != nullptr));
     if (moved != nullptr)
+    {
         static_cast<void>(context.expectEq("coalesced movement keeps latest payload", Desktop::Types::ScreenPosition{5, 6}, moved->position));
+    }
     static_cast<void>(context.expectTrue("third retained event pops", window.popEvent(third)));
     static_cast<void>(context.expectTrue("new noncoalescible event remains", third.getIf<Desktop::Types::Events::RedrawRequested>() != nullptr));
     static_cast<void>(context.expectTrue("retained sequences are increasing", first.sequence < second.sequence && second.sequence < third.sequence));
@@ -71,7 +73,9 @@ void testStickyClose(TestSupport::Context &context)
     const auto *close = event.getIf<Desktop::Types::Events::CloseRequested>();
     static_cast<void>(context.expectTrue("typed close payload remains", close != nullptr));
     if (close != nullptr)
+    {
         static_cast<void>(context.expectEq("first close source wins", Desktop::Types::Events::CloseRequestSource::User, close->source));
+    }
     static_cast<void>(source.close());
 }
 
@@ -88,7 +92,9 @@ void testNativeEventTranslation(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("native event fixture opens", window.open(description, 64).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
 
     const Desktop::Native::Win32::HandleResult handle = Desktop::Native::Win32::getHandle(window);
     static_cast<void>(context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle.handle.window != nullptr));
@@ -217,7 +223,9 @@ void testNativeEventTranslation(TestSupport::Context &context)
                 context.expectTrue("WM_DROPFILES translates to FilesDroppedEvent", consumeEventOfType<Desktop::Types::Events::FilesDropped>(window)));
         }
         if (dropMemory != nullptr)
+        {
             static_cast<void>(GlobalFree(dropMemory));
+        }
     }
 
     window.clearEvents();

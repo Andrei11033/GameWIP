@@ -68,6 +68,7 @@ function(gamewip_enable_project_warnings)
                 -Wconditional-uninitialized
                 -Wshorten-64-to-32
                 -Wunsafe-buffer-usage
+                -Wdocumentation
             )
         endif()
         if(GAMEWIP_WARNINGS_AS_ERRORS)

@@ -5,7 +5,9 @@
 void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window visible lifecycle"))
+    {
         return;
+    }
 
     context.manual(
         "Window manual tests require a normal interactive Windows desktop. Answer yes, no, or skip at each prompt. "
@@ -52,7 +54,9 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
         "Click the Window close button once. Does the Window remain alive while recording a close request?");
     static_cast<void>(context.expectTrue("system close request becomes sticky", window.hasCloseRequest()));
     if (window.hasCloseRequest())
+    {
         static_cast<void>(context.expectTrue("system close request clears", window.clearCloseRequest().ok()));
+    }
     static_cast<void>(context.expectTrue("cleared close request leaves Window open", window.isOpen()));
 
     recordManualCheck(
@@ -75,17 +79,23 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
 void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window multiple-window scenarios"))
+    {
         return;
+    }
 
     Desktop::Window owner;
     if (!openManualWindow(context, owner, "GameWIP manual owner Window"))
+    {
         return;
+    }
 
     Desktop::Types::Description childDescription;
     childDescription.owner = owner.id();
     Desktop::Window child;
     if (!openManualWindow(context, child, "GameWIP manual owned tool Window", childDescription))
+    {
         return;
+    }
     const auto paintOwnedWindow = [&]
     {
         paintManualValidationSurface(child);
@@ -149,7 +159,9 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
 void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window custom chrome"))
+    {
         return;
+    }
 
     const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
     if (!capabilities.supports(Desktop::Types::Capability::CustomChrome))
@@ -162,7 +174,9 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
     description.decoration = Desktop::Types::DecorationMode::Custom;
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP custom chrome validation", description))
+    {
         return;
+    }
 
     const std::array draggable{Desktop::Types::LogicalRect{{0, 0}, {760, 48}}};
     Desktop::Types::CustomChromeLayout layout;
@@ -172,7 +186,9 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
     layout.maximizeButtonRegion = Desktop::Types::LogicalRect{{848, 0}, {48, 48}};
     layout.closeButtonRegion = Desktop::Types::LogicalRect{{896, 0}, {64, 48}};
     if (!requireManualStatus(context, "custom chrome layout applies", window.setCustomChromeLayout(layout)))
+    {
         return;
+    }
 
     recordManualCheck(
         context,
@@ -214,12 +230,16 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
 void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window layered and pointer behavior"))
+    {
         return;
+    }
 
     const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP opacity and pointer validation"))
+    {
         return;
+    }
 
     if (capabilities.supports(Desktop::Types::Capability::Opacity))
     {
@@ -319,13 +339,17 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
 void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window DPI and coordinates"))
+    {
         return;
+    }
 
     Desktop::Window window;
     Desktop::Types::Description description;
     description.dpiResizePolicy = Desktop::Types::DpiResizePolicy::PreserveLogicalClientSize;
     if (!openManualWindow(context, window, "GameWIP mixed-DPI validation", description))
+    {
         return;
+    }
 
     recordManualCheck(
         context,
@@ -389,12 +413,16 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
 void testManualCursor(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window cursor behavior"))
+    {
         return;
+    }
 
     const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP cursor validation"))
+    {
         return;
+    }
 
     constexpr std::array shapes{
         Desktop::Types::CursorShape::Arrow,
@@ -480,7 +508,9 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
             const Desktop::Types::LogicalPositionResult actual = window.cursorPosition();
             static_cast<void>(context.expectTrue("cursor warp query succeeds", actual.status.ok()));
             if (actual.status.ok())
+            {
                 static_cast<void>(context.expectEq("cursor warp reaches requested logical point", point, actual.position));
+            }
         }
         recordManualCheck(
             context,

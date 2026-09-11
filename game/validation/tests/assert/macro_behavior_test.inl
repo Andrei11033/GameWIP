@@ -6,8 +6,11 @@ void testPassingMacros(TestContext &context)
 {
     int value = 0;
 
+    // NOLINTNEXTLINE(readability-braces-around-statements) -- Unbraced form intentionally validates macro statement safety.
     if (true) // NOLINT(readability-simplify-boolean-expr) -- Verifies macro statement safety in a conditional.
+        // NOLINTNEXTLINE(readability-braces-around-statements) -- The unbraced macro call is intentional for this test.
         ASSERT(true);
+    // NOLINTNEXTLINE(readability-braces-around-statements) -- The unbraced else branch is intentional for this test.
     else
         ++value;
 

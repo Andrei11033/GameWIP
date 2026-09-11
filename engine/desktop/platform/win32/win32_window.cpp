@@ -116,7 +116,9 @@ namespace GameWIP::Desktop::Detail::Platform
         state.id = {};
         state.owner = {};
         if (!removed.isValid())
+        {
             return;
+        }
         for (const auto &[id, candidate] : windowRegistry)
         {
             static_cast<void>(id);
@@ -131,7 +133,9 @@ namespace GameWIP::Desktop::Detail::Platform
                         recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "clear destroyed window owner"));
                     }
                     if (IO::Types::Status styleStatus = applyStyle(*candidate); !styleStatus.ok())
+                    {
                         recordPumpFailure(std::move(styleStatus));
+                    }
                 }
                 routeEvent(*candidate, Types::Events::OwnerChanged{removed, {}});
             }
@@ -154,13 +158,21 @@ namespace GameWIP::Desktop::Detail::Platform
             style |= WS_POPUP;
         }
         if (state.controls.closable || state.controls.minimizable || state.controls.maximizable)
+        {
             style |= WS_SYSMENU;
+        }
         if (state.controls.minimizable)
+        {
             style |= WS_MINIMIZEBOX;
+        }
         if (state.controls.maximizable)
+        {
             style |= WS_MAXIMIZEBOX;
+        }
         if (state.resizable)
+        {
             style |= WS_THICKFRAME;
+        }
         return style;
     }
 
@@ -168,13 +180,21 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         DWORD style = state.owner.isValid() ? 0 : WS_EX_APPWINDOW;
         if (!state.focusable)
+        {
             style |= WS_EX_NOACTIVATE;
+        }
         if (state.alwaysOnTop)
+        {
             style |= WS_EX_TOPMOST;
+        }
         if (state.opacity < 1.0F || state.pointerInputMode == Types::PointerInputMode::ClickThrough)
+        {
             style |= WS_EX_LAYERED;
+        }
         if (state.pointerInputMode == Types::PointerInputMode::ClickThrough)
+        {
             style |= WS_EX_TRANSPARENT;
+        }
         return style;
     }
 
@@ -244,7 +264,9 @@ namespace GameWIP::Desktop::Detail::Platform
         Dispatcher &current = dispatcher();
         current.windows.erase(std::remove(current.windows.begin(), current.windows.end(), &state), current.windows.end());
         if (current.windows.empty())
+        {
             releaseDisplayColorResources();
+        }
     }
 
     bool hasOpenWindowsOnCurrentThread() noexcept
@@ -281,18 +303,24 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             current.activeResult->eventsDropped += state.droppedEvents - droppedBefore;
             if (result != ChildSurfaceEnqueueResult::Dropped)
+            {
                 ++current.activeResult->eventsQueued;
+            }
         }
     }
 
     void refreshChildSurfaceScreenRectsForParent(Types::WindowId parentId) noexcept
     {
         if (!parentId.isValid())
+        {
             return;
+        }
         for (ChildSurfaceState *child : dispatcher().childSurfaces)
         {
             if (child != nullptr && child->parentId == parentId)
+            {
                 refreshChildSurfaceScreenRect(*child);
+            }
         }
     }
 
@@ -382,7 +410,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         const auto found = dispatcherRegistry.find(threadId);
         if (found != dispatcherRegistry.end() && found->second == this)
+        {
             dispatcherRegistry.erase(found);
+        }
 
         std::unique_ptr<WindowState> deferred;
         {
@@ -438,7 +468,9 @@ namespace GameWIP::Desktop::Detail::Platform
     WindowState *resolveWindowId(Types::WindowId id) noexcept
     {
         if (!id.isValid())
+        {
             return nullptr;
+        }
         std::scoped_lock lock(windowRegistryMutex);
         const auto found = windowRegistry.find(id.value);
         return found == windowRegistry.end() ? nullptr : found->second;
@@ -505,9 +537,13 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure;
         if (nativeCode == DISP_CHANGE_BADMODE || nativeCode == DISP_CHANGE_BADPARAM)
+        {
             code = IO::Types::ErrorCode::InvalidArgument;
+        }
         else if (nativeCode == DISP_CHANGE_NOTUPDATED)
+        {
             code = IO::Types::ErrorCode::PermissionDenied;
+        }
         try
         {
             return IO::makeStatus(code, nativeCode, std::format("{} failed with display status {}", operation, nativeCode));
@@ -537,11 +573,15 @@ namespace GameWIP::Desktop::Detail::Platform
     bool logicalToPhysicalChecked(std::int32_t value, UINT dpi, LONG &output) noexcept
     {
         if (dpi == 0)
+        {
             return false;
+        }
         const std::int64_t product = static_cast<std::int64_t>(value) * dpi;
         const std::int64_t rounded = product >= 0 ? (product + kBaselineDpi / 2) / kBaselineDpi : (product - kBaselineDpi / 2) / kBaselineDpi;
         if (rounded < std::numeric_limits<LONG>::min() || rounded > std::numeric_limits<LONG>::max())
+        {
             return false;
+        }
         output = static_cast<LONG>(rounded);
         return true;
     }
@@ -629,7 +669,9 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
 
         RECT client{};
         RECT frame{};
@@ -647,7 +689,9 @@ namespace GameWIP::Desktop::Detail::Platform
         const RendererIntegrationState *renderer = state.rendererIntegration;
         if (renderer != nullptr && ((renderer->pointerHitMaskActiveGeneration != 0 && renderer->pointerHitMaskSize != state.framebufferSize) ||
                                     (renderer->pointerHitMaskTargetGeneration != 0 && renderer->pointerHitMaskTargetSize != state.framebufferSize)))
+        {
             invalidatePointerHitMask(state);
+        }
         state.clientSize = physicalToLogicalSize(physicalWidth, physicalHeight, dpi);
         state.clientPosition = {clientOrigin.x, clientOrigin.y};
         state.frameRect = {
@@ -675,7 +719,9 @@ namespace GameWIP::Desktop::Detail::Platform
     void updateCurrentMonitor(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
+        {
             return;
+        }
         HMONITOR native = MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
         Types::Display::InfoResult info = monitorFromNative(native);
         if (!info.status.ok())
@@ -688,7 +734,9 @@ namespace GameWIP::Desktop::Detail::Platform
             const Types::Display::MonitorId previous = state.monitor;
             state.monitor = info.monitor.id;
             if (state.presentationPublication != nullptr)
+            {
                 state.presentationPublication->publishMonitor(state.monitor);
+            }
             routeEvent(state, Types::Events::MonitorChanged{previous, state.monitor});
         }
     }
@@ -696,9 +744,13 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status applyCursorState(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
         if (Detail::consumeFailure(TestHooks::FailurePoint::Cursor))
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
+        }
 
         WindowData &data = *state.platform;
         const bool confined = state.cursorMode == Types::CursorMode::Confined || state.cursorMode == Types::CursorMode::HiddenConfined ||
@@ -707,7 +759,9 @@ namespace GameWIP::Desktop::Detail::Platform
         if (!shouldClip)
         {
             if (data.cursorClipApplied && ClipCursor(nullptr) == FALSE)
+            {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClipCursor release");
+            }
             data.cursorClipApplied = false;
             return IO::successStatus();
         }
@@ -716,14 +770,20 @@ namespace GameWIP::Desktop::Detail::Platform
         POINT topLeft{};
         POINT bottomRight{};
         if (GetClientRect(data.handle, &client) == FALSE)
+        {
             return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "GetClientRect for cursor");
+        }
         topLeft = {client.left, client.top};
         bottomRight = {client.right, client.bottom};
         if (ClientToScreen(data.handle, &topLeft) == FALSE || ClientToScreen(data.handle, &bottomRight) == FALSE)
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen for cursor");
+        }
         RECT clip{topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
         if (ClipCursor(&clip) == FALSE)
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClipCursor");
+        }
         data.cursorClipApplied = true;
 
         if (state.cursorMode == Types::CursorMode::Relative)
@@ -731,7 +791,9 @@ namespace GameWIP::Desktop::Detail::Platform
             const int x = topLeft.x + (bottomRight.x - topLeft.x) / 2;
             const int y = topLeft.y + (bottomRight.y - topLeft.y) / 2;
             if (SetCursorPos(x, y) == FALSE)
+            {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetCursorPos relative center");
+            }
         }
         return IO::successStatus();
     }
@@ -739,7 +801,9 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status applyStyle(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
+        {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
         // ShowWindow, EnableWindow, minimize, and maximize own these runtime bits. Rebuilding
         // the configurable frame must not make a still-painted HWND invisible to Explorer or
         // silently re-enable/restore it by replacing the complete style word.
@@ -753,9 +817,13 @@ namespace GameWIP::Desktop::Detail::Platform
         const DWORD desiredExtendedStyle = extendedStyleFor(state) | (currentExtendedStyle & ~controlledExtendedStyleBits);
         DWORD nativeCode = ERROR_SUCCESS;
         if (!setLong(state.platform->handle, GWL_STYLE, desiredStyle, nativeCode))
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "SetWindowLongPtrW style");
+        }
         if (!setLong(state.platform->handle, GWL_EXSTYLE, desiredExtendedStyle, nativeCode))
+        {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "SetWindowLongPtrW extended style");
+        }
         if (SetWindowPos(
                 state.platform->handle,
                 state.alwaysOnTop ? HWND_TOPMOST : HWND_NOTOPMOST,
@@ -789,7 +857,9 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const LONG result = ChangeDisplaySettingsExW(data.exclusiveDevice.c_str(), &data.savedDisplayMode, nullptr, 0, nullptr);
             if (result != DISP_CHANGE_SUCCESSFUL)
+            {
                 return statusFromDisplayChange(result, "restore desktop display mode");
+            }
         }
         data.hasSavedDisplayMode = false;
         data.exclusiveSuspended = false;
@@ -803,10 +873,14 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status suspendExclusive(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode || state.platform->exclusiveSuspended)
+        {
             return IO::successStatus();
+        }
         const LONG result = ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->savedDisplayMode, nullptr, 0, nullptr);
         if (result != DISP_CHANGE_SUCCESSFUL)
+        {
             return statusFromDisplayChange(result, "suspend exclusive fullscreen");
+        }
         state.platform->exclusiveSuspended = true;
         state.fullscreen.suspended = true;
         return IO::successStatus();
@@ -816,11 +890,15 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         if (!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode ||
             !state.platform->exclusiveSuspended)
+        {
             return IO::successStatus();
+        }
         const LONG validationResult =
             ChangeDisplaySettingsExW(state.platform->exclusiveDevice.c_str(), &state.platform->activeNativeDisplayMode, nullptr, CDS_TEST, nullptr);
         if (validationResult != DISP_CHANGE_SUCCESSFUL)
+        {
             return statusFromDisplayChange(validationResult, "validate resumed exclusive fullscreen display mode");
+        }
         const LONG result = ChangeDisplaySettingsExW(
             state.platform->exclusiveDevice.c_str(),
             &state.platform->activeNativeDisplayMode,
@@ -828,7 +906,9 @@ namespace GameWIP::Desktop::Detail::Platform
             CDS_FULLSCREEN,
             nullptr);
         if (result != DISP_CHANGE_SUCCESSFUL)
+        {
             return statusFromDisplayChange(result, "resume exclusive fullscreen");
+        }
         state.platform->exclusiveSuspended = false;
         state.fullscreen.suspended = false;
         return IO::successStatus();
@@ -840,12 +920,16 @@ namespace GameWIP::Desktop::Detail::Platform
     bool deferCleanupToOwner(std::unique_ptr<WindowState> &state) noexcept
     {
         if (!state || !state->platform)
+        {
             return true;
+        }
         std::scoped_lock registryLock(dispatcherRegistryMutex);
         const auto found = dispatcherRegistry.find(state->platform->ownerThreadId);
         Dispatcher *owner = found == dispatcherRegistry.end() ? nullptr : found->second;
         if (owner == nullptr)
+        {
             return false;
+        }
         {
             std::scoped_lock lock(owner->deferredMutex);
             state->deferredCleanupNext = owner->deferredCleanupHead.release();
@@ -858,12 +942,16 @@ namespace GameWIP::Desktop::Detail::Platform
     bool deferChildSurfaceCleanupToOwner(std::unique_ptr<ChildSurfaceState> &state) noexcept
     {
         if (!state || !state->platform)
+        {
             return false;
+        }
         std::scoped_lock registryLock(dispatcherRegistryMutex);
         const auto found = dispatcherRegistry.find(state->platform->ownerThreadId);
         Dispatcher *owner = found == dispatcherRegistry.end() ? nullptr : found->second;
         if (owner == nullptr)
+        {
             return false;
+        }
         {
             std::scoped_lock lock(owner->deferredMutex);
             state->deferredCleanupNext = owner->deferredChildCleanupHead.release();
@@ -876,15 +964,21 @@ namespace GameWIP::Desktop::Detail::Platform
     bool deferDragDropCleanupToOwner(std::unique_ptr<DragDropState> &state) noexcept
     {
         if (!state || state->ownerNativeThreadId == 0)
+        {
             return false;
+        }
         std::scoped_lock registryLock(dispatcherRegistryMutex);
         const auto found = dispatcherRegistry.find(static_cast<DWORD>(state->ownerNativeThreadId));
         Dispatcher *owner = found == dispatcherRegistry.end() ? nullptr : found->second;
         if (owner == nullptr)
+        {
             return false;
+        }
         DragDropState *tail = state.get();
         while (tail->deferredCleanupNext != nullptr)
+        {
             tail = tail->deferredCleanupNext;
+        }
         {
             std::scoped_lock lock(owner->deferredMutex);
             tail->deferredCleanupNext = owner->deferredDragDropCleanupHead.release();

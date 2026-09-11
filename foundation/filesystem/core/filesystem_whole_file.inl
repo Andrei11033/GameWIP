@@ -141,7 +141,7 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
 
 IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::File::WriteOptions &options) noexcept
 {
-    if (!isValidUtf8(utf8Text))
+    if (!validUtf8(utf8Text))
     {
         return writeFailure(ErrorCode::EncodingFailed);
     }
@@ -218,7 +218,7 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
 
 IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8Text, const Types::File::AppendOptions &options) noexcept
 {
-    if (!isValidUtf8(utf8Text))
+    if (!validUtf8(utf8Text))
     {
         return writeFailure(ErrorCode::EncodingFailed);
     }
@@ -349,7 +349,7 @@ IO::Types::Status writeAllBytesAtomic(
 
 IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::File::AtomicWriteOptions &options) noexcept
 {
-    if (!isValidUtf8(utf8Text))
+    if (!validUtf8(utf8Text))
     {
         return IO::makeStatus(ErrorCode::EncodingFailed);
     }
