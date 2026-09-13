@@ -92,6 +92,7 @@ set(expected_gamewip_headers
     desktop/cursor.h
     desktop/data_transfer.h
     desktop/description.h
+    desktop/dialogs.h
     desktop/display.h
     desktop/display_info.h
     desktop/drag_drop.h

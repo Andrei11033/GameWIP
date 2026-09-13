@@ -3,6 +3,7 @@
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/internal/drag_drop_platform.h"
+#include "desktop/internal/dialogs_platform.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -145,6 +146,17 @@ namespace GameWIP::Desktop::Detail::Platform
         if (state == nullptr)
         {
             return DefWindowProcW(window, message, wParam, lParam);
+        }
+        if (message == kProgressOwnerRestoreMessage)
+        {
+            const std::uint64_t ownerId =
+                static_cast<std::uint32_t>(wParam) | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(lParam)) << 32U);
+            if (state->id.value == ownerId && state->platform && state->platform->handle == window && !state->platform->destroying &&
+                IsWindow(window) != FALSE)
+            {
+                restorePendingProgressOwners(dispatcher());
+            }
+            return 0;
         }
 
         switch (message)
@@ -583,6 +595,7 @@ namespace GameWIP::Desktop::Detail::Platform
             resetPresentationPublication(*state);
             return 0;
         case WM_NCDESTROY:
+            notifyProgressOwnerLossBestEffort(*state);
             static_cast<void>(windowClosingDragDrop(*state, true));
             releaseCustomCursorBinding(window);
             state->interactiveMoveResizeActive = false;

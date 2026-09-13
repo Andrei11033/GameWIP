@@ -28,6 +28,7 @@
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
 #include "desktop/drag_drop.h"
+#include "desktop/dialogs.h"
 #include "desktop/display_info.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
@@ -81,6 +82,9 @@ int main()
     GameWIP::Desktop::Window closedWindow;
     GameWIP::Desktop::ChildSurface closedChildSurface;
     GameWIP::Desktop::DragDropTarget closedDragDropTarget;
+    GameWIP::Desktop::ProgressDialog closedProgressDialog;
+    const GameWIP::Desktop::Types::Dialogs::Prompt::ButtonId dialogButtonId{53};
+    const GameWIP::Desktop::Types::Dialogs::File::Result closedDialogResult;
     const GameWIP::Desktop::Types::DragDrop::Result closedDrag = GameWIP::Desktop::DragDrop::beginDrag(closedWindow, {});
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Desktop::Renderer::attachOcclusionProvider(closedWindow);
     const bool rendererProvider = GameWIP::Desktop::Renderer::hasOcclusionProvider(closedWindow);
@@ -111,13 +115,14 @@ int main()
     const bool testSupportProbePassed = infrastructureStatus.ok() && infrastructureText == "None" && childResult.status.ok() &&
                                         childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
                                         childResult.outputBytes.empty() && reportingOptions.writeConsole;
-    const bool desktopProbePassed = invalidCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidCursor.cursor.isValid() &&
-                                    invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
-                                    !invalidSingleCursor.cursor.isValid() && rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                                    !rendererProvider && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
-                                    windowSize.width == 640 && loggerConfig.logDirectory == std::string_view{"logs"} &&
-                                    !closedChildSurface.isOpen() && !closedDragDropTarget.isOpen() &&
-                                    closedDrag.status.code == GameWIP::IO::Types::ErrorCode::NotOpen;
+    const bool desktopProbePassed =
+        invalidCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidCursor.cursor.isValid() &&
+        invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidSingleCursor.cursor.isValid() &&
+        rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen && !rendererProvider &&
+        displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
+        loggerConfig.logDirectory == std::string_view{"logs"} && !closedChildSurface.isOpen() && !closedDragDropTarget.isOpen() &&
+        closedDrag.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && !closedProgressDialog.isOpen() && closedProgressDialog.close().ok() &&
+        dialogButtonId.isValid() && closedDialogResult.outcome == GameWIP::Desktop::Types::Dialogs::Outcome::Cancelled;
 
     const bool everyProbePassed =
         unicodeProbePassed && ioProbePassed && terminalProbePassed && closedTerminalProbePassed && testSupportProbePassed && desktopProbePassed;

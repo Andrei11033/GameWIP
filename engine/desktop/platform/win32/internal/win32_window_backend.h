@@ -7,6 +7,7 @@
 
 #include "desktop/internal/child_surface_state.h"
 #include "desktop/internal/drag_drop_state.h"
+#include "desktop/internal/progress_dialog_state.h"
 #include "desktop/internal/window_platform.h"
 
 #include <dwmapi.h>
@@ -40,6 +41,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     inline constexpr UINT kBaselineDpi = 96;                                  ///< Win32 logical-coordinate baseline.
     inline constexpr wchar_t kWindowClassName[] = L"GameWIP.Window.TopLevel"; ///< Process-wide registered class name.
+    inline constexpr UINT kProgressOwnerRestoreMessage = WM_APP + 1;          ///< Defers safe owner interaction restoration.
     inline constexpr std::uint32_t kMaximumChromeRegions = 256;               ///< Copied custom-chrome region limit.
     inline constexpr std::uint32_t kMaximumPointerRegions = 256;              ///< Copied pointer-region limit.
 
@@ -89,16 +91,21 @@ namespace GameWIP::Desktop::Detail::Platform
         Dispatcher(const Dispatcher &) = delete;
         Dispatcher &operator=(const Dispatcher &) = delete;
 
-        DWORD threadId = 0;                                            ///< Native identity of the owning thread.
-        std::vector<WindowState *> windows;                            ///< Non-owning registered states on this thread.
-        std::vector<ChildSurfaceState *> childSurfaces;                ///< Lazily registered native child-host states.
-        std::mutex deferredMutex;                                      ///< Synchronizes cross-thread cleanup transfer.
-        std::unique_ptr<WindowState> deferredCleanupHead;              ///< Intrusive chain awaiting owner-thread cleanup.
-        std::unique_ptr<ChildSurfaceState> deferredChildCleanupHead;   ///< Child hosts awaiting owner-thread cleanup.
-        std::unique_ptr<DragDropState> deferredDragDropCleanupHead;    ///< OLE targets awaiting owner-thread cleanup.
-        std::unique_ptr<std::vector<DragDropState *>> dragDropTargets; ///< Lazily allocated active OLE target registry.
-        bool pumping = false;                                          ///< Reentrancy guard for the native message pump.
-        Types::Events::PumpResult *activeResult = nullptr;             ///< Call-scoped accumulator during a pump.
+        DWORD threadId = 0;                                                     ///< Native identity of the owning thread.
+        std::vector<WindowState *> windows;                                     ///< Non-owning registered states on this thread.
+        std::vector<ChildSurfaceState *> childSurfaces;                         ///< Lazily registered native child-host states.
+        std::mutex deferredMutex;                                               ///< Synchronizes cross-thread cleanup transfer.
+        std::unique_ptr<WindowState> deferredCleanupHead;                       ///< Intrusive chain awaiting owner-thread cleanup.
+        std::unique_ptr<ChildSurfaceState> deferredChildCleanupHead;            ///< Child hosts awaiting owner-thread cleanup.
+        std::unique_ptr<DragDropState> deferredDragDropCleanupHead;             ///< OLE targets awaiting owner-thread cleanup.
+        std::unique_ptr<std::vector<DragDropState *>> dragDropTargets;          ///< Lazily allocated active OLE target registry.
+        std::unique_ptr<ProgressDialogState> deferredProgressDialogCleanupHead; ///< Progress windows awaiting owner-thread cleanup.
+        std::unique_ptr<std::vector<ProgressDialogState *>> progressDialogs;    ///< Lazily allocated active ProgressDialog registry.
+        ProgressDialogState *pendingProgressOwnerRestoreHead =
+            nullptr;                                          ///< Intrusive retry chain for owners of unexpectedly destroyed progress HWNDs.
+        bool pumping = false;                                 ///< Reentrancy guard for the native message pump.
+        Types::Events::PumpResult *activeResult = nullptr;    ///< Call-scoped accumulator during a pump.
+        std::optional<IO::Types::Status> deferredPumpFailure; ///< First native callback failure observed outside an active pump.
     };
 
     /// @name Dispatcher and routing helpers
@@ -120,6 +127,10 @@ namespace GameWIP::Desktop::Detail::Platform
     void unregisterOpenState(WindowState &state) noexcept;
     void registerOpenChildSurface(ChildSurfaceState &state);
     void unregisterOpenChildSurface(ChildSurfaceState &state) noexcept;
+    void registerOpenProgressDialog(ProgressDialogState &state);
+    void unregisterOpenProgressDialog(ProgressDialogState &state) noexcept;
+    void restorePendingProgressOwners(Dispatcher &current) noexcept;
+    [[nodiscard]] DWORD progressOwnerNativeThreadId(const ProgressDialogState &state) noexcept;
     void routeChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept;
     void refreshChildSurfaceScreenRect(ChildSurfaceState &state) noexcept;
     void refreshChildSurfaceScreenRectsForParent(Types::WindowId parentId) noexcept;

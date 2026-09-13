@@ -5,6 +5,8 @@ target_sources(
         "${CMAKE_CURRENT_LIST_DIR}/win32_clipboard.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_child_surface.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_controls.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/win32_dialogs.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/win32_progress_dialog.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_cursor.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_data_transfer.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_drag_drop.cpp"
@@ -28,7 +30,7 @@ target_sources(
 
 target_link_libraries(
     Desktop
-    PRIVATE dwmapi dxgi dxguid gdi32 ole32 shell32 shcore user32
+    PRIVATE comctl32 dwmapi dxgi dxguid gdi32 ole32 shell32 shcore user32 uuid
 )
 
 if(MINGW)

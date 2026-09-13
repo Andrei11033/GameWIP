@@ -32,5 +32,13 @@ registered-format creation, and close. `failClipboardPublicationAt()` selects a 
 `failClipboardEnumerationAfter()` preserves a requested materialized prefix before failure. `resetFailures()` clears these thread-local controls.
 Hooks preserve the real public cleanup and mutation semantics and never appear in installed headers.
 
+Dialog hooks arm one deterministic completion for each file/folder, Message, or Prompt operation. Their snapshots expose the converted native text,
+ordered filter names and wildcard patterns, backend button/option IDs, defaults, flags, and secondary content without opening interactive UI. Failure
+points cover text conversion, suggested-directory setup, modal invocation, result materialization, ProgressDialog class registration/release, owner
+blocking, owner-restore wake delivery, and native mutation. The owner-restore wake seam makes the dispatcher retry path deterministic without
+replacing native ownership. ProgressDialog inspection keeps the real HWND and controls authoritative while exposing passive bounds, text, range,
+position, marquee, cancellation, owner, registry, deferred-cleanup, and class-reference state. Test-only actions request cancel/close, simulate a DPI
+suggested rectangle, and destroy the native window; they do not replace the public lifecycle path.
+
 Hook-facing passive types follow the standardized public domains (`Types::Events`, `Types::Display`, `Types::Renderer`) instead of creating a parallel
 public vocabulary.

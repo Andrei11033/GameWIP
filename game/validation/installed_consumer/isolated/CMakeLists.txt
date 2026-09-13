@@ -46,6 +46,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
             desktop_child_surface.cpp
             desktop_cursor.cpp
             desktop_description.cpp
+            desktop_dialogs.cpp
             desktop_events.cpp
             desktop_display.cpp
             desktop_display_info.cpp
@@ -68,7 +69,7 @@ target_link_libraries(GameWIPIsolatedConsumer PRIVATE "GameWIP::${GAMEWIP_CONSUM
 if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Assert")
     gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer COMMON_CONTROLS_V6)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
-    gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer PER_MONITOR_V2)
+    gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer COMMON_CONTROLS_V6 PER_MONITOR_V2)
 endif()
 
 if(GAMEWIP_CONSUMER_LINK_COVERAGE)

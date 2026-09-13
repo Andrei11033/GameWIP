@@ -4,6 +4,7 @@
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/internal/child_surface_platform.h"
 #include "desktop/internal/drag_drop_platform.h"
+#include "desktop/internal/dialogs_platform.h"
 
 #include <algorithm>
 #include <array>
@@ -244,6 +245,11 @@ namespace GameWIP::Desktop::Detail::Platform
         if (current.activeResult != nullptr && current.activeResult->status.ok())
         {
             current.activeResult->status = std::move(status);
+            return;
+        }
+        if (current.activeResult == nullptr && !current.deferredPumpFailure)
+        {
+            current.deferredPumpFailure = std::move(status);
         }
     }
 
@@ -294,6 +300,40 @@ namespace GameWIP::Desktop::Detail::Platform
         current.childSurfaces.erase(std::remove(current.childSurfaces.begin(), current.childSurfaces.end(), &state), current.childSurfaces.end());
     }
 
+    void registerOpenProgressDialog(ProgressDialogState &state)
+    {
+        Dispatcher &current = dispatcher();
+        {
+            std::scoped_lock lock(dispatcherRegistryMutex);
+            dispatcherRegistry[current.threadId] = &current;
+        }
+        MSG message{};
+        PeekMessageW(&message, nullptr, WM_USER, WM_USER, PM_NOREMOVE);
+        if (!current.progressDialogs)
+        {
+            auto progressDialogs = std::make_unique<std::vector<ProgressDialogState *>>();
+            progressDialogs->push_back(&state);
+            current.progressDialogs = std::move(progressDialogs);
+            return;
+        }
+        current.progressDialogs->push_back(&state);
+    }
+
+    void unregisterOpenProgressDialog(ProgressDialogState &state) noexcept
+    {
+        Dispatcher &current = dispatcher();
+        if (!current.progressDialogs)
+        {
+            return;
+        }
+        auto &states = *current.progressDialogs;
+        states.erase(std::remove(states.begin(), states.end(), &state), states.end());
+        if (states.empty())
+        {
+            current.progressDialogs.reset();
+        }
+    }
+
     void routeChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept
     {
         const std::uint64_t droppedBefore = state.droppedEvents;
@@ -326,6 +366,35 @@ namespace GameWIP::Desktop::Detail::Platform
 
     void pruneAbandonedStates(Dispatcher &current) noexcept
     {
+        restorePendingProgressOwners(current);
+        std::unique_ptr<ProgressDialogState> progressCleanup;
+        {
+            std::scoped_lock lock(current.deferredMutex);
+            progressCleanup = std::move(current.deferredProgressDialogCleanupHead);
+        }
+        while (progressCleanup)
+        {
+            if (!closeProgressBestEffort(*progressCleanup))
+            {
+                ProgressDialogState *tail = progressCleanup.get();
+                while (tail->deferredCleanupNext != nullptr)
+                {
+                    tail = tail->deferredCleanupNext;
+                }
+                {
+                    std::scoped_lock lock(current.deferredMutex);
+                    tail->deferredCleanupNext = current.deferredProgressDialogCleanupHead.release();
+                    current.deferredProgressDialogCleanupHead = std::move(progressCleanup);
+                }
+                // Cleanup is requeued; this post only wakes the owner for another attempt.
+                static_cast<void>(PostThreadMessageW(current.threadId, wakeMessage(), 0, 0));
+                break;
+            }
+            std::unique_ptr<ProgressDialogState> next{progressCleanup->deferredCleanupNext};
+            progressCleanup->deferredCleanupNext = nullptr;
+            progressCleanup = std::move(next);
+        }
+
         std::unique_ptr<WindowState> cleanup;
         {
             std::scoped_lock lock(current.deferredMutex);
@@ -384,6 +453,30 @@ namespace GameWIP::Desktop::Detail::Platform
         // destructor either transfers before this point or waits until every
         // owner-thread-affine native resource has been released.
         std::scoped_lock registryLock(dispatcherRegistryMutex);
+        std::unique_ptr<ProgressDialogState> deferredProgress;
+        {
+            std::scoped_lock lock(deferredMutex);
+            deferredProgress = std::move(deferredProgressDialogCleanupHead);
+        }
+        while (deferredProgress)
+        {
+            std::unique_ptr<ProgressDialogState> next{deferredProgress->deferredCleanupNext};
+            deferredProgress->deferredCleanupNext = nullptr;
+            finalizeProgressForDispatcherExit(*deferredProgress);
+            deferredProgress = std::move(next);
+        }
+
+        while (progressDialogs && !progressDialogs->empty())
+        {
+            ProgressDialogState *state = progressDialogs->back();
+            if (state == nullptr)
+            {
+                progressDialogs->pop_back();
+                continue;
+            }
+            finalizeProgressForDispatcherExit(*state);
+        }
+
         std::unique_ptr<DragDropState> deferredDragDrop;
         {
             std::scoped_lock lock(deferredMutex);
@@ -917,6 +1010,8 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Deferred owner-thread cleanup
     // ------------------------------------------------------------
+    // After a cleanup object is linked under deferredMutex, PostThreadMessageW is
+    // only a best-effort wake: a later pump or dispatcher shutdown still owns it.
     bool deferCleanupToOwner(std::unique_ptr<WindowState> &state) noexcept
     {
         if (!state || !state->platform)
@@ -956,6 +1051,50 @@ namespace GameWIP::Desktop::Detail::Platform
             std::scoped_lock lock(owner->deferredMutex);
             state->deferredCleanupNext = owner->deferredChildCleanupHead.release();
             owner->deferredChildCleanupHead = std::move(state);
+        }
+        static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
+        return true;
+    }
+
+    bool deferProgressCleanupToOwner(std::unique_ptr<ProgressDialogState> &state) noexcept
+    {
+        if (!state || !state->platform)
+        {
+            return false;
+        }
+        if (progressOwnerNativeThreadId(*state) == GetCurrentThreadId())
+        {
+            Dispatcher &owner = dispatcher();
+            ProgressDialogState *tail = state.get();
+            while (tail->deferredCleanupNext != nullptr)
+            {
+                tail = tail->deferredCleanupNext;
+            }
+            {
+                std::scoped_lock lock(owner.deferredMutex);
+                tail->deferredCleanupNext = owner.deferredProgressDialogCleanupHead.release();
+                owner.deferredProgressDialogCleanupHead = std::move(state);
+            }
+            static_cast<void>(PostThreadMessageW(owner.threadId, wakeMessage(), 0, 0));
+            return true;
+        }
+        std::scoped_lock registryLock(dispatcherRegistryMutex);
+        const auto found = dispatcherRegistry.find(progressOwnerNativeThreadId(*state));
+        Dispatcher *owner = found == dispatcherRegistry.end() ? nullptr : found->second;
+        if (owner == nullptr)
+        {
+            return false;
+        }
+
+        ProgressDialogState *tail = state.get();
+        while (tail->deferredCleanupNext != nullptr)
+        {
+            tail = tail->deferredCleanupNext;
+        }
+        {
+            std::scoped_lock lock(owner->deferredMutex);
+            tail->deferredCleanupNext = owner->deferredProgressDialogCleanupHead.release();
+            owner->deferredProgressDialogCleanupHead = std::move(state);
         }
         static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
         return true;

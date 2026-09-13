@@ -2,6 +2,7 @@
 /// @brief Win32 Window open, close, deferred cleanup, and native-handle access.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/internal/dialogs_platform.h"
 #include "desktop/internal/drag_drop_platform.h"
 #include "desktop/platform/win32/internal/win32_compat.h"
 
@@ -308,15 +309,47 @@ namespace GameWIP::Desktop::Detail::Platform
         state.platform->cursorClipApplied = false;
 
         HWND handle = state.platform->handle;
-        if (!windowClosingDragDrop(state))
-        {
-            return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
-        }
         state.platform->destroying = true;
-        if (handle != nullptr && DestroyWindow(handle) == FALSE)
+        status = notifyProgressOwnerLoss(state);
+        if (!status.ok())
         {
             state.platform->destroying = false;
-            return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "DestroyWindow"), false};
+            if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
+            {
+                EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
+                if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
+                {
+                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow close rollback"), false};
+                }
+            }
+            return {std::move(status), false};
+        }
+        if (!windowClosingDragDrop(state))
+        {
+            state.platform->destroying = false;
+            if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
+            {
+                EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
+                if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
+                {
+                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow close rollback"), false};
+                }
+            }
+            return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
+        }
+        if (handle != nullptr && DestroyWindow(handle) == FALSE)
+        {
+            const DWORD nativeCode = GetLastError();
+            state.platform->destroying = false;
+            if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
+            {
+                EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
+                if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
+                {
+                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow close rollback"), false};
+                }
+            }
+            return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, nativeCode, "DestroyWindow"), false};
         }
 
         if (state.platform->largeIcon != nullptr)
@@ -381,10 +414,11 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             static_cast<void>(ClipCursor(nullptr));
         }
+        state.platform->destroying = true;
+        notifyProgressOwnerLossBestEffort(state);
         if (state.platform->handle != nullptr)
         {
             static_cast<void>(windowClosingDragDrop(state));
-            state.platform->destroying = true;
             static_cast<void>(DestroyWindow(state.platform->handle));
         }
         if (state.platform->largeIcon != nullptr)

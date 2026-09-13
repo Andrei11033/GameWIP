@@ -4,6 +4,24 @@ Most Window failures identify a lifecycle, owner-thread, capability, or native
 state boundary. Start with the returned status and `lifetimeState()`, then use
 the matching case below.
 
+## A dialog returns ResourceBusy, NotOpen, or Unsupported
+
+A non-null dialog owner must retain a live native Window and the call must run
+on that Window's owner thread. A lost or closed owner produces @c NotOpen; a
+foreign owner produces @c ResourceBusy.
+
+Windows shell file and folder dialogs also require an STA-compatible COM
+apartment. An existing MTA or neutral apartment produces @c ResourceBusy;
+Desktop does not create a hidden dialog thread. @c Unsupported means the
+backend cannot preserve the requested exact native semantics and does not
+silently substitute a weaker presentation.
+
+Progress mutation and close are owner-thread operations. Keep pumping
+@c Desktop::Events, transfer worker results to that thread through
+application-owned synchronization, and interpret @c hasCancelRequest() as
+sticky intent rather than proof that work has stopped. See
+@ref desktop_dialogs.
+
 ## DragDrop target or source is busy
 
 For target open, check `Window::fileDropEnabled()`, owner-thread affinity, and

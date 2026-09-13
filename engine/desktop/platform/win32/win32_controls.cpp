@@ -2,6 +2,7 @@
 /// @brief Win32 presentation, chrome, interaction, and cursor operations for Window.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/internal/dialogs_platform.h"
 #include "desktop/internal/drag_drop_platform.h"
 
 #include <algorithm>
@@ -214,8 +215,9 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::successStatus();
         }
-        EnableWindow(state.platform->handle, enabled ? TRUE : FALSE);
-        if ((IsWindowEnabled(state.platform->handle) != FALSE) != enabled)
+        const bool effectiveEnabled = enabled && !windowHasBlockingProgressDialog(state);
+        EnableWindow(state.platform->handle, effectiveEnabled ? TRUE : FALSE);
+        if ((IsWindowEnabled(state.platform->handle) != FALSE) != effectiveEnabled)
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow");
         }

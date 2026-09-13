@@ -10,12 +10,7 @@ namespace GameWIP::Desktop::Detail::Platform
     Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept
     {
         Dispatcher &current = dispatcher();
-        pruneAbandonedStates(current);
         Types::Events::PumpResult result;
-        if (current.windows.empty() && current.childSurfaces.empty())
-        {
-            return result;
-        }
         if (current.pumping)
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
@@ -29,6 +24,18 @@ namespace GameWIP::Desktop::Detail::Platform
 
         current.pumping = true;
         current.activeResult = &result;
+        if (current.deferredPumpFailure)
+        {
+            result.status = std::move(*current.deferredPumpFailure);
+            current.deferredPumpFailure.reset();
+        }
+        pruneAbandonedStates(current);
+        if (current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()))
+        {
+            current.activeResult = nullptr;
+            current.pumping = false;
+            return result;
+        }
         if (wait)
         {
             DWORD milliseconds = INFINITE;

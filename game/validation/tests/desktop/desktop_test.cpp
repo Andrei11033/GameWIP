@@ -10,6 +10,7 @@
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
 #include "desktop/drag_drop.h"
+#include "desktop/dialogs.h"
 #include "desktop/internal/drag_drop_state.h"
 #include "desktop/internal/cursor_selection.h"
 #include "desktop/native/win32.h"
@@ -60,6 +61,8 @@ namespace
     inline constexpr std::string_view kOwnerExitColorChildArgument = "--desktop-test-child=owner-exit-color-shutdown";
     inline constexpr std::string_view kOwnerExitDragDropChildArgument = "--desktop-test-child=owner-exit-drag-drop-shutdown";
     inline constexpr std::string_view kOwnerExitDragDropFailureChildArgument = "--desktop-test-child=owner-exit-drag-drop-revocation-failure";
+    inline constexpr std::string_view kOwnerExitProgressChildArgument = "--desktop-test-child=owner-exit-progress-shutdown";
+    inline constexpr std::string_view kOwnerExitProgressFailureChildArgument = "--desktop-test-child=owner-exit-progress-close-failure";
 
     static_assert(!std::is_move_constructible_v<Desktop::Window>);
     static_assert(!std::is_move_assignable_v<Desktop::Window>);
@@ -69,6 +72,8 @@ namespace
     static_assert(!std::is_move_assignable_v<Desktop::ChildSurface>);
     static_assert(!std::is_copy_constructible_v<Desktop::ChildSurface>);
     static_assert(!std::is_copy_assignable_v<Desktop::ChildSurface>);
+    static_assert(!std::is_move_constructible_v<Desktop::ProgressDialog>);
+    static_assert(!std::is_copy_constructible_v<Desktop::ProgressDialog>);
     static_assert(noexcept(Desktop::Events::poll()));
     static_assert(noexcept(Desktop::Events::wait()));
     static_assert(noexcept(std::declval<Desktop::Window &>().close()));
@@ -236,6 +241,45 @@ namespace
         return 0;
     }
 
+    [[nodiscard]] int runOwnerExitProgressShutdownChild(bool forceCloseFailure) noexcept
+    {
+        std::unique_ptr<Desktop::ProgressDialog> survivingProgress;
+        int workerResult = 0;
+        std::thread owner(
+            [&]
+            {
+                auto progress = std::make_unique<Desktop::ProgressDialog>();
+                Desktop::Types::Dialogs::Progress::Description description;
+                description.title = "Desktop owner-exit ProgressDialog child";
+                description.message = "Dispatcher teardown must finalize this presentation";
+                if (!progress->open(description).ok())
+                {
+                    workerResult = 2;
+                    return;
+                }
+#if DESKTOP_INTERNAL_TEST_HOOKS
+                if (forceCloseFailure)
+                {
+                    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Close);
+                }
+#else
+                static_cast<void>(forceCloseFailure);
+#endif
+                survivingProgress = std::move(progress);
+            });
+        owner.join();
+        if (workerResult != 0)
+        {
+            return workerResult;
+        }
+        if (!survivingProgress || survivingProgress->ownedByCurrentThread() || survivingProgress->isOpen())
+        {
+            return 3;
+        }
+        survivingProgress.reset();
+        return 0;
+    }
+
     void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
     {
         constexpr std::array childArguments{
@@ -244,6 +288,8 @@ namespace
             kOwnerExitColorChildArgument,
             kOwnerExitDragDropChildArgument,
             kOwnerExitDragDropFailureChildArgument,
+            kOwnerExitProgressChildArgument,
+            kOwnerExitProgressFailureChildArgument,
         };
         for (const std::string_view argument : childArguments)
         {
@@ -269,6 +315,9 @@ namespace
 #include "validation/tests/desktop/desktop_manual_window_tests.inl"
 #include "validation/tests/desktop/desktop_manual_transfer_tests.inl"
 #include "validation/tests/desktop/desktop_manual_display_tests.inl"
+#include "validation/tests/desktop/desktop_dialog_tests.inl"
+#include "validation/tests/desktop/desktop_progress_dialog_tests.inl"
+#include "validation/tests/desktop/desktop_manual_dialog_tests.inl"
 #include "validation/tests/desktop/desktop_lifecycle_tests.inl"
 #include "validation/tests/desktop/desktop_event_tests.inl"
 #include "validation/tests/desktop/desktop_renderer_tests.inl"
@@ -303,6 +352,14 @@ namespace GameWIP::Test
         {
             return runOwnerExitDragDropShutdownChild(true);
         }
+        if (hasArgument(argc, argv, kOwnerExitProgressChildArgument))
+        {
+            return runOwnerExitProgressShutdownChild(false);
+        }
+        if (hasArgument(argc, argv, kOwnerExitProgressFailureChildArgument))
+        {
+            return runOwnerExitProgressShutdownChild(true);
+        }
 
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
@@ -326,6 +383,7 @@ namespace GameWIP::Test
             std::string_view{"child-surface"},
             std::string_view{"files-shell"},
             std::string_view{"drag-drop"},
+            std::string_view{"dialogs"},
             std::string_view{"fullscreen"},
             std::string_view{"borderless"},
             std::string_view{"exclusive"},
@@ -363,6 +421,14 @@ namespace GameWIP::Test
         runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
         runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
 #if DESKTOP_INTERNAL_TEST_HOOKS
+        runner.runSuite("Desktop file and folder dialogs", testFileAndFolderDialogs);
+        runner.runSuite("Desktop dialog COM apartments", testDialogApartmentContracts);
+        runner.runSuite("Desktop fixed-button messages", testMessageDialogs);
+        runner.runSuite("Desktop semantic prompts", testPromptDialogs);
+        runner.runSuite("Desktop ProgressDialog validation", testProgressDialogValidation);
+        runner.runSuite("Desktop ProgressDialog native lifecycle", testProgressDialogNativeLifecycle);
+        runner.runSuite("Desktop ProgressDialog ownership", testProgressDialogOwnership);
+        runner.runSuite("Desktop ProgressDialog exceptional lifetime", testProgressDialogExceptionalLifetime);
         runner.runSuite("Window custom cursor native resources", testCursorNativeResources);
         runner.runSuite("Window custom cursor integration", testCursorWindowIntegration);
         runner.runSuite("Window custom cursor lifecycle", testCursorLifecycle);
@@ -438,6 +504,7 @@ namespace GameWIP::Test
         runManualSuite("Window manual native child surface", "child-surface", testManualChildSurface);
         runManualSuite("Window manual files and shell behavior", "files-shell", testManualFilesAndShell);
         runManualSuite("Window manual native data drag and drop", "drag-drop", testManualDragDrop);
+        runManualSuite("Desktop manual native dialogs", "dialogs", testManualDialogs);
         runManualSuite(
             "Window manual fullscreen and topology",
             "fullscreen",

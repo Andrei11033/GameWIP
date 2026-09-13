@@ -8,6 +8,8 @@
 #include "desktop/internal/cursor_state.h"
 #include "desktop/internal/drag_drop_state.h"
 #include "desktop/internal/drag_drop_platform.h"
+#include "desktop/internal/dialogs_platform.h"
+#include "desktop/internal/progress_dialog_state.h"
 #include "desktop/internal/window_platform.h"
 #include "desktop/internal/window_state.h"
 
@@ -24,6 +26,13 @@ namespace
     thread_local std::size_t clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t dragDropRevocationFailures = 0;
+    thread_local std::optional<std::pair<GameWIP::Desktop::TestHooks::FileDialogOperation, GameWIP::Desktop::TestHooks::FileDialogResponse>>
+        nextFileDialogResponse;
+    thread_local GameWIP::Desktop::TestHooks::FileDialogSnapshot fileDialogSnapshot;
+    thread_local std::optional<GameWIP::Desktop::TestHooks::MessageDialogResponse> nextMessageDialogResponse;
+    thread_local GameWIP::Desktop::TestHooks::MessageDialogSnapshot messageDialogSnapshot;
+    thread_local std::optional<GameWIP::Desktop::TestHooks::PromptDialogResponse> nextPromptDialogResponse;
+    thread_local GameWIP::Desktop::TestHooks::PromptDialogSnapshot promptDialogSnapshot;
     std::atomic_size_t customCursorsCreated = 0;
     std::atomic_size_t customCursorsDestroyed = 0;
 } // namespace
@@ -88,6 +97,54 @@ namespace GameWIP::Desktop::Detail
         return true;
     }
 
+    bool consumeFileDialogResponse(TestHooks::FileDialogOperation operation, TestHooks::FileDialogResponse &response) noexcept
+    {
+        if (!nextFileDialogResponse || nextFileDialogResponse->first != operation)
+        {
+            return false;
+        }
+        response = std::move(nextFileDialogResponse->second);
+        nextFileDialogResponse.reset();
+        return true;
+    }
+
+    void recordFileDialogSnapshot(TestHooks::FileDialogSnapshot snapshot) noexcept
+    {
+        fileDialogSnapshot = std::move(snapshot);
+    }
+
+    bool consumeMessageDialogResponse(TestHooks::MessageDialogResponse &response) noexcept
+    {
+        if (!nextMessageDialogResponse)
+        {
+            return false;
+        }
+        response = *nextMessageDialogResponse;
+        nextMessageDialogResponse.reset();
+        return true;
+    }
+
+    void recordMessageDialogSnapshot(TestHooks::MessageDialogSnapshot snapshot) noexcept
+    {
+        messageDialogSnapshot = std::move(snapshot);
+    }
+
+    bool consumePromptDialogResponse(TestHooks::PromptDialogResponse &response) noexcept
+    {
+        if (!nextPromptDialogResponse)
+        {
+            return false;
+        }
+        response = *nextPromptDialogResponse;
+        nextPromptDialogResponse.reset();
+        return true;
+    }
+
+    void recordPromptDialogSnapshot(TestHooks::PromptDialogSnapshot snapshot) noexcept
+    {
+        promptDialogSnapshot = std::move(snapshot);
+    }
+
     void recordCustomCursorCreated() noexcept
     {
         customCursorsCreated.fetch_add(1, std::memory_order_relaxed);
@@ -116,6 +173,87 @@ namespace GameWIP::Desktop::TestHooks
         clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
         clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
         dragDropRevocationFailures = 0;
+        nextFileDialogResponse.reset();
+        fileDialogSnapshot = {};
+        nextMessageDialogResponse.reset();
+        messageDialogSnapshot = {};
+        nextPromptDialogResponse.reset();
+        promptDialogSnapshot = {};
+    }
+
+    void completeNextFileDialog(FileDialogOperation operation, FileDialogResponse response) noexcept
+    {
+        nextFileDialogResponse.emplace(operation, std::move(response));
+    }
+
+    const FileDialogSnapshot &lastFileDialogSnapshot() noexcept
+    {
+        return fileDialogSnapshot;
+    }
+
+    void completeNextMessageDialog(MessageDialogResponse response) noexcept
+    {
+        nextMessageDialogResponse = response;
+    }
+
+    const MessageDialogSnapshot &lastMessageDialogSnapshot() noexcept
+    {
+        return messageDialogSnapshot;
+    }
+
+    void completeNextPromptDialog(PromptDialogResponse response) noexcept
+    {
+        nextPromptDialogResponse = response;
+    }
+
+    const PromptDialogSnapshot &lastPromptDialogSnapshot() noexcept
+    {
+        return promptDialogSnapshot;
+    }
+
+    IO::Types::Status testDialogApartment() noexcept
+    {
+        return Detail::Platform::testDialogApartment();
+    }
+
+    ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept
+    {
+        return Detail::Platform::inspectProgressDialog(Detail::ProgressDialogAccess::state(dialog));
+    }
+
+    IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept
+    {
+        return Detail::Platform::requestProgressDialogCancel(Detail::ProgressDialogAccess::state(dialog));
+    }
+
+    IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept
+    {
+        return Detail::Platform::requestProgressDialogClose(Detail::ProgressDialogAccess::state(dialog));
+    }
+
+    IO::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept
+    {
+        return Detail::Platform::destroyNativeProgressDialog(Detail::ProgressDialogAccess::state(dialog));
+    }
+
+    IO::Types::Status simulateProgressDialogDpiChange(ProgressDialog &dialog, NativePixelRect suggestedBounds, std::uint32_t dpi) noexcept
+    {
+        return Detail::Platform::simulateProgressDialogDpiChange(Detail::ProgressDialogAccess::state(dialog), suggestedBounds, dpi);
+    }
+
+    std::size_t activeProgressDialogCount() noexcept
+    {
+        return Detail::Platform::activeProgressDialogCount();
+    }
+
+    std::size_t deferredProgressDialogCount() noexcept
+    {
+        return Detail::Platform::deferredProgressDialogCount();
+    }
+
+    std::size_t progressDialogClassReferenceCount() noexcept
+    {
+        return Detail::Platform::progressDialogClassReferenceCount();
     }
 
     // ------------------------------------------------------------

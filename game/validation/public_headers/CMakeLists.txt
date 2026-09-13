@@ -28,6 +28,7 @@ gamewip_add_public_header_check(DesktopDragDrop desktop_drag_drop_header.cpp Gam
 gamewip_add_public_header_check(DesktopChildSurface desktop_child_surface_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopCursor desktop_cursor_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopDescription desktop_description_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopDialogs desktop_dialogs_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopEvents desktop_events_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopDisplay desktop_display_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopDisplayInfo desktop_display_info_header.cpp GameWIP::Desktop)

@@ -43,10 +43,12 @@ target_sources(
         core/child_surface.cpp
         core/child_surface_events.cpp
         core/cursor.cpp
+        core/dialogs.cpp
         core/display.cpp
         core/display_info.cpp
         core/drag_drop.cpp
         core/events.cpp
+        core/progress_dialog.cpp
         core/renderer_bridge.cpp
         core/window.cpp
         core/desktop_test_hooks.cpp
@@ -58,6 +60,8 @@ target_sources(
         internal/clipboard_platform.h
         internal/child_surface_platform.h
         internal/child_surface_state.h
+        internal/dialogs_platform.h
+        internal/progress_dialog_state.h
         internal/presentation_publication_state.h
     PUBLIC
         FILE_SET public_headers
@@ -69,6 +73,7 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/data_transfer.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/dialogs.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
@@ -126,6 +131,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/data_transfer.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dialogs.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
