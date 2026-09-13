@@ -33,3 +33,11 @@ Correctness tests live in discovered modules under `game/validation/tests`;
 benchmarks live under `game/validation/benchmarks`. Correctness tests prove
 behavior. Benchmarks measure it, so performance thresholds do not belong in
 correctness tests or CI gates.
+
+## Unicode conversion authority
+
+Maintained first-party C++ must use `foundation/unicode` for UTF-8/UTF-16
+encoding conversion (`Unicode::Utf8` and `Unicode::Utf16` measure/convert
+operations). Native UTF-16 values may be copied at a platform boundary, but
+Win32 conversion APIs and independent codec implementations are not permitted.
+The repository quality check enforces this rule.

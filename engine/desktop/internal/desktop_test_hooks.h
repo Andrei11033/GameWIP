@@ -215,7 +215,9 @@ namespace GameWIP::Desktop::TestHooks
         ProgressClassRelease,
         ProgressOwnerBlocking,
         ProgressOwnerRestoreWake,
-        ProgressMutation
+        ProgressMutation,
+        WindowStyleQuery,
+        WindowUserDataInstallation
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -239,6 +241,8 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t activeProgressDialogCount() noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t deferredProgressDialogCount() noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT std::size_t progressDialogClassReferenceCount() noexcept;
+    /// @brief Returns whether progress-owner message registration has been attempted in this process.
+    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool progressOwnerRestoreMessageRegistrationAttempted() noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Events::PumpResult pumpReentrantly() noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
     [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;

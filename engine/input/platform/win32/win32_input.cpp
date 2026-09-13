@@ -4,6 +4,7 @@
 #include "win32_input.h"
 #include "base/platform/win32/dynamic_library.h"
 #include "input/internal/input_state_access.h"
+#include "unicode/unicode.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -187,14 +188,23 @@ namespace
             return {};
         }
 
-        const int requiredSize = WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
-        if (requiredSize <= 0)
+        std::vector<char16_t> source(text.size());
+        for (std::size_t index = 0; index < text.size(); ++index)
+        {
+            source[index] = static_cast<char16_t>(text[index]);
+        }
+        const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(source);
+        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return {};
         }
-
-        std::string output(static_cast<std::size_t>(requiredSize), '\0');
-        WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), output.data(), requiredSize, nullptr, nullptr);
+        std::string output(measurement.requiredBytes, '\0');
+        const auto conversion = GameWIP::Unicode::Utf16::convertToUtf8(source, output);
+        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+        {
+            return {};
+        }
+        output.resize(conversion.bytesWritten);
         return output;
     }
 
@@ -596,7 +606,10 @@ namespace
             return 0.0f;
         }
 
-        const float normalized = static_cast<float>(value - logicalMinimum) / static_cast<float>(logicalMaximum - logicalMinimum);
+        const double valueWide = static_cast<double>(value);
+        const double minimumWide = static_cast<double>(logicalMinimum);
+        const double maximumWide = static_cast<double>(logicalMaximum);
+        const float normalized = static_cast<float>((valueWide - minimumWide) / (maximumWide - minimumWide));
         if (logicalMinimum >= 0 && !isCenteredHidAxis(deviceType, usage))
         {
             return std::clamp(normalized, 0.0f, 1.0f);
@@ -2039,6 +2052,21 @@ namespace
 
 namespace GameWIP::Input::Platform::Win32
 {
+#if INPUT_INTERNAL_TEST_HOOKS
+    namespace TestHooks
+    {
+        std::string convertDeviceMetadata(std::wstring_view text)
+        {
+            return wideToUtf8(text);
+        }
+
+        float normalizeHidValue(long value, long logicalMinimum, long logicalMaximum, InputDeviceType deviceType, unsigned short usage)
+        {
+            return ::normalizeHidValue(value, logicalMinimum, logicalMaximum, deviceType, usage);
+        }
+    } // namespace TestHooks
+#endif
+
     void updateGamepads(InputState &inputState, InputDeviceRegistry &devices)
     {
         syncRegistryConnections(inputState, devices);

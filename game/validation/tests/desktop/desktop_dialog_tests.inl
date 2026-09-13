@@ -113,6 +113,14 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("filter name rejects embedded null", ErrorCode::InvalidArgument, Desktop::Dialogs::openFile(allFiles).status.code));
 
+    const std::array semicolonExtension{std::string_view{"png;jpg"}};
+    const std::array semicolonFilter{FileDialogs::Filter{"Injected", semicolonExtension}};
+    allFiles.filters = semicolonFilter;
+    static_cast<void>(context.expectEq(
+        "filter extension rejects semicolon injection",
+        ErrorCode::InvalidArgument,
+        Desktop::Dialogs::openFile(allFiles).status.code));
+
     allFiles = {};
     allFiles.title = std::string_view{"bad\0title", 9};
     static_cast<void>(
@@ -155,6 +163,13 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "save extension reaches native boundary",
         std::wstring{L"png"},
+        Desktop::TestHooks::lastFileDialogSnapshot().suggestedExtension));
+    save.suggestedExtension = "png;jpg";
+    armFileDialog(FileOperation::SaveFile);
+    static_cast<void>(context.expectTrue("suggested extension semicolon remains portable", Desktop::Dialogs::saveFile(save).status.ok()));
+    static_cast<void>(context.expectEq(
+        "semicolon suggested extension reaches native boundary unchanged",
+        std::wstring{L"png;jpg"},
         Desktop::TestHooks::lastFileDialogSnapshot().suggestedExtension));
     save.suggestedFileName = std::string_view{"bad\0name", 8};
     static_cast<void>(context.expectEq("suggested file name rejects null", ErrorCode::InvalidArgument, Desktop::Dialogs::saveFile(save).status.code));
@@ -626,6 +641,22 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("Prompt dismissal without cancel has invalid ID", noSemanticCancel.button.isValid()));
     static_cast<void>(context.expectFalse("Prompt with no option selection has invalid option", noSemanticCancel.option.isValid()));
     static_cast<void>(context.expectFalse("Prompt without checkbox returns nullopt", noSemanticCancel.checkBoxChecked.has_value()));
+
+    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = description.options.size() + 1, .dismissed = false});
+    const auto malformedOption = Desktop::Dialogs::showPrompt(description);
+    static_cast<void>(context.expectEq("malformed Prompt option reports native failure", ErrorCode::NativeFailure, malformedOption.status.code));
+    static_cast<void>(context.expectTrue(
+        "malformed Prompt option leaves every result field defaulted",
+        malformedOption.status.code == ErrorCode::NativeFailure && malformedOption.outcome == DialogTypes::Outcome::Cancelled &&
+        !malformedOption.button.isValid() && !malformedOption.option.isValid() && !malformedOption.checkBoxChecked.has_value()));
+
+    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = (std::numeric_limits<std::size_t>::max)(), .dismissed = false});
+    const auto maximumMalformedOption = Desktop::Dialogs::showPrompt(description);
+    static_cast<void>(context.expectTrue(
+        "maximum malformed Prompt option leaves every result field defaulted",
+        maximumMalformedOption.status.code == ErrorCode::NativeFailure &&
+        maximumMalformedOption.outcome == DialogTypes::Outcome::Cancelled && !maximumMalformedOption.button.isValid() &&
+        !maximumMalformedOption.option.isValid() && !maximumMalformedOption.checkBoxChecked.has_value()));
 
     description.options = options;
     description.defaultOption = {};

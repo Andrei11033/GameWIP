@@ -34,6 +34,7 @@ overrides.
 | Group | Hooks | Lifetime |
 | --- | --- | --- |
 | Dialog fallback | `forceNextActionDialogFailure`, `forceNextFallbackActionDialogFailure` | One-shot. |
+| Diagnostic preparation | `forceNextDiagnosticPreparationFailure` | One-shot `std::bad_alloc` seam; reset after use. |
 | Debugger state | `setDebuggerAttachedOverride`, `clearDebuggerAttachedOverride`, `debuggerAttachedForTest` | Persistent until clear or reset. |
 | Popup suppression | `setPopupSuppressedOverride`, `clearPopupSuppressedOverride` | Persistent until clear or reset. |
 | Backend exercise | `showFailureActionDialogForTest`, `showErrorPopupForTest` | Direct test adapter calls. |
@@ -45,6 +46,7 @@ overrides.
 | `reset()` | Clears all pending hook state. |
 | `forceNextActionDialogFailure()` | Forces the next primary action-dialog attempt to use fallback behavior. |
 | `forceNextFallbackActionDialogFailure()` | Forces the next fallback action-dialog attempt to return the default action. |
+| `forceNextDiagnosticPreparationFailure()` | Forces rich diagnostic preparation to fail so the static allocation-free emergency path is exercised. |
 | `setDebuggerAttachedOverride(bool)` | Overrides debugger detection. |
 | `clearDebuggerAttachedOverride()` | Removes the debugger override. |
 | `setPopupSuppressedOverride(bool)` | Overrides popup suppression checks. |

@@ -47,19 +47,34 @@ namespace GameWIP::Desktop::Detail::Platform
             return MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY);
         }
 
-        [[nodiscard]] bool saveWindowedPlacement(WindowState &state) noexcept
+        [[nodiscard]] IO::Types::Status saveWindowedPlacement(WindowState &state) noexcept
         {
             WindowData &data = *state.platform;
-            data.windowedPlacement = {};
-            data.windowedPlacement.length = sizeof(WINDOWPLACEMENT);
-            if (GetWindowPlacement(data.handle, &data.windowedPlacement) == FALSE)
+            data.hasWindowedPlacement = false;
+            WINDOWPLACEMENT placement{};
+            placement.length = sizeof(WINDOWPLACEMENT);
+            if (GetWindowPlacement(data.handle, &placement) == FALSE)
             {
-                return false;
+                const DWORD nativeCode = GetLastError();
+                return statusFromWin32(IO::Types::ErrorCode::StatFailed, nativeCode, "GetWindowPlacement");
             }
-            data.windowedStyle = static_cast<DWORD>(GetWindowLongPtrW(data.handle, GWL_STYLE));
-            data.windowedExtendedStyle = static_cast<DWORD>(GetWindowLongPtrW(data.handle, GWL_EXSTYLE));
+            LONG_PTR style = 0;
+            LONG_PTR extendedStyle = 0;
+            IO::Types::Status status = queryWindowLong(data.handle, GWL_STYLE, style, "GetWindowLongPtrW saved windowed style");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = queryWindowLong(data.handle, GWL_EXSTYLE, extendedStyle, "GetWindowLongPtrW saved windowed extended style");
+            if (!status.ok())
+            {
+                return status;
+            }
+            data.windowedPlacement = placement;
+            data.windowedStyle = static_cast<DWORD>(style);
+            data.windowedExtendedStyle = static_cast<DWORD>(extendedStyle);
             data.hasWindowedPlacement = true;
-            return true;
+            return IO::successStatus();
         }
 
         [[nodiscard]] bool displayModeMatches(const DEVMODEW &native, const Types::Display::Mode &mode) noexcept
@@ -115,14 +130,26 @@ namespace GameWIP::Desktop::Detail::Platform
             bool exactDisplayMode = false;
         };
 
-        [[nodiscard]] ModeSnapshot captureModeSnapshot(WindowState &state, const RECT &rect)
+        [[nodiscard]] IO::Types::Status captureModeSnapshot(WindowState &state, const RECT &rect, ModeSnapshot &snapshot)
         {
             WindowData &data = *state.platform;
-            ModeSnapshot snapshot;
+            snapshot = {};
             snapshot.mode = state.mode;
             snapshot.fullscreen = state.fullscreen;
-            snapshot.style = static_cast<DWORD>(GetWindowLongPtrW(data.handle, GWL_STYLE));
-            snapshot.extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(data.handle, GWL_EXSTYLE));
+            LONG_PTR style = 0;
+            LONG_PTR extendedStyle = 0;
+            IO::Types::Status status = queryWindowLong(data.handle, GWL_STYLE, style, "GetWindowLongPtrW mode style");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = queryWindowLong(data.handle, GWL_EXSTYLE, extendedStyle, "GetWindowLongPtrW mode extended style");
+            if (!status.ok())
+            {
+                return status;
+            }
+            snapshot.style = static_cast<DWORD>(style);
+            snapshot.extendedStyle = static_cast<DWORD>(extendedStyle);
             snapshot.rect = rect;
             snapshot.exclusiveDevice = data.exclusiveDevice;
             snapshot.savedDisplayMode = data.savedDisplayMode;
@@ -131,7 +158,7 @@ namespace GameWIP::Desktop::Detail::Platform
             snapshot.hasSavedDisplayMode = data.hasSavedDisplayMode;
             snapshot.exclusiveSuspended = data.exclusiveSuspended;
             snapshot.exactDisplayMode = data.exactDisplayMode;
-            return snapshot;
+            return IO::successStatus();
         }
 
         [[nodiscard]] IO::Types::Status restoreModeSnapshot(WindowState &state, ModeSnapshot &snapshot) noexcept
@@ -297,11 +324,20 @@ namespace GameWIP::Desktop::Detail::Platform
                 return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "snapshot window mode");
             }
 
-            if (previousMode == Types::Mode::Windowed && request.mode != Types::Mode::Windowed && !saveWindowedPlacement(state))
+            if (previousMode == Types::Mode::Windowed && request.mode != Types::Mode::Windowed)
             {
-                return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "GetWindowPlacement");
+                IO::Types::Status placementStatus = saveWindowedPlacement(state);
+                if (!placementStatus.ok())
+                {
+                    return placementStatus;
+                }
             }
-            ModeSnapshot snapshot = captureModeSnapshot(state, previousRect);
+            ModeSnapshot snapshot;
+            IO::Types::Status snapshotStatus = captureModeSnapshot(state, previousRect, snapshot);
+            if (!snapshotStatus.ok())
+            {
+                return snapshotStatus;
+            }
             ModeTransitionScope transition(data);
 
             if (request.mode == Types::Mode::Windowed)

@@ -43,9 +43,17 @@ namespace
             return {};
         }
 
-        // A valid UTF-8 string never needs more UTF-16 code units than source bytes, so
-        // this keeps report/debug conversion to one Unicode pass without pre-measuring.
-        std::vector<char16_t> converted(text.size());
+        const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+        if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
+        {
+            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
+        }
+        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        {
+            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
+        }
+
+        std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
         if (conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
         {

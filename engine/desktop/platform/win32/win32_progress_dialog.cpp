@@ -40,7 +40,7 @@ namespace GameWIP::Desktop::Detail::Platform
         void cancelProgressOwnerRestore(ProgressDialogState &state) noexcept;
         [[nodiscard]] ProgressCloseResult finalizeNative(ProgressDialogState &state, bool restoreOwner) noexcept;
         void abandonNativeForThreadExit(ProgressDialogState &state) noexcept;
-        void rollbackProgressOpen(ProgressDialogState &state) noexcept;
+        void rollbackProgressOpenBestEffort(ProgressDialogState &state) noexcept;
     } // namespace
 
     struct ProgressDialogData
@@ -199,23 +199,43 @@ namespace GameWIP::Desktop::Detail::Platform
                         queueProgressOwnerRestore(state);
                         // This is only a wake: the intrusive dispatcher chain already owns the
                         // restoration obligation, so a failed post cannot strand the owner.
+                        bool postFailed = false;
+                        DWORD postError = ERROR_SUCCESS;
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                        const bool postFailed = Detail::consumeFailure(TestHooks::FailurePoint::ProgressOwnerRestoreWake);
+                        postFailed = Detail::consumeFailure(TestHooks::FailurePoint::ProgressOwnerRestoreWake);
                         if (postFailed)
                         {
-                            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                            postError = ERROR_NOT_ENOUGH_MEMORY;
                         }
-#else
-                        constexpr bool postFailed = false;
 #endif
-                        if (postFailed || PostMessageW(
-                                              data->nativeOwner,
-                                              kProgressOwnerRestoreMessage,
-                                              static_cast<WPARAM>(static_cast<std::uint32_t>(ownerId)),
-                                              static_cast<LPARAM>(static_cast<std::uint32_t>(ownerId >> 32U))) == FALSE)
+                        if (!postFailed)
                         {
-                            recordPumpFailure(
-                                statusFromWin32(IO::Types::ErrorCode::Interrupted, GetLastError(), "PostMessageW ProgressDialog owner restore"));
+                            const UINT restoreMessage = ensureProgressOwnerRestoreMessage();
+                            if (restoreMessage == 0)
+                            {
+                                postFailed = true;
+                                postError = progressOwnerRestoreMessageError();
+                            }
+                            else
+                            {
+                                SetLastError(ERROR_SUCCESS);
+                                if (PostMessageW(
+                                        data->nativeOwner,
+                                        restoreMessage,
+                                        static_cast<WPARAM>(static_cast<std::uint32_t>(ownerId)),
+                                        static_cast<LPARAM>(static_cast<std::uint32_t>(ownerId >> 32U))) == FALSE)
+                                {
+                                    postFailed = true;
+                                    postError = GetLastError();
+                                }
+                            }
+                        }
+                        if (postFailed)
+                        {
+                            recordPumpFailure(statusFromWin32(
+                                IO::Types::ErrorCode::Interrupted,
+                                postError == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : postError,
+                                "PostMessageW ProgressDialog owner restore"));
                         }
                     }
                     state.cancelRequested = false;
@@ -305,7 +325,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 DWORD nativeCode = ERROR_SUCCESS;
                 if (!utf8ToUtf16(text, wide, nativeCode))
                 {
-                    return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed, nativeCode);
+                    return IO::makeStatus(unicodeConversionError(nativeCode, IO::Types::ErrorCode::EncodingFailed), nativeCode);
                 }
                 return IO::successStatus();
             }
@@ -350,11 +370,11 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 #endif
             ProgressDialogData &data = *state.platform;
-            SetLastError(ERROR_SUCCESS);
-            const LONG_PTR style = GetWindowLongPtrW(data.progress, GWL_STYLE);
-            if (style == 0 && GetLastError() != ERROR_SUCCESS)
+            LONG_PTR style = 0;
+            const IO::Types::Status queryStatus = queryWindowLong(data.progress, GWL_STYLE, style, "GetWindowLongPtrW ProgressDialog mode");
+            if (!queryStatus.ok())
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "GetWindowLongPtrW ProgressDialog mode");
+                return queryStatus;
             }
             const LONG_PTR requestedStyle =
                 mode == Types::Dialogs::Progress::Mode::Indeterminate ? style | PBS_MARQUEE : style & ~static_cast<LONG_PTR>(PBS_MARQUEE);
@@ -535,8 +555,10 @@ namespace GameWIP::Desktop::Detail::Platform
             state.platform.reset();
         }
 
-        void rollbackProgressOpen(ProgressDialogState &state) noexcept
+        void rollbackProgressOpenBestEffort(ProgressDialogState &state) noexcept
         {
+            // The original open failure remains authoritative; unresolved native state stays
+            // owned by retained/deferred cleanup when best-effort finalization cannot finish.
             static_cast<void>(finalizeNative(state, true));
         }
     } // namespace
@@ -805,13 +827,13 @@ namespace GameWIP::Desktop::Detail::Platform
             status = applyProgressMode(state, state.mode);
             if (!status.ok())
             {
-                rollbackProgressOpen(state);
+                rollbackProgressOpenBestEffort(state);
                 return status;
             }
             status = layoutProgressWindow(*state.platform, dpi);
             if (!status.ok())
             {
-                rollbackProgressOpen(state);
+                rollbackProgressOpenBestEffort(state);
                 return status;
             }
 
@@ -820,7 +842,7 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
                 if (Detail::consumeFailure(TestHooks::FailurePoint::ProgressOwnerBlocking))
                 {
-                    rollbackProgressOpen(state);
+                    rollbackProgressOpenBestEffort(state);
                     return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
                 }
 #endif
@@ -828,7 +850,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (IsWindowEnabled(state.platform->nativeOwner) != FALSE)
                 {
                     const DWORD nativeCode = GetLastError();
-                    rollbackProgressOpen(state);
+                    rollbackProgressOpenBestEffort(state);
                     return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "EnableWindow ProgressDialog owner");
                 }
                 state.platform->blockingOwner = true;
@@ -837,7 +859,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if (UpdateWindow(state.platform->handle) == FALSE)
             {
                 status = statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "UpdateWindow ProgressDialog");
-                rollbackProgressOpen(state);
+                rollbackProgressOpenBestEffort(state);
                 return status;
             }
             state.nativeDestroyedPendingFinalize = false;
@@ -845,12 +867,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         catch (const std::bad_alloc &)
         {
-            rollbackProgressOpen(state);
+            rollbackProgressOpenBestEffort(state);
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
         catch (...)
         {
-            rollbackProgressOpen(state);
+            rollbackProgressOpenBestEffort(state);
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
         }
     }
@@ -1089,7 +1111,12 @@ namespace GameWIP::Desktop::Detail::Platform
                 snapshot.rangeMinimum = static_cast<int>(SendMessageW(data.progress, PBM_GETRANGE, TRUE, 0));
                 snapshot.rangeMaximum = static_cast<int>(SendMessageW(data.progress, PBM_GETRANGE, FALSE, 0));
                 snapshot.position = static_cast<int>(SendMessageW(data.progress, PBM_GETPOS, 0, 0));
-                snapshot.marquee = (GetWindowLongPtrW(data.progress, GWL_STYLE) & PBS_MARQUEE) != 0;
+                SetLastError(ERROR_SUCCESS);
+                const LONG_PTR style = GetWindowLongPtrW(data.progress, GWL_STYLE);
+                if (style != 0 || GetLastError() == ERROR_SUCCESS)
+                {
+                    snapshot.marquee = (style & PBS_MARQUEE) != 0;
+                }
             }
         }
         catch (...)

@@ -5,8 +5,30 @@
 
 #include "input/input.h"
 
+#ifndef INPUT_INTERNAL_TEST_HOOKS
+#define INPUT_INTERNAL_TEST_HOOKS 0
+#endif
+
+#if INPUT_INTERNAL_TEST_HOOKS
+#include <string>
+#include <string_view>
+#endif
+
 namespace GameWIP::Input::Platform::Win32
 {
+#if INPUT_INTERNAL_TEST_HOOKS
+    namespace TestHooks
+    {
+        /// @brief Converts Win32 UTF-16 metadata using the production Unicode authority.
+        /// @warning Test-only, source-tree API; malformed input returns an empty string.
+        [[nodiscard]] std::string convertDeviceMetadata(std::wstring_view text);
+
+        /// @brief Applies production HID normalization to one synthetic native value.
+        /// @warning Test-only, source-tree API; invalid ranges return zero.
+        [[nodiscard]] float normalizeHidValue(long value, long logicalMinimum, long logicalMaximum, InputDeviceType deviceType, unsigned short usage);
+    } // namespace TestHooks
+#endif
+
     /// @brief Handles a Windows input message.
     /// @param message Message identifier.
     /// @param wParam Message parameter (WPARAM).

@@ -16,6 +16,7 @@
 #endif
 
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <format>
 #include <iterator>
@@ -52,12 +53,12 @@ namespace
         }
     }
 
-    void initializeLogger()
+    [[nodiscard]] GameWIP::Logger::Types::Init::Result initializeLogger()
     {
 #if GAMEWIP_TRACY_ENABLED
         ZoneScopedNC("Init Logger", ProfileZoneColor::Initialization);
 #endif
-        GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
+        return GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
     }
 
     [[nodiscard]] GameWIP::Desktop::Types::Display::MonitorsResult inspectDisplays()
@@ -201,6 +202,17 @@ namespace
 #endif
         return window.close();
     }
+
+    int finishRuntime(int primaryExitCode) noexcept
+    {
+        const GameWIP::IO::Types::Status shutdownStatus = GameWIP::Logger::shutdown();
+        if (primaryExitCode == EXIT_SUCCESS && !shutdownStatus.ok())
+        {
+            std::fputs("GameWIP: Logger shutdown failed.\n", stderr);
+            return EXIT_FAILURE;
+        }
+        return primaryExitCode;
+    }
 } // namespace
 
 namespace GameWIP::Game
@@ -211,7 +223,12 @@ namespace GameWIP::Game
         ZoneScopedNC("Game runtime", ProfileZoneColor::Runtime);
 #endif
         // Initialize logging first so every later startup failure has a diagnostic sink.
-        initializeLogger();
+        const Logger::Types::Init::Result loggerInit = initializeLogger();
+        if (!loggerInit.status.ok() || loggerInit.outcome != Logger::Types::Init::Outcome::Started)
+        {
+            std::fputs("GameWIP: Logger initialization failed.\n", stderr);
+            return EXIT_FAILURE;
+        }
         Logger::info("Startup", "Logger initialized");
 
         // Capture display topology and color capabilities before creating the fullscreen window.
@@ -222,8 +239,7 @@ namespace GameWIP::Game
             TracyMessage(monitors.status.message.c_str(), monitors.status.message.size());
 #endif
             Logger::error("Window", "Failed to enumerate displays: {}", monitors.status.message);
-            Logger::shutdown();
-            return EXIT_FAILURE;
+            return finishRuntime(EXIT_FAILURE);
         }
 
         // Request a borderless fullscreen window without changing the desktop display mode.
@@ -235,8 +251,7 @@ namespace GameWIP::Game
             TracyMessage(openStatus.message.c_str(), openStatus.message.size());
 #endif
             Logger::error("Window", "Failed to open borderless-fullscreen window: {}", openStatus.message);
-            Logger::shutdown();
-            return EXIT_FAILURE;
+            return finishRuntime(EXIT_FAILURE);
         }
 #if GAMEWIP_TRACY_ENABLED
         TracyMessageL("Borderless-fullscreen window opened");
@@ -247,8 +262,7 @@ namespace GameWIP::Game
         // Keep the process responsive while the native event pump owns timing and delivery.
         if (!pumpRuntimeEvents(window))
         {
-            Logger::shutdown();
-            return EXIT_FAILURE;
+            return finishRuntime(EXIT_FAILURE);
         }
 
         // Close the window before shutting down logging so the final lifecycle result is recorded.
@@ -259,24 +273,19 @@ namespace GameWIP::Game
             TracyMessage(closeStatus.message.c_str(), closeStatus.message.size());
 #endif
             Logger::error("Window", "Failed to close borderless-fullscreen window: {}", closeStatus.message);
-            Logger::shutdown();
-            return EXIT_FAILURE;
+            return finishRuntime(EXIT_FAILURE);
         }
         Logger::info("Window", "Borderless-fullscreen window closed");
 #if GAMEWIP_TRACY_ENABLED
         TracyMessageL("Borderless-fullscreen window closed");
 #endif
 
-        {
-#if GAMEWIP_TRACY_ENABLED
-            ZoneScopedNC("Logger shutdown", ProfileZoneColor::Shutdown);
-#endif
-            Logger::warn("Shutdown", "Logger shutting down");
-            Logger::shutdown();
-        }
-
         static_cast<void>(argc);
         static_cast<void>(argv);
-        return EXIT_SUCCESS;
+#if GAMEWIP_TRACY_ENABLED
+        ZoneScopedNC("Logger shutdown", ProfileZoneColor::Shutdown);
+#endif
+        Logger::warn("Shutdown", "Logger shutting down");
+        return finishRuntime(EXIT_SUCCESS);
     }
 } // namespace GameWIP::Game

@@ -466,7 +466,7 @@
     "configPath": ".clang-format"
   },
   "defaultStressCount": 32,
-  "modules": ["assert", "base", "desktop", "filesystem", "io", "logger", "runner", "terminal", "test_support", "unicode"],
+  "modules": ["assert", "base", "desktop", "filesystem", "input", "io", "logger", "runner", "terminal", "test_support", "unicode"],
   "defaultBuildPreset": "test",
   "unicode": {
     "version": "17.0.0",

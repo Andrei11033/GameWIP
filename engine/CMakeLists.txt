@@ -1,5 +1,6 @@
 # Action consumes Input. Both contracts remain provisional; Desktop is the
 # independently consumable, supported engine boundary.
+set(INPUT_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED} CACHE BOOL "Enable Input internal test hooks" FORCE)
 add_subdirectory(input)
 add_subdirectory(action)
 

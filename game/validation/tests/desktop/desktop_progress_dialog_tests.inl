@@ -158,6 +158,13 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
         std::wstring{L"Updated message"},
         Desktop::TestHooks::inspectProgressDialog(progress).message));
 
+    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::WindowStyleQuery);
+    static_cast<void>(context.expectEq(
+        "ProgressDialog style query failure is returned before mode mutation",
+        ErrorCode::NativeFailure,
+        progress.setMode(ProgressTypes::Mode::Indeterminate).code));
+    static_cast<void>(
+        context.expectFalse("failed ProgressDialog style query keeps determinate mode", Desktop::TestHooks::inspectProgressDialog(progress).marquee));
     static_cast<void>(context.expectTrue("ProgressDialog switches to indeterminate", progress.setMode(ProgressTypes::Mode::Indeterminate).ok()));
     static_cast<void>(
         context.expectTrue("indeterminate ProgressDialog enables marquee", Desktop::TestHooks::inspectProgressDialog(progress).marquee));

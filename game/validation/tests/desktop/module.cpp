@@ -24,6 +24,10 @@ namespace
             std::string_view{"--desktop-test-child=owner-exit-drag-drop-revocation-failure"},
             std::string_view{"--desktop-test-child=owner-exit-progress-shutdown"},
             std::string_view{"--desktop-test-child=owner-exit-progress-close-failure"},
+            std::string_view{"--desktop-test-child=deferred-pump-failure-wait"},
+#if DESKTOP_INTERNAL_TEST_HOOKS
+            std::string_view{"--desktop-test-child=progress-restore-message-laziness"},
+#endif
         };
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
         return std::ranges::any_of(

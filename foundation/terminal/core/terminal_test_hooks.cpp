@@ -107,6 +107,9 @@ namespace GameWIP::Terminal::Detail::TestHooks
         terminalTestHookState.nextOutputPreparationFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextInputModeFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextReadFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextEndpointIdentityFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextCancellationResetFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextCancellationSignalFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextTerminalSizeFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextCursorPositionFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextTextWriteFailure.enabled.store(false, std::memory_order_release);
@@ -141,9 +144,11 @@ namespace GameWIP::Terminal::TestHooks
     void reset() noexcept
     {
         resetTerminalTestHooks();
-        Detail::Platform::TestHooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, 0);
 #if defined(_WIN32)
+        Detail::Platform::TestHooks::resetWin32InputState();
         Detail::Platform::TestHooks::resetWin32KeyDecoder();
+#else
+        Detail::Platform::TestHooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, 0);
 #endif
     }
 
@@ -151,6 +156,11 @@ namespace GameWIP::Terminal::TestHooks
     void resetWin32KeyDecoder() noexcept
     {
         Detail::Platform::TestHooks::resetWin32KeyDecoder();
+    }
+
+    std::size_t consoleWaitCallCount() noexcept
+    {
+        return Detail::Platform::TestHooks::consoleWaitCallCount();
     }
 
     Win32KeyDecodeResult decodeWin32KeyRecord(
@@ -530,6 +540,21 @@ namespace GameWIP::Terminal::TestHooks
     void forceNextReadFailure(IO::Types::ErrorCode code) noexcept
     {
         forceFailure(terminalTestHookState.nextReadFailure, code);
+    }
+
+    void forceNextEndpointIdentityFailure(IO::Types::ErrorCode code) noexcept
+    {
+        forceFailure(terminalTestHookState.nextEndpointIdentityFailure, code);
+    }
+
+    void forceNextCancellationResetFailure() noexcept
+    {
+        forceFailure(terminalTestHookState.nextCancellationResetFailure, IO::Types::ErrorCode::NativeFailure);
+    }
+
+    void forceNextCancellationSignalFailure() noexcept
+    {
+        forceFailure(terminalTestHookState.nextCancellationSignalFailure, IO::Types::ErrorCode::NativeFailure);
     }
 
     void forceNextTerminalSizeFailure(IO::Types::ErrorCode code) noexcept

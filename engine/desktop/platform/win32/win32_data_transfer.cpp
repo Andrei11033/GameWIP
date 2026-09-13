@@ -209,7 +209,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 DWORD code = 0;
                 if (!utf8ToUtf16(format.customName, wide, code))
                 {
-                    result = failure(ErrorCode::InvalidArgument, code);
+                    result = failure(unicodeConversionError(code, ErrorCode::InvalidArgument), code);
                     return 0;
                 }
                 const UINT value = RegisterClipboardFormatW(wide.c_str());
@@ -274,7 +274,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         DWORD code = 0;
                         if (!utf8ToUtf16(value.text, wide, code))
                         {
-                            return failure(ErrorCode::InvalidArgument, code);
+                            return failure(unicodeConversionError(code, ErrorCode::InvalidArgument), code);
                         }
                         std::size_t units = 0, bytes = 0;
                         if (!add(wide.size(), 1, units) || !multiply(units, sizeof(wchar_t), bytes))
@@ -303,7 +303,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                             DWORD code = 0;
                             if (!utf16ToUtf8(path.native(), validated, code))
                             {
-                                return failure(ErrorCode::InvalidArgument, code);
+                                return failure(unicodeConversionError(code, ErrorCode::InvalidArgument), code);
                             }
                             std::size_t next = 0;
                             if (!add(units, path.native().size() + 1, next))
@@ -498,7 +498,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     DWORD code = 0;
                     if (!utf16ToUtf8({name.data(), static_cast<std::size_t>(n)}, value.portable.customName, code))
                     {
-                        result = failure(ErrorCode::EncodingFailed, code);
+                        result = failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
                         break;
                     }
                 }
@@ -568,7 +568,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 DWORD code = 0;
                 if (!utf16ToUtf8({wide.data(), static_cast<std::size_t>(end - wide.begin())}, text.text, code))
                 {
-                    return failure(ErrorCode::EncodingFailed, code);
+                    return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
                 }
                 out = std::move(text);
             }
@@ -598,7 +598,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     DWORD code = 0;
                     if (!utf16ToUtf8(path, validated, code))
                     {
-                        return failure(ErrorCode::EncodingFailed, code);
+                        return failure(unicodeConversionError(code, ErrorCode::EncodingFailed), code);
                     }
                     list.paths.emplace_back(std::move(path));
                 }

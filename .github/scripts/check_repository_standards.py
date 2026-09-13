@@ -137,10 +137,9 @@ APACHE_LICENSE_MARKERS = (
     "END OF TERMS AND CONDITIONS",
 )
 
-SOURCE_DOCUMENTATION_SUFFIXES = {
+MAINTAINED_CPP_SUFFIXES = {
     ".c",
     ".cc",
-    ".cmake",
     ".cpp",
     ".cxx",
     ".h",
@@ -149,6 +148,10 @@ SOURCE_DOCUMENTATION_SUFFIXES = {
     ".hxx",
     ".inl",
     ".ipp",
+}
+
+SOURCE_DOCUMENTATION_SUFFIXES = MAINTAINED_CPP_SUFFIXES | {
+    ".cmake",
     ".js",
     ".mjs",
     ".cjs",
@@ -157,6 +160,11 @@ SOURCE_DOCUMENTATION_SUFFIXES = {
     ".psm1",
     ".py",
 }
+
+FORBIDDEN_UNICODE_CONVERSIONS = re.compile(
+    r"\b(?:MultiByteToWideChar|WideCharToMultiByte|mbstowcs|wcstombs|mbrtoc16|c16rtomb|mbrtoc32|c32rtomb)\b|"
+    r"std\s*::\s*(?:wstring_convert|codecvt)",
+)
 SECTION_DIVIDER = re.compile(r"^(?P<indent>\s*)(?P<marker>//|#)\s*(?P<dashes>-{10,})\s*$")
 SECTION_TITLE = re.compile(r"^(?P<indent>\s*)(?P<marker>//|#)\s*(?P<title>\S(?:.*\S)?)\s*$")
 DOXYGEN_GROUP_OPEN = re.compile(r"^\s*/// @\{\s*$")
@@ -363,13 +371,127 @@ def read_json(relative: str, failures: list[str]) -> dict:
 
 def maintained_files() -> list[Path]:
     """Return first-party files without generated or disposable trees."""
-    excluded = {".git", "build", "external"}
-    return [path for path in ROOT.rglob("*") if path.is_file() and not excluded.intersection(path.relative_to(ROOT).parts)]
+    excluded = {".git", "build", "external", "generated", "vendor"}
+    return sorted(
+        (path for path in ROOT.rglob("*") if path.is_file() and not excluded.intersection(path.relative_to(ROOT).parts)),
+        key=lambda path: path.relative_to(ROOT).as_posix(),
+    )
 
 
 def source_documentation_files() -> list[Path]:
     """Return maintained source files that support line comments."""
     return [path for path in maintained_files() if path.suffix.lower() in SOURCE_DOCUMENTATION_SUFFIXES or path.name == "CMakeLists.txt"]
+
+
+def strip_cpp_comments_and_literals(text: str) -> str:
+    """Blank C++ comments and literals while preserving line numbers for policy diagnostics."""
+    output: list[str] = []
+    index = 0
+    state = "code"
+    literal_delimiter = ""
+    raw_terminator = ""
+    while index < len(text):
+        current = text[index]
+        following = text[index + 1] if index + 1 < len(text) else ""
+        if state == "code":
+            if current == "/" and following == "/":
+                output.extend((" ", " "))
+                index += 2
+                state = "line-comment"
+                continue
+            if current == "/" and following == "*":
+                output.extend((" ", " "))
+                index += 2
+                state = "block-comment"
+                continue
+            if current == "R" and following == '"':
+                opening_parenthesis = text.find("(", index + 2, index + 19)
+                if opening_parenthesis != -1:
+                    delimiter = text[index + 2 : opening_parenthesis]
+                    if all(character not in " \\()\t\r\n" for character in delimiter):
+                        raw_terminator = ")" + delimiter + '"'
+                        output.extend(" " for _ in range(opening_parenthesis + 1 - index))
+                        index = opening_parenthesis + 1
+                        state = "raw-literal"
+                        continue
+            if (
+                current == "'"
+                and index > 0
+                and index + 1 < len(text)
+                and text[index - 1] in "0123456789abcdefABCDEF"
+                and following in "0123456789abcdefABCDEF"
+            ):
+                output.append(current)
+                index += 1
+                continue
+            if current in {'"', "'"}:
+                output.append(" ")
+                literal_delimiter = current
+                index += 1
+                state = "literal"
+                continue
+            output.append(current)
+            index += 1
+            continue
+
+        if state == "line-comment":
+            if current in {"\r", "\n"}:
+                output.append(current)
+                state = "code"
+            else:
+                output.append(" ")
+            index += 1
+            continue
+
+        if state == "raw-literal":
+            if text.startswith(raw_terminator, index):
+                output.extend(" " for _ in raw_terminator)
+                index += len(raw_terminator)
+                raw_terminator = ""
+                state = "code"
+            else:
+                output.append(current if current in {"\r", "\n"} else " ")
+                index += 1
+            continue
+
+        if state == "block-comment":
+            if current == "*" and following == "/":
+                output.extend((" ", " "))
+                index += 2
+                state = "code"
+            else:
+                output.append(current if current in {"\r", "\n"} else " ")
+                index += 1
+            continue
+
+        if current == "\\" and index + 1 < len(text):
+            output.append(" ")
+            output.append(text[index + 1] if text[index + 1] in {"\r", "\n"} else " ")
+            index += 2
+        elif current in {"\r", "\n"}:
+            output.append(current)
+            index += 1
+        else:
+            output.append(" ")
+            index += 1
+
+        if current == literal_delimiter:
+            state = "code"
+            literal_delimiter = ""
+
+    return "".join(output)
+
+
+def check_unicode_conversion_authority(failures: list[str]) -> None:
+    """Reject independent maintained C++ encoding conversions."""
+    for path in maintained_files():
+        relative = path.relative_to(ROOT).as_posix()
+        if path.suffix.lower() not in MAINTAINED_CPP_SUFFIXES:
+            continue
+        source = strip_cpp_comments_and_literals(path.read_text(encoding="utf-8"))
+        for line_number, line in enumerate(source.splitlines(), 1):
+            if FORBIDDEN_UNICODE_CONVERSIONS.search(line):
+                failures.append(f"{relative}:{line_number}: Unicode encoding conversion must use foundation/unicode.")
 
 
 def normalize_source_documentation(text: str) -> tuple[str, list[tuple[int, str]]]:
@@ -893,6 +1015,7 @@ def main() -> int:
     check_registry_relationships(failures)
     check_live_paths_and_editor(failures)
     check_source_documentation_layout(failures)
+    check_unicode_conversion_authority(failures)
     check_quality_contract(failures)
     check_extracted_workflow_logic(failures)
     safe_ctest_presets = fail_closed_ctest_presets(failures)

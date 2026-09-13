@@ -104,6 +104,9 @@ namespace GameWIP::Terminal::Detail::TestHooks
         HookFailure nextOutputPreparationFailure;
         HookFailure nextInputModeFailure;
         HookFailure nextReadFailure;
+        HookFailure nextEndpointIdentityFailure;
+        HookFailure nextCancellationResetFailure;
+        HookFailure nextCancellationSignalFailure;
         HookFailure nextTerminalSizeFailure;
         HookFailure nextCursorPositionFailure;
         HookFailure nextTextWriteFailure;
@@ -207,6 +210,10 @@ namespace GameWIP::Terminal::TestHooks
 
     /// @brief Clears deterministic Win32 key-down, surrogate, and pending-repeat decoder state.
     GAMEWIP_TERMINAL_EXPORT void resetWin32KeyDecoder() noexcept;
+
+    /// @brief Returns the number of native console waits attempted since the last reset.
+    /// @warning Test-only Win32 diagnostic counter; reset() clears it.
+    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::size_t consoleWaitCallCount() noexcept;
 
     /// @brief Decodes one synthetic Win32 KEY_EVENT_RECORD described only by portable integer fields.
     [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Win32KeyDecodeResult decodeWin32KeyRecord(
@@ -339,6 +346,15 @@ namespace GameWIP::Terminal::TestHooks
     GAMEWIP_TERMINAL_EXPORT void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
     /// @brief Forces the next input read to fail with code.
     GAMEWIP_TERMINAL_EXPORT void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;
+    /// @brief Forces the next native stdin endpoint identity duplication to fail.
+    /// @details The hook is Win32-only, one-shot, and reports the configured portable code; reset() clears it.
+    GAMEWIP_TERMINAL_EXPORT void forceNextEndpointIdentityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    /// @brief Forces the next native cancellation-event ResetEvent operation to fail.
+    /// @details The hook is Win32-only, one-shot, and translates deterministic ERROR_GEN_FAILURE; reset() clears it.
+    GAMEWIP_TERMINAL_EXPORT void forceNextCancellationResetFailure() noexcept;
+    /// @brief Forces the next stop callback to skip its best-effort native cancellation signal.
+    /// @details The hook is Win32-only, one-shot, and cannot make the callback return a status; reset() clears it.
+    GAMEWIP_TERMINAL_EXPORT void forceNextCancellationSignalFailure() noexcept;
     /// @brief Forces the next terminal-size query to fail with code.
     GAMEWIP_TERMINAL_EXPORT void forceNextTerminalSizeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     /// @brief Forces the next cursor-position query to fail with code.

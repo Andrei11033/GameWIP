@@ -16,6 +16,7 @@
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
+#include "unicode/unicode.h"
 
 #include <shellapi.h>
 #include <shlobj.h>
@@ -63,6 +64,11 @@ namespace
     inline constexpr std::string_view kOwnerExitDragDropFailureChildArgument = "--desktop-test-child=owner-exit-drag-drop-revocation-failure";
     inline constexpr std::string_view kOwnerExitProgressChildArgument = "--desktop-test-child=owner-exit-progress-shutdown";
     inline constexpr std::string_view kOwnerExitProgressFailureChildArgument = "--desktop-test-child=owner-exit-progress-close-failure";
+    inline constexpr std::string_view kDeferredPumpFailureWaitChildArgument = "--desktop-test-child=deferred-pump-failure-wait";
+#if DESKTOP_INTERNAL_TEST_HOOKS
+    inline constexpr std::string_view kProgressRestoreMessageLazinessChildArgument =
+        "--desktop-test-child=progress-restore-message-laziness";
+#endif
 
     static_assert(!std::is_move_constructible_v<Desktop::Window>);
     static_assert(!std::is_move_assignable_v<Desktop::Window>);
@@ -280,6 +286,77 @@ namespace
         return 0;
     }
 
+    [[nodiscard]] int runDeferredPumpFailureWaitChild() noexcept
+    {
+#if !DESKTOP_INTERNAL_TEST_HOOKS
+        return 6;
+#else
+        Desktop::Window owner;
+        Desktop::Types::Description windowDescription;
+        windowDescription.title = "Deferred pump failure owner";
+        windowDescription.clientSize = {160, 100};
+        windowDescription.visible = false;
+        if (!owner.open(windowDescription, 4).ok())
+        {
+            return 2;
+        }
+
+        Desktop::ProgressDialog progress;
+        Desktop::Types::Dialogs::Progress::Description progressDescription;
+        progressDescription.title = "Deferred pump failure progress";
+        progressDescription.message = "The wait must return the already-recorded error.";
+        progressDescription.owner = &owner;
+        progressDescription.blocksOwner = true;
+        if (!progress.open(progressDescription).ok())
+        {
+            static_cast<void>(owner.close());
+            return 3;
+        }
+
+        Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
+        if (!Desktop::TestHooks::destroyNativeProgressDialog(progress).ok())
+        {
+            static_cast<void>(progress.close());
+            static_cast<void>(owner.close());
+            return 4;
+        }
+
+        const Desktop::Types::Events::PumpResult waitResult = Desktop::Events::wait();
+        static_cast<void>(progress.close());
+        static_cast<void>(owner.close());
+        return waitResult.status.ok() ? 5 : 0;
+#endif
+    }
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
+    [[nodiscard]] int runProgressRestoreMessageLazinessChild() noexcept
+    {
+        if (Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted())
+        {
+            return 2;
+        }
+
+        Desktop::Window window;
+        Desktop::Types::Description description;
+        description.title = "Progress restore registration laziness";
+        description.clientSize = {160, 100};
+        description.visible = false;
+        if (!window.open(description, 4).ok())
+        {
+            return 3;
+        }
+        if (!Desktop::Events::poll().status.ok())
+        {
+            return 4;
+        }
+        if (!window.close().ok())
+        {
+            return 5;
+        }
+        return Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted() ? 6 : 0;
+    }
+#endif
+
     void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
     {
         constexpr std::array childArguments{
@@ -290,6 +367,10 @@ namespace
             kOwnerExitDragDropFailureChildArgument,
             kOwnerExitProgressChildArgument,
             kOwnerExitProgressFailureChildArgument,
+            kDeferredPumpFailureWaitChildArgument,
+#if DESKTOP_INTERNAL_TEST_HOOKS
+            kProgressRestoreMessageLazinessChildArgument,
+#endif
         };
         for (const std::string_view argument : childArguments)
         {
@@ -360,6 +441,16 @@ namespace GameWIP::Test
         {
             return runOwnerExitProgressShutdownChild(true);
         }
+        if (hasArgument(argc, argv, kDeferredPumpFailureWaitChildArgument))
+        {
+            return runDeferredPumpFailureWaitChild();
+        }
+#if DESKTOP_INTERNAL_TEST_HOOKS
+        if (hasArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
+        {
+            return runProgressRestoreMessageLazinessChild();
+        }
+#endif
 
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;

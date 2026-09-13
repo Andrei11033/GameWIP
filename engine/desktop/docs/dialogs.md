@@ -13,8 +13,9 @@ user accepts or dismisses it. @c status describes whether the operation itself
 ran successfully. A successful dismissal is represented separately by
 @c Types::Dialogs::Outcome::Cancelled and is not a native failure.
 
-File filters preserve caller order. Each extension is portable spelling such
-as @c png or @c tar.gz, without a leading period, wildcard, or path separator.
+File filters preserve caller order. Each extension is a literal portable token
+such as @c png or @c tar.gz, without a leading period, wildcard, semicolon, or
+path separator; extensions are not native pattern lists.
 An empty extension span means all files. Filter indices are zero-based in the
 portable API. Suggested directories are native paths and are passed as
 suggestions without normalization; a save dialog does not rewrite the returned

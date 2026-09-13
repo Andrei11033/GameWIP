@@ -179,7 +179,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 DWORD nativeCode = ERROR_SUCCESS;
                 if (!utf8ToUtf16(text, output, nativeCode))
                 {
-                    return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+                    return IO::makeStatus(unicodeConversionError(nativeCode, ErrorCode::EncodingFailed), nativeCode);
                 }
                 return IO::successStatus();
             }
@@ -1451,9 +1451,12 @@ namespace GameWIP::Desktop::Detail::Platform
                     {
                         selectedButton = std::numeric_limits<int>::min();
                     }
-                    if (simulatedResponse.optionIndex && *simulatedResponse.optionIndex < description.options.size())
+                    if (simulatedResponse.optionIndex)
                     {
-                        selectedOption = optionBase + static_cast<int>(*simulatedResponse.optionIndex);
+                        const std::size_t maximumRepresentableOffset = static_cast<std::size_t>(std::numeric_limits<int>::max() - optionBase);
+                        selectedOption = *simulatedResponse.optionIndex <= maximumRepresentableOffset
+                                             ? optionBase + static_cast<int>(*simulatedResponse.optionIndex)
+                                             : std::numeric_limits<int>::max();
                     }
                     checked = simulatedResponse.checkBoxChecked ? TRUE : FALSE;
                     if (Detail::consumeFailure(TestHooks::FailurePoint::DialogResult))

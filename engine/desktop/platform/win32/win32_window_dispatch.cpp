@@ -30,6 +30,14 @@ namespace GameWIP::Desktop::Detail::Platform
             current.deferredPumpFailure.reset();
         }
         pruneAbandonedStates(current);
+        // Callback/deferred cleanup failures are already the result of this pump; never
+        // enter a blocking wait after an error is ready to return.
+        if (!result.status.ok())
+        {
+            current.activeResult = nullptr;
+            current.pumping = false;
+            return result;
+        }
         if (current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()))
         {
             current.activeResult = nullptr;
@@ -63,9 +71,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
         bool receivedDisplayChange = false;
         MSG message{};
+        const UINT wake = wakeMessage();
         while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != FALSE)
         {
-            if (message.message == wakeMessage())
+            if (wake != 0 && message.message == wake)
             {
                 continue;
             }

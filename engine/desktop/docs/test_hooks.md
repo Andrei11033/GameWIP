@@ -40,5 +40,16 @@ replacing native ownership. ProgressDialog inspection keeps the real HWND and co
 position, marquee, cancellation, owner, registry, deferred-cleanup, and class-reference state. Test-only actions request cancel/close, simulate a DPI
 suggested rectangle, and destroy the native window; they do not replace the public lifecycle path.
 
+The passive `progressOwnerRestoreMessageRegistrationAttempted()` observation
+supports a fresh-process regression that ordinary Window use does not register
+the ProgressDialog owner-restore message.
+
+`WindowStyleQuery` is a one-shot native style/ex-style query failure used by
+checked geometry, mode, control, DPI, child-surface, and ProgressDialog paths.
+`WindowUserDataInstallation` is a one-shot top-level `WM_NCCREATE` userdata
+installation failure. Both return deterministic native failure status and are
+cleared by `resetFailures()`; the latter is consumed before `CreateWindowExW`
+can publish the new Window state.
+
 Hook-facing passive types follow the standardized public domains (`Types::Events`, `Types::Display`, `Types::Renderer`) instead of creating a parallel
 public vocabulary.

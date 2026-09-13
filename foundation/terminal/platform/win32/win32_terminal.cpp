@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -49,6 +50,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         namespace HookDetail = GameWIP::Terminal::Detail::TestHooks;
+        std::atomic_size_t consoleWaitCalls = 0;
 #endif
 
         /// @brief Retains unread UTF-8 bytes across Win32 input calls with amortized front consumption.
@@ -146,8 +148,16 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             static constexpr std::size_t kNativeRecordBatchSize = 32;
 
+            enum class EndpointIdentityState : std::uint8_t
+            {
+                Unknown,
+                Confirmed
+            };
+
             HANDLE endpointHandleValue = nullptr;
             HANDLE endpointIdentity = nullptr;
+            EndpointIdentityState endpointIdentityState = EndpointIdentityState::Unknown;
+            IO::Types::Status endpointIdentityStatus;
             HANDLE cancellationEvent = nullptr;
             PendingInputBuffer pendingBytes;
             Win32Events::DecoderState eventDecoder;
@@ -180,6 +190,8 @@ namespace GameWIP::Terminal::Detail::Platform
         inline constexpr std::uint32_t kMaxVtParameter = 32767;
         /// @brief Maximum title payload accepted before OSC framing bytes.
         inline constexpr std::size_t kMaxVtTitleBytes = 254;
+        /// @brief Bounds stop-token observation when the native cancellation signal fails.
+        inline constexpr auto kCancellationObservationInterval = std::chrono::milliseconds{50};
 
         /// @brief One backend input transfer before public UTF-8 and line processing.
         struct ReadChunk
@@ -249,56 +261,107 @@ namespace GameWIP::Terminal::Detail::Platform
             return function;
         }
 
-        /// @brief Returns whether the current standard handle still names the observed native endpoint.
-        [[nodiscard]] bool sameInputEndpoint(const InputState &state, HANDLE currentHandle) noexcept
+        enum class EndpointRelation : std::uint8_t
+        {
+            Same,
+            Replaced,
+            ProbeRequired
+        };
+
+        /// @brief Classifies the current standard handle without treating unknown identity as sameness.
+        [[nodiscard]] EndpointRelation inputEndpointRelation(const InputState &state, HANDLE currentHandle) noexcept
         {
             if (!isUsableHandle(currentHandle))
             {
-                return state.endpointIdentity == nullptr && state.endpointHandleValue == currentHandle;
+                if (state.endpointIdentityState == InputState::EndpointIdentityState::Confirmed)
+                {
+                    return EndpointRelation::Replaced;
+                }
+                return state.endpointIdentityStatus.ok() ? EndpointRelation::Same : EndpointRelation::ProbeRequired;
             }
-            if (!isUsableHandle(state.endpointIdentity))
+            if (state.endpointIdentityState != InputState::EndpointIdentityState::Confirmed || !isUsableHandle(state.endpointIdentity))
             {
-                return false;
+                return EndpointRelation::ProbeRequired;
             }
             if (const auto compare = compareObjectHandlesFunction())
             {
-                return compare(state.endpointIdentity, currentHandle) != FALSE;
+                return compare(state.endpointIdentity, currentHandle) != FALSE ? EndpointRelation::Same : EndpointRelation::Replaced;
             }
-            return state.endpointHandleValue == currentHandle;
+            return state.endpointHandleValue == currentHandle ? EndpointRelation::Same : EndpointRelation::Replaced;
         }
 
         /// @brief Retains an identity handle so numeric handle reuse is detected on later calls.
-        void observeInputEndpoint(InputState &state, HANDLE currentHandle) noexcept
+        bool observeInputEndpoint(InputState &state, HANDLE currentHandle) noexcept
         {
-            if (isUsableHandle(state.endpointIdentity))
+#if TERMINAL_INTERNAL_TEST_HOOKS
+            if (const auto failure = HookDetail::consumeFailure(HookDetail::terminalTestHookState.nextEndpointIdentityFailure))
             {
-                CloseHandle(state.endpointIdentity);
+                if (state.endpointIdentityState != InputState::EndpointIdentityState::Confirmed)
+                {
+                    state.endpointHandleValue = currentHandle;
+                }
+                state.endpointIdentityStatus = IO::makeStatus(*failure);
+                return false;
             }
-            state.endpointIdentity = nullptr;
-            state.endpointHandleValue = currentHandle;
-
+#endif
             if (isUsableHandle(currentHandle))
             {
                 HANDLE duplicate = nullptr;
-                if (DuplicateHandle(GetCurrentProcess(), currentHandle, GetCurrentProcess(), &duplicate, 0, FALSE, DUPLICATE_SAME_ACCESS) != FALSE)
+                if (DuplicateHandle(GetCurrentProcess(), currentHandle, GetCurrentProcess(), &duplicate, 0, FALSE, DUPLICATE_SAME_ACCESS) == FALSE)
                 {
-                    state.endpointIdentity = duplicate;
+                    const DWORD error = GetLastError();
+                    if (state.endpointIdentityState != InputState::EndpointIdentityState::Confirmed)
+                    {
+                        state.endpointHandleValue = currentHandle;
+                    }
+                    state.endpointIdentityStatus = IO::makeStatus(ErrorCode::NativeFailure, static_cast<std::int64_t>(error));
+                    return false;
                 }
+                if (isUsableHandle(state.endpointIdentity))
+                {
+                    CloseHandle(state.endpointIdentity);
+                }
+                state.endpointIdentity = duplicate;
+                state.endpointIdentityState = InputState::EndpointIdentityState::Confirmed;
             }
+            else
+            {
+                if (isUsableHandle(state.endpointIdentity))
+                {
+                    CloseHandle(state.endpointIdentity);
+                    state.endpointIdentity = nullptr;
+                }
+                state.endpointIdentityState = InputState::EndpointIdentityState::Unknown;
+            }
+            state.endpointHandleValue = currentHandle;
+            state.endpointIdentityStatus = IO::successStatus();
+            return true;
         }
 
         /// @brief Returns process-lifetime state for the only supported input stream.
-        [[nodiscard]] InputState &inputState([[maybe_unused]] InputStream stream) noexcept
+        [[nodiscard]] InputState &inputStateStorage() noexcept
         {
             static InputState stdinState;
+            return stdinState;
+        }
+
+        [[nodiscard]] InputState &inputState([[maybe_unused]] InputStream stream) noexcept
+        {
+            InputState &stdinState = inputStateStorage();
             const HANDLE currentHandle = inputHandle(stream);
-            if (!sameInputEndpoint(stdinState, currentHandle))
+            const EndpointRelation relation = inputEndpointRelation(stdinState, currentHandle);
+            if (relation == EndpointRelation::Same)
+            {
+                // A previously failed probe may have been for a replacement that is no longer
+                // current. The retained identity proves this handle is valid again.
+                stdinState.endpointIdentityStatus = IO::successStatus();
+            }
+            else if (observeInputEndpoint(stdinState, currentHandle) && relation == EndpointRelation::Replaced)
             {
                 stdinState.pendingBytes.clear();
                 stdinState.eventDecoder.clear();
                 stdinState.nextNativeRecord = 0;
                 stdinState.nativeRecordCount = 0;
-                observeInputEndpoint(stdinState, currentHandle);
             }
             return stdinState;
         }
@@ -601,31 +664,38 @@ namespace GameWIP::Terminal::Detail::Platform
                 return IO::successStatus();
             }
 
-            if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
-            {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded, 0, "Terminal text is too large for Win32 UTF-8 conversion.");
-            }
-
-            const int sourceLength = static_cast<int>(text.size());
-            const DWORD flags = MB_ERR_INVALID_CHARS;
-            int wideLength = 0;
-            DWORD conversionError = ERROR_SUCCESS;
-
             try
             {
-                outText.resize_and_overwrite(
-                    text.size(),
-                    [&text, sourceLength, &wideLength, &conversionError](wchar_t *destination, std::size_t) noexcept
-                    {
-                        wideLength = MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, destination, sourceLength);
-                        if (wideLength <= 0)
-                        {
-                            conversionError = GetLastError();
-                            return std::size_t{0};
-                        }
-
-                        return static_cast<std::size_t>(wideLength);
-                    });
+                const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+                if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
+                {
+                    return IO::makeStatus(
+                        ErrorCode::SizeLimitExceeded,
+                        ERROR_INSUFFICIENT_BUFFER,
+                        "Terminal UTF-8 to UTF-16 conversion exceeded the Unicode conversion size limit.");
+                }
+                if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+                {
+                    return IO::makeStatus(ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION, "Terminal UTF-8 to UTF-16 conversion failed.");
+                }
+                std::vector<char16_t> converted(measurement.requiredCodeUnits);
+                const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+                if (conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
+                {
+                    return IO::makeStatus(
+                        ErrorCode::SizeLimitExceeded,
+                        ERROR_INSUFFICIENT_BUFFER,
+                        "Terminal UTF-8 to UTF-16 conversion exceeded the Unicode conversion size limit.");
+                }
+                if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+                {
+                    return IO::makeStatus(ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION, "Terminal UTF-8 to UTF-16 conversion failed.");
+                }
+                outText.resize(conversion.codeUnitsWritten);
+                for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+                {
+                    outText[index] = static_cast<wchar_t>(converted[index]);
+                }
             }
             catch (const std::bad_alloc &)
             {
@@ -634,11 +704,6 @@ namespace GameWIP::Terminal::Detail::Platform
             catch (const std::length_error &)
             {
                 return IO::makeStatus(ErrorCode::SizeLimitExceeded);
-            }
-
-            if (wideLength <= 0)
-            {
-                return statusFromWin32(ErrorCode::EncodingFailed, conversionError, "Terminal UTF-8 to UTF-16 conversion failed.");
             }
 
             return IO::successStatus();
@@ -759,6 +824,12 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 if (event != nullptr && event != INVALID_HANDLE_VALUE)
                 {
+#if TERMINAL_INTERNAL_TEST_HOOKS
+                    if (HookDetail::consumeFailure(HookDetail::terminalTestHookState.nextCancellationSignalFailure))
+                    {
+                        return;
+                    }
+#endif
                     static_cast<void>(SetEvent(event));
                 }
             }
@@ -781,7 +852,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return IO::successStatus();
         }
 
-        /// @brief Waits for console records, caller cancellation, or one total-deadline remainder without polling.
+        /// @brief Waits for console records or cancellation while preserving one total finite deadline.
         [[nodiscard]] ReadChunk waitForConsoleRecord(
             InputState &state,
             HANDLE handle,
@@ -802,18 +873,91 @@ namespace GameWIP::Terminal::Detail::Platform
                     return {.status = std::move(cancellationStatus), .outcome = ReadOutcome::Completed, .bytes = {}};
                 }
 
-                static_cast<void>(ResetEvent(state.cancellationEvent));
+                bool forcedResetFailure = false;
+#if TERMINAL_INTERNAL_TEST_HOOKS
+                forcedResetFailure = HookDetail::consumeFailure(HookDetail::terminalTestHookState.nextCancellationResetFailure).has_value();
+                if (forcedResetFailure)
+                {
+                    SetLastError(ERROR_GEN_FAILURE);
+                }
+#endif
+                if (forcedResetFailure || ResetEvent(state.cancellationEvent) == FALSE)
+                {
+                    const DWORD error = GetLastError();
+                    return {
+                        .status = statusFromWin32(ErrorCode::NativeFailure, error, "ResetEvent failed for terminal input cancellation."),
+                        .outcome = ReadOutcome::Completed,
+                        .bytes = {}};
+                }
                 std::stop_callback<StopEventSignal> callback(stopToken, StopEventSignal{.event = state.cancellationEvent});
                 const std::array<HANDLE, 2> handles{handle, state.cancellationEvent};
-                waitResult = WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE, waitMilliseconds(timeout));
-
-                if (waitResult == WAIT_OBJECT_0 + 1)
+                // std::stop_callback cannot propagate SetEvent failure, so bounded stop-token
+                // observation guarantees cancellation progress even when signaling fails.
+                const bool infinite = timeout.count() < 0;
+                const auto waitStart = std::chrono::steady_clock::now();
+                bool firstWait = true;
+                while (true)
                 {
-                    return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
+                    if (stopToken.stop_requested())
+                    {
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
+                    }
+
+                    DWORD nativeTimeout = static_cast<DWORD>(kCancellationObservationInterval.count());
+                    if (!infinite)
+                    {
+                        const auto remaining = remainingTimeout(waitStart, timeout);
+                        if (remaining.count() == 0)
+                        {
+                            if (!firstWait)
+                            {
+                                return {
+                                    .status = IO::successStatus(),
+                                    .outcome = timeout.count() == 0 ? ReadOutcome::WouldBlock : ReadOutcome::TimedOut,
+                                    .bytes = {}};
+                            }
+                            nativeTimeout = 0;
+                        }
+                        else
+                        {
+                            nativeTimeout = static_cast<DWORD>(std::min(remaining, kCancellationObservationInterval).count());
+                        }
+                    }
+                    firstWait = false;
+#if TERMINAL_INTERNAL_TEST_HOOKS
+                    consoleWaitCalls.fetch_add(1, std::memory_order_relaxed);
+#endif
+                    waitResult = WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE, nativeTimeout);
+                    if (waitResult == WAIT_OBJECT_0 + 1)
+                    {
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
+                    }
+                    if (waitResult != WAIT_TIMEOUT)
+                    {
+                        break;
+                    }
+                    if (timeout.count() == 0)
+                    {
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::WouldBlock, .bytes = {}};
+                    }
+                    if (stopToken.stop_requested())
+                    {
+                        return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
+                    }
+                    if (!infinite && remainingTimeout(waitStart, timeout).count() == 0)
+                    {
+                        return {
+                            .status = IO::successStatus(),
+                            .outcome = timeout.count() == 0 ? ReadOutcome::WouldBlock : ReadOutcome::TimedOut,
+                            .bytes = {}};
+                    }
                 }
             }
             else
             {
+#if TERMINAL_INTERNAL_TEST_HOOKS
+                consoleWaitCalls.fetch_add(1, std::memory_order_relaxed);
+#endif
                 waitResult = WaitForSingleObject(handle, waitMilliseconds(timeout));
             }
 
@@ -889,6 +1033,11 @@ namespace GameWIP::Terminal::Detail::Platform
             result.status = IO::successStatus();
 
             InputState &state = inputState(stream);
+            if (!state.endpointIdentityStatus.ok())
+            {
+                result.status = state.endpointIdentityStatus;
+                return result;
+            }
             if (std::optional<Terminal::Types::Event> pending = Win32Events::takePendingEvent(state.eventDecoder))
             {
                 result.event = std::move(*pending);
@@ -2211,6 +2360,11 @@ namespace GameWIP::Terminal::Detail::Platform
 
         const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
+        if (!state.endpointIdentityStatus.ok())
+        {
+            result.status = state.endpointIdentityStatus;
+            return result;
+        }
         const auto start = std::chrono::steady_clock::now();
 
         while (result.bytesRead < outputBuffer.size())
@@ -2275,6 +2429,11 @@ namespace GameWIP::Terminal::Detail::Platform
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
         const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
+        if (!state.endpointIdentityStatus.ok())
+        {
+            result.status = state.endpointIdentityStatus;
+            return result;
+        }
         const auto start = std::chrono::steady_clock::now();
 
         while (true)
@@ -2353,6 +2512,11 @@ namespace GameWIP::Terminal::Detail::Platform
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
         const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
+        if (!state.endpointIdentityStatus.ok())
+        {
+            result.status = state.endpointIdentityStatus;
+            return result;
+        }
         const auto start = std::chrono::steady_clock::now();
         std::size_t scanOffset = 0;
 
@@ -2596,9 +2760,55 @@ namespace GameWIP::Terminal::Detail::Platform
         // Test hooks
         // ------------------------------------------------------------
 
+        void resetWin32InputState() noexcept
+        {
+            consoleWaitCalls.store(0, std::memory_order_relaxed);
+            InputState &state = inputStateStorage();
+            if (state.endpointIdentity != nullptr && state.endpointIdentity != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(state.endpointIdentity);
+            }
+            if (state.cancellationEvent != nullptr && state.cancellationEvent != INVALID_HANDLE_VALUE)
+            {
+                CloseHandle(state.cancellationEvent);
+            }
+            state.endpointHandleValue = nullptr;
+            state.endpointIdentity = nullptr;
+            state.endpointIdentityState = InputState::EndpointIdentityState::Unknown;
+            state.endpointIdentityStatus = {};
+            state.cancellationEvent = nullptr;
+            state.pendingBytes.clear();
+            state.eventDecoder.clear();
+            state.nextNativeRecord = 0;
+            state.nativeRecordCount = 0;
+        }
+
         void resetWin32KeyDecoder() noexcept
         {
             testDecoderState.clear();
+        }
+
+        std::size_t consoleWaitCallCount() noexcept
+        {
+            return consoleWaitCalls.load(std::memory_order_relaxed);
+        }
+
+        Win32ConsoleWaitResult waitForConsoleRecordForTest(
+            std::chrono::milliseconds timeout,
+            const std::stop_token &stopToken)
+        {
+            HANDLE syntheticInput = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+            if (syntheticInput == nullptr)
+            {
+                return {
+                    .status = statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "CreateEventW failed for synthetic terminal input."),
+                    .outcome = ReadOutcome::Completed};
+            }
+
+            InputState state;
+            const ReadChunk result = waitForConsoleRecord(state, syntheticInput, timeout, stopToken);
+            CloseHandle(syntheticInput);
+            return {.status = result.status, .outcome = result.outcome};
         }
 
         Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
@@ -2631,14 +2841,16 @@ namespace GameWIP::Terminal::Detail::Platform
 
         void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept
         {
-            InputState &state = inputState(stream);
+            static_cast<void>(stream);
+            InputState &state = inputStateStorage();
             state.eventDecoder.pendingHighSurrogate = static_cast<char16_t>(surrogate);
             state.eventDecoder.pendingHighSurrogateRecord = {};
         }
 
         bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept
         {
-            return inputState(stream).eventDecoder.pendingHighSurrogate != u'\0';
+            static_cast<void>(stream);
+            return inputStateStorage().eventDecoder.pendingHighSurrogate != u'\0';
         }
     } // namespace TestHooks
 #endif

@@ -15,9 +15,10 @@
 #include "debug/assert/internal/assert_test_hooks.h"
 #endif
 
-#include <limits>
+#include <new>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -63,12 +64,16 @@ namespace
     {
         std::atomic_bool nextActionDialogFailure{false};
         std::atomic_bool nextFallbackActionDialogFailure{false};
+        std::atomic_bool nextDiagnosticPreparationFailure{false};
         // Separate enable/value fields distinguish a forced false result from no override.
         // Tests serialize changes; the atomics do not make reset a single transaction.
         std::atomic_bool debuggerAttachedOverrideEnabled{false};
         std::atomic_bool debuggerAttachedOverrideValue{false};
         std::atomic_bool popupSuppressedOverrideEnabled{false};
         std::atomic_bool popupSuppressedOverrideValue{false};
+        // The test adapter suppresses only the final native presentation call; preparation and
+        // emergency-path behavior still execute exactly as they do in production.
+        std::atomic_bool suppressNativePresentation{false};
     };
 
     /// @brief Shared Win32 hook state consumed by public test adapters and backend helpers.
@@ -79,7 +84,19 @@ namespace
     {
         return flag.exchange(false, std::memory_order_acq_rel);
     }
+
 #endif
+
+    void presentErrorPopup(const wchar_t *title, const wchar_t *message) noexcept
+    {
+#if ASSERT_INTERNAL_TEST_HOOKS
+        if (assertTestHookState.suppressNativePresentation.load(std::memory_order_acquire))
+        {
+            return;
+        }
+#endif
+        static_cast<void>(MessageBoxW(nullptr, message, title, MB_ICONERROR | MB_OK | MB_SETFOREGROUND));
+    }
 
     // ------------------------------------------------------------
     // Popup text conversion
@@ -101,53 +118,40 @@ namespace
 
     /// @brief Converts full UTF-8 text to UTF-16 before popup truncation.
     /// @details Truncating after conversion avoids splitting a multibyte UTF-8 sequence.
-    std::wstring utf8ToWide(std::string_view text) noexcept
+    std::wstring utf8ToWide(std::string_view text)
     {
-        try
+#if ASSERT_INTERNAL_TEST_HOOKS
+        if (GameWIP::Debug::Assert::Detail::TestHooks::consumeNextDiagnosticPreparationFailure())
         {
-            if (text.empty())
-            {
-                return {};
-            }
-
-            // Oversized input keeps the fallback behavior from the older native conversion path.
-            if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
-            {
-                return asciiFallbackToWide(text);
-            }
-
-            // Measurement validates the full input and reserves the exact native string capacity.
-            const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
-            if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
-            {
-                return asciiFallbackToWide(text);
-            }
-
-            // Unicode owns decoding and surrogate encoding. Copying scalar-sized results into
-            // wchar_t storage avoids aliasing char16_t memory or allocating an intermediate string.
-            std::wstring output;
-            output.reserve(measurement.requiredCodeUnits);
-            while (!text.empty())
-            {
-                const auto decoded = GameWIP::Unicode::Utf8::decodeScalar(text);
-                const auto encoded = GameWIP::Unicode::Utf16::encodeScalar(decoded.scalar);
-                for (std::size_t index = 0; index < encoded.codeUnitCount; ++index)
-                {
-                    // Native dialogs stop at NUL; replacement keeps the following text visible.
-                    const char16_t codeUnit = encoded.codeUnits[index];
-                    output.push_back(codeUnit == u'\0' ? L'?' : static_cast<wchar_t>(codeUnit));
-                }
-
-                // Successful measurement guarantees complete scalars throughout the borrowed input.
-                text.remove_prefix(decoded.bytesConsumed);
-            }
-
-            return output;
+            throw std::bad_alloc();
         }
-        catch (...)
+#endif
+        if (text.empty())
         {
-            return L"?";
+            return {};
         }
+
+        const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        {
+            return asciiFallbackToWide(text);
+        }
+
+        std::vector<char16_t> converted(measurement.requiredCodeUnits);
+        const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+        {
+            return asciiFallbackToWide(text);
+        }
+
+        std::wstring output(conversion.codeUnitsWritten, L'\0');
+        for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+        {
+            // Native dialogs stop at NUL; replacement keeps the following text visible.
+            const char16_t codeUnit = converted[index];
+            output[index] = codeUnit == u'\0' ? L'?' : static_cast<wchar_t>(codeUnit);
+        }
+        return output;
     }
 
     /// @brief Returns whether one UTF-16 code unit is a high surrogate.
@@ -216,7 +220,7 @@ namespace
     };
 
     /// @brief Converts and bounds both popup fields without separating Unicode scalars.
-    PopupText preparePopupText(std::string_view title, std::string_view message) noexcept
+    PopupText preparePopupText(std::string_view title, std::string_view message)
     {
         PopupText text{utf8ToWide(title), utf8ToWide(message)};
         truncateWideForPopup(text.title, kPopupTitleMaxCodeUnits);
@@ -288,7 +292,8 @@ namespace
             return nullptr;
         }
 
-        // The module remains loaded while the returned procedure pointer can be used.
+        // Intentionally retain comctl32 for process lifetime: the resolved procedure pointer may
+        // be reused and must remain valid after this function returns.
         return GameWIP::Base::Win32::loadProcedure<TaskDialogIndirectFn>(commonControls, "TaskDialogIndirect");
     }
 
@@ -325,12 +330,14 @@ namespace GameWIP::Debug::Assert::TestHooks
     {
         assertTestHookState.nextActionDialogFailure.store(false, std::memory_order_release);
         assertTestHookState.nextFallbackActionDialogFailure.store(false, std::memory_order_release);
+        assertTestHookState.nextDiagnosticPreparationFailure.store(false, std::memory_order_release);
 
         // Disabled overrides restore platform/environment queries; stored values return to defaults.
         assertTestHookState.debuggerAttachedOverrideEnabled.store(false, std::memory_order_release);
         assertTestHookState.debuggerAttachedOverrideValue.store(false, std::memory_order_release);
         assertTestHookState.popupSuppressedOverrideEnabled.store(false, std::memory_order_release);
         assertTestHookState.popupSuppressedOverrideValue.store(false, std::memory_order_release);
+        assertTestHookState.suppressNativePresentation.store(false, std::memory_order_release);
     }
 
     void forceNextActionDialogFailure() noexcept
@@ -341,6 +348,11 @@ namespace GameWIP::Debug::Assert::TestHooks
     void forceNextFallbackActionDialogFailure() noexcept
     {
         assertTestHookState.nextFallbackActionDialogFailure.store(true, std::memory_order_release);
+    }
+
+    void forceNextDiagnosticPreparationFailure() noexcept
+    {
+        assertTestHookState.nextDiagnosticPreparationFailure.store(true, std::memory_order_release);
     }
 
     void setDebuggerAttachedOverride(bool attached) noexcept
@@ -379,7 +391,9 @@ namespace GameWIP::Debug::Assert::TestHooks
 
     void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept
     {
+        const bool previous = assertTestHookState.suppressNativePresentation.exchange(true, std::memory_order_acq_rel);
         GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(title, message);
+        assertTestHookState.suppressNativePresentation.store(previous, std::memory_order_release);
     }
 
 } // namespace GameWIP::Debug::Assert::TestHooks
@@ -394,6 +408,11 @@ namespace GameWIP::Debug::Assert::Detail::TestHooks
     bool consumeNextFallbackActionDialogFailure() noexcept
     {
         return consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure);
+    }
+
+    bool consumeNextDiagnosticPreparationFailure() noexcept
+    {
+        return consumeTestHook(assertTestHookState.nextDiagnosticPreparationFailure);
     }
 
     bool debuggerAttachedOverride(bool &attached) noexcept
@@ -428,56 +447,68 @@ namespace GameWIP::Debug::Assert::Detail::Platform
         {
             return;
         }
-
-        const PopupText text = preparePopupText(title, message);
-
-        // This informational popup has no action selection; the caller retains failure policy.
-        MessageBoxW(nullptr, text.message.c_str(), text.title.c_str(), MB_ICONERROR | MB_OK | MB_SETFOREGROUND);
+        try
+        {
+            const PopupText text = preparePopupText(title, message);
+            presentErrorPopup(text.title.c_str(), text.message.c_str());
+        }
+        catch (...)
+        {
+            presentErrorPopup(L"GameWIP Assert", L"Assertion failure.");
+        }
     }
 
     FailureAction showFailureActionDialog(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept
     {
-        const PopupText text = preparePopupText(title, message);
-
-        // Task Dialog exposes all four actions, including suppression at the originating call site.
-        const TASKDIALOG_BUTTON buttons[] = {
-            {kBreakButtonId, L"Break"},
-            {kAbortButtonId, L"Abort"},
-            {kIgnoreOnceButtonId, L"Ignore Once"},
-            {kAlwaysIgnoreButtonId, L"Always Ignore"},
-        };
-
-        // Pointers borrow the local strings and button array through the synchronous dialog call.
-        TASKDIALOGCONFIG config{};
-        config.cbSize = sizeof(config);
-        config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
-        config.pszWindowTitle = text.title.c_str();
-        config.pszMainInstruction = text.title.c_str();
-        config.pszContent = text.message.c_str();
-        config.pszMainIcon = TD_ERROR_ICON;
-        config.pButtons = buttons;
-        config.cButtons = static_cast<UINT>(sizeof(buttons) / sizeof(buttons[0]));
-        config.nDefaultButton = buttonIdForAction(defaultAction);
-
-        int selectedButton = buttonIdForAction(defaultAction);
-#if ASSERT_INTERNAL_TEST_HOOKS
-        const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextActionDialogFailure);
-#else
-        const bool forceTaskDialogFailure = false;
-#endif
-        if (!forceTaskDialogFailure)
+        try
         {
-            if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
+            const PopupText text = preparePopupText(title, message);
+
+            // Task Dialog exposes all four actions, including suppression at the originating call site.
+            const TASKDIALOG_BUTTON buttons[] = {
+                {kBreakButtonId, L"Break"},
+                {kAbortButtonId, L"Abort"},
+                {kIgnoreOnceButtonId, L"Ignore Once"},
+                {kAlwaysIgnoreButtonId, L"Always Ignore"},
+            };
+
+            // Pointers borrow the local strings and button array through the synchronous dialog call.
+            TASKDIALOGCONFIG config{};
+            config.cbSize = sizeof(config);
+            config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
+            config.pszWindowTitle = text.title.c_str();
+            config.pszMainInstruction = text.title.c_str();
+            config.pszContent = text.message.c_str();
+            config.pszMainIcon = TD_ERROR_ICON;
+            config.pButtons = buttons;
+            config.cButtons = static_cast<UINT>(sizeof(buttons) / sizeof(buttons[0]));
+            config.nDefaultButton = buttonIdForAction(defaultAction);
+
+            int selectedButton = buttonIdForAction(defaultAction);
+#if ASSERT_INTERNAL_TEST_HOOKS
+            const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextActionDialogFailure);
+#else
+            const bool forceTaskDialogFailure = false;
+#endif
+            if (!forceTaskDialogFailure)
             {
-                const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
-                if (SUCCEEDED(result))
+                if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
                 {
-                    return actionForButtonId(selectedButton, defaultAction);
+                    const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
+                    if (SUCCEEDED(result))
+                    {
+                        return actionForButtonId(selectedButton, defaultAction);
+                    }
                 }
             }
-        }
 
-        return fallbackMessageBoxAction(text.title.c_str(), text.message.c_str(), defaultAction);
+            return fallbackMessageBoxAction(text.title.c_str(), text.message.c_str(), defaultAction);
+        }
+        catch (...)
+        {
+            // This emergency path must not allocate or convert: use static UTF-16 literals only.
+            return fallbackMessageBoxAction(L"GameWIP Assert", L"Assertion failure.", defaultAction);
+        }
     }
 
     bool isDebuggerAttached() noexcept

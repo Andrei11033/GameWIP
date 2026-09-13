@@ -89,9 +89,16 @@ namespace GameWIP::Desktop::Detail::Platform
                  static_cast<std::uint32_t>(std::max<LONG>(0, native.bottom - native.top))}};
         }
 
-        [[nodiscard]] bool childVisible(HWND window) noexcept
+        [[nodiscard]] IO::Types::Status childVisible(HWND window, bool &visible) noexcept
         {
-            return (static_cast<DWORD>(GetWindowLongPtrW(window, GWL_STYLE)) & WS_VISIBLE) != 0;
+            LONG_PTR style = 0;
+            const IO::Types::Status status = queryWindowLong(window, GWL_STYLE, style, "GetWindowLongPtrW ChildSurface visibility");
+            if (!status.ok())
+            {
+                return status;
+            }
+            visible = (static_cast<DWORD>(style) & WS_VISIBLE) != 0;
+            return IO::successStatus();
         }
 
         [[nodiscard]] IO::Types::Status acquireChildSurfaceClass(HINSTANCE instance) noexcept
@@ -324,7 +331,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "set initial ChildSurface interaction");
             }
             ShowWindow(state.platform->handle, state.visible ? SW_SHOWNOACTIVATE : SW_HIDE);
-            state.visible = childVisible(state.platform->handle);
+            bool visible = false;
+            IO::Types::Status visibilityStatus = childVisible(state.platform->handle, visible);
+            if (!visibilityStatus.ok())
+            {
+                return visibilityStatus;
+            }
+            state.visible = visible;
             state.interactionEnabled = IsWindowEnabled(state.platform->handle) != FALSE;
             refreshChildScreenRect(state);
             return IO::successStatus();
@@ -481,10 +494,20 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status showChildSurface(ChildSurfaceState &state, bool visible) noexcept
     {
+        const bool previousVisible = state.visible;
         ShowWindow(state.platform->handle, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
-        if (childVisible(state.platform->handle) != visible)
+        bool actualVisible = false;
+        IO::Types::Status visibilityStatus = childVisible(state.platform->handle, actualVisible);
+        if (!visibilityStatus.ok())
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), visible ? "show ChildSurface" : "hide ChildSurface");
+            // Keep native visibility aligned with the portable cache when verification fails.
+            ShowWindow(state.platform->handle, previousVisible ? SW_SHOWNOACTIVATE : SW_HIDE);
+            return visibilityStatus;
+        }
+        if (actualVisible != visible)
+        {
+            ShowWindow(state.platform->handle, previousVisible ? SW_SHOWNOACTIVATE : SW_HIDE);
+            return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, visible ? "show ChildSurface" : "hide ChildSurface");
         }
         return IO::successStatus();
     }

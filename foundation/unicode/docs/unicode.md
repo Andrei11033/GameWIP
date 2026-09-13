@@ -2,6 +2,10 @@
 
 `GameWIP::Unicode` is the platform-neutral Unicode text-processing library shared by low-level GameWIP components.
 
+It is GameWIP's sole maintained first-party encoding-conversion authority.
+Consumers should use its caller-backed measure/convert APIs; platform backends
+may bridge the resulting code units to native representations at their boundary.
+
 It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion, UTF-8 code-point traversal, Unicode 17.0.0 default extended
 grapheme-cluster traversal, and caller-backed indexed grapheme traversal for repeated movement. GameWIP uses UTF-8 as its canonical public text
 representation; UTF-16 exists as an explicit bridge for boundaries that require it.

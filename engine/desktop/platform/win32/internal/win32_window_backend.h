@@ -41,7 +41,6 @@ namespace GameWIP::Desktop::Detail::Platform
 
     inline constexpr UINT kBaselineDpi = 96;                                  ///< Win32 logical-coordinate baseline.
     inline constexpr wchar_t kWindowClassName[] = L"GameWIP.Window.TopLevel"; ///< Process-wide registered class name.
-    inline constexpr UINT kProgressOwnerRestoreMessage = WM_APP + 1;          ///< Defers safe owner interaction restoration.
     inline constexpr std::uint32_t kMaximumChromeRegions = 256;               ///< Copied custom-chrome region limit.
     inline constexpr std::uint32_t kMaximumPointerRegions = 256;              ///< Copied pointer-region limit.
 
@@ -121,6 +120,14 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] DWORD styleFor(const WindowState &state) noexcept;
     [[nodiscard]] DWORD extendedStyleFor(const WindowState &state) noexcept;
     [[nodiscard]] UINT wakeMessage() noexcept;
+    [[nodiscard]] DWORD wakeMessageError() noexcept;
+    [[nodiscard]] IO::Types::Status postWakeMessage(DWORD threadId, std::string_view operation) noexcept;
+    /// @brief Ensures the process-local progress-owner restoration message is registered.
+    [[nodiscard]] UINT ensureProgressOwnerRestoreMessage() noexcept;
+    /// @brief Peeks the already-published progress-owner restoration message without registering it.
+    [[nodiscard]] UINT registeredProgressOwnerRestoreMessage() noexcept;
+    [[nodiscard]] DWORD progressOwnerRestoreMessageError() noexcept;
+    [[nodiscard]] bool progressOwnerRestoreMessageRegistrationAttempted() noexcept;
     void routeEvent(WindowState &state, Types::Events::Payload data) noexcept;
     void recordPumpFailure(IO::Types::Status status) noexcept;
     void registerOpenState(WindowState &state);
@@ -144,6 +151,7 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @{
 
     [[nodiscard]] IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept;
+    [[nodiscard]] IO::Types::ErrorCode unicodeConversionError(DWORD nativeCode, IO::Types::ErrorCode malformedEncodingFallback) noexcept;
     [[nodiscard]] IO::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept;
     [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);
     [[nodiscard]] bool utf16ToUtf8(std::wstring_view text, std::string &output, DWORD &nativeCode);
@@ -164,6 +172,8 @@ namespace GameWIP::Desktop::Detail::Platform
     void updateCurrentMonitor(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyCursorState(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status applyStyle(WindowState &state) noexcept;
+    /// @brief Reads a native window long while distinguishing a valid zero from failure.
+    [[nodiscard]] IO::Types::Status queryWindowLong(HWND window, int index, LONG_PTR &value, const char *operation) noexcept;
     [[nodiscard]] IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder = false) noexcept;
     [[nodiscard]] IO::Types::Status leaveExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status suspendExclusive(WindowState &state) noexcept;

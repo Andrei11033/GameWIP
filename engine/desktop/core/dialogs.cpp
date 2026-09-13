@@ -45,6 +45,11 @@ namespace GameWIP::Desktop::Dialogs
                    !extension.contains('/') && !extension.contains('\\') && !extension.contains('\0');
         }
 
+        [[nodiscard]] bool validFilterExtensionSyntax(std::string_view extension) noexcept
+        {
+            return validExtensionSyntax(extension) && !extension.contains(';');
+        }
+
         [[nodiscard]] IO::Types::Status validateFilters(
             std::span<const Types::Dialogs::File::Filter> filters,
             std::optional<std::size_t> preferredFilterIndex) noexcept
@@ -67,7 +72,7 @@ namespace GameWIP::Desktop::Dialogs
                     {
                         return status;
                     }
-                    if (!validExtensionSyntax(extension))
+                    if (!validFilterExtensionSyntax(extension))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }

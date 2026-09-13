@@ -103,14 +103,29 @@ Each function arms one failure consumed atomically by the next matching operatio
 - `forceNextOutputPreparationFailure()`;
 - `forceNextInputModeFailure()`;
 - `forceNextReadFailure()`;
+- `forceNextEndpointIdentityFailure()`;
+- `forceNextCancellationResetFailure()`;
+- `forceNextCancellationSignalFailure()`;
 - `forceNextTerminalSizeFailure()`;
 - `forceNextCursorPositionFailure()`;
 - `forceNextTextWriteFailure()`;
 - `forceNextByteWriteFailure()`;
 - `forceNextFlushFailure()`.
 
-The optional argument selects the portable IO error code. One-shot failures are intended for one deterministic assertion; arm them immediately before
-the target operation.
+Hooks that expose an optional `ErrorCode` parameter return that configured portable failure. The cancellation-reset and cancellation-signal hooks are fixed
+Win32-native seams and therefore take no configurable portable code. The reset hook simulates native `ResetEvent` failure; the signal hook simulates the
+stop callback's failed best-effort `SetEvent`, after which cancellation is observed by bounded native wait slices. One-shot failures are intended for one
+deterministic assertion; arm them immediately before the target operation.
+
+`consoleWaitCallCount()` is a Win32-only diagnostic counter. It counts native
+console wait attempts through both `WaitForMultipleObjects` and
+`WaitForSingleObject` since `reset()` and is intended for deterministic testing
+of wait paths; `reset()` clears it. The observation interval is an internal
+implementation detail, not a public timing guarantee.
+
+Source-tree Win32 cancellation tests use the internal synthetic console-wait
+adapter to run the production `WaitForMultipleObjects` and stop-callback path
+without depending on the process's physical console stdin.
 
 ## Example
 

@@ -67,7 +67,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (wakeMessage() == 0)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "RegisterWindowMessageW wake");
+                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, wakeMessageError(), "RegisterWindowMessageW wake");
             }
 
             if (Detail::consumeFailure(TestHooks::FailurePoint::Dispatcher))
@@ -84,7 +84,10 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             if (!utf8ToUtf16(description.title, state.platform->utf16Scratch, nativeCode))
             {
-                return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, nativeCode, "convert window title to UTF-16");
+                return statusFromWin32(
+                    unicodeConversionError(nativeCode, IO::Types::ErrorCode::InvalidArgument),
+                    nativeCode,
+                    "convert window title to UTF-16");
             }
 
             HWND ownerHandle = nullptr;
@@ -452,11 +455,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-        if (PostThreadMessageW(state.platform->ownerThreadId, wakeMessage(), 0, 0) == FALSE)
-        {
-            return statusFromWin32(IO::Types::ErrorCode::Interrupted, GetLastError(), "PostThreadMessageW wake");
-        }
-        return IO::successStatus();
+        return postWakeMessage(state.platform->ownerThreadId, "PostThreadMessageW wake");
     }
 
     NativeHandleView nativeHandle(const WindowState &state) noexcept

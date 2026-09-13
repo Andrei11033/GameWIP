@@ -551,7 +551,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 DWORD nativeCode = ERROR_SUCCESS;
                 if (!utf16ToUtf8(display.DeviceString, name, nativeCode))
                 {
-                    return {.status = statusFromWin32(IO::Types::ErrorCode::EncodingFailed, nativeCode, "monitor name conversion")};
+                    return {
+                        .status = statusFromWin32(
+                            unicodeConversionError(nativeCode, IO::Types::ErrorCode::EncodingFailed),
+                            nativeCode,
+                            "monitor name conversion")};
                 }
             }
             if (name.empty())
@@ -559,7 +563,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 DWORD nativeCode = ERROR_SUCCESS;
                 if (!utf16ToUtf8(native.szDevice, name, nativeCode))
                 {
-                    return {.status = statusFromWin32(IO::Types::ErrorCode::EncodingFailed, nativeCode, "monitor device conversion")};
+                    return {
+                        .status = statusFromWin32(
+                            unicodeConversionError(nativeCode, IO::Types::ErrorCode::EncodingFailed),
+                            nativeCode,
+                            "monitor device conversion")};
                 }
             }
 

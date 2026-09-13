@@ -256,6 +256,11 @@ namespace GameWIP::Desktop::TestHooks
         return Detail::Platform::progressDialogClassReferenceCount();
     }
 
+    bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
+    {
+        return Detail::Platform::progressOwnerRestoreMessageRegistrationAttempted();
+    }
+
     // ------------------------------------------------------------
     // DragDrop policy and lifecycle controls
     // ------------------------------------------------------------

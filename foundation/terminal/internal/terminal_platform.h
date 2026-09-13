@@ -7,8 +7,11 @@
 #include "terminal/input.h"
 #include "terminal/output.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <chrono>
 #include <span>
+#include <stop_token>
 #include <string_view>
 
 #if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
@@ -188,6 +191,21 @@ namespace GameWIP::Terminal::Detail::Platform
     namespace TestHooks
     {
 #if defined(_WIN32)
+        /// @brief Clears the process-local Win32 stdin identity, pending bytes, decoder, and cancellation event.
+        /// @warning Test-only reset used to isolate endpoint and cancellation failure cases.
+        void resetWin32InputState() noexcept;
+        /// @brief Returns the number of native console waits attempted since the last reset.
+        [[nodiscard]] std::size_t consoleWaitCallCount() noexcept;
+        /// @brief Portable result from the source-tree-only synthetic console wait adapter.
+        struct Win32ConsoleWaitResult
+        {
+            IO::Types::Status status;
+            Terminal::Types::Input::ReadOutcome outcome = Terminal::Types::Input::ReadOutcome::Completed;
+        };
+        /// @brief Runs the production console wait path against a synthetic never-signaled event.
+        [[nodiscard]] Win32ConsoleWaitResult waitForConsoleRecordForTest(
+            std::chrono::milliseconds timeout,
+            const std::stop_token &stopToken);
         void resetWin32KeyDecoder() noexcept;
         [[nodiscard]] Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
             bool keyDown,

@@ -41,8 +41,20 @@ namespace GameWIP::Desktop::Detail::Platform
                     "client size exceeds Win32 range at the effective DPI");
             }
             RECT outer{0, 0, static_cast<LONG>(physicalSize.width), static_cast<LONG>(physicalSize.height)};
-            const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_STYLE));
-            const DWORD extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_EXSTYLE));
+            LONG_PTR styleValue = 0;
+            IO::Types::Status status = queryWindowLong(state.platform->handle, GWL_STYLE, styleValue, "GetWindowLongPtrW geometry style");
+            if (!status.ok())
+            {
+                return status;
+            }
+            LONG_PTR extendedStyleValue = 0;
+            status = queryWindowLong(state.platform->handle, GWL_EXSTYLE, extendedStyleValue, "GetWindowLongPtrW geometry extended style");
+            if (!status.ok())
+            {
+                return status;
+            }
+            const DWORD style = static_cast<DWORD>(styleValue);
+            const DWORD extendedStyle = static_cast<DWORD>(extendedStyleValue);
             if (AdjustWindowRectExForDpi(&outer, style, FALSE, extendedStyle, dpi) == FALSE)
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "AdjustWindowRectExForDpi");
@@ -212,7 +224,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DWORD nativeCode = ERROR_SUCCESS;
             if (!utf8ToUtf16(utf8Title, title, nativeCode))
             {
-                return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, nativeCode, "convert window title");
+                return statusFromWin32(unicodeConversionError(nativeCode, IO::Types::ErrorCode::InvalidArgument), nativeCode, "convert window title");
             }
             std::string cachedTitle(utf8Title);
             if (SetWindowTextW(state.platform->handle, title.c_str()) == FALSE)

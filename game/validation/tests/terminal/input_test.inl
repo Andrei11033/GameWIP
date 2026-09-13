@@ -403,11 +403,58 @@ void testInputEndpointReplacement(TestSupport::Context &context)
 
     Terminal::Types::Input::TextOptions oneByte;
     oneByte.maxReturnedBytes = 1;
-    static_cast<void>(context.expectEq("first endpoint returns first byte", std::string{"A"}, Terminal::readText(oneByte).text));
+    oneByte.timeout = std::chrono::milliseconds{0};
+    Hooks::forceNextEndpointIdentityFailure(ErrorCode::PermissionDenied);
+    const Terminal::Types::Input::TextResult initialIdentityFailure = Terminal::readText(oneByte);
+    static_cast<void>(
+        context.expectEq("initial endpoint identity failure is returned", ErrorCode::PermissionDenied, initialIdentityFailure.status.code));
+    static_cast<void>(context.expectFalse(
+        "identity failure is not reported as cancellation",
+        initialIdentityFailure.outcome == Terminal::Types::Input::ReadOutcome::Cancelled));
+
+    const Terminal::Types::Input::TextResult retriedInitialIdentity = Terminal::readText(oneByte);
+    static_cast<void>(context.expectTrue("one-shot identity failure is consumed", retriedInitialIdentity.status.ok()));
+    static_cast<void>(context.expectEq("zero-timeout poll reads ready input", std::string{"A"}, retriedInitialIdentity.text));
+
     Hooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
     static_cast<void>(
         context.expectTrue("first endpoint retains seeded high surrogate", Hooks::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
 
+    HANDLE failedProbeRead = nullptr;
+    HANDLE failedProbeWrite = nullptr;
+    static_cast<void>(context.expectTrue("create failed-probe stdin pipe", CreatePipe(&failedProbeRead, &failedProbeWrite, nullptr, 0) != FALSE));
+    if (failedProbeRead == nullptr || failedProbeWrite == nullptr)
+    {
+        static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
+        CloseHandle(firstRead);
+        Hooks::reset();
+        return;
+    }
+    static_cast<void>(context.expectTrue("install failed-probe stdin pipe", SetStdHandle(STD_INPUT_HANDLE, failedProbeRead) != FALSE));
+    bytesWritten = 0;
+    static_cast<void>(context.expectTrue("write failed-probe stdin pipe", WriteFile(failedProbeWrite, "Z", 1, &bytesWritten, nullptr) != FALSE));
+    CloseHandle(failedProbeWrite);
+
+    Hooks::forceNextEndpointIdentityFailure(ErrorCode::NativeFailure);
+    const Terminal::Types::Input::TextResult failedReplacementProbe = Terminal::readText(oneByte);
+    static_cast<void>(context.expectEq("failed replacement probe is returned", ErrorCode::NativeFailure, failedReplacementProbe.status.code));
+    static_cast<void>(context.expectTrue(
+        "failed replacement probe preserves pending decoder state",
+        Hooks::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
+
+    static_cast<void>(context.expectTrue("restore confirmed stdin endpoint", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
+    const Terminal::Types::Input::TextResult restoredEndpoint = Terminal::readText(oneByte);
+    static_cast<void>(context.expectTrue("restored endpoint clears stale probe failure", restoredEndpoint.status.ok()));
+    static_cast<void>(context.expectTrue(
+        "restored endpoint preserves pending decoder state",
+        Hooks::hasPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin)));
+    static_cast<void>(context.expectTrue("retry failed-probe stdin endpoint", SetStdHandle(STD_INPUT_HANDLE, failedProbeRead) != FALSE));
+    const Terminal::Types::Input::TextResult completedReplacementProbe = Terminal::readText(oneByte);
+    static_cast<void>(context.expectEq("replacement after recovery reads normally", std::string{"Z"}, completedReplacementProbe.text));
+    CloseHandle(failedProbeRead);
+
+    static_cast<void>(context.expectTrue("restore first stdin endpoint before reuse", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
+    Hooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
     const HANDLE reusedValue = firstRead;
     CloseHandle(firstRead);
 
@@ -456,6 +503,123 @@ void testInputEndpointReplacement(TestSupport::Context &context)
 
     static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
     CloseHandle(replacementRead);
+    Hooks::reset();
+}
+
+/// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
+int runCancellationSignalFailureChild()
+{
+    Hooks::reset();
+    Hooks::forceNextCancellationSignalFailure();
+    std::stop_source stopSource;
+    const std::size_t initialWaits = Hooks::consoleWaitCallCount();
+    PlatformHooks::Win32ConsoleWaitResult result;
+    std::thread reader(
+        [&]
+        {
+            result = PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{-1}, stopSource.get_token());
+        });
+    const auto setupDeadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
+    while (Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < setupDeadline)
+    {
+        std::this_thread::yield();
+    }
+    if (Hooks::consoleWaitCallCount() == initialWaits)
+    {
+        stopSource.request_stop();
+        reader.join();
+        return 3;
+    }
+    stopSource.request_stop();
+    reader.join();
+    const bool passed = result.status.ok() && result.outcome == Terminal::Types::Input::ReadOutcome::Cancelled;
+    const bool hookConsumed = !GameWIP::Terminal::Detail::TestHooks::consumeFailure(
+                                   GameWIP::Terminal::Detail::TestHooks::terminalTestHookState.nextCancellationSignalFailure)
+                                   .has_value();
+    if (!hookConsumed)
+    {
+        Hooks::reset();
+        return 4;
+    }
+    Hooks::reset();
+    return passed ? 0 : 1;
+}
+
+/// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
+void testCancellationSignalFailure(TestSupport::Context &context)
+{
+    Hooks::reset();
+    TestSupport::Types::Process::Options child;
+    child.executablePath = std::filesystem::path(context.executablePath);
+    child.arguments = {std::string(kCancellationSignalFailureChildArgument)};
+    child.timeout = std::chrono::milliseconds{1500};
+    child.captureOutput = false;
+    const TestSupport::Types::Process::Result childResult = TestSupport::runChildProcess(child);
+    static_cast<void>(context.expectTrue("infinite cancellation child infrastructure succeeds", childResult.status.ok()));
+    static_cast<void>(context.expectEq("infinite cancellation child exits", TestSupport::Types::Process::Outcome::Exited, childResult.outcome));
+    static_cast<void>(context.expectEq("infinite cancellation child returns success", std::uint32_t{0}, childResult.exitCode));
+
+    const auto run = [&context](std::string_view label, bool forceSignalFailure)
+    {
+        std::stop_source stopSource;
+        if (forceSignalFailure)
+        {
+            Hooks::forceNextCancellationSignalFailure();
+        }
+
+        const std::size_t initialWaits = Hooks::consoleWaitCallCount();
+        PlatformHooks::Win32ConsoleWaitResult result;
+        std::thread reader(
+            [&]
+            {
+                result = PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{500}, stopSource.get_token());
+            });
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
+        while (Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < deadline)
+        {
+            std::this_thread::yield();
+        }
+        static_cast<void>(context.expectTrue(
+            std::format("{} reaches a native wait before stop", label),
+            Hooks::consoleWaitCallCount() != initialWaits));
+        stopSource.request_stop();
+        reader.join();
+        static_cast<void>(
+            context.expectEq(std::format("{} returns Cancelled", label), Terminal::Types::Input::ReadOutcome::Cancelled, result.outcome));
+        static_cast<void>(context.expectTrue(std::format("{} status succeeds", label), result.status.ok()));
+        const bool hookConsumed = !GameWIP::Terminal::Detail::TestHooks::consumeFailure(
+                                       GameWIP::Terminal::Detail::TestHooks::terminalTestHookState.nextCancellationSignalFailure)
+                                       .has_value();
+        static_cast<void>(context.expectTrue(std::format("{} consumes signal-failure hook", label), hookConsumed));
+    };
+
+    Hooks::reset();
+    run("finite wait with signal failure", true);
+
+    Hooks::reset();
+    Hooks::forceNextCancellationSignalFailure();
+    run("first one-shot signal callback", false);
+    run("second one-shot signal callback", false);
+    Hooks::reset();
+}
+
+/// @brief Verifies native cancellation-event reset failure is reported before any blocking wait.
+void testCancellationResetFailure(TestSupport::Context &context)
+{
+    Hooks::reset();
+    std::stop_source stopSource;
+    Hooks::forceNextCancellationResetFailure();
+    const PlatformHooks::Win32ConsoleWaitResult failed =
+        PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
+    static_cast<void>(context.expectEq("ResetEvent failure is returned", ErrorCode::NativeFailure, failed.status.code));
+    static_cast<void>(
+        context.expectFalse("ResetEvent failure is not cancellation", failed.outcome == Terminal::Types::Input::ReadOutcome::Cancelled));
+    static_cast<void>(context.expectEq("ResetEvent failure enters no native wait", std::size_t{0}, Hooks::consoleWaitCallCount()));
+
+    const PlatformHooks::Win32ConsoleWaitResult retry =
+        PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
+    static_cast<void>(context.expectTrue("cancellation reset hook is one-shot", retry.status.ok()));
+    static_cast<void>(context.expectTrue("next operation reaches normal wait path", Hooks::consoleWaitCallCount() > 0));
     Hooks::reset();
 }
 #endif

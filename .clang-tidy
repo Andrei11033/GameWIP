@@ -1,6 +1,5 @@
 ---
 CheckOptions:
-  bugprone-suspicious-stringview-data-usage.AllowedCallees: 'MultiByteToWideChar;WideCharToMultiByte'
   modernize-use-nullptr.NullMacros: 'NULL'
   modernize-use-to-underlying.ImpreciseCasts: 'Ignore'
 

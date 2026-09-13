@@ -81,6 +81,8 @@ namespace GameWIP::Logger
             }
             ~FormatScratchLease() noexcept
             {
+                // The destructor runs only after the constructor acquired this thread's storage
+                // frame successfully; the no-throw release therefore has a matching owner.
                 releaseFormatScratchIfNeeded(scratch_);
             }
             FormatScratchLease(const FormatScratchLease &) = delete;

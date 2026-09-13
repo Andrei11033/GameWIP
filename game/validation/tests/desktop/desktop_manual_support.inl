@@ -1,19 +1,30 @@
 /// @file desktop_manual_support.inl
 /// @brief Shared helpers for opt-in Desktop manual validation.
 
+#include <vector>
+
 [[nodiscard]] std::wstring manualDiagnosticWideText(std::string_view text)
 {
     if (text.empty())
     {
         return {};
     }
-    const int size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0);
-    if (size <= 0)
+    const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+    if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
     {
-        return std::wstring(text.begin(), text.end());
+        return L"?";
     }
-    std::wstring wide(static_cast<std::size_t>(size), L'\0');
-    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), wide.data(), size);
+    std::vector<char16_t> converted(measurement.requiredCodeUnits);
+    const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+    if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+    {
+        return L"?";
+    }
+    std::wstring wide(conversion.codeUnitsWritten, L'\0');
+    for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+    {
+        wide[index] = static_cast<wchar_t>(converted[index]);
+    }
     return wide;
 }
 

@@ -266,7 +266,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     std::wstring wide;
                     DWORD nativeCode = 0;
-                    return utf8ToUtf16(format.customName, wide, nativeCode) ? IO::successStatus() : status(ErrorCode::InvalidArgument, nativeCode);
+                    return utf8ToUtf16(format.customName, wide, nativeCode)
+                               ? IO::successStatus()
+                               : status(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
                 }
                 catch (const std::bad_alloc &)
                 {
@@ -456,7 +458,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 DWORD nativeCode = 0;
                 if (!utf8ToUtf16(format.customName, name, nativeCode))
                 {
-                    result = status(ErrorCode::InvalidArgument, nativeCode);
+                    result = status(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
                 }
                 else
                 {
@@ -557,7 +559,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     std::string name;
                     if (!utf16ToUtf8(wide, name, nativeCode))
                     {
-                        result.status = status(ErrorCode::EncodingFailed, nativeCode);
+                        result.status = status(unicodeConversionError(nativeCode, ErrorCode::EncodingFailed), nativeCode);
                         break;
                     }
                     result.formats.push_back({Transfer::FormatKind::Custom, std::move(name)});
@@ -734,7 +736,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DWORD nativeCode = 0;
             if (!utf8ToUtf16(formatName, wide, nativeCode))
             {
-                return failure<ClipboardTypes::CustomDataResult>(ErrorCode::InvalidArgument, nativeCode);
+                return failure<ClipboardTypes::CustomDataResult>(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
             }
             ClipboardSession session;
             result.status = session.open(nullptr, timeout);

@@ -142,6 +142,12 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectEq("ChildSurface coordinate conversion round-trips origin", Desktop::Types::LogicalPosition{}, local.position));
 
     static_cast<void>(context.expectTrue("ChildSurface show is idempotent", surface.show().ok()));
+    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::WindowStyleQuery);
+    static_cast<void>(context.expectEq("visibility query failure is returned", ErrorCode::NativeFailure, surface.hide().code));
+    static_cast<void>(context.expectTrue("visibility query failure preserves cache", surface.visible()));
+    static_cast<void>(context.expectTrue(
+        "visibility query failure restores native visibility",
+        IsWindowVisible(Desktop::Native::Win32::getHandle(surface).handle.window) != FALSE));
     static_cast<void>(context.expectTrue("ChildSurface hide succeeds", surface.hide().ok()));
     static_cast<void>(context.expectFalse("hide updates visibility cache", surface.visible()));
     static_cast<void>(context.expectTrue("ChildSurface show succeeds", surface.show().ok()));

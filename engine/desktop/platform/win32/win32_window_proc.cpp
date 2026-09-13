@@ -141,13 +141,23 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const auto *create = reinterpret_cast<const CREATESTRUCTW *>(lParam);
             state = static_cast<WindowState *>(create->lpCreateParams);
-            SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
+            if (Detail::consumeFailure(TestHooks::FailurePoint::WindowUserDataInstallation))
+            {
+                SetLastError(ERROR_FUNCTION_FAILED);
+                return FALSE;
+            }
+            SetLastError(ERROR_SUCCESS);
+            if (SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state)) == 0 && GetLastError() != ERROR_SUCCESS)
+            {
+                return FALSE;
+            }
         }
         if (state == nullptr)
         {
             return DefWindowProcW(window, message, wParam, lParam);
         }
-        if (message == kProgressOwnerRestoreMessage)
+        const UINT progressRestoreMessage = registeredProgressOwnerRestoreMessage();
+        if (progressRestoreMessage != 0 && message == progressRestoreMessage)
         {
             const std::uint64_t ownerId =
                 static_cast<std::uint32_t>(wParam) | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(lParam)) << 32U);
@@ -356,8 +366,18 @@ namespace GameWIP::Desktop::Detail::Platform
                     return 0;
                 }
                 RECT desiredOuter{0, 0, static_cast<LONG>(desiredClient.width), static_cast<LONG>(desiredClient.height)};
-                const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(window, GWL_STYLE));
-                const DWORD extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(window, GWL_EXSTYLE));
+                LONG_PTR styleValue = 0;
+                IO::Types::Status styleStatus = queryWindowLong(window, GWL_STYLE, styleValue, "GetWindowLongPtrW failed during DPI transition");
+                LONG_PTR extendedStyleValue = 0;
+                IO::Types::Status extendedStyleStatus =
+                    queryWindowLong(window, GWL_EXSTYLE, extendedStyleValue, "GetWindowLongPtrW failed during DPI transition");
+                if (!styleStatus.ok() || !extendedStyleStatus.ok())
+                {
+                    recordPumpFailure(!styleStatus.ok() ? std::move(styleStatus) : std::move(extendedStyleStatus));
+                    return 0;
+                }
+                const DWORD style = static_cast<DWORD>(styleValue);
+                const DWORD extendedStyle = static_cast<DWORD>(extendedStyleValue);
                 const BOOL adjusted = AdjustWindowRectExForDpi(&desiredOuter, style, FALSE, extendedStyle, newDpi);
                 if (suggested == nullptr || adjusted == FALSE)
                 {

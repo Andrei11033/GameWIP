@@ -121,8 +121,10 @@ uncaught-exception behavior.
 The final Window close releases current-thread display-color resources before `GameWIP::Game::run()` returns. Process-level Desktop regression
 children verify that standalone color discovery, `WM_CLOSE`, and owner-thread cleanup do not replace the intended successful process exit code.
 
-Failure to enumerate displays, open or close the window, or pump events is
-logged and returns `EXIT_FAILURE`. A failed HDR/color query is included in the
+Failure to initialize Logger, enumerate displays, open or close the window, or
+pump events returns `EXIT_FAILURE`; once Logger has started, shutdown is still
+attempted on every runtime failure and a normal-path shutdown failure also
+changes the result to `EXIT_FAILURE`. A failed HDR/color query is included in the
 startup report for that display but does not prevent the window from opening.
 The facade currently ignores `argc` and `argv`; it neither retains nor
 interprets them.

@@ -28,6 +28,9 @@ namespace GameWIP::Debug::Assert::TestHooks
     /// @brief Forces the next fallback action-dialog attempt to return the default action.
     /// @warning Test-only API. The hook is one-shot and is intended to exercise default-action fallback behavior.
     GAMEWIP_ASSERT_EXPORT void forceNextFallbackActionDialogFailure() noexcept;
+    /// @brief Forces the next diagnostic text preparation to throw `std::bad_alloc`.
+    /// @warning Test-only, one-shot, and cleared by reset(); the outer noexcept UI boundary must use its static emergency path.
+    GAMEWIP_ASSERT_EXPORT void forceNextDiagnosticPreparationFailure() noexcept;
 
     /// @brief Overrides the debugger-attached query used by assert failure handling.
     /// @param attached Value returned while the override is active.
@@ -75,6 +78,8 @@ namespace GameWIP::Debug::Assert::Detail::TestHooks
     GAMEWIP_ASSERT_EXPORT bool consumeNextActionDialogFailure() noexcept;
     /// @brief Consumes the one-shot fallback action-dialog failure hook.
     GAMEWIP_ASSERT_EXPORT bool consumeNextFallbackActionDialogFailure() noexcept;
+    /// @brief Consumes the one-shot diagnostic preparation allocation-failure seam.
+    GAMEWIP_ASSERT_EXPORT bool consumeNextDiagnosticPreparationFailure() noexcept;
     /// @brief Reads the debugger-attached override when one is active.
     /// @return True when attached was assigned; false leaves the output unchanged.
     GAMEWIP_ASSERT_EXPORT bool debuggerAttachedOverride(bool &attached) noexcept;

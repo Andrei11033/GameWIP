@@ -15,6 +15,7 @@
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
+#include "terminal/internal/terminal_platform.h"
 #include "terminal/internal/terminal_test_hooks.h"
 #endif
 
@@ -167,12 +168,14 @@ namespace
     namespace IO = GameWIP::IO;
     namespace Terminal = GameWIP::Terminal;
     namespace TestSupport = GameWIP::TestSupport;
+    namespace PlatformHooks = GameWIP::Terminal::Detail::Platform::TestHooks;
 
     using ErrorCode = IO::Types::ErrorCode;
     using TerminalTestOptions = GameWIP::Test::TerminalTestOptions;
 
     inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
     inline constexpr std::string_view kSessionReentrantFormatChildArgument = "--terminal-test-child=session-reentrant-format";
+    inline constexpr std::string_view kCancellationSignalFailureChildArgument = "--terminal-test-child=cancellation-signal-failure";
 
     static_assert(!std::is_aggregate_v<Terminal::Types::Style::Color>);
     static_assert(!std::is_aggregate_v<Terminal::Types::Output::Segment>);
@@ -477,6 +480,8 @@ namespace
 #if TERMINAL_INTERNAL_TEST_HOOKS
 #if defined(_WIN32)
     void testInputEndpointReplacement(TestSupport::Context &context);
+    void testCancellationSignalFailure(TestSupport::Context &context);
+    void testCancellationResetFailure(TestSupport::Context &context);
 #endif
 #endif
 #if TERMINAL_INTERNAL_TEST_HOOKS
@@ -514,6 +519,12 @@ namespace GameWIP::Test
         {
             return runSessionReentrantFormatChild();
         }
+#if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
+        if (hasArgument(argc, argv, kCancellationSignalFailureChildArgument))
+        {
+            return runCancellationSignalFailureChild();
+        }
+#endif
 
         TestSupport::Types::Reporting::Options reportOptions;
         reportOptions.writeConsole = true;
@@ -555,6 +566,8 @@ namespace GameWIP::Test
 #if defined(_WIN32)
         runner.runSuite("Terminal Win32 event decoder", testWin32EventDecoder);
         runner.runSuite("Terminal stdin endpoint replacement", testInputEndpointReplacement);
+        runner.runSuite("Terminal cancellation signal failure", testCancellationSignalFailure);
+        runner.runSuite("Terminal cancellation reset failure", testCancellationResetFailure);
 #endif
         runner.runSuite("Terminal sessions and ownership", testSessions);
 #else

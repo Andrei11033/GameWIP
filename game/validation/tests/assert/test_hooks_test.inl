@@ -29,6 +29,22 @@ void testAssertTestHooks(TestContext &context)
     AssertHooks::setPopupSuppressedOverride(true);
     AssertHooks::showErrorPopupForTest("Assert hook popup suppression", "This popup should be suppressed by the test hook.");
     context.pass("hook popup suppression override returned without UI");
+
+    AssertHooks::clearPopupSuppressedOverride();
+    AssertHooks::forceNextDiagnosticPreparationFailure();
+    AssertHooks::showErrorPopupForTest("Assert preparation failure", "The static popup fallback must remain noexcept.");
+    context.expectTrue("diagnostic preparation failure consumed by popup", !AssertHookDetail::consumeNextDiagnosticPreparationFailure());
+
+    AssertHooks::forceNextDiagnosticPreparationFailure();
+    AssertHooks::forceNextFallbackActionDialogFailure();
+    const FailureAction emergencyAction = AssertHooks::showFailureActionDialogForTest(
+        "Assert preparation failure",
+        "The allocation-free action fallback must remain safe.",
+        FailureAction::IgnoreOnce);
+    context.expectTrue("diagnostic preparation failure reaches action emergency path", emergencyAction == FailureAction::IgnoreOnce);
+    context.expectTrue("action emergency fallback consumes preparation failure", !AssertHookDetail::consumeNextDiagnosticPreparationFailure());
+    context.expectTrue("action emergency fallback remains one-shot", !AssertHookDetail::consumeNextFallbackActionDialogFailure());
+
     AssertHooks::reset();
 #else
     context.pass("assert test hooks skipped because ASSERT_INTERNAL_TEST_HOOKS=0");

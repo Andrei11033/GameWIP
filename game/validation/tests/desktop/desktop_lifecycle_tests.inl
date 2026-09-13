@@ -179,6 +179,11 @@ void testFailureInjection(TestSupport::Context &context)
         static_cast<void>(context.expectEq(name, expected, status.code));
         static_cast<void>(context.expectFalse("failed open rolls back native ownership", candidate.isOpen()));
         static_cast<void>(context.expectFalse("failed open publishes no candidate monitor", candidate.currentMonitor().isValid()));
+        if (point == FailurePoint::WindowUserDataInstallation)
+        {
+            static_cast<void>(context.expectTrue("same Window reopens after userdata failure", candidate.open(description, 8).ok()));
+            static_cast<void>(candidate.close());
+        }
         Desktop::TestHooks::resetFailures();
     };
 
@@ -186,6 +191,7 @@ void testFailureInjection(TestSupport::Context &context)
     expectFailedOpen("dispatcher failure is translated", FailurePoint::Dispatcher, ErrorCode::OpenFailed);
     expectFailedOpen("native creation failure is translated", FailurePoint::NativeCreation, ErrorCode::OpenFailed);
     expectFailedOpen("partial native open rolls back", FailurePoint::PartialOpen, ErrorCode::NativeFailure);
+    expectFailedOpen("top-level userdata installation failure is translated", FailurePoint::WindowUserDataInstallation, ErrorCode::OpenFailed);
 
     Desktop::Window window;
     static_cast<void>(context.expectTrue("open succeeds after injected rollback", window.open(description, 16).ok()));
@@ -194,6 +200,29 @@ void testFailureInjection(TestSupport::Context &context)
         return;
     }
     static_cast<void>(context.expectTrue("successful open commits current monitor publication", window.currentMonitor().isValid()));
+
+    Desktop::TestHooks::failNext(FailurePoint::WindowStyleQuery);
+    static_cast<void>(context.expectEq(
+        "style query failure is returned before control mutation",
+        ErrorCode::NativeFailure,
+        window.setDecorationMode(Desktop::Types::DecorationMode::Borderless).code));
+    static_cast<void>(
+        context.expectEq("style query failure rolls back logical decoration state", Desktop::Types::DecorationMode::System, window.decorationMode()));
+
+    Desktop::TestHooks::failNext(FailurePoint::WindowStyleQuery);
+    static_cast<void>(context.expectEq(
+        "windowed placement query failure aborts fullscreen transition",
+        ErrorCode::NativeFailure,
+        window.setMode({.mode = Desktop::Types::Mode::BorderlessFullscreen, .monitor = window.currentMonitor()}).code));
+    static_cast<void>(context.expectEq("windowed placement query failure preserves windowed mode", Desktop::Types::Mode::Windowed, window.mode()));
+
+    static_cast<void>(context.expectTrue(
+        "fullscreen transition succeeds after placement query failure",
+        window.setMode({.mode = Desktop::Types::Mode::BorderlessFullscreen, .monitor = window.currentMonitor()}).ok()));
+    const Desktop::Types::Mode previousMode = window.mode();
+    Desktop::TestHooks::failNext(FailurePoint::WindowStyleQuery);
+    static_cast<void>(context.expectEq("mode snapshot style query failure aborts transition", ErrorCode::NativeFailure, window.setMode({}).code));
+    static_cast<void>(context.expectEq("mode snapshot failure preserves previous mode", previousMode, window.mode()));
 
     const std::string originalTitle(window.title());
     Desktop::TestHooks::failNext(FailurePoint::TitleConversion);
@@ -225,6 +254,7 @@ void testFailureInjection(TestSupport::Context &context)
         context.expectEq("display enumeration failure is translated", ErrorCode::StatFailed, Desktop::Display::getMonitors().status.code));
 
     const Desktop::Types::Display::MonitorId monitor = window.currentMonitor();
+    static_cast<void>(context.expectTrue("return to windowed mode before partial fullscreen test", window.setMode({}).ok()));
     Desktop::TestHooks::failNext(FailurePoint::FullscreenPartial);
     static_cast<void>(context.expectEq(
         "partial fullscreen failure is translated",

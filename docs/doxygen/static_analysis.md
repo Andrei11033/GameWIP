@@ -214,6 +214,7 @@ developing the checkers themselves, run their direct interfaces:
 
 ```powershell
 python -m py_compile .github/scripts/*.py
+python -m unittest discover -s .github/scripts -p 'test_*.py'
 python .github/scripts/check_documentation_standards.py
 python .github/scripts/check_repository_standards.py
 python .github/scripts/check_markdown_links.py

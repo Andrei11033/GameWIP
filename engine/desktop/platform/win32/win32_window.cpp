@@ -218,10 +218,119 @@ namespace GameWIP::Desktop::Detail::Platform
         return threadDispatcher;
     }
 
+    namespace
+    {
+        struct RegisteredMessage
+        {
+            UINT value = 0;
+            DWORD error = ERROR_SUCCESS;
+        };
+
+        struct ProgressOwnerRestoreMessageState
+        {
+            std::once_flag registration;
+            std::atomic<UINT> value{0};
+            std::atomic<DWORD> error{ERROR_SUCCESS};
+            std::atomic_bool attempted{false};
+        };
+
+        [[nodiscard]] RegisteredMessage registerMessage(const wchar_t *name) noexcept
+        {
+            SetLastError(ERROR_SUCCESS);
+            const UINT value = RegisterWindowMessageW(name);
+            if (value != 0)
+            {
+                return {.value = value, .error = ERROR_SUCCESS};
+            }
+            const DWORD error = GetLastError();
+            return {.value = 0, .error = error == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : error};
+        }
+
+        [[nodiscard]] const RegisteredMessage &wakeMessageInfo() noexcept
+        {
+            static const RegisteredMessage info = registerMessage(L"GameWIP.Window.WakeEventWait");
+            return info;
+        }
+
+        [[nodiscard]] ProgressOwnerRestoreMessageState &progressOwnerRestoreMessageState() noexcept
+        {
+            static ProgressOwnerRestoreMessageState state;
+            return state;
+        }
+    } // namespace
+
     UINT wakeMessage() noexcept
     {
-        static const UINT value = RegisterWindowMessageW(L"GameWIP.Window.WakeEventWait");
-        return value;
+        return wakeMessageInfo().value;
+    }
+
+    DWORD wakeMessageError() noexcept
+    {
+        return wakeMessageInfo().error;
+    }
+
+    IO::Types::Status postWakeMessage(DWORD threadId, std::string_view operation) noexcept
+    {
+        const UINT message = wakeMessage();
+        if (message == 0)
+        {
+            return statusFromWin32(IO::Types::ErrorCode::Interrupted, wakeMessageError(), operation);
+        }
+        SetLastError(ERROR_SUCCESS);
+        if (PostThreadMessageW(threadId, message, 0, 0) == FALSE)
+        {
+            return statusFromWin32(IO::Types::ErrorCode::Interrupted, GetLastError(), operation);
+        }
+        return IO::successStatus();
+    }
+
+    UINT ensureProgressOwnerRestoreMessage() noexcept
+    {
+        ProgressOwnerRestoreMessageState &state = progressOwnerRestoreMessageState();
+        std::call_once(
+            state.registration,
+            [&state]
+            {
+                const RegisteredMessage info = registerMessage(L"GameWIP.Desktop.ProgressOwnerRestore");
+                state.error.store(info.error, std::memory_order_relaxed);
+                state.value.store(info.value, std::memory_order_release);
+                state.attempted.store(true, std::memory_order_release);
+            });
+        return state.value.load(std::memory_order_acquire);
+    }
+
+    UINT registeredProgressOwnerRestoreMessage() noexcept
+    {
+        return progressOwnerRestoreMessageState().value.load(std::memory_order_acquire);
+    }
+
+    DWORD progressOwnerRestoreMessageError() noexcept
+    {
+        return progressOwnerRestoreMessageState().error.load(std::memory_order_acquire);
+    }
+
+    bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
+    {
+        return progressOwnerRestoreMessageState().attempted.load(std::memory_order_acquire);
+    }
+
+    IO::Types::Status queryWindowLong(HWND window, int index, LONG_PTR &value, const char *operation) noexcept
+    {
+#if DESKTOP_INTERNAL_TEST_HOOKS
+        if ((index == GWL_STYLE || index == GWL_EXSTYLE) && Detail::consumeFailure(TestHooks::FailurePoint::WindowStyleQuery))
+        {
+            value = 0;
+            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, operation);
+        }
+#endif
+        SetLastError(ERROR_SUCCESS);
+        value = GetWindowLongPtrW(window, index);
+        const DWORD nativeCode = GetLastError();
+        if (value == 0 && nativeCode != ERROR_SUCCESS)
+        {
+            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, operation);
+        }
+        return IO::successStatus();
     }
 
     void routeEvent(WindowState &state, Types::Events::Payload data) noexcept
@@ -387,7 +496,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     current.deferredProgressDialogCleanupHead = std::move(progressCleanup);
                 }
                 // Cleanup is requeued; this post only wakes the owner for another attempt.
-                static_cast<void>(PostThreadMessageW(current.threadId, wakeMessage(), 0, 0));
+                static_cast<void>(postWakeMessage(current.threadId, "PostThreadMessageW wake"));
                 break;
             }
             std::unique_ptr<ProgressDialogState> next{progressCleanup->deferredCleanupNext};
@@ -901,12 +1010,24 @@ namespace GameWIP::Desktop::Detail::Platform
         // the configurable frame must not make a still-painted HWND invisible to Explorer or
         // silently re-enable/restore it by replacing the complete style word.
         constexpr DWORD runtimeStyleBits = WS_VISIBLE | WS_DISABLED | WS_MINIMIZE | WS_MAXIMIZE;
-        const DWORD currentStyle = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_STYLE));
+        LONG_PTR currentStyleValue = 0;
+        IO::Types::Status queryStatus = queryWindowLong(state.platform->handle, GWL_STYLE, currentStyleValue, "GetWindowLongPtrW style");
+        if (!queryStatus.ok())
+        {
+            return queryStatus;
+        }
+        const DWORD currentStyle = static_cast<DWORD>(currentStyleValue);
         const DWORD desiredStyle = styleFor(state) | (currentStyle & runtimeStyleBits);
         // Window owns these extended-style policies. Preserve unrelated native state such as
         // WS_EX_ACCEPTFILES, which DragAcceptFiles manages independently.
         constexpr DWORD controlledExtendedStyleBits = WS_EX_APPWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST | WS_EX_LAYERED | WS_EX_TRANSPARENT;
-        const DWORD currentExtendedStyle = static_cast<DWORD>(GetWindowLongPtrW(state.platform->handle, GWL_EXSTYLE));
+        LONG_PTR currentExtendedStyleValue = 0;
+        queryStatus = queryWindowLong(state.platform->handle, GWL_EXSTYLE, currentExtendedStyleValue, "GetWindowLongPtrW extended style");
+        if (!queryStatus.ok())
+        {
+            return queryStatus;
+        }
+        const DWORD currentExtendedStyle = static_cast<DWORD>(currentExtendedStyleValue);
         const DWORD desiredExtendedStyle = extendedStyleFor(state) | (currentExtendedStyle & ~controlledExtendedStyleBits);
         DWORD nativeCode = ERROR_SUCCESS;
         if (!setLong(state.platform->handle, GWL_STYLE, desiredStyle, nativeCode))
@@ -1010,8 +1131,9 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Deferred owner-thread cleanup
     // ------------------------------------------------------------
-    // After a cleanup object is linked under deferredMutex, PostThreadMessageW is
-    // only a best-effort wake: a later pump or dispatcher shutdown still owns it.
+    // Deferred ownership is committed under deferredMutex before this best-effort wake. A failed
+    // wake cannot lose the cleanup obligation; the owner processes the durable queue on its next
+    // pump or during thread-exit cleanup.
     bool deferCleanupToOwner(std::unique_ptr<WindowState> &state) noexcept
     {
         if (!state || !state->platform)
@@ -1030,7 +1152,7 @@ namespace GameWIP::Desktop::Detail::Platform
             state->deferredCleanupNext = owner->deferredCleanupHead.release();
             owner->deferredCleanupHead = std::move(state);
         }
-        static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
+        static_cast<void>(postWakeMessage(owner->threadId, "PostThreadMessageW wake"));
         return true;
     }
 
@@ -1052,7 +1174,7 @@ namespace GameWIP::Desktop::Detail::Platform
             state->deferredCleanupNext = owner->deferredChildCleanupHead.release();
             owner->deferredChildCleanupHead = std::move(state);
         }
-        static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
+        static_cast<void>(postWakeMessage(owner->threadId, "PostThreadMessageW wake"));
         return true;
     }
 
@@ -1075,7 +1197,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 tail->deferredCleanupNext = owner.deferredProgressDialogCleanupHead.release();
                 owner.deferredProgressDialogCleanupHead = std::move(state);
             }
-            static_cast<void>(PostThreadMessageW(owner.threadId, wakeMessage(), 0, 0));
+            static_cast<void>(postWakeMessage(owner.threadId, "PostThreadMessageW wake"));
             return true;
         }
         std::scoped_lock registryLock(dispatcherRegistryMutex);
@@ -1096,7 +1218,7 @@ namespace GameWIP::Desktop::Detail::Platform
             tail->deferredCleanupNext = owner->deferredProgressDialogCleanupHead.release();
             owner->deferredProgressDialogCleanupHead = std::move(state);
         }
-        static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
+        static_cast<void>(postWakeMessage(owner->threadId, "PostThreadMessageW wake"));
         return true;
     }
 
@@ -1123,7 +1245,7 @@ namespace GameWIP::Desktop::Detail::Platform
             tail->deferredCleanupNext = owner->deferredDragDropCleanupHead.release();
             owner->deferredDragDropCleanupHead = std::move(state);
         }
-        static_cast<void>(PostThreadMessageW(owner->threadId, wakeMessage(), 0, 0));
+        static_cast<void>(postWakeMessage(owner->threadId, "PostThreadMessageW wake"));
         return true;
     }
 
