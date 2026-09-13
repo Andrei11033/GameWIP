@@ -1,3 +1,6 @@
+/// @file action.cpp
+/// @brief Action settings construction and non-template action implementation.
+
 #include "action/action.h"
 
 namespace GameWIP::Action

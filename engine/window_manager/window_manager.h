@@ -1,3 +1,6 @@
+/// @file window_manager.h
+/// @brief Source-tree window ownership and event-routing interface.
+
 #pragma once
 
 #include "window/window.h"

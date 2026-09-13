@@ -1,3 +1,6 @@
+/// @file win32_window_manager.cpp
+/// @brief Win32 WindowManager creation, destruction, and event routing backend.
+
 #include "window_manager/window_manager.h"
 #include "input/platform/win32/win32_input.h"
 

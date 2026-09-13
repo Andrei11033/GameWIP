@@ -1,3 +1,6 @@
+/// @file win32_input.cpp
+/// @brief Win32 keyboard, pointer, Raw Input, HID, and gamepad backend.
+
 #include "win32_input.h"
 #include "base/platform/win32/dynamic_library.h"
 #include "input/internal/input_state_access.h"

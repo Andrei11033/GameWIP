@@ -1,3 +1,6 @@
+/// @file action_binding_builder.inl
+/// @brief Template implementation of fluent Action binding construction.
+
 #pragma once
 
 namespace GameWIP::Action

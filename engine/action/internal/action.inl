@@ -1,3 +1,6 @@
+/// @file action.inl
+/// @brief Aggregates Action template implementations for the public source-tree header.
+
 #pragma once
 
 #include "action/internal/action_helpers.inl"

@@ -1,3 +1,6 @@
+/// @file input.cpp
+/// @brief Input state and device-registry mutation implementation.
+
 #include "input/input.h"
 #include "input/internal/input_state_access.h"
 

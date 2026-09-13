@@ -1,3 +1,6 @@
+/// @file win32_input.h
+/// @brief Private Win32 message and gamepad input backend interface.
+
 #pragma once
 
 #include "input/input.h"

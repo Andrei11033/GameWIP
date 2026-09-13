@@ -1,3 +1,6 @@
+/// @file input.h
+/// @brief Source-tree input state, device registry, and physical-control interface.
+
 #pragma once
 
 #include <cstdint>

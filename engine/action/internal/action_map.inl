@@ -1,3 +1,6 @@
+/// @file action_map.inl
+/// @brief Template implementation of ActionMap storage and frame evaluation.
+
 #pragma once
 
 namespace GameWIP::Action

@@ -1,3 +1,6 @@
+/// @file action.h
+/// @brief Source-tree action mapping, binding, and frame-evaluation interface.
+
 #pragma once
 
 #include <algorithm>
