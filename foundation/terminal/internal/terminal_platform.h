@@ -203,9 +203,7 @@ namespace GameWIP::Terminal::Detail::Platform
             Terminal::Types::Input::ReadOutcome outcome = Terminal::Types::Input::ReadOutcome::Completed;
         };
         /// @brief Runs the production console wait path against a synthetic never-signaled event.
-        [[nodiscard]] Win32ConsoleWaitResult waitForConsoleRecordForTest(
-            std::chrono::milliseconds timeout,
-            const std::stop_token &stopToken);
+        [[nodiscard]] Win32ConsoleWaitResult waitForConsoleRecordForTest(std::chrono::milliseconds timeout, const std::stop_token &stopToken);
         void resetWin32KeyDecoder() noexcept;
         [[nodiscard]] Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
             bool keyDown,

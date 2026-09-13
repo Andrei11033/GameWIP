@@ -112,9 +112,12 @@ Each function arms one failure consumed atomically by the next matching operatio
 - `forceNextByteWriteFailure()`;
 - `forceNextFlushFailure()`.
 
-Hooks that expose an optional `ErrorCode` parameter return that configured portable failure. The cancellation-reset and cancellation-signal hooks are fixed
-Win32-native seams and therefore take no configurable portable code. The reset hook simulates native `ResetEvent` failure; the signal hook simulates the
-stop callback's failed best-effort `SetEvent`, after which cancellation is observed by bounded native wait slices. One-shot failures are intended for one
+Hooks that expose an optional `ErrorCode` parameter return that configured
+portable failure. The cancellation-reset and cancellation-signal hooks are
+fixed Win32-native seams and therefore take no configurable portable code. The
+reset hook simulates native `ResetEvent` failure; the signal hook simulates the
+stop callback's failed best-effort `SetEvent`, after which cancellation is
+observed by bounded native wait slices. One-shot failures are intended for one
 deterministic assertion; arm them immediately before the target operation.
 
 `consoleWaitCallCount()` is a Win32-only diagnostic counter. It counts native

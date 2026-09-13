@@ -386,12 +386,7 @@ def source_documentation_files() -> list[Path]:
 
 def is_cpp_numeric_digit_separator(text: str, index: int) -> bool:
     """Return whether an apostrophe is a C++ numeric-literal digit separator."""
-    if (
-        index == 0
-        or index + 1 >= len(text)
-        or text[index - 1] not in "0123456789abcdefABCDEF"
-        or text[index + 1] not in "0123456789abcdefABCDEF"
-    ):
+    if index == 0 or index + 1 >= len(text) or text[index - 1] not in "0123456789abcdefABCDEF" or text[index + 1] not in "0123456789abcdefABCDEF":
         return False
 
     token_start = index - 1

@@ -648,15 +648,15 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "malformed Prompt option leaves every result field defaulted",
         malformedOption.status.code == ErrorCode::NativeFailure && malformedOption.outcome == DialogTypes::Outcome::Cancelled &&
-        !malformedOption.button.isValid() && !malformedOption.option.isValid() && !malformedOption.checkBoxChecked.has_value()));
+            !malformedOption.button.isValid() && !malformedOption.option.isValid() && !malformedOption.checkBoxChecked.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = (std::numeric_limits<std::size_t>::max)(), .dismissed = false});
     const auto maximumMalformedOption = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectTrue(
         "maximum malformed Prompt option leaves every result field defaulted",
-        maximumMalformedOption.status.code == ErrorCode::NativeFailure &&
-        maximumMalformedOption.outcome == DialogTypes::Outcome::Cancelled && !maximumMalformedOption.button.isValid() &&
-        !maximumMalformedOption.option.isValid() && !maximumMalformedOption.checkBoxChecked.has_value()));
+        maximumMalformedOption.status.code == ErrorCode::NativeFailure && maximumMalformedOption.outcome == DialogTypes::Outcome::Cancelled &&
+            !maximumMalformedOption.button.isValid() && !maximumMalformedOption.option.isValid() &&
+            !maximumMalformedOption.checkBoxChecked.has_value()));
 
     description.options = options;
     description.defaultOption = {};

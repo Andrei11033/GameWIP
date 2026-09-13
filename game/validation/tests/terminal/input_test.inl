@@ -579,9 +579,8 @@ void testCancellationSignalFailure(TestSupport::Context &context)
         {
             std::this_thread::yield();
         }
-        static_cast<void>(context.expectTrue(
-            std::format("{} reaches a native wait before stop", label),
-            Hooks::consoleWaitCallCount() != initialWaits));
+        static_cast<void>(
+            context.expectTrue(std::format("{} reaches a native wait before stop", label), Hooks::consoleWaitCallCount() != initialWaits));
         stopSource.request_stop();
         reader.join();
         static_cast<void>(

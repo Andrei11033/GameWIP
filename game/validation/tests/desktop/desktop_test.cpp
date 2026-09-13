@@ -66,8 +66,7 @@ namespace
     inline constexpr std::string_view kOwnerExitProgressFailureChildArgument = "--desktop-test-child=owner-exit-progress-close-failure";
     inline constexpr std::string_view kDeferredPumpFailureWaitChildArgument = "--desktop-test-child=deferred-pump-failure-wait";
 #if DESKTOP_INTERNAL_TEST_HOOKS
-    inline constexpr std::string_view kProgressRestoreMessageLazinessChildArgument =
-        "--desktop-test-child=progress-restore-message-laziness";
+    inline constexpr std::string_view kProgressRestoreMessageLazinessChildArgument = "--desktop-test-child=progress-restore-message-laziness";
 #endif
 
     static_assert(!std::is_move_constructible_v<Desktop::Window>);

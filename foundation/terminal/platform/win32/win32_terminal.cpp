@@ -2809,9 +2809,7 @@ namespace GameWIP::Terminal::Detail::Platform
             return consoleWaitCalls.load(std::memory_order_relaxed);
         }
 
-        Win32ConsoleWaitResult waitForConsoleRecordForTest(
-            std::chrono::milliseconds timeout,
-            const std::stop_token &stopToken)
+        Win32ConsoleWaitResult waitForConsoleRecordForTest(std::chrono::milliseconds timeout, const std::stop_token &stopToken)
         {
             HANDLE syntheticInput = CreateEventW(nullptr, TRUE, FALSE, nullptr);
             if (syntheticInput == nullptr)

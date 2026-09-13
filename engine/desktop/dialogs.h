@@ -51,7 +51,7 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     /// @brief One portable file-type filter.
     struct Filter
     {
-        std::string_view name;                        ///< Display name shown for the filter.
+        std::string_view name; ///< Display name shown for the filter.
         /// @brief Nonempty extensions; compound forms such as @c tar.gz are valid.
         /// Each extension has no leading period, wildcard syntax, semicolon, path separator, or embedded NUL.
         /// An empty span means all files.

@@ -202,6 +202,11 @@ conflict handling, and policy propagation without mutating the static registry.
 Its declaration lives in `game/validation/tests/internal/runner_test_hooks.h`. It is an approved source-tree test seam, is not registered as ordinary
 generated API, is not installed, and must not be used by application or validation-module code.
 
+## Input test hooks
+
+- @subpage input_test_hooks — Exercise Input's private Win32 metadata and HID
+  normalization seams in source-tree validation.
+
 ## Preset behavior
 
 | Preset | Validation behavior |
