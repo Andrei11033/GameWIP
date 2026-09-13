@@ -508,6 +508,7 @@ namespace GameWIP::Test
         runner.runSuite("Window Clipboard multi-format and failure semantics", testClipboardMultiFormatAndFailures);
         runner.runSuite("Window native data drag and drop", testDragDrop);
         runner.runSuite("Window description validation", testDescriptionValidation);
+        runner.runSuite("Window native construction lifecycle", testNativeConstructionLifecycle);
         runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
         runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
 #if DESKTOP_INTERNAL_TEST_HOOKS

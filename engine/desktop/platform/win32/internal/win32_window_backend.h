@@ -44,6 +44,15 @@ namespace GameWIP::Desktop::Detail::Platform
     inline constexpr std::uint32_t kMaximumChromeRegions = 256;               ///< Copied custom-chrome region limit.
     inline constexpr std::uint32_t kMaximumPointerRegions = 256;              ///< Copied pointer-region limit.
 
+    /// @brief Native HWND construction/publication state.
+    /// @details CreateWindowExW synchronously dispatches messages before it returns its HWND.
+    /// Runtime message handling begins only after that returned handle is published.
+    enum class NativeWindowLifecycle
+    {
+        Constructing,
+        Published
+    };
+
     /// @brief Backend-owned state for one native HWND.
     /// @details The owning WindowState has a stable address while this record is registered.
     /// Native handles are released by the owner thread; icon and display-mode members record
@@ -61,6 +70,7 @@ namespace GameWIP::Desktop::Detail::Platform
         bool cursorClipApplied = false;
         bool cursorTracking = false;
         bool destroying = false;
+        NativeWindowLifecycle lifecycle = NativeWindowLifecycle::Constructing;
 
         DWORD windowedStyle = 0;
         DWORD windowedExtendedStyle = 0;

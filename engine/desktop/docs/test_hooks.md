@@ -47,9 +47,10 @@ the ProgressDialog owner-restore message.
 `WindowStyleQuery` is a one-shot native style/ex-style query failure used by
 checked geometry, mode, control, DPI, child-surface, and ProgressDialog paths.
 `WindowUserDataInstallation` is a one-shot top-level `WM_NCCREATE` userdata
-installation failure. Both return deterministic native failure status and are
-cleared by `resetFailures()`; the latter is consumed before `CreateWindowExW`
-can publish the new Window state.
+installation failure. `WindowCreationCallback` returns `-1` from `WM_CREATE`
+after `WM_NCCREATE` has installed userdata, so it exercises failed native
+construction cleanup. These return deterministic native failure status and are
+cleared by `resetFailures()`; neither can publish the new Window state.
 
 Hook-facing passive types follow the standardized public domains (`Types::Events`, `Types::Display`, `Types::Renderer`) instead of creating a parallel
 public vocabulary.

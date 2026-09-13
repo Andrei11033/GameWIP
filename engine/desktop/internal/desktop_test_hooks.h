@@ -218,7 +218,8 @@ namespace GameWIP::Desktop::TestHooks
         ProgressOwnerRestoreWake,
         ProgressMutation,
         WindowStyleQuery,
-        WindowUserDataInstallation
+        WindowUserDataInstallation,
+        WindowCreationCallback
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS

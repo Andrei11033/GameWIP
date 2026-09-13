@@ -179,7 +179,13 @@ namespace
 #if GAMEWIP_TRACY_ENABLED
                 TracyMessage(events.status.message.c_str(), events.status.message.size());
 #endif
-                GameWIP::Logger::error("Window", "Event pump failed: {}", events.status.message);
+                GameWIP::Logger::error(
+                    "Window",
+                    "Event pump failed: code={}({}), nativeCode={}, message={}",
+                    static_cast<int>(events.status.code),
+                    GameWIP::IO::errorCodeName(events.status.code),
+                    events.status.nativeCode,
+                    events.status.message.empty() ? "<none>" : events.status.message);
                 {
 #if GAMEWIP_TRACY_ENABLED
                     ZoneScopedNC("Close window after event-pump failure", ProfileZoneColor::Shutdown);

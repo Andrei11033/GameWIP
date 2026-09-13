@@ -161,6 +161,31 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return DefWindowProcW(window, message, wParam, lParam);
         }
+        const bool runtimeReady =
+            state->platform != nullptr && state->platform->lifecycle == NativeWindowLifecycle::Published && state->platform->handle == window;
+        if (!runtimeReady)
+        {
+            // CreateWindowExW calls this procedure synchronously before it returns the HWND.
+            // Keep only non-client layout behavior in that interval; all runtime handlers below
+            // require the portable Window's published native handle.
+            if (message == WM_NCDESTROY)
+            {
+                SetWindowLongPtrW(window, GWLP_USERDATA, 0);
+                return DefWindowProcW(window, message, wParam, lParam);
+            }
+            if (message == WM_CREATE)
+            {
+                if (Detail::consumeFailure(TestHooks::FailurePoint::WindowCreationCallback))
+                {
+                    return -1;
+                }
+                return DefWindowProcW(window, message, wParam, lParam);
+            }
+            if (message != WM_NCCALCSIZE)
+            {
+                return DefWindowProcW(window, message, wParam, lParam);
+            }
+        }
         if (message >= kFirstRegisteredWindowMessage && message <= kLastRegisteredWindowMessage)
         {
             const UINT progressRestoreMessage = registeredProgressOwnerRestoreMessage();

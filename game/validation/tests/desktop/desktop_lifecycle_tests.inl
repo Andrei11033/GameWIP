@@ -160,6 +160,48 @@ void testDescriptionValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq("empty external queue is invalid", ErrorCode::InvalidArgument, window.open({}, empty).code));
 }
 
+void testNativeConstructionLifecycle(TestSupport::Context &context)
+{
+    Desktop::Types::Description visible;
+    visible.title = "Visible native construction lifecycle";
+    visible.clientSize = {280, 180};
+    visible.visible = true;
+
+    Desktop::Window normal;
+    static_cast<void>(context.expectTrue("visible Window opens", normal.open(visible, 8).ok()));
+    if (normal.isOpen())
+    {
+        const Desktop::Types::Events::PumpResult result = Desktop::Events::poll();
+        static_cast<void>(context.expectTrue("visible Window creation leaves no deferred pump failure", result.status.ok()));
+        static_cast<void>(context.expectFalse("visible Window pump is not NotOpen", result.status.code == ErrorCode::NotOpen));
+        static_cast<void>(context.expectTrue("visible Window closes", normal.close().ok()));
+    }
+
+    const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
+    static_cast<void>(context.expectTrue("primary monitor resolves for initial borderless mode", primary.status.ok()));
+    if (!primary.status.ok())
+    {
+        return;
+    }
+
+    Desktop::Types::Description borderless = visible;
+    borderless.title = "Borderless native construction lifecycle";
+    borderless.mode = {.mode = Desktop::Types::Mode::BorderlessFullscreen, .monitor = primary.monitor.id};
+
+    Desktop::Window fullscreen;
+    static_cast<void>(context.expectTrue("initial borderless-fullscreen Window opens", fullscreen.open(borderless, 8).ok()));
+    if (fullscreen.isOpen())
+    {
+        const Desktop::Types::Events::PumpResult pollResult = Desktop::Events::poll();
+        static_cast<void>(context.expectTrue("borderless creation poll succeeds", pollResult.status.ok()));
+        static_cast<void>(context.expectFalse("borderless creation poll is not NotOpen", pollResult.status.code == ErrorCode::NotOpen));
+        const Desktop::Types::Events::PumpResult waitResult = Desktop::Events::wait(std::chrono::milliseconds{0});
+        static_cast<void>(context.expectTrue("borderless creation wait succeeds", waitResult.status.ok()));
+        static_cast<void>(context.expectFalse("borderless creation wait is not NotOpen", waitResult.status.code == ErrorCode::NotOpen));
+        static_cast<void>(context.expectTrue("initial borderless-fullscreen Window closes", fullscreen.close().ok()));
+    }
+}
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
 void testFailureInjection(TestSupport::Context &context)
 {
@@ -179,6 +221,8 @@ void testFailureInjection(TestSupport::Context &context)
         static_cast<void>(context.expectEq(name, expected, status.code));
         static_cast<void>(context.expectFalse("failed open rolls back native ownership", candidate.isOpen()));
         static_cast<void>(context.expectFalse("failed open publishes no candidate monitor", candidate.currentMonitor().isValid()));
+        Desktop::Types::Event event;
+        static_cast<void>(context.expectFalse("failed native creation queues no NativeDestroyed event", candidate.popEvent(event)));
         if (point == FailurePoint::WindowUserDataInstallation)
         {
             static_cast<void>(context.expectTrue("same Window reopens after userdata failure", candidate.open(description, 8).ok()));
@@ -192,6 +236,7 @@ void testFailureInjection(TestSupport::Context &context)
     expectFailedOpen("native creation failure is translated", FailurePoint::NativeCreation, ErrorCode::OpenFailed);
     expectFailedOpen("partial native open rolls back", FailurePoint::PartialOpen, ErrorCode::NativeFailure);
     expectFailedOpen("top-level userdata installation failure is translated", FailurePoint::WindowUserDataInstallation, ErrorCode::OpenFailed);
+    expectFailedOpen("WM_CREATE failure after userdata installation is translated", FailurePoint::WindowCreationCallback, ErrorCode::OpenFailed);
 
     Desktop::Window window;
     static_cast<void>(context.expectTrue("open succeeds after injected rollback", window.open(description, 16).ok()));
@@ -270,6 +315,19 @@ void testFailureInjection(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("failed display restoration preserves previous mode", Desktop::Types::Mode::BorderlessFullscreen, window.mode()));
     static_cast<void>(context.expectTrue("display restoration retry succeeds", window.setMode({}).ok()));
+
+    const Desktop::Native::Win32::HandleResult callbackHandle = Desktop::Native::Win32::getHandle(window);
+    static_cast<void>(
+        context.expectTrue("callback failure fixture exposes HWND", callbackHandle.status.ok() && callbackHandle.handle.window != nullptr));
+    if (callbackHandle.status.ok() && callbackHandle.handle.window != nullptr)
+    {
+        static_cast<void>(SendMessageW(callbackHandle.handle.window, WM_SHOWWINDOW, FALSE, 0));
+        Desktop::TestHooks::failNext(FailurePoint::Cursor);
+        static_cast<void>(SendMessageW(callbackHandle.handle.window, WM_SHOWWINDOW, TRUE, 0));
+        static_cast<void>(
+            context.expectEq("genuine callback failure is returned by the next pump", ErrorCode::NativeFailure, Desktop::Events::poll().status.code));
+        static_cast<void>(SendMessageW(callbackHandle.handle.window, WM_SHOWWINDOW, FALSE, 0));
+    }
 
     Desktop::TestHooks::failNext(FailurePoint::EventPump);
     static_cast<void>(context.expectEq("event pump failure is translated", ErrorCode::NativeFailure, Desktop::Events::poll().status.code));

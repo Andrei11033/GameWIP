@@ -172,7 +172,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
 
-            state.platform->handle = CreateWindowExW(
+            HWND handle = CreateWindowExW(
                 extendedStyle,
                 kWindowClassName,
                 state.platform->utf16Scratch.c_str(),
@@ -185,10 +185,14 @@ namespace GameWIP::Desktop::Detail::Platform
                 nullptr,
                 state.platform->instance,
                 &state);
-            if (state.platform->handle == nullptr)
+            if (handle == nullptr)
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "CreateWindowExW");
             }
+            // CreateWindowExW dispatches synchronous construction messages before returning.
+            // Publish only its returned HWND; windowProc keeps runtime-only work out of that interval.
+            state.platform->handle = handle;
+            state.platform->lifecycle = NativeWindowLifecycle::Published;
 
             registerWindowId(state);
             if (Detail::consumeFailure(TestHooks::FailurePoint::PartialOpen))
