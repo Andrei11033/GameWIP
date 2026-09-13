@@ -137,7 +137,6 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Peeks the already-published progress-owner restoration message without registering it.
     [[nodiscard]] UINT registeredProgressOwnerRestoreMessage() noexcept;
     [[nodiscard]] DWORD progressOwnerRestoreMessageError() noexcept;
-    [[nodiscard]] bool progressOwnerRestoreMessageRegistrationAttempted() noexcept;
     void routeEvent(WindowState &state, Types::Events::Payload data) noexcept;
     void recordPumpFailure(IO::Types::Status status) noexcept;
     void registerOpenState(WindowState &state);
