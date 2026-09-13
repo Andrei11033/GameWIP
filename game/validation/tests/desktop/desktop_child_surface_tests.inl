@@ -147,7 +147,7 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("visibility query failure preserves cache", surface.visible()));
     static_cast<void>(context.expectTrue(
         "visibility query failure restores native visibility",
-        IsWindowVisible(Desktop::Native::Win32::getHandle(surface).handle.window) != FALSE));
+        (static_cast<DWORD>(GetWindowLongPtrW(Desktop::Native::Win32::getHandle(surface).handle.window, GWL_STYLE)) & WS_VISIBLE) != 0));
     static_cast<void>(context.expectTrue("ChildSurface hide succeeds", surface.hide().ok()));
     static_cast<void>(context.expectFalse("hide updates visibility cache", surface.visible()));
     static_cast<void>(context.expectTrue("ChildSurface show succeeds", surface.show().ok()));

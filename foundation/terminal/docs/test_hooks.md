@@ -1,7 +1,6 @@
 @page terminal_test_hooks Source-tree test hooks
 
-@warning These hooks are source-tree maintainer interfaces. They are not installed, not consumer API, and not covered by package compatibility
-guarantees.
+@warning These hooks are source-tree validation interfaces. They are not installed, not consumer API, and not part of the package ABI.
 
 ## Availability
 
@@ -21,7 +20,7 @@ Approved build-tree consumers receive `TERMINAL_INTERNAL_TEST_HOOKS=1`. Producti
 
 Link the source-tree `Terminal` target. The header and hook exports are intentionally absent from installed packages.
 
-The public hook namespace is `GameWIP::Terminal::TestHooks`.
+The source-tree hook namespace is `GameWIP::Terminal::TestHooks`.
 
 ## Reset rule
 

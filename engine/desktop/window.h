@@ -134,18 +134,18 @@ namespace GameWIP::Desktop
 
     /// @brief Returns cached backend/environment capabilities.
     /// @return The query status and capability flags available in the current process environment.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::CapabilitiesResult getCapabilities() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::CapabilitiesResult getCapabilities() noexcept;
     /// @brief Returns whether the backend advertises a known capability.
     /// @param capability Capability to test.
     /// @return true when the capability is currently advertised; otherwise false.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool supports(Types::Capability capability) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT bool supports(Types::Capability capability) noexcept;
 
     /// @brief Non-copyable, non-movable RAII owner of one native top-level desktop Window.
     /// @details Except wakeEventWait(), operations require the opening thread by default. Cached
     /// getters do not query the backend and are unsynchronized until the documented presentation
     /// subset is opted into with Renderer::enableConcurrentPresentationReads(). Concurrent
     /// destruction is not safe; callers must stop renderer reads first.
-    class GAMEWIP_DESKTOP_EXPORT Window final
+    class DESKTOP_EXPORT Window final
     {
     public:
         /// @name Lifecycle

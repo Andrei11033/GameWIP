@@ -17,7 +17,7 @@ if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-include(GenerateExportHeader)
+include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 include(GNUInstallDirs)
 
 if(NOT COMMAND gamewip_target_platform_backend)
@@ -109,13 +109,13 @@ set(ASSERT_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert")
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    generate_export_header(
-        Assert
-        BASE_NAME GAMEWIP_ASSERT
-        EXPORT_FILE_NAME "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
-        EXPORT_MACRO_NAME GAMEWIP_ASSERT_EXPORT
-        NO_EXPORT_MACRO_NAME GAMEWIP_ASSERT_NO_EXPORT
-        STATIC_DEFINE GAMEWIP_ASSERT_STATIC_DEFINE
+    gamewip_generate_export_header(
+        # ASSERT_EXPORT is the installed production/runtime ABI. Source-tree
+        # validation hooks use assert_test_export.h and are never installed.
+        TARGET Assert
+        OUTPUT "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
+        EXPORT_MACRO ASSERT_EXPORT
+        BUILD_DEFINE ASSERT_BUILDING_DLL
     )
     target_sources(
         Assert
@@ -126,7 +126,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
                 FILES "${CMAKE_CURRENT_SOURCE_DIR}/assert.h" "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
     )
 else()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/assert_export_static.h.in" "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h" @ONLY)
+    gamewip_generate_export_header(INTERFACE OUTPUT "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h" EXPORT_MACRO ASSERT_EXPORT)
     target_sources(
         Assert
         INTERFACE

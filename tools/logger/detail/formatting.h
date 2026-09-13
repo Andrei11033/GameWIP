@@ -35,27 +35,27 @@ namespace GameWIP::Logger
 
         // Formatting templates end by crossing into exported non-template code.
         // This keeps queue/report ownership rules in one implementation unit.
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message) noexcept;
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
+        LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message) noexcept;
+        LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
             bool alreadyTruncated) noexcept;
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message) noexcept;
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
+        LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message) noexcept;
+        LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
             bool alreadyTruncated) noexcept;
 
-        GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
+        LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
             bool showPopup,
             bool alreadyTruncated,
             const std::chrono::milliseconds *timeout) noexcept;
-        GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
+        LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
@@ -63,12 +63,12 @@ namespace GameWIP::Logger
             bool alreadyTruncated,
             const std::chrono::milliseconds *timeout) noexcept;
 
-        GAMEWIP_LOGGER_EXPORT void recordAllocationFailure() noexcept;
-        GAMEWIP_LOGGER_EXPORT void recordFormatFailure() noexcept;
-        GAMEWIP_LOGGER_EXPORT std::string &formatScratch();
-        GAMEWIP_LOGGER_EXPORT std::size_t getMaxMessageLengthForFormatting();
-        GAMEWIP_LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
-        GAMEWIP_LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch) noexcept;
+        LOGGER_EXPORT void recordAllocationFailure() noexcept;
+        LOGGER_EXPORT void recordFormatFailure() noexcept;
+        LOGGER_EXPORT std::string &formatScratch();
+        LOGGER_EXPORT std::size_t getMaxMessageLengthForFormatting();
+        LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
+        LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch) noexcept;
 
         /// @brief RAII handle for one nested use of the per-thread formatting scratch buffer.
         /// @details Public formatting templates use this so early returns and exceptions release scratch consistently.

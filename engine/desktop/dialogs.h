@@ -114,30 +114,27 @@ namespace GameWIP::Desktop::Dialogs
     /// @brief Shows a synchronous native single-file open dialog.
     /// @param description Call-scoped owner, text, filter, and initial-directory settings.
     /// @return Operation status, user outcome, selected path, and selected filter.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept;
 
     /// @brief Shows a synchronous native multiple-file open dialog.
     /// @param description Call-scoped owner, text, filter, and initial-directory settings.
     /// @return Operation status, user outcome, selected paths, and selected filter.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Dialogs::File::ListResult openFiles(
-        const Types::Dialogs::File::OpenDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::ListResult openFiles(const Types::Dialogs::File::OpenDescription &description) noexcept;
 
     /// @brief Shows a synchronous native save-file dialog.
     /// @param description Call-scoped owner, text, filter, and save-name settings.
     /// @return Operation status, user outcome, selected path, and selected filter.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Dialogs::File::Result saveFile(const Types::Dialogs::File::SaveDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::Result saveFile(const Types::Dialogs::File::SaveDescription &description) noexcept;
 
     /// @brief Shows a synchronous native single-folder selection dialog.
     /// @param description Call-scoped owner, title, and initial-directory settings.
     /// @return Operation status, user outcome, and selected folder path.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Dialogs::File::Result selectFolder(
-        const Types::Dialogs::File::FolderDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::Result selectFolder(const Types::Dialogs::File::FolderDescription &description) noexcept;
 
     /// @brief Shows a synchronous native multiple-folder selection dialog.
     /// @param description Call-scoped owner, title, and initial-directory settings.
     /// @return Operation status, user outcome, and selected folder paths.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Dialogs::File::ListResult selectFolders(
-        const Types::Dialogs::File::FolderDescription &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::File::ListResult selectFolders(const Types::Dialogs::File::FolderDescription &description) noexcept;
 } // namespace GameWIP::Desktop::Dialogs
 
 namespace GameWIP::Desktop::Types::Dialogs::Message
@@ -188,8 +185,7 @@ namespace GameWIP::Desktop::Dialogs
     /// @brief Shows a synchronous native message with a fixed portable button set.
     /// @param description Call-scoped owner, text, severity, and button settings.
     /// @return Operation status, user outcome, and selected portable button.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Dialogs::Message::Result showMessage(
-        const Types::Dialogs::Message::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept;
 } // namespace GameWIP::Desktop::Dialogs
 
 namespace GameWIP::Desktop::Types::Dialogs::Prompt
@@ -286,7 +282,7 @@ namespace GameWIP::Desktop::Dialogs
     /// @brief Shows a synchronous native prompt with caller-defined choices.
     /// @param description Call-scoped owner, content, actions, options, and checkbox settings.
     /// @return Operation status, user outcome, selected identities, and final checkbox state.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Dialogs::Prompt::Result showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Dialogs::Prompt::Result showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept;
 } // namespace GameWIP::Desktop::Dialogs
 
 namespace GameWIP::Desktop::Types::Dialogs::Progress
@@ -315,7 +311,7 @@ namespace GameWIP::Desktop::Types::Dialogs::Progress
 namespace GameWIP::Desktop
 {
     /// @brief Owner-thread-bound modeless native operation-progress presentation.
-    class GAMEWIP_DESKTOP_EXPORT ProgressDialog final
+    class DESKTOP_EXPORT ProgressDialog final
     {
     public:
         /// @brief Constructs a closed progress-dialog owner.

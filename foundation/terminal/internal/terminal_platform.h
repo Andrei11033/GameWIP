@@ -14,6 +14,10 @@
 #include <stop_token>
 #include <string_view>
 
+#if TERMINAL_INTERNAL_TEST_HOOKS
+#include "terminal/internal/terminal_test_export.h"
+#endif
+
 #if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
 namespace GameWIP::Terminal::TestHooks
 {
@@ -193,9 +197,9 @@ namespace GameWIP::Terminal::Detail::Platform
 #if defined(_WIN32)
         /// @brief Clears the process-local Win32 stdin identity, pending bytes, decoder, and cancellation event.
         /// @warning Test-only reset used to isolate endpoint and cancellation failure cases.
-        void resetWin32InputState() noexcept;
+        TERMINAL_TEST_EXPORT void resetWin32InputState() noexcept;
         /// @brief Returns the number of native console waits attempted since the last reset.
-        [[nodiscard]] std::size_t consoleWaitCallCount() noexcept;
+        [[nodiscard]] TERMINAL_TEST_EXPORT std::size_t consoleWaitCallCount() noexcept;
         /// @brief Portable result from the source-tree-only synthetic console wait adapter.
         struct Win32ConsoleWaitResult
         {
@@ -203,22 +207,23 @@ namespace GameWIP::Terminal::Detail::Platform
             Terminal::Types::Input::ReadOutcome outcome = Terminal::Types::Input::ReadOutcome::Completed;
         };
         /// @brief Runs the production console wait path against a synthetic never-signaled event.
-        [[nodiscard]] Win32ConsoleWaitResult waitForConsoleRecordForTest(std::chrono::milliseconds timeout, const std::stop_token &stopToken);
-        void resetWin32KeyDecoder() noexcept;
-        [[nodiscard]] Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
+        [[nodiscard]] TERMINAL_TEST_EXPORT Win32ConsoleWaitResult
+        waitForConsoleRecordForTest(std::chrono::milliseconds timeout, const std::stop_token &stopToken);
+        TERMINAL_TEST_EXPORT void resetWin32KeyDecoder() noexcept;
+        [[nodiscard]] TERMINAL_TEST_EXPORT Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
             bool keyDown,
             std::uint16_t virtualKey,
             char16_t unicodeCharacter,
             std::uint32_t controlState,
             std::uint16_t repeatCount,
             std::uint16_t scanCode) noexcept;
-        [[nodiscard]] std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
+        [[nodiscard]] TERMINAL_TEST_EXPORT std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
 #endif
 
         /// @brief Seeds the Win32 pending UTF-16 high surrogate for endpoint-replacement validation.
-        void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept;
+        TERMINAL_TEST_EXPORT void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept;
         /// @brief Returns whether the current Win32 input endpoint retains a pending high surrogate.
-        [[nodiscard]] bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept;
+        [[nodiscard]] TERMINAL_TEST_EXPORT bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept;
     } // namespace TestHooks
 #endif
 } // namespace GameWIP::Terminal::Detail::Platform

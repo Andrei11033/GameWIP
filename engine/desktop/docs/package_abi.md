@@ -35,6 +35,9 @@ The supported public headers are:
 
 Internal headers and test hooks are source-tree-only. Every supported entry header is compiled in isolation by repository validation.
 
+`DESKTOP_EXPORT` marks installed production/runtime ABI. `DESKTOP_TEST_EXPORT`
+is limited to source-tree validation hooks and is never installed.
+
 `desktop/window.h` intentionally includes the normal shared vocabulary, description, fundamental display-mode surface, and events. Rich display
 inspection, custom cursor resources, native child hosts, Clipboard/data transfer, native drag and drop, renderer integration, and native interop remain
 explicit opt-in includes.

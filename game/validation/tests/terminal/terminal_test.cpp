@@ -480,7 +480,7 @@ namespace
 #if TERMINAL_INTERNAL_TEST_HOOKS
 #if defined(_WIN32)
     void testInputEndpointReplacement(TestSupport::Context &context);
-    void testCancellationSignalFailure(TestSupport::Context &context);
+    void testCancellationSignalFailure(TestSupport::Context &context, std::string_view executablePath);
     void testCancellationResetFailure(TestSupport::Context &context);
 #endif
 #endif
@@ -566,7 +566,12 @@ namespace GameWIP::Test
 #if defined(_WIN32)
         runner.runSuite("Terminal Win32 event decoder", testWin32EventDecoder);
         runner.runSuite("Terminal stdin endpoint replacement", testInputEndpointReplacement);
-        runner.runSuite("Terminal cancellation signal failure", testCancellationSignalFailure);
+        runner.runSuite(
+            "Terminal cancellation signal failure",
+            [&](TestSupport::Context &context)
+            {
+                testCancellationSignalFailure(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
+            });
         runner.runSuite("Terminal cancellation reset failure", testCancellationResetFailure);
 #endif
         runner.runSuite("Terminal sessions and ownership", testSessions);

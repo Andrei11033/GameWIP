@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "logger/internal/logger_test_export.h"
 #include "logger/logger.h"
 
 #ifndef LOGGER_INTERNAL_TEST_HOOKS
@@ -14,83 +15,83 @@ namespace GameWIP::Logger::TestHooks
 {
     /// @brief Clears all pending logger test-hook failures and overrides.
     /// @warning Test-only API. Available only when LOGGER_INTERNAL_TEST_HOOKS is enabled.
-    GAMEWIP_LOGGER_EXPORT void reset() noexcept;
+    LOGGER_TEST_EXPORT void reset() noexcept;
 
     /// @brief Forces the next platform file-open attempt made by the logger to fail.
     /// @warning Test-only API. The hook is one-shot.
-    GAMEWIP_LOGGER_EXPORT void forceNextFileOpenFailure() noexcept;
+    LOGGER_TEST_EXPORT void forceNextFileOpenFailure() noexcept;
 
     /// @brief Forces the next platform file-write attempt made by the logger to fail.
     /// @warning Test-only API. The hook is one-shot.
-    GAMEWIP_LOGGER_EXPORT void forceNextFileWriteFailure() noexcept;
+    LOGGER_TEST_EXPORT void forceNextFileWriteFailure() noexcept;
 
     /// @brief Forces the next platform file-flush attempt made by the logger to fail.
     /// @warning Test-only API. The hook is one-shot.
-    GAMEWIP_LOGGER_EXPORT void forceNextFileFlushFailure() noexcept;
+    LOGGER_TEST_EXPORT void forceNextFileFlushFailure() noexcept;
 
     /// @brief Forces the next queue-entry copy to behave like an allocation failure.
     /// @warning Test-only API. The hook is one-shot.
-    GAMEWIP_LOGGER_EXPORT void forceNextQueueAllocationFailure() noexcept;
+    LOGGER_TEST_EXPORT void forceNextQueueAllocationFailure() noexcept;
 
     /// @brief Forces the next logger-owned fatal popup attempt to report a platform failure.
     /// @warning Test-only API. The hook is one-shot.
-    GAMEWIP_LOGGER_EXPORT void forceNextFatalPopupFailure() noexcept;
+    LOGGER_TEST_EXPORT void forceNextFatalPopupFailure() noexcept;
 
     /// @brief Forces the next timed Logger::flush(timeout) wait to time out.
     /// @warning Test-only API. The hook is one-shot.
-    GAMEWIP_LOGGER_EXPORT void forceNextTimedFlushTimeout() noexcept;
+    LOGGER_TEST_EXPORT void forceNextTimedFlushTimeout() noexcept;
 
     /// @brief Arms a one-shot pause after the worker observes a false wait predicate.
     /// @warning Test-only API. The worker retains Logger's coordination mutex while paused.
-    GAMEWIP_LOGGER_EXPORT void armWorkerWaitPause() noexcept;
+    LOGGER_TEST_EXPORT void armWorkerWaitPause() noexcept;
 
     /// @brief Blocks until the armed worker-wait pause is reached.
     /// @warning Test-only API. Call only from an isolated child-process scenario.
-    GAMEWIP_LOGGER_EXPORT void waitForWorkerWaitPause() noexcept;
+    LOGGER_TEST_EXPORT void waitForWorkerWaitPause() noexcept;
 
     /// @brief Blocks until a queue slot is published after hook reset or arming.
     /// @warning Test-only API. Call only from an isolated child-process scenario.
-    GAMEWIP_LOGGER_EXPORT void waitForQueuePublication() noexcept;
+    LOGGER_TEST_EXPORT void waitForQueuePublication() noexcept;
 
     /// @brief Releases a worker stopped at the validation-only wait pause.
     /// @warning Test-only API.
-    GAMEWIP_LOGGER_EXPORT void releaseWorkerWaitPause() noexcept;
+    LOGGER_TEST_EXPORT void releaseWorkerWaitPause() noexcept;
 
     /// @brief Arms a one-shot pause before the final active producer leaves.
     /// @warning Test-only API.
-    GAMEWIP_LOGGER_EXPORT void armFinalProducerLeavePause() noexcept;
+    LOGGER_TEST_EXPORT void armFinalProducerLeavePause() noexcept;
 
     /// @brief Blocks until the final-producer pause is reached.
     /// @warning Test-only API. Call only from an isolated child-process scenario.
-    GAMEWIP_LOGGER_EXPORT void waitForFinalProducerLeavePause() noexcept;
+    LOGGER_TEST_EXPORT void waitForFinalProducerLeavePause() noexcept;
 
     /// @brief Releases a producer stopped before its active count is decremented.
     /// @warning Test-only API.
-    GAMEWIP_LOGGER_EXPORT void releaseFinalProducerLeavePause() noexcept;
+    LOGGER_TEST_EXPORT void releaseFinalProducerLeavePause() noexcept;
 
     /// @brief Arms a worker pause after dequeue and before delivery-time filtering.
     /// @warning Test-only API. Use to mutate filters while an already-accepted record is paused.
-    GAMEWIP_LOGGER_EXPORT void armWorkerDeliveryPause() noexcept;
+    LOGGER_TEST_EXPORT void armWorkerDeliveryPause() noexcept;
 
     /// @brief Waits until the worker reaches the delivery pause.
     /// @warning Test-only API. Call only from an isolated child-process scenario.
-    GAMEWIP_LOGGER_EXPORT void waitForWorkerDeliveryPause() noexcept;
+    LOGGER_TEST_EXPORT void waitForWorkerDeliveryPause() noexcept;
 
     /// @brief Releases the worker delivery pause.
     /// @warning Test-only API.
-    GAMEWIP_LOGGER_EXPORT void releaseWorkerDeliveryPause() noexcept;
+    LOGGER_TEST_EXPORT void releaseWorkerDeliveryPause() noexcept;
 
     /// @brief Holds the lifecycle mutex until releaseLifecycleLockPause() is called.
     /// @warning Test-only API. Call this blocking function from a dedicated test thread.
-    GAMEWIP_LOGGER_EXPORT void holdLifecycleLockPause() noexcept;
+    LOGGER_TEST_EXPORT void holdLifecycleLockPause() noexcept;
 
     /// @brief Waits until holdLifecycleLockPause() owns the lifecycle mutex.
     /// @warning Test-only API. Call only from an isolated child-process scenario.
-    GAMEWIP_LOGGER_EXPORT void waitForLifecycleLockPause() noexcept;
+    LOGGER_TEST_EXPORT void waitForLifecycleLockPause() noexcept;
 
     /// @brief Releases a lifecycle-mutex test pause.
     /// @warning Test-only API.
-    GAMEWIP_LOGGER_EXPORT void releaseLifecycleLockPause() noexcept;
+    LOGGER_TEST_EXPORT void releaseLifecycleLockPause() noexcept;
 
 } // namespace GameWIP::Logger::TestHooks
 #endif

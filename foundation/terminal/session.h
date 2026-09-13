@@ -39,7 +39,7 @@ namespace GameWIP::Terminal
     /// calls are serialized with each other while bound output remains independently serialized by the shared Terminal
     /// output coordinator. Active-operation leases keep the binding valid without holding a lifecycle mutex across
     /// backend work or user formatter code. close() waits for active operations and restores Session-owned persistent state.
-    class GAMEWIP_TERMINAL_EXPORT Session final
+    class TERMINAL_EXPORT Session final
     {
     public:
         // ------------------------------------------------------------

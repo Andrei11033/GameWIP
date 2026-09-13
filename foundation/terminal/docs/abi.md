@@ -28,6 +28,9 @@ The package installs:
 
 Internal platform headers and test hooks are not installed.
 
+`TERMINAL_EXPORT` marks installed production/runtime ABI. The source-tree-only
+`TERMINAL_TEST_EXPORT` annotation is reserved for hook-enabled validation builds.
+
 ## Binary compatibility
 
 The public interface exposes C++ standard-library types including `std::string`, `std::string_view`, `std::span`, `std::optional`, `std::stop_token`,

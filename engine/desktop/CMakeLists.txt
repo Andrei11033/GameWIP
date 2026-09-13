@@ -1,7 +1,7 @@
 # Desktop is a shared runtime so process-local native class registration,
 # Window identity, and dispatcher state remain coherent across module boundaries.
 include(GNUInstallDirs)
-include(GenerateExportHeader)
+include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
@@ -27,13 +27,13 @@ add_library(GameWIP::Desktop ALIAS Desktop)
 
 set(DESKTOP_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop")
-generate_export_header(
-    Desktop
-    BASE_NAME GAMEWIP_DESKTOP
-    EXPORT_FILE_NAME "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
-    EXPORT_MACRO_NAME GAMEWIP_DESKTOP_EXPORT
-    NO_EXPORT_MACRO_NAME GAMEWIP_DESKTOP_NO_EXPORT
-    STATIC_DEFINE GAMEWIP_DESKTOP_STATIC_DEFINE
+gamewip_generate_export_header(
+    # DESKTOP_EXPORT is the installed production/runtime ABI. Source-tree
+    # validation hooks use desktop_test_export.h and are never installed.
+    TARGET Desktop
+    OUTPUT "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
+    EXPORT_MACRO DESKTOP_EXPORT
+    BUILD_DEFINE DESKTOP_BUILDING_DLL
 )
 
 target_sources(

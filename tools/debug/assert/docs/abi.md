@@ -1,7 +1,11 @@
 @page assert_abi ABI and package boundary
 
 Assert is consumed as the `GameWIP::Assert` CMake target. Its installed public header surface is `debug/assert/assert.h` plus the generated
-`debug/assert/assert_export.h` export header.
+`debug/assert/assert_export.h` export header. `ASSERT_EXPORT` marks installed
+runtime ABI when the shared runtime is enabled. `ASSERT_TEST_EXPORT` is reserved
+for source-tree validation hooks and is never installed. In interface-only
+builds, the generated header defines only the empty `ASSERT_EXPORT` required by
+`assert.h`.
 
 ## Package boundary
 

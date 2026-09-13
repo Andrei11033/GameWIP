@@ -102,9 +102,9 @@ namespace GameWIP::Logger
     }
 
     /// @brief Returns the balanced default Logger configuration.
-    [[nodiscard]] GAMEWIP_LOGGER_EXPORT Types::Config defaultConfig() noexcept;
+    [[nodiscard]] LOGGER_EXPORT Types::Config defaultConfig() noexcept;
     /// @brief Returns a configuration favoring lower retained memory.
-    [[nodiscard]] GAMEWIP_LOGGER_EXPORT Types::Config lowMemoryConfig() noexcept;
+    [[nodiscard]] LOGGER_EXPORT Types::Config lowMemoryConfig() noexcept;
     /// @brief Returns a configuration favoring logging throughput.
-    [[nodiscard]] GAMEWIP_LOGGER_EXPORT Types::Config throughputConfig() noexcept;
+    [[nodiscard]] LOGGER_EXPORT Types::Config throughputConfig() noexcept;
 } // namespace GameWIP::Logger

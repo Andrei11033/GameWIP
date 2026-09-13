@@ -97,111 +97,111 @@ namespace GameWIP::Desktop::Clipboard
     /// @brief Tests a format using the default access timeout.
     /// @param format Valid format description; standard categories require an empty customName.
     /// @return Successful false for ordinary absence, or an operational failure status.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::FormatResult hasFormat(Types::DataTransfer::FormatView format) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatResult hasFormat(Types::DataTransfer::FormatView format) noexcept;
     /// @brief Tests a format using an explicit bounded access timeout.
     /// @param format Valid format description; custom names are strict nonempty UTF-8.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Successful false for ordinary absence, or an operational failure status.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::FormatResult hasFormat(
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatResult hasFormat(
         Types::DataTransfer::FormatView format,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Enumerates formats using the default timeout.
     /// @return Status plus owning descriptions in meaningful native priority order.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::FormatsResult getFormats() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatsResult getFormats() noexcept;
     /// @brief Enumerates formats using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status plus any meaningful owning prefix materialized before failure.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::FormatsResult getFormats(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatsResult getFormats(std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads strict UTF-8 text using the default timeout.
     /// @return Text and status; absence reports NotFound.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::TextResult readText() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::TextResult readText() noexcept;
     /// @brief Reads strict UTF-8 text using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Text and status; malformed native Unicode reports EncodingFailed.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::TextResult readText(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::TextResult readText(std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads an ordered native path list using the default timeout.
     /// @return Paths and status; absence reports NotFound.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::FileListResult readFiles() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FileListResult readFiles() noexcept;
     /// @brief Reads an ordered native path list using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Paths and status without performing file-system IO.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::FileListResult readFiles(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FileListResult readFiles(std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads a tightly packed RGBA8 image using the default timeout.
     /// @return Image and status; an available unconvertible native image reports Unsupported.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::ImageResult readImage() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::ImageResult readImage() noexcept;
     /// @brief Reads a tightly packed RGBA8 image using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Image and status; absence reports NotFound.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::ImageResult readImage(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::ImageResult readImage(std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads an opaque named native block using the default timeout.
     /// @param formatName Nonempty strict UTF-8 native format name without embedded U+0000.
     /// @return Native allocation extent and status; absence reports NotFound.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::CustomDataResult readCustomData(std::string_view formatName) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::CustomDataResult readCustomData(std::string_view formatName) noexcept;
     /// @brief Reads an opaque named native block using an explicit timeout.
     /// @param formatName Nonempty strict UTF-8 native format name without embedded U+0000.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Native allocation extent and status; logical framing remains format-defined.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::CustomDataResult readCustomData(
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::CustomDataResult readCustomData(
         std::string_view formatName,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Replaces Clipboard contents with UTF-8 text using the default timeout.
     /// @param text Valid UTF-8 without embedded U+0000; empty text is valid.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeText(std::string_view text) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeText(std::string_view text) noexcept;
     /// @brief Replaces Clipboard contents with UTF-8 text using an explicit timeout.
     /// @param text Valid UTF-8 without embedded U+0000; empty text is valid.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeText(std::string_view text, std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeText(std::string_view text, std::chrono::milliseconds timeout) noexcept;
     /// @brief Replaces Clipboard contents with absolute paths using the default timeout.
     /// @param paths Nonempty absolute native paths; existence is not queried.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeFiles(std::span<const FileSystem::Types::Path> paths) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeFiles(std::span<const FileSystem::Types::Path> paths) noexcept;
     /// @brief Replaces Clipboard contents with absolute paths using an explicit timeout.
     /// @param paths Nonempty absolute native paths; existence is not queried.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeFiles(
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeFiles(
         std::span<const FileSystem::Types::Path> paths,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Replaces Clipboard contents with an RGBA8 image using the default timeout.
     /// @param image Valid sRGB top-to-bottom straight-alpha image view.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeImage(const Types::DataTransfer::ImageView &image) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeImage(const Types::DataTransfer::ImageView &image) noexcept;
     /// @brief Replaces Clipboard contents with an RGBA8 image using an explicit timeout.
     /// @param image Valid sRGB top-to-bottom straight-alpha image view.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeImage(
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeImage(
         const Types::DataTransfer::ImageView &image,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Replaces Clipboard contents with one named block using the default timeout.
     /// @param data Valid custom name and opaque payload.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeCustomData(const Types::DataTransfer::CustomView &data) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeCustomData(const Types::DataTransfer::CustomView &data) noexcept;
     /// @brief Replaces Clipboard contents with one named block using an explicit timeout.
     /// @param data Valid custom name and opaque payload.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status and exact publication progress.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult writeCustomData(
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeCustomData(
         const Types::DataTransfer::CustomView &data,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Transactionally prepares and publishes ordered formats using the default timeout.
     /// @param items Nonempty item views with no duplicate native identities.
     /// @return Status, committed state, and successfully published caller-order prefix length.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult write(std::span<const Types::DataTransfer::ItemView> items) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult write(std::span<const Types::DataTransfer::ItemView> items) noexcept;
     /// @brief Transactionally prepares and publishes ordered formats using an explicit timeout.
     /// @param items Nonempty item views with no duplicate native identities.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status, committed state, and successfully published caller-order prefix length.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::WriteResult write(
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult write(
         std::span<const Types::DataTransfer::ItemView> items,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Clears Clipboard contents using the default timeout.
     /// @return Status and whether the external clear completed.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::ClearResult clear() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::ClearResult clear() noexcept;
     /// @brief Clears Clipboard contents using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status and whether the clear completed, even when close later fails.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Clipboard::ClearResult clear(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::ClearResult clear(std::chrono::milliseconds timeout) noexcept;
 } // namespace GameWIP::Desktop::Clipboard

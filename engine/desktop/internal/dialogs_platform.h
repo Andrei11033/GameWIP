@@ -61,5 +61,6 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] std::size_t activeProgressDialogCount() noexcept;
     [[nodiscard]] std::size_t deferredProgressDialogCount() noexcept;
     [[nodiscard]] std::size_t progressDialogClassReferenceCount() noexcept;
+    [[nodiscard]] bool progressOwnerRestoreMessageRegistrationAttempted() noexcept;
 #endif
 } // namespace GameWIP::Desktop::Detail::Platform

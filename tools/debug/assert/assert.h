@@ -177,7 +177,7 @@ namespace GameWIP::Debug::Assert
     ///
     /// @note Continuing from the debugger resumes execution.
     /// @see DEBUG_BREAK
-    GAMEWIP_ASSERT_EXPORT void debugBreak() noexcept;
+    ASSERT_EXPORT void debugBreak() noexcept;
 #endif
     /// @}
 } // namespace GameWIP::Debug::Assert
@@ -195,7 +195,7 @@ namespace GameWIP::Debug::Assert::Detail
     /// @details Text views borrow UTF-8 data valid for the duration of the call. Reporting is synchronous;
     /// optional UI can block. After reporting, an attached debugger receives a break, then the process
     /// aborts even if debugger execution resumes. This handler does not return.
-    [[noreturn]] GAMEWIP_ASSERT_EXPORT void handleAssertFailure(
+    [[noreturn]] ASSERT_EXPORT void handleAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -212,7 +212,7 @@ namespace GameWIP::Debug::Assert::Detail
     /// @details Text views borrow UTF-8 data valid for the duration of the call. Reporting is synchronous;
     /// action selection can block on UI. Ignore actions return, Break returns if execution resumes,
     /// and Abort terminates the process. AlwaysIgnore stores true in the supplied flag using relaxed ordering.
-    GAMEWIP_ASSERT_EXPORT void handleInteractiveAssertFailure(
+    ASSERT_EXPORT void handleInteractiveAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -228,7 +228,7 @@ namespace GameWIP::Debug::Assert::Detail
     /// @param function Enclosing function text, or empty when diagnostics are disabled.
     /// @details Text views borrow UTF-8 data valid for the duration of the call. Reporting is synchronous;
     /// optional UI can block. The handler returns after reporting without requesting a break or abort.
-    GAMEWIP_ASSERT_EXPORT void handleCheckFailure(
+    ASSERT_EXPORT void handleCheckFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,

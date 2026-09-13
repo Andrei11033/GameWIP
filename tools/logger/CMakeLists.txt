@@ -11,7 +11,7 @@ if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-include(GenerateExportHeader)
+include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 
 if(NOT COMMAND gamewip_target_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
@@ -28,13 +28,13 @@ add_library(GameWIP::Logger ALIAS Logger)
 set(LOGGER_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${LOGGER_GENERATED_INCLUDE_DIR}/logger")
 
-generate_export_header(
-    Logger
-    BASE_NAME GAMEWIP_LOGGER
-    EXPORT_FILE_NAME "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
-    EXPORT_MACRO_NAME GAMEWIP_LOGGER_EXPORT
-    NO_EXPORT_MACRO_NAME GAMEWIP_LOGGER_NO_EXPORT
-    STATIC_DEFINE GAMEWIP_LOGGER_STATIC_DEFINE
+gamewip_generate_export_header(
+    # LOGGER_EXPORT is the installed production/runtime ABI. Source-tree
+    # validation hooks use logger_test_export.h and are never installed.
+    TARGET Logger
+    OUTPUT "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
+    EXPORT_MACRO LOGGER_EXPORT
+    BUILD_DEFINE LOGGER_BUILDING_DLL
 )
 
 target_sources(

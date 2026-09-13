@@ -1,7 +1,6 @@
 @page assert_test_hooks Test hooks
 
-@warning Assert test hooks are supported source-tree maintainer interfaces. They are not installed, not consumer API, and not public compatibility
-promises.
+@warning Assert test hooks are source-tree validation interfaces. They are not installed, not consumer API, and not part of the package ABI.
 
 ## Availability
 

@@ -16,13 +16,13 @@ namespace GameWIP::Terminal
     } // namespace Types::Style
 
     /// @brief Creates the terminal default color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Style::Color defaultColor() noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Style::Color defaultColor() noexcept;
 
     /// @brief Creates a portable basic terminal color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Style::Color basicColor(Types::Style::BasicColor color) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Style::Color basicColor(Types::Style::BasicColor color) noexcept;
 
     /// @brief Creates an RGB terminal color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Style::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Style::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
 
     namespace Types::Style
     {
@@ -131,8 +131,8 @@ namespace GameWIP::Terminal
             }
 
         private:
-            friend GAMEWIP_TERMINAL_EXPORT Color GameWIP::Terminal::basicColor(Types::Style::BasicColor color) noexcept;
-            friend GAMEWIP_TERMINAL_EXPORT Color GameWIP::Terminal::rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
+            friend TERMINAL_EXPORT Color GameWIP::Terminal::basicColor(Types::Style::BasicColor color) noexcept;
+            friend TERMINAL_EXPORT Color GameWIP::Terminal::rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
 
             explicit Color(Types::Style::BasicColor color) noexcept;
             Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;

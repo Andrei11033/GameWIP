@@ -237,7 +237,7 @@ namespace GameWIP::Desktop
     /// @details A successful open inherits the Window owner thread. Descriptions and format names
     /// are copied during open or setRegions; caller-provided event storage remains borrowed until
     /// close. Native operations and event consumption require the inherited owner thread.
-    class GAMEWIP_DESKTOP_EXPORT DragDropTarget final
+    class DESKTOP_EXPORT DragDropTarget final
     {
     public:
         // ------------------------------------------------------------
@@ -362,5 +362,5 @@ namespace GameWIP::Desktop::DragDrop
     /// @param source Open Window owned by the calling thread.
     /// @param description Portable data and explicit source effect/button policy.
     /// @return Preparation/native status, terminal outcome, and the selected effect when dropped.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::DragDrop::Result beginDrag(Window &source, const Types::DragDrop::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::DragDrop::Result beginDrag(Window &source, const Types::DragDrop::Description &description) noexcept;
 } // namespace GameWIP::Desktop::DragDrop

@@ -766,7 +766,7 @@ void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view mess
     }
 }
 
-#define GAMEWIP_LOGGER_DEFINE_LEVEL(name, levelValue) \
+#define LOGGER_DEFINE_LEVEL(name, levelValue) \
     void GameWIP::Logger::name(std::string_view source, std::string_view message) noexcept \
     { \
         log(levelValue, source, message); \
@@ -775,13 +775,13 @@ void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view mess
     { \
         log(levelValue, source, message); \
     }
-GAMEWIP_LOGGER_DEFINE_LEVEL(trace, LogLevel::Trace)
-GAMEWIP_LOGGER_DEFINE_LEVEL(debug, LogLevel::Debug)
-GAMEWIP_LOGGER_DEFINE_LEVEL(info, LogLevel::Info)
-GAMEWIP_LOGGER_DEFINE_LEVEL(warn, LogLevel::Warn)
-GAMEWIP_LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
-GAMEWIP_LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
-#undef GAMEWIP_LOGGER_DEFINE_LEVEL
+LOGGER_DEFINE_LEVEL(trace, LogLevel::Trace)
+LOGGER_DEFINE_LEVEL(debug, LogLevel::Debug)
+LOGGER_DEFINE_LEVEL(info, LogLevel::Info)
+LOGGER_DEFINE_LEVEL(warn, LogLevel::Warn)
+LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
+LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
+#undef LOGGER_DEFINE_LEVEL
 
 // ------------------------------------------------------------
 // Synchronous reporting

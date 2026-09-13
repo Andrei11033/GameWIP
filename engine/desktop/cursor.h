@@ -25,7 +25,7 @@ namespace GameWIP::Desktop
     /// @brief Immutable shared owner of eagerly materialized native cursor images.
     /// @details Copies share the same native resources. A default-constructed or failed result
     /// is invalid and owns no native cursor.
-    class GAMEWIP_DESKTOP_EXPORT Cursor final
+    class DESKTOP_EXPORT Cursor final
     {
     public:
         /// @name Lifecycle
@@ -98,22 +98,22 @@ namespace GameWIP::Desktop
     /// @brief Validates and eagerly materializes one application-provided cursor image.
     /// @param image RGBA8 image and physical-pixel hotspot to materialize.
     /// @return A valid shared Cursor on success.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Cursor::CreateResult createCursor(const Types::Cursor::ImageView &image) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Cursor::CreateResult createCursor(const Types::Cursor::ImageView &image) noexcept;
 
     /// @brief Validates and eagerly materializes application-provided cursor variants.
     /// @param variants Non-empty set containing one RGBA8 image per unique intended DPI.
     /// @return A valid shared Cursor on success; no partial resource is published on failure.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Cursor::CreateResult createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Cursor::CreateResult createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept;
 
     /// @brief Selects a custom cursor for an open Window on its owner thread.
     /// @param window Target Window whose standard CursorShape remains the cached fallback.
     /// @param cursor Valid custom cursor resource to retain lazily for the Window.
     /// @return Success, or a status describing validation, thread, allocation, or native failure.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT IO::Types::Status setCursor(Window &window, const Cursor &cursor) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT IO::Types::Status setCursor(Window &window, const Cursor &cursor) noexcept;
 
     /// @brief Reports whether an open owner-thread Window currently retains a custom cursor.
     /// @param window Window to inspect.
     /// @return true only while a custom cursor override is bound to the native Window.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT bool hasCustomCursor(const Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT bool hasCustomCursor(const Window &window) noexcept;
     /// @}
 } // namespace GameWIP::Desktop

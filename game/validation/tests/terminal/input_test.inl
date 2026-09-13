@@ -546,11 +546,11 @@ int runCancellationSignalFailureChild()
 }
 
 /// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
-void testCancellationSignalFailure(TestSupport::Context &context)
+void testCancellationSignalFailure(TestSupport::Context &context, std::string_view executablePath)
 {
     Hooks::reset();
     TestSupport::Types::Process::Options child;
-    child.executablePath = std::filesystem::path(context.executablePath);
+    child.executablePath = std::filesystem::path(executablePath);
     child.arguments = {std::string(kCancellationSignalFailureChildArgument)};
     child.timeout = std::chrono::milliseconds{1500};
     child.captureOutput = false;
