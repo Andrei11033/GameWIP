@@ -14,12 +14,13 @@ ran successfully. A successful dismissal is represented separately by
 @c Types::Dialogs::Outcome::Cancelled and is not a native failure.
 
 File filters preserve caller order. Each extension is a literal portable token
-such as @c png or @c tar.gz, without a leading period, wildcard, semicolon, or
-path separator; extensions are not native pattern lists.
+such as @c png or @c tar.gz, without a leading period, wildcard, semicolon,
+path separator, or embedded NUL; extensions are not native pattern lists.
 An empty extension span means all files. Filter indices are zero-based in the
 portable API. Suggested directories are native paths and are passed as
 suggestions without normalization; a save dialog does not rewrite the returned
-path using @c suggestedExtension.
+path using @c suggestedExtension. A nonempty suggested extension follows the
+same rules except that semicolons are allowed.
 
 On Windows these operations use the modern shell file-dialog interfaces. They
 run in the calling thread's existing STA or initialize an STA for the duration

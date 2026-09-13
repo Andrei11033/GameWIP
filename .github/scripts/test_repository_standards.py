@@ -74,10 +74,21 @@ class UnicodeAuthorityTests(unittest.TestCase):
         self.assertEqual(len(failures), 1)
 
     def test_character_literals_do_not_corrupt_scanning(self) -> None:
-        contents = "wchar_t value = L'x';\nconst char escaped = '\\'';\nMultiByteToWideChar(...);\n"
-        failures = self.check_fixture("fixture.cpp", contents)
+        for literal in ("'x'", "L'x'", "u'x'", "U'x'", "u8'x'", "'\\''"):
+            with self.subTest(literal=literal):
+                failures = self.check_fixture("fixture.cpp", f"auto value = {literal};\nMultiByteToWideChar(...);\n")
+                self.assertEqual(len(failures), 1)
+                self.assertIn("fixture.cpp:2:", failures[0])
+
+    def test_u8_digit_character_literal_does_not_corrupt_scanning(self) -> None:
+        failures = self.check_fixture("fixture.cpp", "const char8_t value = u8'0';\nMultiByteToWideChar(...);\n")
         self.assertEqual(len(failures), 1)
-        self.assertIn("fixture.cpp:3:", failures[0])
+        self.assertIn("fixture.cpp:2:", failures[0])
+
+    def test_multiline_codecvt_is_rejected_at_its_first_line(self) -> None:
+        failures = self.check_fixture("fixture.cpp", "std\n::\ncodecvt_utf8<char32_t> facet;\n")
+        self.assertEqual(len(failures), 1)
+        self.assertIn("fixture.cpp:1:", failures[0])
 
     def test_comments_and_literals_are_ignored(self) -> None:
         contents = (

@@ -928,6 +928,14 @@ namespace GameWIP::Terminal::Detail::Platform
                     consoleWaitCalls.fetch_add(1, std::memory_order_relaxed);
 #endif
                     waitResult = WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE, nativeTimeout);
+                    if (waitResult == WAIT_FAILED)
+                    {
+                        const DWORD error = GetLastError();
+                        return {
+                            .status = statusFromWin32(ErrorCode::ReadFailed, error, "Waiting for terminal input failed."),
+                            .outcome = ReadOutcome::Completed,
+                            .bytes = {}};
+                    }
                     if (waitResult == WAIT_OBJECT_0 + 1)
                     {
                         return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
@@ -959,6 +967,14 @@ namespace GameWIP::Terminal::Detail::Platform
                 consoleWaitCalls.fetch_add(1, std::memory_order_relaxed);
 #endif
                 waitResult = WaitForSingleObject(handle, waitMilliseconds(timeout));
+                if (waitResult == WAIT_FAILED)
+                {
+                    const DWORD error = GetLastError();
+                    return {
+                        .status = statusFromWin32(ErrorCode::ReadFailed, error, "Waiting for terminal input failed."),
+                        .outcome = ReadOutcome::Completed,
+                        .bytes = {}};
+                }
             }
 
             if (waitResult == WAIT_OBJECT_0)

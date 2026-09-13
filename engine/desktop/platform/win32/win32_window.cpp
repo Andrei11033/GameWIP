@@ -129,9 +129,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (candidate->platform && candidate->platform->handle != nullptr)
                 {
                     SetLastError(ERROR_SUCCESS);
-                    if (SetWindowLongPtrW(candidate->platform->handle, GWLP_HWNDPARENT, 0) == 0 && GetLastError() != ERROR_SUCCESS)
+                    const LONG_PTR previous = SetWindowLongPtrW(candidate->platform->handle, GWLP_HWNDPARENT, 0);
+                    const DWORD error = GetLastError();
+                    if (previous == 0 && error != ERROR_SUCCESS)
                     {
-                        recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "clear destroyed window owner"));
+                        recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, error, "clear destroyed window owner"));
                     }
                     if (IO::Types::Status styleStatus = applyStyle(*candidate); !styleStatus.ok())
                     {
@@ -229,6 +231,7 @@ namespace GameWIP::Desktop::Detail::Platform
         struct ProgressOwnerRestoreMessageState
         {
             std::once_flag registration;
+            std::mutex publicationMutex;
             std::atomic<UINT> value{0};
             std::atomic<DWORD> error{ERROR_SUCCESS};
             std::atomic_bool attempted{false};
@@ -287,15 +290,34 @@ namespace GameWIP::Desktop::Detail::Platform
     UINT ensureProgressOwnerRestoreMessage() noexcept
     {
         ProgressOwnerRestoreMessageState &state = progressOwnerRestoreMessageState();
-        std::call_once(
-            state.registration,
-            [&state]
+        try
+        {
+            std::scoped_lock lock(state.publicationMutex);
+            try
             {
-                const RegisteredMessage info = registerMessage(L"GameWIP.Desktop.ProgressOwnerRestore");
-                state.error.store(info.error, std::memory_order_relaxed);
-                state.value.store(info.value, std::memory_order_release);
+                std::call_once(
+                    state.registration,
+                    [&state]
+                    {
+                        const RegisteredMessage info = registerMessage(L"GameWIP.Desktop.ProgressOwnerRestore");
+                        state.error.store(info.error, std::memory_order_relaxed);
+                        state.value.store(info.value, std::memory_order_release);
+                        state.attempted.store(true, std::memory_order_release);
+                    });
+            }
+            catch (...)
+            {
+                state.error.store(ERROR_FUNCTION_FAILED, std::memory_order_relaxed);
+                state.value.store(0, std::memory_order_release);
                 state.attempted.store(true, std::memory_order_release);
-            });
+            }
+        }
+        catch (...)
+        {
+            state.error.store(ERROR_FUNCTION_FAILED, std::memory_order_relaxed);
+            state.value.store(0, std::memory_order_release);
+            state.attempted.store(true, std::memory_order_release);
+        }
         return state.value.load(std::memory_order_acquire);
     }
 

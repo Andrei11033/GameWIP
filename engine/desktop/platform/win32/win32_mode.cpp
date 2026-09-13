@@ -50,7 +50,6 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status saveWindowedPlacement(WindowState &state) noexcept
         {
             WindowData &data = *state.platform;
-            data.hasWindowedPlacement = false;
             WINDOWPLACEMENT placement{};
             placement.length = sizeof(WINDOWPLACEMENT);
             if (GetWindowPlacement(data.handle, &placement) == FALSE)
@@ -195,14 +194,18 @@ namespace GameWIP::Desktop::Detail::Platform
             state.fullscreen = snapshot.fullscreen;
 
             SetLastError(ERROR_SUCCESS);
-            if (SetWindowLongPtrW(data.handle, GWL_STYLE, snapshot.style) == 0 && GetLastError() != ERROR_SUCCESS)
+            const LONG_PTR previousStyle = SetWindowLongPtrW(data.handle, GWL_STYLE, snapshot.style);
+            const DWORD styleError = GetLastError();
+            if (previousStyle == 0 && styleError != ERROR_SUCCESS)
             {
-                rollback = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "restore previous window style");
+                rollback = statusFromWin32(IO::Types::ErrorCode::NativeFailure, styleError, "restore previous window style");
             }
             SetLastError(ERROR_SUCCESS);
-            if (SetWindowLongPtrW(data.handle, GWL_EXSTYLE, snapshot.extendedStyle) == 0 && GetLastError() != ERROR_SUCCESS)
+            const LONG_PTR previousExtendedStyle = SetWindowLongPtrW(data.handle, GWL_EXSTYLE, snapshot.extendedStyle);
+            const DWORD extendedStyleError = GetLastError();
+            if (previousExtendedStyle == 0 && extendedStyleError != ERROR_SUCCESS)
             {
-                rollback = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "restore previous extended style");
+                rollback = statusFromWin32(IO::Types::ErrorCode::NativeFailure, extendedStyleError, "restore previous extended style");
             }
             if (SetWindowPos(
                     data.handle,
@@ -235,9 +238,13 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder) noexcept
     {
+        if (monitor == nullptr)
+        {
+            return statusFromWin32(IO::Types::ErrorCode::NotFound, ERROR_NOT_FOUND, "resolve fullscreen monitor");
+        }
         MONITORINFOEXW info{};
         info.cbSize = sizeof(info);
-        if (monitor == nullptr || GetMonitorInfoW(monitor, &info) == FALSE)
+        if (GetMonitorInfoW(monitor, &info) == FALSE)
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, GetLastError(), "resolve fullscreen monitor");
         }
@@ -498,15 +505,27 @@ namespace GameWIP::Desktop::Detail::Platform
         MONITORINFO primaryInfo{};
         primaryInfo.cbSize = sizeof(primaryInfo);
         Types::Display::InfoResult portablePrimary = monitorFromNative(primary);
-        if (primary == nullptr || GetMonitorInfoW(primary, &primaryInfo) == FALSE || !portablePrimary.status.ok())
+        IO::Types::Status monitorFailure = IO::successStatus();
+        if (!portablePrimary.status.ok())
+        {
+            monitorFailure = std::move(portablePrimary.status);
+        }
+        else if (primary == nullptr)
+        {
+            monitorFailure = statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_NOT_FOUND, "resolve primary monitor after removal");
+        }
+        else if (GetMonitorInfoW(primary, &primaryInfo) == FALSE)
+        {
+            const DWORD error = GetLastError();
+            monitorFailure = statusFromWin32(IO::Types::ErrorCode::NativeFailure, error, "resolve primary monitor after removal");
+        }
+        if (!monitorFailure.ok())
         {
             state.fullscreen = {};
             state.mode = Types::Mode::Windowed;
             routeEvent(state, Types::Events::DisplayConfigurationChanged{});
             routeEvent(state, Types::Events::ModeChanged{previousMode, state.mode});
-            return portablePrimary.status.ok()
-                       ? statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "resolve primary monitor after removal")
-                       : std::move(portablePrimary.status);
+            return monitorFailure;
         }
 
         WindowData &data = *state.platform;

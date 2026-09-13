@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import bisect
 import json
 import re
 import sys
@@ -383,6 +384,23 @@ def source_documentation_files() -> list[Path]:
     return [path for path in maintained_files() if path.suffix.lower() in SOURCE_DOCUMENTATION_SUFFIXES or path.name == "CMakeLists.txt"]
 
 
+def is_cpp_numeric_digit_separator(text: str, index: int) -> bool:
+    """Return whether an apostrophe is a C++ numeric-literal digit separator."""
+    if (
+        index == 0
+        or index + 1 >= len(text)
+        or text[index - 1] not in "0123456789abcdefABCDEF"
+        or text[index + 1] not in "0123456789abcdefABCDEF"
+    ):
+        return False
+
+    token_start = index - 1
+    while token_start > 0 and (text[token_start - 1].isalnum() or text[token_start - 1] in "._"):
+        token_start -= 1
+    token = text[token_start:index]
+    return token[0].isdigit() or (token[0] == "." and len(token) > 1 and token[1].isdigit())
+
+
 def strip_cpp_comments_and_literals(text: str) -> str:
     """Blank C++ comments and literals while preserving line numbers for policy diagnostics."""
     output: list[str] = []
@@ -414,13 +432,7 @@ def strip_cpp_comments_and_literals(text: str) -> str:
                         index = opening_parenthesis + 1
                         state = "raw-literal"
                         continue
-            if (
-                current == "'"
-                and index > 0
-                and index + 1 < len(text)
-                and text[index - 1] in "0123456789abcdefABCDEF"
-                and following in "0123456789abcdefABCDEF"
-            ):
+            if current == "'" and is_cpp_numeric_digit_separator(text, index):
                 output.append(current)
                 index += 1
                 continue
@@ -489,9 +501,10 @@ def check_unicode_conversion_authority(failures: list[str]) -> None:
         if path.suffix.lower() not in MAINTAINED_CPP_SUFFIXES:
             continue
         source = strip_cpp_comments_and_literals(path.read_text(encoding="utf-8"))
-        for line_number, line in enumerate(source.splitlines(), 1):
-            if FORBIDDEN_UNICODE_CONVERSIONS.search(line):
-                failures.append(f"{relative}:{line_number}: Unicode encoding conversion must use foundation/unicode.")
+        line_starts = [0, *(match.end() for match in re.finditer("\\n", source))]
+        for match in FORBIDDEN_UNICODE_CONVERSIONS.finditer(source):
+            line_number = bisect.bisect_right(line_starts, match.start())
+            failures.append(f"{relative}:{line_number}: Unicode encoding conversion must use foundation/unicode.")
 
 
 def normalize_source_documentation(text: str) -> tuple[str, list[tuple[int, str]]]:

@@ -167,7 +167,9 @@ namespace GameWIP::Desktop::Detail::Platform
                     return FALSE;
                 }
                 SetLastError(ERROR_SUCCESS);
-                if (SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state)) == 0 && GetLastError() != ERROR_SUCCESS)
+                const LONG_PTR previous = SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
+                const DWORD error = GetLastError();
+                if (previous == 0 && error != ERROR_SUCCESS)
                 {
                     return FALSE;
                 }
@@ -295,6 +297,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
 
+            DWORD creationError = ERROR_SUCCESS;
             {
                 DpiHostingScope hosting;
                 if (!hosting.applied())
@@ -314,10 +317,17 @@ namespace GameWIP::Desktop::Detail::Platform
                     nullptr,
                     state.platform->instance,
                     &state);
+                if (state.platform->handle == nullptr)
+                {
+                    creationError = GetLastError();
+                }
             }
             if (state.platform->handle == nullptr)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "create ChildSurface host");
+                return statusFromWin32(
+                    IO::Types::ErrorCode::OpenFailed,
+                    creationError == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : creationError,
+                    "create ChildSurface host");
             }
 
             state.dpi = {static_cast<float>(dpi), static_cast<float>(dpi)};
@@ -328,7 +338,7 @@ namespace GameWIP::Desktop::Detail::Platform
             static_cast<void>(EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE));
             if ((IsWindowEnabled(state.platform->handle) != FALSE) != state.interactionEnabled)
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "set initial ChildSurface interaction");
+                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, ERROR_FUNCTION_FAILED, "set initial ChildSurface interaction");
             }
             ShowWindow(state.platform->handle, state.visible ? SW_SHOWNOACTIVATE : SW_HIDE);
             bool visible = false;
@@ -517,7 +527,7 @@ namespace GameWIP::Desktop::Detail::Platform
         static_cast<void>(EnableWindow(state.platform->handle, enabled ? TRUE : FALSE));
         if ((IsWindowEnabled(state.platform->handle) != FALSE) != enabled)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "set ChildSurface interaction");
+            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "set ChildSurface interaction");
         }
         return IO::successStatus();
     }

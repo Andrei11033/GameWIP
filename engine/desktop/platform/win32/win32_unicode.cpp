@@ -1,5 +1,5 @@
 /// @file win32_unicode.cpp
-/// @brief Strict Unicode conversion bridge for Win32 Window APIs.
+/// @brief Strict Unicode conversion bridge for Win32 Desktop APIs.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "unicode/unicode.h"

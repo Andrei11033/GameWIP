@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace GameWIP::Desktop::Detail::Platform
 {
@@ -62,7 +63,8 @@ namespace GameWIP::Desktop::Detail::Platform
             if (!status.ok())
             {
                 destination = previous;
-                static_cast<void>(applyStyle(state));
+                IO::Types::Status rollback = applyStyle(state);
+                return rollback.ok() ? std::move(status) : std::move(rollback);
             }
             return status;
         }
@@ -219,7 +221,7 @@ namespace GameWIP::Desktop::Detail::Platform
         EnableWindow(state.platform->handle, effectiveEnabled ? TRUE : FALSE);
         if ((IsWindowEnabled(state.platform->handle) != FALSE) != effectiveEnabled)
         {
-            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow");
+            return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow");
         }
         state.interactionEnabled = enabled;
         return IO::successStatus();
@@ -253,7 +255,8 @@ namespace GameWIP::Desktop::Detail::Platform
         if (!status.ok())
         {
             state.opacity = previous;
-            static_cast<void>(applyStyle(state));
+            IO::Types::Status rollback = applyStyle(state);
+            return rollback.ok() ? std::move(status) : std::move(rollback);
         }
         return status;
     }

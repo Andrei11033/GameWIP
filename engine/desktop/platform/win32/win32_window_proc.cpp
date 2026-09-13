@@ -17,6 +17,9 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     namespace
     {
+        constexpr UINT kFirstRegisteredWindowMessage = 0xC000U;
+        constexpr UINT kLastRegisteredWindowMessage = 0xFFFFU;
+
         void emitGeometryChanges(
             WindowState &state,
             Types::ScreenPosition previousPosition,
@@ -147,7 +150,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 return FALSE;
             }
             SetLastError(ERROR_SUCCESS);
-            if (SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state)) == 0 && GetLastError() != ERROR_SUCCESS)
+            const LONG_PTR previous = SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(state));
+            const DWORD error = GetLastError();
+            if (previous == 0 && error != ERROR_SUCCESS)
             {
                 return FALSE;
             }
@@ -156,17 +161,20 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return DefWindowProcW(window, message, wParam, lParam);
         }
-        const UINT progressRestoreMessage = registeredProgressOwnerRestoreMessage();
-        if (progressRestoreMessage != 0 && message == progressRestoreMessage)
+        if (message >= kFirstRegisteredWindowMessage && message <= kLastRegisteredWindowMessage)
         {
-            const std::uint64_t ownerId =
-                static_cast<std::uint32_t>(wParam) | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(lParam)) << 32U);
-            if (state->id.value == ownerId && state->platform && state->platform->handle == window && !state->platform->destroying &&
-                IsWindow(window) != FALSE)
+            const UINT progressRestoreMessage = registeredProgressOwnerRestoreMessage();
+            if (progressRestoreMessage != 0 && message == progressRestoreMessage)
             {
-                restorePendingProgressOwners(dispatcher());
+                const std::uint64_t ownerId =
+                    static_cast<std::uint32_t>(wParam) | (static_cast<std::uint64_t>(static_cast<std::uint32_t>(lParam)) << 32U);
+                if (state->id.value == ownerId && state->platform && state->platform->handle == window && !state->platform->destroying &&
+                    IsWindow(window) != FALSE)
+                {
+                    restorePendingProgressOwners(dispatcher());
+                }
+                return 0;
             }
-            return 0;
         }
 
         switch (message)

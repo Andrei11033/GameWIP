@@ -127,7 +127,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 data = static_cast<ProgressDialogData *>(create->lpCreateParams);
                 SetLastError(ERROR_SUCCESS);
                 const LONG_PTR previous = SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(data));
-                if (previous == 0 && GetLastError() != ERROR_SUCCESS)
+                const DWORD error = GetLastError();
+                if (previous == 0 && error != ERROR_SUCCESS)
                 {
                     return FALSE;
                 }
@@ -379,9 +380,11 @@ namespace GameWIP::Desktop::Detail::Platform
             const LONG_PTR requestedStyle =
                 mode == Types::Dialogs::Progress::Mode::Indeterminate ? style | PBS_MARQUEE : style & ~static_cast<LONG_PTR>(PBS_MARQUEE);
             SetLastError(ERROR_SUCCESS);
-            if (SetWindowLongPtrW(data.progress, GWL_STYLE, requestedStyle) == 0 && GetLastError() != ERROR_SUCCESS)
+            const LONG_PTR previous = SetWindowLongPtrW(data.progress, GWL_STYLE, requestedStyle);
+            const DWORD error = GetLastError();
+            if (previous == 0 && error != ERROR_SUCCESS)
             {
-                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowLongPtrW ProgressDialog mode");
+                return statusFromWin32(IO::Types::ErrorCode::NativeFailure, error, "SetWindowLongPtrW ProgressDialog mode");
             }
             if (mode == Types::Dialogs::Progress::Mode::Indeterminate)
             {
@@ -409,7 +412,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 EnableWindow(owner->platform->handle, owner->interactionEnabled ? TRUE : FALSE);
                 if (IsWindowEnabled(owner->platform->handle) != (owner->interactionEnabled ? TRUE : FALSE))
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow ProgressDialog owner restore");
+                    return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow ProgressDialog owner restore");
                 }
             }
             return IO::successStatus();
@@ -532,7 +535,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 data.owner = nullptr;
                 SetLastError(ERROR_SUCCESS);
                 const LONG_PTR previous = SetWindowLongPtrW(data.handle, GWLP_USERDATA, 0);
-                if (previous == 0 && GetLastError() != ERROR_SUCCESS)
+                const DWORD error = GetLastError();
+                if (previous == 0 && error != ERROR_SUCCESS)
                 {
                     // This exceptional terminal path deliberately retains the allocation: a
                     // live HWND could otherwise dereference freed GWLP_USERDATA. Ordinary
@@ -605,7 +609,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 data->destroying = false;
                 SetLastError(ERROR_SUCCESS);
                 const LONG_PTR previous = SetWindowLongPtrW(data->handle, GWLP_USERDATA, 0);
-                if (previous == 0 && GetLastError() != ERROR_SUCCESS)
+                const DWORD error = GetLastError();
+                if (previous == 0 && error != ERROR_SUCCESS)
                 {
                     // Keep the allocation for the same live-HWND safety invariant above.
                     finalizePortableFallback();
@@ -765,6 +770,7 @@ namespace GameWIP::Desktop::Detail::Platform
             registerOpenProgressDialog(state);
             native.registered = true;
 
+            DWORD controlCreationError = ERROR_SUCCESS;
             native.heading = CreateWindowExW(
                 0,
                 L"STATIC",
@@ -778,6 +784,14 @@ namespace GameWIP::Desktop::Detail::Platform
                 nullptr,
                 native.instance,
                 nullptr);
+            if (native.heading == nullptr && controlCreationError == ERROR_SUCCESS)
+            {
+                controlCreationError = GetLastError();
+                if (controlCreationError == ERROR_SUCCESS)
+                {
+                    controlCreationError = ERROR_FUNCTION_FAILED;
+                }
+            }
             native.message = CreateWindowExW(
                 0,
                 L"STATIC",
@@ -791,8 +805,24 @@ namespace GameWIP::Desktop::Detail::Platform
                 nullptr,
                 native.instance,
                 nullptr);
+            if (native.message == nullptr && controlCreationError == ERROR_SUCCESS)
+            {
+                controlCreationError = GetLastError();
+                if (controlCreationError == ERROR_SUCCESS)
+                {
+                    controlCreationError = ERROR_FUNCTION_FAILED;
+                }
+            }
             native.progress =
                 CreateWindowExW(0, PROGRESS_CLASSW, L"", WS_CHILD | WS_VISIBLE, 0, 0, 0, 0, native.handle, nullptr, native.instance, nullptr);
+            if (native.progress == nullptr && controlCreationError == ERROR_SUCCESS)
+            {
+                controlCreationError = GetLastError();
+                if (controlCreationError == ERROR_SUCCESS)
+                {
+                    controlCreationError = ERROR_FUNCTION_FAILED;
+                }
+            }
             if (description.cancelable)
             {
                 native.cancel = CreateWindowExW(
@@ -808,11 +838,22 @@ namespace GameWIP::Desktop::Detail::Platform
                     reinterpret_cast<HMENU>(static_cast<INT_PTR>(kCancelControlId)),
                     native.instance,
                     nullptr);
+                if (native.cancel == nullptr && controlCreationError == ERROR_SUCCESS)
+                {
+                    controlCreationError = GetLastError();
+                    if (controlCreationError == ERROR_SUCCESS)
+                    {
+                        controlCreationError = ERROR_FUNCTION_FAILED;
+                    }
+                }
             }
             if (native.heading == nullptr || native.message == nullptr || native.progress == nullptr ||
                 (description.cancelable && native.cancel == nullptr))
             {
-                return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "create ProgressDialog controls");
+                return statusFromWin32(
+                    IO::Types::ErrorCode::OpenFailed,
+                    controlCreationError == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : controlCreationError,
+                    "create ProgressDialog controls");
             }
 
             HFONT font = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
@@ -849,9 +890,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 EnableWindow(state.platform->nativeOwner, FALSE);
                 if (IsWindowEnabled(state.platform->nativeOwner) != FALSE)
                 {
-                    const DWORD nativeCode = GetLastError();
                     rollbackProgressOpenBestEffort(state);
-                    return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "EnableWindow ProgressDialog owner");
+                    return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow ProgressDialog owner");
                 }
                 state.platform->blockingOwner = true;
             }

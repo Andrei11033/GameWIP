@@ -7,6 +7,7 @@
 #include <limits>
 #include <new>
 #include <span>
+#include <utility>
 
 namespace GameWIP::Desktop::Detail::Platform
 {
@@ -201,9 +202,13 @@ namespace GameWIP::Desktop::Detail::Platform
         if (!status.ok())
         {
             state.owner = previous;
-            static_cast<void>(setNativeParent(state.platform->handle, previousOwnerHandle));
-            static_cast<void>(applyStyle(state));
-            return status;
+            IO::Types::Status parentRollback = setNativeParent(state.platform->handle, previousOwnerHandle);
+            IO::Types::Status styleRollback = applyStyle(state);
+            if (!parentRollback.ok())
+            {
+                return parentRollback;
+            }
+            return styleRollback.ok() ? std::move(status) : std::move(styleRollback);
         }
         if (state.owner != previous)
         {
@@ -319,9 +324,13 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status centerOn(WindowState &state, Types::Display::MonitorId monitor) noexcept
     {
         HMONITOR native = monitor.isValid() ? nativeMonitor(monitor) : MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
+        if (native == nullptr)
+        {
+            return statusFromWin32(IO::Types::ErrorCode::NotFound, ERROR_NOT_FOUND, "resolve center monitor");
+        }
         MONITORINFO info{};
         info.cbSize = sizeof(info);
-        if (native == nullptr || GetMonitorInfoW(native, &info) == FALSE)
+        if (GetMonitorInfoW(native, &info) == FALSE)
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, GetLastError(), "resolve center monitor");
         }

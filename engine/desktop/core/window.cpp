@@ -1221,7 +1221,8 @@ namespace GameWIP::Desktop
             {
                 state_->pointerInputRegions = std::move(previous);
                 state_->pointerInputMode = previousMode;
-                static_cast<void>(Detail::Platform::setPointerInputLayout(*state_));
+                IO::Types::Status rollback = Detail::Platform::setPointerInputLayout(*state_);
+                return rollback.ok() ? std::move(status) : std::move(rollback);
             }
             return status;
         }

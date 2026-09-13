@@ -52,7 +52,10 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     struct Filter
     {
         std::string_view name;                        ///< Display name shown for the filter.
-        std::span<const std::string_view> extensions; ///< Extensions without a leading period, wildcard, or path separator; empty means all files.
+        /// @brief Nonempty extensions; compound forms such as @c tar.gz are valid.
+        /// Each extension has no leading period, wildcard syntax, semicolon, path separator, or embedded NUL.
+        /// An empty span means all files.
+        std::span<const std::string_view> extensions;
     };
 
     /// @brief Description shared by single- and multiple-file open dialogs.
@@ -74,7 +77,9 @@ namespace GameWIP::Desktop::Types::Dialogs::File
         std::optional<std::size_t> preferredFilterIndex; ///< Optional zero-based initial filter index.
         FileSystem::Types::Path suggestedDirectory;      ///< Optional initial directory suggestion.
         std::string_view suggestedFileName;              ///< Optional UTF-8 initial file name.
-        std::string_view suggestedExtension;             ///< Optional default extension without a leading period.
+        /// @brief Optional default extension.
+        /// When nonempty, it has no leading period, wildcard syntax, path separator, or embedded NUL.
+        std::string_view suggestedExtension;
     };
 
     /// @brief Description shared by single- and multiple-folder selection.

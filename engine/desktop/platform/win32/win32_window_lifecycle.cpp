@@ -152,9 +152,14 @@ namespace GameWIP::Desktop::Detail::Platform
                                                                            : MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
                 MONITORINFO info{};
                 info.cbSize = sizeof(info);
-                if (monitor == nullptr || GetMonitorInfoW(monitor, &info) == FALSE)
+                if (monitor == nullptr)
                 {
-                    return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, GetLastError(), "resolve centered monitor");
+                    return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, ERROR_NOT_FOUND, "resolve centered monitor");
+                }
+                if (GetMonitorInfoW(monitor, &info) == FALSE)
+                {
+                    const DWORD error = GetLastError();
+                    return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, error, "resolve centered monitor");
                 }
                 const int width = static_cast<int>(outerWidth);
                 const int height = static_cast<int>(outerHeight);
@@ -322,7 +327,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
                 if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
-                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow close rollback"), false};
+                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false};
                 }
             }
             return {std::move(status), false};
@@ -335,7 +340,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
                 if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
-                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow close rollback"), false};
+                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false};
                 }
             }
             return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
@@ -349,7 +354,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
                 if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
-                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "EnableWindow close rollback"), false};
+                    return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false};
                 }
             }
             return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, nativeCode, "DestroyWindow"), false};
