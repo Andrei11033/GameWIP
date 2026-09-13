@@ -111,6 +111,7 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
         IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
         if (!result.status.ok())
         {
+            // The payload failure is authoritative; cleanup is best effort and a close failure must not replace it.
             static_cast<void>(writer.close());
             return result;
         }
@@ -188,6 +189,7 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
         IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
         if (!result.status.ok())
         {
+            // The payload failure is authoritative; cleanup is best effort and a close failure must not replace it.
             static_cast<void>(writer.close());
             return result;
         }
@@ -277,6 +279,8 @@ IO::Types::Status writeAllBytesAtomic(
         Types::Path temporaryPath;
         IO::Types::Status openStatus = IO::makeStatus(ErrorCode::AlreadyExists);
         FileWriter writer;
+        // Until movePath() succeeds, every failure below is pre-commit. Cleanup is best effort: it may retain this
+        // uniquely named temporary but cannot publish the replacement.
         // Bound collision retries so a hostile or exhausted directory cannot make temporary-name creation loop indefinitely.
         for (std::uint64_t attempt = 0; attempt < 64 && openStatus.code == ErrorCode::AlreadyExists; ++attempt)
         {

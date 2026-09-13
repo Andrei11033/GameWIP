@@ -604,6 +604,68 @@ void testCheckedFileFailureTranslation(TestSupport::Context &context, const std:
         {
             return file.resize(7);
         });
+
+    static_cast<void>(context.expectTrue("resize position-query fixture seek succeeds", file.seek(2, IO::Types::SeekOrigin::Begin).ok()));
+    Hooks::forceNextCheckedFailure(Operation::Position, Failure::Status, ErrorCode::SeekFailed, 1979);
+    const IO::Types::Status failedPositionStatus = file.resize(4);
+    static_cast<void>(context.expectEq("resize position-query preserves injected status", ErrorCode::SeekFailed, failedPositionStatus.code));
+    static_cast<void>(context.expectEq("resize position-query preserves injected native code", std::int64_t{1979}, failedPositionStatus.nativeCode));
+    static_cast<void>(context.expectEq("failed resize position-query leaves size unchanged", std::uint64_t{7}, file.size().sizeBytes));
+    static_cast<void>(context.expectEq("failed resize position-query leaves position unchanged", std::uint64_t{2}, file.position().position));
+
+    static_cast<void>(context.expectTrue("resize restore fixture seek succeeds", file.seek(2, IO::Types::SeekOrigin::Begin).ok()));
+    verifyTranslations(
+        Operation::ResizePositionRestore,
+        "File resize position restore",
+        [&file]
+        {
+            static_cast<void>(file.seek(2, IO::Types::SeekOrigin::Begin));
+            return file.resize(4);
+        });
+    static_cast<void>(context.expectEq("failed position restore still reports committed size", std::uint64_t{4}, file.size().sizeBytes));
+    static_cast<void>(context.expectEq("failed position restore leaves native resize position", std::uint64_t{4}, file.position().position));
+
+    const std::filesystem::path pathResizeFile = root / "checked_failures" / "path_resize.txt";
+    static_cast<void>(context.expectTrue("path resize fixture write succeeds", FileSystem::writeAllText(pathResizeFile, "payload").status.ok()));
+    Hooks::forceNextCheckedFailure(Operation::ResizePositionRestore, Failure::Status, ErrorCode::SeekFailed, 1980);
+    static_cast<void>(context.expectTrue("resizeFile ignores private position restoration", FileSystem::resizeFile(pathResizeFile, 3).ok()));
+    static_cast<void>(context.expectEq("resizeFile applies requested size", std::uint64_t{3}, FileSystem::getFileSize(pathResizeFile).sizeBytes));
+    Hooks::reset();
+    Hooks::forceNextCheckedFailure(Operation::ResizePositionRestore, Failure::Status, ErrorCode::SeekFailed, 1981);
+    static_cast<void>(context.expectTrue("truncateFile ignores private position restoration", FileSystem::truncateFile(pathResizeFile).ok()));
+    static_cast<void>(context.expectEq("truncateFile applies requested size", std::uint64_t{0}, FileSystem::getFileSize(pathResizeFile).sizeBytes));
+    Hooks::reset();
+
+    FileSystem::File duplicateFailureOwner;
+    FileSystem::File duplicateFailureCompetitor;
+    static_cast<void>(context.expectTrue("lock-duplication owner opens", duplicateFailureOwner.open(filePath).ok()));
+    static_cast<void>(context.expectTrue("lock-duplication competitor opens", duplicateFailureCompetitor.open(filePath).ok()));
+    const auto verifyLockDuplicationFailure =
+        [&context, &duplicateFailureOwner, &duplicateFailureCompetitor](Failure failure, ErrorCode expectedCode, std::string_view label)
+    {
+        Hooks::forceNextCheckedFailure(Operation::LockHandleDuplication, failure, ErrorCode::NativeFailure, 1982);
+        const FileSystem::Types::Lock::Result duplicateFailure = duplicateFailureOwner.tryLockExclusive();
+        static_cast<void>(context.expectEq(std::format("{} translates failure", label), expectedCode, duplicateFailure.status.code));
+        if (failure == Failure::Status)
+        {
+            static_cast<void>(
+                context.expectEq(std::format("{} preserves injected native code", label), std::int64_t{1982}, duplicateFailure.status.nativeCode));
+        }
+        static_cast<void>(context.expectTrue(std::format("{} leaves source file open", label), duplicateFailureOwner.isOpen()));
+
+        FileSystem::Types::Lock::Result acquiredAfterDuplicateFailure = duplicateFailureCompetitor.tryLockExclusive();
+        static_cast<void>(context.expectEq(
+            std::format("{} leaves no hidden native lock", label),
+            FileSystem::Types::Lock::Outcome::Acquired,
+            acquiredAfterDuplicateFailure.outcome));
+        static_cast<void>(context.expectTrue(std::format("{} competitor unlocks", label), acquiredAfterDuplicateFailure.lock.unlock().ok()));
+    };
+    verifyLockDuplicationFailure(Failure::Status, ErrorCode::NativeFailure, "lock-handle duplication status");
+    verifyLockDuplicationFailure(Failure::OutOfMemory, ErrorCode::OutOfMemory, "lock-handle duplication allocation failure");
+    verifyLockDuplicationFailure(Failure::Unexpected, ErrorCode::Unknown, "lock-handle duplication unexpected failure");
+    static_cast<void>(context.expectTrue("lock-duplication owner closes", duplicateFailureOwner.close().ok()));
+    static_cast<void>(context.expectTrue("lock-duplication competitor closes", duplicateFailureCompetitor.close().ok()));
+
     verifyTranslations(
         Operation::Close,
         "File close",

@@ -100,6 +100,8 @@ namespace GameWIP::FileSystem::Detail::Platform
             Size,
             Seek,
             Resize,
+            ResizePositionRestore, ///< Position restoration after native resize has already changed the file length.
+            LockHandleDuplication, ///< Detached-handle acquisition before a native lock request.
             DiagnosticMessage
         };
 
@@ -231,8 +233,8 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @brief Moves the current file position for a seekable native handle.
     [[nodiscard]] IO::Types::Status seekFile(Detail::FileState &state, std::int64_t offset, IO::Types::SeekOrigin origin) noexcept;
 
-    /// @brief Resizes an open writable native file handle.
-    [[nodiscard]] IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes) noexcept;
+    /// @brief Resizes an open writable native file handle, optionally preserving its observable position.
+    [[nodiscard]] IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept;
 
     /// @brief Attempts to acquire a non-blocking whole-file lock from an open native handle.
     [[nodiscard]] NativeLockResult tryLockFile(Detail::FileState &state, Types::Lock::Mode mode) noexcept;

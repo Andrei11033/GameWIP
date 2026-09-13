@@ -1372,7 +1372,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Queries the current unsigned native file position.
         [[nodiscard]] IO::Types::PositionResult nativePosition(HANDLE handle);
 
-        /// @brief Resizes a handle while restoring its original file pointer when possible.
+        /// @brief Resizes a handle and reports a failed restoration of its original file pointer.
         [[nodiscard]] IO::Types::Status truncateNativeHandle(HANDLE handle, std::uint64_t sizeBytes)
         {
             if (sizeBytes > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
@@ -1381,6 +1381,10 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
 
             const IO::Types::PositionResult originalPosition = nativePosition(handle);
+            if (!originalPosition.status.ok())
+            {
+                return originalPosition.status;
+            }
 
             LARGE_INTEGER target{};
             target.QuadPart = static_cast<LONGLONG>(sizeBytes);
@@ -1395,7 +1399,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (originalPosition.status.ok() && originalPosition.position <= sizeBytes)
             {
-                static_cast<void>(seekNativeHandle(handle, static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin));
+                return seekNativeHandle(handle, static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin);
             }
             return IO::successStatus();
         }
@@ -2556,7 +2560,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         }
     }
 
-    IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes) noexcept
+    IO::Types::Status resizeFile(Detail::FileState &state, std::uint64_t sizeBytes, bool restorePosition) noexcept
     {
         try
         {
@@ -2576,8 +2580,14 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return IO::makeStatus(ErrorCode::SizeLimitExceeded);
             }
 
-            // Preserve the caller's position when possible; a shrink below it naturally leaves the native pointer at the new end.
-            const IO::Types::PositionResult originalPosition = state.appendMode ? IO::Types::PositionResult{} : filePosition(state);
+            // SetEndOfFile commits the length before the fallible position restore; never report success if that
+            // restore fails, because callers otherwise cannot distinguish the changed length from their lost position.
+            const IO::Types::PositionResult originalPosition =
+                restorePosition && !state.appendMode ? filePosition(state) : IO::Types::PositionResult{};
+            if (restorePosition && !state.appendMode && !originalPosition.status.ok())
+            {
+                return originalPosition.status;
+            }
 
             LARGE_INTEGER target{};
             target.QuadPart = static_cast<LONGLONG>(sizeBytes);
@@ -2590,10 +2600,16 @@ namespace GameWIP::FileSystem::Detail::Platform
                 return makeLastErrorStatus(ErrorCode::ResizeFailed);
             }
 
-            if (!state.appendMode && originalPosition.status.ok() && originalPosition.position <= sizeBytes)
+            if (restorePosition && !state.appendMode && originalPosition.position <= sizeBytes)
             {
-                static_cast<void>(
-                    seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin));
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
+                CheckedFailureResult restoreInjected = consumeCheckedFailure(CheckedFileOperation::ResizePositionRestore);
+                if (restoreInjected.injected)
+                {
+                    return std::move(restoreInjected.status);
+                }
+#endif
+                return seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin);
             }
 
             return IO::successStatus();
@@ -2630,19 +2646,16 @@ namespace GameWIP::FileSystem::Detail::Platform
             }
             auto lockState = std::make_unique<Detail::FileLockState>();
 
-            OVERLAPPED overlapped{};
-            if (LockFileEx(nativeHandle(state), flags, 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
-            {
-                const DWORD error = GetLastError();
-                if (error == ERROR_LOCK_VIOLATION || error == ERROR_SHARING_VIOLATION)
-                {
-                    return {.status = IO::successStatus(), .outcome = Types::Lock::Outcome::WouldBlock};
-                }
-                return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
-            }
-
-            // The lock must own an independent handle so it can remain valid after the originating public wrapper is destroyed.
+            // Acquire a detached handle before locking so every successful native lock is immediately owned by
+            // the returned FileLock. This avoids an unobservable lock if duplication were to fail after locking.
             HANDLE duplicatedHandleRaw = INVALID_HANDLE_VALUE;
+#if FILESYSTEM_INTERNAL_TEST_HOOKS
+            CheckedFailureResult duplicateInjected = consumeCheckedFailure(CheckedFileOperation::LockHandleDuplication);
+            if (duplicateInjected.injected)
+            {
+                return {.status = std::move(duplicateInjected.status)};
+            }
+#endif
             if (DuplicateHandle(
                     GetCurrentProcess(),
                     nativeHandle(state),
@@ -2652,12 +2665,20 @@ namespace GameWIP::FileSystem::Detail::Platform
                     FALSE,
                     DUPLICATE_SAME_ACCESS) == FALSE)
             {
-                const DWORD duplicateError = GetLastError();
-                OVERLAPPED unlockOverlapped{};
-                static_cast<void>(UnlockFileEx(nativeHandle(state), 0, MAXDWORD, MAXDWORD, &unlockOverlapped));
-                return {.status = makeWin32Status(duplicateError, ErrorCode::LockFailed)};
+                return {.status = makeLastErrorStatus(ErrorCode::LockFailed)};
             }
             UniqueHandle duplicatedHandle{duplicatedHandleRaw};
+
+            OVERLAPPED overlapped{};
+            if (LockFileEx(duplicatedHandle.get(), flags, 0, MAXDWORD, MAXDWORD, &overlapped) == FALSE)
+            {
+                const DWORD error = GetLastError();
+                if (error == ERROR_LOCK_VIOLATION || error == ERROR_SHARING_VIOLATION)
+                {
+                    return {.status = IO::successStatus(), .outcome = Types::Lock::Outcome::WouldBlock};
+                }
+                return {.status = makeWin32Status(error, ErrorCode::LockFailed)};
+            }
 
             lockState->nativeHandle = duplicatedHandle.release();
             lockState->activeLocks = state.activeLocks;

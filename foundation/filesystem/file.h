@@ -582,6 +582,8 @@ namespace GameWIP::FileSystem
         /// @param sizeBytes Requested file size in bytes.
         /// @return Success, NotOpen, PermissionDenied for read-only access, SizeLimitExceeded, or a resize failure status.
         /// @note On success, the previous position is restored when it still fits; otherwise a shrink leaves the position at the new end.
+        /// If restoring that position fails after the native length update, resize() reports the failure even though
+        /// the requested length already applies.
         [[nodiscard]] IO::Types::Status resize(std::uint64_t sizeBytes) noexcept;
         /// @brief Attempts to acquire a non-blocking shared whole-file lock.
         /// @return Lock status, acquisition outcome, and active lock owner when acquired.
@@ -591,6 +593,11 @@ namespace GameWIP::FileSystem
         [[nodiscard]] Types::Lock::Result tryLockExclusive() noexcept;
 
     private:
+        friend IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, const Types::File::ResizeOptions &options) noexcept;
+
+        /// @brief Resizes a private path-helper handle without preserving its unobservable position.
+        [[nodiscard]] IO::Types::Status resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept;
+
         std::unique_ptr<Detail::FileState> state_;
     };
 
@@ -748,7 +755,9 @@ namespace GameWIP::FileSystem
     /// @param path File path to resize.
     /// @param sizeBytes Requested file size in bytes.
     /// @param options Symlink traversal behavior.
-    /// @return Success or a validation, lookup, permission, or resize failure status.
+    /// @return Success or a validation, lookup, permission, resize, or close failure status.
+    /// @note The helper does not report restoration failure for its private temporary handle. A failed resize or close can still leave the requested
+    /// length applied.
     [[nodiscard]] IO::Types::Status resizeFile(
         const Types::Path &path,
         std::uint64_t sizeBytes,
@@ -757,7 +766,9 @@ namespace GameWIP::FileSystem
     /// @brief Truncates an existing regular file to zero bytes.
     /// @param path File path to truncate.
     /// @param options Symlink traversal behavior.
-    /// @return Success or a validation, lookup, permission, or resize failure status.
+    /// @return Success or a validation, lookup, permission, resize, or close failure status.
+    /// @note The helper does not report restoration failure for its private temporary handle. A failed resize or close can still leave the requested
+    /// length applied.
     [[nodiscard]] IO::Types::Status truncateFile(const Types::Path &path, const Types::File::ResizeOptions &options = {}) noexcept;
 
     /// @}
@@ -770,6 +781,7 @@ namespace GameWIP::FileSystem
     /// @param to Destination file path.
     /// @param options Replacement, symlink, parent, metadata, and flush behavior.
     /// @return Success or a validation, lookup, permission, copy, metadata, or flush failure status.
+    /// @note Copying is non-atomic: a failure after destination creation can leave destination content changed.
     [[nodiscard]] IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const Types::File::CopyOptions &options = {}) noexcept;
 
     /// @brief Removes one regular file or symlink-to-file entry.

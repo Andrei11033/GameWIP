@@ -14,7 +14,8 @@ The FileSystem module covers:
 - open modes, sharing, replacement, append, and flush behavior;
 - atomic replacement, prefix validation, durability requests, and cleanup;
 - shared/exclusive lock acquisition, contention, detached ownership, failed unlock, and destructor cleanup.
-- deterministic status, allocation, and unexpected failures for checked read, write, flush, close, position, size, seek, and resize operations;
+- deterministic status, allocation, and unexpected failures for checked read, write, flush, close, position, size, seek, resize, post-resize position
+  restoration, and lock-handle duplication;
 - diagnostic-message allocation fallback and retryable file state after close failure.
 
 Run the FileSystem-focused module through the project validation workflow documented by @ref project_testing.

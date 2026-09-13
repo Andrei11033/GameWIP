@@ -46,10 +46,11 @@ A successful timestamp is a snapshot. It can become stale immediately under conc
 ## Size mutation
 
 `resizeFile()` resizes one existing regular file; `truncateFile()` is the zero-size convenience operation. Both apply
-`Types::File::ResizeOptions::symlinkPolicy`.
+`Types::File::ResizeOptions::symlinkPolicy`. Their temporary handle position is private and does not affect their result. A resize or close failure
+can still occur after the requested length has already applied.
 
 `File::resize()` performs the same operation through an open writable handle and follows the position rule described by @ref
-filesystem_file_open_modes.
+filesystem_file_open_modes. Its observable handle-position contract can therefore report a failed restoration after the requested length applies.
 
 Growing a file does not promise a particular physical allocation policy beyond the platform's normal file semantics.
 

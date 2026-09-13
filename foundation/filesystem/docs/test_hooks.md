@@ -31,8 +31,9 @@ phase. The unlock-failure override is persistent until disabled or reset.
 
 ### `forceNextCheckedFailure(operation, failure, code, nativeCode)`
 
-Arms one matching checked file operation. `CheckedFileOperation` selects read, write, flush, close, position, size, seek, resize, or native
-diagnostic-message construction. `CheckedFailure` selects an injected status, allocation failure, or unexpected exception.
+Arms one matching checked file operation. `CheckedFileOperation` selects read, write, flush, close, position, size, seek, resize, resize-position
+restoration, lock-handle duplication, or native diagnostic-message construction. `CheckedFailure` selects an injected status, allocation failure, or
+unexpected exception.
 
 Status injection preserves the supplied portable and native codes. Allocation and unexpected exceptions must be contained as `OutOfMemory` and
 `Unknown`. A diagnostic-message failure instead preserves the original native operation code and native value with an empty message.
