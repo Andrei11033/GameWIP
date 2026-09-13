@@ -83,10 +83,12 @@ Remove markers that no longer answer a performance question.
 
 The game executable supplies process-level markers for profiler attachment,
 startup validation, startup benchmarks, runtime execution, Logger
-initialization, and Logger shutdown. Profile builds also emit frame marks at
-the validation, benchmark, and runtime boundaries. These markers describe the
-executable composition path; subsystem implementations own any narrower zones
-needed to explain measured work.
+initialization, and Logger shutdown. The Game runtime zone encloses
+`GameWIP::Game::run()`, while Logger shutdown has its own zone inside
+`finishRuntime()`, including the error paths that call it. Profile builds also
+emit frame marks at the validation, benchmark, and runtime boundaries. These
+markers describe the executable composition path; subsystem implementations
+own any narrower zones needed to explain measured work.
 
 Colors group executable-owned zones by purpose: blue identifies the enclosing
 process and runtime, teal identifies initialization, green identifies frames,

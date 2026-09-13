@@ -131,7 +131,10 @@ interprets them.
 
 Tracy-enabled builds identify display discovery, window open and close, the
 event wait/pump, individual game frames, and Logger lifetime with named zones
-and messages. A frame mark is emitted after each successful event-pump cycle.
+and messages. The Game runtime zone covers `GameWIP::Game::run()`; the Logger
+shutdown zone is inside `finishRuntime()`, so it also covers shutdown on error
+and failure exit paths. A frame mark is emitted after each successful
+event-pump cycle.
 
 Use @ref GameWIP::Game for the generated source API reference.
 

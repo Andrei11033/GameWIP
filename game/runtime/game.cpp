@@ -211,6 +211,10 @@ namespace
 
     int finishRuntime(int primaryExitCode) noexcept
     {
+#if GAMEWIP_TRACY_ENABLED
+        ZoneScopedNC("Logger shutdown", ProfileZoneColor::Shutdown);
+#endif
+
         const GameWIP::IO::Types::Status shutdownStatus = GameWIP::Logger::shutdown();
         if (primaryExitCode == EXIT_SUCCESS && !shutdownStatus.ok())
         {
@@ -288,9 +292,6 @@ namespace GameWIP::Game
 
         static_cast<void>(argc);
         static_cast<void>(argv);
-#if GAMEWIP_TRACY_ENABLED
-        ZoneScopedNC("Logger shutdown", ProfileZoneColor::Shutdown);
-#endif
         Logger::warn("Shutdown", "Logger shutting down");
         return finishRuntime(EXIT_SUCCESS);
     }
