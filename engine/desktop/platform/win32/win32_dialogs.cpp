@@ -100,6 +100,9 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(code, static_cast<std::int64_t>(result));
         }
 
+        // Native dialogs stay on the caller thread so ownership, modality, and
+        // thread-affine Win32 state remain explicit; reject incompatible
+        // apartments rather than hiding dispatch behind a worker STA.
         class ApartmentLease final
         {
         public:

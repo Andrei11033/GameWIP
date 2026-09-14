@@ -29,6 +29,7 @@ The supported public headers are:
 - `desktop/drag_drop.h`
 - `desktop/clipboard.h`
 - `desktop/window.h`
+- `desktop/dialogs.h`
 - `desktop/renderer_bridge.h`
 - `desktop/native/win32.h` on Win32
 - generated `desktop/desktop_export.h`
@@ -58,9 +59,14 @@ including when a separate library links Desktop. See @ref desktop_quick_start
 for both consumption paths and @ref project_cmake_infrastructure for shared
 manifest requirements and composition.
 
-OLE and COM remain private implementation dependencies. The Win32 backend links
-`ole32`; public and installed headers expose no COM interfaces, HRESULT values,
-or raw drag/drop handles.
+Native Win32 dependencies remain private implementation details. The Win32 backend
+links `ole32` for OLE/COM functionality and `comctl32` for Common Controls
+functionality; neither is a consumer-facing link requirement, and consumers do not
+need to link `comctl32` manually through the Desktop package contract. Linking
+`comctl32` does not activate Common Controls v6: that remains application/executable
+manifest policy owned by the shared `GameWIPApplication` CMake infrastructure.
+Public and installed headers expose no COM interfaces, HRESULT values, or raw
+drag/drop handles.
 
 ## Internal definitions
 

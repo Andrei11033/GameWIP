@@ -81,6 +81,8 @@ Avoid markers for:
 
 Remove markers that no longer answer a performance question.
 
+## Logger initialization and shutdown zones
+
 The game executable supplies process-level markers for profiler attachment,
 startup validation, startup benchmarks, runtime execution, Logger
 initialization, and Logger shutdown. The Game runtime zone encloses
