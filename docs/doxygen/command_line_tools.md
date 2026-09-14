@@ -106,7 +106,14 @@ The second positional word is the action-specific command or selection; the thir
 .\gamewip.bat runs clean all
 ```
 
-Use `gamewip.bat list` for current presets, modules, project commands, bundles, benchmark profiles, and guarded workflows.
+Use `gamewip.bat list` for current presets, modules, project commands, bundles,
+benchmark profiles, and guarded workflows. The `wizard` composes common
+validation options and applicable module-specific options declared by the helper
+catalog. Focused module runs expose those options automatically; all-module runs
+offer them only when selected, and skipped modules are not offered. `gamewip list`
+shows their option IDs. This metadata controls composition and presentation;
+argument semantics remain owned by the validation runner and module
+implementation.
 
 ## Shared options
 

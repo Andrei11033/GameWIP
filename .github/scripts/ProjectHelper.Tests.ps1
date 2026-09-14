@@ -27,6 +27,69 @@ Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
 
+$validationMenu = @($CommandConfig.Menus | Where-Object Id -eq 'validation')[0]
+$validationHandlers = @($validationMenu.Items | ForEach-Object Handler)
+if (@($validationHandlers | Where-Object { $_ -eq 'coverage' }).Count -ne 1)
+{
+    throw 'Validation menu must contain Coverage exactly once.'
+}
+if (@($validationHandlers | Where-Object { $_ -eq 'asan' }).Count -ne 1)
+{
+    throw 'Validation menu must contain AddressSanitizer exactly once.'
+}
+if (@($validationMenu.Items | ForEach-Object Key | Group-Object | Where-Object Count -gt 1).Count -ne 0)
+{
+    throw 'Validation menu keys must be unique.'
+}
+foreach ($handler in @('test', 'module', 'stress', 'wizard', 'benchmark', 'coverage', 'bundle', 'asan'))
+{
+    if ($validationHandlers -notcontains $handler)
+    {
+        throw "Validation menu is missing '$handler'."
+    }
+}
+
+$expectedMultiChoiceIndexes = @{
+    '1' = @(1)
+    '1,4,17' = @(1, 4, 17)
+    '1, 4, 17' = @(1, 4, 17)
+    '1,1' = @(1)
+}
+foreach ($inputText in $expectedMultiChoiceIndexes.Keys)
+{
+    $actual = @(ConvertTo-GameWipMultiChoiceIndexes -InputText $inputText -ChoiceCount 17)
+    if (($actual -join ',') -ne ($expectedMultiChoiceIndexes[$inputText] -join ','))
+    {
+        throw "Unexpected multi-choice indexes for '$inputText'."
+    }
+}
+foreach ($inputText in @('0', '18', 'abc', '1,abc', '1,999', '1,,3'))
+{
+    $rejected = $false
+    try
+    {
+        ConvertTo-GameWipMultiChoiceIndexes -InputText $inputText -ChoiceCount 17 | Out-Null
+    }
+    catch
+    {
+        $rejected = $true
+    }
+    if (-not $rejected)
+    {
+        throw "Invalid multi-choice input '$inputText' was accepted."
+    }
+}
+$selection = [System.Collections.Generic.HashSet[int]]::new()
+foreach ($number in @(ConvertTo-GameWipMultiChoiceIndexes -InputText '17,2,9' -ChoiceCount 17))
+{
+    [void]$selection.Add($number)
+}
+$ordered = @(1..17 | Where-Object { $selection.Contains($_) })
+if (($ordered -join ',') -ne '2,9,17')
+{
+    throw 'Multi-choice selections did not preserve configured order.'
+}
+
 # An empty installation phase is valid when a caller only needs the separate
 # tracked-file phase. It must return before binding or provider work fails.
 Invoke-GameWipToolInstallPlan -InstallPlan @() -TrackedPlan ([pscustomobject]@{})

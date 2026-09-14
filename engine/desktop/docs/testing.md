@@ -111,3 +111,5 @@ scenarios and expected results.
 `files-shell`, `dialogs`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow;
 `borderless`, `exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and
 record before/after mode-transition geometry so evidence survives a driver reset or process interruption.
+
+When manual tests are enabled and Desktop is being configured through the project validation command builder, this selector is exposed there as well.

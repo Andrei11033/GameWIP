@@ -209,7 +209,7 @@ function Show-GameWipValidationMenu
             }
             'module'
             {
-                $module = Read-GameWipNamedChoice -Prompt 'Validation module' -Choices (@('all') + @($CommandConfig.Modules)) -Default $CommandConfig.DefaultModule
+                $module = Read-GameWipNamedChoice -Prompt 'Validation module' -Choices (@('all') + @(Get-GameWipValidationModuleName)) -Default $CommandConfig.DefaultModule
                 if ($null -ne $module)
                 {
                     Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -NoBuild:$NoBuild } | Out-Null } | Out-Null
@@ -217,7 +217,7 @@ function Show-GameWipValidationMenu
             }
             'stress'
             {
-                $module = Read-GameWipNamedChoice -Prompt 'Stress module' -Choices (@('all') + @($CommandConfig.Modules)) -Default $CommandConfig.DefaultModule
+                $module = Read-GameWipNamedChoice -Prompt 'Stress module' -Choices (@('all') + @(Get-GameWipValidationModuleName)) -Default $CommandConfig.DefaultModule
                 if ($null -ne $module)
                 {
                     $runs = Read-GameWipIntegerValue -Prompt 'Run count' -Default ([int]$CommandConfig.DefaultStressCount)

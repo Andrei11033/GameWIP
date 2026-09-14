@@ -631,7 +631,7 @@ def check_registry_relationships(failures: list[str]) -> None:
             failures.append(f"scripts/GameWIP.ps1: helper action '{required_action}' is not dispatched")
 
     discovered_modules = {path.parent.name for path in (ROOT / "game/validation/tests").glob("*/CMakeLists.txt")}
-    configured_modules = set(commands.get("modules", []))
+    configured_modules = {module["id"] for module in commands.get("modules", [])}
     if discovered_modules != configured_modules:
         failures.append(
             "scripts/config/commands.json: modules differ from game/validation/tests directories "

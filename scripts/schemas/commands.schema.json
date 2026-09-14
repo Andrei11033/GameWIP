@@ -80,9 +80,8 @@
     "modules": {
       "type": "array",
       "minItems": 1,
-      "uniqueItems": true,
       "description": "Validation module IDs accepted by module and stress commands.",
-      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      "items": { "$ref": "#/$defs/validationModule" }
     },
     "projectCommands": {
       "type": "array",
@@ -98,6 +97,31 @@
     }
   },
   "$defs": {
+    "validationModule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "builderOptions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/validationBuilderOption" } }
+      }
+    },
+    "validationBuilderOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "kind", "arguments", "default"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["boolean", "choice", "integer", "text"] },
+        "arguments": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "default": {},
+        "choices": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+        "omitDefault": { "type": "boolean" },
+        "requiresCommon": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+      }
+    },
     "action": {
       "type": "object",
       "additionalProperties": false,

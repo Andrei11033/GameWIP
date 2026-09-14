@@ -437,7 +437,7 @@ function Read-GameWipMultiChoiceResult
     $keys = @('1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f')
     if ($Choices.Count -gt $keys.Count)
     {
-        throw "Too many choices for single-key selection: $($Choices.Count)."
+        return Read-GameWipIndexedMultiChoiceResult -Prompt $Prompt -Choices $Choices
     }
     $selected = New-Object System.Collections.Generic.HashSet[string]
     while ($true)
@@ -485,5 +485,93 @@ function Read-GameWipMultiChoiceResult
             continue
         }
         Write-GameWipHost 'Invalid selection.' -ForegroundColor Yellow
+    }
+}
+
+function ConvertTo-GameWipMultiChoiceIndexes
+{
+    param([Parameter(Mandatory = $true)][string]$InputText, [Parameter(Mandatory = $true)][int]$ChoiceCount)
+    if ([string]::IsNullOrWhiteSpace($InputText))
+    {
+        return @()
+    }
+    $indexes = [System.Collections.Generic.HashSet[int]]::new()
+    foreach ($token in @($InputText -split ','))
+    {
+        $trimmed = $token.Trim()
+        $number = 0
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or -not [int]::TryParse($trimmed, [ref]$number) -or $number -lt 1 -or $number -gt $ChoiceCount)
+        {
+            throw "Enter comma-separated numbers from 1 to $ChoiceCount."
+        }
+        [void]$indexes.Add($number)
+    }
+    return @($indexes | Sort-Object)
+}
+
+function Read-GameWipIndexedMultiChoiceResult
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Prompt,
+        [Parameter(Mandatory = $true)][string[]]$Choices
+    )
+    Assert-GameWipInteractiveConsole -Purpose $Prompt
+    if ($Choices.Count -eq 0)
+    {
+        return New-GameWipChoiceResult -Status Cancelled -Value $null
+    }
+    $selected = [System.Collections.Generic.HashSet[int]]::new()
+    while ($true)
+    {
+        Write-Host ''
+        Write-Host $Prompt
+        for ($index = 0; $index -lt $Choices.Count; ++$index)
+        {
+            $marker = if ($selected.Contains($index + 1))
+            {
+                'x'
+            }
+            else
+            {
+                ' '
+            }
+            Write-Host ("  [{0}] [{1}] {2}" -f ($index + 1), $marker, $Choices[$index])
+        }
+        $answer = Read-Host 'Toggle numbers separated by commas, Enter to accept, or Q to cancel'
+        if ($answer -eq 'q' -or $answer -eq 'Q')
+        {
+            return New-GameWipChoiceResult -Status Cancelled -Value $null
+        }
+        if ([string]::IsNullOrWhiteSpace($answer))
+        {
+            $values = [System.Collections.Generic.List[string]]::new()
+            for ($index = 0; $index -lt $Choices.Count; ++$index)
+            {
+                if ($selected.Contains($index + 1))
+                {
+                    $values.Add($Choices[$index]) | Out-Null
+                }
+            }
+            return New-GameWipChoiceResult -Status Selected -Value $values.ToArray()
+        }
+        try
+        {
+            $indexes = @(ConvertTo-GameWipMultiChoiceIndexes -InputText $answer -ChoiceCount $Choices.Count)
+            foreach ($number in $indexes)
+            {
+                if ($selected.Contains($number))
+                {
+                    [void]$selected.Remove($number)
+                }
+                else
+                {
+                    [void]$selected.Add($number)
+                }
+            }
+        }
+        catch
+        {
+            Write-GameWipHost $_.Exception.Message -ForegroundColor Yellow
+        }
     }
 }

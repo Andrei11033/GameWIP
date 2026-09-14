@@ -391,10 +391,26 @@ function Assert-GameWipValidPreset
 function Assert-GameWipValidModule
 {
     param([Parameter(Mandatory = $true)][string]$Name)
-    if ($Name -ne 'all' -and @($CommandConfig.Modules) -notcontains $Name)
+    if ($Name -ne 'all' -and @(Get-GameWipValidationModuleName) -notcontains $Name)
     {
         throw "Unknown validation module '$Name'. Run 'gamewip list' to see available modules."
     }
+}
+
+function Get-GameWipValidationModuleName
+{
+    return @($CommandConfig.Modules | ForEach-Object { [string]$_.Id })
+}
+
+function Get-GameWipValidationModule
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+    $module = @($CommandConfig.Modules | Where-Object { $_.Id -eq $Name } | Select-Object -First 1)
+    if ($module.Count -eq 0)
+    {
+        throw "Unknown validation module '$Name'. Run 'gamewip list' to see available modules."
+    }
+    return $module[0]
 }
 
 function Get-GameWipProjectCommand
@@ -538,7 +554,8 @@ function Assert-GameWipCommandConfig
 
     $moduleRoot = Join-Path $RepositoryRoot 'game\validation\tests'
     $discoveredModules = @(Get-ChildItem -LiteralPath $moduleRoot -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'CMakeLists.txt') } | ForEach-Object { $_.Name } | Sort-Object)
-    $configuredModules = @($CommandConfig.Modules | Sort-Object)
+    Assert-GameWipUniqueId -Label 'validation module' -Items @($CommandConfig.Modules)
+    $configuredModules = @(Get-GameWipValidationModuleName | Sort-Object)
     if (($discoveredModules -join "`n") -ne ($configuredModules -join "`n"))
     {
         throw "Validation module catalog drift. Configured: $($configuredModules -join ', '); discovered: $($discoveredModules -join ', ')."
@@ -546,6 +563,60 @@ function Assert-GameWipCommandConfig
     if ($configuredModules -notcontains $CommandConfig.DefaultModule -and $CommandConfig.DefaultModule -ne 'all')
     {
         throw "Unknown default validation module '$($CommandConfig.DefaultModule)'."
+    }
+
+    $validBuilderKinds = @('boolean', 'choice', 'integer', 'text')
+    $validCommonCapabilities = @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report')
+    foreach ($module in @($CommandConfig.Modules))
+    {
+        $options = @(if ($module -is [hashtable] -and $module.ContainsKey('builderOptions'))
+            {
+                @($module['builderOptions'])
+            }
+            else
+            {
+                @()
+            })
+        if ($options.Count -eq 0)
+        {
+            continue
+        }
+        Assert-GameWipUniqueId -Label "validation builder option in '$($module.Id)'" -Items $options
+        foreach ($option in $options)
+        {
+            if ($validBuilderKinds -notcontains [string]$option.Kind)
+            {
+                throw "Unknown validation builder option kind '$($option.Kind)' in '$($module.Id)/$($option.Id)'."
+            }
+            $requiredCapabilities = @(if ($option -is [hashtable] -and $option.ContainsKey('requiresCommon'))
+                {
+                    @($option['requiresCommon'])
+                }
+                else
+                {
+                    @()
+                })
+            foreach ($capability in $requiredCapabilities)
+            {
+                if ($validCommonCapabilities -notcontains [string]$capability)
+                {
+                    throw "Unknown common capability '$capability' in validation builder option '$($module.Id)/$($option.Id)'."
+                }
+            }
+            $hasValue = @($option.Arguments | Where-Object { $_.Contains('{value}') }).Count -gt 0
+            if ($option.Kind -eq 'boolean' -and $hasValue)
+            {
+                throw "Boolean validation builder option '$($module.Id)/$($option.Id)' must not contain '{value}'."
+            }
+            if ($option.Kind -ne 'boolean' -and -not $hasValue)
+            {
+                throw "Validation builder option '$($module.Id)/$($option.Id)' must contain '{value}'."
+            }
+            if ($option.Kind -eq 'choice' -and @($option.Choices) -notcontains [string]$option.Default)
+            {
+                throw "Default for validation builder option '$($module.Id)/$($option.Id)' is not one of its choices."
+            }
+        }
     }
 
     foreach ($command in $commands)
