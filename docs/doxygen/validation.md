@@ -56,7 +56,6 @@ code `1`.
 | `verboseConsole` | Mirrors full TestSupport report categories to stdout. |
 | `stressThreadCount` | Shared worker count for module stress scenarios. |
 | `loggerStressIterationsPerThread` | Per-worker Logger stress operation count. |
-| `assertStressIterations` | Assert stress repetition count. |
 | `writeReport` | Enables the retained aggregate report. |
 | `appendReport` | Makes the first selected module append rather than replace the report. |
 | `reportPath` | Absolute report path or a relative path resolved beneath the running executable directory. |

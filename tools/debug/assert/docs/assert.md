@@ -42,8 +42,6 @@ configuration; those choices are exported to consumers through the CMake target.
 
 - @subpage assert_testing — See the configuration matrix and automated runtime,
   package, ABI, and subprocess coverage.
-- @subpage assert_test_hooks — Understand source-tree-only forced actions,
-  diagnostic capture, and reset rules.
 
 ## Generated API reference
 

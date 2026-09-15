@@ -119,3 +119,15 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     context.pass("UTF-8 diagnostic truncation skipped because checks or diagnostics are disabled");
 #endif
 }
+
+/// @brief Verifies failed popup diagnostic preparation remains inside the noexcept emergency boundary.
+void testDiagnosticPreparationEmergencyPath(TestContext &context)
+{
+#if ASSERT_INTERNAL_TEST_HOOKS
+    static_cast<void>(context.expectTrue(
+        "diagnostic preparation failure reaches static emergency popup path",
+        GameWIP::Debug::Assert::TestHooks::runDiagnosticPreparationEmergencyPathForTest()));
+#else
+    context.pass("diagnostic preparation emergency path skipped because Assert test hooks are disabled");
+#endif
+}

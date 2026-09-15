@@ -2,7 +2,6 @@
 /// @brief Filesystem guard and strict UTF-8 text-file implementation for TestSupport.
 
 #include "test_support/files.h"
-#include "test_support/internal/test_support_test_hooks.h"
 #include "unicode/unicode.h"
 
 #include <atomic>
@@ -57,13 +56,6 @@ namespace GameWIP::TestSupport
 
     ScopedTemporaryDirectory::ScopedTemporaryDirectory(std::string_view purpose) noexcept
     {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::TemporaryDirectory))
-        {
-            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
-            return;
-        }
-#endif
         try
         {
             std::error_code error;
@@ -154,13 +146,6 @@ namespace GameWIP::TestSupport
 
     ScopedCurrentPath::ScopedCurrentPath(const std::filesystem::path &path) noexcept
     {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::CurrentPath))
-        {
-            status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
-            return;
-        }
-#endif
         try
         {
             std::error_code error;
@@ -223,13 +208,6 @@ namespace GameWIP::TestSupport
     Types::TextResult readTextFile(const std::filesystem::path &path) noexcept
     {
         Types::TextResult result;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Read))
-        {
-            result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
-            return result;
-        }
-#endif
         try
         {
             errno = 0;
@@ -340,12 +318,6 @@ namespace GameWIP::TestSupport
 
     Types::InfrastructureStatus writeTextFile(const std::filesystem::path &path, std::string_view text) noexcept
     {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Write))
-        {
-            return failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
-        }
-#endif
         try
         {
             if (text.size() > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max()))
@@ -404,13 +376,6 @@ namespace GameWIP::TestSupport
     Types::BoolResult fileExists(const std::filesystem::path &path) noexcept
     {
         Types::BoolResult result;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Exists))
-        {
-            result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
-            return result;
-        }
-#endif
         try
         {
             std::error_code error;
@@ -464,12 +429,6 @@ namespace GameWIP::TestSupport
 
     Types::InfrastructureStatus createDirectories(const std::filesystem::path &path) noexcept
     {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::CreateDirectories))
-        {
-            return failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
-        }
-#endif
         if (path.empty())
         {
             return {};
@@ -493,12 +452,6 @@ namespace GameWIP::TestSupport
 
     Types::InfrastructureStatus removeIfExists(const std::filesystem::path &path) noexcept
     {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = Detail::TestHooks::consumeFileFailure(TestHooks::FileFailurePoint::Remove))
-        {
-            return failureStatus(Types::InfrastructureError::FileOperationFailed, *injected);
-        }
-#endif
         try
         {
             std::error_code error;

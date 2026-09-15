@@ -25,7 +25,6 @@
 #include <mutex>
 #include <new>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -52,50 +51,7 @@ namespace GameWIP::FileSystem::Detail::Platform
         constexpr std::int64_t kUnixEpochAsWindowsFileTime = 116'444'736'000'000'000LL;
 
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
-        using CheckedFileOperation = TestHooks::CheckedFileOperation;
-        using CheckedFailure = TestHooks::CheckedFailure;
-
-        std::atomic<CheckedFileOperation> checkedFailureOperation = CheckedFileOperation::None;
-        std::atomic<CheckedFailure> checkedFailureKind = CheckedFailure::Status;
-        std::atomic<ErrorCode> checkedFailureCode = ErrorCode::NativeFailure;
-        std::atomic<std::int64_t> checkedFailureNativeCode = 0;
-
-        struct CheckedFailureResult
-        {
-            IO::Types::Status status;
-            bool injected = false;
-        };
-
-        [[nodiscard]] CheckedFailureResult consumeCheckedFailure(CheckedFileOperation operation)
-        {
-            CheckedFileOperation expected = operation;
-            if (!checkedFailureOperation.compare_exchange_strong(expected, CheckedFileOperation::None, std::memory_order_acq_rel))
-            {
-                return {};
-            }
-
-            switch (checkedFailureKind.load(std::memory_order_relaxed))
-            {
-            case CheckedFailure::Status:
-                return {
-                    .status =
-                        IO::makeStatus(checkedFailureCode.load(std::memory_order_relaxed), checkedFailureNativeCode.load(std::memory_order_relaxed)),
-                    .injected = true};
-            case CheckedFailure::OutOfMemory:
-                throw std::bad_alloc{};
-            case CheckedFailure::Unexpected:
-                throw std::runtime_error{"injected checked file failure"};
-            }
-
-            throw std::runtime_error{"invalid checked file failure"};
-        }
-
-        void consumeDiagnosticFailure()
-        {
-            static_cast<void>(consumeCheckedFailure(CheckedFileOperation::DiagnosticMessage));
-        }
-
-        /// Persistent failure injection used to validate destructor cleanup after UnlockFileEx failure.
+        /// Persistent failure injection used to validate FileLock destructor cleanup after UnlockFileEx failure.
         std::atomic_bool forceFileUnlockFailure = false;
 
         struct MovePauseHook
@@ -431,9 +387,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             try
             {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-                consumeDiagnosticFailure();
-#endif
                 std::string message = std::system_category().message(static_cast<int>(error));
                 if (Unicode::Utf8::validate(message).outcome == Unicode::Types::ValidationOutcome::Valid)
                 {
@@ -2329,13 +2282,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Read);
-            if (injected.injected)
-            {
-                return {.status = std::move(injected.status)};
-            }
-#endif
             if (destination.empty())
             {
                 IO::Types::PositionResult position = filePosition(state);
@@ -2373,13 +2319,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Write);
-            if (injected.injected)
-            {
-                return {.status = std::move(injected.status)};
-            }
-#endif
             if (bytes.empty())
             {
                 return {.status = IO::successStatus(), .bytesWritten = 0};
@@ -2409,13 +2348,6 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Flush);
-            if (injected.injected)
-            {
-                return std::move(injected.status);
-            }
-#endif
             if (!IO::isValidFlushMode(mode))
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
@@ -2445,13 +2377,6 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Close);
-            if (injected.injected)
-            {
-                return std::move(injected.status);
-            }
-#endif
             if (state.activeLocks && *state.activeLocks > 0)
             {
                 return IO::makeStatus(ErrorCode::ResourceBusy);
@@ -2487,13 +2412,6 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Position);
-            if (injected.injected)
-            {
-                return {.status = std::move(injected.status)};
-            }
-#endif
             if (state.appendMode)
             {
                 return {.status = IO::makeStatus(ErrorCode::NotSeekable)};
@@ -2514,13 +2432,6 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Size);
-            if (injected.injected)
-            {
-                return {.status = std::move(injected.status)};
-            }
-#endif
             return nativeFileSize(nativeHandle(state));
         }
         catch (const std::bad_alloc &)
@@ -2537,13 +2448,6 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Seek);
-            if (injected.injected)
-            {
-                return std::move(injected.status);
-            }
-#endif
             if (state.appendMode)
             {
                 return IO::makeStatus(ErrorCode::NotSeekable);
@@ -2564,13 +2468,6 @@ namespace GameWIP::FileSystem::Detail::Platform
     {
         try
         {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult injected = consumeCheckedFailure(CheckedFileOperation::Resize);
-            if (injected.injected)
-            {
-                return std::move(injected.status);
-            }
-#endif
             if (!state.writable)
             {
                 return IO::makeStatus(ErrorCode::PermissionDenied);
@@ -2602,13 +2499,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 
             if (restorePosition && !state.appendMode && originalPosition.position <= sizeBytes)
             {
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-                CheckedFailureResult restoreInjected = consumeCheckedFailure(CheckedFileOperation::ResizePositionRestore);
-                if (restoreInjected.injected)
-                {
-                    return std::move(restoreInjected.status);
-                }
-#endif
                 return seekNativeHandle(nativeHandle(state), static_cast<std::int64_t>(originalPosition.position), IO::Types::SeekOrigin::Begin);
             }
 
@@ -2649,13 +2539,6 @@ namespace GameWIP::FileSystem::Detail::Platform
             // Acquire a detached handle before locking so every successful native lock is immediately owned by
             // the returned FileLock. This avoids an unobservable lock if duplication were to fail after locking.
             HANDLE duplicatedHandleRaw = INVALID_HANDLE_VALUE;
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-            CheckedFailureResult duplicateInjected = consumeCheckedFailure(CheckedFileOperation::LockHandleDuplication);
-            if (duplicateInjected.injected)
-            {
-                return {.status = std::move(duplicateInjected.status)};
-            }
-#endif
             if (DuplicateHandle(
                     GetCurrentProcess(),
                     nativeHandle(state),
@@ -3255,18 +3138,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
     namespace TestHooks
     {
-        void forceNextCheckedFailure(
-            CheckedFileOperation operation,
-            CheckedFailure failure,
-            IO::Types::ErrorCode code,
-            std::int64_t nativeCode) noexcept
-        {
-            checkedFailureKind.store(failure, std::memory_order_relaxed);
-            checkedFailureCode.store(code, std::memory_order_relaxed);
-            checkedFailureNativeCode.store(nativeCode, std::memory_order_relaxed);
-            checkedFailureOperation.store(operation, std::memory_order_release);
-        }
-
         void setFileUnlockFailure(bool enabled) noexcept
         {
             forceFileUnlockFailure.store(enabled, std::memory_order_release);
@@ -3311,7 +3182,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 
         void reset() noexcept
         {
-            checkedFailureOperation.store(CheckedFileOperation::None, std::memory_order_release);
             forceFileUnlockFailure.store(false, std::memory_order_release);
             std::lock_guard lock(movePauseHook.mutex);
             movePauseHook.pauseAfterValidation = false;

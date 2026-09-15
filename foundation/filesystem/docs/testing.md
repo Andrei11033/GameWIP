@@ -13,10 +13,8 @@ The FileSystem module covers:
 - create, list, resize, copy, move, remove, and tree-removal limits;
 - open modes, sharing, replacement, append, and flush behavior;
 - atomic replacement, prefix validation, durability requests, and cleanup;
-- shared/exclusive lock acquisition, contention, detached ownership, failed unlock, and destructor cleanup.
-- deterministic status, allocation, and unexpected failures for checked read, write, flush, close, position, size, seek, resize, post-resize position
-  restoration, and lock-handle duplication;
-- diagnostic-message allocation fallback and retryable file state after close failure.
+- shared/exclusive lock acquisition, contention, detached ownership, failed unlock, and destructor cleanup;
+- race-resistant move behavior when a validated parent is renamed or a committed destination is changed concurrently.
 
 Run the FileSystem-focused module through the project validation workflow documented by @ref project_testing.
 
@@ -38,9 +36,10 @@ Project validation also checks:
 - integration with Logger's file output and other consumers;
 - Doxygen warnings and page references.
 
-## Test hooks
+The failed-unlock scenario forces `UnlockFileEx` to fail during `FileLock` destruction, then verifies that the owning `File` can still clean up and a
+competitor can subsequently acquire the lock.
 
-Use @ref filesystem_test_hooks for source-tree-only checked-operation, diagnostic, move-pause, and failed-unlock hooks and their reset protocol.
+Use @ref filesystem_test_hooks for this focused source-tree-only cleanup seam and the move-coordination seams.
 
 ## Documentation validation
 

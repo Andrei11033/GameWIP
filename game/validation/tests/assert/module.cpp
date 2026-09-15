@@ -42,7 +42,6 @@ namespace
         options.enableManualTests = invocation.options.enableManualTests;
         options.verboseConsole = invocation.options.verboseConsole;
         options.stressThreadCount = invocation.options.stressThreadCount;
-        options.stressIterations = invocation.options.assertStressIterations;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;
         options.reportPath = invocation.options.reportPath;

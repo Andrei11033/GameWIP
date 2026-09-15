@@ -2,7 +2,6 @@
 /// @brief Windows environment-variable backend for the TestSupport library.
 
 #include "test_support/internal/test_support_platform.h"
-#include "test_support/internal/test_support_test_hooks.h"
 #include "test_support/internal/win32_text.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -49,14 +48,6 @@ namespace GameWIP::TestSupport::Detail::Platform
     EnvironmentReadResult readEnvironmentVariable(std::string_view name) noexcept
     {
         EnvironmentReadResult result;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(
-                ::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Read))
-        {
-            result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, *injected);
-            return result;
-        }
-#endif
         try
         {
             validateEnvironmentName(name);
@@ -119,13 +110,6 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     Types::InfrastructureStatus setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept
     {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected =
-                ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Set))
-        {
-            return environmentFailure(Types::InfrastructureError::EnvironmentFailed, *injected);
-        }
-#endif
         try
         {
             validateEnvironmentName(name);
@@ -155,13 +139,6 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     Types::InfrastructureStatus unsetEnvironmentVariableValue(std::string_view name) noexcept
     {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-        if (const auto injected = ::GameWIP::TestSupport::Detail::TestHooks::consumeEnvironmentFailure(
-                ::GameWIP::TestSupport::TestHooks::EnvironmentFailurePoint::Unset))
-        {
-            return environmentFailure(Types::InfrastructureError::EnvironmentFailed, *injected);
-        }
-#endif
         try
         {
             validateEnvironmentName(name);

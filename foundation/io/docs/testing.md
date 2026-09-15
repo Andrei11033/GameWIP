@@ -27,7 +27,6 @@ The focused suite covers:
 - Strict UTF-8 text reads across scalar/chunk boundaries, malformed and incomplete suffixes, valid-prefix preservation, and failure precedence.
 - Partial progress, backend failures, impossible transfer counts, zero progress, premature end-of-stream, and capability-query failures.
 - Whole-stream write retries, final-call progress, empty input, pre-write UTF-8 validation, and invalid writer behavior.
-- Deterministic allocation, length, and unexpected-failure translation for memory-writer and whole-stream allocation points.
 - Compile-time proof that public checked Reader and Writer operations are `noexcept`.
 
 ## Public and package validation
@@ -42,8 +41,6 @@ The repository validation also checks:
 
 IO is static, so it has no shared-library export allowlist test. Package and compatibility policy are documented in @ref
 project_library_compatibility.
-
-Use @ref io_test_hooks for the source-tree-only deterministic failure API and reset protocol.
 
 ## Extension changes
 

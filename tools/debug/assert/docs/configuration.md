@@ -11,7 +11,6 @@ macros in application source after including `debug/assert/assert.h`.
 | `ASSERT_CHECKS_ENABLED` | `AUTO`, `ON`, `OFF` | `AUTO` | Controls recoverable reporting for `CHECK`, `CHECK_ONCE`, and `ENSURE`. |
 | `ASSERT_DIAGNOSTICS` | `ON`, `OFF` | `ON` | Includes condition text, message text, file, line, and function data in failure reports. |
 | `ASSERT_UNREACHABLE_ASSUME` | `ON`, `OFF` | `OFF` | Uses compiler unreachable assumptions instead of a trap when `UNREACHABLE()` is compiled without assertion handling. |
-| `ASSERT_ENABLE_TEST_HOOKS` | `ON`, `OFF` | `OFF` | Enables source-tree-only validation hooks. It is not consumer API. |
 
 `AUTO` follows the active build configuration: assertions and checks are enabled outside release-style configurations and disabled for `Release`,
 `RelWithDebInfo`, and `MinSizeRel`.
@@ -36,7 +35,6 @@ The Assert target propagates the compile definitions that the public header cons
 | `ASSERT_CHECKS_ENABLED` | `ASSERT_CHECKS_ENABLED` CMake option | Selects recoverable check macro behavior. |
 | `ASSERT_DIAGNOSTICS` | `ASSERT_DIAGNOSTICS` CMake option | Selects diagnostic payload collection and message-expression evaluation. |
 | `ASSERT_UNREACHABLE_ASSUME` | `ASSERT_UNREACHABLE_ASSUME` CMake option | Selects the disabled `UNREACHABLE()` backend. |
-| `ASSERT_INTERNAL_TEST_HOOKS` | source-tree validation build | Exposes internal hook declarations only to approved test targets. |
 
 `ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are compile-time runtime
 controls declared by the public header. The Assert CMake target does not expose
@@ -83,13 +81,6 @@ gamewip_attach_application_manifest(
 The helper is available from the source tree and installed `GameWIPApplication` package. It is a no-op on non-Windows platforms, and repeated calls
 merge requirements without attaching duplicate resources. Linking `GameWIP::Assert` alone never changes the application manifest.
 The repository already enables RC. See @ref project_cmake_infrastructure for the shared helper's target and directory contracts.
-
-## Test hooks
-
-`ASSERT_ENABLE_TEST_HOOKS=ON` is for repository validation builds. It exposes `debug/assert/internal/assert_test_hooks.h` to approved source-tree
-targets and must not be used by installed consumers.
-
-See @ref assert_test_hooks for the hook contract.
 
 ## Related pages
 

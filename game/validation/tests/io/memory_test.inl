@@ -143,6 +143,9 @@ void testMemoryWriter(TestSupport::Context &context)
     const IO::Types::Status largerReserve = writer.reserve(32);
     static_cast<void>(context.expectTrue("MemoryWriter larger reserve succeeds", largerReserve.ok()));
     static_cast<void>(context.expectTrue("MemoryWriter reserve grows capacity", writer.capacity() >= 32));
+    const IO::Types::Status impossibleReserve = writer.reserve((std::numeric_limits<std::size_t>::max)());
+    static_cast<void>(context.expectEq(
+        "MemoryWriter reserve rejects impossible capacity", ErrorCode::SizeLimitExceeded, impossibleReserve.code));
 
     IO::MemoryWriter textWriter;
     static_cast<void>(IO::writeAllText(textWriter, std::string_view{"a\0b", 3}));

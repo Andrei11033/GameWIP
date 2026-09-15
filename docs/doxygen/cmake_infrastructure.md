@@ -131,8 +131,8 @@ Avoid global include directories, global compile definitions, and recursive sour
 
 TestSupport remains a validation-oriented leaf relative to higher-level reusable libraries. It may link foundational Unicode when actual UTF-8 text
 semantics require it, but it must not acquire IO, FileSystem, Terminal, Desktop, Logger, Assert, engine, or other higher-level GameWIP dependencies for
-convenience. `TEST_SUPPORT_ENABLE_TEST_HOOKS` may enable deterministic failure injection only for source-tree validation composition; neither the
-option's internal compile definition nor its hook header belongs to the installed target.
+convenience. Source-tree validation seams are kept private to the libraries that
+still need them and are never part of installed target definitions or headers.
 
 ## Documentation helpers
 
@@ -251,7 +251,7 @@ project_versioning.
 
 Package-boundary validation is part of the validation workflow. Changes to install rules, exported targets, package config files, exact version files,
 or public dependency visibility must preserve clean installed-consumer validation. Combined and isolated consumers must also reject every
-source-tree-only test-hook definition, including TestSupport's.
+source-tree-only test-hook definition exposed by libraries that retain such seams.
 
 Shared-library exported-symbol checks use allowlists under `cmake/export_allowlists/`. Update an allowlist only when the public exported surface
 intentionally changes.

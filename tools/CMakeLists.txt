@@ -20,13 +20,12 @@ else()
     set(ASSERT_ENABLED OFF CACHE STRING "Force assertions on, off, or let NDEBUG choose" FORCE)
     set(ASSERT_CHECKS_ENABLED OFF CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose" FORCE)
 endif()
-
 set(ASSERT_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED} CACHE BOOL "Enable Assert internal test hooks" FORCE)
+
 add_subdirectory(debug/assert)
 
 # ------------------------------------------------------------
 # TestSupport
 # ------------------------------------------------------------
 
-set(TEST_SUPPORT_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED} CACHE BOOL "Enable TestSupport internal test hooks" FORCE)
 add_subdirectory(test_support)

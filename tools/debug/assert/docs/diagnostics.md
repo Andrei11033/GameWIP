@@ -40,7 +40,9 @@ Assert-owned UI. `ASSERT_POPUP_ON_CHECK` controls whether recoverable check
 failures may show UI. These are runtime compile definitions; the Assert CMake
 target does not expose them as cache options.
 
-Automated tests must not depend on real UI. Use the validation hooks described in @ref assert_test_hooks when deterministic popup behavior is needed.
+Automated tests must not depend on real UI. The validation suite uses the
+documented environment-controlled paths for interactive behavior, plus the
+source-tree-only diagnostic-preparation seam documented in @ref assert_testing.
 
 ## Related pages
 

@@ -3,7 +3,6 @@
 
 #include "test_support/process.h"
 #include "test_support/internal/win32_text.h"
-#include "test_support/internal/test_support_test_hooks.h"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -437,13 +436,6 @@ namespace GameWIP::TestSupport
             try
             {
                 char buffer[4096];
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::CaptureRead))
-                {
-                    setOutputFailure(Types::InfrastructureError::CaptureFailed, *injected);
-                }
-                else
-#endif
                 {
                     while (true)
                     {
@@ -556,33 +548,9 @@ namespace GameWIP::TestSupport
         try
         {
             constexpr DWORD kTestTerminationCode = 0x54455354u;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Allocation))
-            {
-                setFailure(Types::InfrastructureError::OutOfMemory, *injected);
-                return result;
-            }
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Unsupported))
-            {
-                setFailure(Types::InfrastructureError::Unsupported, *injected);
-                return result;
-            }
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Platform))
-            {
-                setFailure(Types::InfrastructureError::PlatformFailure, *injected);
-                return result;
-            }
-#endif
             std::wstring commandLine = buildCommandLine(options);
             std::wstring environmentBlock = buildEnvironmentBlock(options);
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessSetup))
-            {
-                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
-                return result;
-            }
-#endif
             // A job object gives timeout and setup-failure cleanup one owner for the
             // whole child process tree, not just the first process handle.
             UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
@@ -611,13 +579,6 @@ namespace GameWIP::TestSupport
             UniqueHandle outputWrite;
             if (options.captureOutput)
             {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::PipeCreation))
-                {
-                    setFailure(Types::InfrastructureError::PipeCreationFailed, *injected);
-                    return result;
-                }
-#endif
                 HANDLE outputReadRaw = nullptr;
                 HANDLE outputWriteRaw = nullptr;
                 if (CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
@@ -634,13 +595,6 @@ namespace GameWIP::TestSupport
                 }
             }
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::HandleSetup))
-            {
-                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
-                return result;
-            }
-#endif
             UniqueHandle childInput = inheritableStandardHandle(STD_INPUT_HANDLE, GENERIC_READ);
             if (childInput.get() == nullptr || childInput.get() == INVALID_HANDLE_VALUE)
             {
@@ -688,13 +642,6 @@ namespace GameWIP::TestSupport
             startupInfo.StartupInfo.hStdError = options.captureOutput ? outputWrite.get() : childError.get();
             startupInfo.lpAttributeList = attributeList.get();
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessLaunch))
-            {
-                setFailure(Types::InfrastructureError::ProcessLaunchFailed, *injected);
-                return result;
-            }
-#endif
             PROCESS_INFORMATION processInfo{};
             const BOOL created = CreateProcessW(
                 nullptr,
@@ -725,15 +672,6 @@ namespace GameWIP::TestSupport
             UniqueHandle processHandle(processInfo.hProcess);
             UniqueHandle threadHandle(processInfo.hThread);
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::JobAssignment))
-            {
-                terminateProcessAndWait(processHandle.get(), kTestTerminationCode);
-                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
-                result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                return result;
-            }
-#endif
             if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
             {
                 const DWORD assignmentError = GetLastError();
@@ -752,15 +690,6 @@ namespace GameWIP::TestSupport
             UniqueHandle outputDoneEvent;
             if (options.captureOutput)
             {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::CaptureSetup))
-                {
-                    terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
-                    setFailure(Types::InfrastructureError::CaptureFailed, *injected);
-                    result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                    return result;
-                }
-#endif
                 outputDoneEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
                 if (outputDoneEvent.get() == nullptr)
                 {
@@ -773,15 +702,6 @@ namespace GameWIP::TestSupport
 
                 try
                 {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                    if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ThreadCreation))
-                    {
-                        terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
-                        setFailure(Types::InfrastructureError::CaptureFailed, *injected);
-                        result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                        return result;
-                    }
-#endif
                     const HANDLE outputReadHandle = outputRead.get();
                     const HANDLE outputDoneHandle = outputDoneEvent.get();
                     const std::size_t captureLimit = options.maxCapturedOutputBytes;
@@ -823,13 +743,6 @@ namespace GameWIP::TestSupport
             // reader before any child code runs.
             bool resumeFailed = false;
             std::uint64_t resumeNativeCode = 0;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ThreadResume))
-            {
-                resumeFailed = true;
-                resumeNativeCode = *injected;
-            }
-#endif
             if (!resumeFailed && ResumeThread(threadHandle.get()) == static_cast<DWORD>(-1))
             {
                 resumeFailed = true;
@@ -844,27 +757,11 @@ namespace GameWIP::TestSupport
             }
             else
             {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto waitFailure = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Wait))
-                {
-                    setFailure(Types::InfrastructureError::WaitFailed, *waitFailure);
-                    result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                    terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
-                }
-                else
-#endif
                 {
                     const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
                     if (waitResult == WAIT_TIMEOUT)
                     {
                         result.outcome = Types::Process::Outcome::TimedOut;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto cleanupFailure =
-                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
-                        {
-                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
-                        }
-#endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
                         {
                             setFailure(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
@@ -886,14 +783,6 @@ namespace GameWIP::TestSupport
                         DWORD exitCode = 0;
                         bool inspectionFailed = false;
                         std::uint64_t inspectionNativeCode = 0;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto inspectionFailure =
-                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessInspection))
-                        {
-                            inspectionFailed = true;
-                            inspectionNativeCode = *inspectionFailure;
-                        }
-#endif
                         if (!inspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) == FALSE)
                         {
                             inspectionFailed = true;
@@ -911,13 +800,6 @@ namespace GameWIP::TestSupport
                             result.outcome = Types::Process::Outcome::OutcomeUnavailable;
                         }
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto cleanupFailure =
-                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
-                        {
-                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
-                        }
-#endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
                         {
                             setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());

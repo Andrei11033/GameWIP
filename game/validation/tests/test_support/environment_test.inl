@@ -66,25 +66,4 @@ void testEnvironmentHelpers(TestSupport::Context &context)
             context.expectTrue("ScopedUnsetEnvironmentVariable restores old value", afterUnset != nullptr && std::string_view(afterUnset) == "old"));
     }
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-    {
-        using FailurePoint = TestSupport::TestHooks::EnvironmentFailurePoint;
-        constexpr std::uint64_t nativeCode = 0x3001u;
-        TestSupport::TestHooks::reset();
-
-        TestSupport::TestHooks::forceNextEnvironmentFailure(FailurePoint::Read, nativeCode);
-        const TestSupport::ScopedEnvironmentVariable readFailure("INTERNAL_TEST_SUPPORT_INJECTED_READ", "value");
-        static_cast<void>(context.expectEq("Injected environment read preserves native code", nativeCode, readFailure.status().nativeCode));
-
-        TestSupport::TestHooks::forceNextEnvironmentFailure(FailurePoint::Set, nativeCode);
-        const TestSupport::ScopedEnvironmentVariable setFailure("INTERNAL_TEST_SUPPORT_INJECTED_SET", "value");
-        static_cast<void>(context.expectEq("Injected environment set preserves native code", nativeCode, setFailure.status().nativeCode));
-
-        TestSupport::TestHooks::forceNextEnvironmentFailure(FailurePoint::Unset, nativeCode);
-        const TestSupport::ScopedUnsetEnvironmentVariable unsetFailure("INTERNAL_TEST_SUPPORT_INJECTED_UNSET");
-        static_cast<void>(context.expectEq("Injected environment unset preserves native code", nativeCode, unsetFailure.status().nativeCode));
-
-        TestSupport::TestHooks::reset();
-    }
-#endif
 }

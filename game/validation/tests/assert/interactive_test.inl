@@ -7,12 +7,6 @@ void interactiveAlwaysIgnoreSite()
     ASSERT_INTERACTIVE_MSG(false, "interactive always ignore test");
 }
 
-/// @brief Provides one stable macro call site for automated Ignore Once behavior.
-void interactiveIgnoreOnceSite()
-{
-    ASSERT_INTERACTIVE_MSG(false, "interactive ignore once repeat test");
-}
-
 /// @brief Provides a stable VERIFY_INTERACTIVE site while tracking expression evaluation.
 void verifyInteractiveAlwaysIgnoreSite(int &evaluations)
 {

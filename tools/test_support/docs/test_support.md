@@ -44,8 +44,6 @@ state safe to mutate concurrently.
 
 - @subpage test_support_testing — See the library's own automated and package
   coverage.
-- @subpage test_support_test_hooks — Understand source-tree-only injected
-  failures and reset rules.
 
 ## Generated API reference
 

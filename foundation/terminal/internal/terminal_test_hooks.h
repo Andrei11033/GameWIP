@@ -78,8 +78,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
 
         bool captureEnabled = false;
         std::vector<std::byte> capturedOutput;
-        std::size_t preparationCalls = 0;
-        std::size_t textWriteCalls = 0;
 
         bool terminalSizeOverrideEnabled = false;
         Terminal::Types::Size terminalSizeOverride{};
@@ -139,27 +137,19 @@ namespace GameWIP::Terminal::TestHooks
     TERMINAL_TEST_EXPORT void reset() noexcept;
 
     /// @brief Overrides reported input capabilities for a stream.
-    /// @warning Test-only API. Persistent until reset or clearInputCapabilitiesOverride.
+    /// @warning Test-only API. Persistent until reset.
     TERMINAL_TEST_EXPORT void setInputCapabilitiesOverride(
         Terminal::Types::Input::Stream stream,
         const Terminal::Types::Input::Capabilities &capabilities);
 
-    /// @brief Clears an input capabilities override.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void clearInputCapabilitiesOverride(Terminal::Types::Input::Stream stream) noexcept;
-
     /// @brief Overrides reported output capabilities for a stream.
-    /// @warning Test-only API. Persistent until reset or clearOutputCapabilitiesOverride.
+    /// @warning Test-only API. Persistent until reset.
     TERMINAL_TEST_EXPORT void setOutputCapabilitiesOverride(
         Terminal::Types::Output::Stream stream,
         const Terminal::Types::Output::Capabilities &capabilities);
 
-    /// @brief Clears an output capabilities override.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void clearOutputCapabilitiesOverride(Terminal::Types::Output::Stream stream) noexcept;
-
     /// @brief Overrides capabilities reported after output preparation.
-    /// @warning Test-only API. Persistent until reset or clearOutputCapabilitiesOverride.
+    /// @warning Test-only API. Persistent until reset.
     TERMINAL_TEST_EXPORT void setPreparedOutputCapabilitiesOverride(
         Terminal::Types::Output::Stream stream,
         const Terminal::Types::Output::Capabilities &capabilities);
@@ -170,15 +160,6 @@ namespace GameWIP::Terminal::TestHooks
     /// @warning Test-only API.
     TERMINAL_TEST_EXPORT void setInputBytes(Terminal::Types::Input::Stream stream, std::string_view bytes, bool endOfStreamWhenEmpty = true);
 
-    /// @brief Appends bytes to the in-memory input stream.
-    /// @throws Any allocation exception from extending hook-owned storage.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void appendInputBytes(Terminal::Types::Input::Stream stream, std::string_view bytes);
-
-    /// @brief Disables in-memory input bytes for a stream.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void clearInputBytes(Terminal::Types::Input::Stream stream) noexcept;
-
     /// @brief Replaces deterministic structured events consumed by readEvent() and managed line editing.
     /// @param endOfStreamWhenEmpty True reports EOF after the final event; false reports WouldBlock/TimedOut.
     /// @warning Test-only API.
@@ -186,10 +167,6 @@ namespace GameWIP::Terminal::TestHooks
         Terminal::Types::Input::Stream stream,
         std::span<const Terminal::Types::Event> events,
         bool endOfStreamWhenEmpty = true);
-
-    /// @brief Disables deterministic structured-event input.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void clearInputEvents(Terminal::Types::Input::Stream stream) noexcept;
 
 #if defined(_WIN32)
     /// @brief Test-only mirror of native Win32 key-decoder dispositions.
@@ -261,10 +238,6 @@ namespace GameWIP::Terminal::TestHooks
         bool reportPointerEvents,
         bool exclusiveEventDelivery) noexcept;
 
-    /// @brief Clears an input mode override.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void clearInputModeOverride(Terminal::Types::Input::Stream stream) noexcept;
-
     /// @brief Enables or disables output capture for a stream.
     /// @warning Test-only API.
     TERMINAL_TEST_EXPORT void setOutputCapture(Terminal::Types::Output::Stream stream, bool enabled) noexcept;
@@ -283,29 +256,13 @@ namespace GameWIP::Terminal::TestHooks
     /// @warning Test-only API.
     TERMINAL_TEST_EXPORT void clearCapturedOutput(Terminal::Types::Output::Stream stream) noexcept;
 
-    /// @brief Returns the number of output preparation calls for a stream.
-    /// @warning Test-only API.
-    [[nodiscard]] TERMINAL_TEST_EXPORT std::size_t outputPreparationCallCount(Terminal::Types::Output::Stream stream) noexcept;
-
-    /// @brief Returns the number of backend text-write calls for a stream.
-    /// @warning Test-only API.
-    [[nodiscard]] TERMINAL_TEST_EXPORT std::size_t textWriteCallCount(Terminal::Types::Output::Stream stream) noexcept;
-
     /// @brief Overrides terminal size query results for a stream.
     /// @warning Test-only API.
     TERMINAL_TEST_EXPORT void setTerminalSizeOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Size size);
 
-    /// @brief Clears a terminal size override.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void clearTerminalSizeOverride(Terminal::Types::Output::Stream stream) noexcept;
-
     /// @brief Overrides cursor position query results for a stream.
     /// @warning Test-only API.
     TERMINAL_TEST_EXPORT void setCursorPositionOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Cursor::Position position);
-
-    /// @brief Clears a cursor position override.
-    /// @warning Test-only API.
-    TERMINAL_TEST_EXPORT void clearCursorPositionOverride(Terminal::Types::Output::Stream stream) noexcept;
 
     /// @brief Enables deterministic cursor advancement, wrapping, viewport scrolling, and resize reflow.
     /// @warning Test-only API. Text-cell simulation is intended for ASCII managed-line rendering fixtures.

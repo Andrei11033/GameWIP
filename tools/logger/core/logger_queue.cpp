@@ -285,10 +285,6 @@ namespace GameWIP::Logger::Detail::Core
         const bool firstPublishedSlot = loggerState().publishedQueueDepth.fetch_add(1, std::memory_order_acq_rel) == 0;
 
         outNotifyWorker = firstPublishedSlot || ticket == loggerState().dequeueTicket.load(std::memory_order_acquire);
-
-#if LOGGER_INTERNAL_TEST_HOOKS
-        recordQueuePublicationForTest();
-#endif
     }
 
     /// @brief Publishes one pending entry into a reserved MPSC ring slot.
@@ -313,13 +309,6 @@ namespace GameWIP::Logger::Detail::Core
 
         try
         {
-#if LOGGER_INTERNAL_TEST_HOOKS
-            if (consumeTestHook(loggerTestHookState.nextQueueAllocationFailure))
-            {
-                throw std::bad_alloc{};
-            }
-#endif
-
             slot.skip = false;
             copyPendingEntryToQueueSlot(slot.entry, entry, outTruncated);
         }
@@ -413,12 +402,6 @@ namespace GameWIP::Logger::Detail::Core
                         const bool ready = queueHeadIsPublished() ||
                                            (!loggerState().workerRunning && loggerState().activeProducers.load(std::memory_order_acquire) == 0 &&
                                             loggerState().queueDepth.load(std::memory_order_acquire) == 0);
-#if LOGGER_INTERNAL_TEST_HOOKS
-                        if (!ready)
-                        {
-                            pauseWorkerBeforeWaitForTest();
-                        }
-#endif
                         return ready;
                     });
 

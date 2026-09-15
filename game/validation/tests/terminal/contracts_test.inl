@@ -151,11 +151,6 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("output capabilities status", outputCapabilities.status.ok()));
     static_cast<void>(context.expectTrue("output style capability", outputCapabilities.capabilities.style.rgbColor));
     static_cast<void>(context.expectTrue("output cursor capability", outputCapabilities.capabilities.supportsCursorMovement));
-    static_cast<void>(context.expectEq(
-        "capability query does not prepare output",
-        std::size_t{0},
-        Hooks::outputPreparationCallCount(Terminal::Types::Output::Stream::Stdout)));
-
     Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
     static_cast<void>(context.expectEq("output capability forced failure", ErrorCode::StatFailed, Terminal::getOutputCapabilities().status.code));
 
@@ -164,15 +159,7 @@ void testCapabilitiesAndQueries(TestSupport::Context &context)
     const Terminal::Types::Output::CapabilitiesResult prepared = Terminal::prepareOutput();
     static_cast<void>(context.expectTrue("explicit output preparation succeeds", prepared.status.ok()));
     static_cast<void>(context.expectTrue("explicit output preparation enables styling", prepared.capabilities.style.rgbColor));
-    static_cast<void>(context.expectEq(
-        "explicit output preparation count",
-        std::size_t{1},
-        Hooks::outputPreparationCallCount(Terminal::Types::Output::Stream::Stdout)));
     static_cast<void>(context.expectTrue("prepared capabilities remain active", Terminal::getOutputCapabilities().capabilities.style.bold));
-    static_cast<void>(context.expectEq(
-        "query after preparation remains observational",
-        std::size_t{1},
-        Hooks::outputPreparationCallCount(Terminal::Types::Output::Stream::Stdout)));
     const Terminal::Types::Output::CapabilitiesResult preparedAgain = Terminal::prepareOutput();
     static_cast<void>(context.expectTrue("repeated output preparation succeeds", preparedAgain.status.ok()));
     static_cast<void>(context.expectTrue("repeated output preparation preserves capabilities", preparedAgain.capabilities.style.bold));

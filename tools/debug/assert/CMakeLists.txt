@@ -12,7 +12,6 @@ set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
-
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
@@ -110,8 +109,7 @@ file(MAKE_DIRECTORY "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert")
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     gamewip_generate_export_header(
-        # ASSERT_EXPORT is the installed production/runtime ABI. Source-tree
-        # validation hooks use assert_test_export.h and are never installed.
+        # ASSERT_EXPORT is the installed production/runtime ABI.
         TARGET Assert
         OUTPUT "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
         EXPORT_MACRO ASSERT_EXPORT
@@ -180,7 +178,11 @@ else()
     target_compile_features(Assert INTERFACE cxx_std_23)
     target_compile_definitions(
         Assert
-        INTERFACE ASSERT_INTERNAL_RUNTIME=0 ASSERT_ENABLED=0 ASSERT_CHECKS_ENABLED=0 $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=0>
+        INTERFACE
+            ASSERT_INTERNAL_RUNTIME=0
+            ASSERT_ENABLED=0
+            ASSERT_CHECKS_ENABLED=0
+            $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=0>
     )
 endif()
 

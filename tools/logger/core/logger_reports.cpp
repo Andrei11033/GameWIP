@@ -136,13 +136,6 @@ namespace GameWIP::Logger::Detail::Core
 
     Status openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter)
     {
-#if LOGGER_INTERNAL_TEST_HOOKS
-        if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
-        {
-            return forcedFileStatus(ErrorCode::OpenFailed);
-        }
-#endif
-
         const FileSystem::Types::File::WriterOpenOptions options{
             .mode = FileSystem::Types::File::WriterMode::CreateNew,
             .share = FileSystem::Types::File::Share::Read,

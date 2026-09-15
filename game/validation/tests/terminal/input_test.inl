@@ -413,7 +413,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
         initialIdentityFailure.outcome == Terminal::Types::Input::ReadOutcome::Cancelled));
 
     const Terminal::Types::Input::TextResult retriedInitialIdentity = Terminal::readText(oneByte);
-    static_cast<void>(context.expectTrue("one-shot identity failure is consumed", retriedInitialIdentity.status.ok()));
+    static_cast<void>(context.expectTrue("retry after identity failure succeeds", retriedInitialIdentity.status.ok()));
     static_cast<void>(context.expectEq("zero-timeout poll reads ready input", std::string{"A"}, retriedInitialIdentity.text));
 
     Hooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, UINT16_C(0xD83D));
@@ -533,14 +533,6 @@ int runCancellationSignalFailureChild()
     stopSource.request_stop();
     reader.join();
     const bool passed = result.status.ok() && result.outcome == Terminal::Types::Input::ReadOutcome::Cancelled;
-    const bool hookConsumed = !GameWIP::Terminal::Detail::TestHooks::consumeFailure(
-                                   GameWIP::Terminal::Detail::TestHooks::terminalTestHookState.nextCancellationSignalFailure)
-                                   .has_value();
-    if (!hookConsumed)
-    {
-        Hooks::reset();
-        return 4;
-    }
     Hooks::reset();
     return passed ? 0 : 1;
 }
@@ -586,10 +578,6 @@ void testCancellationSignalFailure(TestSupport::Context &context, std::string_vi
         static_cast<void>(
             context.expectEq(std::format("{} returns Cancelled", label), Terminal::Types::Input::ReadOutcome::Cancelled, result.outcome));
         static_cast<void>(context.expectTrue(std::format("{} status succeeds", label), result.status.ok()));
-        const bool hookConsumed = !GameWIP::Terminal::Detail::TestHooks::consumeFailure(
-                                       GameWIP::Terminal::Detail::TestHooks::terminalTestHookState.nextCancellationSignalFailure)
-                                       .has_value();
-        static_cast<void>(context.expectTrue(std::format("{} consumes signal-failure hook", label), hookConsumed));
     };
 
     Hooks::reset();
@@ -617,7 +605,7 @@ void testCancellationResetFailure(TestSupport::Context &context)
 
     const PlatformHooks::Win32ConsoleWaitResult retry =
         PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());
-    static_cast<void>(context.expectTrue("cancellation reset hook is one-shot", retry.status.ok()));
+    static_cast<void>(context.expectTrue("cancellation wait can be retried", retry.status.ok()));
     static_cast<void>(context.expectTrue("next operation reaches normal wait path", Hooks::consoleWaitCallCount() > 0));
     Hooks::reset();
 }

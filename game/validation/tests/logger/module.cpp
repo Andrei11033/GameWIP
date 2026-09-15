@@ -23,11 +23,7 @@ namespace
             }
 
             const std::string_view argument(value);
-            if (argument == "--logger-test-child=fatal-terminate"
-#if LOGGER_INTERNAL_TEST_HOOKS
-                || argument == "--logger-test-child=enqueue-wakeup" || argument == "--logger-test-child=shutdown-wakeup"
-#endif
-            )
+            if (argument == "--logger-test-child=fatal-terminate")
             {
                 return true;
             }

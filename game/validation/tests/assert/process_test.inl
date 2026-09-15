@@ -47,7 +47,7 @@ int runInteractiveAbortChild()
     return 0;
 }
 
-/// @brief Executes the interactive Break child protocol under deterministic debugger hooks.
+/// @brief Executes the interactive Break child protocol under the test action environment.
 int runInteractiveBreakChild()
 {
 #if defined(_WIN32)

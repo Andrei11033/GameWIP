@@ -6,14 +6,6 @@
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_platform.h"
 
-#ifndef ASSERT_INTERNAL_TEST_HOOKS
-#define ASSERT_INTERNAL_TEST_HOOKS 0
-#endif
-
-#if ASSERT_INTERNAL_TEST_HOOKS
-#include "debug/assert/internal/assert_test_hooks.h"
-#endif
-
 #include "logger/logger.h"
 
 #include <array>
@@ -324,18 +316,10 @@ namespace
         return false;
     }
 
-    /// @brief Returns true when real assert UI is suppressed by the validation override or environment.
-    /// @return True when a hook forces suppression or `INTERNAL_ASSERT_SUPPRESS_POPUP` is exactly `1`.
+    /// @brief Returns true when real assert UI is suppressed by the environment.
+    /// @return True when `INTERNAL_ASSERT_SUPPRESS_POPUP` is exactly `1`.
     bool popupsSuppressedByEnvironment() noexcept
     {
-#if ASSERT_INTERNAL_TEST_HOOKS
-        bool overrideValue = false;
-        if (GameWIP::Debug::Assert::Detail::TestHooks::popupSuppressedOverride(overrideValue))
-        {
-            return overrideValue;
-        }
-#endif
-
         const char *value = std::getenv("INTERNAL_ASSERT_SUPPRESS_POPUP");
         return value != nullptr && std::string_view(value) == "1";
     }
@@ -349,7 +333,7 @@ namespace
 
     /// @brief Selects an action for one interactive fatal assert failure.
     /// @param message Failure text to display in the platform action dialog.
-    /// @return Selected action from test override, suppression/default policy, or platform UI.
+    /// @return Selected action from the environment, suppression/default policy, or platform UI.
     FailureAction selectInteractiveAction(std::string_view message) noexcept
     {
         // Forced actions take precedence over UI suppression so child tests can exercise every action.
@@ -376,7 +360,7 @@ namespace
     }
 
     /// @brief Applies the selected action for an interactive fatal assert failure.
-    /// @param action Action selected by test override, popup suppression, or platform UI.
+    /// @param action Action selected by the environment, popup suppression, or platform UI.
     /// @param alwaysIgnoreFlag Per-call-site flag to set for Always Ignore. Null means no site can be suppressed.
     void applyInteractiveAction(FailureAction action, std::atomic_bool *alwaysIgnoreFlag) noexcept
     {

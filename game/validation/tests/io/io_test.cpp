@@ -7,7 +7,6 @@
 #include "validation/tests/io/io_test.h"
 
 #include "io/io.h"
-#include "io/internal/io_test_hooks.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>
@@ -594,69 +593,6 @@ namespace
                   IO::Types::WriteResult>);
     static_assert(std::is_same_v<decltype(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
 
-#if IO_INTERNAL_TEST_HOOKS
-    /// @brief Resets process-wide IO failure injection before and after one validation scenario.
-    class ScopedIOFailureHooks final
-    {
-    public:
-        ScopedIOFailureHooks() noexcept
-        {
-            IO::TestHooks::reset();
-        }
-
-        ScopedIOFailureHooks(const ScopedIOFailureHooks &) = delete;
-        ScopedIOFailureHooks &operator=(const ScopedIOFailureHooks &) = delete;
-
-        ~ScopedIOFailureHooks() noexcept
-        {
-            IO::TestHooks::reset();
-        }
-    };
-
-    /// @brief Unknown-size reader that arms a text-storage failure after one successful chunk.
-    class DeferredTextStorageFailureReader final : public IO::Reader
-    {
-    public:
-        DeferredTextStorageFailureReader(std::span<const std::byte> bytes, IO::TestHooks::FailureKind failureKind)
-            : bytes_(bytes)
-            , failureKind_(failureKind)
-        {
-        }
-
-        /// @brief Returns one byte per read and arms the configured failure before the second append.
-        [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
-        {
-            if (destination.empty())
-            {
-                return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
-            }
-
-            if (position_ >= bytes_.size())
-            {
-                return {.status = {}, .bytesRead = 0, .endOfStream = true};
-            }
-
-            if (readCount_ == 1)
-            {
-                IO::TestHooks::forceNextFailure(IO::TestHooks::FailurePoint::ReadAllTextStorage, failureKind_);
-            }
-
-            const std::size_t count = std::min<std::size_t>(1, bytes_.size() - position_);
-            std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
-            position_ += count;
-            ++readCount_;
-
-            return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
-        }
-
-    private:
-        std::span<const std::byte> bytes_;
-        IO::TestHooks::FailureKind failureKind_ = IO::TestHooks::FailureKind::None;
-        std::size_t position_ = 0;
-        std::size_t readCount_ = 0;
-    };
-
-#endif
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
     // ------------------------------------------------------------
@@ -668,9 +604,6 @@ namespace
     void testMemoryReader(TestSupport::Context &context);
     void testMemoryReaderSeek(TestSupport::Context &context);
     void testMemoryWriter(TestSupport::Context &context);
-#if IO_INTERNAL_TEST_HOOKS
-    void testCheckedFailureTranslation(TestSupport::Context &context);
-#endif
     void testReadAllBytes(TestSupport::Context &context);
     void testReadAllText(TestSupport::Context &context);
     void testWriteAllBytes(TestSupport::Context &context);
@@ -706,9 +639,6 @@ namespace GameWIP::Test
         runner.runSuite("IO MemoryReader", testMemoryReader);
         runner.runSuite("IO MemoryReader seek", testMemoryReaderSeek);
         runner.runSuite("IO MemoryWriter", testMemoryWriter);
-#if IO_INTERNAL_TEST_HOOKS
-        runner.runSuite("IO checked failure translation", testCheckedFailureTranslation);
-#endif
         runner.runSuite("IO readAllBytes", testReadAllBytes);
         runner.runSuite("IO readAllText", testReadAllText);
         runner.runSuite("IO writeAllBytes", testWriteAllBytes);

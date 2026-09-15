@@ -14,8 +14,8 @@ mechanism.
 
 ## Action selection
 
-Interactive failures report through Logger first. Assert then selects an action from a test override, popup-suppression state, or the platform action
-dialog. When a debugger is attached, the default action favors Break. Without a debugger, the default is Abort.
+Interactive failures report through Logger first. Assert then selects an action from the test-action environment, popup-suppression state, or the
+platform action dialog. When a debugger is attached, the default action favors Break. Without a debugger, the default is Abort.
 
 ## Dialog behavior
 
@@ -26,8 +26,9 @@ The application-level Common Controls v6 requirement used by the preferred dialo
 
 ## Automation
 
-Unattended tests must not depend on real dialogs. Maintainers can force action selection, popup suppression, debugger state, and fallback behavior
-through @ref assert_test_hooks.
+Unattended tests must not depend on real dialogs. Maintainers should use the
+environment-controlled behavior paths for interactive action selection; the
+diagnostic-preparation emergency seam is documented in @ref assert_testing.
 
 ## Related pages
 

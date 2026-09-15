@@ -370,16 +370,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status(ErrorCode::OutOfMemory);
             }
-            if ((std::holds_alternative<Transfer::TextView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardTextConversion)) ||
-                (std::holds_alternative<Transfer::FileListView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardPathConversion)) ||
-                (std::holds_alternative<Transfer::ImageView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardImagePreparation)))
-            {
-                return status(ErrorCode::EncodingFailed);
-            }
-            if (std::holds_alternative<Transfer::CustomView>(item) && Detail::consumeFailure(TestHooks::FailurePoint::ClipboardRegistration))
-            {
-                return status(ErrorCode::NativeFailure, ERROR_GEN_FAILURE);
-            }
             DataTransfer::PreparedItem shared;
             IO::Types::Status result = DataTransfer::prepare(item, shared);
             if (!result.ok())

@@ -6,7 +6,7 @@ that prove it. Consumer usage belongs in the quick start and focused guides.
 ## Correctness coverage
 
 TestSupport correctness validation covers reporting, expectations, strict UTF-8 files, process-global guards, child-process outcomes/capture, manual
-prompts, deterministic failure hooks, and stress primitives.
+prompts, and stress primitives.
 
 Text-file tests include malformed and incomplete UTF-8, valid-prefix preservation, and validation-before-destructive-write behavior. Child capture
 tests treat stdout/stderr as arbitrary bytes, including truncation and zero-retention cases.
@@ -25,7 +25,7 @@ test_support/test_support.h
 ```
 
 Installed-consumer validation exercises the same focused headers through the installed package and proves that the package discovers its exact Unicode
-dependency without exposing source-tree test-hook definitions.
+dependency without exposing source-tree validation definitions.
 
 ## Suite organization
 
@@ -33,9 +33,6 @@ The TestSupport correctness suite is one logical module and one translation unit
 environment, child-process, and stress behavior while sharing TU-local child protocols and fixtures. These groups are test organization only and are
 not reusable support headers.
 
-Test hooks are enabled through `TEST_SUPPORT_ENABLE_TEST_HOOKS` and the source-tree-only `TEST_SUPPORT_INTERNAL_TEST_HOOKS` definition.
-
 ## Related pages
 
 @ref project_testing
-@ref test_support_test_hooks

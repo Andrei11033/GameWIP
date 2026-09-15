@@ -24,14 +24,6 @@
 #define ASSERT_INTERNAL_RUNTIME 1
 #endif
 
-/// @def ASSERT_INTERNAL_TEST_HOOKS
-/// @brief Enables source-tree-only Assert test-hook declarations for validation builds.
-/// @details This definition is not installed consumer API. It exists so approved tests can include
-/// `debug/assert/internal/assert_test_hooks.h` when `ASSERT_ENABLE_TEST_HOOKS` is enabled.
-#ifndef ASSERT_INTERNAL_TEST_HOOKS
-#define ASSERT_INTERNAL_TEST_HOOKS 0
-#endif
-
 // Public convenience macros are intentionally global:
 // ASSERT, ASSERT_MSG, ASSERT_INTERACTIVE, ASSERT_INTERACTIVE_MSG, VERIFY,
 // VERIFY_MSG, VERIFY_INTERACTIVE, VERIFY_INTERACTIVE_MSG, CHECK, CHECK_MSG,
@@ -101,9 +93,6 @@
 #error "ASSERT_INTERNAL_RUNTIME must be 0 or 1."
 #endif
 
-#if (ASSERT_INTERNAL_TEST_HOOKS != 0) && (ASSERT_INTERNAL_TEST_HOOKS != 1)
-#error "ASSERT_INTERNAL_TEST_HOOKS must be 0 or 1."
-#endif
 
 #if (ASSERT_ENABLED != 0) && (ASSERT_ENABLED != 1)
 #error "ASSERT_ENABLED must be 0 or 1."
@@ -130,7 +119,6 @@
 #endif
 
 static_assert(ASSERT_INTERNAL_RUNTIME == 0 || ASSERT_INTERNAL_RUNTIME == 1, "ASSERT_INTERNAL_RUNTIME must be 0 or 1.");
-static_assert(ASSERT_INTERNAL_TEST_HOOKS == 0 || ASSERT_INTERNAL_TEST_HOOKS == 1, "ASSERT_INTERNAL_TEST_HOOKS must be 0 or 1.");
 static_assert(ASSERT_ENABLED == 0 || ASSERT_ENABLED == 1, "ASSERT_ENABLED must be 0 or 1.");
 static_assert(ASSERT_CHECKS_ENABLED == 0 || ASSERT_CHECKS_ENABLED == 1, "ASSERT_CHECKS_ENABLED must be 0 or 1.");
 static_assert(ASSERT_DIAGNOSTICS == 0 || ASSERT_DIAGNOSTICS == 1, "ASSERT_DIAGNOSTICS must be 0 or 1.");

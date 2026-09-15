@@ -196,7 +196,7 @@ Every virtual transfer, lifecycle, and checked capability operation is `noexcept
 - Whole-stream helpers translate their own allocation failures to `OutOfMemory`, representation failures to `SizeLimitExceeded`, and unexpected
   internal failures to `Unknown`.
 - `MemoryWriter::write()`, `reserve()`, and `copyText()` use the same translation categories and never expose a partially mutated result after an
-  injected allocation or length failure.
+  allocation or length failure.
 - Destructors do not throw. Call `close()` explicitly when close failure must be observed.
 
 Argument construction still occurs before function entry. For example, creating an owning diagnostic string for `makeStatus()` may throw before its

@@ -50,8 +50,8 @@ succeeds.
 
 - @subpage filesystem_testing — See automated behavior, installed-package, and
   platform coverage.
-- @subpage filesystem_test_hooks — Understand source-tree-only fault injection
-  and mandatory reset behavior.
+- @subpage filesystem_test_hooks — See the source-tree-only move-race and
+  FileLock ownership-cleanup validation seam.
 
 ## Generated API reference
 

@@ -1765,11 +1765,6 @@ namespace GameWIP::Terminal::Detail::Platform
     Terminal::Types::Output::CapabilitiesResult prepareOutput(OutputStream stream)
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
-        {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            ++HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)].preparationCalls;
-        }
-
         if (std::optional<IO::Types::Status> failure =
                 consumeHookFailure(HookDetail::terminalTestHookState.nextOutputPreparationFailure, "Forced terminal output preparation failure."))
         {
@@ -2625,11 +2620,6 @@ namespace GameWIP::Terminal::Detail::Platform
     IO::Types::Status writeText(OutputStream stream, std::string_view utf8Text)
     {
 #if TERMINAL_INTERNAL_TEST_HOOKS
-        {
-            std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
-            ++HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)].textWriteCalls;
-        }
-
         HookDetail::waitAtBlock(HookDetail::terminalTestHookState.nextTextWriteBlock);
 
         if (std::optional<IO::Types::Status> failure =

@@ -2,7 +2,6 @@
 /// @brief Implements IO status helpers, default interfaces, memory streams, and whole-transfer algorithms.
 
 #include "io/transfer.h"
-#include "io/internal/io_test_hooks.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
@@ -144,9 +143,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllBytesStorage);
-#endif
                 result.bytes.resize(expectedSize);
             }
             catch (const std::bad_alloc &)
@@ -236,9 +232,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllTextStorage);
-#endif
                 result.text.resize(expectedSize);
             }
             catch (const std::bad_alloc &)
@@ -305,8 +298,7 @@ namespace GameWIP::IO::Detail::Core
         /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
         [[nodiscard]] Types::Status appendBytes(
             std::vector<std::byte> &destination,
-            std::span<const std::byte> source,
-            bool injectReadAllFailure) noexcept
+            std::span<const std::byte> source) noexcept
         {
             if (source.empty())
             {
@@ -320,14 +312,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                if (injectReadAllFailure)
-                {
-                    ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllBytesStorage);
-                }
-#else
-                static_cast<void>(injectReadAllFailure);
-#endif
                 destination.insert(destination.end(), source.begin(), source.end());
             }
             catch (const std::bad_alloc &)
@@ -364,9 +348,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllTextStorage);
-#endif
                 destination.append(reinterpret_cast<const char *>(source.data()), source.size());
             }
             catch (const std::bad_alloc &)
@@ -451,7 +432,7 @@ namespace GameWIP::IO::Detail::Core
 
                 if (readResult.bytesRead > 0)
                 {
-                    Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)), true);
+                    Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)));
                     if (!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
@@ -583,9 +564,6 @@ namespace GameWIP::IO
         // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
-#if IO_INTERNAL_TEST_HOOKS
-            ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllScratchAllocation);
-#endif
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
         }
         catch (const std::bad_alloc &)
@@ -667,9 +645,6 @@ namespace GameWIP::IO
         // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
-#if IO_INTERNAL_TEST_HOOKS
-            ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllScratchAllocation);
-#endif
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
         }
         catch (const std::bad_alloc &)

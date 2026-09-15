@@ -613,10 +613,6 @@ namespace GameWIP::Logger::Detail::Core
 
     LoggerState &loggerState();
 
-#if LOGGER_INTERNAL_TEST_HOOKS
-    void pauseFinalProducerLeaveForTest() noexcept;
-#endif
-
     struct ProducerActivity
     {
         bool active = false;
@@ -652,10 +648,6 @@ namespace GameWIP::Logger::Detail::Core
             }
 
             active = false;
-
-#if LOGGER_INTERNAL_TEST_HOOKS
-            pauseFinalProducerLeaveForTest();
-#endif
 
             if (loggerState().activeProducers.fetch_sub(1, std::memory_order_acq_rel) == 1)
             {
@@ -714,31 +706,18 @@ namespace GameWIP::Logger::Detail::Core
 
     struct LoggerTestHookState
     {
-        std::atomic_bool nextFileOpenFailure{false};
         std::atomic_bool nextFileWriteFailure{false};
         std::atomic_bool nextFileFlushFailure{false};
-        std::atomic_bool nextQueueAllocationFailure{false};
         std::atomic_bool nextFatalPopupFailure{false};
         std::atomic_bool nextTimedFlushTimeout{false};
-        std::atomic_bool pauseBeforeWorkerWait{false};
-        std::atomic_bool workerWaitReached{false};
-        std::atomic_bool queuePublicationReached{false};
-        std::atomic_bool releaseWorkerWait{false};
-        std::atomic_bool pauseBeforeFinalProducerLeave{false};
-        std::atomic_bool finalProducerLeaveReached{false};
-        std::atomic_bool releaseFinalProducerLeave{false};
         std::atomic_bool pauseBeforeWorkerDelivery{false};
         std::atomic_bool workerDeliveryReached{false};
         std::atomic_bool releaseWorkerDelivery{false};
-        std::atomic_bool lifecycleLockReached{false};
-        std::atomic_bool releaseLifecycleLock{false};
     };
     extern LoggerTestHookState loggerTestHookState;
     bool consumeTestHook(std::atomic_bool &flag) noexcept;
     void resetLoggerTestHooks() noexcept;
-    void pauseWorkerBeforeWaitForTest() noexcept;
     void pauseWorkerBeforeDeliveryForTest() noexcept;
-    void recordQueuePublicationForTest() noexcept;
     Status forcedFileStatus(ErrorCode code) noexcept;
     Status forcedFatalPopupStatus() noexcept;
 #endif

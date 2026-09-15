@@ -1,15 +1,9 @@
 /// @file assert_test_hooks.h
-/// @brief Source-tree-only test hooks for deterministic Assert validation.
-/// @details This header is excluded from installed public file sets. Hooks are enabled only when
-/// `ASSERT_INTERNAL_TEST_HOOKS` is `1`. Overrides are process-wide; tests must serialize scenarios
-/// that change them and reset state after each scenario.
+/// @brief Minimal source-tree-only Assert validation seam.
 
 #pragma once
 
-#include "debug/assert/internal/assert_test_export.h"
-#include "debug/assert/assert.h"
-
-#include <string_view>
+#include "debug/assert/assert_export.h"
 
 #ifndef ASSERT_INTERNAL_TEST_HOOKS
 #define ASSERT_INTERNAL_TEST_HOOKS 0
@@ -18,74 +12,9 @@
 #if ASSERT_INTERNAL_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
-    /// @brief Clears all pending one-shot failures and persistent overrides.
-    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
-    ASSERT_TEST_EXPORT void reset() noexcept;
-
-    /// @brief Forces the next primary platform action-dialog attempt to use the fallback path.
-    /// @warning Test-only API. The hook is one-shot and is intended to exercise fallback behavior.
-    ASSERT_TEST_EXPORT void forceNextActionDialogFailure() noexcept;
-
-    /// @brief Forces the next fallback action-dialog attempt to return the default action.
-    /// @warning Test-only API. The hook is one-shot and is intended to exercise default-action fallback behavior.
-    ASSERT_TEST_EXPORT void forceNextFallbackActionDialogFailure() noexcept;
-    /// @brief Forces the next diagnostic text preparation to throw `std::bad_alloc`.
-    /// @warning Test-only, one-shot, and cleared by reset(); the outer noexcept UI boundary must use its static emergency path.
-    ASSERT_TEST_EXPORT void forceNextDiagnosticPreparationFailure() noexcept;
-
-    /// @brief Overrides the debugger-attached query used by assert failure handling.
-    /// @param attached Value returned while the override is active.
-    /// @warning Test-only API. Persistent until clearDebuggerAttachedOverride() or reset().
-    ASSERT_TEST_EXPORT void setDebuggerAttachedOverride(bool attached) noexcept;
-
-    /// @brief Clears the debugger-attached override.
-    /// @warning Test-only API.
-    ASSERT_TEST_EXPORT void clearDebuggerAttachedOverride() noexcept;
-
-    /// @brief Overrides popup-suppression checks used by Assert failure handling.
-    /// @param suppressed Value returned while the override is active.
-    /// @warning Test-only API. Persistent until clearPopupSuppressedOverride() or reset().
-    ASSERT_TEST_EXPORT void setPopupSuppressedOverride(bool suppressed) noexcept;
-
-    /// @brief Clears the popup-suppression override.
-    /// @warning Test-only API.
-    ASSERT_TEST_EXPORT void clearPopupSuppressedOverride() noexcept;
-
-    /// @brief Queries the platform debugger-attached state through the assert backend.
-    /// @return True when the backend reports a debugger as attached, including any active test override.
-    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
-    ASSERT_TEST_EXPORT bool debuggerAttachedForTest() noexcept;
-
-    /// @brief Exercises the platform interactive failure dialog path through the assert backend.
-    /// @param title Dialog title text.
-    /// @param message Dialog body text.
-    /// @param defaultAction Action returned when the backend cannot show a dialog.
-    /// @return Selected or fallback action.
-    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
-    ASSERT_TEST_EXPORT FailureAction
-    showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept;
-
-    /// @brief Exercises the platform error-popup path through the assert backend.
-    /// @param title Popup title text.
-    /// @param message Popup body text.
-    /// @warning Test-only API. Available only when ASSERT_INTERNAL_TEST_HOOKS is enabled.
-    ASSERT_TEST_EXPORT void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept;
-
+    /// @brief Validates diagnostic-preparation failure handling inside the noexcept popup boundary.
+    /// @return True only when the armed one-shot failure was consumed by the real popup path.
+    /// @warning Test-only and source-tree-only. Final native presentation is suppressed for the current test thread.
+    [[nodiscard]] ASSERT_EXPORT bool runDiagnosticPreparationEmergencyPathForTest() noexcept;
 } // namespace GameWIP::Debug::Assert::TestHooks
-
-namespace GameWIP::Debug::Assert::Detail::TestHooks
-{
-    /// @brief Consumes the one-shot primary action-dialog failure hook.
-    ASSERT_TEST_EXPORT bool consumeNextActionDialogFailure() noexcept;
-    /// @brief Consumes the one-shot fallback action-dialog failure hook.
-    ASSERT_TEST_EXPORT bool consumeNextFallbackActionDialogFailure() noexcept;
-    /// @brief Consumes the one-shot diagnostic preparation allocation-failure seam.
-    ASSERT_TEST_EXPORT bool consumeNextDiagnosticPreparationFailure() noexcept;
-    /// @brief Reads the debugger-attached override when one is active.
-    /// @return True when attached was assigned; false leaves the output unchanged.
-    ASSERT_TEST_EXPORT bool debuggerAttachedOverride(bool &attached) noexcept;
-    /// @brief Reads the popup-suppressed override when one is active.
-    /// @return True when suppressed was assigned; false leaves the output unchanged.
-    ASSERT_TEST_EXPORT bool popupSuppressedOverride(bool &suppressed) noexcept;
-} // namespace GameWIP::Debug::Assert::Detail::TestHooks
 #endif

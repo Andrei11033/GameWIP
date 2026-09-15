@@ -16,7 +16,8 @@ into the condition expression or surrounding code.
 
 ## A popup appears during automated tests
 
-Automated tests must not depend on real UI. Suppress popups or use Assert test hooks; see @ref assert_testing and @ref assert_test_hooks.
+Automated tests must not depend on real UI. Suppress popups through the
+documented environment controls; see @ref assert_testing.
 
 ## Popup settings did not change after adding a compile definition
 
@@ -35,7 +36,7 @@ debugger; otherwise they abort after reporting.
 
 ## Abort happens instead of Break
 
-Without an attached debugger, the safe default interactive action is Abort. Tests can force debugger detection through @ref assert_test_hooks.
+Without an attached debugger, the safe default interactive action is Abort.
 
 ## The fallback dialog has fewer actions
 
@@ -51,11 +52,6 @@ race on which thread performs the first report.
 
 A runtime-enabled Assert package depends on Logger. Install matching GameWIP packages and configure the consumer with a `CMAKE_PREFIX_PATH` that can
 find the same exact project version.
-
-## An installed consumer cannot include internal hooks
-
-This is expected. `debug/assert/internal/assert_test_hooks.h` is source-tree-only and is not installed. Use public macros from `debug/assert/assert.h`
-in consumer code.
 
 ## Related pages
 

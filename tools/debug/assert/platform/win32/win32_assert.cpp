@@ -4,17 +4,11 @@
 /// converts UTF-8 diagnostics to UTF-16, and bounds popup text before showing UI.
 
 #include "debug/assert/internal/assert_platform.h"
+#include "debug/assert/internal/assert_test_hooks.h"
 #include "base/platform/win32/dynamic_library.h"
 #include "unicode/unicode.h"
 
-#ifndef ASSERT_INTERNAL_TEST_HOOKS
-#define ASSERT_INTERNAL_TEST_HOOKS 0
-#endif
-
-#if ASSERT_INTERNAL_TEST_HOOKS
-#include "debug/assert/internal/assert_test_hooks.h"
-#endif
-
+#include <atomic>
 #include <new>
 #include <string>
 #include <string_view>
@@ -32,24 +26,15 @@
 #include <windows.h>
 #include <commctrl.h>
 
-#include <atomic>
-
 namespace
 {
     // ------------------------------------------------------------
-    // Popup suppression and test state
+    // Popup suppression
     // ------------------------------------------------------------
 
-    /// @brief Returns whether real Assert UI is suppressed by test override or environment state.
+    /// @brief Returns whether real Assert UI is suppressed by environment state.
     bool popupsSuppressed() noexcept
     {
-#if ASSERT_INTERNAL_TEST_HOOKS
-        bool overrideValue = false;
-        if (GameWIP::Debug::Assert::Detail::TestHooks::popupSuppressedOverride(overrideValue))
-        {
-            return overrideValue;
-        }
-#endif
         // Only the exact value "1" suppresses UI. Two code units hold that value and its terminator.
         wchar_t value[2]{};
         const DWORD size = GetEnvironmentVariableW(L"INTERNAL_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
@@ -59,38 +44,17 @@ namespace
     using FailureAction = GameWIP::Debug::Assert::FailureAction;
 
 #if ASSERT_INTERNAL_TEST_HOOKS
-    /// @brief Process-wide one-shot failures and persistent Assert backend overrides.
-    struct AssertTestHookState
-    {
-        std::atomic_bool nextActionDialogFailure{false};
-        std::atomic_bool nextFallbackActionDialogFailure{false};
-        std::atomic_bool nextDiagnosticPreparationFailure{false};
-        // Separate enable/value fields distinguish a forced false result from no override.
-        // Tests serialize changes; the atomics do not make reset a single transaction.
-        std::atomic_bool debuggerAttachedOverrideEnabled{false};
-        std::atomic_bool debuggerAttachedOverrideValue{false};
-        std::atomic_bool popupSuppressedOverrideEnabled{false};
-        std::atomic_bool popupSuppressedOverrideValue{false};
-        // The test adapter suppresses only the final native presentation call; preparation and
-        // emergency-path behavior still execute exactly as they do in production.
-        std::atomic_bool suppressNativePresentation{false};
-    };
+    /// @brief One-shot diagnostic preparation failure used by the focused noexcept test.
+    std::atomic_bool nextDiagnosticPreparationFailure = false;
 
-    /// @brief Shared Win32 hook state consumed by public test adapters and backend helpers.
-    AssertTestHookState assertTestHookState;
-
-    /// @brief Atomically consumes one one-shot backend failure flag.
-    bool consumeTestHook(std::atomic_bool &flag) noexcept
-    {
-        return flag.exchange(false, std::memory_order_acq_rel);
-    }
-
+    /// @brief Suppresses only the native presentation made by the dedicated test adapter.
+    thread_local bool suppressNativePresentationForTest = false;
 #endif
 
     void presentErrorPopup(const wchar_t *title, const wchar_t *message) noexcept
     {
 #if ASSERT_INTERNAL_TEST_HOOKS
-        if (assertTestHookState.suppressNativePresentation.load(std::memory_order_acquire))
+        if (suppressNativePresentationForTest)
         {
             return;
         }
@@ -121,9 +85,9 @@ namespace
     std::wstring utf8ToWide(std::string_view text)
     {
 #if ASSERT_INTERNAL_TEST_HOOKS
-        if (GameWIP::Debug::Assert::Detail::TestHooks::consumeNextDiagnosticPreparationFailure())
+        if (nextDiagnosticPreparationFailure.exchange(false, std::memory_order_acq_rel))
         {
-            throw std::bad_alloc();
+            throw std::bad_alloc{};
         }
 #endif
         if (text.empty())
@@ -301,12 +265,6 @@ namespace
     /// @details MessageBoxW cannot represent the full Always Ignore action set.
     FailureAction fallbackMessageBoxAction(const wchar_t *title, const wchar_t *message, FailureAction defaultAction) noexcept
     {
-#if ASSERT_INTERNAL_TEST_HOOKS
-        if (consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure))
-        {
-            return defaultAction;
-        }
-#endif
         // MessageBox uses fixed labels: Retry maps to Break, and Ignore affects this failure only.
         const int result = MessageBoxW(nullptr, message, title, MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_TASKMODAL | MB_SETFOREGROUND);
         switch (result)
@@ -326,118 +284,22 @@ namespace
 #if ASSERT_INTERNAL_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
-    void reset() noexcept
+    bool runDiagnosticPreparationEmergencyPathForTest() noexcept
     {
-        assertTestHookState.nextActionDialogFailure.store(false, std::memory_order_release);
-        assertTestHookState.nextFallbackActionDialogFailure.store(false, std::memory_order_release);
-        assertTestHookState.nextDiagnosticPreparationFailure.store(false, std::memory_order_release);
+        nextDiagnosticPreparationFailure.store(true, std::memory_order_release);
+        const bool previous = suppressNativePresentationForTest;
+        suppressNativePresentationForTest = true;
+        GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(
+            "Assert diagnostic preparation",
+            "The static emergency popup path must remain noexcept.");
+        suppressNativePresentationForTest = previous;
 
-        // Disabled overrides restore platform/environment queries; stored values return to defaults.
-        assertTestHookState.debuggerAttachedOverrideEnabled.store(false, std::memory_order_release);
-        assertTestHookState.debuggerAttachedOverrideValue.store(false, std::memory_order_release);
-        assertTestHookState.popupSuppressedOverrideEnabled.store(false, std::memory_order_release);
-        assertTestHookState.popupSuppressedOverrideValue.store(false, std::memory_order_release);
-        assertTestHookState.suppressNativePresentation.store(false, std::memory_order_release);
+        const bool failureRemainedArmed = nextDiagnosticPreparationFailure.exchange(false, std::memory_order_acq_rel);
+        return !failureRemainedArmed;
     }
-
-    void forceNextActionDialogFailure() noexcept
-    {
-        assertTestHookState.nextActionDialogFailure.store(true, std::memory_order_release);
-    }
-
-    void forceNextFallbackActionDialogFailure() noexcept
-    {
-        assertTestHookState.nextFallbackActionDialogFailure.store(true, std::memory_order_release);
-    }
-
-    void forceNextDiagnosticPreparationFailure() noexcept
-    {
-        assertTestHookState.nextDiagnosticPreparationFailure.store(true, std::memory_order_release);
-    }
-
-    void setDebuggerAttachedOverride(bool attached) noexcept
-    {
-        // The replacement value is published before readers can observe the enabled override.
-        assertTestHookState.debuggerAttachedOverrideValue.store(attached, std::memory_order_release);
-        assertTestHookState.debuggerAttachedOverrideEnabled.store(true, std::memory_order_release);
-    }
-
-    void clearDebuggerAttachedOverride() noexcept
-    {
-        assertTestHookState.debuggerAttachedOverrideEnabled.store(false, std::memory_order_release);
-    }
-
-    void setPopupSuppressedOverride(bool suppressed) noexcept
-    {
-        // The replacement value is published before readers can observe the enabled override.
-        assertTestHookState.popupSuppressedOverrideValue.store(suppressed, std::memory_order_release);
-        assertTestHookState.popupSuppressedOverrideEnabled.store(true, std::memory_order_release);
-    }
-
-    void clearPopupSuppressedOverride() noexcept
-    {
-        assertTestHookState.popupSuppressedOverrideEnabled.store(false, std::memory_order_release);
-    }
-
-    bool debuggerAttachedForTest() noexcept
-    {
-        return GameWIP::Debug::Assert::Detail::Platform::isDebuggerAttached();
-    }
-
-    FailureAction showFailureActionDialogForTest(std::string_view title, std::string_view message, FailureAction defaultAction) noexcept
-    {
-        return GameWIP::Debug::Assert::Detail::Platform::showFailureActionDialog(title, message, defaultAction);
-    }
-
-    void showErrorPopupForTest(std::string_view title, std::string_view message) noexcept
-    {
-        const bool previous = assertTestHookState.suppressNativePresentation.exchange(true, std::memory_order_acq_rel);
-        GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(title, message);
-        assertTestHookState.suppressNativePresentation.store(previous, std::memory_order_release);
-    }
-
 } // namespace GameWIP::Debug::Assert::TestHooks
-
-namespace GameWIP::Debug::Assert::Detail::TestHooks
-{
-    bool consumeNextActionDialogFailure() noexcept
-    {
-        return consumeTestHook(assertTestHookState.nextActionDialogFailure);
-    }
-
-    bool consumeNextFallbackActionDialogFailure() noexcept
-    {
-        return consumeTestHook(assertTestHookState.nextFallbackActionDialogFailure);
-    }
-
-    bool consumeNextDiagnosticPreparationFailure() noexcept
-    {
-        return consumeTestHook(assertTestHookState.nextDiagnosticPreparationFailure);
-    }
-
-    bool debuggerAttachedOverride(bool &attached) noexcept
-    {
-        if (!assertTestHookState.debuggerAttachedOverrideEnabled.load(std::memory_order_acquire))
-        {
-            return false;
-        }
-
-        attached = assertTestHookState.debuggerAttachedOverrideValue.load(std::memory_order_acquire);
-        return true;
-    }
-
-    bool popupSuppressedOverride(bool &suppressed) noexcept
-    {
-        if (!assertTestHookState.popupSuppressedOverrideEnabled.load(std::memory_order_acquire))
-        {
-            return false;
-        }
-
-        suppressed = assertTestHookState.popupSuppressedOverrideValue.load(std::memory_order_acquire);
-        return true;
-    }
-} // namespace GameWIP::Debug::Assert::Detail::TestHooks
 #endif
+
 
 namespace GameWIP::Debug::Assert::Detail::Platform
 {
@@ -485,20 +347,12 @@ namespace GameWIP::Debug::Assert::Detail::Platform
             config.nDefaultButton = buttonIdForAction(defaultAction);
 
             int selectedButton = buttonIdForAction(defaultAction);
-#if ASSERT_INTERNAL_TEST_HOOKS
-            const bool forceTaskDialogFailure = consumeTestHook(assertTestHookState.nextActionDialogFailure);
-#else
-            const bool forceTaskDialogFailure = false;
-#endif
-            if (!forceTaskDialogFailure)
+            if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
             {
-                if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
+                const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
+                if (SUCCEEDED(result))
                 {
-                    const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
-                    if (SUCCEEDED(result))
-                    {
-                        return actionForButtonId(selectedButton, defaultAction);
-                    }
+                    return actionForButtonId(selectedButton, defaultAction);
                 }
             }
 
@@ -513,13 +367,6 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 
     bool isDebuggerAttached() noexcept
     {
-#if ASSERT_INTERNAL_TEST_HOOKS
-        bool overrideValue = false;
-        if (GameWIP::Debug::Assert::Detail::TestHooks::debuggerAttachedOverride(overrideValue))
-        {
-            return overrideValue;
-        }
-#endif
 
         return IsDebuggerPresent() != FALSE;
     }

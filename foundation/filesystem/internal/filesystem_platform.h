@@ -82,54 +82,19 @@ namespace GameWIP::FileSystem::Detail
 namespace GameWIP::FileSystem::Detail::Platform
 {
 #if FILESYSTEM_INTERNAL_TEST_HOOKS
-    // ------------------------------------------------------------
-    // Test hooks
-    // ------------------------------------------------------------
-
     namespace TestHooks
     {
-        /// Checked file operations that support deterministic one-shot failure injection.
-        enum class CheckedFileOperation : std::uint8_t
-        {
-            None,
-            Read,
-            Write,
-            Flush,
-            Close,
-            Position,
-            Size,
-            Seek,
-            Resize,
-            ResizePositionRestore, ///< Position restoration after native resize has already changed the file length.
-            LockHandleDuplication, ///< Detached-handle acquisition before a native lock request.
-            DiagnosticMessage
-        };
-
-        /// Failure category injected into one checked file operation.
-        enum class CheckedFailure : std::uint8_t
-        {
-            Status,
-            OutOfMemory,
-            Unexpected
-        };
-
-        /// Forces the next matching checked operation to return or translate the selected failure.
-        void forceNextCheckedFailure(
-            CheckedFileOperation operation,
-            CheckedFailure failure,
-            IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure,
-            std::int64_t nativeCode = 0) noexcept;
-        /// Forces native file-lock release attempts to fail until disabled.
+        /// @brief Forces FileLock release attempts to fail for the focused ownership/destructor-cleanup seam until disabled or reset.
         void setFileUnlockFailure(bool enabled) noexcept;
-        /// Arms a pause after strict move destination validation and before native commit.
+        /// @brief Pauses a move after destination validation and before native commit.
         void armMoveDestinationValidatedPause() noexcept;
-        /// Arms a pause after native move commit and before the backend returns.
+        /// @brief Pauses a move after native commit and before the backend returns.
         void armMoveCommittedPause() noexcept;
-        /// Waits until the selected move pause point is reached.
+        /// @brief Waits until an armed move pause is reached.
         [[nodiscard]] bool waitForMovePause(std::chrono::milliseconds timeout) noexcept;
-        /// Releases a move paused by a test hook.
+        /// @brief Releases an armed move pause.
         void releaseMovePause() noexcept;
-        /// Restores FileSystem platform test hooks to their default state.
+        /// @brief Restores all retained FileSystem test-hook state.
         void reset() noexcept;
     } // namespace TestHooks
 #endif

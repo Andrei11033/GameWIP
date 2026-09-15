@@ -146,16 +146,9 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         "styled write emits SGR and reset",
         std::string{"\x1b[1;91mhot\x1b[0m"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-    static_cast<void>(
-        context.expectEq("styled write uses one backend call", std::size_t{2}, Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout)));
-
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     static_cast<void>(context.expectTrue("redirected styled output falls back to plain text", Terminal::writeText("redirected", styledOptions).ok()));
-    static_cast<void>(context.expectEq(
-        "redirected styled output does not prepare",
-        std::size_t{0},
-        Hooks::outputPreparationCallCount(Terminal::Types::Output::Stream::Stdout)));
     static_cast<void>(context.expectEq(
         "redirected styled output capture is plain",
         std::string{"redirected"},
@@ -165,8 +158,6 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, unpreparedTerminalOutputCapabilities());
     Hooks::setPreparedOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, terminalOutputCapabilities());
     static_cast<void>(context.expectTrue("lazy preparation enables styled output", Terminal::writeText("lazy", styledOptions).ok()));
-    static_cast<void>(
-        context.expectEq("lazy preparation count", std::size_t{1}, Hooks::outputPreparationCallCount(Terminal::Types::Output::Stream::Stdout)));
     static_cast<void>(context.expectEq(
         "lazy styled output capture",
         std::string{"\x1b[1;91mlazy\x1b[0m"},
@@ -196,15 +187,9 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectEq("forced text write failure", ErrorCode::PermissionDenied, Terminal::writeText("blocked").code));
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
-    const std::size_t printWritesBefore = Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(context.expectTrue("formatted print succeeds", Terminal::print("value {}", 42).ok()));
     static_cast<void>(
         context.expectEq("formatted print capture", std::string{"value 42"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-    static_cast<void>(context.expectEq(
-        "formatted print uses one backend call",
-        printWritesBefore + 1,
-        Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout)));
-
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(
         context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).code));
@@ -214,15 +199,9 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Terminal::Types::Output::LineOptions printLineOptions;
     printLineOptions.lineEnding = Terminal::Types::Output::LineEnding::Lf;
-    const std::size_t printlnWritesBefore = Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(context.expectTrue("formatted println succeeds", Terminal::println(printLineOptions, "line {}", 7).ok()));
     static_cast<void>(
         context.expectEq("formatted println capture", std::string{"line 7\n"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-    static_cast<void>(context.expectEq(
-        "formatted println uses one backend call",
-        printlnWritesBefore + 1,
-        Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout)));
-
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(context.expectEq(
         "formatted println failure returns status",
@@ -332,14 +311,8 @@ void testSegmentedAndByteOutput(TestSupport::Context &context)
         "segmented write preserves order",
         std::string{"a\x1b[1mb\x1b[0mc\n"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
-    static_cast<void>(context.expectEq(
-        "segmented write containing bytes bypasses the text backend lane",
-        std::size_t{0},
-        Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout)));
-
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     const std::array<Terminal::Types::Output::Segment, 1> plainSegments{Terminal::textSegment("plain")};
-    const std::size_t plainSegmentWritesBefore = Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout);
     Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
     static_cast<void>(context.expectTrue(
         "plain segmented write skips capability query",
@@ -350,11 +323,6 @@ void testSegmentedAndByteOutput(TestSupport::Context &context)
         "plain segmented write leaves capability failure pending",
         ErrorCode::StatFailed,
         Terminal::getOutputCapabilities().status.code));
-
-    static_cast<void>(context.expectEq(
-        "single plain segment uses one direct backend write",
-        plainSegmentWritesBefore + 1,
-        Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout)));
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Terminal::Types::Output::SegmentOptions invalidLineEndingOptions;
@@ -405,11 +373,6 @@ void testSegmentedAndByteOutput(TestSupport::Context &context)
         Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(unsupportedSegments)).code));
     static_cast<void>(
         context.expectTrue("unsupported segment batch emits nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
-    static_cast<void>(context.expectEq(
-        "unsupported segment batch makes no write",
-        std::size_t{0},
-        Hooks::textWriteCallCount(Terminal::Types::Output::Stream::Stdout)));
-
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);

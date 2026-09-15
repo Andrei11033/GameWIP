@@ -38,8 +38,6 @@ validation without changing the underlying byte-transfer model.
 ## Maintainer validation
 
 - @subpage io_testing — See the behavior matrix and validation commands.
-- @subpage io_test_hooks — Understand source-tree-only fault injection and its
-  reset rules.
 
 ## Generated API reference
 

@@ -242,7 +242,7 @@ definitions.
 
 The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that
 higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run
-representative status, formatting, and process-result contracts while explicitly rejecting `TEST_SUPPORT_INTERNAL_TEST_HOOKS`. Focused installed
+representative status, formatting, and process-result contracts. Focused installed
 consumers also compile `test_support/types.h`, `reporting.h`, `files.h`, `process.h`, and `stress.h` independently. Additional cases cover
 split-prefix runtime Assert and disabled/interface-only Assert.
 

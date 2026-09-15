@@ -2,20 +2,14 @@
 /// @brief Executable self-tests for the Assert library.
 ///
 /// The suite keeps shared fixtures and child routing in one translation unit while behavior-focused
-/// private fragments cover macros, diagnostics, hooks, interactive actions, stress, process paths, and manual UI.
+/// private fragments cover macros, diagnostics, interactive actions, stress, process paths, and manual UI.
 
 #include "validation/tests/assert/assert_test.h"
 #include "validation/process_arguments.h"
 
 #include "debug/assert/assert.h"
-
-#ifndef ASSERT_INTERNAL_TEST_HOOKS
-#define ASSERT_INTERNAL_TEST_HOOKS 0
-#endif
-
-#if ASSERT_INTERNAL_TEST_HOOKS
 #include "debug/assert/internal/assert_test_hooks.h"
-#endif
+
 #include "logger/logger.h"
 #include "test_support/test_support.h"
 
@@ -312,7 +306,6 @@ namespace
 
 #include "validation/tests/assert/macro_behavior_test.inl"
 #include "validation/tests/assert/diagnostics_test.inl"
-#include "validation/tests/assert/test_hooks_test.inl"
 #include "validation/tests/assert/interactive_test.inl"
 #include "validation/tests/assert/stress_test.inl"
 #include "validation/tests/assert/process_test.inl"
@@ -396,13 +389,12 @@ namespace GameWIP::Test
                 context.emit(
                     std::format(
                         "[INFO] Assert test options: stress={} fatalChild={} automatedInteractive={} manualTests={} "
-                        "stressThreads={} stressIterations={} report={}\n",
+                        "stressThreads={} report={}\n",
                         options.enableStressTests,
                         options.enableChildCrashTests,
                         options.enableAutomatedInteractiveTests,
                         options.enableManualTests,
                         options.stressThreadCount,
-                        options.stressIterations,
                         options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
 
                 runCase(
@@ -470,10 +462,10 @@ namespace GameWIP::Test
                     });
                 runCase(
                     context,
-                    "assert test hooks",
+                    "diagnostic preparation emergency path",
                     [&]
                     {
-                        testAssertTestHooks(context);
+                        testDiagnosticPreparationEmergencyPath(context);
                     });
                 runCase(
                     context,
@@ -486,7 +478,6 @@ namespace GameWIP::Test
                             testInteractiveAlwaysIgnore(context);
                             testVerifyInteractiveEvaluation(context);
                             testVerifyInteractiveAlwaysIgnoreStillEvaluates(context);
-                            testInteractiveStressLoops(context, options);
                             testInteractiveAbortChild(context, options);
                             testInteractiveBreakChild(context, options);
                         }

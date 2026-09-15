@@ -1,73 +1,24 @@
-@page filesystem_test_hooks Test hooks
+@page filesystem_test_hooks FileSystem validation seam
 
-@warning These hooks are source-tree maintainer interfaces. They are not installed, exported as consumer API, or covered by installed-package
-compatibility guarantees.
+@warning This source-tree-only interface exists for race and ownership-cleanup validation. It is not installed, consumer API, or part of the package ABI.
 
-## Availability
+## Move coordination
 
-Configure with:
+The Win32 validation backend exposes two bounded coordination points for strict `movePath()` tests:
 
-```cmake
--D FILESYSTEM_ENABLE_TEST_HOOKS=ON
-```
+- `armMoveDestinationValidatedPause()` pauses after the destination parent has been validated and before native commit.
+- `armMoveCommittedPause()` pauses after native commit and before the operation returns.
+- `waitForMovePause()` observes the worker reaching the selected point.
+- `releaseMovePause()` allows the worker to continue.
+- `reset()` clears both unlock-failure state and move-pause state.
 
-The short build-tree target exposes `FILESYSTEM_INTERNAL_TEST_HOOKS=1` to source-tree validation consumers. Installed packages do not expose the
-internal header or definition.
+These hooks support externally meaningful race tests: validating that a strict move remains anchored to the original parent and that post-commit namespace changes do not alter the operation's result.
 
-## Include
+## Failed unlock cleanup
 
-```cpp
-#include "filesystem/internal/filesystem_platform.h"
-```
+`setFileUnlockFailure(true)` makes native `FileLock` release attempts return `UnlockFailed` until the hook is disabled or `reset()` is called. This is the
+focused FileLock ownership/destructor-cleanup seam: the lock test verifies that destructor cleanup still releases the native lock and decrements the owning
+`File`'s lock count, allowing a competitor to acquire the lock afterward.
 
-Hooks live under `GameWIP::FileSystem::Detail::Platform::TestHooks`.
-
-## Reset rule
-
-Call `reset()` before and after each scenario that changes hook state. Checked-operation failures are one-shot. Move pauses are armed for one matching
-phase. The unlock-failure override is persistent until disabled or reset.
-
-## API reference
-
-### `forceNextCheckedFailure(operation, failure, code, nativeCode)`
-
-Arms one matching checked file operation. `CheckedFileOperation` selects read, write, flush, close, position, size, seek, resize, resize-position
-restoration, lock-handle duplication, or native diagnostic-message construction. `CheckedFailure` selects an injected status, allocation failure, or
-unexpected exception.
-
-Status injection preserves the supplied portable and native codes. Allocation and unexpected exceptions must be contained as `OutOfMemory` and
-`Unknown`. A diagnostic-message failure instead preserves the original native operation code and native value with an empty message.
-
-### `setFileUnlockFailure(bool enabled)`
-
-When enabled, native file-lock release attempts return a failure. The lock remains active at the public boundary, allowing validation of retry and
-destructor-cleanup behavior.
-
-### Move pause hooks
-
-`armMoveDestinationValidatedPause()` and `armMoveCommittedPause()` stop a move at deterministic backend phases. `waitForMovePause()` observes the
-pause and `releaseMovePause()` allows it to continue. These hooks validate destination races and post-commit behavior.
-
-### `reset()`
-
-Restores every FileSystem platform hook to its default state.
-
-## Intended protocol
-
-A typical checked-operation scenario:
-
-1. reset hooks;
-2. open a temporary file with the required access;
-3. arm one matching status or exception failure;
-4. invoke the public operation once and verify its returned status and progress;
-5. for close failure, verify the handle remains open and a retry succeeds;
-6. reset hooks and remove temporary state.
-
-Always structure cleanup so an assertion failure cannot leave the process-wide hook enabled for later tests.
-
-## Related pages
-
-- @ref filesystem_testing
-- @ref filesystem_file_open_modes
-- @ref project_testing
-- @ref project_documentation
+`reset()` clears both unlock-failure state and move-pause state. The retained seam is limited to move race coordination and FileLock ownership/destructor
+cleanup; it does not provide per-operation native-call failure injection. Ordinary public API tests cover the documented status and cleanup contracts.

@@ -72,8 +72,7 @@ Fatal failures report through Logger and may show Assert-owned UI. Non-interacti
 abort; interactive failures follow the selected Break, Abort, Ignore Once, or Always Ignore action. Recoverable checks report through Logger and
 continue. Disabled macro behavior is documented in @ref assert_macro_behavior.
 
-Automated tests must not depend on real dialog interaction. Deterministic validation paths are documented in @ref assert_testing and @ref
-assert_test_hooks.
+Automated tests must not depend on real dialog interaction. Deterministic validation paths are documented in @ref assert_testing.
 
 ## Where to go next
 
