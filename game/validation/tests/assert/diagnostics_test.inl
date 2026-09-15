@@ -124,9 +124,9 @@ void testUtf8DiagnosticTruncation(TestContext &context)
 void testDiagnosticPreparationEmergencyPath(TestContext &context)
 {
 #if ASSERT_INTERNAL_TEST_HOOKS
-    static_cast<void>(context.expectTrue(
+    context.expectTrue(
         "diagnostic preparation failure reaches static emergency popup path",
-        GameWIP::Debug::Assert::TestHooks::runDiagnosticPreparationEmergencyPathForTest()));
+        GameWIP::Debug::Assert::TestHooks::runDiagnosticPreparationEmergencyPathForTest());
 #else
     context.pass("diagnostic preparation emergency path skipped because Assert test hooks are disabled");
 #endif

@@ -65,5 +65,4 @@ void testEnvironmentHelpers(TestSupport::Context &context)
         static_cast<void>(
             context.expectTrue("ScopedUnsetEnvironmentVariable restores old value", afterUnset != nullptr && std::string_view(afterUnset) == "old"));
     }
-
 }

@@ -296,9 +296,7 @@ namespace GameWIP::IO::Detail::Core
         /// @param destination Destination vector.
         /// @param source Source bytes to append.
         /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
-        [[nodiscard]] Types::Status appendBytes(
-            std::vector<std::byte> &destination,
-            std::span<const std::byte> source) noexcept
+        [[nodiscard]] Types::Status appendBytes(std::vector<std::byte> &destination, std::span<const std::byte> source) noexcept
         {
             if (source.empty())
             {

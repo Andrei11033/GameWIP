@@ -230,5 +230,4 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         static_cast<void>(context.expectTrue("Descendant process timeout has successful infrastructure", result.status.ok()));
         static_cast<void>(context.expectEq("Descendant process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.outcome));
     }
-
 }

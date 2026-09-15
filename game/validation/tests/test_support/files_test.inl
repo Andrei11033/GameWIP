@@ -86,7 +86,6 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
         static_cast<void>(context.expectEq("ScopedCurrentPath changes the process path", root, std::filesystem::current_path()));
     }
     static_cast<void>(context.expectEq("ScopedCurrentPath restores the process path", originalCurrentPath, std::filesystem::current_path()));
-
 }
 
 /// @brief Verifies strict UTF-8 reads/writes, valid-prefix preservation, and preflight rejection.

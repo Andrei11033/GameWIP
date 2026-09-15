@@ -300,7 +300,6 @@ namespace GameWIP::Debug::Assert::TestHooks
 } // namespace GameWIP::Debug::Assert::TestHooks
 #endif
 
-
 namespace GameWIP::Debug::Assert::Detail::Platform
 {
     void showErrorPopup(std::string_view title, std::string_view message) noexcept

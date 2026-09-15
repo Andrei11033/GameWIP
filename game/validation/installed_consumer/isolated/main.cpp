@@ -2,8 +2,7 @@
 /// @brief Isolated installed-package dependency-discovery check.
 
 #if defined(ASSERT_INTERNAL_TEST_HOOKS) || defined(FILESYSTEM_INTERNAL_TEST_HOOKS) || defined(TERMINAL_INTERNAL_TEST_HOOKS) || \
-    defined(LOGGER_INTERNAL_TEST_HOOKS) || \
-    defined(DESKTOP_INTERNAL_TEST_HOOKS)
+    defined(LOGGER_INTERNAL_TEST_HOOKS) || defined(DESKTOP_INTERNAL_TEST_HOOKS)
 #error "Installed GameWIP targets must not expose internal test-hook compile definitions."
 #endif
 

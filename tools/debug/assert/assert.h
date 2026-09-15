@@ -93,7 +93,6 @@
 #error "ASSERT_INTERNAL_RUNTIME must be 0 or 1."
 #endif
 
-
 #if (ASSERT_ENABLED != 0) && (ASSERT_ENABLED != 1)
 #error "ASSERT_ENABLED must be 0 or 1."
 #endif

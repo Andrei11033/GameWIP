@@ -178,11 +178,7 @@ else()
     target_compile_features(Assert INTERFACE cxx_std_23)
     target_compile_definitions(
         Assert
-        INTERFACE
-            ASSERT_INTERNAL_RUNTIME=0
-            ASSERT_ENABLED=0
-            ASSERT_CHECKS_ENABLED=0
-            $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=0>
+        INTERFACE ASSERT_INTERNAL_RUNTIME=0 ASSERT_ENABLED=0 ASSERT_CHECKS_ENABLED=0 $<BUILD_INTERFACE:ASSERT_INTERNAL_TEST_HOOKS=0>
     )
 endif()
 
