@@ -660,6 +660,16 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     return false;
 }
 
+/// @brief Keeps owner-thread native messages flowing for a bounded manual preparation interval.
+void pumpManualPreparation(std::chrono::milliseconds duration)
+{
+    const auto deadline = std::chrono::steady_clock::now() + duration;
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        static_cast<void>(Desktop::Events::wait(std::chrono::milliseconds{50}));
+    }
+}
+
 /// @brief Opens a consistently sized visible Window for one manual scenario.
 [[nodiscard]] bool openManualWindow(
     TestSupport::Context &context,
@@ -671,7 +681,38 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     description.clientSize = {960, 540};
     description.visible = true;
     description.requestFocus = true;
-    return requireManualStatus(context, "manual Window setup", window.open(description));
+    if (!requireManualStatus(context, "manual Window setup", window.open(description)))
+    {
+        return false;
+    }
+    if (!requireManualStatus(context, "manual Window presentation", window.show()))
+    {
+        return false;
+    }
+    const Desktop::Types::Events::PumpResult pump = Desktop::Events::poll();
+    if (!requireManualStatus(context, "manual Window event pump", pump.status))
+    {
+        return false;
+    }
+    if (!window.isOpen() || !window.visible())
+    {
+        context.fail("manual Window presentation", "Window did not remain open and visible after the presentation pump");
+        return false;
+    }
+    paintManualValidationSurface(window);
+    if (manualStatusWindow != nullptr)
+    {
+        manualStatusWindow->refresh(window);
+    }
+
+    pumpManualPreparation(std::chrono::milliseconds{150});
+
+    paintManualValidationSurface(window);
+    if (manualStatusWindow != nullptr)
+    {
+        manualStatusWindow->refresh(window);
+    }
+    return true;
 }
 
 /// @brief Returns whether an opt-in suite should run and records the unattended skip otherwise.
@@ -683,14 +724,4 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     }
     context.skip(name, "disabled by DesktopTestOptions");
     return false;
-}
-
-/// @brief Keeps owner-thread native messages flowing for a bounded manual preparation interval.
-void pumpManualPreparation(std::chrono::milliseconds duration)
-{
-    const auto deadline = std::chrono::steady_clock::now() + duration;
-    while (std::chrono::steady_clock::now() < deadline)
-    {
-        static_cast<void>(Desktop::Events::wait(std::chrono::milliseconds{50}));
-    }
 }

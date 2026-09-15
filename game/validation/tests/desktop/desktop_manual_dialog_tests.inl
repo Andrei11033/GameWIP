@@ -11,6 +11,23 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     }
 
     Desktop::Window owner;
+    const auto prepareDialogManualCheck = [&](std::string_view name, std::string_view question)
+    {
+        if (manualStatusWindow == nullptr)
+        {
+            return;
+        }
+        manualStatusWindow->setScenario(name, question);
+        manualStatusWindow->setObservation({});
+        if (owner.isOpen())
+        {
+            paintManualValidationSurface(owner);
+            manualStatusWindow->refresh(owner);
+        }
+    };
+    prepareDialogManualCheck(
+        "open one file",
+        "Select one existing text or Markdown file, then choose Open. The picker should show the ordered filters.");
     if (!openManualWindow(context, owner, "GameWIP dialog validation owner"))
     {
         return;
@@ -27,12 +44,14 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         .filters = filters,
         .preferredFilterIndex = 0};
 
+    prepareDialogManualCheck("open one file", "Select one existing file and choose Open.");
     context.info("The next dialog must open one existing file; select one file to continue.");
     const auto oneFile = Desktop::Dialogs::openFile(open);
     static_cast<void>(context.expectTrue("manual open-one status succeeds", oneFile.status.ok()));
     static_cast<void>(context.expectEq("manual open-one accepts one file", DialogTypes::Outcome::Accepted, oneFile.outcome));
     recordManualCheck(context, owner, "open one file", "Did the native picker show the title, ordered filters, and selected file normally?");
 
+    prepareDialogManualCheck("open multiple files", "Select at least two existing files, then choose Open.");
     context.info("The next dialog must open multiple existing files; select at least two files to continue.");
     const auto manyFiles = Desktop::Dialogs::openFiles(open);
     static_cast<void>(context.expectTrue("manual open-many status succeeds", manyFiles.status.ok()));
@@ -48,6 +67,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         .preferredFilterIndex = 1,
         .suggestedFileName = "dialog-validation",
         .suggestedExtension = "gamewip"};
+    prepareDialogManualCheck("save one file", "Choose a save path, keeping the suggested name or editing it as needed, then choose Save.");
     context.info("The next dialog must choose a save path. The file need not be created by GameWIP.");
     const auto saved = Desktop::Dialogs::saveFile(save);
     static_cast<void>(context.expectTrue("manual save status succeeds", saved.status.ok()));
@@ -59,6 +79,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         "Were the suggested name, extension, selected filter, overwrite behavior, and returned path native and coherent?");
 
     FileDialogs::FolderDescription folder{.owner = &owner, .title = "Choose one folder for GameWIP validation"};
+    prepareDialogManualCheck("select one folder", "Select one existing folder, then choose the confirmation button.");
     context.info("The next dialog must select one existing folder.");
     const auto oneFolder = Desktop::Dialogs::selectFolder(folder);
     static_cast<void>(context.expectTrue("manual select-folder status succeeds", oneFolder.status.ok()));
@@ -70,6 +91,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         "Did the native folder picker accept exactly one existing folder without showing a fabricated file filter?");
 
     folder.title = "Choose multiple folders for GameWIP validation";
+    prepareDialogManualCheck("select multiple folders", "Select at least two existing folders, then choose the confirmation button.");
     context.info("The next dialog must select at least two existing folders.");
     const auto manyFolders = Desktop::Dialogs::selectFolders(folder);
     static_cast<void>(context.expectTrue("manual select-folders status succeeds", manyFolders.status.ok()));
@@ -98,6 +120,9 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
             .message = testCase.label,
             .buttons = testCase.buttons,
             .severity = testCase.severity};
+        prepareDialogManualCheck(
+            std::format("Message {}", testCase.label),
+            std::format("Choose any non-cancel button in the {} message dialog.", testCase.label));
         context.info(std::format("The next Message checks {}. Choose any non-cancel button.", testCase.label));
         const auto result = Desktop::Dialogs::showMessage(message);
         static_cast<void>(context.expectTrue("manual Message status succeeds", result.status.ok()));
@@ -130,6 +155,9 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         .details = "Expanded details must remain readable and must not replace the primary message.",
         .supplementalText = "Supplemental text is lower-priority information.",
         .checkBox = PromptDialogs::CheckBox{"Remember this choice", true}};
+    prepareDialogManualCheck(
+        "rich semantic Prompt",
+        "Choose any custom button and option. Verify the details, supplemental text, and checked checkbox are visible.");
     context.info("The next Prompt should show command-link descriptions, radio options, details, supplemental text, and a checked checkbox.");
     const auto prompted = Desktop::Dialogs::showPrompt(prompt);
     static_cast<void>(context.expectTrue("manual Prompt status succeeds", prompted.status.ok()));
@@ -150,6 +178,9 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         .cancelable = true,
         .blocksOwner = true};
     Desktop::ProgressDialog progress;
+    prepareDialogManualCheck(
+        "determinate ProgressDialog live updates",
+        "While this question waits, verify the responsive, owner-blocking progress window and its live updates.");
     static_cast<void>(context.expectTrue("manual determinate ProgressDialog opens", progress.open(progressDescription).ok()));
     std::size_t updateStep = 0;
     recordManualCheck(
@@ -196,6 +227,9 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     progressDescription.cancelable = false;
     progressDescription.blocksOwner = false;
     progressDescription.heading = "Noncancelable, nonblocking";
+    prepareDialogManualCheck(
+        "noncancelable close behavior and blocksOwner false",
+        "Verify the owner remains usable, no Cancel control is shown, and closing the progress window leaves it open.");
     static_cast<void>(context.expectTrue("manual noncancelable ProgressDialog opens", progress.open(progressDescription).ok()));
     recordManualCheck(
         context,
@@ -211,6 +245,9 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     progressDescription.blocksOwner = true;
     Desktop::ProgressDialog blockerOne;
     Desktop::ProgressDialog blockerTwo;
+    prepareDialogManualCheck(
+        "overlapping ProgressDialog blockers",
+        "Close the first progress window and verify the owner remains blocked while the second stays visible.");
     static_cast<void>(context.expectTrue(
         "manual overlapping ProgressDialogs open",
         blockerOne.open(progressDescription).ok() && blockerTwo.open(progressDescription).ok()));
@@ -225,6 +262,9 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     progressDescription.owner = nullptr;
     progressDescription.blocksOwner = true;
     Desktop::ProgressDialog ownerless;
+    prepareDialogManualCheck(
+        "ownerless ProgressDialog and DPI",
+        "Verify the ownerless progress window is independent and responsive; check DPI behavior if practical.");
     static_cast<void>(context.expectTrue("manual ownerless ProgressDialog opens", ownerless.open(progressDescription).ok()));
     recordManualCheck(
         context,
