@@ -78,7 +78,7 @@ To build the manual locally, use the `docs` preset described in the
 
 ```text
 foundation/   Reusable low-level libraries.
-engine/       Supported Desktop, provisional Input/Action, and preserved legacy WindowManager code.
+engine/       Supported Desktop plus deprecated Input, Action, and WindowManager code.
 tools/        Diagnostics, logging, assertions, and test support.
 game/         Game executable and source-tree validation.
 cmake/        Project build and validation infrastructure.

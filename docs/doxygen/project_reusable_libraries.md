@@ -41,14 +41,6 @@ project_structure.
 - @subpage test_support - Reusable test runners, expectations, reports,
   fixtures, process isolation, manual checks, and stress helpers.
 
-## Libraries still under design
-
-Input and Action compile in the source tree, but their public boundaries are
-still provisional. WindowManager is preserved historical code and is not
-compiled. They remain listed in @ref project_structure and the roadmap so their
-status is clear, but they are excluded from the supported API and library
-manuals until their contracts stabilize.
-
 ## Related pages
 
 - @ref project_structure

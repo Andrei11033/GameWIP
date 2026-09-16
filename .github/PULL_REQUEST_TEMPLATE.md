@@ -22,7 +22,7 @@ or deviations from the original direction. Remove this section if none apply. --
 
 ## Checklist
 
-- [ ] Updated the owning code, configuration, and documentation for the behavior I changed.
+- [ ] Updated the owning code, configuration, and documentation where applicable.
 - [ ] Recorded the relevant local or manual validation above.
 - [ ] Checked generated documentation and links when documentation or public API changed.
 - [ ] Added or updated correctness coverage for behavior changes where practical.

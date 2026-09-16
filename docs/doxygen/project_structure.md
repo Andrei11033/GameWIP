@@ -91,16 +91,10 @@ keeps its portable result contracts free of unrelated higher-level dependencies.
 
 ## Engine-system status
 
-Desktop is the supported, documented engine library. It participates in package,
-public-header, correctness, and manual validation. Input and Action are compiled
-source-tree prototypes whose public contracts and package boundaries are not yet
-stable, so they are absent from the reusable library manual. WindowManager targets
-a retired Window surface and is preserved for a later coordination-layer
-migration, but it is not currently compiled.
-
-Do not treat a header under `engine/input`, `engine/action`, or
-`engine/window_manager` as a supported installed API. Their completion gates are
-tracked in the project roadmap.
+Desktop is the supported, documented engine library. Input, Action, and
+WindowManager are currently deprecated source-tree code and are excluded from
+the supported installed API and generated documentation. WindowManager is
+not currently compiled.
 
 Validation code may use libraries and approved internal hooks. Installed
 consumers must not see internal headers, test-hook headers, source-tree-only

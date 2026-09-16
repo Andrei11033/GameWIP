@@ -100,7 +100,7 @@ body:
     id: documentation
     attributes:
       label: Documentation to update
-      description: Name the documentation that should record the accepted decision.
+      description: Name the documentation that must record the accepted decision.
       placeholder: Use docs/decisions.md for a project-wide choice.
     validations:
       required: true

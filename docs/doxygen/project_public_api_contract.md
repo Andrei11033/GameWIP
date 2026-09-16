@@ -35,6 +35,7 @@ Public APIs that treat data as text use UTF-8. Encoding-agnostic or unvalidated
 data is described as bytes. A text API has the same UTF-8 validity contract
 regardless of whether the active backend is a console, redirected byte stream,
 file, pipe, or another native endpoint.
+Backend selection must not change whether malformed text is accepted.
 
 UTF-8 text continues to use `std::string`, `std::string_view`, and caller-owned `std::span<char>` storage. GameWIP does not migrate public UTF-8 APIs
 to `std::u8string` or `std::u8string_view`.

@@ -96,9 +96,9 @@ invalidated by a later registration.
 The runner copies registrations before sorting and execution. It rejects empty names, null run callbacks, and duplicate names before invoking any
 module.
 
-Current correctness modules are `base`, `runner`, `io`, `unicode`, `filesystem`,
-`terminal`, `desktop`, `test_support`, `logger`, and `assert`, in that stable
-order.
+Correctness modules are discovered from `game/validation/tests/`. Use
+`GameWIPTests.exe --help` to see the current module names available for
+selection.
 
 ## Module invocation
 
@@ -233,12 +233,6 @@ Its declaration lives in `game/validation/tests/internal/runner_test_hooks.h`.
 It is an approved source-tree test seam, is not registered as ordinary
 generated API, is not installed, and must not be used by application or
 validation-module code.
-
-## Input test hooks
-
-Input's private Win32 metadata and HID normalization seams remain source-tree
-validation details and are intentionally excluded from the generated manual
-until the Input surface is supported.
 
 ## Preset behavior
 
