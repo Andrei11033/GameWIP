@@ -40,15 +40,19 @@ test('accepts the actual PR template shape without an optional merge-message bod
     const body = template
         .replace('<!-- Describe what is different after this change. -->', 'Standardizes the repository policy.')
         .replace('- Closes #', 'No linked issue: maintenance')
-        .replace('- Required CI: expected to run on the pull request.', '- Required CI: passed.')
+        .replace(
+            '<!-- Record checks you actually ran and their results. GitHub reports required CI separately. -->',
+            '`gamewip.bat quality check` passed.',
+        )
         .replace('- Title: `area: imperative summary`', '- Title: `github: standardize repository policy`');
     assert.deepEqual(validatePullRequest({ ...valid, body }), []);
 });
 
-test('rejects the untouched PR template summary', () => {
+test('rejects the untouched PR template placeholders', () => {
     const template = fs.readFileSync(path.join(__dirname, '..', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');
     const errors = validatePullRequest({ ...valid, body: template });
     assert.ok(errors.includes('`## Summary` must contain meaningful content.'));
+    assert.ok(errors.includes('`## Validation` must contain meaningful content.'));
 });
 
 test('accepts every canonical type and priority', () => {

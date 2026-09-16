@@ -54,7 +54,7 @@ The report includes maintained implementation sources for Base, Unicode, IO,
 FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop, plus modular
 correctness-test sources under `game/validation/tests`. Header-only Base code
 contributes where tests or consumers instantiate it. Third-party sources under
-`external/`, generated build output, and provisional engine code are excluded.
+`external/`, generated build output, and deprecated engine code are excluded.
 Coverage data is read only from the active coverage build tree, so archived or
 neighboring instrumented builds cannot contaminate the report.
 

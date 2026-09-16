@@ -168,8 +168,10 @@ Libraries may add additional manual pages when the public or maintainer-facing
 contract needs a focused owner. Extra pages must make the manual easier to use
 or maintain; do not create pages just to mirror the source tree.
 
-For example, a library with many build options may add a configuration page, a library with exported runtime symbols may add an ABI or
-package-boundary page, and a library with source-tree-only validation hooks may add a test-hooks page.
+For example, a library with many build options may add a configuration page,
+and a library with exported runtime symbols may add an ABI or package-boundary
+page. A library with approved source-tree-only validation hooks must add a
+test-hooks page.
 
 A library landing page must contain:
 

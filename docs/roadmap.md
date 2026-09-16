@@ -575,7 +575,8 @@ concrete exit criteria. Detailed GitHub issues are written when the work is
 ready to start, not years ahead of it.
 
 Update @ref project_versioning when the meaning of a release changes. Update
-@ref project_decisions when a roadmap change records a durable direction.
+@ref project_decisions when a roadmap change records a project-wide
+technical decision.
 
 Locked architecture includes headless authoritative simulation, fixed timing,
 command and state boundaries across authority, local authority without transport

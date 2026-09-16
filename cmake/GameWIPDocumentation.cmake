@@ -64,8 +64,8 @@ if(GAMEWIP_BUILD_DOCS)
         "${PROJECT_SOURCE_DIR}/game/validation/tests/terminal/terminal_test.h"
         "${PROJECT_SOURCE_DIR}/game/validation/tests/desktop/desktop_test.h"
         "${PROJECT_SOURCE_DIR}/game/validation/tests/test_support/test_support_test.h"
-        # Input, Action, and the preserved WindowManager surface remain
-        # deprecated and are intentionally excluded from generated docs.
+        # Input, Action, and WindowManager are deprecated and intentionally excluded
+        # from generated docs.
     )
 endif()
 

@@ -156,7 +156,7 @@ The pull request body should include:
 - Important implementation discoveries, corrected assumptions, platform
   surprises, or changes from the original direction.
 - Required confirmations from the pull-request template.
-- The intended squash merge message for changes that need more than a subject.
+- The intended squash merge title, plus a body when additional context is useful.
 
 Use `Draft` only while the pull request is not ready for final review or merge.
 

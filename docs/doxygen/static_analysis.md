@@ -24,7 +24,7 @@ tool paths, records native command logs, and reports failures consistently:
 .\gamewip.bat quality hygiene status
 ```
 
-`quality check` is the complete non-mutating repository quality gate.
+`quality check` is the complete non-mutating maintained-file quality-policy gate.
 `quality fix` applies only deterministic formatters and then runs the same
 complete check. The interactive GameWIP `Q` menu exposes both workflows directly.
 
@@ -211,7 +211,7 @@ configuration file, or manual page is checked before it is staged. `-Changed`
 is an optimization for ordinary edits; changing quality policy expands
 validation to the maintained scope it can affect.
 
-Run the complete repository quality gate locally from the repository root:
+Run the maintained-file quality gate locally from the repository root:
 
 ```powershell
 .\gamewip.bat quality check
@@ -241,12 +241,10 @@ Python bytecode caches are ignored as generated local artifacts.
 Run JavaScript automation checks when changing repository or release automation:
 
 ```bash
-node --check .github/scripts/project-automation.js
-node --check .github/scripts/project-automation.test.js
-node --test .github/scripts/project-automation.test.js
-node --check .github/scripts/release-preparation.js
-node --check .github/scripts/release-preparation.test.js
-node --test .github/scripts/release-preparation.test.js
+for file in .github/scripts/*.js; do
+    node --check "$file"
+done
+node --test .github/scripts/*.test.js
 ```
 
 Run workflow linting when changing GitHub Actions. CI downloads the pinned

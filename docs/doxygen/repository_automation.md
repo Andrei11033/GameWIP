@@ -138,10 +138,11 @@ Inspect the workflow summary. If the dry run is correct, run one normal reconcil
 
 Repository checks for automation scripts should also pass locally when those scripts change:
 
-```powershell
-node --check .github/scripts/project-automation.js
-node --check .github/scripts/project-automation.test.js
-node --test .github/scripts/project-automation.test.js
+```bash
+for file in .github/scripts/*.js; do
+    node --check "$file"
+done
+node --test .github/scripts/*.test.js
 ```
 
 ## Failure behavior

@@ -47,8 +47,7 @@ cmake --build --preset dev
 
 The [getting started guide](docs/doxygen/getting_started.md) explains the
 first-checkout path. Use the [command-line tools reference](docs/doxygen/command_line_tools.md)
-for the full command reference for setup, project helpers, the game, tests,
-and benchmarks.
+for setup, project-helper, game, test, and benchmark commands.
 
 ## Documentation
 

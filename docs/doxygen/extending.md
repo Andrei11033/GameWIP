@@ -115,7 +115,7 @@ Each hook interface must define:
 - The validation scenarios it supports.
 - Restrictions on installed-package and production use.
 
-Libraries with approved hooks should provide `docs/test_hooks.md` using the structure in @ref project_documentation.
+Libraries with approved hooks must provide `docs/test_hooks.md` using the structure in @ref project_documentation.
 
 Failure-injection hooks must be deterministic, resettable, and narrow enough to
 identify the intended failure boundary. Tests must verify the public status,
@@ -236,7 +236,7 @@ A backend integrates through these boundaries:
 Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/GameWIPOptions.cmake`. Maintainer-facing CMake helper conventions are
 documented in @ref project_cmake_infrastructure.
 
-A project option has these owning surfaces:
+A project option must be reflected in all of the following:
 
 - Its name uses the correct ownership prefix, and its default lives in the
   owning CMake file.
