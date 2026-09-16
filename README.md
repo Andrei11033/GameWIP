@@ -8,9 +8,8 @@
 GameWIP is an early-stage C++23 sandbox game project about player-built
 vehicles, structures, weapons, components, and meaningful destruction.
 
-The repository values explicit contracts, readable ownership boundaries,
-reproducible builds, and validation that produces useful evidence while the
-game and its reusable libraries grow.
+I use the project to learn C++ and systems programming while keeping API
+contracts, ownership, builds, and validation deliberately strict.
 
 GameWIP supports Windows 11 and is currently pre-1.0. Active work is tracked
 in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
@@ -21,7 +20,7 @@ and the [roadmap](docs/roadmap.md). The latest published baseline is
 
 GameWIP is a personal learning project. I write the C++ and CMake
 implementation myself. I use AI for learning, research, review, and
-documentation/comments; the PowerShell helper is AI-written.
+documentation and comments; the PowerShell helper is AI-written.
 
 ## Start here
 
@@ -79,7 +78,7 @@ To build the manual locally, use the `docs` preset described in the
 
 ```text
 foundation/   Reusable low-level libraries.
-engine/       Desktop and engine-system libraries.
+engine/       Supported Desktop plus provisional Input/Action and preserved legacy systems.
 tools/        Diagnostics, logging, assertions, and test support.
 game/         Game executable and source-tree validation.
 cmake/        Project build and validation infrastructure.

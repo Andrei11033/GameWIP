@@ -43,7 +43,7 @@ Use @ref project_planning to decide whether product planning or policy material 
 
 ## Information layers
 
-A single page should not carry every reading depth. Put information where a
+A single page should not serve every level of detail. Put information where a
 reader will look for it and link the layers together:
 
 | Layer | What it must answer |
@@ -56,9 +56,9 @@ reader will look for it and link the layers together:
 | Maintainer and test-hook pages | Internal validation seams, backend constraints, and implementation-facing procedures that consumers should not depend on. |
 
 Task-oriented links help readers enter the documentation, but they do not
-replace conceptual explanation. Someone who does not yet know the right API
-must be able to learn the model from the manual, while someone already holding
-a symbol must be able to learn its local contract from the generated reference
+replace conceptual explanation. A reader who does not yet know the right API
+must be able to learn the model from the manual, while a reader starting from a
+known symbol must be able to find its local contract in the generated reference
 or IntelliSense.
 
 ## Write for the reader's question

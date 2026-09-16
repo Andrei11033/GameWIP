@@ -278,8 +278,10 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
-        // Copy scratch data directly into the destination so the transfer path
-        // does not create a second temporary range.
+        // These helpers copy scratch data directly into their destinations so
+        // the transfer path does not create a second temporary range.
+        // Both public streaming entry points reject an empty scratch buffer
+        // before reaching these helpers, so each read request can make progress.
         [[nodiscard]] Types::Status appendBytes(std::vector<std::byte> &destination, std::span<const std::byte> source) noexcept
         {
             if (source.empty())
@@ -312,8 +314,6 @@ namespace GameWIP::IO::Detail::Core
             return successStatus();
         }
 
-        // Copy scratch data directly into the destination so the transfer path
-        // does not create a second temporary range.
         [[nodiscard]] Types::Status appendTextBytes(std::string &destination, std::span<const std::byte> source) noexcept
         {
             if (source.empty())
@@ -377,7 +377,6 @@ namespace GameWIP::IO::Detail::Core
             return makeStatus(Types::ErrorCode::ReadFailed);
         }
 
-        // Public entry points reject an empty scratch buffer before entering these streaming paths, so each request can make progress.
         [[nodiscard]] Types::ReadAllBytesResult readAllBytesWithScratch(
             Reader &reader,
             std::span<std::byte> scratchBuffer,

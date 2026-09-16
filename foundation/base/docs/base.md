@@ -58,7 +58,7 @@ installed consumer API.
 
 # Admission criteria
 
-A mechanism belongs in Base when it is already duplicated across independent
+A mechanism belongs in Base only when it is already duplicated across independent
 components, contains no domain-specific result, error, lifetime, or policy
 decision, stays independent of every GameWIP library target, and exposes a
 narrow surface that can be tested directly.

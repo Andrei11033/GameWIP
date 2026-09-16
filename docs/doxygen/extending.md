@@ -52,14 +52,20 @@ Use this default structure:
 
 Add `docs/test_hooks.md` only when the library exposes approved source-tree-only validation hooks.
 
-A reusable library must have a parent `CMakeLists.txt` that includes it, one
-canonical target and imported alias, explicit sources, `cxx_std_23`, and accurate
-dependency visibility. Installation must contain only its public headers and
-generated export headers. Installable libraries must provide package config and
-exact-version files. Public-header compilation, clean installed-consumer
-validation, correctness tests, the required manual pages, and
-`gamewip_register_doxygen_library()` must cover the remaining integration
-surfaces.
+A reusable library must cover these integration surfaces:
+
+- Its parent `CMakeLists.txt` includes it.
+- One canonical target and imported alias define its CMake identity.
+- The target requires `cxx_std_23`, lists sources explicitly, and declares
+  dependency visibility accurately.
+- Installation contains only its public headers and generated export headers.
+- Installable libraries provide package config and exact-version files.
+- Public-header compilation and clean installed-consumer validation protect the
+  package boundary.
+- Correctness tests cover the supported behavior.
+- The required manual pages describe the public contract.
+- `gamewip_register_doxygen_library()` registers the public headers and manual
+  pages.
 
 Use `PUBLIC` dependencies when a dependency appears in installed public headers.
 Use `PRIVATE` dependencies for implementation-only requirements.
@@ -68,13 +74,15 @@ Use `PRIVATE` dependencies for implementation-only requirements.
 
 A public API is any installed symbol, type, macro, option, result type, or supported behavior that external consumers may use.
 
-A public API change must cross several owning surfaces. Declarations must live in
-installed public headers with compact local contract documentation. Behavior
-must live in portable core code or the appropriate backend. The owning library
-manual must explain public behavior and likely failure modes, non-trivial
-behavior must have a supported example, correctness tests must cover the
-contract, and package exports or shared-library allowlists must reflect the
-intended symbols.
+A public API change must be reflected across several project surfaces:
+
+- Declarations live in installed public headers with compact local contract
+  documentation.
+- Behavior lives in portable core code or the appropriate backend.
+- The owning library manual explains public behavior and likely failure modes.
+- Non-trivial behavior has a supported example.
+- Correctness tests cover the contract.
+- Package exports and shared-library allowlists reflect the intended symbols.
 
 Public API documentation requirements are defined in @ref project_documentation.
 
@@ -82,10 +90,14 @@ Public API documentation requirements are defined in @ref project_documentation.
 
 A public macro is public API.
 
-Macro documentation and tests must describe what the macro evaluates, whether
-arguments are evaluated once or multiple times, whether any build option
-compiles it out, and what side effects or process behavior it has. They must
-cover success, failure, disabled-build, and expression-evaluation behavior.
+Macro documentation and tests must describe:
+
+- What the macro evaluates.
+- Whether arguments are evaluated once or may be evaluated multiple times.
+- Whether the macro is compiled out under any build option.
+- Any side effects, logging behavior, assertion behavior, or process behavior.
+- Success paths, failure paths, disabled-build behavior, and
+  expression-evaluation behavior.
 
 Prefer minimal macros that forward to typed implementation functions.
 
@@ -93,11 +105,15 @@ Prefer minimal macros that forward to typed implementation functions.
 
 Add test hooks only when ordinary public API tests cannot validate behavior safely or deterministically.
 
-Each hook interface must define the enabling compile definition or option, the
-internal header validation code may include, its namespace, whether each hook is
-one-shot, persistent, scoped, or query-only, the reset rule between tests, the
-scenarios it supports, and its restrictions in installed-package and production
-builds.
+Each hook interface must define:
+
+- The compile definition or option that enables it.
+- Which internal headers validation code may include.
+- Its namespace.
+- Whether each hook is one-shot, persistent, scoped, or query-only.
+- The reset rule required between tests.
+- The validation scenarios it supports.
+- Restrictions on installed-package and production use.
 
 Libraries with approved hooks should provide `docs/test_hooks.md` using the structure in @ref project_documentation.
 

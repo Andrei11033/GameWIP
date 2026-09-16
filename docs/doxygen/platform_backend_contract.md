@@ -35,7 +35,7 @@ platform-aware target calls
 Configuration fails when the selected backend file is absent.
 
 Add a new platform ID only when CMake cannot already map the target environment.
-Platform IDs are stable, lowercase, and suitable for directory names.
+Platform IDs must be stable, lowercase, and suitable for directory names.
 
 ## Required structure
 
@@ -116,9 +116,13 @@ deterministic.
 
 Backend hooks are maintainer validation tools. They are not consumer API, are not installed, and are not compatibility promises.
 
-Each hook interface defines how it is enabled, which internal header validation
-code may include, whether it is one-shot, persistent, scoped, or query-only,
-how state is reset between tests, and which backend behavior it validates.
+Each hook interface must define:
+
+- How it is enabled.
+- Which internal header may be included by validation code.
+- Whether hooks are one-shot, persistent, scoped, or query-only.
+- How state is reset between tests.
+- Which backend behavior the hook validates.
 
 Failure-injection hooks must preserve the public status and cleanup invariants of
 real backend failures. Their source-tree compile definition must not escape into
@@ -128,12 +132,16 @@ A library with approved hooks must document them in `docs/test_hooks.md`.
 
 ## Add a platform backend
 
-When adding a backend, add its directory and `platform.cmake`, implement the
-existing internal contract, and add backend-specific correctness coverage or
-approved hooks. Keep the public API unchanged unless the platform concept is
-deliberately public. Update platform selection only when needed, update the
-owning library's testing and troubleshooting docs, and run the relevant
-validation, installed-consumer, and documentation workflows.
+When adding a backend:
+
+- Add the backend directory and `platform.cmake`.
+- Implement the existing internal platform contract.
+- Keep the public API unchanged unless the platform concept is deliberately
+  public.
+- Add correctness coverage or approved hooks for backend-specific behavior.
+- Update platform selection only when needed.
+- Update the owning library's testing and troubleshooting docs.
+- Run the relevant validation, installed-consumer, and documentation workflows.
 
 ## Allowed exceptions
 

@@ -74,7 +74,7 @@ body:
   - type: textarea
     id: proposal
     attributes:
-      label: Chosen direction
+      label: Preferred direction (optional)
       description: Describe the preferred approach, API, workflow, or behavior when one is known.
 
   - type: textarea

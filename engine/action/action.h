@@ -115,6 +115,7 @@ namespace GameWIP::Action
         float activationThreshold = 0.5f;               // Threshold for pressed/down states.
     };
 
+    /// @brief Creates default button-action settings.
     ActionSettings makeButtonSettings();
 
     /// @brief Creates one-dimensional axis settings.
@@ -293,7 +294,7 @@ namespace GameWIP::Action
 
     template <typename ActionEnum> class ActionMap;
 
-    /// @brief Fluent builder that copies one binding into an ActionMap when a terminal trigger method is called.
+    /// @brief Builds one binding and stores it when a trigger such as pressed(), hold(), or value() is selected.
     /// @tparam ActionEnum Contiguous action enum whose values are used as ActionMap indices.
     template <typename ActionEnum> class ActionBindingBuilder
     {

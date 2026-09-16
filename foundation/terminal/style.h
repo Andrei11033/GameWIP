@@ -82,6 +82,7 @@ namespace GameWIP::Terminal
         /// @brief Portable terminal color request.
         struct Color
         {
+            /// @brief Creates a request for the terminal's default color.
             Color() noexcept = default;
 
             /// @brief Returns which stored representation supplies this color.

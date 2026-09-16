@@ -194,7 +194,7 @@ gamewip_add_benchmark_module(
 )
 ```
 
-Benchmark modules remain separate from correctness tests. CMake registration
+Benchmark modules must remain separate from correctness tests. CMake registration
 proves that a benchmark is available; benchmark pages explain how to collect
 meaningful measurements.
 
@@ -272,14 +272,16 @@ surface intentionally changes.
 
 ## Shared helper conventions
 
-Target-local properties and explicit source registration keep CMake state easy to
-trace. Project composition options belong in root infrastructure, while
-library-local behavior stays with the owning library. Platform selection goes
-through `GameWIPPlatform.cmake`, and target wiring belongs in each backend's
-`platform.cmake`. Doxygen inputs, validation modules, and benchmarks use the
-project helpers. Installed public headers remain free of internal and test-hook
-paths. New maintainer-facing helpers need documentation before they are used
-widely.
+- Keep target-local properties and explicit source registration so CMake state
+  stays easy to trace.
+- Keep project composition options in root infrastructure and library-local
+  behavior with the owning library.
+- Route platform selection through `GameWIPPlatform.cmake`, with target wiring
+  in each backend's `platform.cmake`.
+- Register Doxygen inputs, validation modules, and benchmarks through the
+  project helpers.
+- Keep installed public headers free of internal and test-hook paths.
+- Document new maintainer-facing helpers before using them widely.
 
 ## Change validation
 
