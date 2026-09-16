@@ -1,4 +1,4 @@
-@page input_test_hooks Input test hooks
+# Input test hooks
 
 Input's Win32 test helpers are source-tree-only interfaces enabled by
 `INPUT_ENABLE_TEST_HOOKS`. They are not installed and are not consumer API.

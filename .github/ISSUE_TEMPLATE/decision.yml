@@ -1,5 +1,5 @@
 name: Decision
-description: Resolve a design or policy choice and record the accepted result in durable documentation.
+description: Resolve a design or policy choice and record the accepted result in project documentation.
 title: 'decision: '
 labels:
   - 'type:decision'
@@ -9,7 +9,7 @@ body:
     attributes:
       value: |
         Use this template to resolve a design or policy question. The issue
-        supports discussion; accepted durable decisions belong in the owning
+        supports discussion; accepted project-wide decisions belong in the owning
         documentation, especially `docs/decisions.md` for project-wide choices.
 
   - type: dropdown
@@ -99,8 +99,8 @@ body:
   - type: textarea
     id: documentation
     attributes:
-      label: Durable documentation to update
-      description: Name the owning documentation that must record the accepted decision.
-      placeholder: Use docs/decisions.md for a durable project-wide choice.
+      label: Documentation to update
+      description: Name the documentation that should record the accepted decision.
+      placeholder: Use docs/decisions.md for a project-wide choice.
     validations:
       required: true

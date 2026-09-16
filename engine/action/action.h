@@ -294,7 +294,7 @@ namespace GameWIP::Action
 
     template <typename ActionEnum> class ActionMap;
 
-    /// @brief Builds one binding and stores it when a trigger such as pressed(), hold(), or value() is selected.
+    /// @brief Builds one binding and stores it when pressed(), hold(), value(), or another trigger method is called.
     /// @tparam ActionEnum Contiguous action enum whose values are used as ActionMap indices.
     template <typename ActionEnum> class ActionBindingBuilder
     {
@@ -362,6 +362,8 @@ namespace GameWIP::Action
 
         /// @brief Resizes the action and state slots without clearing stored bindings.
         /// @param actionCount New number of action slots.
+        /// @note Bindings that target removed slots remain stored and are ignored until
+        /// those slots exist again.
         void resize(ActionEnum actionCount);
         /// @brief Returns the number of action slots currently allocated.
         std::size_t getActionCount() const;

@@ -259,7 +259,8 @@ actionlint
 
 ## Documentation checks
 
-The regular validation workflow builds Doxygen and rejects Doxygen warnings. Markdown registered with Doxygen is therefore parsed and cross-reference
+The regular validation workflow builds Doxygen and rejects unexpected Doxygen
+warnings. Markdown registered with Doxygen is therefore parsed and cross-reference
 checked as part of documentation validation.
 
 The documentation-standards checker validates exactly one unique page ID per
@@ -331,7 +332,7 @@ upstream dependency versions, not by rewriting vendor code.
 | Repository standards fail. | An Action pin, job policy, or public file drifted. | Restore the reported repository contract. |
 | Documentation standards fail. | Ownership, navigation, or coverage drifted. | Fix the owner or update the checker intentionally. |
 | Markdown link check fails. | A maintained Markdown file points to a missing local target. | Fix the link, add the missing page, or move the target behind an excluded generated/third-party boundary. |
-| Doxygen warnings appear. | A page, reference, or public comment is malformed. | Fix the owning documentation or registration. |
+| Unexpected Doxygen warnings appear. | A page, reference, or public comment is malformed. | Fix the owning documentation or registration. |
 | Vendor files are checked. | An exclusion pattern is incomplete. | Update the owning analysis helper without rewriting vendor code. |
 
 ## Maintainer notes

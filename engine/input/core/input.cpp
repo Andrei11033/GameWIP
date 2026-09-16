@@ -3,6 +3,7 @@
 
 #include "input/input.h"
 #include "input/internal/input_state_access.h"
+#include "unicode/unicode.h"
 
 #include <algorithm>
 #include <array>
@@ -459,39 +460,13 @@ namespace GameWIP::Input
 
         void appendUtf8Codepoint(std::string &text, char32_t codepoint)
         {
-            if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF))
+            auto encoded = GameWIP::Unicode::Utf8::encodeScalar(codepoint);
+            if (encoded.outcome != GameWIP::Unicode::Types::EncodeOutcome::Encoded)
             {
-                codepoint = 0xFFFD;
+                encoded = GameWIP::Unicode::Utf8::encodeScalar(U'\uFFFD');
             }
 
-            if (codepoint <= 0x7F)
-            {
-                text.push_back(static_cast<char>(codepoint));
-                return;
-            }
-
-            if (codepoint <= 0x7FF)
-            {
-                text.push_back(static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F)));
-                text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-                return;
-            }
-
-            if (codepoint <= 0xFFFF)
-            {
-                text.push_back(static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F)));
-                text.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-                text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-                return;
-            }
-
-            if (codepoint <= 0x10FFFF)
-            {
-                text.push_back(static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07)));
-                text.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
-                text.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-                text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-            }
+            text.append(encoded.bytes.data(), encoded.byteCount);
         }
     } // namespace
 

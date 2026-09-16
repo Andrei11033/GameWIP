@@ -19,7 +19,7 @@ standalone entry point.
 
 ## Packages and targets
 
-| Package | Imported target | Library form |
+| Package | Imported target | Form |
 | --- | --- | --- |
 | `Unicode` | `GameWIP::Unicode` | Static |
 | `IO` | `GameWIP::IO` | Static |
@@ -29,7 +29,7 @@ standalone entry point.
 | `Logger` | `GameWIP::Logger` | Shared |
 | `Assert` | `GameWIP::Assert` | Shared when its runtime is enabled; otherwise interface-only |
 | `TestSupport` | `GameWIP::TestSupport` | Static |
-| `GameWIPApplication` | No library target | Shared CMake application manifest helper and templates |
+| `GameWIPApplication` | No library target | CMake helper package and manifest templates |
 
 The `GameWIP::` prefix belongs to CMake target names. It does not add another level to C++ namespaces.
 

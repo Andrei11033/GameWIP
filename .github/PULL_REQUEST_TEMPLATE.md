@@ -13,9 +13,7 @@ or deviations from the original direction. Remove this section if none apply. --
 
 ## Validation
 
-- Required CI: expected to run on the pull request.
-- Change-specific local checks:
-- Manual/optional checks (or why not needed):
+<!-- Record checks you actually ran and their results. GitHub reports required CI separately. -->
 
 ## Merge Message
 
@@ -24,15 +22,8 @@ or deviations from the original direction. Remove this section if none apply. --
 
 ## Checklist
 
-- [ ] Updated every owning helper, setup, CI, test, documentation, and
-  version/reference surface when behavior, commands, tools, versions,
-  workflows, options, or registries changed.
-- [ ] Updated the owning implementation, workflow, or library documentation when behavior, automation, or validation changed.
-- [ ] Verified generated documentation when public API comments, Doxygen pages, or library docs changed.
-- [ ] Verified local Markdown links for maintained documentation when adding or changing links.
-- [ ] Added or updated the owning correctness-test module for behavior changes where practical.
-- [ ] Kept benchmark measurements separate from correctness tests and CI thresholds.
-- [ ] Kept platform-specific code behind the internal backend boundary where applicable.
-- [ ] Kept public API comments focused and moved extended usage guidance to Markdown docs where applicable.
-- [ ] Followed the repository workflow standard in `docs/contributing.md`.
-- [ ] Kept required checks, manual dispatches, and release-only validation distinct as documented in `docs/doxygen/repository_maintenance.md`.
+- [ ] Updated the owning code, configuration, and documentation for the behavior I changed.
+- [ ] Recorded the relevant local or manual validation above.
+- [ ] Checked generated documentation and links when documentation or public API changed.
+- [ ] Added or updated correctness coverage for behavior changes where practical.
+- [ ] Kept platform-specific and internal-only behavior behind the documented boundaries where applicable.

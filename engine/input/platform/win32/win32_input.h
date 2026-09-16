@@ -29,7 +29,7 @@ namespace GameWIP::Input::Platform::Win32
     } // namespace TestHooks
 #endif
 
-    /// @brief Handles the Win32 input path used by the main input state.
+    /// @brief Handles Win32 messages that feed the main input state.
     bool handleMessage(unsigned int message, unsigned long long wParam, long long lParam, InputState &inputState, InputDeviceRegistry &devices);
 
     /// @brief Handles the UI-message subset used by tool windows.

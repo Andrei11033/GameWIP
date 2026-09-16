@@ -223,8 +223,8 @@ symbol comments do not need to become long tutorials when a focused manual page
 can explain the shared model once.
 
 Use a one-line `@brief` when a simple public query benefits from hover text.
-Approved equality and bitmask operators (`|`, `|=`, `&`, and `&=`) may remain
-uncommented; their signatures and generated reference entries are still
+Approved equality (`==`) and bitmask operators (`|`, `|=`, `&`, and `&=`) may
+remain uncommented; their signatures and generated reference entries are still
 visible.
 
 Related overloads may share one manual entry when they have the same behavior,
@@ -356,13 +356,12 @@ File ownership rules:
 
 - Every maintained `.h`, `.h.in`, `.cpp`, and `.inl` file must start with a
   Doxygen `@file` and `@brief` that describe the file purpose.
-- Provisional or preserved source outside the supported documented surface must
-  gain the same ownership block before that surface is promoted.
 - Public headers must document public API and ABI contracts for generated
   reference pages, IntelliSense, maintainers, and readers.
-- Internal headers and implementation files must document internal helpers,
-  ownership, locking, state transitions, platform behavior, fallback behavior,
-  units, and performance constraints.
+- Internal headers and implementation files must document non-obvious helper
+  contracts, ownership, locking, state transitions, platform behavior, fallback
+  behavior, units, and performance constraints when the code does not make them
+  clear.
 
 Statement comments must explain purpose and intent, not narrate nearby syntax.
 Use them for reasons a maintainer would otherwise have to rediscover:
@@ -406,8 +405,9 @@ non-obvious policy or security constraints. JSON uses its schema and owning
 documentation rather than comment-like fields. Generated and vendored sources
 follow their generator or upstream contract.
 
-These are documentation standards, not a reason to add boilerplate CI rules.
-Automate drift when doing so protects a meaningful contract.
+These standards do not require a CI check for every style preference. Automate
+a rule only when doing so protects a meaningful contract or prevents recurring
+drift.
 
 Long maintained source files may use section separators as a short
 responsibility map:

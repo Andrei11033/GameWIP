@@ -27,7 +27,7 @@ cmake --build --preset dev
 .\build\dev\GameWIP.exe
 ```
 
-The executable's `--version` option checks the generated build identity. Run it
+The executable's `--version` option prints the generated build identity. Run it
 without arguments to open the development window.
 
 The executable reports connected-display modes and HDR/color capabilities,

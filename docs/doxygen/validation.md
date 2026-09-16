@@ -236,8 +236,9 @@ validation-module code.
 
 ## Input test hooks
 
-- @subpage input_test_hooks - Exercise Input's private Win32 metadata and HID
-  normalization seams in source-tree validation.
+Input's private Win32 metadata and HID normalization seams remain source-tree
+validation details and are intentionally excluded from the generated manual
+until the Input surface is supported.
 
 ## Preset behavior
 

@@ -101,5 +101,5 @@ body:
     attributes:
       label: Pre-submit checks
       options:
-        - label: I checked the roadmap, durable documentation, and existing issues for related work.
+        - label: I checked the roadmap, project documentation, and existing issues for related work.
           required: true

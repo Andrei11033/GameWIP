@@ -96,8 +96,8 @@ namespace GameWIP::Input
         InputDeviceType deviceType = InputDeviceType::Keyboard;          // Device family.
         std::string displayName{};                                       // UI/debug display name.
         std::string backendName{};                                       // Backend label for duplicate/debug visibility.
-        std::string nativeIdentity{};                                    // Backend-neutral stable-ish identity text.
-        std::uint64_t nativeIdentityHash = 0;                            // Hash of nativeIdentity.
+        std::string nativeIdentity{};                                    // Best-effort backend-neutral identity used for duplicate detection.
+        std::uint64_t nativeIdentityHash = 0;                            // Hash of nativeIdentity used for duplicate detection.
         std::string hidNativeIdentity{};                                 // Raw Input/HID identity text when attached.
         std::uint64_t hidNativeIdentityHash = 0;                         // Hash of hidNativeIdentity.
         std::string xInputNativeIdentity{};                              // XInput-side identity text when attached.
@@ -122,20 +122,23 @@ namespace GameWIP::Input
     class InputDeviceRegistry
     {
     public:
+        /// @brief Creates a registry containing the built-in keyboard and mouse devices.
         InputDeviceRegistry();
 
         /// @brief Returns all registered devices.
-        /// @return Read-only device metadata.
+        /// @return Read-only view valid until the registry is mutated.
         std::span<const InputDeviceInfo> getDevices() const;
 
         /// @brief Finds one device by runtime reference.
         /// @param device Device reference.
-        /// @return Device metadata, or nullptr when unknown.
+        /// @return Device metadata, or nullptr when unknown; the pointer is invalidated
+        /// by later registry mutation.
         const InputDeviceInfo *findDevice(InputDeviceRef device) const;
 
         /// @brief Finds metadata for a control.
         /// @param control Control to inspect.
-        /// @return Control metadata, or nullptr when unknown.
+        /// @return Control metadata, or nullptr when unknown; the pointer is invalidated
+        /// by later registry mutation.
         const InputControlInfo *findControl(InputControl control) const;
 
         /// @brief Returns whether a device is connected and canonical.

@@ -18,9 +18,9 @@ and the [roadmap](docs/roadmap.md). The latest published baseline is
 
 ## Development approach
 
-GameWIP is a personal learning project. I write the C++ and CMake
-implementation myself. I use AI for learning, research, review, and
-documentation and comments; the PowerShell helper is AI-written.
+I write the C++ and CMake implementation myself. I use AI for learning,
+research, review, documentation, and comments; the PowerShell helper is
+AI-written.
 
 ## Start here
 
@@ -47,8 +47,8 @@ cmake --build --preset dev
 
 The [getting started guide](docs/doxygen/getting_started.md) explains the
 first-checkout path. Use the [command-line tools reference](docs/doxygen/command_line_tools.md)
-for the complete supported helper, setup, game, test, and benchmark command
-surface.
+for the full command reference for setup, project helpers, the game, tests,
+and benchmarks.
 
 ## Documentation
 
@@ -78,7 +78,7 @@ To build the manual locally, use the `docs` preset described in the
 
 ```text
 foundation/   Reusable low-level libraries.
-engine/       Supported Desktop plus provisional Input/Action and preserved legacy systems.
+engine/       Supported Desktop, provisional Input/Action, and preserved legacy WindowManager code.
 tools/        Diagnostics, logging, assertions, and test support.
 game/         Game executable and source-tree validation.
 cmake/        Project build and validation infrastructure.
@@ -87,7 +87,7 @@ external/     Pinned third-party dependencies.
 ```
 
 The root entry points stay short; detailed subsystem contracts and workflows
-live with the [developer manual](docs/doxygen/index.md).
+live in the [developer manual](docs/doxygen/index.md).
 
 ## License
 

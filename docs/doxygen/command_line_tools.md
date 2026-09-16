@@ -78,8 +78,8 @@ supported.
 The second positional word is the action-specific command or selection. The
 third is used only when another selector is required.
 
-The quality-hygiene selector is one of `standard`, `deep`, `check-id`, `list`,
-or `status`.
+The quality-hygiene selector may be `standard`, `deep`, a configured check ID,
+`list`, or `status`.
 
 ```powershell
 .\gamewip.bat git status

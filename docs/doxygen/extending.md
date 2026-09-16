@@ -52,7 +52,7 @@ Use this default structure:
 
 Add `docs/test_hooks.md` only when the library exposes approved source-tree-only validation hooks.
 
-A reusable library must cover these integration surfaces:
+A reusable library must have all of the following:
 
 - Its parent `CMakeLists.txt` includes it.
 - One canonical target and imported alias define its CMake identity.
@@ -74,7 +74,7 @@ Use `PRIVATE` dependencies for implementation-only requirements.
 
 A public API is any installed symbol, type, macro, option, result type, or supported behavior that external consumers may use.
 
-A public API change must be reflected across several project surfaces:
+A public API change must be reflected in all relevant parts of the project:
 
 - Declarations live in installed public headers with compact local contract
   documentation.

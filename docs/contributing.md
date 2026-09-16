@@ -3,8 +3,8 @@
 Use this page when taking a change from an issue to a reviewed pull request.
 It covers the project conventions that affect day-to-day work.
 
-For library extension requirements, use @ref project_extending. Durable
-technical choices belong in @ref project_decisions, and release-number rules
+For library extension requirements, use @ref project_extending. Project-wide
+technical decisions belong in @ref project_decisions, and release-number rules
 belong in @ref project_versioning.
 
 ## The contribution path
@@ -79,10 +79,10 @@ in Backlog.
 Use GitHub's **Blocked by** relationship for hard dependencies. Describe softer
 sequencing in the issue or roadmap instead of adding another label.
 
-Start an issue with the problem or missing behavior. Say why it belongs now,
-note the constraints and alternatives that matter, describe what done looks
-like, and say how it will be checked. The issue forms provide fields for this
-information.
+Start an issue with the problem or missing behavior. If timing matters, say why
+it belongs now. Note the constraints and alternatives that matter, describe
+what done looks like, and say how it will be checked. The issue forms provide
+fields for this information.
 
 ## Keep the branch focused
 
@@ -104,7 +104,7 @@ filesystem/123-directory-watcher
 github/124-project-metadata
 ```
 
-The existing `refactor/repository-standardization` branch is grandfathered.
+Existing branches do not need to be renamed solely to match this convention.
 Tiny work that repository policy permits without an issue may use
 `<area>/<short-summary>`. This is a preferred convention, not a branch-name CI
 gate.
@@ -180,7 +180,7 @@ Good examples:
 ```text
 - `ctest --preset test` passed all modular correctness-test entries.
 - `GameWIPBenchmarks.exe --benchmark_dry_run` passed.
-- Doxygen docs built with `GAMEWIP_BUILD_DOCS=ON`; warning log was empty.
+- The docs preset built successfully with no unexpected Doxygen warnings.
 - Inspected the generated FileSystem public API page.
 ```
 
