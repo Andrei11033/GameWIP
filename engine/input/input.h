@@ -18,10 +18,10 @@ namespace GameWIP::Input
     /// @brief Broad family of input device.
     enum class InputDeviceType
     {
-        Keyboard, // Keyboard device.
-        Mouse,    // Mouse device.
-        Gamepad,  // Gamepad device.
-        Joystick  // Joystick, HOTAS, or multi-axis controller.
+        Keyboard,
+        Mouse,
+        Gamepad,
+        Joystick // Joystick, HOTAS, or multi-axis controller.
     };
 
     /// @brief Backend that produced an input device.
@@ -345,29 +345,18 @@ namespace GameWIP::Input
     } // namespace KeyboardControlCode
     // NOLINTEND(readability-identifier-naming)
 
-    /// @brief Compares controls for equality.
-    /// @param left First control to compare.
-    /// @param right Second control to compare.
-    /// @return True if both controls identify the same physical input.
     constexpr bool operator==(const InputControl &left, const InputControl &right)
     {
         return left.deviceType == right.deviceType && left.deviceIndex == right.deviceIndex && left.controlType == right.controlType &&
                left.controlCode == right.controlCode;
     }
 
-    /// @brief Compares device references for equality.
-    /// @param left First device to compare.
-    /// @param right Second device to compare.
-    /// @return True when both references identify the same runtime device.
     constexpr bool operator==(InputDeviceRef left, InputDeviceRef right)
     {
         return left.deviceType == right.deviceType && left.deviceIndex == right.deviceIndex;
     }
 
     /// @brief Orders device references for sorted storage.
-    /// @param left First device to compare.
-    /// @param right Second device to compare.
-    /// @return True if left sorts before right.
     constexpr bool operator<(InputDeviceRef left, InputDeviceRef right)
     {
         if (left.deviceType != right.deviceType)
@@ -379,9 +368,6 @@ namespace GameWIP::Input
     }
 
     /// @brief Orders controls for use as map keys.
-    /// @param left First control to compare.
-    /// @param right Second control to compare.
-    /// @return True if left sorts before right.
     constexpr bool operator<(const InputControl &left, const InputControl &right)
     {
         if (left.deviceType != right.deviceType)
@@ -402,69 +388,61 @@ namespace GameWIP::Input
         return left.controlCode < right.controlCode;
     }
 
-    /// @brief Creates a keyboard button control.
+    /// @brief Creates a keyboard-button control from a USB HID usage ID.
     /// @param controlCode USB HID keyboard usage ID.
-    /// @return Keyboard button control.
     constexpr InputControl makeKeyboardKey(ControlCode controlCode)
     {
         return InputControl{InputDeviceType::Keyboard, 0, InputControlType::Button, controlCode};
     }
 
-    /// @brief Creates a mouse button control.
+    /// @brief Creates a control for one standard mouse button.
     /// @param button Mouse button to identify.
-    /// @return Mouse button control.
     constexpr InputControl makeMouseButton(MouseButton button)
     {
         return InputControl{InputDeviceType::Mouse, 0, InputControlType::Button, static_cast<ControlCode>(button)};
     }
 
-    /// @brief Creates a mouse wheel control.
+    /// @brief Creates a control for one mouse-wheel axis.
     /// @param wheel Mouse wheel axis to identify.
-    /// @return Mouse wheel control.
     constexpr InputControl makeMouseWheel(MouseWheel wheel)
     {
         return InputControl{InputDeviceType::Mouse, 0, InputControlType::Wheel, static_cast<ControlCode>(wheel)};
     }
 
-    /// @brief Creates a mouse movement axis control.
+    /// @brief Creates a control for one raw mouse-movement axis.
     /// @param axis Mouse movement axis to identify.
-    /// @return Mouse movement axis control.
     constexpr InputControl makeMouseAxis(MouseAxis axis)
     {
         return InputControl{InputDeviceType::Mouse, 0, InputControlType::Axis, static_cast<ControlCode>(axis)};
     }
 
-    /// @brief Creates a gamepad button control.
+    /// @brief Creates a control for one standard gamepad button.
     /// @param deviceIndex Gamepad slot.
     /// @param button Gamepad button to identify.
-    /// @return Gamepad button control.
     constexpr InputControl makeGamepadButton(DeviceIndex deviceIndex, GamepadButton button)
     {
         return InputControl{InputDeviceType::Gamepad, deviceIndex, InputControlType::Button, static_cast<ControlCode>(button)};
     }
 
-    /// @brief Creates a gamepad axis control.
+    /// @brief Creates a control for one standard gamepad axis.
     /// @param deviceIndex Gamepad slot.
     /// @param axis Gamepad axis to identify.
-    /// @return Gamepad axis control.
     constexpr InputControl makeGamepadAxis(DeviceIndex deviceIndex, GamepadAxis axis)
     {
         return InputControl{InputDeviceType::Gamepad, deviceIndex, InputControlType::Axis, static_cast<ControlCode>(axis)};
     }
 
-    /// @brief Creates a backend-defined button control on a runtime device.
+    /// @brief Creates a backend-defined button control for a runtime device.
     /// @param device Device that owns the control.
     /// @param controlCode Backend-normalized control code.
-    /// @return Button control.
     constexpr InputControl makeDeviceButton(InputDeviceRef device, ControlCode controlCode)
     {
         return InputControl{device.deviceType, device.deviceIndex, InputControlType::Button, controlCode};
     }
 
-    /// @brief Creates a backend-defined axis control on a runtime device.
+    /// @brief Creates a backend-defined axis control for a runtime device.
     /// @param device Device that owns the control.
     /// @param controlCode Backend-normalized control code.
-    /// @return Axis control.
     constexpr InputControl makeDeviceAxis(InputDeviceRef device, ControlCode controlCode)
     {
         return InputControl{device.deviceType, device.deviceIndex, InputControlType::Axis, controlCode};
@@ -488,32 +466,30 @@ namespace GameWIP::Input
         /// @param emitReleaseActivations True to emit releases for currently held buttons.
         void clear(bool emitReleaseActivations = true);
 
-        /// @brief Advances to a new frame.
+        /// @brief Clears frame-local transitions, activations, text, wheel movement, and raw mouse deltas.
+        /// @details Held buttons, persistent axis values, device connections, and the last known mouse position remain available.
         void advanceFrame();
 
         // Buttons
 
-        /// @brief Checks whether a button is held.
-        /// @param control Button to query.
-        /// @return True if held.
+        /// @brief Checks whether a button is currently held.
+        /// @note Returns false when control is not a button control.
         bool isButtonDown(InputControl control) const;
 
-        /// @brief Checks whether a button was pressed this frame.
-        /// @param control Button to query.
-        /// @return True if pressed.
+        /// @brief Checks whether a button transitioned to down during the current frame.
+        /// @note Returns false when control is not a button control.
         bool wasButtonPressed(InputControl control) const;
 
-        /// @brief Checks whether a button was released this frame.
-        /// @param control Button to query.
-        /// @return True if released.
+        /// @brief Checks whether a button transitioned to up during the current frame.
+        /// @note Returns false when control is not a button control.
         bool wasButtonReleased(InputControl control) const;
 
         /// @brief Returns currently held buttons without copying.
-        /// @return Read-only view of held button controls.
+        /// @return Read-only view invalidated by later input-state mutation.
         std::span<const InputControl> getCurrentButtonView() const;
 
         /// @brief Returns current axis values without copying.
-        /// @return Read-only view of non-zero axis values.
+        /// @return Read-only view of non-zero axis values, invalidated by later input-state mutation.
         std::span<const std::pair<InputControl, float>> getAxisValueView() const;
 
         // Axes and pointer state
@@ -536,11 +512,11 @@ namespace GameWIP::Input
         bool hasMousePosition() const;
 
         /// @brief Returns the latest mouse X position.
-        /// @return Latest client-area x position, or 0 if position is unknown.
+        /// @return Latest client-area x position, or 0 when hasMousePosition() is false.
         int getMouseX() const;
 
         /// @brief Returns the latest mouse Y position.
-        /// @return Latest client-area y position, or 0 if position is unknown.
+        /// @return Latest client-area y position, or 0 when hasMousePosition() is false.
         int getMouseY() const;
 
         /// @brief Returns wheel movement.
@@ -558,16 +534,16 @@ namespace GameWIP::Input
         bool isDeviceConnected(InputDeviceType deviceType, DeviceIndex deviceIndex) const;
 
         /// @brief Returns the first activation.
-        /// @param outActivation First activation if one exists.
-        /// @return True if an activation was found.
+        /// @param outActivation Destination overwritten with the first activation, or zeroed when none exists.
+        /// @return True when an activation was found; activations are ordered by detection time.
         bool tryGetFirstActivation(InputActivation &outActivation) const;
 
         /// @brief Returns all activations.
-        /// @param outActivations All activations.
+        /// @param outActivations Destination replaced with activations in detection order.
         void getActivations(std::vector<InputActivation> &outActivations) const;
 
         /// @brief Returns current-frame activations without copying.
-        /// @return Read-only view of activations in detection order.
+        /// @return Read-only view of activations in detection order, invalidated by later input-state mutation.
         std::span<const InputActivation> getActivationView() const;
 
         // Text input
@@ -577,7 +553,7 @@ namespace GameWIP::Input
         bool hasTextInput() const;
 
         /// @brief Returns typed text input.
-        /// @return UTF-8 text received this frame.
+        /// @return UTF-8 text received this frame; the view remains valid until later input-state mutation.
         std::string_view getTextInputUtf8() const;
 
     private:
@@ -642,57 +618,28 @@ namespace GameWIP::Input
 
         // Mutation helpers
 
-        /// @brief Sets a button's held state.
-        /// @param control Button control to update.
-        /// @param isDown True when the button is down.
         void setButtonInternal(InputControl control, bool isDown);
 
-        /// @brief Sets an axis value.
-        /// @param control Axis control to update.
-        /// @param value New axis value.
         void setAxisInternal(InputControl control, float value);
 
-        /// @brief Adds raw mouse movement.
-        /// @param deltaX Relative x movement.
-        /// @param deltaY Relative y movement.
         void addMouseDeltaInternal(int deltaX, int deltaY);
 
-        /// @brief Sets the mouse position.
-        /// @param x Client-area x position.
-        /// @param y Client-area y position.
         void setMousePositionInternal(int x, int y);
 
-        /// @brief Clears the mouse position.
         void clearMousePositionInternal();
 
-        /// @brief Adds wheel movement.
-        /// @param control Wheel control to update.
-        /// @param amount Wheel movement amount.
         void addWheelDeltaInternal(InputControl control, float amount);
 
-        /// @brief Adds typed text.
-        /// @param text UTF-8 text to append.
         void addTextUtf8Internal(std::string_view text);
 
-        /// @brief Adds a typed codepoint.
-        /// @param codepoint Unicode codepoint to append.
         void addTextCodepointInternal(char32_t codepoint);
 
-        /// @brief Returns the pending UTF-16 high surrogate for text input.
-        /// @return Pending high surrogate, or 0 if none exists.
         char16_t getPendingTextHighSurrogateInternal() const;
 
-        /// @brief Stores the pending UTF-16 high surrogate for text input.
-        /// @param codeUnit UTF-16 high surrogate to store.
         void setPendingTextHighSurrogateInternal(char16_t codeUnit);
 
-        /// @brief Clears pending text composition state.
         void clearTextCompositionInternal();
 
-        /// @brief Sets device connection state.
-        /// @param deviceType Device family.
-        /// @param deviceIndex Device slot.
-        /// @param connected True when the device is connected.
         void setDeviceConnectedInternal(InputDeviceType deviceType, DeviceIndex deviceIndex, bool connected);
         void clearDeviceInternal(InputDeviceRef device);
     };

@@ -20,9 +20,8 @@ namespace GameWIP::IO::Detail::Core
 {
     namespace
     {
-        /// @brief Returns whether a reader capability failure should select the unknown-size path.
-        /// @param status Status returned by a reader capability query.
-        /// @return True when helpers may continue through the unknown-size path.
+        // Non-seekable readers are allowed to use the streaming path; other
+        // capability failures must propagate instead of being hidden.
         [[nodiscard]] bool isUnsupportedReaderCapability(const Types::Status &status) noexcept
         {
             return status.code == Types::ErrorCode::NotSeekable || status.code == Types::ErrorCode::Unsupported;
@@ -39,9 +38,6 @@ namespace GameWIP::IO::Detail::Core
             bool known = false;
         };
 
-        /// @brief Finds a known readable byte count when a reader exposes size and optionally position.
-        /// @param reader Reader to query.
-        /// @return Known remaining bytes, unknown success, or a capability-query failure.
         [[nodiscard]] KnownReadableByteCount knownReadableByteCount(Reader &reader) noexcept
         {
             KnownReadableByteCount result;
@@ -113,11 +109,6 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
-        /// @brief Reads a known number of bytes directly into the final output vector.
-        /// @param reader Reader to drain.
-        /// @param knownByteCount Known bytes remaining from the current reader position.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected bytes and final status.
         [[nodiscard]] Types::ReadAllBytesResult readAllBytesKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes) noexcept
         {
             Types::ReadAllBytesResult result;
@@ -202,11 +193,6 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
-        /// @brief Reads a known number of bytes directly into the final output string.
-        /// @param reader Reader to drain.
-        /// @param knownByteCount Known bytes remaining from the current reader position.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected text bytes and final status.
         [[nodiscard]] Types::ReadAllTextResult readAllTextKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes) noexcept
         {
             Types::ReadAllTextResult result;
@@ -292,10 +278,8 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
-        /// @brief Appends bytes to a vector without value-initializing the destination range first.
-        /// @param destination Destination vector.
-        /// @param source Source bytes to append.
-        /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
+        // Copy scratch data directly into the destination so the transfer path
+        // does not create a second temporary range.
         [[nodiscard]] Types::Status appendBytes(std::vector<std::byte> &destination, std::span<const std::byte> source) noexcept
         {
             if (source.empty())
@@ -328,10 +312,8 @@ namespace GameWIP::IO::Detail::Core
             return successStatus();
         }
 
-        /// @brief Appends bytes to a string without value-initializing the destination range first.
-        /// @param destination Destination string.
-        /// @param source Source bytes to append.
-        /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
+        // Copy scratch data directly into the destination so the transfer path
+        // does not create a second temporary range.
         [[nodiscard]] Types::Status appendTextBytes(std::string &destination, std::span<const std::byte> source) noexcept
         {
             if (source.empty())
@@ -395,11 +377,7 @@ namespace GameWIP::IO::Detail::Core
             return makeStatus(Types::ErrorCode::ReadFailed);
         }
 
-        /// @brief Reads unknown-size bytes through caller-provided scratch storage.
-        /// @param reader Reader to drain.
-        /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected bytes and final status.
+        // Public entry points reject an empty scratch buffer before entering these streaming paths, so each request can make progress.
         [[nodiscard]] Types::ReadAllBytesResult readAllBytesWithScratch(
             Reader &reader,
             std::span<std::byte> scratchBuffer,
@@ -459,11 +437,6 @@ namespace GameWIP::IO::Detail::Core
             }
         }
 
-        /// @brief Reads unknown-size text bytes through caller-provided scratch storage.
-        /// @param reader Reader to drain.
-        /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected text bytes and final status.
         [[nodiscard]] Types::ReadAllTextResult readAllTextWithScratch(
             Reader &reader,
             std::span<std::byte> scratchBuffer,

@@ -90,7 +90,7 @@
       "id": "markdown",
       "extensions": [".md"],
       "formatter": null,
-      "noFormatterReason": "Repository prose is intentionally human-authored; automatic prose reflow is not authoritative.",
+      "noFormatterReason": "Markdown is maintained manually; automatic prose reflow is not authoritative.",
       "checks": ["markdownlint", "documentation standards", "Markdown links"],
       "allowTrailingWhitespace": true
     },

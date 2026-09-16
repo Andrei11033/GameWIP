@@ -1,4 +1,4 @@
-// Structure-preserving JSON mutation for the repository-owned project-tool registry.
+// Update selected values in the project-tool registry without reformatting it.
 
 'use strict';
 

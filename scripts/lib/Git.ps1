@@ -1,4 +1,4 @@
-# GameWIP Git operations. Query, planning, consent, and mutation are kept separate.
+# Git queries, plans, consent, and repository mutations.
 
 # ------------------------------------------------------------
 # Repository queries and status

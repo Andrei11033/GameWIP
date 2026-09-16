@@ -46,9 +46,9 @@ body:
       required: true
 
   - type: textarea
-    id: context
+    id: problem
     attributes:
-      label: Context
+      label: Problem
       description: What situation makes a decision necessary?
     validations:
       required: true
@@ -56,7 +56,7 @@ body:
   - type: textarea
     id: decision
     attributes:
-      label: What decision is needed?
+      label: Decision question
       description: State the question and the boundary of the decision.
     validations:
       required: true
@@ -80,9 +80,16 @@ body:
   - type: textarea
     id: preferred
     attributes:
-      label: Preferred direction
+      label: Preferred direction (optional)
       description: Record a preferred direction if one already exists, including the reason.
 
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Decision criteria
+      description: What criteria will determine whether a direction is accepted?
+    validations:
+      required: true
   - type: textarea
     id: validation
     attributes:

@@ -1,7 +1,9 @@
 @page project_build Build configurations
 
-GameWIP uses CMake presets to keep development, testing, benchmarking, profiling, coverage, analysis, documentation, and release builds separate.
-Presets write build trees under `build/<preset>` and set the project composition options required by each workflow.
+GameWIP uses CMake presets to keep development, testing, benchmarking,
+profiling, coverage, analysis, documentation, and release builds separate.
+Presets write build trees under `build/<preset>` and set the project composition
+options required by each workflow.
 
 This guide explains the project-level presets and options, what each build
 contains, where its artifacts go, how runtime dependencies are staged, and how
@@ -14,9 +16,11 @@ project_command_line_tools.
 
 ## Requirements
 
-The supported Windows development environment is MSYS2 UCRT64 with CMake 4.4.2 or newer, Ninja, GCC or Clang as selected by
-the preset, and C++23 support. The root `cmake_minimum_required()` declaration is the authoritative CMake version; standalone validation entry points
-receive that value from the root configuration.
+The supported Windows development environment is MSYS2 UCRT64 with CMake 4.4.2
+or newer, Ninja, GCC or Clang as selected by the preset, and C++23 support. The
+root `cmake_minimum_required()` declaration is the authoritative CMake version;
+standalone validation entry points receive that value from the root
+configuration.
 
 GameWIP does not use C++ modules. Module dependency scanning is therefore
 disabled globally, which keeps Ninja compilation databases directly consumable
@@ -29,7 +33,8 @@ git submodule update --init --recursive
 ```
 
 The `asan` and `ubsan` presets use the MSYS2 CLANG64 environment because the Windows sanitizer runtimes are provided there.
-Keep CLANG64 sanitizer builds in their own build directories and place CLANG64 tools first on `PATH` before configuring those presets.
+Keep CLANG64 sanitizer builds in their own build directories and place CLANG64
+tools first on `PATH` before configuring those presets.
 
 ## Common workflow
 
@@ -73,11 +78,11 @@ accepts only cataloged preset names whose resolved directory is a direct child
 of the repository build root, and refuses recursive removal through reparse
 points.
 
-The high-level `coverage`, `asan`, and `ubsan` actions are fresh by default. The
-authoritative `local-release-check` and `sanitizer` bundles also declare fresh
-build trees, while ordinary low-level commands and the `quick` bundle remain
+The high-level `coverage`, `asan`, and `ubsan` actions are fresh by default.
+The `local-release-check` and `sanitizer` bundles also declare fresh build
+trees, while ordinary low-level commands and the `quick` bundle remain
 incremental. GitHub-hosted validation jobs already start in a new runner
-workspace; workflows may cache downloaded tools or dependencies, but must not
+workspace. Workflows may cache downloaded tools or dependencies, but must not
 restore CMake build trees across runs.
 
 ## Presets
@@ -96,30 +101,6 @@ restore CMake build trees across runs.
 | `docs` | `Release` | `docs` target | Doxygen documentation only. |
 
 ## Commands
-
-### Configure a preset
-
-```powershell
-cmake --preset test
-```
-
-Use this after changing CMake files, options, package rules, platform selection, documentation registration, or dependencies.
-
-### Build a preset
-
-```powershell
-cmake --build --preset test
-```
-
-Use this to build the targets selected by the preset.
-
-### Run a CTest preset
-
-```powershell
-ctest --preset test
-```
-
-CTest presets exist for `test`, `coverage`, `asan`, and `ubsan`.
 
 ### Print runtime version information
 
@@ -179,10 +160,13 @@ Preset cache values may intentionally override source defaults. For example, the
 `GAMEWIP_WARNINGS_AS_ERRORS` remains `OFF` for ordinary local work so developers can inspect the warning baseline without a forced Werror policy.
 Maintained first-party CI validation sets it to `ON`; external dependency targets retain their own warning policy.
 
-The maintained GNU and Clang warning profiles reject conversion, lifetime, format, virtual-dispatch, switch, and declaration mistakes. Clang builds
-also reject unreviewed raw pointer arithmetic, unchecked buffer indexing, and C-style buffer operations through `-Wunsafe-buffer-usage`. Code at a
-native or language-runtime boundary must validate the available size, convert once to a bounded view, and keep any diagnostic annotation limited to
-that documented conversion.
+The maintained GNU and Clang warning profiles reject conversion, lifetime,
+format, virtual-dispatch, switch, and declaration mistakes. Clang builds also
+reject unreviewed raw pointer arithmetic, unchecked buffer indexing, and
+C-style buffer operations through `-Wunsafe-buffer-usage`. Code at a native or
+language-runtime boundary must validate the available size, convert once to a
+bounded view, and keep any diagnostic annotation limited to that documented
+conversion.
 
 ## Option constraints
 
@@ -208,19 +192,24 @@ that documented conversion.
 | Coverage XML | `build/coverage/coverage/coverage.xml` | Coverage target |
 | Helper logs, manifests, and retained results | `build/gamewip/runs/<timestamp>_<action>/` | `gamewip.bat` and `setup.bat` |
 
-Runtime dependency copying places matching MSYS2 runtime DLLs beside project executables. The helper derives the runtime search directory from the
-active compiler so UCRT64 and CLANG64 runtime files are not mixed accidentally.
+Runtime dependency copying places matching MSYS2 runtime DLLs beside project
+executables. The helper derives the runtime search directory from the active
+compiler so UCRT64 and CLANG64 runtime files are not mixed accidentally.
 
 ## Version display
 
-Every configure reports the generated GameWIP display version. The root numeric `PROJECT_VERSION` identifies the milestone or published correction.
-Untagged builds add the first-parent build count, abbreviated Git commit, and dirty state.
+Every configure reports the generated GameWIP display version. The root numeric
+`PROJECT_VERSION` identifies the milestone or published correction. Untagged
+builds add the first-parent build count, abbreviated Git commit, and dirty state.
 
-Doxygen uses the generated display version as its project number. Runtime diagnostics use the same identity. See `docs/versioning.md` for
-source-version, build-identity, and release-tag policy.
+Doxygen uses the generated display version as its project number. Runtime
+diagnostics use the same identity. See `docs/versioning.md` for source-version,
+build-identity, and release-tag policy.
 
-The game and docs targets refresh generated identity during every build. After switching commits or creating a commit, rebuilding either target
-updates its generated version header; the docs target also refreshes the Doxygen project number before generation.
+The game and docs targets refresh generated identity during every build. After
+switching commits or creating a commit, rebuilding either target updates its
+generated version header. The docs target also refreshes the Doxygen project
+number before generation.
 
 ## Failure behavior
 
@@ -237,12 +226,15 @@ updates its generated version header; the docs target also refreshes the Doxygen
 
 When adding a preset or project option:
 
-- Define option defaults in `cmake/GameWIPOptions.cmake` when the option is project-owned.
+- Define option defaults in `cmake/GameWIPOptions.cmake` when the option is
+  project-owned.
 - Set every relevant preset value intentionally.
 - Document the option in this page or the owning library manual.
 - Add configuration-time validation for invalid option combinations.
-- Keep preset build directories separate when compiler runtime or ABI selection changes.
-- Update validation, CI, editor tasks, and documentation when a preset becomes part of the supported workflow.
+- Keep preset build directories separate when compiler runtime or ABI selection
+  changes.
+- Update validation, CI, editor tasks, and documentation when a preset becomes
+  part of the supported workflow.
 
 ## Related pages
 

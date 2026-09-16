@@ -1,4 +1,4 @@
-# GameWIP WinGet tool provider.
+# WinGet tool provider support.
 
 # ------------------------------------------------------------
 # WinGet discovery and installation

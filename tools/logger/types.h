@@ -100,13 +100,11 @@ namespace GameWIP::Logger::Types
             QueueStorageFallback = 1u << 4u    ///< Requested queue storage failed and a smaller usable allocation was selected.
         };
 
-        /// @brief Combines initialization-adjustment flags.
         [[nodiscard]] constexpr Adjustment operator|(Adjustment left, Adjustment right) noexcept
         {
             return static_cast<Adjustment>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
         }
 
-        /// @brief Adds an initialization-adjustment flag in place.
         constexpr Adjustment &operator|=(Adjustment &left, Adjustment right) noexcept
         {
             left = left | right;

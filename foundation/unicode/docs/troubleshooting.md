@@ -1,8 +1,8 @@
 @page unicode_troubleshooting Troubleshooting
 
-Unicode rejects malformed text instead of guessing how to repair it. Start
-with the reported outcome below, then decide whether the caller needs more
-input, a corrected boundary, or a different operation.
+Unicode rejects malformed text instead of guessing how to repair it. Find the
+reported outcome below, then choose whether the caller needs more input, a
+corrected boundary, or a different operation.
 
 ## UTF-8 decoding reports `Incomplete`
 

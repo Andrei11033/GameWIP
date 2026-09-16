@@ -1,6 +1,6 @@
-@page assert_testing Maintainer validation
+@page assert_testing Testing
 
-@note This page is for maintainers. Platform-specific details and forced actions are source-tree validation concerns, not consumer API.
+@note This page describes validation coverage. Platform-specific details and forced actions belong to source-tree validation, not consumer API.
 
 ## Macro coverage
 

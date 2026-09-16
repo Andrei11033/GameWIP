@@ -195,16 +195,11 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
     {
         std::uint32_t value = 0; ///< Caller-defined nonzero identity; zero is invalid.
 
-        /// @brief Reports whether this identity may be used by a prompt button.
-        /// @return true when @c value is nonzero; otherwise false.
+        /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
         {
             return value != 0;
         }
-        /// @brief Compares two portable button identities.
-        /// @param left First identity.
-        /// @param right Second identity.
-        /// @return true when both identities contain the same value.
         friend constexpr bool operator==(ButtonId left, ButtonId right) noexcept = default;
     };
 
@@ -213,16 +208,11 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
     {
         std::uint32_t value = 0; ///< Caller-defined nonzero identity; zero is invalid.
 
-        /// @brief Reports whether this identity may be used by a prompt option.
-        /// @return true when @c value is nonzero; otherwise false.
+        /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
         {
             return value != 0;
         }
-        /// @brief Compares two portable option identities.
-        /// @param left First identity.
-        /// @param right Second identity.
-        /// @return true when both identities contain the same value.
         friend constexpr bool operator==(OptionId left, OptionId right) noexcept = default;
     };
 

@@ -1,4 +1,4 @@
-# GameWIP npm tool provider.
+# npm tool provider support.
 
 # ------------------------------------------------------------
 # npm discovery and installation

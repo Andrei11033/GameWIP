@@ -16,7 +16,7 @@ Do not report security vulnerabilities in public issues, pull requests, or discu
 
 Use GitHub private vulnerability reporting when it is available. Otherwise,
 contact the repository owner through a private channel. If no private contact
-is visible, open an issue asking only how to report privately—do not include
+is visible, open an issue asking only how to report privately. Do not include
 technical or sensitive details there.
 
 Include:

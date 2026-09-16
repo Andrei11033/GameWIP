@@ -1,4 +1,4 @@
-# GameWIP MSYS2 tool provider.
+# MSYS2 tool provider support.
 
 # ------------------------------------------------------------
 # MSYS2 package operations

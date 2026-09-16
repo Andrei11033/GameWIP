@@ -1,4 +1,4 @@
-# GameWIP native-process execution. Process ownership and logs are centralized here.
+# Native-process execution, ownership, and log handling.
 
 # ------------------------------------------------------------
 # Command-line and process launch preparation

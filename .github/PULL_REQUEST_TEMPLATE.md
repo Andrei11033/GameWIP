@@ -1,6 +1,11 @@
 ## Summary
 
--
+<!-- Describe what is different after this change. -->
+
+## Implementation Notes
+
+<!-- Record useful discoveries, corrected assumptions, platform surprises,
+or deviations from the original direction. Remove this section if none apply. -->
 
 ## Linked Issues
 
@@ -15,7 +20,7 @@
 ## Merge Message
 
 - Title: `area: imperative summary`
-- Body: use the patch-note sections from `docs/contributing.md` when this PR becomes a non-trivial squash commit.
+<!-- Add `- Body: ...` only when the subject needs additional context. -->
 
 ## Checklist
 

@@ -1,4 +1,4 @@
-# GameWIP Bundles helper behavior. Dot-sourced by scripts/GameWIP.ps1.
+# Validation bundle execution for the project helper.
 
 # ------------------------------------------------------------
 # Declarative bundle execution

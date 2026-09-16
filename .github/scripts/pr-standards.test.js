@@ -3,7 +3,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const test = require('node:test');
+const path = require('node:path');
 const { hasMeaningfulContent, validatePullRequest } = require('./pr-standards.js');
 
 const valid = {
@@ -16,6 +18,37 @@ test('accepts exactly one canonical primary label per dimension', () => assert.d
 
 test('accepts optional compat:breaking', () => {
     assert.deepEqual(validatePullRequest({ ...valid, labels: [...valid.labels, { name: 'compat:breaking' }] }), []);
+});
+
+test('accepts a merge message without an optional body', () => {
+    const body = valid.body.replace('Body: Keep policy tested.\n', '');
+    assert.deepEqual(validatePullRequest({ ...valid, body }), []);
+});
+
+test('rejects an explicitly supplied empty merge-message body', () => {
+    const body = valid.body.replace('Body: Keep policy tested.', 'Body:');
+    assert.ok(validatePullRequest({ ...valid, body }).some((error) => error.includes('when provided')));
+});
+
+test('accepts a meaningful merge-message body on following lines', () => {
+    const body = valid.body.replace('Body: Keep policy tested.', 'Body:\nKeep policy tested.');
+    assert.deepEqual(validatePullRequest({ ...valid, body }), []);
+});
+
+test('accepts the actual PR template shape without an optional merge-message body', () => {
+    const template = fs.readFileSync(path.join(__dirname, '..', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');
+    const body = template
+        .replace('<!-- Describe what is different after this change. -->', 'Standardizes the repository policy.')
+        .replace('- Closes #', 'No linked issue: maintenance')
+        .replace('- Required CI: expected to run on the pull request.', '- Required CI: passed.')
+        .replace('- Title: `area: imperative summary`', '- Title: `github: standardize repository policy`');
+    assert.deepEqual(validatePullRequest({ ...valid, body }), []);
+});
+
+test('rejects the untouched PR template summary', () => {
+    const template = fs.readFileSync(path.join(__dirname, '..', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');
+    const errors = validatePullRequest({ ...valid, body: template });
+    assert.ok(errors.includes('`## Summary` must contain meaningful content.'));
 });
 
 test('accepts every canonical type and priority', () => {

@@ -1,7 +1,8 @@
 @page project_environment_setup Development environment setup
 
-GameWIP's Windows 11 environment bootstrap is `setup.bat`. It is the supported owner for machine preparation, repair,
-environment/package-manager updates, editor integration, profiler-tool preparation, ownership-aware uninstall, and complete
+GameWIP's Windows 11 environment bootstrap is `setup.bat`. It owns machine
+preparation, repair, environment and package-manager updates, editor
+integration, profiler-tool preparation, ownership-aware uninstall, and complete
 environment verification.
 
 ## Quick start
@@ -10,19 +11,20 @@ environment verification.
 .\setup.bat
 ```
 
-The default action opens the persistent menu. The same actions can be run directly:
-
-Both interactive menus render declared key/label entries through the same
-shared console primitive. The project menu hierarchy lives in
-`scripts/config/commands.json`; setup menu entries live in
-`scripts/setup/config/setup.json`. Their schemas and runtime checks reject
-duplicate keys, unknown handlers, and incomplete menu catalogs before use.
+The default action opens the persistent setup menu. The same actions can be run
+directly:
 
 ```powershell
 .\setup.bat check
 .\setup.bat repair
 .\setup.bat full
 ```
+
+Both interactive menus render declared key and label entries through the same
+console primitive. The project menu hierarchy lives in
+`scripts/config/commands.json`, and setup menu entries live in
+`scripts/setup/config/setup.json`. Their schemas and runtime checks reject
+duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 
 ## Setup actions
 
@@ -56,15 +58,17 @@ duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 ```
 
 - `-Preview` prints the planned scope and performs only the action's read-only
-  discovery or preflight. It does not apply the requested local, tracked, or
-  machine mutation; diagnostic run logs and receipts are still retained.
-  Focused `docs` therefore does not configure, build, or open the manual.
+  discovery or preflight. It does not apply local, tracked, or machine changes;
+  diagnostic run logs and receipts are still retained. A focused `docs` preview
+  therefore does not configure, build, or open the manual.
 - `-NonInteractive` never prompts. This does not grant consent for any mutation risk.
 - `-Yes` grants consent after the operation plan is known.
-- `-Branch <name>` selects an explicit fetched branch where the action supports repository preparation.
+- `-Branch <name>` selects an explicit fetched branch where the action supports
+  repository preparation.
 - `-SkipDocs` skips documentation during complete/update/repair runs.
-- `-Json`, `-Quiet`, `-NoColor`, and `-OutputMode Summary|Stream|LogOnly` use the same operation/result presentation model as
-  the project helper. `Stream` is the default, so successful installer and build output remains visible.
+- `-Json`, `-Quiet`, `-NoColor`, and `-OutputMode Summary|Stream|LogOnly` use the
+  same operation and result presentation model as the project helper. `Stream`
+  is the default, so successful installer and build output remains visible.
 - `-Verbose` uses the PowerShell common parameter for detailed progress.
 
 Semantic presentation uses cyan for accents and progress, green for success and
@@ -72,11 +76,12 @@ ready states, yellow for warnings and ensure actions, red for failures, and
 dark gray for paths and secondary details. `-NoColor` changes only color; the
 explicit text and status labels remain unchanged.
 
-Machine-changing interactive actions present the complete plan before consent. Non-interactive mutation fails closed when
-`-Yes` is absent. Read-only actions do not ask for consent.
+Machine-changing interactive actions present the complete plan before consent.
+Non-interactive mutation fails closed when `-Yes` is absent. Read-only actions
+do not ask for consent.
 
-Setup installs the GitHub CLI used by guarded workflow commands. Authentication remains user-owned; run `gh auth login` before
-querying or dispatching workflows.
+Setup installs the GitHub CLI used by guarded workflow commands. Authentication
+remains user-owned. Run `gh auth login` before querying or dispatching workflows.
 
 ## Lifecycle and failure model
 
@@ -90,50 +95,40 @@ Setup uses the same operation model as `gamewip.bat`:
 6. Verify resulting state.
 7. Emit a receipt describing status, changes, preserved resources, and next actions.
 
-A failure after mutation actually begins is reported as a failed operation with
-a truthful partial mutation state; a failure before the first mutation remains
-`none`. Setup does not
-claim a generic rollback; rerunnable `setup.bat repair` restores declared desired state.
+A failure after mutation begins is reported as a failed operation with a
+truthful partial-mutation state. A failure before the first mutation remains
+`none`. Setup does not claim a generic rollback. Rerunning `setup.bat repair`
+restores the declared desired state.
 
 ## Environment ownership
 
-Persistent directly managed tools live under `C:\MSYS2\GameWIPTools`. Existing non-empty roots without valid GameWIP ownership
-proof are preserved. Interactive setup may explicitly adopt an existing root; non-interactive setup refuses unknown ownership.
+Persistent directly managed tools live under `C:\MSYS2\GameWIPTools`. Existing
+non-empty roots without valid GameWIP ownership proof are preserved. Interactive
+setup may explicitly adopt an existing root. Non-interactive setup refuses
+unknown ownership.
 
-Uninstall removes only resources with sufficient GameWIP ownership evidence and preserves pre-existing software, the checkout,
-unrelated build trees, and ownership-unknown content.
+Uninstall removes only resources with sufficient GameWIP ownership evidence. It
+preserves pre-existing software, the checkout, unrelated build trees, and
+content with unknown ownership.
 
-## Project tools versus environment updates
+## Project tools and environment updates
 
-`setup.bat update` owns environment and package-manager updates while preserving exact project pins. Use:
+`setup.bat update` owns environment and package-manager updates while preserving
+exact project pins. Use:
 
 ```powershell
 .\gamewip.bat tools ensure all
 ```
 
-to repair/install the versions already declared by the checkout, and:
+to repair or install the versions already declared by the checkout. Use:
 
 ```powershell
 .\gamewip.bat tools update all -Preview
 ```
 
-to review an intentional project pin advancement.
-
-## Daily project commands
-
-After setup succeeds, use `gamewip.bat` for repository-local work:
-
-```powershell
-.\gamewip.bat build dev
-.\gamewip.bat test test
-.\gamewip.bat module unicode
-.\gamewip.bat quality check
-.\gamewip.bat tools status
-.\gamewip.bat benchmark run
-.\gamewip.bat workflow list
-```
-
-See @ref project_command_line_tools for the complete project-helper grammar.
+to review an intentional project-pin advancement. See @ref
+project_command_line_tools for the complete project-helper grammar and daily
+commands.
 
 ## Related pages
 

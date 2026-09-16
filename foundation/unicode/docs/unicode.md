@@ -21,18 +21,18 @@ guessing how much data was consumed.
 
 ## Consumer manual
 
-- @subpage unicode_quick_start — Include, link, validate, convert, and traverse
+- @subpage unicode_quick_start - Include, link, validate, convert, and traverse
   text in a minimal program.
-- @subpage unicode_public_api — Find each type and operation by capability and
+- @subpage unicode_public_api - Find each type and operation by capability and
   understand the shared result model.
-- @subpage unicode_examples — See validation, conversion, scalar iteration, and
+- @subpage unicode_examples - See validation, conversion, scalar iteration, and
   grapheme traversal in context.
-- @subpage unicode_troubleshooting — Diagnose malformed input, insufficient
+- @subpage unicode_troubleshooting - Diagnose malformed input, insufficient
   output space, overlap, and grapheme-boundary surprises.
 
 ## Maintainer validation
 
-- @subpage unicode_testing — Understand conformance data, automated coverage,
+- @subpage unicode_testing - Understand conformance data, automated coverage,
   generator verification, and performance checks.
 
 ## Generated API reference

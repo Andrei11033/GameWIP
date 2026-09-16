@@ -1,8 +1,9 @@
 @page desktop_library Desktop
 
 `GameWIP::Desktop` provides standalone portable ownership of native top-level
-desktop windows, optional managed child hosts, synchronous desktop Clipboard
-data exchange, native data drag and drop, and opt-in native dialogs. Its API provides checked lifecycle
+desktop windows, optional managed child hosts, synchronous Clipboard data
+exchange, native data drag and drop, and opt-in native dialogs. Its API provides
+checked lifecycle
 and mutation operations, fixed-capacity typed event queues, cached state,
 display discovery and inspection, and an explicit native interoperability
 boundary.
@@ -21,47 +22,47 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 
 ## Consumer manual
 
-- @subpage desktop_quick_start — Include, link, open, pump, inspect events, and
+- @subpage desktop_quick_start - Include, link, open, pump, inspect events, and
   close a Window.
-- @subpage desktop_public_api — Find headers, namespaces, owners, passive types,
+- @subpage desktop_public_api - Find headers, namespaces, owners, passive types,
   capability groups, and results.
-- @subpage desktop_package_abi — Understand why Desktop is shared and how its
+- @subpage desktop_package_abi - Understand why Desktop is shared and how its
   package, exports, manifest, and runtime identity work.
-- @subpage desktop_coordinates_and_dpi — Relate logical client units, physical
+- @subpage desktop_coordinates_and_dpi - Relate logical client units, physical
   pixels, desktop coordinates, framebuffers, scale, and DPI policy.
-- @subpage desktop_custom_cursors — Create shared native cursor images, supply
+- @subpage desktop_custom_cursors - Create shared native cursor images, supply
   DPI variants, select them on Windows, and restore system shapes.
-- @subpage desktop_child_surfaces — Host externally managed native descendants
+- @subpage desktop_child_surfaces - Host externally managed native descendants
   inside an optional managed child HWND.
-- @subpage desktop_clipboard — Exchange UTF-8 text, paths, RGBA8 images, and
+- @subpage desktop_clipboard - Exchange UTF-8 text, paths, RGBA8 images, and
   arbitrary named opaque data without opening a Window.
-- @subpage desktop_drag_drop — Exchange portable data through native drag
+- @subpage desktop_drag_drop - Exchange portable data through native drag
   sources and declarative target regions.
-- @subpage desktop_dialogs — Present synchronous native choices and modeless
+- @subpage desktop_dialogs - Present synchronous native choices and modeless
   owner-thread operation progress.
-- @subpage desktop_lifecycle_events — Understand thread ownership, dispatch,
+- @subpage desktop_lifecycle_events - Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
-- @subpage desktop_chrome_and_pointer_input — Configure system and custom chrome,
+- @subpage desktop_chrome_and_pointer_input - Configure system and custom chrome,
   drag regions, caption controls, cursor modes, and pointer routing.
-- @subpage desktop_fullscreen_monitors — Choose windowed, borderless, and
+- @subpage desktop_fullscreen_monitors - Choose windowed, borderless, and
   exclusive modes and handle monitor or topology changes.
-- @subpage desktop_native_interop — Access a native handle without taking
+- @subpage desktop_native_interop - Access a native handle without taking
   ownership or bypassing portable lifetime rules.
-- @subpage desktop_renderer_integration — Enable concurrent presentation reads,
+- @subpage desktop_renderer_integration - Enable concurrent presentation reads,
   attach renderer feedback, and publish packed pointer data.
-- @subpage desktop_examples — See lifecycle, events, displays, fullscreen,
+- @subpage desktop_examples - See lifecycle, events, displays, fullscreen,
   custom chrome, and renderer integration in context.
-- @subpage desktop_troubleshooting — Diagnose ownership, capabilities, queue
+- @subpage desktop_troubleshooting - Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer integration.
-- @subpage desktop_future_extensions — Understand where proposed accessibility,
+- @subpage desktop_future_extensions - Understand where proposed accessibility,
   dialogs, shell integration, and related features belong.
 
 ## Maintainer validation
 
-- @subpage desktop_testing — See automated, package, ABI, and platform coverage.
-- @subpage desktop_test_hooks — Understand source-tree-only fault and state
+- @subpage desktop_testing - See automated, package, ABI, and platform coverage.
+- @subpage desktop_test_hooks - Understand source-tree-only fault and state
   inspection seams.
-- @subpage desktop_manual_validation — Run and interpret the visual behaviors
+- @subpage desktop_manual_validation - Run and interpret the visual behaviors
   that automation cannot prove.
 
 ## Generated API reference

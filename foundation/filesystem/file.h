@@ -64,38 +64,22 @@ namespace GameWIP::FileSystem
                 All = 0x07U
             };
 
-            /// @brief Combines two file-sharing flags.
-            /// @param left First sharing mask.
-            /// @param right Second sharing mask.
-            /// @return Bitwise union of left and right.
             [[nodiscard]] constexpr Share operator|(Share left, Share right) noexcept
             {
                 return static_cast<Share>(static_cast<std::uint8_t>(left) | static_cast<std::uint8_t>(right));
             }
 
-            /// @brief Intersects two file-sharing flags.
-            /// @param left First sharing mask.
-            /// @param right Second sharing mask.
-            /// @return Bitwise intersection of left and right.
             [[nodiscard]] constexpr Share operator&(Share left, Share right) noexcept
             {
                 return static_cast<Share>(static_cast<std::uint8_t>(left) & static_cast<std::uint8_t>(right));
             }
 
-            /// @brief Adds sharing flags to an existing mask.
-            /// @param left Sharing mask to update.
-            /// @param right Sharing flags to add.
-            /// @return Reference to the updated left mask.
             constexpr Share &operator|=(Share &left, Share right) noexcept
             {
                 left = left | right;
                 return left;
             }
 
-            /// @brief Retains only sharing flags present in both masks.
-            /// @param left Sharing mask to update.
-            /// @param right Sharing flags to retain.
-            /// @return Reference to the updated left mask.
             constexpr Share &operator&=(Share &left, Share right) noexcept
             {
                 left = left & right;
@@ -348,9 +332,7 @@ namespace GameWIP::FileSystem
     public:
         /// @brief Creates an inactive lock owner.
         FileLock() noexcept;
-        /// @brief File locks are not copy-constructible.
         FileLock(const FileLock &) = delete;
-        /// @brief File locks are not copy-assignable.
         FileLock &operator=(const FileLock &) = delete;
         /// @brief Move-constructs a lock and transfers unlock responsibility.
         /// @param other Lock owner to empty.
@@ -361,10 +343,10 @@ namespace GameWIP::FileSystem
         /// @note Use unlock() when release failure must be observed.
         ~FileLock() noexcept;
 
-        /// @brief Returns whether this object owns an active lock.
+        /// @brief Reports whether this object still owns an active lock.
         /// @return True until the lock is moved from or successfully unlocked.
         [[nodiscard]] bool active() const noexcept;
-        /// @brief Returns the active lock mode.
+        /// @brief Returns the mode selected when the lock was acquired.
         /// @return Shared or exclusive mode selected during acquisition.
         /// @note Meaningful only while active() is true.
         [[nodiscard]] Types::Lock::Mode mode() const noexcept;
@@ -399,9 +381,7 @@ namespace GameWIP::FileSystem
     public:
         /// @brief Creates a closed reader.
         FileReader() noexcept;
-        /// @brief File readers are not copy-constructible.
         FileReader(const FileReader &) = delete;
-        /// @brief File readers are not copy-assignable.
         FileReader &operator=(const FileReader &) = delete;
         /// @brief Move-constructs a reader and transfers its open handle.
         /// @param other Reader to leave closed.
@@ -416,10 +396,10 @@ namespace GameWIP::FileSystem
         /// @param options Sharing and symlink-resolution behavior.
         /// @return Success, AlreadyOpen when already open, or an open failure status.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::ReaderOpenOptions &options = {}) noexcept;
-        /// @brief Returns whether a file is currently open.
+        /// @brief Reports whether a file is currently open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
-        /// @brief Returns whether seek operations are currently available.
+        /// @brief Reports whether normal file-position changes are available.
         /// @return True while a normal file handle is open.
         [[nodiscard]] bool canSeek() const noexcept override;
         /// @brief Reads bytes from the current file position.
@@ -457,9 +437,7 @@ namespace GameWIP::FileSystem
     public:
         /// @brief Creates a closed writer.
         FileWriter() noexcept;
-        /// @brief File writers are not copy-constructible.
         FileWriter(const FileWriter &) = delete;
-        /// @brief File writers are not copy-assignable.
         FileWriter &operator=(const FileWriter &) = delete;
         /// @brief Move-constructs a writer and transfers its open handle.
         /// @param other Writer to leave closed.
@@ -475,10 +453,10 @@ namespace GameWIP::FileSystem
         /// @return Success, AlreadyOpen when already open, or an open failure status.
         /// @note Append modes are non-seekable and each write targets the then-current end of file.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::WriterOpenOptions &options = {}) noexcept;
-        /// @brief Returns whether a file is currently open.
+        /// @brief Reports whether a file is currently open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
-        /// @brief Returns whether seek operations are currently available.
+        /// @brief Reports whether normal file-position changes are available.
         /// @return False for append modes and while closed; true for other open modes.
         [[nodiscard]] bool canSeek() const noexcept override;
         /// @brief Writes bytes at the current position or current end in append mode.
@@ -520,9 +498,7 @@ namespace GameWIP::FileSystem
     public:
         /// @brief Creates a closed read/write file.
         File() noexcept;
-        /// @brief Files are not copy-constructible.
         File(const File &) = delete;
-        /// @brief Files are not copy-assignable.
         File &operator=(const File &) = delete;
         /// @brief Move-constructs a file and transfers its open handle.
         /// @param other File to leave closed.
@@ -540,13 +516,13 @@ namespace GameWIP::FileSystem
         /// @note Modes that create or truncate require Write or ReadWrite access.
         /// @note A non-None flushOnClose requires Write or ReadWrite access.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::OpenOptions &options = {}) noexcept;
-        /// @brief Returns whether a file is currently open.
+        /// @brief Reports whether a file is currently open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
-        /// @brief Returns whether seek operations are currently available.
+        /// @brief Reports whether normal file-position changes are available.
         /// @return True while a normal file handle is open.
         [[nodiscard]] bool canSeek() const noexcept override;
-        /// @brief Returns access selected by the successful open call.
+        /// @brief Returns the access mode selected by open().
         /// @return Access mode selected by open().
         /// @note Meaningful only while isOpen() is true.
         [[nodiscard]] Types::File::Access access() const noexcept;
@@ -555,7 +531,7 @@ namespace GameWIP::FileSystem
         /// @return Read status, copied byte count, and end-of-stream state. A successful final read may contain bytes and set endOfStream.
         /// @note An empty destination performs no transfer and queries the current end-of-stream state.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override;
-        /// @brief Writes bytes at the current file position.
+        /// @brief Writes bytes at the current position or current end in append mode.
         /// @param bytes Caller-owned bytes to write.
         /// @return Write status and accepted byte count.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override;

@@ -1,7 +1,7 @@
-#pragma once
-
 /// @file type_aliases.h
 /// @brief Source-tree-only migration aliases for Unicode implementation and validation code.
+
+#pragma once
 
 #include "unicode/unicode.h"
 

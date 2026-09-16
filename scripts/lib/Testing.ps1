@@ -1,4 +1,4 @@
-# GameWIP correctness-test, focused-module, stress, and validation-command behavior.
+# Correctness tests, focused modules, stress runs, and validation commands.
 
 # ------------------------------------------------------------
 # Test and validation execution

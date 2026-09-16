@@ -1,8 +1,8 @@
 @page unicode_quick_start Quick start
 
-This path installs Unicode, validates one UTF-8 string, and performs a checked
-UTF-8/UTF-16 conversion. It is enough to confirm that the package and the
-library's strict error model are wired correctly.
+This example installs Unicode, validates one UTF-8 string, and performs a
+checked UTF-8/UTF-16 conversion. It gives a consuming project a small end-to-end
+check of the package and the library's strict error model.
 
 ## Include
 

@@ -111,22 +111,18 @@ namespace GameWIP::IO
     class Reader
     {
     public:
-        /// @brief Creates a stateless reader base.
         Reader() = default;
 
-        /// @brief Destroys the reader without throwing.
         virtual ~Reader() noexcept = default;
 
-        /// @brief Reader objects are not copy-constructible.
         Reader(const Reader &) = delete;
 
-        /// @brief Reader objects are not copy-assignable.
         Reader &operator=(const Reader &) = delete;
 
-        /// @brief Move-constructs the reader base.
+        /// @brief Moves the base state; concrete readers define any native-handle transfer.
         Reader(Reader &&) noexcept = default;
 
-        /// @brief Move-assigns the reader base.
+        /// @brief Moves the base state; concrete readers define any native-handle transfer.
         Reader &operator=(Reader &&) noexcept = default;
 
         /// @brief Returns whether this reader currently has readable state.
@@ -183,22 +179,18 @@ namespace GameWIP::IO
     class Writer
     {
     public:
-        /// @brief Creates a stateless writer base.
         Writer() = default;
 
-        /// @brief Destroys the writer without throwing.
         virtual ~Writer() noexcept = default;
 
-        /// @brief Writer objects are not copy-constructible.
         Writer(const Writer &) = delete;
 
-        /// @brief Writer objects are not copy-assignable.
         Writer &operator=(const Writer &) = delete;
 
-        /// @brief Move-constructs the writer base.
+        /// @brief Moves the base state; concrete writers define any native-handle transfer.
         Writer(Writer &&) noexcept = default;
 
-        /// @brief Move-assigns the writer base.
+        /// @brief Moves the base state; concrete writers define any native-handle transfer.
         Writer &operator=(Writer &&) noexcept = default;
 
         /// @brief Returns whether this writer currently has writable state.

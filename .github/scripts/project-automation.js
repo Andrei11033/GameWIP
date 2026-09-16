@@ -1,4 +1,4 @@
-// Repository-owned GitHub project state/reconciliation policy and dependency handling.
+// Reconcile GitHub project state and linked issue or pull-request metadata.
 
 'use strict';
 

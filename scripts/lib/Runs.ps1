@@ -1,4 +1,4 @@
-# GameWIP retained run logs, step records, manifests, and receipts.
+# Retained run logs, step records, manifests, and receipts.
 
 # ------------------------------------------------------------
 # Run identity and receipt persistence

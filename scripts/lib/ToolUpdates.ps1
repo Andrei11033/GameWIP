@@ -1,4 +1,4 @@
-# GameWIP tool update/ensure planning, preflight, installation, and tracked commit behavior.
+# Tool update and ensure planning, preflight, installation, and tracked commits.
 
 # ------------------------------------------------------------
 # Update planning and tracked mutations

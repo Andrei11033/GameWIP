@@ -1,4 +1,4 @@
-# GameWIP editor selection, installation, workflow-extension packaging, and advisory state.
+# Editor selection, installation, workflow-extension packaging, and advisory state.
 
 # ------------------------------------------------------------
 # Editor selection and advisory state

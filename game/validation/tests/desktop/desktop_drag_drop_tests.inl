@@ -12,7 +12,6 @@ void testDragDrop(TestSupport::Context &context)
     static_assert(noexcept(std::declval<Desktop::DragDropTarget &>().close()));
     static_assert(noexcept(Desktop::DragDrop::beginDrag(std::declval<Desktop::Window &>(), DD::Description{})));
 
-    // Establish the passive identity, effect-selection, and completion contracts first.
     static_cast<void>(context.expectFalse("zero session identity is invalid", DD::SessionId{}.isValid()));
     static_cast<void>(context.expectFalse("zero region identity is invalid", DD::RegionId{}.isValid()));
     static_cast<void>(context.expectTrue("nonzero session identity is valid", DD::SessionId{1}.isValid()));

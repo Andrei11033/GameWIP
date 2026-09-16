@@ -1,4 +1,4 @@
-# GameWIP GitSubmodule tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+# Git submodule provider support for the project helper.
 
 # ------------------------------------------------------------
 # Repository-owned submodule boundary

@@ -1,4 +1,4 @@
-# Optional repository-hygiene audits. Findings are evidence, not automatic edits.
+# Optional repository-hygiene audits. Findings are reported, not edited.
 
 # ------------------------------------------------------------
 # Hygiene configuration and audit reporting

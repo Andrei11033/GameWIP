@@ -2,8 +2,7 @@
 
 Thanks for helping improve GameWIP. Changes normally begin with a GitHub issue,
 continue on a short-lived branch, and reach `master` through a reviewed pull
-request with concrete validation notes. That keeps the history understandable
-and the default branch ready to build.
+request with concrete validation notes.
 
 Participation is governed by the [Contributor Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -12,32 +11,17 @@ licensed under the repository's [Apache License 2.0](LICENSE). Submit only work
 that you have the right to contribute; third-party material must retain its
 applicable license and attribution.
 
-Start with the [complete contributor workflow](docs/contributing.md). It walks
-through issues, labels, branches, pull requests, validation evidence, project
-automation, and squash commit messages in the order you will use them.
+Start with the [complete contributor workflow](docs/contributing.md). It covers
+issues, branches, pull requests, validation evidence, automation, and merges.
 
-Maintainers should also use the
-[repository maintenance policy](docs/doxygen/repository_maintenance.md) for
-required checks, branch settings, manual workflow ownership, release gates, and
-the public-repository baseline.
+Maintainers should also use the [repository maintenance policy](docs/doxygen/repository_maintenance.md)
+for branch settings, required checks, release gates, and repository upkeep.
 
-Use these references when the change reaches their area:
+Use these references when a change reaches their area:
 
 - [Extending the project](docs/doxygen/extending.md)
 - [CMake infrastructure](docs/doxygen/cmake_infrastructure.md)
 - [Documentation system](docs/doxygen/documentation.md)
+- [Public API and Unicode contract](docs/doxygen/project_public_api_contract.md#unicode-conversion-authority)
 - [Project decisions](docs/decisions.md)
 - [Versioning policy](docs/versioning.md)
-
-Correctness tests live in discovered modules under `game/validation/tests`;
-benchmarks live under `game/validation/benchmarks`. Correctness tests prove
-behavior. Benchmarks measure it, so performance thresholds do not belong in
-correctness tests or CI gates.
-
-## Unicode conversion authority
-
-Maintained first-party C++ must use `foundation/unicode` for UTF-8/UTF-16
-encoding conversion (`Unicode::Utf8` and `Unicode::Utf16` measure/convert
-operations). Native UTF-16 values may be copied at a platform boundary, but
-Win32 conversion APIs and independent codec implementations are not permitted.
-The repository quality check enforces this rule.

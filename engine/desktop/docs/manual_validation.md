@@ -154,7 +154,7 @@ preferred; its inset green Region 2 overlaps it and prefers `Move`. Live
 `Entered`, `Moved`, region-transition, `Left`, and `Dropped` counts appear in the
 diagnostics Window.
 The runner checks same-process payload bytes and negotiated effects after each
-accepted prompt. Answer `skip`—never `yes`—when a controlled custom or malformed
+accepted prompt. Answer `skip`, never `yes`, when a controlled custom or malformed
 `IDataObject` provider/consumer is unavailable.
 
 | Scenario | Expected behavior |

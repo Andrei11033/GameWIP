@@ -1,4 +1,4 @@
-@page logger_testing Maintainer validation
+@page logger_testing Testing
 
 @note Logger validation uses source-tree hooks and is not installed consumer API.
 

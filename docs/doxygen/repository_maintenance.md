@@ -1,10 +1,10 @@
 @page project_repository_maintenance Repository maintenance policy
 
-This is the working guide for the GitHub settings around GameWIP: repository
+This page records the GitHub settings that keep GameWIP maintainable: repository
 presentation, protected checks, merge policy, Actions configuration, manual
-workflows, and periodic audits. Contributor behavior stays in @ref
-project_contributing; automation details stay in @ref
-project_repository_automation and @ref project_release_automation.
+workflows, and periodic audits. Contributor behavior is in @ref
+project_contributing. The mechanics of project and release automation are in
+@ref project_repository_automation and @ref project_release_automation.
 
 ## Public landing page
 
@@ -30,12 +30,12 @@ required evidence without requiring contributors to dispatch duplicate runs:
 | `Validation / Repository Checks` | Automation/script tests, structured files, docs, links, Action pins, job policy, and public files. |
 | `Validation / Coverage` | Instrumented tests and report generation; no percentage threshold. |
 | `Validation / AddressSanitizer` | CLANG64 sanitizer configure, build, and tests. |
-| `Validation / Docs Check` | Warning-free Doxygen build for the pull-request source. |
+| `Validation / Docs Check` | Doxygen build with no unexpected warnings for the pull-request source. |
 
 The `Doxygen Docs` workflow publishes the `Docs Check` artifact after the full
 `Validation` workflow succeeds on a `master` push. It does not rebuild the same
-source and is not an additional pull-request check. Manual deployment remains
-an independent guarded recovery path and therefore performs its own build.
+source and is not another pull-request check. Manual deployment is a separate
+recovery path, so it performs its own build.
 
 The base package cases run only in `Packages (CMake)`. Coverage and
 AddressSanitizer intentionally retain their package entries because those runs
@@ -68,10 +68,10 @@ its policy module only from that trusted checkout. It has no pull-request-head
 or bootstrap fallback, so contributor code cannot replace the policy being
 executed.
 
-Event-driven automation is the normal path. The project schedule is an
-intentional repair pass for dependency, review, or project-side changes that do
-not emit a complete repository event; maintainers should not manually repeat
-routine reconciliation or validation.
+Event-driven automation is the normal path. The scheduled project run is there
+to repair dependency, review, or project-side changes that do not emit a
+complete repository event. Maintainers do not need to repeat routine
+reconciliation or validation by hand.
 
 ## Required, change-driven, and release validation
 
@@ -119,19 +119,16 @@ Routine pull requests should not manually dispatch `validation`; the pull
 request event already runs it. Routine pushes to `master` should not manually
 dispatch `docs-deploy`; the push event already publishes the documentation.
 
-## Protected `master` baseline
+## Protected `master` settings
 
-Maintain these repository settings:
-
-- Require the seven checks listed under **Validation ownership**, with the
-  branch required to be up to date before merging.
-- Require pull requests, linear history, and resolved review conversations.
-- Enable branch updates so contributors can satisfy the strict up-to-date check
-  without a maintainer repeating the update.
-- Disable force pushes and branch deletion.
-- Enforce protection for administrators.
-- Allow squash merging as the normal merge method. Avoid merge commits; use
-  rebase merging only for deliberately preserved commits.
+The protected branch requires the seven checks listed under **Validation
+ownership**, and it must be up to date before merging. It also requires pull
+requests, linear history, and resolved review conversations. Allow branch
+updates so contributors can satisfy the up-to-date check without a maintainer
+repeating the update. Disable force pushes and branch deletion, and enforce the
+rules for administrators. Squash merging is the normal merge method. Avoid
+merge commits; use rebase merging only when preserving individual commits is
+intentional.
 
 Check names are an interface with branch protection. Rename a workflow or job
 only when the branch-protection context is updated in the same maintenance
@@ -166,10 +163,10 @@ write markers unset until the matching required-reviewer rule really exists.
 
 ## Milestones, labels, and templates
 
-Only concrete release-targeted work receives a GitHub milestone. Capability
+Only concrete, release-targeted work receives a GitHub milestone. Capability
 slices and useful Backlog issues do not automatically receive one, and the
 repository must not pre-create a speculative future milestone ladder. Close a
-completed milestone after its release and handoff are complete.
+milestone after its release and handoff are complete.
 
 Every normal issue and human ready-for-review pull request needs exactly one
 primary `area:*`, `type:*`, and `priority:*` label. The only optional
@@ -181,8 +178,8 @@ roadmap.
 Audit issue forms, Dependabot, area reconciliation, project automation, PR
 Standards, label descriptions, colors, and live metadata together. Canonical
 labels are lowercase, use a colon between dimension and value, and use
-kebab-case rather than underscores. Add a new area only when concrete promoted
-work needs it; do not pre-create speculative subsystem areas.
+kebab-case rather than underscores. Add an area when promoted work needs it,
+not simply because a subsystem might exist later.
 
 ## Public-repository baseline
 
@@ -235,9 +232,9 @@ requires immediate investigation and a focused GitHub issue.
 ## Periodic audit
 
 Repeat the configuration audit at each milestone handoff and after workflow,
-branch-protection, environment, permission, or visibility changes. Record exact
-remote setting changes and the pull request used to validate them. Create a
-focused follow-up issue for anything intentionally deferred.
+branch-protection, environment, permission, or visibility changes. Record the
+remote settings that changed and the pull request used to validate them. If
+something is deliberately left for later, leave a focused follow-up issue.
 
 ## Related pages
 

@@ -1,4 +1,4 @@
-# GameWIP Python tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+# Python tool-provider support for the project helper.
 
 # ------------------------------------------------------------
 # Python environment and package operations

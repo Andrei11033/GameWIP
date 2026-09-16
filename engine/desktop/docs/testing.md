@@ -1,4 +1,4 @@
-@page desktop_testing Maintainer validation
+@page desktop_testing Testing
 
 Desktop combines deterministic source-tree tests with opt-in desktop scenarios.
 This page records what each layer proves and which platform state must be

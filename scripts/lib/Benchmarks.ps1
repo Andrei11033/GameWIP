@@ -1,4 +1,4 @@
-# GameWIP Benchmarks helper behavior. Dot-sourced by scripts/GameWIP.ps1.
+# Benchmark commands and result handling for the project helper.
 
 # ------------------------------------------------------------
 # Benchmark execution and result conversion

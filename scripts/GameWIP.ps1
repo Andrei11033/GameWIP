@@ -1,4 +1,4 @@
-# GameWIP project-helper executable entry point. Library/bootstrap code lives under scripts/lib/.
+# Project-helper entry point. Shared behavior lives under scripts/lib/.
 
 # ------------------------------------------------------------
 # Command-line contract and bootstrap

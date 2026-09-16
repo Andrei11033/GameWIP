@@ -4,17 +4,12 @@ include_guard(GLOBAL)
 #
 # Public helper:
 # - gamewip_install_package(TARGET <target> CONFIG_TEMPLATE <file> [PATH_VARS <variables>...])
+# PATH_VARS forwards package-relative install variables to configure_package_config_file.
 #
-# Inputs:
-# - TARGET names an existing library whose install(TARGETS) declaration remains in its CMakeLists.
-# - CONFIG_TEMPLATE names that library's package configuration template.
-# - PATH_VARS forwards package-relative install variables to configure_package_config_file.
-#
-# Side effects:
-# - Generates and installs the exact-version config files and installs the target export set.
-#
-# Failure contract:
-# - Missing arguments, targets, or templates stop configuration with a descriptive fatal error.
+# The target's CMakeLists.txt owns its install(TARGETS) declaration. This helper
+# generates exact-version config files and installs the target export set.
+# Missing arguments, targets, or templates stop configuration with a descriptive
+# fatal error.
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)

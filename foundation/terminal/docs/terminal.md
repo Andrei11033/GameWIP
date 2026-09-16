@@ -23,36 +23,36 @@ immediate key input and line editing.
 
 ## Consumer manual
 
-- @subpage terminal_quick_start — Include, link, print UTF-8 text, inspect
+- @subpage terminal_quick_start - Include, link, print UTF-8 text, inspect
   capabilities, and read a line.
-- @subpage terminal_public_api — Find direct operations, sessions, events,
+- @subpage terminal_public_api - Find direct operations, sessions, events,
   styles, options, buffers, scopes, and results.
-- @subpage terminal_abi — Understand the shared-library, export, and runtime
+- @subpage terminal_abi - Understand the shared-library, export, and runtime
   boundary.
-- @subpage terminal_read_write — Understand text versus byte I/O, blocking,
+- @subpage terminal_read_write - Understand text versus byte I/O, blocking,
   partial progress, flushing, and line input.
-- @subpage terminal_segmented_writes — Emit mixed text, style, and control
+- @subpage terminal_segmented_writes - Emit mixed text, style, and control
   segments as one coordinated write.
-- @subpage terminal_styling — Apply colors and attributes and restore output
+- @subpage terminal_styling - Apply colors and attributes and restore output
   state safely.
-- @subpage terminal_capabilities_and_redirection — Adapt to consoles, pipes,
+- @subpage terminal_capabilities_and_redirection - Adapt to consoles, pipes,
   files, detached streams, and changing endpoint support.
-- @subpage terminal_input_modes — Choose immediate events, stream reads, or
+- @subpage terminal_input_modes - Choose immediate events, stream reads, or
   edited lines and understand stdin ownership.
-- @subpage terminal_control_primitives — Move the cursor, clear regions, set
+- @subpage terminal_control_primitives - Move the cursor, clear regions, set
   titles, and use other low-level terminal operations.
-- @subpage terminal_unicode_io — Follow UTF-8 validation, native conversion,
+- @subpage terminal_unicode_io - Follow UTF-8 validation, native conversion,
   grapheme editing, and embedded-NUL rules.
-- @subpage terminal_examples — See output, sessions, events, styling, and
+- @subpage terminal_examples - See output, sessions, events, styling, and
   capability fallbacks in context.
-- @subpage terminal_troubleshooting — Diagnose redirection, contention,
+- @subpage terminal_troubleshooting - Diagnose redirection, contention,
   unsupported operations, invalid text, and state-restoration problems.
 
 ## Maintainer validation
 
-- @subpage terminal_testing — See automated, manual, package, and concurrency
+- @subpage terminal_testing - See automated, manual, package, and concurrency
   coverage.
-- @subpage terminal_test_hooks — Understand source-tree-only terminal fault
+- @subpage terminal_test_hooks - Understand source-tree-only terminal fault
   seams and reset requirements.
 
 ## Generated API reference

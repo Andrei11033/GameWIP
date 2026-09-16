@@ -2,17 +2,9 @@ include_guard(GLOBAL)
 
 # Configures first-party C++ compiler warnings after external targets have been added.
 #
-# Public helper:
-# - gamewip_enable_project_warnings()
-#
-# Inputs:
-# - GAMEWIP_WARNINGS_AS_ERRORS controls whether supported compilers treat warnings as errors.
-#
-# Side effects:
-# - Adds directory-scoped options guarded to C++ compilation only.
-#
-# Failure contract:
-# - Unknown compiler families produce a configure warning and receive no project warning profile.
+# GAMEWIP_WARNINGS_AS_ERRORS controls whether supported compilers treat warnings
+# as errors. The options are directory-scoped and guarded to C++ compilation;
+# unknown compiler families receive a configure warning and no project profile.
 
 function(gamewip_enable_project_warnings)
     if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")

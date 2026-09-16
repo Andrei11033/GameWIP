@@ -1,4 +1,4 @@
-// Repository-owned issue-area label policy executed by the trusted GitHub workflow.
+// Map issue-form area choices to the repository's canonical area labels.
 
 'use strict';
 

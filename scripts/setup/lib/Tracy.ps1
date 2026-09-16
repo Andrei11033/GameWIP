@@ -1,4 +1,4 @@
-# GameWIP Tracy version matching, reproducible build cache, staging, and persistent tool installation.
+# Tracy version matching, reproducible build cache, staging, and persistent tool installation.
 
 # ------------------------------------------------------------
 # Tracy discovery and reproducible staging

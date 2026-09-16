@@ -1,4 +1,4 @@
-# Shared setup state and presentation helpers. Native execution is owned by scripts/lib/Process.ps1.
+# Shared setup state and presentation helpers. Native execution stays in scripts/lib/Process.ps1.
 
 # ------------------------------------------------------------
 # Setup state and ownership metadata

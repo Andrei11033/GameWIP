@@ -1,9 +1,9 @@
 /// @file game.cpp
 /// @brief Implementation of the executable-owned runtime facade.
 ///
-/// This file owns executable runtime composition. Keep process startup policy in
-/// main.cpp, return expected runtime failures as process exit codes, and place
-/// reusable behavior in the owning reusable library.
+/// This file composes the executable runtime. Process startup policy lives in
+/// main.cpp, expected runtime failures become process exit codes, and reusable
+/// behavior stays in the library that owns it.
 
 #include "runtime/game.h"
 

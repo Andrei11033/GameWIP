@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run advisory compiler warnings from the analyze compilation database."""
+"""Run the advisory compiler-warning pass from the analyze database."""
 
 from __future__ import annotations
 

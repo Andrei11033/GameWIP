@@ -1,4 +1,4 @@
-# GameWIP project-tool public surface and provider-independent helpers.
+# Project-tool commands and provider-independent helpers.
 
 # ------------------------------------------------------------
 # Registry and provider selection

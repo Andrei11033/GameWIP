@@ -1,4 +1,4 @@
-// Repository-owned JavaScript lint policy for workflow automation and tests.
+// JavaScript lint rules for workflow automation and tests.
 const js = require('@eslint/js');
 
 module.exports = [

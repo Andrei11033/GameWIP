@@ -1,4 +1,4 @@
-# GameWIP help, catalog, and structured diagnostic presentation.
+# Help, command catalogs, and structured diagnostic output.
 
 # ------------------------------------------------------------
 # Catalog and diagnostic presentation

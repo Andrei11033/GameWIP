@@ -1,7 +1,7 @@
-#pragma once
-
 /// @file filesystem_platform.h
 /// @brief Internal platform abstraction used by the FileSystem library.
+
+#pragma once
 
 #include "filesystem/filesystem.h"
 

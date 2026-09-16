@@ -1,4 +1,4 @@
-# GameWIP operation lifecycle, cancellation, consent, events, and result contracts.
+# Operation lifecycle, cancellation, consent, events, and result contracts.
 
 # ------------------------------------------------------------
 # Operation lifecycle and result presentation

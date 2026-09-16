@@ -1,4 +1,4 @@
-# GameWIP console input and rendering primitives. No operation dispatch belongs here.
+# Console input and output primitives. Command dispatch stays with the caller.
 
 # ------------------------------------------------------------
 # Output rendering and input primitives

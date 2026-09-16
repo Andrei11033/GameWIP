@@ -1,8 +1,8 @@
 @page project_profiling Profiling with Tracy
 
-GameWIP uses Tracy for interactive profiling of representative runtime
-sessions. Use benchmarks for repeatable isolated measurements; use a Tracy
-capture to explain where an end-to-end run spends time.
+GameWIP uses Tracy for interactive profiling of representative runtime sessions.
+Use benchmarks for repeatable isolated measurements and Tracy captures to see
+where an end-to-end run spends time.
 
 ## Common workflow
 
@@ -13,13 +13,13 @@ Rebuild the Windows tools from the Tracy client pinned by the checkout:
 ```
 
 The focused command produces `tracy-profiler.exe`, `tracy-capture.exe`,
-`tracy-csvexport.exe`, `tracy-import-chrome.exe`,
-`tracy-import-fuchsia.exe`, and `tracy-update.exe` under `C:\MSYS2\GameWIPTools\tools\tracy`. It uses
-UCRT64 GCC/Ninja Release builds with a reproducible `x86-64-v3` baseline,
-stages the complete set and required UCRT DLLs, then replaces the existing tools
-only after verification. Visual Studio is not required. First use may take
-several minutes because the GUI profiler compiles substantial pinned
-dependencies.
+`tracy-csvexport.exe`, `tracy-import-chrome.exe`, `tracy-import-fuchsia.exe`,
+and `tracy-update.exe` under
+`C:\MSYS2\GameWIPTools\tools\tracy`. It uses UCRT64 GCC/Ninja Release builds
+with a reproducible `x86-64-v3` baseline, stages the tools and required UCRT
+DLLs, and replaces existing tools only after verification. Visual Studio is not
+required. First use may take several minutes because the GUI profiler compiles
+substantial pinned dependencies.
 
 Build the profiling preset:
 
@@ -37,9 +37,9 @@ Start-Process 'C:\MSYS2\GameWIPTools\tools\tracy\tracy-profiler.exe'
 
 Use a representative scenario. A capture of an empty or artificial run is rarely useful evidence for optimization decisions.
 
-The VS Code `F9` workflow performs the configure, build, profiler
-launch, and game launch sequence. Pass `--startup-tests` when validation itself
-is the workload being profiled:
+The VS Code `F9` workflow performs the configure, build, profiler launch, and
+game launch sequence. Pass `--startup-tests` when validation itself is the
+workload being profiled:
 
 ```powershell
 cmake --preset profile
@@ -63,14 +63,14 @@ Tracy support must remain optional:
 
 Markers should answer a specific performance question.
 
-Use markers for:
+Useful markers include:
 
 - Meaningful work phases.
 - Long-lived worker thread names.
 - Opaque blocks that need subdivision in a capture.
 - Workload-size plots that explain timing, such as entity, contact, job, queue, or allocation counts.
 
-Avoid markers for:
+Markers are usually not useful for:
 
 - Every small function.
 - High-cardinality dynamic names.
@@ -79,7 +79,7 @@ Avoid markers for:
 - Reusable-library API surfaces.
 - Leaf functions that do not explain a measured cost.
 
-Remove markers that no longer answer a performance question.
+Markers that no longer answer a performance question should be removed.
 
 ## Logger initialization and shutdown zones
 
@@ -89,14 +89,14 @@ initialization, and Logger shutdown. The Game runtime zone encloses
 `GameWIP::Game::run()`, while Logger shutdown has its own zone inside
 `finishRuntime()`, including the error paths that call it. Profile builds also
 emit frame marks at the validation, benchmark, and runtime boundaries. These
-markers describe the executable composition path; subsystem implementations
-own any narrower zones needed to explain measured work.
+markers describe executable composition. Subsystem implementations own any
+narrower zones needed to explain measured work.
 
 Colors group executable-owned zones by purpose: blue identifies the enclosing
 process and runtime, teal identifies initialization, green identifies frames,
 gray identifies waits, orange and purple identify validation and benchmarks,
-and red identifies cleanup or failure paths. Preserve these meanings when
-adding a related zone; prefer an uncolored marker when no category applies.
+and red identifies cleanup or failure paths. Keep those meanings when adding a
+related zone. An uncolored marker is better when no category applies.
 
 ## Optimization workflow
 
@@ -107,12 +107,14 @@ adding a related zone; prefer an uncolored marker when no category applies.
 5. Optimize and compare benchmark results.
 6. Capture another representative Tracy session to verify the end-to-end effect.
 
-Profiling should guide investigation. Benchmarks should verify repeatable performance changes when the operation can be isolated.
+Profiling should guide investigation. Benchmarks should verify repeatable
+performance changes when the operation can be isolated.
 
 ## Library instrumentation policy
 
-Reusable libraries remain profiler-agnostic by default. A library may add private compile-time zones only when a representative capture shows
-meaningful opaque work that needs subdivision.
+Reusable libraries remain profiler-agnostic by default. A library may add
+private compile-time zones when a representative capture shows meaningful
+opaque work that needs subdivision.
 
 Tracy must not appear in public library APIs, installed public headers, package usage requirements, or consumer examples.
 

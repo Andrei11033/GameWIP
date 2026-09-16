@@ -31,7 +31,8 @@ target_link_libraries(MyTarget PRIVATE IO)
 
 ## Minimal usage
 
-The following example reads stable caller-owned text with a hard size limit, then writes a result to memory:
+This example reads stable caller-owned text with a hard size limit, then writes
+the result to memory:
 
 ```cpp
 #include "io/io.h"

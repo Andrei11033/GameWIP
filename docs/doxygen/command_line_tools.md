@@ -1,20 +1,22 @@
 @page project_command_line_tools Command-line tools
 
-GameWIP exposes one repository helper, `gamewip.bat`, plus the Windows environment bootstrap `setup.bat`.
-The project helper uses positional command words for selection and shared switches for execution policy. With no action it
-opens the interactive menu.
+GameWIP exposes the repository helper `gamewip.bat` and the Windows environment
+bootstrap `setup.bat`. The project helper uses positional command words for
+selection and shared switches for execution policy. With no action, it opens
+the interactive project menu.
 
 `gamewip.bat --help`, `gamewip.bat -h`, and `gamewip.bat -?` are help aliases.
 
-Both interactive menus render declared key/label entries through the same
-shared console primitive. The project menu hierarchy lives in
-`scripts/config/commands.json`; setup menu entries live in
-`scripts/setup/config/setup.json`. Their schemas and runtime checks reject
-duplicate keys, unknown handlers, and incomplete menu catalogs before use.
+The project menu hierarchy lives in `scripts/config/commands.json`; setup menu
+entries live in `scripts/setup/config/setup.json`. Their schemas and runtime
+checks reject duplicate keys, unknown handlers, and incomplete menu catalogs
+before use. The shared menu behavior is described in @ref
+project_environment_setup.
+
 Indexed tool selections accept one number or a comma-separated list such as
-`2,3,5,6`. Tool previews and updates use one combined plan, consent decision,
-and validation boundary for the selection. Press Enter to use the displayed default, or `q`/Esc
-to cancel.
+`2,3,5,6`. Tool previews and updates use one plan, consent decision, and
+validation boundary for the whole selection. Press Enter to use the displayed
+default, or `q` or Esc to cancel.
 
 ## Common syntax
 
@@ -36,7 +38,9 @@ Examples:
 .\gamewip.bat runs show latest
 ```
 
-Selection words are positional. Do not use the retired nested selector switches such as `-Preset`, `-Module`, or action-specific `-*Action` options.
+Selection words are positional. The retired nested selector switches, such as
+`-Preset`, `-Module`, and action-specific `-*Action` options, are no longer
+supported.
 
 ## Actions
 
@@ -71,7 +75,11 @@ Selection words are positional. Do not use the retired nested selector switches 
 
 ## Subcommands and targets
 
-The second positional word is the action-specific command or selection; the third is used only when another selector is required.
+The second positional word is the action-specific command or selection. The
+third is used only when another selector is required.
+
+The quality-hygiene selector is one of `standard`, `deep`, `check-id`, `list`,
+or `status`.
 
 ```powershell
 .\gamewip.bat git status
@@ -83,10 +91,10 @@ The second positional word is the action-specific command or selection; the thir
 .\gamewip.bat quality check
 .\gamewip.bat quality status
 .\gamewip.bat quality hygiene
+.\gamewip.bat quality hygiene standard
 .\gamewip.bat quality hygiene deep
 .\gamewip.bat quality hygiene unused-includes
 .\gamewip.bat quality hygiene list
-.\gamewip.bat quality hygiene status
 .\gamewip.bat tools status
 .\gamewip.bat tools ensure quality
 .\gamewip.bat tools update all -Preview
@@ -110,10 +118,10 @@ Use `gamewip.bat list` for current presets, modules, project commands, bundles,
 benchmark profiles, and guarded workflows. The `wizard` composes common
 validation options and applicable module-specific options declared by the helper
 catalog. Focused module runs expose those options automatically; all-module runs
-offer them only when selected, and skipped modules are not offered. `gamewip list`
-shows their option IDs. This metadata controls composition and presentation;
-argument semantics remain owned by the validation runner and module
-implementation.
+offer them only when selected, and skipped modules are not offered. `gamewip.bat
+list` shows their option IDs. This metadata controls composition and
+presentation. Argument semantics remain owned by the validation runner and
+module implementation.
 
 ## Shared options
 
@@ -156,7 +164,8 @@ implementation.
 | `-NoColor` | Disable color-only presentation. Status text remains explicit. |
 | `-OutputMode <Summary\|Stream\|LogOnly>` | Select native-process presentation policy. `Stream` is the default, so compiler, linker, test, linter, and installer output remains visible. |
 
-PowerShell common `-Verbose` and `-Debug` behavior remains available. Verbose mode is the normal way to expose additional helper/native detail.
+PowerShell common `-Verbose` and `-Debug` behavior remains available. Verbose
+mode is the normal way to expose additional helper or native detail.
 
 Semantic presentation uses cyan for accents and progress, green for success and
 ready states, yellow for warnings and ensure actions, red for failures, and
@@ -165,7 +174,7 @@ explicit text and status labels remain unchanged.
 
 ## Execution model
 
-Each named operation follows one lifecycle:
+Named operations follow the same basic lifecycle:
 
 1. Discover the requested state.
 2. Build the complete plan and preflight it before mutation.
@@ -173,51 +182,54 @@ Each named operation follows one lifecycle:
 4. Request consent only when required by the action's declared risk.
 5. Execute with operation-scoped cancellation, process ownership, logging, and temporary storage.
 6. Verify the resulting state.
-7. Emit a final receipt with `passed`, `failed`, or `cancelled` status and independent mutation state.
+7. Emit a final receipt with `passed`, `failed`, or `cancelled` status and an
+   independent mutation state.
 
 Only one setup or project-helper operation may run at a time. A second command
 fails immediately with an explicit `operation-in-progress` diagnostic instead
 of reading or changing partially updated tools, build trees, or retained state.
 
-`-NonInteractive` changes prompting only. Every mutating non-interactive command, including `local` build-tree work, still requires `-Yes` unless a higher-level
-caller has already granted consent. `-Preview` never performs the mutation.
+`-NonInteractive` changes prompting only. Every mutating non-interactive
+command, including `local` build-tree work, still requires `-Yes` unless a
+higher-level caller has already granted consent. `-Preview` never performs the
+mutation.
 
 Low-level configure, build, test, and ordinary bundle commands remain
-incremental unless `-Fresh` is supplied. The high-level `coverage`, `asan`, and `ubsan`
-actions always recreate their complete preset trees so stale instrumentation or
-runtime artifacts cannot affect authoritative results. The
-`local-release-check` and `sanitizer` bundles declare the same policy in the
-bundle catalog; `sanitizer` runs AddressSanitizer then UndefinedBehaviorSanitizer
-and owns fresh `build/asan` and `build/ubsan` trees. `quick` remains incremental.
-Fresh recreation is deliberately
-limited to known, direct children of the repository `build` directory and
-refuses reparse points.
+incremental unless `-Fresh` is supplied. The high-level `coverage`, `asan`, and
+`ubsan` actions always recreate their preset trees so stale instrumentation or
+runtime artifacts cannot affect the result. The `local-release-check` and
+`sanitizer` bundles declare the same policy in the bundle catalog. `sanitizer`
+runs AddressSanitizer and then UndefinedBehaviorSanitizer using fresh
+`build/asan` and `build/ubsan` trees. `quick` remains incremental. Fresh
+recreation is limited to known direct children of the repository `build`
+directory and refuses reparse points.
 
 ## Quality and tool policy
 
-`gamewip quality check` is the authoritative local repository quality gate.
+`gamewip quality check` is the local repository quality gate.
 Full quality covers maintained tracked files and non-ignored untracked
 first-party files, while preserving the documented generated, historical, and
 third-party exclusions. Independent checks aggregate by default; use
 `-FailFast` only for focused diagnosis. `gamewip quality fix` applies deterministic formatters and then runs the same gate.
 `gamewip quality status` reports maintained-file quality ownership.
 
-`gamewip quality hygiene [standard|deep|check-id]` is a separate, optional
+`gamewip quality hygiene [standard|deep|check-id]` is a separate optional
 C/C++ investigation. It configures the `analyze` compilation database, runs
 only the selected hygiene rules, and retains normalized evidence as
-`artifacts/hygiene-report.json`. It is not part of normal builds,
-`quality check`, `analyze`, AddressSanitizer, UndefinedBehaviorSanitizer, or CI. Report mode succeeds when
-it finds review candidates; add `-Enforce` when a caller intentionally wants
+`artifacts/hygiene-report.json`. It is not part of normal builds, `quality
+check`, `analyze`, AddressSanitizer, UndefinedBehaviorSanitizer, or CI. Report
+mode succeeds when it finds review candidates. Add `-Enforce` when a caller
+intentionally wants
 proven findings to fail the operation. `list` describes configured providers,
 and `status` performs read-only configuration and tool discovery.
 
 `gamewip tools ensure <id|category|all>` installs or repairs exactly the
 versions already declared by the checkout and does not advance pins. `gamewip
 tools update <id|all>` is the reviewed pin-advancement workflow and requires a
-clean tracked tree. Its preview performs complete discovery, source-preserving
-tracked staging, and staged validation, then reports exact registry fields and
-declared live references without applying them. A current selection is a true
-no-op. See @ref project_tools for the registry and provider contracts.
+clean tracked tree. Its preview performs discovery, source-preserving tracked
+staging, and staged validation, then reports exact registry fields and declared
+live references without applying them. A current selection is a true no-op. See
+@ref project_tools for the registry and provider contracts.
 
 ## Run history
 

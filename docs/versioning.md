@@ -53,7 +53,7 @@ intentionally unknown.
 Release automation never derives the target version from an R number. The
 milestone's explicit `Release version:` metadata and the root
 `PROJECT_VERSION` are authoritative. Milestone numbers are not structurally
-limited to two digits—an eventual `R100` remains representable even though the
+limited to two digits. An eventual `R100` remains representable even though the
 roadmap has no reason to plan or reserve it now.
 
 Before `1.0.0`, a breaking public API or package change requires an appropriate

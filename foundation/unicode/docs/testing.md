@@ -1,7 +1,8 @@
 @page unicode_testing Testing
 
-Unicode validation covers public contracts, generated property data, official grapheme conformance, package boundaries, sanitizers, static analysis,
-and diagnostic performance benchmarks.
+Unicode validation covers the public contracts, generated property data, official
+grapheme conformance, package boundaries, sanitizers, static analysis, and
+diagnostic benchmarks.
 
 ## Common workflow
 
@@ -164,7 +165,7 @@ where a nearby safe restart exists, and linear-overall repeated cursor traversal
 
 ## Final validation
 
-For an implementation, generated-data, test, or manual change, run:
+For a change to the implementation, generated data, tests, or these docs, run:
 
 ```powershell
 .\gamewip.bat format check

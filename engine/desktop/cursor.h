@@ -66,7 +66,6 @@ namespace GameWIP::Desktop::Types::Cursor
         std::uint32_t x = 0; ///< Horizontal pixel coordinate from the left edge.
         std::uint32_t y = 0; ///< Vertical pixel coordinate from the top edge.
 
-        /// @brief Compares both physical-pixel coordinates.
         [[nodiscard]] friend bool operator==(const PixelPosition &, const PixelPosition &) noexcept = default;
     };
 

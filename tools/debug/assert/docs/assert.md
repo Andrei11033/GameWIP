@@ -16,31 +16,31 @@ configuration; those choices are exported to consumers through the CMake target.
 
 ## Consumer manual
 
-- @subpage assert_quick_start — Include, link, choose a macro family, and
+- @subpage assert_quick_start - Include, link, choose a macro family, and
   configure a minimal consumer.
-- @subpage assert_public_api — Find macros, runtime functions, compile-time
+- @subpage assert_public_api - Find macros, runtime functions, compile-time
   settings, and the package boundary.
-- @subpage assert_configuration — Understand `AUTO`, forced states,
+- @subpage assert_configuration - Understand `AUTO`, forced states,
   diagnostics, interactive support, manifests, and exported definitions.
-- @subpage assert_abi — Understand interface-only versus shared-runtime builds,
+- @subpage assert_abi - Understand interface-only versus shared-runtime builds,
   exports, package identity, and supported configuration matching.
-- @subpage assert_macros — Choose the right fatal, recoverable, result-returning,
+- @subpage assert_macros - Choose the right fatal, recoverable, result-returning,
   or unreachable macro.
-- @subpage assert_macro_behavior — Check exact evaluation, reporting, return,
+- @subpage assert_macro_behavior - Check exact evaluation, reporting, return,
   termination, and disabled-build behavior.
-- @subpage assert_diagnostics — Understand captured text, source information,
+- @subpage assert_diagnostics - Understand captured text, source information,
   UTF-8 handling, and diagnostics-disabled builds.
-- @subpage assert_failure_actions — Follow report delivery, debugger behavior,
+- @subpage assert_failure_actions - Follow report delivery, debugger behavior,
   termination, and forced actions.
-- @subpage assert_interactive — Understand developer prompts, Ignore Once,
+- @subpage assert_interactive - Understand developer prompts, Ignore Once,
   Always Ignore, synchronization, and noninteractive fallbacks.
-- @subpage assert_examples — See each macro family and configuration in context.
-- @subpage assert_troubleshooting — Diagnose missing evaluation, unexpected
+- @subpage assert_examples - See each macro family and configuration in context.
+- @subpage assert_troubleshooting - Diagnose missing evaluation, unexpected
   termination, debugger traps, dialogs, manifests, and configuration mismatch.
 
 ## Maintainer validation
 
-- @subpage assert_testing — See the configuration matrix and automated runtime,
+- @subpage assert_testing - See the configuration matrix and automated runtime,
   package, ABI, and subprocess coverage.
 
 ## Generated API reference

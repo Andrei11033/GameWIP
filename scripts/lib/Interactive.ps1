@@ -1,4 +1,4 @@
-# GameWIP interactive UI. Navigation owns no operation state; every selected action gets a fresh operation.
+# Interactive menus and action selection. Navigation does not own operation state.
 
 # ------------------------------------------------------------
 # Interactive context and menu dispatch

@@ -1,4 +1,4 @@
-# Non-executable GameWIP project-helper bootstrap. Safe to dot-source from tests.
+# Shared project-helper bootstrap. It is safe to load from tests.
 
 # ------------------------------------------------------------
 # Repository paths and process defaults

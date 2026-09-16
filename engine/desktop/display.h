@@ -17,14 +17,12 @@ namespace GameWIP::Desktop::Types::Display
     {
         std::uint64_t value = 0; ///< Opaque identity, or zero when invalid.
 
-        /// @brief Returns whether this identity is nonzero.
-        /// @return true for a usable process-local monitor identity.
+        /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
         {
             return value != 0;
         }
 
-        /// @brief Compares opaque identity values.
         friend constexpr bool operator==(MonitorId, MonitorId) noexcept = default;
     };
 
@@ -35,7 +33,6 @@ namespace GameWIP::Desktop::Types::Display
         std::uint32_t refreshRateMillihertz = 0; ///< Refresh rate in thousandths of a hertz.
         std::uint16_t bitsPerPixel = 0;          ///< Total color depth.
         bool interlaced = false;                 ///< Whether scanout is interlaced.
-        /// @brief Compares every display-mode property.
         friend constexpr bool operator==(Mode, Mode) noexcept = default;
     };
 

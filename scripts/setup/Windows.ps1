@@ -1,4 +1,4 @@
-# GameWIP Windows setup executable entry point. All reusable behavior lives under setup/lib/.
+# Windows setup entry point. Reusable behavior lives under setup/lib/.
 
 # ------------------------------------------------------------
 # Command-line contract and bootstrap

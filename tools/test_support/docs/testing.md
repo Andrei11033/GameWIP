@@ -1,4 +1,4 @@
-@page test_support_testing Maintainer validation
+@page test_support_testing Testing
 
 This page maps TestSupport's public and source-tree-only behavior to the tests
 that prove it. Consumer usage belongs in the quick start and focused guides.

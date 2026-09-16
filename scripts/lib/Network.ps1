@@ -1,4 +1,4 @@
-# GameWIP bounded read-only HTTP policy for metadata queries and downloads.
+# Bounded read-only HTTP requests for metadata and downloads.
 
 # ------------------------------------------------------------
 # Retry and request helpers

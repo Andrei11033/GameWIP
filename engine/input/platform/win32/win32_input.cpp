@@ -1556,34 +1556,28 @@ namespace
         return InputInternal::InputDeviceRegistryAccess::upsertDevice(devices, deviceInfo);
     }
 
-    /// @brief Returns whether a UTF-16 code unit is a high surrogate.
     bool isHighSurrogate(char16_t codeUnit)
     {
         return codeUnit >= 0xD800 && codeUnit <= 0xDBFF;
     }
 
-    /// @brief Returns whether a UTF-16 code unit is a low surrogate.
     bool isLowSurrogate(char16_t codeUnit)
     {
         return codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
     }
 
-    /// @brief Returns whether a codepoint should be treated as typed text.
     bool isTextCodepoint(char32_t codepoint)
     {
         return codepoint >= 0x20 && codepoint != 0x7F;
     }
 
-    /// @brief Combines a UTF-16 surrogate pair into one Unicode codepoint.
     char32_t combineSurrogates(char16_t highSurrogate, char16_t lowSurrogate)
     {
         return 0x10000 + ((static_cast<char32_t>(highSurrogate) - 0xD800) << 10) + (static_cast<char32_t>(lowSurrogate) - 0xDC00);
     }
 
-    /// @brief Feeds one UTF-16 code unit from WM_CHAR into text input.
-    /// @param codeUnit UTF-16 code unit from Win32.
-    /// @param inputState Input state to update.
-    /// @return True if the message was consumed.
+    // WM_CHAR delivers UTF-16 code units, so retain a high surrogate until the next
+    // message to emit supplementary text as one Unicode scalar.
     bool feedUtf16TextCodeUnit(char16_t codeUnit, InputState &inputState)
     {
         char16_t pendingHighSurrogate = InputInternal::InputStateAccess::getPendingTextHighSurrogate(inputState);
@@ -1629,10 +1623,8 @@ namespace
         return true;
     }
 
-    /// @brief Feeds one UTF-32 codepoint from WM_UNICHAR into text input.
-    /// @param codepoint Unicode codepoint from Win32.
-    /// @param inputState Input state to update.
-    /// @return True if the message was consumed.
+    // WM_UNICHAR already supplies a scalar; discard stale WM_CHAR composition
+    // before accepting it so the two Win32 text paths cannot combine.
     bool feedUnicodeTextCodepoint(char32_t codepoint, InputState &inputState)
     {
         InputInternal::InputStateAccess::clearTextComposition(inputState);
@@ -1885,9 +1877,8 @@ namespace
         }
     }
 
-    /// @brief Builds the physical keyboard control code used by the generic input API.
-    /// @param rawKeyboard Raw keyboard packet from Win32.
-    /// @return USB HID keyboard usage ID, or 0 if no usable code exists.
+    // Raw Input may omit MakeCode; recover it from VKey so virtual-key-only
+    // packets still map to the portable USB HID control namespace.
     ControlCode getKeyboardControlCode(const RAWKEYBOARD &rawKeyboard)
     {
         ControlCode scanCode = rawKeyboard.MakeCode & 0xFF;
@@ -1917,13 +1908,6 @@ namespace
         return translateWin32ScanCodeToKeyboardControlCode(scanCode, extendedE0, extendedE1, rawKeyboard.VKey);
     }
 
-    /// @brief Feeds one raw mouse button transition when the matching flag is present.
-    /// @param rawMouse Raw mouse packet from Win32.
-    /// @param downFlag Raw Input flag for button down.
-    /// @param upFlag Raw Input flag for button up.
-    /// @param button Engine mouse button to update.
-    /// @param inputState Input state to update.
-    /// @return True if the button was updated.
     bool feedMouseButton(const RAWMOUSE &rawMouse, USHORT downFlag, USHORT upFlag, MouseButton button, InputState &inputState)
     {
         bool updated = false;
@@ -1942,10 +1926,6 @@ namespace
         return updated;
     }
 
-    /// @brief Handles a raw mouse packet.
-    /// @param rawMouse Raw mouse packet from Win32.
-    /// @param inputState Input state to update.
-    /// @return True when a mouse packet was handled.
     bool handleRawMouseInput(const RAWMOUSE &rawMouse, InputState &inputState)
     {
         feedMouseButton(rawMouse, RI_MOUSE_LEFT_BUTTON_DOWN, RI_MOUSE_LEFT_BUTTON_UP, MouseButton::Left, inputState);
@@ -1974,13 +1954,13 @@ namespace
         return true;
     }
 
-    /// @brief Extracts a signed client coordinate from a mouse message LPARAM.
+    // Mouse message coordinates are signed 16-bit client offsets; extract them
+    // before promoting to int so negative coordinates survive.
     int getSignedLowWord(LPARAM lParam)
     {
         return static_cast<int>(static_cast<short>(LOWORD(lParam)));
     }
 
-    /// @brief Extracts a signed client coordinate from a mouse message LPARAM.
     int getSignedHighWord(LPARAM lParam)
     {
         return static_cast<int>(static_cast<short>(HIWORD(lParam)));
@@ -2230,19 +2210,16 @@ namespace GameWIP::Input::Platform::Win32
         HWND hwnd = reinterpret_cast<HWND>(windowHandle);
 
         RAWINPUTDEVICE rawDevices[5]{};
-        // Mouse
         rawDevices[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rawDevices[0].usUsage = HID_USAGE_GENERIC_MOUSE;
         rawDevices[0].dwFlags = RIDEV_DEVNOTIFY;
         rawDevices[0].hwndTarget = hwnd;
 
-        // Keyboard
         rawDevices[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rawDevices[1].usUsage = HID_USAGE_GENERIC_KEYBOARD;
         rawDevices[1].dwFlags = RIDEV_DEVNOTIFY;
         rawDevices[1].hwndTarget = hwnd;
 
-        // Native HID controllers.
         rawDevices[2].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rawDevices[2].usUsage = HID_USAGE_GENERIC_GAMEPAD;
         rawDevices[2].dwFlags = RIDEV_DEVNOTIFY;

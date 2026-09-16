@@ -44,6 +44,19 @@ body:
       required: true
 
   - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem or gap makes this work necessary?
+      placeholder: Describe the behavior, maintenance gap, or missing repository support.
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Why now? (optional)
+      description: If timing affects prioritization, why does this work belong in the project now?
+  - type: textarea
     id: work
     attributes:
       label: Work
@@ -53,18 +66,16 @@ body:
       required: true
 
   - type: textarea
-    id: reason
+    id: constraints
     attributes:
-      label: Reason
-      description: Why is this useful now?
-    validations:
-      required: true
+      label: Constraints and scope
+      description: What existing contracts, boundaries, or exclusions should guide the work?
 
   - type: textarea
     id: done
     attributes:
-      label: Done when
-      description: What observable result means the task is complete?
+      label: Acceptance criteria
+      description: What observable results mean the task is complete?
       placeholder: |
         - ...
         - ...

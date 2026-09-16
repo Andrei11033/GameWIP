@@ -49,7 +49,7 @@ namespace GameWIP::Desktop
             {
                 const auto &variant = variants[i];
 
-                // Basic image contract.
+                // Validate dimensions, row stride, and complete pixel payload before creating native resources.
                 if (variant.size.width == 0 || variant.size.height == 0 || variant.size.width > nativeMaximum ||
                     variant.size.height > nativeMaximum || variant.hotspot.x >= variant.size.width || variant.hotspot.y >= variant.size.height ||
                     variant.intendedDpi == 0)
@@ -60,7 +60,6 @@ namespace GameWIP::Desktop
                 const std::size_t width = static_cast<std::size_t>(variant.size.width);
                 const std::size_t height = static_cast<std::size_t>(variant.size.height);
 
-                // Resolve and validate row stride.
                 if (GameWIP::Base::wouldMultiplyOverflow(width, channels))
                 {
                     return error(ErrorCode::InvalidArgument);
@@ -74,7 +73,6 @@ namespace GameWIP::Desktop
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                // Validate complete pixel payload size.
                 if (GameWIP::Base::wouldMultiplyOverflow(resolvedStride, height))
                 {
                     return error(ErrorCode::InvalidArgument);
@@ -87,7 +85,7 @@ namespace GameWIP::Desktop
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                // Each DPI may have only one variant.
+                // Duplicate DPIs would make native variant selection depend on input order.
                 for (std::size_t previous = 0; previous < i; ++previous)
                 {
                     if (variants[previous].intendedDpi == variant.intendedDpi)

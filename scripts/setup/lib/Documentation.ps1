@@ -1,4 +1,4 @@
-# GameWIP setup documentation build and warning-log verification.
+# Setup documentation build and warning-log verification.
 
 # ------------------------------------------------------------
 # Documentation build orchestration

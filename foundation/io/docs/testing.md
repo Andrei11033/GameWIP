@@ -1,10 +1,11 @@
-@page io_testing Maintainer validation
+@page io_testing Testing
 
 @note This page documents validation coverage, not consumer API.
 
 ## Focused module
 
-The `io` correctness module validates the public contract through the shared GameWIP validation runner. Run it with:
+The `io` correctness module checks the public contract through the shared GameWIP
+validation runner. Run it with:
 
 ```powershell
 .\build\test\GameWIPTests.exe --test-module=io --no-test-report
@@ -44,12 +45,12 @@ project_library_compatibility.
 
 ## Extension changes
 
-When changing Reader, Writer, result, or helper behavior:
-
-- Add focused coverage for the public contract being guaranteed.
-- Include partial-progress and zero-progress cases where relevant.
-- Verify both known-size and unknown-size paths when read-all behavior changes.
-- Keep custom test adapters deterministic and free of operating-system dependencies unless the behavior belongs to a concrete backend library.
+When Reader, Writer, result, or helper behavior changes, add focused coverage
+for the contract being guaranteed. Include partial-progress and zero-progress
+cases where they matter, and cover both known-size and unknown-size paths when
+read-all behavior changes. Keep custom test adapters deterministic and free of
+operating-system dependencies unless the behavior belongs to a concrete backend
+library.
 
 ## Related pages
 

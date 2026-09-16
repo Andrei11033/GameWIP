@@ -1,7 +1,7 @@
 @page filesystem_file_open_modes Handles, sharing, and locks
 
-This page explains the state owned by an open handle and the choices that
-control creation, truncation, sharing, seeking, flushing, and whole-file locks.
+This page explains what an open handle owns and how its creation, truncation,
+sharing, seeking, flushing, and whole-file lock choices work.
 
 ## Lifecycle and ownership
 

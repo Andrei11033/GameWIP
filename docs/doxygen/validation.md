@@ -1,13 +1,14 @@
 @page project_validation Validation architecture
 
-GameWIP validation is modular. The same correctness-test and benchmark code can run in standalone executables for CI and focused local work or be
-linked into the development game executable as startup validation.
+GameWIP validation is modular. The same correctness-test and benchmark code can
+run in standalone executables for CI and focused local work, or be linked into
+the development game as startup validation.
 
 Validation is development infrastructure and is not linked into release builds.
 
 This page follows the correctness runner from module registration through
 selection, child-process routing, execution, reporting, and final exit status.
-It also documents the small source-tree interfaces shared by the standalone and
+It also documents the small source-tree interfaces shared by standalone and
 embedded runners.
 
 Test authoring is documented in @ref project_testing. Benchmark measurement policy is documented in @ref project_benchmarking. Executable startup
@@ -22,13 +23,14 @@ integration is documented in @ref project_game_executable.
 | `GAMEWIP_ENABLE_STARTUP_TESTS` | Links correctness modules into `GameWIP` for explicit `--startup-tests` execution. | `OFF` |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | Links benchmarks into `GameWIP` and runs them after startup tests. | `OFF` |
 
-When both build and startup options for one validation kind are disabled, its modules are not compiled or linked into the executable. Google Benchmark
-is added only when benchmark targets or startup benchmarks require it.
+When both build and startup options for a validation kind are disabled, its
+modules are not compiled or linked into the executable. Google Benchmark is
+added only when benchmark targets or startup benchmarks require it.
 
 ## Source API reference
 
-Use @ref GameWIP::Validation for shared results and the startup facade, and @ref GameWIP::Validation::Tests for the correctness runner and module
-registry.
+Use @ref GameWIP::Validation for shared results and the startup facade, and @ref
+GameWIP::Validation::Tests for the correctness runner and module registry.
 
 These are source-tree integration interfaces. They are not installed package APIs.
 
@@ -41,8 +43,8 @@ These are source-tree integration interfaces. They are not installed package API
 | `exitCode` | `0` or `1` for normal aggregate runs; the owning module's exact code for a routed child invocation. |
 | `handledChildInvocation` | The caller must return immediately because the command line was classified as a child protocol, including an ambiguous child-route failure. |
 
-`ok()` is true only when `modulesFailed == 0` and `exitCode == 0`. An invocation whose selection leaves zero modules is a runner failure with exit
-code `1`.
+`ok()` is true only when `modulesFailed == 0` and `exitCode == 0`. An invocation
+whose selection leaves zero modules is a runner failure with exit code `1`.
 
 ### `RunOptions`
 
@@ -60,13 +62,16 @@ code `1`.
 | `appendReport` | Makes the first selected module append rather than replace the report. |
 | `reportPath` | Absolute report path or a relative path resolved beneath the running executable directory. |
 
-Command-line arguments may override the corresponding policy fields. The runner takes `RunOptions` by value so those overrides do not mutate the
-caller's object.
+Command-line arguments may override the corresponding policy fields. The runner
+takes `RunOptions` by value, so those overrides do not mutate the caller's
+object.
 
 ### `run()`
 
-`Tests::run()` performs one complete runner invocation. It is intended to run once at a time in a process; it coordinates process-wide module
-registration, standard streams, report paths, scoped temporary-directory environment, and module code that may mutate other global state.
+`Tests::run()` performs one runner invocation. It is intended to run once at a
+time in a process; it coordinates process-wide module registration, standard
+streams, report paths, scoped temporary-directory environment, and module code
+that may mutate other global state.
 
 The runner catches exceptions from module callbacks and converts them into failed module results. Allocation or setup exceptions outside those
 protected callbacks are not a general exception-free API promise.
@@ -83,26 +88,31 @@ A test module defines one process-lifetime `Registration` object in its `module.
 The module name is a `std::string_view`; its storage must outlive every registry and runner use. String literals or other static storage are the
 intended source. Callback function pointers must remain valid for the process lifetime.
 
-Registration appends to process-local vector storage and may allocate. It is intended for static initialization before runner use and is not
-synchronized for late or concurrent registration. A span returned by `registeredModules()` is invalidated by a later registration.
+Registration appends to process-local vector storage and may allocate. It is
+intended for static initialization before runner use and is not synchronized for
+late or concurrent registration. A span returned by `registeredModules()` is
+invalidated by a later registration.
 
 The runner copies registrations before sorting and execution. It rejects empty names, null run callbacks, and duplicate names before invoking any
 module.
 
-Current correctness modules are `base`, `runner`, `io`, `unicode`, `filesystem`, `terminal`, `desktop`, `test_support`, `logger`, and `assert` in
-their stable order.
+Current correctness modules are `base`, `runner`, `io`, `unicode`, `filesystem`,
+`terminal`, `desktop`, `test_support`, `logger`, and `assert`, in that stable
+order.
 
 ## Module invocation
 
-`ModuleInvocation` borrows the original process arguments and shared runner policy for the duration of one callback.
+`ModuleInvocation` borrows the original process arguments and shared runner
+policy for the duration of one callback.
 
 - `argc` and `argv` are not owned by the module.
 - `options` is valid only while the callback runs.
 - `appendReport` tells the module whether its TestSupport sink must preserve earlier aggregate output.
 - A zero callback result means pass; any nonzero result means fail.
 
-A module adapter should only translate shared policy into its library-specific test options and invoke the suite. Reusable test behavior belongs in
-the module's `_test.cpp` file or TestSupport, not in the adapter.
+A module adapter translates shared policy into its library-specific test options
+and invokes the suite. Reusable test behavior belongs in the module's
+`_test.cpp` file or TestSupport, not in the adapter.
 
 ## Command-line interface
 
@@ -126,12 +136,14 @@ The runner recognizes these project-level arguments:
 Repeating the same selector or skip is accepted. Selecting different modules, selecting and skipping the same module, skipping an unknown module, or
 skipping every selected module is an error.
 
-The runner does not remove recognized arguments or reject unrelated arguments. Every selected module receives the original `argc` and `argv`, allowing
+The runner does not remove recognized arguments or reject unrelated arguments.
+Every selected module receives the original `argc` and `argv`, allowing
 module-owned child protocols and library-specific test logic to inspect them.
 
 ## Child-process routing
 
-Child matchers are evaluated for every sorted module before ordinary module selection.
+Child matchers are evaluated for every sorted module before ordinary module
+selection.
 
 - No match continues to normal selection.
 - One match invokes only the owning module and preserves its exact exit code.
@@ -140,25 +152,34 @@ Child matchers are evaluated for every sorted module before ordinary module sele
 
 Matchers should inspect arguments only. They should not perform the child operation or mutate shared validation state.
 
-This routing prevents crash, fatal, reentrant-format, and process-helper child invocations from recursively running the full suite or entering game
-runtime code.
+This routing prevents crash, fatal, reentrant-format, and process-helper child
+invocations from recursively running the full suite or entering game runtime
+code.
 
-Reserved child namespaces fail closed. Exactly one recognized selector invokes its owning module; an unknown or malformed reserved selector, or more
-than one reserved selector, returns a handled validation failure without running an ordinary module suite.
+Reserved child namespaces fail closed. Exactly one recognized selector invokes
+its owning module. An unknown or malformed reserved selector, or more than one
+reserved selector, returns a handled validation failure without running an
+ordinary module suite.
 
 ## Report paths and output
 
-Relative report paths are lexically normalized beneath the running executable's directory. The default therefore produces
-`logs/validation/latest_test_report.txt` inside the active preset folder, such as `build/test`, `build/dev`, or `build/profile`, regardless of the caller's
-current directory. A relative path that still contains a parent-traversal component after normalization is rejected. Absolute paths are normalized
-and honored as explicit caller-selected destinations.
-
-On Windows, executable-directory containment accepts only an ordinary relative path with neither a root name nor a root directory.
-Drive-relative forms such as `D:report.txt`, root-relative forms, and normalized parent traversal are rejected. Fully absolute paths are treated as
+Relative report paths are lexically normalized beneath the running executable's
+directory. The default therefore produces
+`logs/validation/latest_test_report.txt` inside the active preset folder, such as
+`build/test`, `build/dev`, or `build/profile`, regardless of the caller's current
+directory. A relative path that still contains a parent-traversal component
+after normalization is rejected. Absolute paths are normalized and honored as
 explicit caller-selected destinations.
 
-An empty or invalid report path disables retained file reporting and emits a console diagnostic; it does not fail the tests. `--no-test-report` has
-the same execution semantics without treating the path as invalid.
+On Windows, executable-directory containment accepts only an ordinary relative
+path with neither a root name nor a root directory. Drive-relative forms such as
+`D:report.txt`, root-relative forms, and normalized parent traversal are
+rejected. Fully absolute paths are treated as explicit caller-selected
+destinations.
+
+An empty or invalid report path disables retained file reporting and emits a
+console diagnostic; it does not fail the tests. `--no-test-report` has the same
+execution semantics without treating the path as invalid.
 
 The runner prints and retains in the aggregate report:
 
@@ -166,19 +187,28 @@ The runner prints and retains in the aggregate report:
 - One module result line with the module's exact callback code.
 - One final aggregate result with selected and failed counts.
 
-The resolved path itself is printed to the console. TestSupport owns suite detail and report-file behavior. After the first selected module writes an
-aggregate report, subsequent modules receive `appendReport == true` so earlier evidence is preserved. Every module adapter must forward the shared
-report path and append policy; otherwise it would split or replace the aggregate report.
+The resolved path itself is printed to the console. TestSupport owns suite detail
+and report-file behavior. After the first selected module writes an aggregate
+report, subsequent modules receive `appendReport == true` so earlier evidence
+is preserved. Every module adapter must forward the shared report path and
+append policy, or it could split or replace the aggregate report.
 
-Before matching child routes or invoking modules, the runner creates `temp` beneath the running executable directory and temporarily points `TEMP`,
-`TMP`, and `TMPDIR` at it. This keeps TestSupport workspaces, subsystem fixtures, and inherited child-process temporary activity within the active
-`build/<preset>` tree. The prior environment is restored when validation returns, including when embedded startup validation continues into the game
-runtime. Failure to establish the owned temporary root fails validation before a module can fall back to an unrelated host directory.
+Before matching child routes or invoking modules, the runner creates `temp`
+beneath the running executable directory and temporarily points `TEMP`, `TMP`,
+and `TMPDIR` at it. This keeps TestSupport workspaces, subsystem fixtures, and
+inherited child-process temporary activity within the active `build/<preset>`
+tree. The prior environment is restored when validation returns, including when
+embedded startup validation continues into the game runtime. Failure to
+establish the owned temporary root fails validation before a module can fall
+back to an unrelated host directory.
 
-Validation modules that use TestSupport infrastructure must convert a failed infrastructure `status` into a recorded failure at the call site before
-reading the result payload. They must not reinterpret a child process's nonzero exit or timeout as a launch failure: the child result keeps
-infrastructure status, process outcome, and exact exit code separate. The detailed helper contracts belong to @ref test_support_public_api, @ref
-test_support_child_processes, and @ref test_support_files_environment.
+Validation modules that use TestSupport infrastructure must convert a failed
+infrastructure `status` into a recorded failure at the call site before reading
+the result payload. A child process's nonzero exit or timeout is not a launch
+failure: the child result keeps infrastructure status, process outcome, and
+exact exit code separate. The detailed helper contracts belong to @ref
+test_support_public_api, @ref test_support_child_processes, and @ref
+test_support_files_environment.
 
 ## Module lifecycle
 
@@ -195,15 +225,18 @@ Normal aggregate failures produce `exitCode == 1`; only routed child invocations
 
 ## Runner test seam
 
-`GameWIP::Validation::Tests::Detail::runWithModules()` accepts an explicit module span so the `runner` validation module can test ordering, selection,
+`GameWIP::Validation::Tests::Detail::runWithModules()` accepts an explicit
+module span so the `runner` validation module can test ordering, selection,
 conflict handling, and policy propagation without mutating the static registry.
 
-Its declaration lives in `game/validation/tests/internal/runner_test_hooks.h`. It is an approved source-tree test seam, is not registered as ordinary
-generated API, is not installed, and must not be used by application or validation-module code.
+Its declaration lives in `game/validation/tests/internal/runner_test_hooks.h`.
+It is an approved source-tree test seam, is not registered as ordinary
+generated API, is not installed, and must not be used by application or
+validation-module code.
 
 ## Input test hooks
 
-- @subpage input_test_hooks — Exercise Input's private Win32 metadata and HID
+- @subpage input_test_hooks - Exercise Input's private Win32 metadata and HID
   normalization seams in source-tree validation.
 
 ## Preset behavior
@@ -224,13 +257,14 @@ generated API, is not installed, and must not be used by application or validati
 
 When changing validation behavior:
 
-- Give every module a stable lowercase name and order.
+- Keep module names and ordering stable.
 - Keep registration data in static storage.
-- Route each child protocol to exactly one module.
+- Route each child protocol to one module.
 - Keep default runs unattended.
-- Preserve console failure visibility when report output fails.
+- Keep report-output failures visible.
 - Keep internal seams under `internal/` and out of installed packages.
-- Add runner regression coverage for parsing, selection, routing, ordering, and error conversion.
+- Add regression coverage for parsing, selection, routing, ordering, and error
+  conversion when runner behavior changes.
 
 ## Related pages
 

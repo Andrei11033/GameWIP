@@ -1,4 +1,4 @@
-# GameWIP setup orchestration. The executable entry point only loads this library and dispatches.
+# Setup orchestration. The entry point loads this library and dispatches actions.
 
 Set-StrictMode -Version Latest
 

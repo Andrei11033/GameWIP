@@ -1,4 +1,4 @@
-# GameWIP repository quality orchestration. Checks return evidence; presentation is aggregated here.
+# Repository quality orchestration. Checks return evidence; presentation is aggregated here.
 
 # ------------------------------------------------------------
 # Quality scope and policy selection

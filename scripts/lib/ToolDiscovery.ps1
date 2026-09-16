@@ -1,4 +1,4 @@
-# GameWIP deterministic tool discovery and installed-version selection.
+# Deterministic tool discovery and installed-version selection.
 
 # ------------------------------------------------------------
 # Candidate discovery and command selection

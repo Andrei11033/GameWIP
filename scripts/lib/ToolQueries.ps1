@@ -1,4 +1,4 @@
-# GameWIP structured upstream tool-version query behavior.
+# Structured upstream tool-version queries.
 
 # ------------------------------------------------------------
 # Query results and provider requests

@@ -1,12 +1,10 @@
 @page project_decisions Project decisions
 
-This page records the choices that shape more than one part of GameWIP. It
-explains what the project has decided, why that choice matters, and what it
-requires from future work.
+This page records decisions that affect more than one part of GameWIP. Each
+entry states the choice and the reason behind it.
 
-It is not a changelog or task list. Library-specific behavior belongs in that
-library's manual, milestone gates belong in @ref project_roadmap, and active
-work belongs in GitHub issues.
+Library behavior belongs in the owning manual. Milestone gates belong in
+@ref project_roadmap, and active work belongs in GitHub issues.
 
 ## Product and simulation
 
@@ -38,10 +36,9 @@ foundational correctness and observability come before presentation polish.
 
 ### Early play supports single-player and small-group co-op
 
-GameWIP targets excellent local single-player and small-group cooperative play
-before persistent or large-scale multiplayer. Networking is nevertheless an
-early architectural concern because authority, ownership, and replication
-cannot be added safely as an afterthought.
+GameWIP starts with local single-player and small-group cooperative play.
+Networking is an early architectural concern because authority, ownership, and
+replication cannot be added safely as an afterthought.
 
 V1 therefore includes server-authoritative small-group multiplayer and a
 supported headless or dedicated-server path. Persistent worlds and larger
@@ -61,10 +58,10 @@ the meaning of gameplay commands or simulation state.
 
 ### Authority boundaries use explicit commands, intents, and state
 
-Gameplay mutations that cross an authority boundary use explicit command or
-intent and resulting state boundaries where appropriate. The authority
-validates requests and owns the resulting mutation; presentation and remote
-clients observe the result.
+Gameplay mutations that cross an authority boundary use explicit commands or
+intents and produce explicit resulting state where appropriate. The authority
+validates the request and owns the mutation. Presentation and remote clients
+observe the result.
 
 This makes ownership, replication, rejection, diagnostics, and testing visible
 without requiring every internal variable to become network state.
@@ -83,9 +80,9 @@ instead of inheriting a universal save format or the repository version.
 
 ### Scalability follows ownership, relevance, measurement, and evidence
 
-Systems are designed for selective activity: sleeping objects, unchanged
+Systems are designed for selective activity. Sleeping objects, unchanged
 systems, irrelevant entities, and inactive controllers should consume little
-work. Networking uses relevance and appropriate update frequency rather than
+work. Networking uses relevance and appropriate update rates instead of
 replicating everything.
 
 Representative workloads are measured before optimization. Large-world and
@@ -153,32 +150,18 @@ operating-system boundary.
 
 ## Repository and dependency structure
 
-Each top-level area has a distinct job:
-
-- `foundation/` contains low-level reusable runtime libraries.
-- `tools/` contains reusable diagnostics, assertions, logging, validation
-  support, and development tools.
-- `engine/` contains engine systems, reviewed separately from foundation and
-  tool libraries.
-- `game/` composes those systems at the process and runtime boundary.
-- `cmake/` contains project-wide build orchestration and shared helpers.
-- `docs/` and library `docs/` directories contain maintained manuals and
-  project records.
-- `external/` contains pinned third-party code and is excluded from first-party
-  formatting and documentation rewrites.
-
-Dependencies should point toward lower-level concepts, never toward a more
-specific consumer merely for convenience. @ref project_structure contains the
-actual dependency map and allowed exceptions.
+Each top-level area owns a distinct layer, and dependencies should point toward
+lower-level concepts rather than a more specific consumer. The complete map,
+ownership rules, and allowed exceptions live in @ref project_structure.
 
 ## Reusable libraries and public APIs
 
 ### A supported library is consumable on its own
 
 Each supported reusable library owns its public API, tests, package boundary,
-manual, platform backend, and compatibility notes. It must build and install as
-part of GameWIP and remain usable from a clean external CMake consumer through
-an installed `GameWIP::` target.
+manual, platform backend, and compatibility notes. It must build and install
+as part of GameWIP and work from a clean external CMake consumer through an
+installed `GameWIP::` target.
 
 Public headers expose portable types and must not require internal headers,
 test hooks, game-runtime types, or accidental platform dependencies.
@@ -187,8 +170,7 @@ test hooks, game-runtime types, or accidental platform dependencies.
 
 Reusable APIs preserve caller-owned storage where practical, avoid
 success-path diagnostic allocation and redundant scans, and keep optional work
-lazy. Benchmarks measure meaningful hot paths, but timing thresholds are not
-correctness tests.
+lazy. Benchmarks measure hot paths; timing thresholds do not define correctness.
 
 ### Compatibility is explicit, not assumed
 
@@ -206,62 +188,49 @@ The detailed contracts live in @ref project_public_api_contract and
 
 ## Validation and documentation
 
-Correctness tests prove behavior, not elapsed time. Benchmarks measure
-performance and registration health. Test modules use stable lowercase names
-and join the shared runner; source-tree-only hooks are reserved for behavior
-that cannot be made deterministic through the public API.
+Correctness tests prove behavior. Benchmarks measure performance and
+registration health. Test modules use stable lowercase names and join the
+shared runner. Source-tree-only hooks are reserved for behavior that cannot be
+made deterministic through the public API.
 
-Manual checks remain opt-in so ordinary CI can run unattended. A workflow that
-requires a person must say so explicitly.
+Manual checks remain opt-in so ordinary CI can run unattended. Any workflow
+that requires a person must say so explicitly.
 
 Documentation is part of the supported surface. Header comments provide the
-point-of-use contract, generated API pages expose declaration details, library
+point-of-use contract. Generated API pages expose declaration details, library
 manuals explain concepts and composition, and the project manual explains
 architecture, workflows, standards, and decisions. @ref project_documentation
-defines what each layer must contain.
+defines the boundary between them.
 
 ## Repository workflow and releases
 
 Feature work normally moves from an issue to a short-lived branch, a pull
-request with concrete validation evidence, and a squash merge. Titles use:
+request with concrete validation evidence, and a squash merge. Pull request
+and squash commit subjects use:
 
 ```text
 area: imperative summary
 ```
 
-The title above is the primary-area convention for pull requests and intended
-squash commits. Issue titles instead use their work type: `bug:`, `feature:`,
-`task:`, `decision:`, or `release:`.
-
-Normal issues and human pull requests have exactly one work type, primary area,
-and scheduling priority label. `compat:breaking` is the only optional
-compatibility label. Concrete release targets use GitHub milestones, workflow
-state uses the Project Status field, hard blockers use GitHub dependency
-relationships, and roadmap phases and capability slices remain in the roadmap.
-This keeps each piece of planning information under one owner and prevents
-label taxonomy from duplicating native GitHub concepts.
-
-The protected `master` checks are the pre-merge gate. Manual workflow runs are
-for diagnostics and post-merge verification, not an alternate path around that
-gate. @ref project_contributing explains day-to-day contribution flow, and
-@ref project_repository_maintenance owns repository settings and check policy.
+Issue titles instead use their work type: `bug:`, `feature:`, `task:`,
+`decision:`, or `release:`. The full workflow is in
+@ref project_contributing. Repository settings and check policy are owned by
+@ref project_repository_maintenance.
 
 First-party source and documentation use the Apache License 2.0. Dependencies
-and future non-code assets retain any separate licenses and notices that apply
-to them. Contributions intentionally submitted for inclusion use Apache-2.0
-unless the contributor and maintainer explicitly agree otherwise in writing.
+under `external/` and non-code assets retain any separate licenses and notices
+that apply to them. Contribution licensing is covered in
+@ref project_contributing.
 
-The reviewed Git history is accepted for public visibility as project history,
-but a newly discovered credential or sensitive artifact still requires
-immediate rotation and, when necessary, history cleanup before further public
-exposure.
+The existing Git history is accepted for public visibility as project history.
+A newly discovered credential or sensitive artifact still requires rotation
+and, if necessary, history cleanup before further public exposure.
 
 ## Updating these decisions
 
 Add or change an entry only when the choice is durable and project-wide. State
-the reason and the practical consequence, then update every manual or workflow
-whose instructions changed. Use an issue for the implementation work rather
-than duplicating operational requirements here.
+the reason and practical consequence, then update any manual or workflow whose
+instructions changed. Use an issue for implementation work.
 
 Related detail is available in:
 

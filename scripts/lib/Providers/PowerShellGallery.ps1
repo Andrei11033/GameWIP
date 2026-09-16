@@ -1,4 +1,4 @@
-# GameWIP PowerShell Gallery tool provider.
+# PowerShell Gallery provider support.
 
 # ------------------------------------------------------------
 # Gallery discovery and installation

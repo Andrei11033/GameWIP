@@ -1,66 +1,43 @@
 # GameWIP
 
-[![Latest
-release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/Andrei11033/GameWIP?display_name=tag&sort=semver)](https://github.com/Andrei11033/GameWIP/releases/latest)
 [![Validation](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml/badge.svg?branch=master)](https://github.com/Andrei11033/GameWIP/actions/workflows/validation.yml)
 [![Documentation](https://github.com/Andrei11033/GameWIP/actions/workflows/docs.yml/badge.svg?branch=master)](https://andrei11033.github.io/GameWIP/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-GameWIP is an early-stage C++23 sandbox game project focused on player-built vehicles, structures, weapons, components, and meaningful destruction.
+GameWIP is an early-stage C++23 sandbox game project about player-built
+vehicles, structures, weapons, components, and meaningful destruction.
 
-The repository provides reusable foundation libraries, Windows platform
-backends, diagnostics, modular validation, benchmark registration, generated
-documentation, and engine-system foundations.
+The repository values explicit contracts, readable ownership boundaries,
+reproducible builds, and validation that produces useful evidence while the
+game and its reusable libraries grow.
 
-GameWIP is pre-1.0. Active work is tracked in
-the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and the
-[roadmap](docs/roadmap.md); the latest published baseline is
+GameWIP supports Windows 11 and is currently pre-1.0. Active work is tracked
+in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
+and the [roadmap](docs/roadmap.md). The latest published baseline is
 [v0.0.1](docs/releases/v0.0.1.md).
 
-## Project links
+## Development approach
 
-- [Developer manual](https://andrei11033.github.io/GameWIP/)
-- [Command-line tools](docs/doxygen/command_line_tools.md)
-- [Contributing](CONTRIBUTING.md)
-- [Code of conduct](CODE_OF_CONDUCT.md)
-- [Roadmap](docs/roadmap.md)
-- [Discussions](https://github.com/Andrei11033/GameWIP/discussions)
-- [Issue tracker](https://github.com/Andrei11033/GameWIP/issues)
-- [License](LICENSE)
-- [Releases](https://github.com/Andrei11033/GameWIP/releases)
-- [Security policy](SECURITY.md)
+GameWIP is a personal learning project. I write the C++ and CMake
+implementation myself. I use AI for learning, research, review, and
+documentation/comments; the PowerShell helper is AI-written.
 
-## Setup
+## Start here
 
-GameWIP supports Windows 11. From a fresh checkout or extracted ZIP, run the
-repository bootstrap utility:
+From a fresh checkout or extracted ZIP, run the repository bootstrap utility:
 
 ```powershell
 .\setup.bat
 ```
 
-Choose Visual Studio Code, Visual Studio Community, or both. Setup
-installs the selected environment, prepares pinned dependencies and profiler
-tools, builds the manual, and verifies the checkout. It is also the supported
-update, repair, and ownership-aware uninstall entry point. See the
-[development environment manual](docs/doxygen/environment_setup.md) for actions,
-update boundaries, visible command output, and the repository-only workflow key
-map.
+Setup prepares the selected development environment, pinned dependencies, and
+profiler tools. It is also the supported update, repair, and ownership-aware
+uninstall entry point. See the [development environment guide](docs/doxygen/environment_setup.md)
+for the setup actions and their boundaries.
 
-Setup asks which fetched branch an extracted ZIP should track; automation can
-provide the same choice with `-Branch <name>`.
-
-After setup, open `GameWIP.code-workspace`. The repository-scoped shortcuts
-installed by setup cover development builds, tests, benchmarks, analysis,
-documentation, profiling, coverage, AddressSanitizer, UndefinedBehaviorSanitizer, and release runs; all are
-also available as `GameWIP: ...` entries under **Terminal > Run Task**.
-
-Use the [command-line tools reference](docs/doxygen/command_line_tools.md) for
-every supported setup, project-helper, game, test, and benchmark command.
-
-## Quick start
-
-Configure, build, and run the development preset:
+Open `GameWIP.code-workspace`, then configure, build, and run the development
+preset:
 
 ```powershell
 cmake --preset dev
@@ -69,183 +46,53 @@ cmake --build --preset dev
 .\build\dev\GameWIP.exe
 ```
 
-The development preset compiles embedded tests but runs them only when explicitly requested with `GameWIP.exe --startup-tests`.
-
-## Validation
-
-Run the standalone correctness-test workflow:
-
-```powershell
-cmake --preset test
-cmake --build --preset test
-ctest --preset test
-```
-
-Run one validation module directly:
-
-```powershell
-.\build\test\GameWIPTests.exe --test-module=filesystem
-```
-
-Validation reports use `build/<preset>/logs/validation` by default. Relative
-`--test-report` paths are resolved beside the running executable, so retained
-results do not spill into the repository root or the operating-system temporary
-directory. Disposable validation workspaces and child-process temporary files
-are scoped to `build/<preset>/temp` and cleaned on normal completion.
-
-Run C++ static-analysis and formatting checks:
-
-```powershell
-cmake --preset analyze
-cmake --build --preset analyze
-```
-
-Repository script, Markdown-link, workflow, and documentation checks are documented in [Static analysis and repository
-checks](docs/doxygen/static_analysis.md).
-
-Run the AddressSanitizer workflow from an MSYS2 CLANG64 environment:
-
-```powershell
-$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
-cmake --preset asan
-cmake --build --preset asan
-ctest --preset asan
-```
-
-Run the UndefinedBehaviorSanitizer workflow from an MSYS2 CLANG64 environment:
-
-```powershell
-$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
-cmake --preset ubsan
-cmake --build --preset ubsan
-ctest --preset ubsan
-```
-
-For authoritative local coverage and sanitizer results, the project helper
-recreates the complete preset build tree before running the workflow:
-
-```powershell
-.\gamewip.bat coverage
-.\gamewip.bat asan
-.\gamewip.bat ubsan
-```
-
-Ordinary helper configure, build, and test commands remain incremental; add
-`-Fresh` to one of those commands when a full preset-tree rebuild is required.
-
-Build and run optimized benchmarks through the project helper:
-
-```powershell
-.\gamewip.bat benchmark
-```
-
-The helper retains JSON results, logs, and run metadata under
-`build/gamewip/runs/<timestamp>_benchmark-run/`. Validate registration without
-collecting timings with:
-
-```powershell
-.\gamewip.bat benchmark dry-run
-```
-
-The generated project manual documents the full validation, testing, static-analysis, coverage, profiling, and benchmarking workflows.
-
-## Profiling
-
-The profiling preset enables game-owned Tracy instrumentation. Install the
-official Windows profiler tools matching the Tracy client pinned by the current
-checkout:
-
-```powershell
-.\setup.bat profiler
-```
-
-```powershell
-cmake --preset profile
-cmake --build --preset profile
-Start-Process 'C:\MSYS2\GameWIPTools\tools\tracy\tracy-profiler.exe'
-.\build\profile\GameWIP.exe
-```
-
-The profiling preset skips startup tests unless they are explicitly requested:
-
-```powershell
-.\build\profile\GameWIP.exe --startup-tests
-```
-
-The profiling guide in the generated documentation explains marker ownership, capture expectations, and disabled-build rules.
-
-## Release build
-
-The release preset enables supported whole-program optimization and excludes validation, benchmarks, assertions, Tracy, and development tools from the
-game executable:
-
-```powershell
-cmake --preset release
-cmake --build --preset release
-```
+The [getting started guide](docs/doxygen/getting_started.md) explains the
+first-checkout path. Use the [command-line tools reference](docs/doxygen/command_line_tools.md)
+for the complete supported helper, setup, game, test, and benchmark command
+surface.
 
 ## Documentation
 
-Generated API documentation and the developer manual are published at the [GameWIP documentation site](https://andrei11033.github.io/GameWIP/).
+Generated API documentation and the developer manual are published at the
+[GameWIP documentation site](https://andrei11033.github.io/GameWIP/). Start
+with the [manual index](docs/doxygen/index.md) for architecture,
+subsystem workflows, API contracts, and engineering decisions.
 
-The documentation is layered so the same information is useful at different
-depths. Public-header comments provide concise IntelliSense and generated symbol
-reference while coding. Library guides explain how related APIs fit together,
-including behavior, ownership, failures, threading, limitations, and examples.
-Project-manual pages cover repository architecture, commands, workflows, and
-engineering decisions.
+Public headers keep important contracts discoverable through IntelliSense;
+manual pages explain how the surrounding subsystem fits together. The
+[documentation system guide](docs/doxygen/documentation.md) defines that
+division of responsibility.
 
-Build it locally:
+To build the manual locally, use the `docs` preset described in the
+[build guide](docs/doxygen/build.md).
 
-```powershell
-cmake --preset docs
-cmake --build --preset docs
-$warningLog = Get-Item .\build\docs\docs\doxygen\doxygen_warnings.log
-if ($warningLog.Length -ne 0) {
-    Get-Content $warningLog
-    throw "Doxygen emitted warnings."
-}
-```
+## Project links
 
-Generated HTML starts at `build/docs/docs/doxygen/html/index.html`.
-
-Start with these pages when reading the source tree:
-
-- [Project structure](docs/doxygen/project_structure.md)
-- [Command-line tools](docs/doxygen/command_line_tools.md)
-- [CMake infrastructure](docs/doxygen/cmake_infrastructure.md)
-- [Development environment setup](docs/doxygen/environment_setup.md)
-- [Extending the project](docs/doxygen/extending.md)
-- [Documentation system](docs/doxygen/documentation.md)
-- [Public API contract](docs/doxygen/project_public_api_contract.md)
-- [Platform backend contract](docs/doxygen/platform_backend_contract.md)
-- [Vision](docs/vision.md)
+- [Developer manual](https://andrei11033.github.io/GameWIP/)
+- [Contributing guide](CONTRIBUTING.md)
 - [Roadmap](docs/roadmap.md)
-- [Project decisions](docs/decisions.md)
-- [Versioning policy](docs/versioning.md)
-- [Contributor workflow](docs/contributing.md)
-- [Repository maintenance policy](docs/doxygen/repository_maintenance.md)
+- [Issues](https://github.com/Andrei11033/GameWIP/issues)
+- [Security policy](SECURITY.md)
+- [Releases](https://github.com/Andrei11033/GameWIP/releases)
 
 ## Repository layout
 
 ```text
-foundation/   Reusable Unicode, IO, FileSystem, and Terminal libraries.
-engine/       Supported Desktop library, provisional Input/Action code, and preserved retired WindowManager code.
-tools/        Logger, Assert, and TestSupport libraries.
-game/         Stable game entry point, runtime facade, modular validation, and its local orientation guide.
+foundation/   Reusable low-level libraries.
+engine/       Desktop and engine-system libraries.
+tools/        Diagnostics, logging, assertions, and test support.
+game/         Game executable and source-tree validation.
+cmake/        Project build and validation infrastructure.
+docs/         Product direction and developer documentation.
 external/     Pinned third-party dependencies.
-cmake/        Project orchestration and shared CMake helpers.
-docs/         Product direction, roadmap, decisions, versioning, and contributor workflow.
-docs/doxygen/ Generated developer-manual pages and documentation infrastructure.
 ```
 
-Root `README.md`, `CONTRIBUTING.md`, and `SECURITY.md` are short repository entry points. The generated manual and `docs/` pages contain the detailed
-developer documentation.
+The root entry points stay short; detailed subsystem contracts and workflows
+live with the [developer manual](docs/doxygen/index.md).
 
 ## License
 
 GameWIP first-party source code and documentation are licensed under the
 [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for project attribution.
-Third-party dependencies under `external/` remain under their own licenses and
-notices. A non-code asset may declare a separate license when its distribution
-requirements differ from the source repository.
+Third-party dependencies under `external/` retain their own licenses and
+notices.

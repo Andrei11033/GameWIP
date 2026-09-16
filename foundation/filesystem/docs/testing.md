@@ -1,4 +1,4 @@
-@page filesystem_testing Maintainer validation
+@page filesystem_testing Testing
 
 @note This page describes proof coverage and environment requirements, not installed consumer API.
 
@@ -16,7 +16,8 @@ The FileSystem module covers:
 - shared/exclusive lock acquisition, contention, detached ownership, failed unlock, and destructor cleanup;
 - race-resistant move behavior when a validated parent is renamed or a committed destination is changed concurrently.
 
-Run the FileSystem-focused module through the project validation workflow documented by @ref project_testing.
+Run the FileSystem-focused module through the project validation workflow in
+@ref project_testing.
 
 ## Symlink and backend coverage
 

@@ -1,4 +1,4 @@
-# GameWIP verified GitHub-release tool provider.
+# Verified GitHub release provider.
 
 # ------------------------------------------------------------
 # Release metadata and verified installation

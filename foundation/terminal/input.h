@@ -294,27 +294,26 @@ namespace GameWIP::Terminal
                 /// @brief Unicode scalar value. Terminal-produced values are never surrogate code points.
                 char32_t value = U'\0';
 
-                /// @brief Compares Unicode scalar values.
                 friend constexpr bool operator==(CharacterKey, CharacterKey) noexcept = default;
             };
 
             /// @brief Portable non-character key reported by terminal input.
             enum class NamedKey : std::uint8_t
             {
-                Backspace,   ///< Backspace key.
-                Tab,         ///< Tab key. Shift+Tab is represented by the Shift modifier.
-                Enter,       ///< Enter or Return key.
-                Escape,      ///< Escape key.
-                Insert,      ///< Insert key.
-                Delete,      ///< Delete key.
-                Home,        ///< Home key.
-                End,         ///< End key.
-                PageUp,      ///< Page Up key.
-                PageDown,    ///< Page Down key.
-                ArrowUp,     ///< Up-arrow key.
-                ArrowDown,   ///< Down-arrow key.
-                ArrowLeft,   ///< Left-arrow key.
-                ArrowRight,  ///< Right-arrow key.
+                Backspace,
+                Tab, ///< Tab key. Shift+Tab is represented by the Shift modifier.
+                Enter,
+                Escape,
+                Insert,
+                Delete,
+                Home,
+                End,
+                PageUp,
+                PageDown,
+                ArrowUp,
+                ArrowDown,
+                ArrowLeft,
+                ArrowRight,
                 Begin,       ///< Begin or keypad-center navigation key where reportable.
                 CapsLock,    ///< Caps Lock key transition where reportable.
                 NumLock,     ///< Num Lock key transition where reportable.
@@ -330,7 +329,6 @@ namespace GameWIP::Terminal
                 /// @brief One-based function-key number. Terminal-produced values are always nonzero.
                 std::uint16_t number = 0;
 
-                /// @brief Compares function-key numbers.
                 friend constexpr bool operator==(FunctionKey, FunctionKey) noexcept = default;
             };
 
@@ -377,19 +375,16 @@ namespace GameWIP::Terminal
                 ScrollLock = 1U << 8U ///< Scroll Lock state is active where reportable.
             };
 
-            /// @brief Combines modifier-state bits.
             [[nodiscard]] constexpr KeyModifier operator|(KeyModifier left, KeyModifier right) noexcept
             {
                 return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) | static_cast<std::uint16_t>(right));
             }
 
-            /// @brief Intersects modifier-state bits.
             [[nodiscard]] constexpr KeyModifier operator&(KeyModifier left, KeyModifier right) noexcept
             {
                 return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) & static_cast<std::uint16_t>(right));
             }
 
-            /// @brief Adds modifier-state bits to an existing mask.
             constexpr KeyModifier &operator|=(KeyModifier &left, KeyModifier right) noexcept
             {
                 left = left | right;

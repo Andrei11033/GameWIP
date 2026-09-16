@@ -1,4 +1,4 @@
-# Shared GameWIP configuration and repository-path helpers.
+# Shared configuration and repository-path helpers.
 # Bootstrap validation is intentionally narrower than JSON Schema validation.
 
 Set-StrictMode -Version Latest

@@ -62,7 +62,7 @@ namespace GameWIP::TestSupport
             Summary summary;                  ///< Suite pass/fail/skip counts.
             double elapsedMilliseconds = 0.0; ///< Wall-clock suite duration in milliseconds.
 
-            /// @brief Returns summary.ok().
+            /// @brief Reports whether this suite recorded no failed checks.
             [[nodiscard]] bool ok() const noexcept;
         };
 
@@ -210,7 +210,7 @@ namespace GameWIP::TestSupport
         [[nodiscard]] const std::string &suiteName() const noexcept;
         /// @brief Returns a coherent snapshot of this context's counts.
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
-        /// @brief Returns result().ok().
+        /// @brief Reports whether this context has recorded no failed checks.
         [[nodiscard]] bool ok() const noexcept;
 
     private:
@@ -253,7 +253,7 @@ namespace GameWIP::TestSupport
 
         /// @brief Returns aggregate counts across suites that have finished.
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
-        /// @brief Returns result().ok().
+        /// @brief Reports whether no completed suite has recorded a failure.
         [[nodiscard]] bool ok() const noexcept;
         /// @brief Returns zero when no failures were recorded, otherwise one.
         [[nodiscard]] int exitCode() const noexcept;

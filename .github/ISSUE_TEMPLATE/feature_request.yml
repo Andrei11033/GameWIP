@@ -45,27 +45,50 @@ body:
       required: true
 
   - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem or missing capability should this work address?
+      placeholder: Describe the user, game, developer, or workflow problem.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why now? (optional)
+      description: If timing affects prioritization, why does this belong in the project now?
+  - type: textarea
     id: goal
     attributes:
-      label: Goal
-      description: What capability should the project gain?
+      label: Desired outcome
+      description: What observable capability should the project gain?
       placeholder: Describe the outcome, not only one implementation step.
     validations:
       required: true
 
   - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints and requirements
+      description: What existing contracts, platform limits, or scope boundaries must this respect?
+  - type: textarea
     id: proposal
     attributes:
-      label: Proposal
-      description: Describe the preferred approach, API, workflow, or behavior.
-    validations:
-      required: true
+      label: Chosen direction
+      description: Describe the preferred approach, API, workflow, or behavior when one is known.
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
-      description: Note other approaches and why they are less suitable.
+      label: Options considered
+      description: Note credible alternatives and why they are less suitable.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What observable results would show that the outcome is complete?
+    validations:
+      required: true
 
   - type: textarea
     id: validation

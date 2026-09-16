@@ -1,9 +1,9 @@
 @page project_game_executable Game executable
 
-The `game/` tree is the small composition layer that turns the reusable
-libraries into runnable programs. It connects generated build identity,
-optional startup validation, benchmark startup, and the game runtime in one
-process without moving reusable behavior into the executable.
+The `game/` tree is the small composition layer that turns reusable libraries
+into runnable programs. It connects generated build identity, optional startup
+validation, benchmark startup, and the game runtime without moving reusable
+behavior into the executable.
 
 This page follows command-line parsing, startup, runtime initialization,
 shutdown, and exit-code selection. Correctness-runner behavior is in @ref
@@ -12,13 +12,10 @@ behavior in @ref project_benchmarking.
 
 ## Scope
 
-Use this page when changing:
-
-- `game/main.cpp` startup sequencing.
-- The executable-owned runtime facade in `game/runtime/`.
-- Generated version metadata and `--version` output.
-- The compile-time facade in `game/validation/validation.h`.
-- The boundary between executable integration code and reusable libraries.
+This page covers `game/main.cpp` startup sequencing, the executable-owned
+runtime facade in `game/runtime/`, generated version metadata and `--version`
+output, the compile-time validation facade, and the boundary between executable
+integration code and reusable libraries.
 
 ## Source layout
 
@@ -57,7 +54,7 @@ Validation options without `--startup-tests` do not request an ordinary embedded
 test run. The runtime facade does not interpret remaining arguments. A custom
 startup-benchmark build may reject arguments forwarded to Google Benchmark.
 Use `GameWIPTests.exe --help` and `GameWIPBenchmarks.exe --help` for their
-complete current option sets, or start at @ref project_command_line_tools.
+current option sets, or start at @ref project_command_line_tools.
 
 Embedded validation retains relative reports under `logs/validation` beside the game
 executable and scopes disposable validation or benchmark fixtures to its preset's
@@ -81,8 +78,9 @@ ordinary game runtime begins.
    game window, and runs the event loop.
 9. Return the runtime facade's exit code.
 
-Utility-only help and version queries intentionally bypass validation and runtime startup. A help or `--version` token combined with other arguments
-is not treated as the utility-only form.
+Utility-only help and version queries bypass validation and runtime startup. A
+help or `--version` token combined with other arguments is not treated as the
+utility-only form.
 
 Tracy-enabled builds emit frame marks before startup validation, startup
 benchmarks, and runtime execution. The enclosing named zones identify those
@@ -90,16 +88,20 @@ process phases in a capture. Zone colors distinguish process/runtime work,
 initialization, frames, waits, validation, benchmarks, and cleanup or failure
 paths.
 
-There is no process-wide exception boundary around startup validation, benchmark execution, or `GameWIP::Game::run()`. The correctness runner converts
-exceptions escaping module callbacks, but its outer setup/allocation work and the benchmark runner may still propagate. Runtime code should express
-expected startup or shutdown failures through its returned exit code. Any exception that reaches `main()` follows the language runtime's
-uncaught-exception behavior.
+There is no process-wide exception boundary around startup validation, benchmark
+execution, or `GameWIP::Game::run()`. The correctness runner converts exceptions
+escaping module callbacks, but its outer setup and allocation work and the
+benchmark runner may still propagate. Runtime code should express expected startup
+or shutdown failures through its returned exit code. Any exception that reaches
+`main()` follows the language runtime's uncaught-exception behavior.
 
 ## Runtime facade
 
-`GameWIP::Game::run(int, char **)` is the executable-owned transition from startup wiring into runtime composition.
+`GameWIP::Game::run(int, char **)` is the executable-owned transition from
+startup wiring into runtime composition.
 
-- `argc` and `argv` are the original process arguments and are borrowed for the call.
+- `argc` and `argv` are the original process arguments and are borrowed for the
+  call.
 - The returned integer becomes the executable's process exit code.
 - Reusable behavior must remain in its owning foundation or tools library rather than accumulating behind this facade.
 
@@ -118,13 +120,15 @@ uncaught-exception behavior.
    manual exit path.
 6. Close the window, report shutdown, and shut Logger down.
 
-The final Window close releases current-thread display-color resources before `GameWIP::Game::run()` returns. Process-level Desktop regression
-children verify that standalone color discovery, `WM_CLOSE`, and owner-thread cleanup do not replace the intended successful process exit code.
+The final Window close releases current-thread display-color resources before
+`GameWIP::Game::run()` returns. Process-level Desktop regression children verify
+that standalone color discovery, `WM_CLOSE`, and owner-thread cleanup do not
+replace the intended successful process exit code.
 
 Failure to initialize Logger, enumerate displays, open or close the window, or
-pump events returns `EXIT_FAILURE`; once Logger has started, shutdown is still
-attempted on every runtime failure and a normal-path shutdown failure also
-changes the result to `EXIT_FAILURE`. A failed HDR/color query is included in the
+pump events returns `EXIT_FAILURE`. Once Logger has started, shutdown is still
+attempted on every runtime failure, and a normal-path shutdown failure also
+changes the result to `EXIT_FAILURE`. A failed HDR or color query appears in the
 startup report for that display but does not prevent the window from opening.
 The facade currently ignores `argc` and `argv`; it neither retains nor
 interprets them.
@@ -140,8 +144,8 @@ Use @ref GameWIP::Game for the generated source API reference.
 
 ## Version metadata
 
-CMake configures `game/runtime/version.h.in` into `gamewip/version.h` during project configuration and refreshes it before building the game
-executable.
+CMake configures `game/runtime/version.h.in` into `gamewip/version.h` during
+project configuration and refreshes it before building the game executable.
 
 @ref GameWIP::Version exposes:
 
@@ -155,8 +159,10 @@ executable.
 | `dirty` | Whether tracked source changes were detected when identity was generated. |
 | `release` | Whether generation observed the expected clean annotated release tag. |
 
-Configuration creates the initial values, and the game version-header target refreshes them whenever the executable is built. A long-lived build tree
-therefore observes newer repository state on rebuild without requiring reconfiguration. Release interpretation is owned by @ref project_versioning.
+Configuration creates the initial values, and the game version-header target
+refreshes them whenever the executable is built. A long-lived build tree can
+therefore observe newer repository state on rebuild without reconfiguration.
+Release interpretation is owned by @ref project_versioning.
 
 ## Startup validation facade
 
@@ -167,7 +173,8 @@ therefore observes newer repository state on rebuild without requiring reconfigu
 - Each macro defaults to `0` when the including target does not define it.
 - Disabled functions return successful empty results and do not retain runner dependencies.
 
-These definitions are target-private composition controls, not installed configuration API. Use @ref GameWIP::Validation for the generated result and
+These definitions are target-private composition controls, not installed
+configuration API. Use @ref GameWIP::Validation for the generated result and
 facade reference.
 
 ## Source API boundary
@@ -192,9 +199,9 @@ installed consumer API.
 `game/` may compose reusable libraries, including Logger and Desktop, validation
 objects, Google Benchmark, Tracy instrumentation, and generated project
 metadata. It must not become the implementation owner for behavior that belongs
-to an existing library. The runtime consumes Desktop's public display,
-renderer/color, window-lifetime, and event-pump interfaces; platform-specific
-display and window mechanics remain owned by Desktop.
+existing library. The runtime consumes Desktop's public display, renderer/color,
+window-lifetime, and event-pump interfaces; Desktop retains the platform-specific
+display and window mechanics.
 
 Move code into a reusable library when it becomes general-purpose, independently testable, and useful outside the executable. Long-term engine systems
 belong under `engine/` when that layer owns them.
@@ -203,24 +210,21 @@ belong under `engine/` when that layer owns them.
 
 Every important `.h`, `.cpp`, and generated-header template under `game/` starts with `@file` and `@brief` documentation.
 
-Source comments should explain:
+Source comments explain ownership and integration boundaries, startup and
+shutdown sequencing, compile-time disabled behavior, registration lifetime and
+module adaptation, child-process routing, process-global or generated state,
+and non-obvious validation or benchmark framework requirements.
 
-- Ownership and integration boundaries.
-- Startup and shutdown sequencing.
-- Compile-time disabled behavior.
-- Registration lifetime and module adaptation.
-- Child-process routing protocols.
-- Process-global or generated state.
-- Non-obvious validation and benchmark framework requirements.
-
-Do not narrate simple assignments, forwarding calls, obvious test expectations, or compile-only includes beyond their file-level purpose.
+Simple assignments, forwarding calls, obvious test expectations, and
+compile-only includes need no comments beyond their file-level purpose.
 
 ## Integration invariants
 
 Executable integration preserves these invariants:
 
 - `main.cpp` remains small and sequencing-focused.
-- Version and help requests remain utility-only; help text reflects current build availability.
+- Version and help requests remain utility-only; help text reflects current
+  build availability.
 - Disabled validation paths introduce no validation dependency.
 - Child-route results return before benchmark or runtime execution.
 - Expected runtime failures remain representable as process exit codes.
