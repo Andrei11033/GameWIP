@@ -11,6 +11,7 @@ void testDragDrop(TestSupport::Context &context)
     static_assert(!std::is_move_constructible_v<Desktop::DragDropTarget>);
     static_assert(noexcept(std::declval<Desktop::DragDropTarget &>().close()));
     static_assert(noexcept(Desktop::DragDrop::beginDrag(std::declval<Desktop::Window &>(), DD::Description{})));
+
     static_cast<void>(context.expectFalse("zero session identity is invalid", DD::SessionId{}.isValid()));
     static_cast<void>(context.expectFalse("zero region identity is invalid", DD::RegionId{}.isValid()));
     static_cast<void>(context.expectTrue("nonzero session identity is valid", DD::SessionId{1}.isValid()));
@@ -59,6 +60,7 @@ void testDragDrop(TestSupport::Context &context)
         ErrorCode::NativeFailure,
         Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status.code));
 
+    // Validate source payloads before opening a native target, including encoding and allocation failures.
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
     DD::Description validSource{validTextItems, DD::Effect::Copy, DD::TriggerButton::Left};
     static_cast<void>(context.expectTrue("valid source data prepares", Desktop::TestHooks::prepareDragDropSource(validSource).ok()));
@@ -154,9 +156,13 @@ void testDragDrop(TestSupport::Context &context)
         {
             const HRESULT initialized = OleInitialize(nullptr);
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 compatiblePreinitialized = Desktop::TestHooks::testDragDropOleInitialization().code;
+            }
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 OleUninitialize();
+            }
         });
     compatibleApartmentThread.join();
     static_cast<void>(context.expectEq("compatible preinitialized OLE apartment is reused", ErrorCode::Success, compatiblePreinitialized));
@@ -165,9 +171,13 @@ void testDragDrop(TestSupport::Context &context)
         {
             const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 incompatibleApartment = Desktop::TestHooks::testDragDropOleInitialization().code;
+            }
             if (initialized == S_OK || initialized == S_FALSE)
+            {
                 CoUninitialize();
+            }
         });
     incompatibleApartmentThread.join();
     static_cast<void>(context.expectEq("incompatible OLE apartment is ResourceBusy", ErrorCode::ResourceBusy, incompatibleApartment));
@@ -178,6 +188,7 @@ void testDragDrop(TestSupport::Context &context)
         Desktop::TestHooks::testDragDropMaterialization().code));
     static_cast<void>(context.expectTrue("source COM data-object and enumerator contracts hold", Desktop::TestHooks::dragDropComContractsValid()));
 
+    // Exercise target ownership, region validation, native registration, and queue behavior.
     Desktop::DragDropTarget target;
     static_cast<void>(context.expectFalse("default target is closed", target.isOpen()));
     static_cast<void>(context.expectEq("default target lifetime is Closed", Desktop::Types::LifetimeState::Closed, target.lifetimeState()));
@@ -194,7 +205,9 @@ void testDragDrop(TestSupport::Context &context)
     windowDescription.visible = false;
     Desktop::Window window;
     if (!context.expectTrue("DragDrop Window opens", window.open(windowDescription, 8).ok()))
+    {
         return;
+    }
 
     std::array<Transfer::FormatView, 1> textFormat{{{Transfer::FormatKind::Text, {}}}};
     static_cast<void>(
@@ -394,7 +407,9 @@ void testDragDrop(TestSupport::Context &context)
     const auto *coalesced = coalescedMove.getIf<DDEvents::Moved>();
     static_cast<void>(context.expectTrue("coalesced movement keeps its payload type", coalesced != nullptr));
     if (coalesced != nullptr)
+    {
         static_cast<void>(context.expectEq("coalescing preserves earliest previous region", DD::RegionId{1}, coalesced->previousRegion));
+    }
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, {}, {1}, DD::Effect::Copy, formats}));
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, {}, {1}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("unrelated session moves do not coalesce", std::size_t{2}, target.eventQueueInfo().pendingEvents));

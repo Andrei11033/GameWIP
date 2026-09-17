@@ -1,3 +1,6 @@
+/// @file action.h
+/// @brief Source-tree action mapping, binding, and frame-evaluation interface.
+
 #pragma once
 
 #include <algorithm>
@@ -98,7 +101,7 @@ namespace GameWIP::Action
 
     struct ActionSettings
     {
-        ActionKind kind = ActionKind::Button;           // Type of action (button/axis1d/axis2d).
+        ActionKind kind = ActionKind::Button;
         bool clampValue = true;                         // Clamp final value to valid range.
         bool normalizeDiagonal = false;                 // Normalize 2D diagonal input to unit length.
         DeadzoneMode deadzoneMode = DeadzoneMode::None; // Deadzone processing mode.
@@ -112,8 +115,7 @@ namespace GameWIP::Action
         float activationThreshold = 0.5f;               // Threshold for pressed/down states.
     };
 
-    /// @brief Creates default button action settings.
-    /// @return Button settings.
+    /// @brief Creates default button-action settings.
     ActionSettings makeButtonSettings();
 
     /// @brief Creates one-dimensional axis settings.
@@ -292,26 +294,54 @@ namespace GameWIP::Action
 
     template <typename ActionEnum> class ActionMap;
 
+    /// @brief Builds one binding and stores it when pressed(), hold(), value(), or another trigger method is called.
+    /// @tparam ActionEnum Contiguous action enum whose values are used as ActionMap indices.
     template <typename ActionEnum> class ActionBindingBuilder
     {
     public:
+        /// @brief Creates a builder that targets one action in the supplied map.
+        /// @param map Map that receives the completed binding; the builder must not outlive it.
+        /// @param action Action slot targeted by the completed binding.
         ActionBindingBuilder(ActionMap<ActionEnum> &map, ActionEnum action);
 
+        /// @brief Replaces the primary control for the binding.
         ActionBindingBuilder &on(Input::InputControl primaryControl);
+        /// @brief Appends one modifier to the pending combo.
         ActionBindingBuilder &withModifier(Input::InputControl modifier);
+        /// @brief Appends all supplied modifiers in their existing order.
         ActionBindingBuilder &withModifiers(std::span<const Input::InputControl> modifiers);
+        /// @brief Requires the primary control to activate after all modifiers.
         ActionBindingBuilder &primaryLast();
+        /// @brief Allows the primary control and modifiers to activate in any order.
         ActionBindingBuilder &anyOrder();
+        /// @brief Copies per-binding value-processing settings into the pending binding.
         ActionBindingBuilder &withSettings(const ActionSettings &settings);
 
+        /// @brief Adds a pressed-trigger binding and returns its validation result.
         ActionResult pressed();
+        /// @brief Adds a released-trigger binding and returns its validation result.
         ActionResult released();
+        /// @brief Adds a held-down binding and returns its validation result.
         ActionResult down();
+        /// @brief Adds a tap-trigger binding and returns its validation result.
         ActionResult tap();
+        /// @brief Adds a hold-trigger binding; seconds must be positive and finite.
         ActionResult hold(float seconds);
+        /// @brief Adds a double-tap binding; seconds must be positive and finite.
         ActionResult doubleTap(float seconds);
+        /// @brief Adds a value binding using one action component and mapping.
+        /// @param component Scalar for 1D actions, or X/Y for 2D actions.
+        /// @param scale Multiplier applied to the selected input component.
+        /// @param threshold Non-negative activation threshold for the input value.
         ActionResult value(ActionComponent component = ActionComponent::Scalar, float scale = 1.0f, float threshold = 0.0f);
+        /// @brief Adds a scalar value binding for a 1D action.
+        /// @param scale Multiplier applied to the input value.
+        /// @param threshold Non-negative activation threshold for the input value.
         ActionResult axis1D(float scale = 1.0f, float threshold = 0.0f);
+        /// @brief Adds an X or Y component binding for a 2D action.
+        /// @param component Must be X or Y; Scalar is rejected.
+        /// @param scale Multiplier applied to the selected input component.
+        /// @param threshold Non-negative activation threshold for the input value.
         ActionResult axis2D(ActionComponent component, float scale = 1.0f, float threshold = 0.0f);
 
     private:
@@ -321,19 +351,38 @@ namespace GameWIP::Action
         ActionResult add(ActionTrigger trigger, ActionComponent component, float scale, float threshold, float holdSeconds, float doubleTapSeconds);
     };
 
+    /// @brief Maps physical input controls to typed actions and evaluates one frame at a time.
+    /// @tparam ActionEnum Contiguous action enum whose values are used as indices in the range [0, actionCount).
     template <typename ActionEnum> class ActionMap
     {
     public:
+        /// @brief Creates an action map with the requested number of action slots.
+        /// @param actionCount Number of action slots; ActionEnum values passed to this map must be below it.
         explicit ActionMap(ActionEnum actionCount);
 
+        /// @brief Resizes the action and state slots without clearing stored bindings.
+        /// @param actionCount New number of action slots.
+        /// @note Bindings that target removed slots remain stored and are ignored until
+        /// those slots exist again.
         void resize(ActionEnum actionCount);
+        /// @brief Returns the number of action slots currently allocated.
         std::size_t getActionCount() const;
 
+        /// @brief Reports whether an action enum value maps to an allocated slot.
+        /// @return True when action converts to an index within the allocated slots.
         bool isValidAction(ActionEnum action) const;
 
+        /// @brief Selects the value-processing kind for one action slot.
+        /// @return InvalidAction when action is outside the allocated slots.
         ActionResult defineAction(ActionEnum action, ActionKind kind);
 
+        /// @brief Clears per-frame action outputs and input snapshots while retaining bindings and gesture continuity.
+        /// @note Call once before evaluate() for each new frame.
         void advanceFrame();
+        /// @brief Evaluates all bindings against one input snapshot.
+        /// @param inputState Input state whose current-frame values and activations are consumed.
+        /// @param deltaSeconds Elapsed frame time in seconds; negative values are treated as zero.
+        /// @note Call advanceFrame() before evaluation so pressed/released and snapshot data belong to one frame.
         void evaluate(const Input::InputState &inputState, float deltaSeconds);
 
         /// @brief Returns whether captured text input is available.
@@ -341,7 +390,7 @@ namespace GameWIP::Action
         bool hasTextInput() const;
 
         /// @brief Returns captured UTF-8 text input.
-        /// @return Text received during the last evaluation.
+        /// @return Text received during the last evaluation; the view remains valid until the next advanceFrame() or evaluate().
         std::string_view getTextInputUtf8() const;
 
         /// @brief Returns whether captured mouse position is valid.
@@ -349,11 +398,11 @@ namespace GameWIP::Action
         bool hasMousePosition() const;
 
         /// @brief Returns captured mouse X position.
-        /// @return Latest client-area x position.
+        /// @return Latest client-area x position; meaningful only when hasMousePosition() is true.
         int getMouseX() const;
 
         /// @brief Returns captured mouse Y position.
-        /// @return Latest client-area y position.
+        /// @return Latest client-area y position; meaningful only when hasMousePosition() is true.
         int getMouseY() const;
 
         /// @brief Returns captured raw mouse X movement.
@@ -366,36 +415,55 @@ namespace GameWIP::Action
 
         /// @brief Returns captured mouse wheel movement.
         /// @param wheel Wheel axis to query.
-        /// @return Wheel movement from the last evaluation.
+        /// @return Wheel movement from the last evaluation, in the input backend's wheel units.
         float getMouseWheelDelta(Input::MouseWheel wheel) const;
 
+        /// @brief Reports whether an action is active after the most recent evaluation.
+        /// @return True while active; false for an invalid action.
         bool isDown(ActionEnum action) const;
+        /// @brief Reports whether an action became active during the most recent evaluation.
+        /// @return True when pressed; false for an invalid action.
         bool wasPressed(ActionEnum action) const;
+        /// @brief Reports whether an action became inactive during the most recent evaluation.
+        /// @return True when released; false for an invalid action.
         bool wasReleased(ActionEnum action) const;
 
+        /// @brief Returns the current scalar value for an action.
+        /// @return Current value, or zero for an invalid or non-scalar action.
         float getValue(ActionEnum action) const;
+        /// @brief Returns the current X component for a 2D action.
+        /// @return Current X value, or zero for an invalid or non-2D action.
         float getValueX(ActionEnum action) const;
+        /// @brief Returns the current Y component for a 2D action.
+        /// @return Current Y value, or zero for an invalid or non-2D action.
         float getValueY(ActionEnum action) const;
 
+        /// @brief Returns the map's binding storage without copying.
+        /// @return Read-only view invalidated by binding additions or removals.
         std::span<const ActionBinding<ActionEnum>> getBindings() const;
 
+        /// @brief Starts a fluent binding builder for one action.
+        /// @param action Action slot targeted by the builder.
+        /// @return Builder that retains a reference to this map.
         ActionBindingBuilder<ActionEnum> bind(ActionEnum action);
+        /// @brief Validates and stores one binding by value.
+        /// @return Success, ConflictingBinding when the binding is usable but overlaps another binding, or a rejection result.
         ActionResult addBinding(const ActionBinding<ActionEnum> &binding);
 
         /// @brief Starts a stateful rebind capture.
-        /// @param action Action to bind.
-        /// @param options Rebinding behavior.
-        /// @param outSession Session that receives capture state.
+        /// @param action Action slot to bind.
+        /// @param options Rebinding behavior copied into outSession.
+        /// @param outSession Session overwritten with the new capture state.
         /// @return Collecting on success, or an error result.
         RebindResult beginBindingCapture(ActionEnum action, const ActionRebindOptions &options, ActionRebindSession<ActionEnum> &outSession) const;
 
         /// @brief Updates a stateful rebind capture.
-        /// @param inputState Raw input state to inspect.
-        /// @param session Active capture session.
-        /// @param outCapture Captured binding data.
-        /// @param cancelControls Controls that cancel capture.
+        /// @param inputState Raw input state to inspect for this frame.
+        /// @param session Active session; remains active while the result is Collecting.
+        /// @param outCapture Capture data overwritten on every call.
+        /// @param cancelControls Controls that cancel capture before they can be captured.
         /// @param ignoredControls Controls ignored during capture.
-        /// @return Capture result.
+        /// @return Capture result; Canceled and InvalidControl end the session.
         RebindResult updateBindingCapture(
             const Input::InputState &inputState,
             ActionRebindSession<ActionEnum> &session,
@@ -403,12 +471,12 @@ namespace GameWIP::Action
             std::span<const Input::InputControl> cancelControls = {},
             std::span<const Input::InputControl> ignoredControls = {}) const;
 
-        /// @brief Captures a binding from the newest valid input activation.
-        /// @param action Action to bind.
+        /// @brief Captures one binding from the current activations, preferring the newest eligible button or strongest eligible axis movement.
+        /// @param action Action slot to bind.
         /// @param inputState Raw input state to inspect.
-        /// @param options Rebinding behavior.
-        /// @param outCapture Captured binding data.
-        /// @param cancelControls Controls that cancel capture.
+        /// @param options Rebinding behavior used to filter and construct the binding.
+        /// @param outCapture Capture data overwritten on every call.
+        /// @param cancelControls Controls that cancel capture before they can be captured.
         /// @param ignoredControls Controls ignored during capture.
         /// @return Capture result.
         RebindResult captureBinding(
@@ -420,10 +488,13 @@ namespace GameWIP::Action
             std::span<const Input::InputControl> ignoredControls = {}) const;
 
         /// @brief Applies a previously captured binding.
-        /// @param capture Captured binding to apply.
-        /// @return Result from binding validation/add.
+        /// @param capture Captured binding whose result must be Captured.
+        /// @return Result from binding validation/add; InvalidBinding when capture is incomplete.
         ActionResult applyCapturedBinding(const ActionRebindCapture<ActionEnum> &capture);
+        /// @brief Removes every binding targeting one action.
+        /// @param action Action slot whose bindings are removed; invalid actions are ignored.
         void clearBindings(ActionEnum action);
+        /// @brief Removes all bindings and their runtime gesture state.
         void clearAllBindings();
 
     private:

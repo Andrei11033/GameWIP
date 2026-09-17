@@ -161,7 +161,7 @@ namespace
         return false;
     }
 
-    constexpr std::array<ValidationTests::Module, 2> probeModules = {{
+    constexpr std::array<ValidationTests::Module, 2> kProbeModules = {{
         {.name = "alpha", .order = 20, .run = runAlpha},
         {.name = "beta", .order = 10, .run = runBeta},
     }};
@@ -205,7 +205,7 @@ namespace
 
     Validation::TestResult runProbe(std::initializer_list<std::string_view> arguments, ValidationTests::RunOptions options = unattendedOptions())
     {
-        return runProbeWithModules(arguments, probeModules, std::move(options));
+        return runProbeWithModules(arguments, kProbeModules, std::move(options));
     }
 
     // ------------------------------------------------------------

@@ -2,8 +2,12 @@ cmake_minimum_required(VERSION 4.4.2)
 
 project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
 
-# RC is enabled once at the highest common directory for Windows targets that
-# attach backend-owned manifests and resources.
+# ------------------------------------------------------------
+# Language and platform prerequisites
+# ------------------------------------------------------------
+
+# RC is enabled once at the highest common directory for Windows application
+# targets that explicitly attach a process manifest.
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     enable_language(RC)
 endif()
@@ -13,6 +17,10 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
+# ------------------------------------------------------------
+# Shared project infrastructure
+# ------------------------------------------------------------
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -27,10 +35,35 @@ include(GameWIPSanitizers)
 include(GameWIPWarnings)
 include(GameWIPDocumentation)
 include(GameWIPStaticAnalysis)
+include(GameWIPApplication)
+
+include(CMakePackageConfigHelpers)
+set(GAMEWIP_APPLICATION_PACKAGE_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/GameWIPApplication")
+set(GAMEWIP_APPLICATION_PACKAGE_CONFIG "${CMAKE_CURRENT_BINARY_DIR}/GameWIPApplicationConfig.cmake")
+set(GAMEWIP_APPLICATION_PACKAGE_VERSION "${CMAKE_CURRENT_BINARY_DIR}/GameWIPApplicationConfigVersion.cmake")
+configure_package_config_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPApplicationConfig.cmake.in"
+    "${GAMEWIP_APPLICATION_PACKAGE_CONFIG}"
+    INSTALL_DESTINATION "${GAMEWIP_APPLICATION_PACKAGE_DIR}"
+)
+write_basic_package_version_file("${GAMEWIP_APPLICATION_PACKAGE_VERSION}" VERSION "${PROJECT_VERSION}" COMPATIBILITY ExactVersion)
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPApplication.cmake"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/application_manifest.manifest.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/application_manifest.rc.in"
+        "${GAMEWIP_APPLICATION_PACKAGE_CONFIG}"
+        "${GAMEWIP_APPLICATION_PACKAGE_VERSION}"
+    DESTINATION "${GAMEWIP_APPLICATION_PACKAGE_DIR}"
+)
 
 gamewip_configure_version()
 
 gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
+
+# ------------------------------------------------------------
+# Repository-level validation tests
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_TESTS)
     enable_testing()
@@ -47,7 +80,21 @@ if(GAMEWIP_BUILD_TESTS)
             "${PROJECT_SOURCE_DIR}/cmake/ValidateCMakeRequirements.cmake"
     )
     set_tests_properties(validation.version.composition validation.cmake.requirement_propagation PROPERTIES TIMEOUT 120)
+
+    add_test(
+        NAME validation.cmake.application_manifest
+        COMMAND
+            "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${PROJECT_BINARY_DIR}/application-manifest-tests"
+            "-DMODULE_DIR=${PROJECT_SOURCE_DIR}/cmake" "-DGENERATOR=${CMAKE_GENERATOR}" "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+            "-DBUILD_TYPE=$<CONFIG>" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}" -P
+            "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
+    )
+    set_tests_properties(validation.cmake.application_manifest PROPERTIES LABELS "validation;cmake" TIMEOUT 120)
 endif()
+
+# ------------------------------------------------------------
+# Project composition
+# ------------------------------------------------------------
 
 add_subdirectory(external)
 
@@ -57,6 +104,10 @@ add_subdirectory(foundation)
 add_subdirectory(tools)
 add_subdirectory(engine)
 add_subdirectory(game)
+
+# ------------------------------------------------------------
+# Cross-cutting generated targets
+# ------------------------------------------------------------
 
 gamewip_create_coverage_target()
 gamewip_create_documentation_target()

@@ -1,4 +1,8 @@
-# GameWIP C/C++ formatting policy and focused changed-file support.
+# C and C++ formatting policy and changed-file support.
+
+# ------------------------------------------------------------
+# Formatting scope and execution
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

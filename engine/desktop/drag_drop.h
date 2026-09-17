@@ -28,13 +28,11 @@ namespace GameWIP::Desktop::Types::DragDrop
     {
         std::uint64_t value = 0; ///< Non-zero identity; zero represents no session.
 
-        /// @brief Returns whether this identity names a session.
-        /// @return true when value is non-zero.
+        /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
         {
             return value != 0;
         }
-        /// @brief Compares two session identities.
         friend constexpr bool operator==(SessionId, SessionId) noexcept = default;
     };
 
@@ -43,13 +41,11 @@ namespace GameWIP::Desktop::Types::DragDrop
     {
         std::uint64_t value = 0; ///< Non-zero application identity; zero means no region.
 
-        /// @brief Returns whether this identity names a region.
-        /// @return true when value is non-zero.
+        /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
         {
             return value != 0;
         }
-        /// @brief Compares two region identities.
         friend constexpr bool operator==(RegionId, RegionId) noexcept = default;
     };
 
@@ -62,34 +58,18 @@ namespace GameWIP::Desktop::Types::DragDrop
         Link = 1U << 2  ///< Create a source-defined link to the transferred data.
     };
 
-    /// @brief Combines two effect masks.
-    /// @param left First effect mask.
-    /// @param right Second effect mask.
-    /// @return Union of both masks.
     [[nodiscard]] constexpr Effect operator|(Effect left, Effect right) noexcept
     {
         return static_cast<Effect>(static_cast<std::uint8_t>(left) | static_cast<std::uint8_t>(right));
     }
-    /// @brief Intersects two effect masks.
-    /// @param left First effect mask.
-    /// @param right Second effect mask.
-    /// @return Intersection of both masks.
     [[nodiscard]] constexpr Effect operator&(Effect left, Effect right) noexcept
     {
         return static_cast<Effect>(static_cast<std::uint8_t>(left) & static_cast<std::uint8_t>(right));
     }
-    /// @brief Adds an effect mask to an existing mask.
-    /// @param left Effect mask to update.
-    /// @param right Effect mask to add.
-    /// @return Reference to the updated mask.
     constexpr Effect &operator|=(Effect &left, Effect right) noexcept
     {
         return left = left | right;
     }
-    /// @brief Intersects an existing effect mask in place.
-    /// @param left Effect mask to update.
-    /// @param right Effect mask to intersect.
-    /// @return Reference to the updated mask.
     constexpr Effect &operator&=(Effect &left, Effect right) noexcept
     {
         return left = left & right;
@@ -237,7 +217,7 @@ namespace GameWIP::Desktop
     /// @details A successful open inherits the Window owner thread. Descriptions and format names
     /// are copied during open or setRegions; caller-provided event storage remains borrowed until
     /// close. Native operations and event consumption require the inherited owner thread.
-    class GAMEWIP_DESKTOP_EXPORT DragDropTarget final
+    class DESKTOP_EXPORT DragDropTarget final
     {
     public:
         // ------------------------------------------------------------
@@ -362,5 +342,5 @@ namespace GameWIP::Desktop::DragDrop
     /// @param source Open Window owned by the calling thread.
     /// @param description Portable data and explicit source effect/button policy.
     /// @return Preparation/native status, terminal outcome, and the selected effect when dropped.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::DragDrop::Result beginDrag(Window &source, const Types::DragDrop::Description &description) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::DragDrop::Result beginDrag(Window &source, const Types::DragDrop::Description &description) noexcept;
 } // namespace GameWIP::Desktop::DragDrop

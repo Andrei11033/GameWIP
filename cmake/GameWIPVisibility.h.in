@@ -1,0 +1,6 @@
+/// @file GameWIPVisibility.h.in
+/// @brief Template for the minimal installed visibility header of a GameWIP module.
+
+#pragma once
+
+@GAMEWIP_VISIBILITY_EXPORT_DEFINITION@

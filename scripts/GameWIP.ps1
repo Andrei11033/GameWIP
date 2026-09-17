@@ -1,4 +1,8 @@
-# GameWIP project-helper executable entry point. Library/bootstrap code lives under scripts/lib/.
+# Project-helper entry point. Shared behavior lives under scripts/lib/.
+
+# ------------------------------------------------------------
+# Command-line contract and bootstrap
+# ------------------------------------------------------------
 
 [CmdletBinding()]
 param(
@@ -51,11 +55,15 @@ if ($Quiet)
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 
+# ------------------------------------------------------------
+# Early command validation and common exits
+# ------------------------------------------------------------
+
 if ($Action -in @('--help', '-h', '-?'))
 {
     $Action = 'help'
 }
-$validActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'benchmark', 'runs', 'list', 'help')
+$validActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'ubsan', 'benchmark', 'runs', 'list', 'help')
 if ($Action -notin $validActions)
 {
     Write-GameWipHost "Unknown project action '$Action'." -ForegroundColor Red
@@ -99,8 +107,14 @@ $result = Invoke-GameWipOperation `
     -SuppressReceipt:$Quiet `
     -SuppressOutput:$Quiet `
     -ScriptBlock {
+    # Dispatch remains in the entry point so the command-line contract is visible
+    # in one place; feature behavior belongs to the focused library functions.
     switch ($Action)
     {
+        # ------------------------------------------------------------
+        # Navigation and repository operations
+        # ------------------------------------------------------------
+
         'doctor'
         {
             Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
@@ -293,6 +307,11 @@ $result = Invoke-GameWipOperation `
         {
             Invoke-GameWipMarkdownLink
         }
+
+        # ------------------------------------------------------------
+        # Configure, build, and validation operations
+        # ------------------------------------------------------------
+
         'configure'
         {
             $preset = if ([string]::IsNullOrWhiteSpace($Command))
@@ -421,6 +440,11 @@ $result = Invoke-GameWipOperation `
             }
             Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -Fresh.', 'Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
         }
+
+        # ------------------------------------------------------------
+        # Documentation, analysis, and retained-run operations
+        # ------------------------------------------------------------
+
         'docs'
         {
             Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body { Invoke-GameWipConfigurePreset -Name docs; Invoke-GameWipBuildPreset -Name docs } | Out-Null
@@ -436,6 +460,10 @@ $result = Invoke-GameWipOperation `
         'asan'
         {
             Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null
+        }
+        'ubsan'
+        {
+            Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null
         }
         'benchmark'
         {

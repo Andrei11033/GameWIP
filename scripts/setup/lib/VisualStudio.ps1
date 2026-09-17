@@ -1,4 +1,8 @@
-# GameWIP Visual Studio discovery, installation, update, and workload verification.
+# Visual Studio discovery, installation, update, and workload verification.
+
+# ------------------------------------------------------------
+# Visual Studio discovery and installation
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

@@ -7,11 +7,9 @@ include_guard(GLOBAL)
 # - gamewip_register_doxygen_library(...)
 # - gamewip_create_doxygen_target(...)
 #
-# Contract:
-# - Register only explicit documented headers and Markdown manual pages.
-# - Require each registered reusable library to provide its landing page.
-# - Keep library CMakeLists.txt files declarative and local to their own docs.
-# - Fail configuration on unsupported inputs instead of silently omitting docs.
+# Register only explicit documented headers and Markdown manual pages. Each
+# reusable library must provide its landing page; unsupported inputs fail during
+# configuration instead of being silently omitted.
 
 function(gamewip_register_doxygen_inputs)
     foreach(doxygen_input IN LISTS ARGN)
@@ -22,9 +20,8 @@ function(gamewip_register_doxygen_inputs)
         get_filename_component(doxygen_input_absolute "${doxygen_input}" ABSOLUTE)
 
         if(IS_DIRECTORY "${doxygen_input_absolute}")
-            # Register documentation files explicitly instead of passing folders
-            # to Doxygen. This avoids accidental recursive crawls through build
-            # output, generated HTML, private notes, or future helper folders.
+            # Register files explicitly so Doxygen does not crawl build output,
+            # generated HTML, private notes, or unrelated helper folders.
             file(
                 GLOB doxygen_directory_inputs
                 CONFIGURE_DEPENDS
@@ -164,6 +161,9 @@ function(gamewip_create_doxygen_target)
         COMMAND "${CMAKE_COMMAND}" -E echo "Generating Doxygen HTML into: ${LIBRARY_DOXYGEN_OUTPUT_DIR}/html"
         COMMAND Doxygen::doxygen "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
         COMMAND "${CMAKE_COMMAND}" "-DWARNING_LOG=${LIBRARY_DOXYGEN_WARNING_LOG}" -P "${PROJECT_SOURCE_DIR}/cmake/RejectDoxygenWarnings.cmake"
+        COMMAND
+            "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DDOXYGEN_EXECUTABLE=${DOXYGEN_EXECUTABLE}"
+            "-DTEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/doxygen-warning-filter-test" -P "${PROJECT_SOURCE_DIR}/cmake/TestRejectDoxygenWarnings.cmake"
         COMMAND "${CMAKE_COMMAND}" -E echo "Generated Doxygen HTML: ${LIBRARY_DOXYGEN_HTML_INDEX}"
         COMMAND "${CMAKE_COMMAND}" -E echo "Doxygen warnings: ${LIBRARY_DOXYGEN_WARNING_LOG}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"

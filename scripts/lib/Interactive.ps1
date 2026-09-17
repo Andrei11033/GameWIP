@@ -1,4 +1,8 @@
-# GameWIP interactive UI. Navigation owns no operation state; every selected action gets a fresh operation.
+# Interactive menus and action selection. Navigation does not own operation state.
+
+# ------------------------------------------------------------
+# Interactive context and menu dispatch
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 
@@ -18,8 +22,15 @@ function Invoke-GameWipInteractiveOperation
 
 function Read-GameWipNamedChoice
 {
-    param([string]$Prompt, [string[]]$Choices, [string]$Default)
-    $result = Read-GameWipMenuChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default
+    param([string]$Prompt, [string[]]$Choices, [string]$Default, [switch]$AllowMultiple)
+    $result = if ($AllowMultiple)
+    {
+        Read-GameWipIndexedChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default -AllowMultiple
+    }
+    else
+    {
+        Read-GameWipMenuChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default
+    }
     if ($result.Status -eq 'Cancelled')
     {
         return $null
@@ -198,7 +209,7 @@ function Show-GameWipValidationMenu
             }
             'module'
             {
-                $module = Read-GameWipNamedChoice -Prompt 'Validation module' -Choices (@('all') + @($CommandConfig.Modules)) -Default $CommandConfig.DefaultModule
+                $module = Read-GameWipNamedChoice -Prompt 'Validation module' -Choices (@('all') + @(Get-GameWipValidationModuleName)) -Default $CommandConfig.DefaultModule
                 if ($null -ne $module)
                 {
                     Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -NoBuild:$NoBuild } | Out-Null } | Out-Null
@@ -206,7 +217,7 @@ function Show-GameWipValidationMenu
             }
             'stress'
             {
-                $module = Read-GameWipNamedChoice -Prompt 'Stress module' -Choices (@('all') + @($CommandConfig.Modules)) -Default $CommandConfig.DefaultModule
+                $module = Read-GameWipNamedChoice -Prompt 'Stress module' -Choices (@('all') + @(Get-GameWipValidationModuleName)) -Default $CommandConfig.DefaultModule
                 if ($null -ne $module)
                 {
                     $runs = Read-GameWipIntegerValue -Prompt 'Run count' -Default ([int]$CommandConfig.DefaultStressCount)
@@ -237,6 +248,10 @@ function Show-GameWipValidationMenu
             'asan'
             {
                 Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+            }
+            'ubsan'
+            {
+                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
             }
         }
     }
@@ -406,18 +421,20 @@ function Show-GameWipToolUpdatesMenu
             }
             'tools-preview'
             {
-                $id = Read-GameWipNamedChoice -Prompt 'Tool to preview' -Choices (@('all') + @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id })) -Default all
+                $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to preview' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "tools-preview-$id" -Body { Invoke-GameWipToolUpdate -ToolId $id -PreviewOnly } | Out-Null
+                    Invoke-GameWipInteractiveOperation -Label "tools-preview-$($id -join '-')" -Body { Invoke-GameWipToolUpdate -ToolId $id -PreviewOnly } | Out-Null
                 }
             }
             'tools-update'
             {
-                $id = Read-GameWipNamedChoice -Prompt 'Tool to update' -Choices (@('all') + @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id })) -Default all
+                $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to update' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "tools-update-$id" -Body { Invoke-GameWipToolUpdate -ToolId $id } | Out-Null
+                    # One combined plan keeps earlier selected updates from making
+                    # the tracked tree dirty before the next tool's preflight.
+                    Invoke-GameWipInteractiveOperation -Label "tools-update-$($id -join '-')" -Body { Invoke-GameWipToolUpdate -ToolId $id } | Out-Null
                 }
             }
         }

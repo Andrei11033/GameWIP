@@ -25,11 +25,13 @@ void testShutdownAndHealthEpoch(TestContext &context)
                                     snapshot.lastFailureSource == Logger::Types::Health::FailureSource::File &&
                                     snapshot.lastError != IO::Types::ErrorCode::Success && snapshot.failureCount > 0;
                 if (!healthy && !failed)
+                {
                     healthSnapshotsCoherent.store(false, std::memory_order_release);
+                }
             }
         });
     GameWIP::Logger::TestHooks::forceNextFileWriteFailure();
-    Logger::info(testSource, "worker failure");
+    Logger::info(kTestSource, "worker failure");
     static_cast<void>(Logger::flush(2s));
     observeHealth.store(false, std::memory_order_release);
     healthObserver.join();

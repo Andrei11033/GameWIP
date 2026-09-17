@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 
 project(GameWIPInstalledConsumer LANGUAGES CXX)
 
+if(WIN32)
+    enable_language(RC)
+endif()
+
 if(NOT DEFINED GAMEWIP_PACKAGE_VERSION)
     message(FATAL_ERROR "GAMEWIP_PACKAGE_VERSION is required.")
 endif()
@@ -22,6 +26,8 @@ target_link_libraries(
     PRIVATE GameWIP::Unicode GameWIP::IO GameWIP::FileSystem GameWIP::Terminal GameWIP::Desktop GameWIP::Logger GameWIP::Assert GameWIP::TestSupport
 )
 
+gamewip_attach_application_manifest(TARGET GameWIPInstalledConsumer COMMON_CONTROLS_V6 PER_MONITOR_V2)
+
 if(GAMEWIP_CONSUMER_LINK_COVERAGE)
     target_link_options(GameWIPInstalledConsumer PRIVATE --coverage)
 endif()
@@ -29,4 +35,12 @@ endif()
 if(GAMEWIP_CONSUMER_ENABLE_ADDRESS_SANITIZER)
     target_compile_options(GameWIPInstalledConsumer PRIVATE -fsanitize=address -fno-omit-frame-pointer)
     target_link_options(GameWIPInstalledConsumer PRIVATE -fsanitize=address)
+endif()
+
+if(GAMEWIP_CONSUMER_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER)
+    target_compile_options(
+        GameWIPInstalledConsumer
+        PRIVATE -fsanitize=undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer -fno-sanitize-merge
+    )
+    target_link_options(GameWIPInstalledConsumer PRIVATE -fsanitize=undefined)
 endif()

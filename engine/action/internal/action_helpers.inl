@@ -1,3 +1,6 @@
+/// @file action_helpers.inl
+/// @brief Inline Action validation and control-classification helpers.
+
 #pragma once
 
 namespace GameWIP::Action

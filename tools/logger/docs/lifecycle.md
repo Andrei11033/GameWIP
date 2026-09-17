@@ -10,6 +10,9 @@ Recoverable numeric/storage adjustments remain successful and are described by t
 If File setup fails and Console remains available, overall initialization succeeds, `effectiveOutput` reflects Console, and `outputSetupStatus`
 contains the original File/setup failure. If no normal sink remains, init fails and returns `Disabled`.
 
+If timestamp conversion fails during File setup but the log file still opens, initialization can still start with File output. The failure remains
+visible through `outputSetupStatus` and health because timestamp quality degraded, but the usable sink is not disabled.
+
 Calling init while Logger is active returns `AlreadyOpen`, preserves the existing runtime and health, and does not reconfigure it. Reconfiguration is
 explicit: `shutdown()` then `init()`.
 

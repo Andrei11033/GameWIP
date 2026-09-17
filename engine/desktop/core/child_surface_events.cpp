@@ -15,7 +15,9 @@ namespace GameWIP::Desktop::Detail
         void discardAt(ChildSurfaceState &state, std::size_t index) noexcept
         {
             for (std::size_t current = index; current + 1 < state.eventCount; ++current)
+            {
                 state.eventStorage[physicalIndex(state, current)] = state.eventStorage[physicalIndex(state, current + 1)];
+            }
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
             ++state.droppedEvents;
@@ -32,7 +34,9 @@ namespace GameWIP::Desktop::Detail
     ChildSurfaceEnqueueResult enqueueChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept
     {
         if (state.suppressEvents)
+        {
             return ChildSurfaceEnqueueResult::Coalesced;
+        }
         if (state.eventStorage.empty())
         {
             ++state.droppedEvents;
@@ -45,7 +49,9 @@ namespace GameWIP::Desktop::Detail
             {
                 auto &queued = state.eventStorage[physicalIndex(state, offset - 1)];
                 if (!isChildSurfaceEventCoalescible(queued.data))
+                {
                     break;
+                }
                 if (queued.data.index() == data.index())
                 {
                     queued.data = data;
@@ -66,7 +72,9 @@ namespace GameWIP::Desktop::Detail
                 }
             }
             if (replaceIndex == state.eventCount && std::holds_alternative<Types::ChildSurface::Events::NativeDestroyed>(data))
+            {
                 replaceIndex = 0;
+            }
             if (replaceIndex == state.eventCount)
             {
                 ++state.droppedEvents;

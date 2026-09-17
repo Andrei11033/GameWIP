@@ -4,7 +4,8 @@ FileSystem exposes both lexical path transformations and operations that consult
 
 ## Lexical operations
 
-The following operations use `std::filesystem::path` component rules and do not access the filesystem:
+These operations use `std::filesystem::path` component rules and do not access
+the filesystem:
 
 - `parentPath()`;
 - `filename()`;

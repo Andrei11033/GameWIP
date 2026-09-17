@@ -28,7 +28,7 @@ is not silently replaced.
 ## `Types::Init::Result`
 
 `status` answers whether initialization itself succeeded. `outcome` tells whether the resulting Logger is Started or Disabled. `requestedOutput` and
-`effectiveOutput` expose fallback directly. `outputSetupStatus` preserves a failed/degraded requested output setup even when overall init succeeds via
-fallback.
+`effectiveOutput` expose fallback directly. `outputSetupStatus` preserves File setup and timestamp setup failures even when overall init succeeds.
+That can mean Console fallback, or a degraded File logger when the log file opened but timestamp conversion reported a failure.
 
 Use `getQueueLimits()` for authoritative effective queue/message values.

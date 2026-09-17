@@ -1,5 +1,9 @@
+/// @file input.cpp
+/// @brief Input state and device-registry mutation implementation.
+
 #include "input/input.h"
 #include "input/internal/input_state_access.h"
+#include "unicode/unicode.h"
 
 #include <algorithm>
 #include <array>
@@ -9,63 +13,43 @@ namespace GameWIP::Input
 {
     namespace
     {
-        // Control helpers
-
-        /// @brief Returns true when a control is a button.
-        /// @param control Control to test.
-        /// @return True if the control is a button.
+        // Sparse input-state vectors stay sorted so lookup and update helpers can use lower_bound without hash storage.
         bool isButtonControl(InputControl control)
         {
             return control.controlType == InputControlType::Button;
         }
 
-        /// @brief Returns true when a control is an axis.
-        /// @param control Control to test.
-        /// @return True if the control is an axis.
         bool isAxisControl(InputControl control)
         {
             return control.controlType == InputControlType::Axis;
         }
 
-        /// @brief Returns true when a control is a wheel.
-        /// @param control Control to test.
-        /// @return True if the control is a wheel.
         bool isWheelControl(InputControl control)
         {
             return control.controlType == InputControlType::Wheel;
         }
 
-        /// @brief Finds where a control belongs in a sorted compact control list.
         auto findControl(std::vector<InputControl> &controls, InputControl control)
         {
             return std::lower_bound(controls.begin(), controls.end(), control);
         }
 
-        /// @brief Finds where a control belongs in a sorted compact control list.
         auto findControl(const std::vector<InputControl> &controls, InputControl control)
         {
             return std::lower_bound(controls.begin(), controls.end(), control);
         }
 
-        /// @brief Returns whether a lower-bound result points at a matching control.
         template <typename Iterator> bool isMatchingControl(Iterator entry, Iterator end, InputControl control)
         {
             return entry != end && *entry == control;
         }
 
-        /// @brief Returns whether a control is stored in a sorted compact control list.
-        /// @param controls Control list to search.
-        /// @param control Control to search for.
-        /// @return True if the control exists in the list.
         bool containsControl(const std::vector<InputControl> &controls, InputControl control)
         {
             auto entry = findControl(controls, control);
             return isMatchingControl(entry, controls.end(), control);
         }
 
-        /// @brief Adds a control to a sorted compact list if it is not already present.
-        /// @param controls Control list to update.
-        /// @param control Control to add.
         void addUniqueControl(std::vector<InputControl> &controls, InputControl control)
         {
             auto entry = findControl(controls, control);
@@ -75,9 +59,6 @@ namespace GameWIP::Input
             }
         }
 
-        /// @brief Removes a control from a sorted compact list.
-        /// @param controls Control list to update.
-        /// @param control Control to remove.
         void removeControl(std::vector<InputControl> &controls, InputControl control)
         {
             auto entry = findControl(controls, control);
@@ -87,10 +68,6 @@ namespace GameWIP::Input
             }
         }
 
-        /// @brief Finds where a control/value pair belongs in a sorted compact value list.
-        /// @param values Control/value list to search.
-        /// @param control Control to search for.
-        /// @return Iterator to the matching entry, or values.end().
         auto findControlValue(std::vector<std::pair<InputControl, float>> &values, InputControl control)
         {
             return std::lower_bound(
@@ -103,10 +80,6 @@ namespace GameWIP::Input
                 });
         }
 
-        /// @brief Finds where a control/value pair belongs in a sorted compact value list.
-        /// @param values Control/value list to search.
-        /// @param control Control to search for.
-        /// @return Iterator to the matching entry, or values.end().
         auto findControlValue(const std::vector<std::pair<InputControl, float>> &values, InputControl control)
         {
             return std::lower_bound(
@@ -119,16 +92,11 @@ namespace GameWIP::Input
                 });
         }
 
-        /// @brief Returns whether a lower-bound result points at a matching control/value pair.
         template <typename Iterator> bool isMatchingControlValue(Iterator entry, Iterator end, InputControl control)
         {
             return entry != end && entry->first == control;
         }
 
-        /// @brief Stores or removes a value in a sorted compact value list.
-        /// @param values Control/value list to update.
-        /// @param control Control to update.
-        /// @param value Value to store, or zero to remove.
         void setControlValue(std::vector<std::pair<InputControl, float>> &values, InputControl control, float value)
         {
             auto entry = findControlValue(values, control);
@@ -151,10 +119,6 @@ namespace GameWIP::Input
             }
         }
 
-        /// @brief Returns a stored control value, or zero when absent.
-        /// @param values Control/value list to search.
-        /// @param control Control to search for.
-        /// @return Stored value, or 0 if the control is absent.
         float getControlValue(const std::vector<std::pair<InputControl, float>> &values, InputControl control)
         {
             auto entry = findControlValue(values, control);
@@ -494,46 +458,15 @@ namespace GameWIP::Input
             return controls;
         }
 
-        // Text helpers
-
-        /// @brief Appends one Unicode codepoint as UTF-8.
-        /// @param text UTF-8 text buffer to update.
-        /// @param codepoint Unicode codepoint to append.
         void appendUtf8Codepoint(std::string &text, char32_t codepoint)
         {
-            if (codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF))
+            auto encoded = GameWIP::Unicode::Utf8::encodeScalar(codepoint);
+            if (encoded.outcome != GameWIP::Unicode::Types::EncodeOutcome::Encoded)
             {
-                codepoint = 0xFFFD;
+                encoded = GameWIP::Unicode::Utf8::encodeScalar(U'\uFFFD');
             }
 
-            if (codepoint <= 0x7F)
-            {
-                text.push_back(static_cast<char>(codepoint));
-                return;
-            }
-
-            if (codepoint <= 0x7FF)
-            {
-                text.push_back(static_cast<char>(0xC0 | ((codepoint >> 6) & 0x1F)));
-                text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-                return;
-            }
-
-            if (codepoint <= 0xFFFF)
-            {
-                text.push_back(static_cast<char>(0xE0 | ((codepoint >> 12) & 0x0F)));
-                text.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-                text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-                return;
-            }
-
-            if (codepoint <= 0x10FFFF)
-            {
-                text.push_back(static_cast<char>(0xF0 | ((codepoint >> 18) & 0x07)));
-                text.push_back(static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F)));
-                text.push_back(static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F)));
-                text.push_back(static_cast<char>(0x80 | (codepoint & 0x3F)));
-            }
+            text.append(encoded.bytes.data(), encoded.byteCount);
         }
     } // namespace
 

@@ -1,19 +1,21 @@
 @page project_static_analysis Static analysis and repository checks
 
-GameWIP applies format, static-analysis, documentation, and repository-consistency checks to maintained project files. Third-party code under
-`external/` and generated files under `build/` are not project-owned and are excluded.
+GameWIP applies formatting, static-analysis, documentation, and repository
+consistency checks to project files that it owns. Third-party code under
+`external/` and generated files under `build/` are outside that scope.
 
 The checks below cover C++ static analysis, formatting, documentation and
 repository rules, local commands, CI behavior, and the narrow cases where a
 suppression is acceptable.
 
-Build presets, compiler selection, and output locations are documented in @ref project_build. Correctness tests are documented in @ref
-project_validation and @ref project_testing.
+Build presets, compiler selection, and output locations are documented in @ref
+project_build. Correctness tests are documented in @ref project_validation and
+@ref project_testing.
 
 ## Environment
 
-The GameWIP helper is the preferred Windows entry point because it selects project-owned tool paths, records native command logs, and reports failures
-consistently:
+The GameWIP helper is the preferred Windows entry point. It selects project-owned
+tool paths, records native command logs, and reports failures consistently:
 
 ```powershell
 .\gamewip.bat quality check
@@ -22,16 +24,20 @@ consistently:
 .\gamewip.bat quality hygiene status
 ```
 
-`quality check` is the complete non-mutating repository quality gate.
+`quality check` is the complete non-mutating maintained-file quality-policy gate.
 `quality fix` applies only deterministic formatters and then runs the same
 complete check. The interactive GameWIP `Q` menu exposes both workflows directly.
 
-The `analyze` preset selects `clang++` and requires the UCRT64 packages for CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and
-Python. AddressSanitizer is the exception: it uses the MSYS2 CLANG64 environment and is documented in @ref project_build.
+The `analyze` preset selects `clang++` and requires the UCRT64 packages for
+CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python.
+AddressSanitizer and UndefinedBehaviorSanitizer use the MSYS2 CLANG64
+environment and are documented in @ref project_build.
 
-When invoking CMake or clang tools directly instead of through `gamewip.bat`, run them from the MSYS2 UCRT64 environment or put that toolchain first
-on `PATH`. Do not mix the analyze configure with an unrelated Visual Studio, standalone LLVM, or different MSYS2 environment. The toolchain that
-configures the preset should also provide `clang-tidy`, `run-clang-tidy`, and `clang-format`.
+When invoking CMake or clang tools directly, use the MSYS2 UCRT64 environment
+or put that toolchain first on `PATH`. The analyze preset, `clang-tidy`,
+`run-clang-tidy`, and `clang-format` must come from the same toolchain. A
+Visual Studio, standalone LLVM, or different MSYS2 configure can produce a
+database that the selected tools cannot use reliably.
 
 ## C++ static analysis
 
@@ -71,18 +77,21 @@ cmake --build --preset analyze --target clang-tidy
 cmake --build --preset analyze --target clang-format-check
 ```
 
-`clang-tidy` reads the root `.clang-tidy` file, uses the analyze compilation database, and filters diagnostics to GameWIP-owned source and header
-roots. Diagnostics selected by `.clang-tidy` are errors. Suppress a diagnostic only at the narrowest justified location and include a short reason in
-the `NOLINT` comment.
+`clang-tidy` reads the root `.clang-tidy` file, uses the analyze compilation
+database, and filters diagnostics to GameWIP-owned source and header roots.
+Diagnostics selected by `.clang-tidy` are errors. Suppress a diagnostic only at
+the narrowest justified location and include a short reason in the `NOLINT`
+comment.
 
-Headers are analyzed when they are included by a compiled translation unit. Public headers should also have matching validation translation units
-under `game/validation/public_headers/` so the header can be checked as an include boundary instead of only through incidental implementation
-includes.
+Headers are analyzed when they are included by a compiled translation unit.
+Public headers should also have matching validation translation units under
+`game/validation/public_headers/`, so each header is checked as an include
+boundary rather than only through incidental implementation includes.
 
 ## Optional hygiene audits
 
-Repository hygiene is intentionally separate from the authoritative quality
-and static-analysis gates. It is useful for periodic investigation, but its
+Repository hygiene is separate from the required quality and static-analysis
+gates. It is useful for periodic investigation, but its
 results can depend on translation-unit structure, platform selection, and the
 representative build graph.
 
@@ -95,25 +104,28 @@ representative build graph.
 ```
 
 The standard profile runs the available Clang-backed unused-include,
-unused-declaration, dead-store, and unreachable-code checks. The deep profile
-also lists checks whose cross-translation-unit, linker, dependency, ownership,
-or configuration-path providers are still planned. A planned provider is
-reported as information and never presented as an analysis result.
+unused-declaration, and dead-store checks, plus the Clang compiler's
+`-Wunreachable-code` warning. The compiler-warning provider reuses the analyze
+compilation database and performs syntax-only compilations, so it does not
+depend on a clang-tidy checker that may be removed between LLVM releases. The
+deep profile also lists checks whose cross-translation-unit, linker, dependency,
+ownership, or configuration-path providers are still planned. A planned
+provider is reported as information, not as an analysis result.
 
-Each diagnostic records its check, underlying rule, confidence, source
-location, message, evidence, and suggested action in the retained operation
-report. Confidence has four meanings:
+Each diagnostic records its check, underlying rule, confidence, source location,
+message, evidence, and suggested action in the retained operation report.
+Confidence has four meanings:
 
-- `PROVEN` — the selected provider established the condition within its stated
+- `PROVEN`: the selected provider established the condition within its stated
   model.
-- `LIKELY` — the diagnostic is a review candidate with known structural sources
+- `LIKELY`: the diagnostic is a review candidate with known structural sources
   of false positives.
-- `INFORMATION` — the entry describes capability or context rather than a defect.
-- `EXPLAINED` — a central policy entry documents why the matching structure is
+- `INFORMATION`: the entry describes capability or context rather than a defect.
+- `EXPLAINED`: a central policy entry documents why the matching structure is
   intentional.
 
-Report mode does not fail because it found candidates. `-Enforce` fails only
-for `PROVEN` findings; provider, configuration, and tool failures always fail.
+Report mode does not fail because it found candidates. `-Enforce` fails only for
+`PROVEN` findings; provider, configuration, and tool failures always fail.
 The audit never edits source files. Public-header isolation translation units
 are centrally explained because their sole purpose is to compile a public
 include boundary independently. Aggregated `.inl` validation sources require
@@ -121,12 +133,15 @@ manual review because an include in the owning `.cpp` may be used by appended
 test content that include-cleaner does not attribute reliably.
 
 Hygiene rules and explanations live in `config/quality/hygiene.json` and are
-passed explicitly to the selected tools. Do not enable these rules globally in
-`.clang-tidy` or add file-local include-cleaner suppressions merely to silence
-an advisory audit.
+passed explicitly to the selected providers. Clang-tidy rules run through
+`run-clang-tidy`; compiler-warning rules run through the repository's small
+Python provider over the same compilation database. These rules stay out of
+global `.clang-tidy` policy, and file-local include-cleaner suppressions are not
+added just to silence an advisory audit.
 
-Win32 resource scripts are compiled by the Windows resource compiler and are intentionally not passed to clang-tidy. The root manifest and generated
-CMake inputs are validated by the normal configure and build path.
+Win32 resource scripts are compiled by the Windows resource compiler and are not
+passed to clang-tidy. The root manifest and generated CMake inputs are checked
+by the normal configure and build path.
 
 ## Formatting fixes
 
@@ -151,19 +166,24 @@ git diff -- foundation tools engine game
 
 ## Unsafe-buffer policy
 
-Clang's `-Wunsafe-buffer-usage` diagnostic is part of the maintained first-party warning profile and is promoted to an error by normal
-warnings-as-errors validation. Prefer bounded containers and spans throughout owned code. At an unavoidable operating-system, language-runtime, or
-allocation boundary, validate the available size before constructing a bounded view and restrict any Clang diagnostic annotation to that single
-documented conversion. Intentional overlap and native-layout tests follow the same rule; target-wide suppression is not permitted.
+Clang's `-Wunsafe-buffer-usage` diagnostic is part of the maintained first-party
+warning profile and becomes an error in warnings-as-errors validation. Prefer
+bounded containers and spans in owned code. At an unavoidable operating-system,
+language-runtime, or allocation boundary, validate the available size before
+constructing a bounded view and keep any Clang annotation on that single
+documented conversion. Intentional overlap and native-layout tests follow the
+same rule; target-wide suppression is not permitted.
 
-Do not run project formatting over `external/`, generated build trees, generated documentation output, or other third-party artifacts. The checked-in
-Unicode property header is a deliberate maintained-source exception: its regeneration workflow applies the repository formatter before reproducibility
-comparison.
+Project formatting does not include `external/`, generated build trees,
+generated documentation output, or other third-party artifacts. The checked-in
+Unicode property header is a deliberate maintained-source exception: its
+regeneration workflow formats it before reproducibility comparison.
 
 ## Repository checks
 
-The `Validation / Repository Checks` GitHub job runs the complete maintained
-repository quality policy rather than only language-agnostic spot checks:
+The `Validation / Repository Checks` GitHub job runs the repository quality
+policy across the maintained project rather than only language-agnostic spot
+checks:
 
 - clang-format for maintained C/C++ formatting.
 - Ruff lint/format checks for maintained Python.
@@ -174,7 +194,8 @@ repository quality policy rather than only language-agnostic spot checks:
 - markdownlint-cli2 and local relative Markdown link validation.
 - actionlint validation for GitHub Actions workflows.
 - JSON Schema plus semantic relationship checks for tracked authorities.
-- Complete maintained-worktree ownership, JSON parsing for special editor/tool files, and XML parsing for Windows manifests.
+- Maintained-worktree ownership, JSON parsing for special editor and tool files,
+  and XML parsing for Windows manifests.
 - JavaScript policy/unit tests and PowerShell helper regression tests.
 - Immutable action pins, explicit workflow permissions, bounded job timeouts,
   trusted `pull_request_target` boundaries, and required non-empty public files.
@@ -185,13 +206,12 @@ repository quality policy rather than only language-agnostic spot checks:
 
 Third-party `external/` content and generated `build/` output remain outside the
 maintained quality scope. Full quality enumerates maintained tracked files plus
-non-ignored untracked first-party worktree files so new source, script,
-configuration file, or manual page cannot escape validation merely because it
-has not been staged yet. `-Changed` remains an optimization for ordinary edits;
-changing quality policy conservatively expands validation to the complete
-maintained scope it can affect.
+non-ignored untracked first-party worktree files, so a new source, script,
+configuration file, or manual page is checked before it is staged. `-Changed`
+is an optimization for ordinary edits; changing quality policy expands
+validation to the maintained scope it can affect.
 
-Run the complete repository quality gate locally from the repository root:
+Run the maintained-file quality gate locally from the repository root:
 
 ```powershell
 .\gamewip.bat quality check
@@ -209,6 +229,7 @@ developing the checkers themselves, run their direct interfaces:
 
 ```powershell
 python -m py_compile .github/scripts/*.py
+python -m unittest discover -s .github/scripts -p 'test_*.py'
 python .github/scripts/check_documentation_standards.py
 python .github/scripts/check_repository_standards.py
 python .github/scripts/check_markdown_links.py
@@ -220,12 +241,10 @@ Python bytecode caches are ignored as generated local artifacts.
 Run JavaScript automation checks when changing repository or release automation:
 
 ```bash
-node --check .github/scripts/project-automation.js
-node --check .github/scripts/project-automation.test.js
-node --test .github/scripts/project-automation.test.js
-node --check .github/scripts/release-preparation.js
-node --check .github/scripts/release-preparation.test.js
-node --test .github/scripts/release-preparation.test.js
+for file in .github/scripts/*.js; do
+    node --check "$file"
+done
+node --test .github/scripts/*.test.js
 ```
 
 Run workflow linting when changing GitHub Actions. CI downloads the pinned
@@ -238,7 +257,8 @@ actionlint
 
 ## Documentation checks
 
-The regular validation workflow builds Doxygen and rejects Doxygen warnings. Markdown registered with Doxygen is therefore parsed and cross-reference
+The regular validation workflow builds Doxygen and rejects unexpected Doxygen
+warnings. Markdown registered with Doxygen is therefore parsed and cross-reference
 checked as part of documentation validation.
 
 The documentation-standards checker validates exactly one unique page ID per
@@ -256,30 +276,33 @@ selection, preserves trusted `pull_request_target` checkout boundaries, and
 verifies that public repository files exist and are non-empty.
 
 The repository link checker validates local relative links in maintained root,
-project, GitHub, game, setup/helper, engine, and library Markdown. It ignores external
-URLs and `#anchor` fragments; Doxygen-owned anchors and API cross-references are
-validated by the documentation build.
+project, GitHub, game, setup/helper, engine, and library Markdown. It ignores
+external URLs and `#anchor` fragments; the documentation build validates
+Doxygen-owned anchors and API cross-references.
 
-When documentation, public headers, Doxygen registration, or manual pages change, also run the documentation preset:
+When documentation, public headers, Doxygen registration, or manual pages change,
+also run the documentation preset:
 
 ```bash
 cmake --preset docs
 cmake --build --preset docs
 ```
 
-Then perform the warning-log check in @ref project_documentation. A successful Doxygen process exit alone does not prove that the generated manual is
-warning-free.
+Then perform the warning-log check in @ref project_documentation. A successful
+Doxygen process exit alone does not prove that the generated manual contains no
+unexpected warnings.
 
-Doxygen validates syntax and links, but it does not judge prose consistency. First-party Markdown must also be reviewed against the heading, voice,
+Doxygen validates syntax and links, but it does not judge prose consistency.
+First-party Markdown must also be reviewed against the heading, voice,
 terminology, list, example, and ownership rules in @ref project_documentation.
 
 ## Local validation scope
 
-Run the repository-check commands above when changing documentation or
-GitHub/setup automation. Add the C++ analysis commands when changing maintained
-C++ code, and add the documentation preset when changing public comments,
-manual pages, or Doxygen registration. Before a release, run the complete
-`local-release-check` bundle documented in @ref project_repository_maintenance.
+Documentation and GitHub or setup automation changes use the repository-check
+commands above. Maintained C++ changes also use the C++ analysis commands, and
+public comments, manual pages, and Doxygen registration changes use the
+documentation preset. Before a release, run the `local-release-check` bundle
+documented in @ref project_repository_maintenance.
 
 ## Exclusions
 
@@ -291,7 +314,8 @@ Excluded areas include:
 - Generated coverage output.
 - Other generated artifacts documented by their owning workflow.
 
-Do not fix third-party formatting or analysis warnings by rewriting vendor code. Adjust exclusions or upstream dependency versions instead.
+Third-party formatting and analysis warnings are handled through exclusions or
+upstream dependency versions, not by rewriting vendor code.
 
 ## Failure behavior
 
@@ -306,18 +330,15 @@ Do not fix third-party formatting or analysis warnings by rewriting vendor code.
 | Repository standards fail. | An Action pin, job policy, or public file drifted. | Restore the reported repository contract. |
 | Documentation standards fail. | Ownership, navigation, or coverage drifted. | Fix the owner or update the checker intentionally. |
 | Markdown link check fails. | A maintained Markdown file points to a missing local target. | Fix the link, add the missing page, or move the target behind an excluded generated/third-party boundary. |
-| Doxygen warnings appear. | A page, reference, or public comment is malformed. | Fix the owning documentation or registration. |
+| Unexpected Doxygen warnings appear. | A page, reference, or public comment is malformed. | Fix the owning documentation or registration. |
 | Vendor files are checked. | An exclusion pattern is incomplete. | Update the owning analysis helper without rewriting vendor code. |
 
 ## Maintainer notes
 
-When adding a new maintained source root or file type:
-
-- Decide which checks own it.
-- Add local and CI validation when practical.
-- Exclude generated and third-party output deliberately.
-- Document required developer tools and local commands.
-- Keep suppressions narrow and justified.
+Adding a maintained source root or file type requires an owning check, local and
+CI validation when practical, deliberate exclusions for generated or
+third-party output, and documentation for the required tools and commands.
+Suppressions remain narrow and justified.
 
 VS Code exposes this workflow as `GameWIP: Analyze` on `Alt+F8`.
 

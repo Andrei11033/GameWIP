@@ -1,9 +1,15 @@
+# Desktop is a shared runtime so process-local native class registration,
+# Window identity, and dispatcher state remain coherent across module boundaries.
 include(GNUInstallDirs)
-include(GenerateExportHeader)
+include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
+# ------------------------------------------------------------
+# Configuration, generated exports, and target sources
+# ------------------------------------------------------------
 
 option(DESKTOP_ENABLE_TEST_HOOKS "Enable Desktop internal test hooks" OFF)
 
@@ -12,21 +18,22 @@ if(NOT COMMAND gamewip_target_platform_backend)
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
-# Desktop intentionally remains shared-only. Its process-local identities, native-class
-# registration, Window registry, and per-thread dispatcher registry must have one coherent
-# runtime instance when the library is consumed across executable/DLL boundaries.
+# ------------------------------------------------------------
+# Target and source ownership
+# ------------------------------------------------------------
+
 add_library(Desktop SHARED)
 add_library(GameWIP::Desktop ALIAS Desktop)
 
 set(DESKTOP_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop")
-generate_export_header(
-    Desktop
-    BASE_NAME GAMEWIP_DESKTOP
-    EXPORT_FILE_NAME "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
-    EXPORT_MACRO_NAME GAMEWIP_DESKTOP_EXPORT
-    NO_EXPORT_MACRO_NAME GAMEWIP_DESKTOP_NO_EXPORT
-    STATIC_DEFINE GAMEWIP_DESKTOP_STATIC_DEFINE
+gamewip_generate_export_header(
+    # DESKTOP_EXPORT is the installed production/runtime ABI. Source-tree
+    # validation hooks use desktop_test_export.h and are never installed.
+    TARGET Desktop
+    OUTPUT "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
+    EXPORT_MACRO DESKTOP_EXPORT
+    BUILD_DEFINE DESKTOP_BUILDING_DLL
 )
 
 target_sources(
@@ -36,10 +43,12 @@ target_sources(
         core/child_surface.cpp
         core/child_surface_events.cpp
         core/cursor.cpp
+        core/dialogs.cpp
         core/display.cpp
         core/display_info.cpp
         core/drag_drop.cpp
         core/events.cpp
+        core/progress_dialog.cpp
         core/renderer_bridge.cpp
         core/window.cpp
         core/desktop_test_hooks.cpp
@@ -51,6 +60,8 @@ target_sources(
         internal/clipboard_platform.h
         internal/child_surface_platform.h
         internal/child_surface_state.h
+        internal/dialogs_platform.h
+        internal/progress_dialog_state.h
         internal/presentation_publication_state.h
     PUBLIC
         FILE_SET public_headers
@@ -62,6 +73,7 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/data_transfer.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/dialogs.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
@@ -71,6 +83,10 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
                 "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
 )
+
+# ------------------------------------------------------------
+# Compile, test-hook, and dependency contracts
+# ------------------------------------------------------------
 
 gamewip_target_platform_backend(TARGET Desktop ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
@@ -101,6 +117,10 @@ set_target_properties(
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
+# ------------------------------------------------------------
+# Output, documentation, and installation
+# ------------------------------------------------------------
+
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(
         NAME Desktop
@@ -111,6 +131,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/data_transfer.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/description.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/dialogs.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/display_info.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
@@ -131,4 +152,4 @@ install(
     FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
-gamewip_install_package(TARGET Desktop CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DesktopConfig.cmake.in" PATH_VARS CMAKE_INSTALL_DATADIR)
+gamewip_install_package(TARGET Desktop CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/DesktopConfig.cmake.in")

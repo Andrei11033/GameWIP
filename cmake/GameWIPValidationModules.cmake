@@ -7,11 +7,8 @@ include(CMakeParseArguments)
 # - gamewip_add_test_module(...)
 # - gamewip_add_benchmark_module(...)
 #
-# Contract:
-# - Keep validation modules discoverable by directory.
-# - Add module sources to the aggregate validation targets.
-# - Register ctest entries only for correctness-test modules.
-# - Keep benchmark modules separate from correctness-test thresholds.
+# Correctness modules receive CTest entries; benchmark modules remain separate
+# from correctness-test thresholds while both contribute to aggregate targets.
 
 function(gamewip_add_validation_module_directories root_directory)
     file(GLOB gamewip_module_cmake_files CONFIGURE_DEPENDS "${root_directory}/*/CMakeLists.txt")

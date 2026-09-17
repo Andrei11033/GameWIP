@@ -3,7 +3,65 @@
 These focused examples build on the owner-thread lifecycle from
 @ref desktop_quick_start and demonstrate displays, custom cursors, native child
 hosts, Clipboard data exchange, native drag and drop, renderer integration, and
-native interop without hiding status handling.
+native dialogs and interop without hiding status handling.
+
+## Select a file
+
+```cpp
+#include "desktop/dialogs.h"
+
+#include <array>
+#include <string_view>
+
+using namespace GameWIP::Desktop;
+
+const std::array imageExtensions{std::string_view{"png"}, std::string_view{"jpg"}};
+const std::array filters{
+    Types::Dialogs::File::Filter{"Images", imageExtensions},
+    Types::Dialogs::File::Filter{"All files", {}}};
+
+Types::Dialogs::File::OpenDescription request;
+request.owner = &window;
+request.title = "Open image";
+request.filters = filters;
+
+const auto selected = Dialogs::openFile(request);
+if (selected.status.ok() &&
+    selected.outcome == Types::Dialogs::Outcome::Accepted)
+{
+    // Consume selected.path.
+}
+```
+
+The call is synchronous and must run on the owner Window's thread. Cancellation
+is a successful domain outcome. See @ref desktop_dialogs.
+
+## Publish operation progress
+
+```cpp
+#include "desktop/dialogs.h"
+
+GameWIP::Desktop::ProgressDialog progress;
+GameWIP::Desktop::Types::Dialogs::Progress::Description request;
+request.owner = &window;
+request.title = "Importing";
+request.heading = "Preparing assets";
+request.mode = GameWIP::Desktop::Types::Dialogs::Progress::Mode::Determinate;
+request.cancelable = true;
+
+if (progress.open(request).ok())
+{
+    static_cast<void>(progress.setProgress(0.5));
+    if (progress.hasCancelRequest())
+    {
+        // Ask the application-owned operation to stop.
+    }
+    static_cast<void>(progress.close());
+}
+```
+
+Progress is modeless and uses the ordinary Desktop event pump. It never creates
+a worker thread; worker code must communicate updates back to the owner thread.
 
 ## Open a normal Window
 

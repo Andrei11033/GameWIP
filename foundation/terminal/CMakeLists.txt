@@ -1,9 +1,15 @@
+# Terminal owns the public terminal/session API and delegates native input and
+# output details to the selected platform backend.
 include(GNUInstallDirs)
-include(GenerateExportHeader)
+include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
+# ------------------------------------------------------------
+# Configuration, generated exports, and target sources
+# ------------------------------------------------------------
 
 option(TERMINAL_ENABLE_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 
@@ -17,13 +23,13 @@ add_library(GameWIP::Terminal ALIAS Terminal)
 
 set(TERMINAL_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal")
-generate_export_header(
-    Terminal
-    BASE_NAME GAMEWIP_TERMINAL
-    EXPORT_FILE_NAME "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
-    EXPORT_MACRO_NAME GAMEWIP_TERMINAL_EXPORT
-    NO_EXPORT_MACRO_NAME GAMEWIP_TERMINAL_NO_EXPORT
-    STATIC_DEFINE GAMEWIP_TERMINAL_STATIC_DEFINE
+gamewip_generate_export_header(
+    # TERMINAL_EXPORT is the installed production/runtime ABI. Source-tree
+    # validation hooks use terminal_test_export.h and are never installed.
+    TARGET Terminal
+    OUTPUT "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
+    EXPORT_MACRO TERMINAL_EXPORT
+    BUILD_DEFINE TERMINAL_BUILDING_DLL
 )
 
 target_sources(
@@ -44,6 +50,10 @@ target_sources(
 )
 
 gamewip_target_platform_backend(TARGET Terminal ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+
+# ------------------------------------------------------------
+# Compile, test-hook, and dependency contracts
+# ------------------------------------------------------------
 
 target_include_directories(
     Terminal
@@ -71,6 +81,10 @@ set_target_properties(
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
+
+# ------------------------------------------------------------
+# Output, documentation, and installation
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # Terminal owns its public API docs and Markdown manual pages. The root docs

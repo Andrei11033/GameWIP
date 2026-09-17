@@ -1,9 +1,10 @@
 @page project_release_automation Release automation
 
-GameWIP turns a verified milestone into a release in two guarded stages:
-preparation creates a reviewable release pull request, and finalization tags the
-exact validated merge commit. Neither stage derives versions from issue counts,
-bypasses branch protection, or writes release changes directly to `master`.
+GameWIP turns a verified milestone into a release in two guarded stages.
+Preparation creates a release pull request for review. Finalization tags the
+exact merge commit that was validated after that pull request. Neither stage
+derives a version from issue counts, bypasses branch protection, or writes
+release changes directly to `master`.
 
 ## Required configuration
 
@@ -13,9 +14,11 @@ Configure these Actions variables:
 ACTIVE_MILESTONE=R01 - Desktop, Input, and Action Foundation
 ```
 
-Change `ACTIVE_MILESTONE` to the next milestone only after the previous milestone's tag, GitHub release, closure issue, and handoff are complete. The
-same workflow applies to R00, R01, later promoted release milestones, and compatible PATCH releases. `ACTIVE_MILESTONE` names only the currently
-active release milestone.
+Change `ACTIVE_MILESTONE` to the next milestone only after the previous
+milestone's tag, GitHub release, closure issue, and handoff are complete. The
+same workflow applies to R00, R01, later promoted release milestones, and
+compatible PATCH releases. `ACTIVE_MILESTONE` names only the milestone being
+released now.
 
 Configure `PROJECT_TOKEN` as an Actions secret. The token must be a dedicated GitHub App token or dedicated maintainer token with the minimum
 permissions needed to:
@@ -70,14 +73,14 @@ For a truly terminal handoff, use:
 Next milestone: `none`
 ```
 
-The successor is explicit metadata. Automation never infers it by incrementing
-the current R number and has no V1 or R52 terminal special case. `none` is valid
-for any truly terminal handoff. A supplied successor title must differ from the
-current milestone and match exactly one open GitHub milestone.
+The successor is explicit metadata. Automation does not infer it by incrementing
+the current R number, and it has no special terminal case for V1 or R52. `none`
+is valid for a genuinely terminal handoff. A named successor must differ from
+the current milestone and match exactly one open GitHub milestone.
 
-The successor only needs to exist by the time the current milestone is ready
-for release and handoff. Do not pre-create the capability roadmap as GitHub
-milestones.
+The successor only needs to exist when the current milestone is ready for release
+and handoff. Capability ideas stay in the roadmap until they have a concrete
+milestone target.
 
 The release issue can be resolved in either of these ways:
 
@@ -104,9 +107,9 @@ The helper prints the raw `gh` command before asking for confirmation. Add
 `-Preview` to print it without authentication or dispatch.
 
 The manually dispatched check exits unsuccessfully and names the unmet release
-condition while the active milestone is not ready. That fail-closed result is
-expected during normal milestone development and must not be bypassed merely to
-produce a green workflow run.
+condition while the active milestone is not ready. That result is expected
+during normal milestone development. Do not bypass it just to produce a green
+workflow run.
 
 The check verifies that:
 
@@ -143,8 +146,9 @@ The workflow creates or reuses:
 The generated pull request references the release issue but does not close it. The release issue remains open until the tag, GitHub release, and
 milestone handoff exist.
 
-A maintainer must fill in the final validation evidence, review the release-preparation pull request, and merge it manually. The workflow must not
-write directly to `master`.
+The final validation evidence must be filled in before a maintainer reviews and
+merges the release-preparation pull request. The workflow must not write
+directly to `master`.
 
 Finalization rejects release notes that still contain the generated
 validation-evidence placeholder. The workflow independently establishes the
@@ -193,14 +197,13 @@ branches, or pull requests cause a safe failure.
 | GitHub release creation fails. | Rerun finalization. Existing matching tags and releases are reused. |
 | Milestone is reopened after release. | Treat follow-up work as a new PATCH or later milestone task. Do not retarget the published tag. |
 
-## Maintainer rules
+## Release boundaries
 
-- Release automation must never derive the version by counting issues.
-- Release automation must never infer a successor from the current milestone number.
-- Release automation must never push version commits directly to `master`.
-- Release automation must never create, move, or overwrite a published tag.
-- Human review and merge are required before finalization.
-- Untagged builds remain development snapshots.
+Release automation takes its version and successor from milestone metadata. It
+must not count issues or infer a successor from the milestone number. It must not
+push version commits directly to `master`, or create, move, or overwrite a
+published tag. A maintainer must review and merge the preparation pull request
+before finalization. Builds without a tag remain development snapshots.
 
 ## Related pages
 

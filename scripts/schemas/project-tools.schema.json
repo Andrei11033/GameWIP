@@ -6,7 +6,12 @@
   "required": ["schemaVersion", "tools"],
   "properties": {
     "schemaVersion": { "const": 1, "description": "Registry schema version." },
-    "tools": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/tool" } }
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Canonical tool declarations consumed by setup, discovery, quality, and update workflows.",
+      "items": { "$ref": "#/$defs/tool" }
+    }
   },
   "$defs": {
     "tool": {

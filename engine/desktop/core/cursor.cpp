@@ -2,6 +2,7 @@
 /// @brief Portable custom native cursor resource and validation implementation.
 
 #include "desktop/cursor.h"
+#include "base/checked_arithmetic.h"
 
 #include "desktop/internal/cursor_platform.h"
 #include "desktop/internal/cursor_selection.h"
@@ -33,15 +34,12 @@ namespace GameWIP::Desktop
             return IO::makeStatus(code);
         }
 
-        [[nodiscard]] constexpr bool multiplicationWouldOverflow(std::size_t lhs, std::size_t rhs) noexcept
-        {
-            return rhs != 0 && lhs > std::numeric_limits<std::size_t>::max() / rhs;
-        }
-
         [[nodiscard]] IO::Types::Status validateVariants(std::span<const Types::Cursor::ImageView> variants) noexcept
         {
             if (variants.empty())
+            {
                 return error(ErrorCode::InvalidArgument);
+            }
 
             constexpr auto nativeMaximum = static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max());
 
@@ -51,7 +49,7 @@ namespace GameWIP::Desktop
             {
                 const auto &variant = variants[i];
 
-                // Basic image contract.
+                // Validate dimensions, row stride, and complete pixel payload before creating native resources.
                 if (variant.size.width == 0 || variant.size.height == 0 || variant.size.width > nativeMaximum ||
                     variant.size.height > nativeMaximum || variant.hotspot.x >= variant.size.width || variant.hotspot.y >= variant.size.height ||
                     variant.intendedDpi == 0)
@@ -62,26 +60,32 @@ namespace GameWIP::Desktop
                 const std::size_t width = static_cast<std::size_t>(variant.size.width);
                 const std::size_t height = static_cast<std::size_t>(variant.size.height);
 
-                // Resolve and validate row stride.
-                if (multiplicationWouldOverflow(width, channels))
+                if (GameWIP::Base::wouldMultiplyOverflow(width, channels))
+                {
                     return error(ErrorCode::InvalidArgument);
+                }
 
                 const std::size_t packedRowBytes = width * channels;
                 const std::size_t resolvedStride = variant.rowStrideBytes == 0 ? packedRowBytes : variant.rowStrideBytes;
 
                 if (resolvedStride < packedRowBytes)
+                {
                     return error(ErrorCode::InvalidArgument);
+                }
 
-                // Validate complete pixel payload size.
-                if (multiplicationWouldOverflow(resolvedStride, height))
+                if (GameWIP::Base::wouldMultiplyOverflow(resolvedStride, height))
+                {
                     return error(ErrorCode::InvalidArgument);
+                }
 
                 const std::size_t requiredBytes = resolvedStride * height;
 
                 if (variant.rgba8.size() != requiredBytes)
+                {
                     return error(ErrorCode::InvalidArgument);
+                }
 
-                // Each DPI may have only one variant.
+                // Duplicate DPIs would make native variant selection depend on input order.
                 for (std::size_t previous = 0; previous < i; ++previous)
                 {
                     if (variants[previous].intendedDpi == variant.intendedDpi)
@@ -131,7 +135,9 @@ namespace GameWIP::Desktop
         for (std::size_t index = 1; index < variants.size(); ++index)
         {
             if (isBetterDpiCandidate(variants[index].intendedDpi, variants[best].intendedDpi, dpi))
+            {
                 best = index;
+            }
         }
         return variants[best];
     }
@@ -158,13 +164,17 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = validateVariants(variants);
         if (!status.ok())
+        {
             return {.status = std::move(status)};
+        }
 
         std::vector<Detail::NativeCursorVariant> nativeVariants;
         try
         {
             if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            {
                 throw std::bad_alloc{};
+            }
             nativeVariants.reserve(variants.size());
             status = Detail::Platform::createNativeCursorVariants(variants, nativeVariants);
             if (!status.ok())
@@ -174,7 +184,9 @@ namespace GameWIP::Desktop
             }
 
             if (Detail::consumeFailure(TestHooks::FailurePoint::CursorStateAllocation))
+            {
                 throw std::bad_alloc{};
+            }
             auto state = std::make_shared<Detail::CursorState>(std::move(nativeVariants));
             return {.status = IO::successStatus(), .cursor = Detail::CursorAccess::make(std::move(state))};
         }
@@ -194,11 +206,17 @@ namespace GameWIP::Desktop
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
+        {
             return error(ErrorCode::NotOpen);
+        }
         if (!Detail::Platform::ownedByCurrentThread(*state))
+        {
             return error(ErrorCode::ResourceBusy);
+        }
         if (!cursor.isValid())
+        {
             return error(ErrorCode::InvalidArgument);
+        }
         return Detail::Platform::setCustomCursor(*state, Detail::CursorAccess::state(cursor));
     }
 

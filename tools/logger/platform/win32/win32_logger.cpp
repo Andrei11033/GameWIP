@@ -2,6 +2,7 @@
 /// @brief Windows debugger output, fatal popup, local-time, process-memory, and formatting-scratch backend.
 
 #include "logger/internal/logger_platform.h"
+#include "unicode/unicode.h"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -11,41 +12,61 @@
 
 #include <algorithm>
 #include <deque>
-#include <limits>
 #include <new>
 #include <string>
+#include <vector>
 
 namespace
 {
+    // ------------------------------------------------------------
+    // Format scratch storage
+    // ------------------------------------------------------------
+
+    /// @brief Reentrant per-thread formatting storage for nested Logger formatting calls.
     struct FormatScratchStorage
     {
         std::deque<std::string> buffers;
         std::size_t depth = 0;
     };
 
+    // ------------------------------------------------------------
+    // UTF-8 conversion
+    // ------------------------------------------------------------
+
+    /// @brief Converts validated UTF-8 text to a native UTF-16 string for Win32 APIs.
     [[nodiscard]] GameWIP::IO::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
     {
         outText.clear();
+
         if (text.empty())
         {
             return {};
         }
-        if (text.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+
+        const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+        if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INVALID_PARAMETER);
+            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
+        }
+        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        {
+            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
         }
 
-        const int sourceLength = static_cast<int>(text.size());
-        constexpr DWORD flags = MB_ERR_INVALID_CHARS;
-        const int wideLength = MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, nullptr, 0);
-        if (wideLength <= 0)
+        std::vector<char16_t> converted(measurement.requiredCodeUnits);
+        const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+        if (conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, GetLastError());
+            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
+        }
+        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+        {
+            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
         }
 
         try
         {
-            outText.resize(static_cast<std::size_t>(wideLength));
+            outText.resize(conversion.codeUnitsWritten);
         }
         catch (const std::bad_alloc &)
         {
@@ -56,17 +77,20 @@ namespace
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
         }
 
-        if (MultiByteToWideChar(CP_UTF8, flags, text.data(), sourceLength, outText.data(), wideLength) != wideLength)
+        for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
         {
-            return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, GetLastError());
+            outText[index] = static_cast<wchar_t>(converted[index]);
         }
+
         return {};
     }
 
+    /// @brief Makes embedded NULs visible before text is passed to NUL-terminated Win32 APIs.
     [[nodiscard]] std::wstring escapeEmbeddedNuls(std::wstring_view text)
     {
         std::wstring result;
         result.reserve(text.size());
+
         for (wchar_t value : text)
         {
             if (value == L'\0')
@@ -78,10 +102,15 @@ namespace
                 result.push_back(value);
             }
         }
+
         return result;
     }
 
 #if defined(__MINGW32__)
+    // ------------------------------------------------------------
+    // MinGW FLS scratch fallback
+    // ------------------------------------------------------------
+
     void NTAPI destroyFormatScratch(void *value)
     {
         delete static_cast<FormatScratchStorage *>(value);
@@ -129,6 +158,7 @@ namespace
         {
             throw std::bad_alloc();
         }
+
         auto *storage = static_cast<FormatScratchStorage *>(FlsGetValue(slot));
         if (!storage)
         {
@@ -139,6 +169,7 @@ namespace
                 throw std::bad_alloc();
             }
         }
+
         return *storage;
     }
 #endif
@@ -159,12 +190,15 @@ namespace GameWIP::Logger::Detail::Platform
     std::string &formatScratchForThread()
     {
         FormatScratchStorage &storage = formatScratchStorageForThread();
+
         if (storage.buffers.size() == storage.depth)
         {
             storage.buffers.emplace_back();
         }
+
         std::string &scratch = storage.buffers[storage.depth++];
         scratch.clear();
+
         return scratch;
     }
 
@@ -175,12 +209,20 @@ namespace GameWIP::Logger::Detail::Platform
         {
             return;
         }
+
         --storage.depth;
+
         if (storage.depth > 0 && storage.depth + 1 == storage.buffers.size())
         {
+            // Keep the outermost buffer hot for the common case, but release extra
+            // nested buffers once nested formatting unwinds.
             storage.buffers.pop_back();
         }
     }
+
+    // ------------------------------------------------------------
+    // Platform diagnostics
+    // ------------------------------------------------------------
 
     IO::Types::Status writeDebugOutput(std::string_view line)
     {
@@ -192,10 +234,12 @@ namespace GameWIP::Logger::Detail::Platform
             {
                 return status;
             }
-            if (output.find(L'\0') != std::wstring::npos)
+
+            if (output.contains(L'\0'))
             {
                 output = escapeEmbeddedNuls(output);
             }
+
             OutputDebugStringW(output.c_str());
             return {};
         }
@@ -219,14 +263,17 @@ namespace GameWIP::Logger::Detail::Platform
             {
                 return status;
             }
-            if (messageText.find(L'\0') != std::wstring::npos)
+
+            if (messageText.contains(L'\0'))
             {
                 messageText = escapeEmbeddedNuls(messageText);
             }
+
             if (MessageBoxW(nullptr, messageText.c_str(), L"Fatal Error", MB_ICONERROR | MB_OK) == 0)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
             }
+
             return {};
         }
         catch (const std::bad_alloc &)
@@ -239,6 +286,10 @@ namespace GameWIP::Logger::Detail::Platform
         }
     }
 
+    // ------------------------------------------------------------
+    // Time and memory diagnostics
+    // ------------------------------------------------------------
+
     IO::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
     {
         outText.clear();
@@ -248,6 +299,7 @@ namespace GameWIP::Logger::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, localTimeResult);
         }
+
         if (timeFormat.size() >= 64)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_INVALID_DATA);
@@ -258,6 +310,7 @@ namespace GameWIP::Logger::Detail::Platform
         {
             std::ranges::copy(timeFormat, formatBuffer);
         }
+
         char timeBuffer[64]{};
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -278,6 +331,7 @@ namespace GameWIP::Logger::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_INVALID_DATA);
         }
+
         try
         {
             outText.assign(timeBuffer, written);

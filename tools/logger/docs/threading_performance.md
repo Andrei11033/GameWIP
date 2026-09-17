@@ -18,7 +18,8 @@ labels are needed.
 
 `maxQueueSize` is the soft depth. At or above it, `Trace`, `Debug`, `Info`, and `Warn` may be refused and counted in `queueDropsSoft`.
 
-The hard depth is derived from `hardQueueMultiplier`. At or above it, every severity—including `Error` and normal `Fatal`—may be refused and counted
+The hard depth is derived from `hardQueueMultiplier`. At or above it, every
+severity, including `Error` and normal `Fatal`, may be refused and counted
 in `queueDropsHard`.
 
 Queue drops apply only to normal asynchronous logs. Synchronous reports bypass the queue. Use reports for failure paths that must not depend on queue

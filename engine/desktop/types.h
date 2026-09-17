@@ -25,14 +25,12 @@ namespace GameWIP::Desktop
         {
             std::uint64_t value = 0; ///< Opaque identity, or zero when invalid.
 
-            /// @brief Returns whether this identity is nonzero.
-            /// @return true for a usable open-lifetime identity.
+            /// @brief Reports whether this identity is usable.
             [[nodiscard]] constexpr bool isValid() const noexcept
             {
                 return value != 0;
             }
 
-            /// @brief Compares opaque identity values.
             friend constexpr bool operator==(WindowId, WindowId) noexcept = default;
         };
 
@@ -49,7 +47,6 @@ namespace GameWIP::Desktop
         {
             std::int32_t x = 0; ///< Horizontal logical coordinate.
             std::int32_t y = 0; ///< Vertical logical coordinate.
-            /// @brief Compares both coordinates.
             friend constexpr bool operator==(LogicalPosition, LogicalPosition) noexcept = default;
         };
 
@@ -58,7 +55,6 @@ namespace GameWIP::Desktop
         {
             std::uint32_t width = 0;  ///< Logical width.
             std::uint32_t height = 0; ///< Logical height.
-            /// @brief Compares both dimensions.
             friend constexpr bool operator==(LogicalSize, LogicalSize) noexcept = default;
         };
 
@@ -67,7 +63,6 @@ namespace GameWIP::Desktop
         {
             std::uint32_t width = 0;  ///< Physical width in pixels.
             std::uint32_t height = 0; ///< Physical height in pixels.
-            /// @brief Compares both dimensions.
             friend constexpr bool operator==(PixelSize, PixelSize) noexcept = default;
         };
 
@@ -76,7 +71,6 @@ namespace GameWIP::Desktop
         {
             LogicalPosition position; ///< Top-left client-local position.
             LogicalSize size;         ///< Rectangle extent.
-            /// @brief Compares position and extent.
             friend constexpr bool operator==(LogicalRect, LogicalRect) noexcept = default;
         };
 
@@ -85,7 +79,6 @@ namespace GameWIP::Desktop
         {
             std::int32_t x = 0; ///< Horizontal virtual-screen coordinate.
             std::int32_t y = 0; ///< Vertical virtual-screen coordinate.
-            /// @brief Compares both coordinates.
             friend constexpr bool operator==(ScreenPosition, ScreenPosition) noexcept = default;
         };
 
@@ -94,7 +87,6 @@ namespace GameWIP::Desktop
         {
             ScreenPosition position; ///< Top-left virtual-screen position.
             PixelSize size;          ///< Physical extent in pixels.
-            /// @brief Compares position and extent.
             friend constexpr bool operator==(ScreenRect, ScreenRect) noexcept = default;
         };
 
@@ -105,7 +97,6 @@ namespace GameWIP::Desktop
             std::uint32_t top = 0;    ///< Top frame thickness.
             std::uint32_t right = 0;  ///< Right frame thickness.
             std::uint32_t bottom = 0; ///< Bottom frame thickness.
-            /// @brief Compares all edge distances.
             friend constexpr bool operator==(Insets, Insets) noexcept = default;
         };
 
@@ -114,7 +105,6 @@ namespace GameWIP::Desktop
         {
             float x = 1.0F; ///< Horizontal scale factor.
             float y = 1.0F; ///< Vertical scale factor.
-            /// @brief Compares both scale factors.
             friend constexpr bool operator==(ContentScale, ContentScale) noexcept = default;
         };
 
@@ -123,7 +113,6 @@ namespace GameWIP::Desktop
         {
             float x = 0.0F; ///< Horizontal effective DPI.
             float y = 0.0F; ///< Vertical effective DPI.
-            /// @brief Compares both DPI values.
             friend constexpr bool operator==(Dpi, Dpi) noexcept = default;
         };
 
@@ -132,7 +121,6 @@ namespace GameWIP::Desktop
         {
             std::optional<LogicalSize> minimum; ///< Optional minimum client extent.
             std::optional<LogicalSize> maximum; ///< Optional maximum client extent.
-            /// @brief Compares both optional bounds.
             friend bool operator==(const SizeLimits &, const SizeLimits &) noexcept = default;
         };
 
@@ -141,7 +129,6 @@ namespace GameWIP::Desktop
         {
             std::uint32_t numerator = 1;   ///< Width component.
             std::uint32_t denominator = 1; ///< Height component.
-            /// @brief Compares the stored ratio components.
             friend constexpr bool operator==(AspectRatio, AspectRatio) noexcept = default;
         };
 

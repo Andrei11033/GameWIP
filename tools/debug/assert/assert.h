@@ -24,14 +24,6 @@
 #define ASSERT_INTERNAL_RUNTIME 1
 #endif
 
-/// @def ASSERT_INTERNAL_TEST_HOOKS
-/// @brief Enables source-tree-only Assert test-hook declarations for validation builds.
-/// @details This definition is not installed consumer API. It exists so approved tests can include
-/// `debug/assert/internal/assert_test_hooks.h` when `ASSERT_ENABLE_TEST_HOOKS` is enabled.
-#ifndef ASSERT_INTERNAL_TEST_HOOKS
-#define ASSERT_INTERNAL_TEST_HOOKS 0
-#endif
-
 // Public convenience macros are intentionally global:
 // ASSERT, ASSERT_MSG, ASSERT_INTERACTIVE, ASSERT_INTERACTIVE_MSG, VERIFY,
 // VERIFY_MSG, VERIFY_INTERACTIVE, VERIFY_INTERACTIVE_MSG, CHECK, CHECK_MSG,
@@ -101,10 +93,6 @@
 #error "ASSERT_INTERNAL_RUNTIME must be 0 or 1."
 #endif
 
-#if (ASSERT_INTERNAL_TEST_HOOKS != 0) && (ASSERT_INTERNAL_TEST_HOOKS != 1)
-#error "ASSERT_INTERNAL_TEST_HOOKS must be 0 or 1."
-#endif
-
 #if (ASSERT_ENABLED != 0) && (ASSERT_ENABLED != 1)
 #error "ASSERT_ENABLED must be 0 or 1."
 #endif
@@ -130,7 +118,6 @@
 #endif
 
 static_assert(ASSERT_INTERNAL_RUNTIME == 0 || ASSERT_INTERNAL_RUNTIME == 1, "ASSERT_INTERNAL_RUNTIME must be 0 or 1.");
-static_assert(ASSERT_INTERNAL_TEST_HOOKS == 0 || ASSERT_INTERNAL_TEST_HOOKS == 1, "ASSERT_INTERNAL_TEST_HOOKS must be 0 or 1.");
 static_assert(ASSERT_ENABLED == 0 || ASSERT_ENABLED == 1, "ASSERT_ENABLED must be 0 or 1.");
 static_assert(ASSERT_CHECKS_ENABLED == 0 || ASSERT_CHECKS_ENABLED == 1, "ASSERT_CHECKS_ENABLED must be 0 or 1.");
 static_assert(ASSERT_DIAGNOSTICS == 0 || ASSERT_DIAGNOSTICS == 1, "ASSERT_DIAGNOSTICS must be 0 or 1.");
@@ -177,7 +164,7 @@ namespace GameWIP::Debug::Assert
     ///
     /// @note Continuing from the debugger resumes execution.
     /// @see DEBUG_BREAK
-    GAMEWIP_ASSERT_EXPORT void debugBreak() noexcept;
+    ASSERT_EXPORT void debugBreak() noexcept;
 #endif
     /// @}
 } // namespace GameWIP::Debug::Assert
@@ -187,7 +174,15 @@ namespace GameWIP::Debug::Assert::Detail
 {
 #if ASSERT_INTERNAL_RUNTIME
     /// @brief Exported ABI bridge used by fatal public macros; not public consumer API.
-    [[noreturn]] GAMEWIP_ASSERT_EXPORT void handleAssertFailure(
+    /// @param conditionText Failed expression text, or empty when diagnostics are disabled.
+    /// @param message Caller diagnostic text, or empty when absent or diagnostics are disabled.
+    /// @param file Source file text, or empty when diagnostics are disabled.
+    /// @param line Source line number, or zero when diagnostics are disabled.
+    /// @param function Enclosing function text, or empty when diagnostics are disabled.
+    /// @details Text views borrow UTF-8 data valid for the duration of the call. Reporting is synchronous;
+    /// optional UI can block. After reporting, an attached debugger receives a break, then the process
+    /// aborts even if debugger execution resumes. This handler does not return.
+    [[noreturn]] ASSERT_EXPORT void handleAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -195,7 +190,16 @@ namespace GameWIP::Debug::Assert::Detail
         std::string_view function) noexcept;
 
     /// @brief Exported ABI bridge used by interactive public macros; not public consumer API.
-    GAMEWIP_ASSERT_EXPORT void handleInteractiveAssertFailure(
+    /// @param conditionText Failed expression text, or empty when diagnostics are disabled.
+    /// @param message Caller diagnostic text, or empty when absent or diagnostics are disabled.
+    /// @param file Source file text, or empty when diagnostics are disabled.
+    /// @param line Source line number, or zero when diagnostics are disabled.
+    /// @param function Enclosing function text, or empty when diagnostics are disabled.
+    /// @param alwaysIgnoreFlag Borrowed per-call-site atomic flag, valid through this call; null disables persistent suppression.
+    /// @details Text views borrow UTF-8 data valid for the duration of the call. Reporting is synchronous;
+    /// action selection can block on UI. Ignore actions return, Break returns if execution resumes,
+    /// and Abort terminates the process. AlwaysIgnore stores true in the supplied flag using relaxed ordering.
+    ASSERT_EXPORT void handleInteractiveAssertFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -204,7 +208,14 @@ namespace GameWIP::Debug::Assert::Detail
         std::atomic_bool *alwaysIgnoreFlag) noexcept;
 
     /// @brief Exported ABI bridge used by recoverable public macros; not public consumer API.
-    GAMEWIP_ASSERT_EXPORT void handleCheckFailure(
+    /// @param conditionText Failed expression text, or empty when diagnostics are disabled.
+    /// @param message Caller diagnostic text, or empty when absent or diagnostics are disabled.
+    /// @param file Source file text, or empty when diagnostics are disabled.
+    /// @param line Source line number, or zero when diagnostics are disabled.
+    /// @param function Enclosing function text, or empty when diagnostics are disabled.
+    /// @details Text views borrow UTF-8 data valid for the duration of the call. Reporting is synchronous;
+    /// optional UI can block. The handler returns after reporting without requesting a break or abort.
+    ASSERT_EXPORT void handleCheckFailure(
         std::string_view conditionText,
         std::string_view message,
         std::string_view file,
@@ -262,6 +273,7 @@ namespace GameWIP::Debug::Assert::Detail
 #define ASSERT_INTERNAL_FILE_TEXT_VALUE __FILE__
 #endif
 
+// Preprocessing removes disabled diagnostic arguments, preventing message-expression side effects.
 #if ASSERT_DIAGNOSTICS
 #define ASSERT_INTERNAL_CONDITION_TEXT(condition) #condition
 #define ASSERT_INTERNAL_MESSAGE_TEXT(message) (message)
@@ -278,6 +290,8 @@ namespace GameWIP::Debug::Assert::Detail
 #define ASSERT_INTERNAL_UNREACHABLE_TEXT ""
 #endif
 
+// The _AT bridges accept function text captured by the caller. ENSURE passes it from outside
+// its lambda so diagnostics name the enclosing function rather than the lambda call operator.
 #define ASSERT_INTERNAL_ASSERT_FAILURE_AT(condition, message, functionText) \
     ::GameWIP::Debug::Assert::Detail::handleAssertFailure( \
         ASSERT_INTERNAL_CONDITION_TEXT(condition), \
@@ -317,6 +331,9 @@ namespace GameWIP::Debug::Assert::Detail
 /// @name Fatal assertion macros
 /// @{
 
+// The scoped do/while preserves statement-macro behavior inside unbraced if/else blocks.
+// Interactive statics belong to each expansion site. Relaxed atomics coordinate suppression only;
+// no application state is published through these flags.
 #if ASSERT_ENABLED
 /// @def ASSERT(condition)
 /// @brief Fatal debug assertion that aborts when condition is false.
@@ -408,6 +425,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @details The expression is always evaluated once. In assertion-enabled builds, a
 /// false value logs Fatal synchronously and enters the interactive Break / Abort /
 /// Ignore Once / Always Ignore path unless this call site was Always Ignored.
+// The condition is evaluated before suppression so VERIFY preserves its side effects.
 #define VERIFY_INTERACTIVE(condition) \
     do \
     { \
@@ -545,6 +563,8 @@ namespace GameWIP::Debug::Assert::Detail
 /// @details The per-call-site suppression flag is thread-safe and uses relaxed atomics.
 /// The flag suppresses after the first reporting attempt; it does not guarantee every
 /// sink received that first report.
+// The load avoids an exchange after suppression. The exchange chooses one reporting thread
+// when multiple threads observe the first failure together; the load alone cannot do that.
 #define CHECK_ONCE(condition) \
     do \
     { \
@@ -580,6 +600,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @param condition Boolean expression to evaluate.
 /// @return true when condition is true, false otherwise.
 /// @details Useful for recoverable validation, for example: if (!ENSURE(load())) return false;
+// The lambda argument captures the enclosing function name before entering the lambda body.
 #define ENSURE(condition) \
     ( \
         [&](const char *assertFunction_) -> bool \

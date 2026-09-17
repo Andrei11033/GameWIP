@@ -1,4 +1,4 @@
-// Repository-owned guarded release check, preparation, and finalization policy.
+// Check, prepare, and finalize releases through the guarded workflow.
 
 'use strict';
 

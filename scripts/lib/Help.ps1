@@ -1,4 +1,8 @@
-# GameWIP help, catalog, and structured diagnostic presentation.
+# Help, command catalogs, and structured diagnostic output.
+
+# ------------------------------------------------------------
+# Catalog and diagnostic presentation
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 
@@ -26,7 +30,29 @@ function Show-GameWipProjectCatalog
     }
     Write-GameWipSection 'Validation modules'
     Write-Host '  all'
-    @($CommandConfig.Modules) | ForEach-Object { Write-Host "  $_" }
+    @(Get-GameWipValidationModuleName) | ForEach-Object { Write-Host "  $_" }
+    $builderModules = [System.Collections.Generic.List[object]]::new()
+    foreach ($moduleName in @(Get-GameWipValidationModuleName))
+    {
+        $module = Get-GameWipValidationModule -Name $moduleName
+        $options = @(Get-GameWipValidationBuilderOptions -ModuleName $moduleName -CommonCapabilities @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report'))
+        if ($options.Count -gt 0)
+        {
+            $builderModules.Add($module) | Out-Null
+        }
+    }
+    if ($builderModules.Count -gt 0)
+    {
+        Write-GameWipSection 'Validation builder options'
+        foreach ($module in $builderModules)
+        {
+            Write-Host "  $($module.Id)"
+            foreach ($option in $module.BuilderOptions)
+            {
+                Write-Host ('    {0,-16} [{1}] {2}' -f $option.Id, $option.Kind, $option.Title)
+            }
+        }
+    }
     Write-GameWipSection 'Project commands'
     foreach ($command in $CommandConfig.ProjectCommands)
     {
@@ -153,7 +179,7 @@ function Show-GameWipHelp
     Write-Host '  stress [name] [-Count N] [-Parallel N] [-StopOnFailure] [-NoBuild]'
     Write-Host '  run [project-command] [-NoBuild] [-ExtraArgs <args>]'
     Write-Host '  bundle [id] [-NoBuild] [-Fresh]'
-    Write-Host '  docs | analyze | coverage | asan | links'
+    Write-Host '  docs | analyze | coverage | asan | ubsan | links'
     Write-Host '  benchmark <run|dry-run|list|compare> [options]'
     Write-Host '  runs list [all] | runs show [latest|run-name] | runs clean [run-name|all]'
     Write-Host '  list | help'

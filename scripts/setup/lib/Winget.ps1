@@ -1,4 +1,8 @@
-# GameWIP setup WinGet package operations. All native calls use the shared process layer.
+# Setup WinGet package operations. Native calls use the shared process layer.
+
+# ------------------------------------------------------------
+# WinGet package operations
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

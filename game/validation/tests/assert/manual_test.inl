@@ -36,8 +36,8 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         return;
     }
 
-    const ScopedClearedEnvironmentVariable clearTestAction(testActionEnvironmentVariable);
-    const ScopedClearedEnvironmentVariable clearSuppressPopup(suppressPopupEnvironmentVariable);
+    const ScopedClearedEnvironmentVariable clearTestAction(kTestActionEnvironmentVariable);
+    const ScopedClearedEnvironmentVariable clearSuppressPopup(kSuppressPopupEnvironmentVariable);
     if (!requireInfrastructure(context, "clear manual test action", clearTestAction.status()) ||
         !requireInfrastructure(context, "clear manual popup suppression", clearSuppressPopup.status()))
     {
@@ -75,9 +75,9 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         {
             return;
         }
-        const ScopedEnvironmentVariable childLogDirectoryOverride(childLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-        const ScopedClearedEnvironmentVariable clearChildTestAction(testActionEnvironmentVariable);
-        const ScopedClearedEnvironmentVariable clearChildSuppressPopup(suppressPopupEnvironmentVariable);
+        const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        const ScopedClearedEnvironmentVariable clearChildTestAction(kTestActionEnvironmentVariable);
+        const ScopedClearedEnvironmentVariable clearChildSuppressPopup(kSuppressPopupEnvironmentVariable);
         if (!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
             !requireInfrastructure(context, "clear manual Abort child action", clearChildTestAction.status()) ||
             !requireInfrastructure(context, "clear manual Abort child popup suppression", clearChildSuppressPopup.status()))
@@ -86,16 +86,16 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         }
 
         context.emit("[MANUAL] Assert UI Abort: a child process dialog should appear. Click Abort; the parent should detect abnormal exit.\n");
-        expectAbnormalChildExit(context, interactiveAbortChildArgument, "manual assert UI Abort child exits abnormally");
+        expectAbnormalChildExit(context, kInteractiveAbortChildArgument, "manual assert UI Abort child exits abnormally");
 
         const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
         context.expectTrue(
             "manual assert UI Abort child logs fatal",
-            childLogContents.find("[FATAL][Assert]: Assert failed") != std::string::npos,
+            childLogContents.contains("[FATAL][Assert]: Assert failed"),
             "manual abort child fatal missing");
         context.expectTrue(
             "manual assert UI Abort child logs message",
-            childLogContents.find("interactive abort child") != std::string::npos,
+            childLogContents.contains("interactive abort child"),
             "manual abort child message missing");
     }
     else

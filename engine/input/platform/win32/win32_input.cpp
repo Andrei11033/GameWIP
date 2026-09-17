@@ -1,6 +1,10 @@
+/// @file win32_input.cpp
+/// @brief Win32 keyboard, pointer, Raw Input, HID, and gamepad backend.
+
 #include "win32_input.h"
 #include "base/platform/win32/dynamic_library.h"
 #include "input/internal/input_state_access.h"
+#include "unicode/unicode.h"
 
 #include <windows.h>
 #include <windowsx.h>
@@ -55,25 +59,25 @@ namespace
     using GameWIP::Input::MouseButton;
     using GameWIP::Input::MouseWheel;
 
-    constexpr DWORD maxGamepadCount = 4;
-    constexpr auto disconnectedGamepadPollInterval = std::chrono::seconds(1);
+    constexpr DWORD kMaxGamepadCount = 4;
+    constexpr auto kDisconnectedGamepadPollInterval = std::chrono::seconds(1);
 
     using XInputGetStateFn = DWORD(WINAPI *)(DWORD, XINPUT_STATE *);
 
     XInputGetStateFn cachedXInputGetState = nullptr;
     bool attemptedXInputLoad = false;
-    std::array<DWORD, maxGamepadCount> cachedGamepadPacketNumbers{};
-    std::array<std::uint64_t, maxGamepadCount> cachedGamepadClearGenerations{};
-    std::array<const InputState *, maxGamepadCount> cachedGamepadInputStates{};
-    std::array<DeviceIndex, maxGamepadCount> cachedGamepadDeviceIndices{};
-    std::array<bool, maxGamepadCount> cachedGamepadConnected{};
-    std::array<bool, maxGamepadCount> hasCachedGamepadPacket{};
-    std::array<bool, maxGamepadCount> gamepadControlsCleared{true, true, true, true};
+    std::array<DWORD, kMaxGamepadCount> cachedGamepadPacketNumbers{};
+    std::array<std::uint64_t, kMaxGamepadCount> cachedGamepadClearGenerations{};
+    std::array<const InputState *, kMaxGamepadCount> cachedGamepadInputStates{};
+    std::array<DeviceIndex, kMaxGamepadCount> cachedGamepadDeviceIndices{};
+    std::array<bool, kMaxGamepadCount> cachedGamepadConnected{};
+    std::array<bool, kMaxGamepadCount> hasCachedGamepadPacket{};
+    std::array<bool, kMaxGamepadCount> gamepadControlsCleared{true, true, true, true};
     std::chrono::steady_clock::time_point nextDisconnectedGamepadPollTime{};
     DWORD nextDisconnectedGamepadSlotToPoll = 0;
     bool initialXInputScanComplete = false;
 
-    constexpr std::array<GamepadButton, 15> allGamepadButtons{
+    constexpr std::array<GamepadButton, 15> kAllGamepadButtons{
         GamepadButton::North,
         GamepadButton::South,
         GamepadButton::East,
@@ -90,7 +94,7 @@ namespace
         GamepadButton::LeftStick,
         GamepadButton::RightStick};
 
-    constexpr std::array<GamepadAxis, 6> allGamepadAxes{
+    constexpr std::array<GamepadAxis, 6> kAllGamepadAxes{
         GamepadAxis::LeftX,
         GamepadAxis::LeftY,
         GamepadAxis::RightX,
@@ -98,11 +102,11 @@ namespace
         GamepadAxis::LeftTrigger,
         GamepadAxis::RightTrigger};
 
-    constexpr ControlCode hidButtonCodeBase = 0x00010000;
-    constexpr ControlCode hidAxisCodeBase = 0x00020000;
-    constexpr ControlCode hidHatCodeBase = 0x00030000;
-    constexpr std::uint64_t fnvOffset = 14695981039346656037ull;
-    constexpr std::uint64_t fnvPrime = 1099511628211ull;
+    constexpr ControlCode kHidButtonCodeBase = 0x00010000;
+    constexpr ControlCode kHidAxisCodeBase = 0x00020000;
+    constexpr ControlCode kHidHatCodeBase = 0x00030000;
+    constexpr std::uint64_t kFnvOffset = 14695981039346656037ull;
+    constexpr std::uint64_t kFnvPrime = 1099511628211ull;
 
     struct HidButtonRuntime
     {
@@ -164,14 +168,14 @@ namespace
 
     std::uint64_t hashWideIdentity(std::wstring_view text)
     {
-        std::uint64_t hash = fnvOffset;
+        std::uint64_t hash = kFnvOffset;
         for (wchar_t character : text)
         {
             const wchar_t folded = static_cast<wchar_t>(std::towlower(character));
             hash ^= static_cast<std::uint64_t>(folded & 0xFF);
-            hash *= fnvPrime;
+            hash *= kFnvPrime;
             hash ^= static_cast<std::uint64_t>((folded >> 8) & 0xFF);
-            hash *= fnvPrime;
+            hash *= kFnvPrime;
         }
 
         return hash == 0 ? 1 : hash;
@@ -184,14 +188,23 @@ namespace
             return {};
         }
 
-        const int requiredSize = WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
-        if (requiredSize <= 0)
+        std::vector<char16_t> source(text.size());
+        for (std::size_t index = 0; index < text.size(); ++index)
+        {
+            source[index] = static_cast<char16_t>(text[index]);
+        }
+        const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(source);
+        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return {};
         }
-
-        std::string output(static_cast<std::size_t>(requiredSize), '\0');
-        WideCharToMultiByte(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), output.data(), requiredSize, nullptr, nullptr);
+        std::string output(measurement.requiredBytes, '\0');
+        const auto conversion = GameWIP::Unicode::Utf16::convertToUtf8(source, output);
+        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+        {
+            return {};
+        }
+        output.resize(conversion.bytesWritten);
         return output;
     }
 
@@ -228,12 +241,12 @@ namespace
 
     bool containsMarker(std::string_view text, std::string_view marker)
     {
-        return toLowerAscii(text).find(toLowerAscii(marker)) != std::string::npos;
+        return toLowerAscii(text).contains(toLowerAscii(marker));
     }
 
     bool containsMarker(std::wstring_view text, std::wstring_view marker)
     {
-        return toLowerWide(text).find(toLowerWide(marker)) != std::wstring::npos;
+        return toLowerWide(text).contains(toLowerWide(marker));
     }
 
     bool tryParseHexAfterMarker(std::wstring_view text, std::wstring_view marker, std::uint16_t &outValue)
@@ -356,7 +369,9 @@ namespace
             const std::size_t length = static_cast<std::size_t>(std::ranges::distance(entries.begin(), terminator));
             hardwareIds.push_back(wideToUtf8(std::wstring_view(entries.data(), length)));
             if (terminator == entries.end())
+            {
                 break;
+            }
             entries = entries.subspan(length + 1);
         }
 
@@ -486,7 +501,7 @@ namespace
         case 10:
             return static_cast<ControlCode>(GamepadButton::RightStick);
         default:
-            return hidButtonCodeBase + static_cast<ControlCode>(usage);
+            return kHidButtonCodeBase + static_cast<ControlCode>(usage);
         }
     }
 
@@ -513,7 +528,7 @@ namespace
             }
         }
 
-        return hidAxisCodeBase + static_cast<ControlCode>(usage);
+        return kHidAxisCodeBase + static_cast<ControlCode>(usage);
     }
 
     std::string makeHidButtonName(USAGE usage)
@@ -591,7 +606,10 @@ namespace
             return 0.0f;
         }
 
-        const float normalized = static_cast<float>(value - logicalMinimum) / static_cast<float>(logicalMaximum - logicalMinimum);
+        const double valueWide = static_cast<double>(value);
+        const double minimumWide = static_cast<double>(logicalMinimum);
+        const double maximumWide = static_cast<double>(logicalMaximum);
+        const float normalized = static_cast<float>((valueWide - minimumWide) / (maximumWide - minimumWide));
         if (logicalMinimum >= 0 && !isCenteredHidAxis(deviceType, usage))
         {
             return std::clamp(normalized, 0.0f, 1.0f);
@@ -701,7 +719,7 @@ namespace
 
         if (cap.UsagePage == HID_USAGE_PAGE_GENERIC && usage == HID_USAGE_GENERIC_HATSWITCH)
         {
-            valueRuntime.control = makeDeviceButton(runtime.device, hidHatCodeBase + static_cast<ControlCode>(usage));
+            valueRuntime.control = makeDeviceButton(runtime.device, kHidHatCodeBase + static_cast<ControlCode>(usage));
             buildHatControls(valueRuntime, controls);
         }
         else
@@ -1220,11 +1238,15 @@ namespace
         const std::size_t reportSize = rawHid.dwSizeHid;
         const std::size_t reportCount = rawHid.dwCount;
         if (reportSize != 0 && reportCount > std::numeric_limits<std::size_t>::max() / reportSize)
+        {
             return false;
+        }
         const std::size_t reportBytes = reportSize * reportCount;
         const std::size_t reportOffsetInInput = offsetof(RAWINPUT, data) + offsetof(RAWHID, bRawData);
         if (reportOffsetInInput > rawInputSize || reportBytes > rawInputSize - reportOffsetInInput)
+        {
             return false;
+        }
 
         // The caller-owned buffer contains rawInputSize bytes; the checks above bound the flexible-array member.
 #if defined(__clang__)
@@ -1319,12 +1341,12 @@ namespace
 
     void clearGamepadControls(InputState &inputState, DeviceIndex deviceIndex)
     {
-        for (GamepadButton button : allGamepadButtons)
+        for (GamepadButton button : kAllGamepadButtons)
         {
             InputInternal::InputStateAccess::setButton(inputState, makeGamepadButton(deviceIndex, button), false);
         }
 
-        for (GamepadAxis axis : allGamepadAxes)
+        for (GamepadAxis axis : kAllGamepadAxes)
         {
             InputInternal::InputStateAccess::setAxis(inputState, makeGamepadAxis(deviceIndex, axis), 0.0f);
         }
@@ -1332,17 +1354,17 @@ namespace
 
     DWORD chooseDisconnectedGamepadSlot()
     {
-        for (DWORD attempt = 0; attempt < maxGamepadCount; ++attempt)
+        for (DWORD attempt = 0; attempt < kMaxGamepadCount; ++attempt)
         {
-            DWORD userIndex = (nextDisconnectedGamepadSlotToPoll + attempt) % maxGamepadCount;
+            DWORD userIndex = (nextDisconnectedGamepadSlotToPoll + attempt) % kMaxGamepadCount;
             if (!cachedGamepadConnected[static_cast<std::size_t>(userIndex)])
             {
-                nextDisconnectedGamepadSlotToPoll = (userIndex + 1) % maxGamepadCount;
+                nextDisconnectedGamepadSlotToPoll = (userIndex + 1) % kMaxGamepadCount;
                 return userIndex;
             }
         }
 
-        return maxGamepadCount;
+        return kMaxGamepadCount;
     }
 
     bool isRegistryBackendDevice(const InputDeviceRegistry &devices, InputDeviceRef device, InputDeviceBackend backend)
@@ -1405,7 +1427,7 @@ namespace
 
     void markXInputUnavailable(InputState &inputState, InputDeviceRegistry &devices, std::uint64_t clearGeneration)
     {
-        for (DWORD userIndex = 0; userIndex < maxGamepadCount; ++userIndex)
+        for (DWORD userIndex = 0; userIndex < kMaxGamepadCount; ++userIndex)
         {
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
             if (cachedGamepadConnected[cacheIndex] || !gamepadControlsCleared[cacheIndex])
@@ -1494,7 +1516,7 @@ namespace
         deviceInfo.canonical = connected;
         deviceInfo.hasXInputFeed = connected;
 
-        for (GamepadButton button : allGamepadButtons)
+        for (GamepadButton button : kAllGamepadButtons)
         {
             InputControl control = makeGamepadButton(deviceInfo.device.deviceIndex, button);
             deviceInfo.controls.push_back(
@@ -1506,7 +1528,7 @@ namespace
                     .relative = false});
         }
 
-        for (GamepadAxis axis : allGamepadAxes)
+        for (GamepadAxis axis : kAllGamepadAxes)
         {
             InputControl control = makeGamepadAxis(deviceInfo.device.deviceIndex, axis);
             deviceInfo.controls.push_back(
@@ -1534,34 +1556,28 @@ namespace
         return InputInternal::InputDeviceRegistryAccess::upsertDevice(devices, deviceInfo);
     }
 
-    /// @brief Returns whether a UTF-16 code unit is a high surrogate.
     bool isHighSurrogate(char16_t codeUnit)
     {
         return codeUnit >= 0xD800 && codeUnit <= 0xDBFF;
     }
 
-    /// @brief Returns whether a UTF-16 code unit is a low surrogate.
     bool isLowSurrogate(char16_t codeUnit)
     {
         return codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
     }
 
-    /// @brief Returns whether a codepoint should be treated as typed text.
     bool isTextCodepoint(char32_t codepoint)
     {
         return codepoint >= 0x20 && codepoint != 0x7F;
     }
 
-    /// @brief Combines a UTF-16 surrogate pair into one Unicode codepoint.
     char32_t combineSurrogates(char16_t highSurrogate, char16_t lowSurrogate)
     {
         return 0x10000 + ((static_cast<char32_t>(highSurrogate) - 0xD800) << 10) + (static_cast<char32_t>(lowSurrogate) - 0xDC00);
     }
 
-    /// @brief Feeds one UTF-16 code unit from WM_CHAR into text input.
-    /// @param codeUnit UTF-16 code unit from Win32.
-    /// @param inputState Input state to update.
-    /// @return True if the message was consumed.
+    // WM_CHAR delivers UTF-16 code units, so retain a high surrogate until the next
+    // message to emit supplementary text as one Unicode scalar.
     bool feedUtf16TextCodeUnit(char16_t codeUnit, InputState &inputState)
     {
         char16_t pendingHighSurrogate = InputInternal::InputStateAccess::getPendingTextHighSurrogate(inputState);
@@ -1607,10 +1623,8 @@ namespace
         return true;
     }
 
-    /// @brief Feeds one UTF-32 codepoint from WM_UNICHAR into text input.
-    /// @param codepoint Unicode codepoint from Win32.
-    /// @param inputState Input state to update.
-    /// @return True if the message was consumed.
+    // WM_UNICHAR already supplies a scalar; discard stale WM_CHAR composition
+    // before accepting it so the two Win32 text paths cannot combine.
     bool feedUnicodeTextCodepoint(char32_t codepoint, InputState &inputState)
     {
         InputInternal::InputStateAccess::clearTextComposition(inputState);
@@ -1863,9 +1877,8 @@ namespace
         }
     }
 
-    /// @brief Builds the physical keyboard control code used by the generic input API.
-    /// @param rawKeyboard Raw keyboard packet from Win32.
-    /// @return USB HID keyboard usage ID, or 0 if no usable code exists.
+    // Raw Input may omit MakeCode; recover it from VKey so virtual-key-only
+    // packets still map to the portable USB HID control namespace.
     ControlCode getKeyboardControlCode(const RAWKEYBOARD &rawKeyboard)
     {
         ControlCode scanCode = rawKeyboard.MakeCode & 0xFF;
@@ -1895,13 +1908,6 @@ namespace
         return translateWin32ScanCodeToKeyboardControlCode(scanCode, extendedE0, extendedE1, rawKeyboard.VKey);
     }
 
-    /// @brief Feeds one raw mouse button transition when the matching flag is present.
-    /// @param rawMouse Raw mouse packet from Win32.
-    /// @param downFlag Raw Input flag for button down.
-    /// @param upFlag Raw Input flag for button up.
-    /// @param button Engine mouse button to update.
-    /// @param inputState Input state to update.
-    /// @return True if the button was updated.
     bool feedMouseButton(const RAWMOUSE &rawMouse, USHORT downFlag, USHORT upFlag, MouseButton button, InputState &inputState)
     {
         bool updated = false;
@@ -1920,10 +1926,6 @@ namespace
         return updated;
     }
 
-    /// @brief Handles a raw mouse packet.
-    /// @param rawMouse Raw mouse packet from Win32.
-    /// @param inputState Input state to update.
-    /// @return True when a mouse packet was handled.
     bool handleRawMouseInput(const RAWMOUSE &rawMouse, InputState &inputState)
     {
         feedMouseButton(rawMouse, RI_MOUSE_LEFT_BUTTON_DOWN, RI_MOUSE_LEFT_BUTTON_UP, MouseButton::Left, inputState);
@@ -1952,13 +1954,13 @@ namespace
         return true;
     }
 
-    /// @brief Extracts a signed client coordinate from a mouse message LPARAM.
+    // Mouse message coordinates are signed 16-bit client offsets; extract them
+    // before promoting to int so negative coordinates survive.
     int getSignedLowWord(LPARAM lParam)
     {
         return static_cast<int>(static_cast<short>(LOWORD(lParam)));
     }
 
-    /// @brief Extracts a signed client coordinate from a mouse message LPARAM.
     int getSignedHighWord(LPARAM lParam)
     {
         return static_cast<int>(static_cast<short>(HIWORD(lParam)));
@@ -2030,6 +2032,21 @@ namespace
 
 namespace GameWIP::Input::Platform::Win32
 {
+#if INPUT_INTERNAL_TEST_HOOKS
+    namespace TestHooks
+    {
+        std::string convertDeviceMetadata(std::wstring_view text)
+        {
+            return wideToUtf8(text);
+        }
+
+        float normalizeHidValue(long value, long logicalMinimum, long logicalMaximum, InputDeviceType deviceType, unsigned short usage)
+        {
+            return ::normalizeHidValue(value, logicalMinimum, logicalMaximum, deviceType, usage);
+        }
+    } // namespace TestHooks
+#endif
+
     void updateGamepads(InputState &inputState, InputDeviceRegistry &devices)
     {
         syncRegistryConnections(inputState, devices);
@@ -2043,19 +2060,19 @@ namespace GameWIP::Input::Platform::Win32
             return;
         }
 
-        DWORD disconnectedSlotToPoll = maxGamepadCount;
+        DWORD disconnectedSlotToPoll = kMaxGamepadCount;
         auto now = std::chrono::steady_clock::now();
         const bool pollAllDisconnectedSlots = !initialXInputScanComplete;
         if (!pollAllDisconnectedSlots && now >= nextDisconnectedGamepadPollTime)
         {
             disconnectedSlotToPoll = chooseDisconnectedGamepadSlot();
-            if (disconnectedSlotToPoll != maxGamepadCount)
+            if (disconnectedSlotToPoll != kMaxGamepadCount)
             {
-                nextDisconnectedGamepadPollTime = now + disconnectedGamepadPollInterval;
+                nextDisconnectedGamepadPollTime = now + kDisconnectedGamepadPollInterval;
             }
         }
 
-        for (DWORD userIndex = 0; userIndex < maxGamepadCount; ++userIndex)
+        for (DWORD userIndex = 0; userIndex < kMaxGamepadCount; ++userIndex)
         {
             DeviceIndex deviceIndex = static_cast<DeviceIndex>(userIndex);
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
@@ -2193,19 +2210,16 @@ namespace GameWIP::Input::Platform::Win32
         HWND hwnd = reinterpret_cast<HWND>(windowHandle);
 
         RAWINPUTDEVICE rawDevices[5]{};
-        // Mouse
         rawDevices[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rawDevices[0].usUsage = HID_USAGE_GENERIC_MOUSE;
         rawDevices[0].dwFlags = RIDEV_DEVNOTIFY;
         rawDevices[0].hwndTarget = hwnd;
 
-        // Keyboard
         rawDevices[1].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rawDevices[1].usUsage = HID_USAGE_GENERIC_KEYBOARD;
         rawDevices[1].dwFlags = RIDEV_DEVNOTIFY;
         rawDevices[1].hwndTarget = hwnd;
 
-        // Native HID controllers.
         rawDevices[2].usUsagePage = HID_USAGE_PAGE_GENERIC;
         rawDevices[2].usUsage = HID_USAGE_GENERIC_GAMEPAD;
         rawDevices[2].dwFlags = RIDEV_DEVNOTIFY;

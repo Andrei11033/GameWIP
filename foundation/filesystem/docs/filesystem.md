@@ -21,37 +21,37 @@ succeeds.
 
 ## Consumer manual
 
-- @subpage filesystem_quick_start — Include, link, read, write, and handle a
+- @subpage filesystem_quick_start - Include, link, read, write, and handle a
   failure in a minimal program.
-- @subpage filesystem_public_api — Find resource owners, operations, passive
+- @subpage filesystem_public_api - Find resource owners, operations, passive
   types, options, and results by capability.
-- @subpage filesystem_whole_file_io — Choose between byte/text helpers and
+- @subpage filesystem_whole_file_io - Choose between byte/text helpers and
   explicit handles, including size and durability behavior.
-- @subpage filesystem_file_open_modes — Understand creation, truncation,
+- @subpage filesystem_file_open_modes - Understand creation, truncation,
   append, access, sharing, seek, flush, and locking choices.
-- @subpage filesystem_path_operations — Compose, normalize, resolve, compare,
+- @subpage filesystem_path_operations - Compose, normalize, resolve, compare,
   and inspect paths without confusing lexical and filesystem work.
-- @subpage filesystem_unicode_paths — Understand UTF-8 conversion and native
+- @subpage filesystem_unicode_paths - Understand UTF-8 conversion and native
   path representation boundaries.
-- @subpage filesystem_symlink_policies — Control traversal and understand what
+- @subpage filesystem_symlink_policies - Control traversal and understand what
   each operation can enforce safely.
-- @subpage filesystem_metadata — Query types, sizes, timestamps, and other
+- @subpage filesystem_metadata - Query types, sizes, timestamps, and other
   observable filesystem facts.
-- @subpage filesystem_directory_operations — Create, enumerate, and remove
+- @subpage filesystem_directory_operations - Create, enumerate, and remove
   directories with explicit traversal behavior.
-- @subpage filesystem_atomic_write — Replace a file as one visible commit and
+- @subpage filesystem_atomic_write - Replace a file as one visible commit and
   understand staging, durability, and cleanup failures.
-- @subpage filesystem_examples — See common file, directory, path, and locking
+- @subpage filesystem_examples - See common file, directory, path, and locking
   workflows in context.
-- @subpage filesystem_troubleshooting — Diagnose sharing, permissions,
+- @subpage filesystem_troubleshooting - Diagnose sharing, permissions,
   traversal, encoding, cleanup, and durability failures.
 
 ## Maintainer validation
 
-- @subpage filesystem_testing — See automated behavior, installed-package, and
+- @subpage filesystem_testing - See automated behavior, installed-package, and
   platform coverage.
-- @subpage filesystem_test_hooks — Understand source-tree-only fault injection
-  and mandatory reset behavior.
+- @subpage filesystem_test_hooks - See the source-tree-only move-race and
+  FileLock ownership-cleanup validation seam.
 
 ## Generated API reference
 

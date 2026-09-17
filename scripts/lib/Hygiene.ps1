@@ -1,4 +1,8 @@
-# Optional repository-hygiene audits. Findings are evidence, not automatic edits.
+# Optional repository-hygiene audits. Findings are reported, not edited.
+
+# ------------------------------------------------------------
+# Hygiene configuration and audit reporting
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 
@@ -18,9 +22,14 @@ function Assert-GameWipHygieneConfig
     }
     foreach ($check in $checks)
     {
-        if ($check.Availability -eq 'available' -and ($check.Provider -ne 'clang-tidy' -or -not $check.ContainsKey('Rules')))
+        if ($check.Availability -eq 'available' -and $check.Provider -eq 'clang-tidy' -and -not $check.ContainsKey('Rules'))
         {
             throw "Available hygiene check '$($check.Id)' must declare clang-tidy rules."
+        }
+        if ($check.Availability -eq 'available' -and $check.Provider -eq 'compiler-warning' -and
+            (-not $check.ContainsKey('Rules') -or -not $check.ContainsKey('Flags')))
+        {
+            throw "Available compiler-warning check '$($check.Id)' must declare compiler flags."
         }
         if ($check.Availability -eq 'planned' -and ($check.Provider -ne 'future' -or $check.ContainsKey('Rules')))
         {
@@ -118,6 +127,7 @@ function Show-GameWipHygieneStatus
     Write-Host "  clang-tidy:           $(if ($tidy.Installed) { $tidy.Location } else { 'unavailable' })"
     Write-Host "  run-clang-tidy:       $(if ($runner) { $runner } else { 'unavailable' })"
     Write-Host "  Python:               $(if ($python) { $python } else { 'unavailable' })"
+    Write-Host '  compiler warnings:    supported through the analyze compilation database'
     Write-Host "  Compilation database: $(if (Test-Path -LiteralPath $database) { $database } else { 'not configured (created on first audit)' })"
 }
 
@@ -180,7 +190,7 @@ function ConvertFrom-GameWipClangTidyFinding
                 line = [int]$match.Groups['line'].Value
                 column = [int]$match.Groups['column'].Value
                 message = $match.Groups['message'].Value
-                evidence = "clang-tidy diagnostic '$rule'"
+                evidence = "$(if ($rule.StartsWith('-W')) { 'compiler warning' } else { 'clang-tidy diagnostic' }) '$rule'"
                 suggestedAction = $suggestedAction
                 explanation = $explanationId
             }) | Out-Null
@@ -200,13 +210,7 @@ function Invoke-GameWipHygieneClangTidy
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset
-    Invoke-GameWipConfigurePreset -Name $preset | Out-Null
     $databaseRoot = Join-Path $RepositoryRoot "build\$preset"
-    $database = Join-Path $databaseRoot 'compile_commands.json'
-    if (-not (Test-Path -LiteralPath $database -PathType Leaf))
-    {
-        throw "Analyze preset '$preset' did not produce compile_commands.json."
-    }
 
     $ruleLookup = @{}
     $options = [ordered]@{}
@@ -253,6 +257,57 @@ function Invoke-GameWipHygieneClangTidy
     return $findings
 }
 
+function Invoke-GameWipHygieneCompilerWarnings
+{
+    param([object[]]$Checks)
+    $python = Resolve-GameWipToolCommand -Command python
+    if (-not $python)
+    {
+        throw (New-GameWipDiagnosticException `
+                -Code 'hygiene-tool-unavailable' `
+                -Summary 'The compiler-warning hygiene audit requires Python.' `
+                -Details 'The configured Python interpreter could not be resolved.' `
+                -SuggestedActions @('.\gamewip.bat tools status', '.\setup.bat repair'))
+    }
+
+    $preset = [string]$HygieneConfig.AnalyzePreset
+    $databaseRoot = Join-Path $RepositoryRoot "build\$preset"
+    $database = Join-Path $databaseRoot 'compile_commands.json'
+    $scriptPath = Join-Path $ScriptsRoot 'lib\hygiene_compiler_warnings.py'
+    $ruleLookup = @{}
+    $flags = [System.Collections.Generic.List[string]]::new()
+    foreach ($check in @($Checks))
+    {
+        foreach ($rule in @($check.Rules))
+        {
+            $ruleLookup[[string]$rule] = $check
+        }
+        foreach ($flag in @($check.Flags))
+        {
+            $flags.Add([string]$flag)
+        }
+    }
+    $arguments = @('-u', $scriptPath, '--database', $database, '--source-filter', [string]$HygieneConfig.SourceFilter)
+    foreach ($flag in $flags)
+    {
+        $arguments += "--flag=$flag"
+    }
+    $path = @((Get-GameWipToolchainPathPrefix $preset), $env:PATH) -join [IO.Path]::PathSeparator
+    $result = Invoke-GameWipProcess -FilePath $python -Arguments $arguments -OutputMode $Script:OperationContext.OutputMode -TimeoutSeconds 7200 -Environment @{ PATH = $path }
+    $lines = @($result.Stdout) + @($result.Stderr)
+    $findings = @(ConvertFrom-GameWipClangTidyFinding -Lines $lines -RuleLookup $ruleLookup)
+    $providerFailures = @($lines | Where-Object { $_ -match 'compiler-warning provider failed' -or $_ -match ':[0-9]+:[0-9]+:\s+error:' })
+    if ($providerFailures.Count -ne 0)
+    {
+        throw "Compiler-warning provider reported $($providerFailures.Count) failure(s). Inspect the retained process log."
+    }
+    if ($result.ExitCode -ne 0)
+    {
+        throw "Compiler-warning provider failed with exit code $($result.ExitCode). Inspect the retained process log."
+    }
+    return $findings
+}
+
 function Write-GameWipHygieneReport
 {
     param([Parameter(Mandatory = $true)]$Report)
@@ -292,8 +347,28 @@ function Invoke-GameWipHygieneAudit
     $findings = @()
     if ($available.Count -ne 0)
     {
-        $findings = @(Invoke-GameWipHygieneClangTidy -Checks $available)
+        # Every executable provider consumes the same current compilation database.
+        # Prepare it once here so a compiler-only selection works on a fresh tree.
+        $preset = [string]$HygieneConfig.AnalyzePreset
+        Invoke-GameWipConfigurePreset -Name $preset | Out-Null
+        $database = Join-Path $RepositoryRoot "build\$preset\compile_commands.json"
+        if (-not (Test-Path -LiteralPath $database -PathType Leaf))
+        {
+            throw "Analyze preset '$preset' did not produce compile_commands.json."
+        }
+
+        $clangTidyChecks = @($available | Where-Object Provider -eq 'clang-tidy')
+        $compilerWarningChecks = @($available | Where-Object Provider -eq 'compiler-warning')
+        if ($clangTidyChecks.Count -ne 0)
+        {
+            $findings += @(Invoke-GameWipHygieneClangTidy -Checks $clangTidyChecks)
+        }
+        if ($compilerWarningChecks.Count -ne 0)
+        {
+            $findings += @(Invoke-GameWipHygieneCompilerWarnings -Checks $compilerWarningChecks)
+        }
     }
+
     $report = [ordered]@{
         schemaVersion = 1
         generatedAt = (Get-Date).ToUniversalTime().ToString('o')

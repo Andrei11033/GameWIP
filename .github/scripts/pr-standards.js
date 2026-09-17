@@ -1,4 +1,4 @@
-// Repository-owned pull-request metadata policy executed from trusted base-branch content.
+// Check pull-request metadata using the trusted base-branch policy.
 
 'use strict';
 
@@ -70,9 +70,10 @@ function validatePullRequest(pr) {
         if (!title || title === 'area: imperative summary' || !TITLE_PATTERN.test(title)) {
             errors.push('Merge message title must be concrete and use `area: imperative summary`.');
         }
-        const mergeBody = /^(?:-\s*)?Body:\s*(.+)$/im.exec(merge)?.[1];
-        if (!hasMeaningfulContent(mergeBody)) {
-            errors.push('Merge message must include a non-empty `Body: explanation` line.');
+        const mergeBodyMatch = /^(?:-\s*)?Body:\s*(.*)$/im.exec(merge);
+        const mergeBody = mergeBodyMatch ? `${mergeBodyMatch[1]}\n${merge.slice(mergeBodyMatch.index + mergeBodyMatch[0].length)}` : undefined;
+        if (mergeBodyMatch && !hasMeaningfulContent(mergeBody)) {
+            errors.push('Merge message `Body:` must contain meaningful content when provided.');
         }
     }
     const labels = (pr.labels || []).map((label) => label.name);

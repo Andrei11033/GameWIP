@@ -1,4 +1,8 @@
-# GameWIP Documentation helper behavior. Dot-sourced by scripts/GameWIP.ps1.
+# Documentation build and link-validation helpers.
+
+# ------------------------------------------------------------
+# Documentation and link validation
+# ------------------------------------------------------------
 
 function Invoke-GameWipMarkdownLink
 {

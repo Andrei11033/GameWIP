@@ -1,18 +1,18 @@
 @page project_tools Project development tools
 
-GameWIP has one tracked authority for project development tools:
-`scripts/config/project-tools.json`. It declares provider selection, version
-policy, provider package metadata, detection, update capabilities, and
-repository references. Setup and the project helper consume that registry;
-they do not keep a second package or version catalog. Adding another tool that
-uses an existing provider, or another supported reference, is therefore a
-registry change rather than a tool-specific orchestration change.
+GameWIP keeps its project-tool policy in `scripts/config/project-tools.json`.
+The registry declares providers, versions, package metadata, detection, update
+capabilities, and repository references. Setup and the project helper both use
+it, so adding a tool with an existing provider or adding another supported
+reference means updating the registry rather than adding a separate
+orchestration path.
 
 ## Provider and version policy
 
 The supported providers are MSYS2, npm, Python, PowerShell Gallery, verified
 GitHub releases, WinGet, Git submodules, and external/manual state. Provider
-selection follows this order when the tool is available and compatible:
+selection follows this order when the tool is available from more than one
+source:
 
 1. An official MSYS2/pacman package.
 2. The tool's native ecosystem under the persistent GameWIP tool root.
@@ -21,19 +21,18 @@ selection follows this order when the tool is available and compatible:
 
 `exact` pins version-sensitive tools. `minimum` accepts the declared version or
 newer. `managed` lets the owning package manager select a compatible version.
-`informational` reports externally owned state without taking over its update.
+`informational` reports externally owned state without taking over its updates.
 
 CMake is a `minimum` tool and its registry version must equal the root
 `cmake_minimum_required()` value. Newer CMake release lines are accepted.
 
-MSYS2 package requirements are derived from provider metadata in
-`project-tools.json`, including UCRT64/CLANG64 companion packages and package-only
-dependencies. Gersemi uses the upstream verified standalone release assets
-rather than the MSYS2 Python environment because native Python-extension ABI
-compatibility can otherwise force source builds on Windows. The exact upstream
-release tag, platform asset names, and SHA-256 digests are owned by
-`project-tools.json`. `scripts/setup/config/setup.json` owns only setup action
-metadata and the IDs needed to bootstrap a provider host.
+MSYS2 package requirements come from provider metadata in
+`project-tools.json`, including UCRT64 and CLANG64 companion packages and
+package-only dependencies. Gersemi uses verified upstream release assets rather
+than the MSYS2 Python environment because Python-extension ABI differences can
+otherwise force source builds on Windows. The registry owns the upstream tag,
+platform asset names, and SHA-256 digests. `scripts/setup/config/setup.json`
+owns setup-action metadata and the IDs needed to bootstrap a provider host.
 
 The GitHub CLI is a managed WinGet tool because the workflow status and dispatch
 commands depend on it. Its sign-in state is intentionally not managed by setup.
@@ -57,39 +56,44 @@ C:\MSYS2\GameWIPTools\
 
 The directory is separate from repository build output and survives deleting
 `build/`. When GameWIP creates this tree it writes `.gamewip-managed.json`
-inside it. An existing non-empty tree without valid ownership proof is never
-silently adopted or recursively removed. Interactive setup may display the
-top-level contents and ask, defaulting to No, whether the user explicitly wants
-to adopt that root. Adopted ownership is recorded distinctly from
-setup-created ownership. Noninteractive setup remains fail-closed, and
-`setup.bat check` only diagnoses missing ownership proof without mutating it.
+inside it. An existing non-empty tree without valid ownership proof must never
+be silently adopted or recursively removed. Interactive setup may show its
+top-level contents and ask whether the
+user wants to adopt it, with No as the default. Adopted ownership is recorded
+separately from setup-created ownership. Noninteractive setup remains
+fail-closed, and `setup.bat check` reports missing ownership proof without
+changing it.
 
 `C:\MSYS2\.gamewip-managed.json` is a different marker. It records proven
 GameWIP ownership of the MSYS2 installation itself when setup created it.
-Ownership evidence never bypasses recursive-deletion path safety, and setup
-still preserves the MSYS2 root for manual review because users can add files or
+Ownership evidence never bypasses recursive-deletion path safety. Setup still
+preserves the MSYS2 root for manual review because users can add files or
 packages after installation.
 
 ## Tool commands
 
-`gamewip tools list` and `gamewip tools status` are offline. `list` reports
+`gamewip.bat tools list` and `gamewip.bat tools status` are offline. `list` reports
 registry policy. `status` reports the selected executable/module, required and
 installed versions, compatibility, provider, and additional discovered copies.
-Selection is deterministic: the declared managed provider location wins on the
-Windows development environment, then other GameWIP-managed locations, then
-PATH. A repository-owned executable participates only when the registry
-explicitly declares its repository path.
+Selection follows a fixed order: the declared managed provider location wins on
+the Windows development environment, followed by other GameWIP-managed
+locations and then `PATH`. A repository-owned executable participates only when
+the registry explicitly declares its repository path.
 
-`gamewip tools check-updates` is online and read-only. It resolves
+`gamewip.bat tools check-updates` is online and read-only. It resolves
 all requested latest versions, including versioned provider dependencies,
 without changing tracked files or installed software.
 
-`gamewip tools update <id|all>` discovers upstream state and builds the complete
-plan before persistent mutation. `-Preview` runs discovery, planning, tracked
+`gamewip.bat tools update <id|all>` discovers upstream state and builds the plan
+before persistent mutation. `-Preview` runs discovery, planning, tracked
 staging, and staged validation, then prints exact registry fields and declared
 references without applying tracked or machine changes. A real update requires
 a clean tracked tree, requests consent for that validated plan, applies it,
-verifies the planned new declaration, and runs `quality check`.
+verifies the planned declaration, and runs `quality check`.
+
+Interactive multi-selection stages all selected tools together and writes shared
+files once. It does not start a new update against the dirty tree produced by an
+earlier selected tool.
 
 Reference behavior comes entirely from each declaration:
 
@@ -98,34 +102,34 @@ Reference behavior comes entirely from each declaration:
   not a regular expression, and contains exactly one `{version}` token.
 - `cmakeMinimum` is a live semantic CMake minimum-version reference.
 
-Live references default to one expected occurrence and fail closed when the
-declared count does not match. When several updates target one file, they
-compose in staged content and the file is written once. Historical documents
-remain unchanged by declaring them as informational `path` references; no
-directory name has special behavior.
+Live references expect one occurrence by default and fail closed when the
+declared count does not match. Several updates that target one file are composed
+in staged content, then the file is written once. Historical documents remain
+unchanged because they use informational `path` references; no directory name
+has special behavior.
 
-Registry updates use compare-and-set mutations: each exact JSON string target
+Registry updates use compare-and-set mutations. Each exact JSON string target
 includes its expected old value and planned new value. The source-preserving
-mutator replaces only those scalar tokens, so property order, tool and
-dependency order, whitespace, escapes, and unrelated Unicode remain unchanged.
-Repository-owned configuration and reference text is read as strict UTF-8;
-malformed input fails, and writes remain UTF-8 without a byte-order mark.
+mutator replaces only those scalar tokens, leaving property order, tool and
+dependency order, whitespace, escapes, and unrelated Unicode unchanged.
+Repository-owned configuration and reference text is read as strict UTF-8.
+Malformed input fails, and writes remain UTF-8 without a byte-order mark.
 
-Provider adapters own provider-specific queries, installation, and rollback;
-the shared engine owns discovery, planning, staging, validation, preview,
+Provider adapters own provider-specific queries, installation, and rollback.
+The shared engine owns discovery, planning, staging, validation, preview,
 consent, application, verification, and quality. Verified GitHub-release
-providers download and checksum a candidate, verify it before replacement,
-and restore the previous managed tool and shim if replacement fails. If every
+providers download and checksum a candidate, verify it before replacement, and
+restore the previous managed tool and shim if replacement fails. If every
 selected declaration and installation is current, the update is a true no-op:
 it neither stages tracked files nor reinstalls an identical tool. The command
 never commits or pushes.
 
-`setup.bat update` has different semantics: it performs the complete MSYS2
-`pacman -Syu` environment update, updates other compatible package-manager
-software/integrations, and restores compliance with versions already declared
-by the checkout. It does not advance exact project pins. Use **Tools and
-environment** in the interactive project menu for tool status/check/update
-workflows, and **Quality** for the complete quality/formatting workflows.
+`setup.bat update` has a different role. It performs the MSYS2 `pacman -Syu`
+environment update, updates other compatible package-manager software and
+integrations, and restores compliance with versions already declared by the
+checkout. It does not advance exact project pins. Use **Tools and environment**
+in the interactive project menu for tool status, check, and update workflows;
+use **Quality** for quality and formatting.
 
 ## Repository-local mutable storage
 
@@ -172,24 +176,27 @@ hidden discovery dependency. `.clang-format`, `.clang-tidy`, and
 upward discovery is useful for C++ and basic text settings.
 
 `hygiene.json` declares optional audit profiles, provider-backed checks,
-confidence levels, and centrally reviewed explanations. Its schema and runtime
-semantic validation reject duplicate IDs and unknown references. The registry
-does not change the required repository quality gate or the root `.clang-tidy`
-policy.
+confidence levels, and reviewed explanations. Providers may use clang-tidy rules
+or compiler warning flags such as `-Wunreachable-code`; the selected provider
+owns how each rule is executed and normalized. Schema and semantic validation
+reject duplicate IDs and unknown references. The registry does not change the
+required repository quality gate or the root `.clang-tidy` policy.
 
 The ownership registry gives every maintained worktree file one quality policy.
 Full quality includes tracked files and non-ignored untracked first-party files,
-so new project files are checkable and formattable before they are staged.
-Language and structured-data sources use their declared formatter
-and parser or linter. Tool-owned metadata such as `CODEOWNERS` and `prettier.ignore` is intentionally not reformatted but remains subject to its
-owning tool, repository checks, and generic text rules. Windows manifests are parsed as XML and validated again by resource compilation. Generated,
-third-party, historical, and binary artifacts stay outside maintained formatting only through explicit policy boundaries.
+so new project files can be checked and formatted before they are staged.
+Language and structured-data sources use their declared formatter and parser or
+linter. Tool-owned metadata such as `CODEOWNERS` and `prettier.ignore` is not
+reformatted, but remains subject to its owning tool, repository checks, and
+generic text rules. Windows manifests are parsed as XML and validated again by
+resource compilation. Generated, third-party, historical, and binary artifacts
+stay outside maintained formatting through explicit policy boundaries.
 
-`gamewip quality check` performs deterministic format checks,
-language linters, schema/semantic validation, workflow validation,
-documentation checks, and link validation. `fix` runs deterministic formatters
-only and then executes the same check. It does not auto-rewrite prose, workflow
-behavior, or semantic CMake policy.
+`gamewip quality check` performs deterministic format checks, language linters,
+schema and semantic validation, workflow validation, documentation checks, and
+link validation. `fix` runs deterministic formatters only and then executes the
+same check. It does not rewrite prose, workflow behavior, or semantic CMake
+policy.
 
 ## Troubleshooting
 
@@ -203,6 +210,6 @@ reconstructs what it safely can from persistent evidence. Unknown resources are
 preserved. If an existing `GameWIPTools` tree has no ownership marker, review it
 manually instead of forcing uninstall.
 
-Do not put persistent tools under `build/`, place unmanaged files in
-pacman-owned `bin` directories, or treat `build/gamewip/state` as durable
-machine ownership evidence.
+Persistent tools belong outside `build/`, unmanaged files do not belong in
+pacman-owned `bin` directories, and `build/gamewip/state` is not durable machine
+ownership evidence.

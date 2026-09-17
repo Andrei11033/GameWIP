@@ -135,7 +135,7 @@
     {
       "id": "wizard",
       "title": "Validation wizard",
-      "description": "Interactively compose a correctness command.",
+      "description": "Interactively compose common and declared module-specific validation arguments.",
       "group": "validation",
       "visible": true,
       "network": false,
@@ -206,6 +206,16 @@
       "id": "asan",
       "title": "AddressSanitizer",
       "description": "Recreate the CLANG64 tree, then run AddressSanitizer validation.",
+      "group": "quality",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "ubsan",
+      "title": "UndefinedBehaviorSanitizer",
+      "description": "Recreate the CLANG64 tree, then run UndefinedBehaviorSanitizer validation.",
       "group": "quality",
       "visible": true,
       "network": false,
@@ -296,8 +306,8 @@
         { "key": "5", "label": "Benchmarks", "handler": "benchmark" },
         { "key": "6", "label": "Coverage", "handler": "coverage" },
         { "key": "7", "label": "Validation bundles", "handler": "bundle" },
-        { "key": "8", "label": "Coverage", "handler": "coverage" },
-        { "key": "9", "label": "AddressSanitizer", "handler": "asan" }
+        { "key": "8", "label": "AddressSanitizer", "handler": "asan" },
+        { "key": "U", "label": "UndefinedBehaviorSanitizer", "handler": "ubsan" }
       ]
     },
     {
@@ -455,7 +465,52 @@
     "configPath": ".clang-format"
   },
   "defaultStressCount": 32,
-  "modules": ["assert", "base", "desktop", "filesystem", "io", "logger", "runner", "terminal", "test_support", "unicode"],
+  "modules": [
+    { "id": "assert" },
+    { "id": "base" },
+    {
+      "id": "desktop",
+      "builderOptions": [
+        {
+          "id": "manual-suite",
+          "title": "Desktop manual suite",
+          "description": "Narrow enabled Desktop manual validation to one workflow.",
+          "kind": "choice",
+          "arguments": ["--desktop-manual-suite={value}"],
+          "choices": [
+            "all",
+            "lifecycle",
+            "multiple-windows",
+            "custom-chrome",
+            "layered-pointer",
+            "dpi",
+            "cursor",
+            "child-surface",
+            "files-shell",
+            "dialogs",
+            "drag-drop",
+            "fullscreen",
+            "borderless",
+            "exclusive",
+            "topology",
+            "hdr",
+            "modern"
+          ],
+          "default": "all",
+          "omitDefault": true,
+          "requiresCommon": ["manual-tests"]
+        }
+      ]
+    },
+    { "id": "filesystem" },
+    { "id": "input" },
+    { "id": "io" },
+    { "id": "logger" },
+    { "id": "runner" },
+    { "id": "terminal" },
+    { "id": "test_support" },
+    { "id": "unicode" }
+  ],
   "defaultBuildPreset": "test",
   "unicode": {
     "version": "17.0.0",
@@ -619,7 +674,7 @@
       ]
     },
     {
-      "name": "CLANG64 AddressSanitizer validation",
+      "name": "CLANG64 sanitizer validation",
       "id": "sanitizer",
       "freshBuildTrees": true,
       "steps": [
@@ -635,7 +690,10 @@
           "useWorkspaceTemp": true,
           "preset": "asan",
           "kind": "CTest"
-        }
+        },
+        { "kind": "Configure", "preset": "ubsan" },
+        { "kind": "Build", "preset": "ubsan" },
+        { "useWorkspaceTemp": true, "preset": "ubsan", "kind": "CTest" }
       ]
     }
   ],

@@ -2,7 +2,6 @@
 /// @brief Implements IO status helpers, default interfaces, memory streams, and whole-transfer algorithms.
 
 #include "io/memory.h"
-#include "io/internal/io_test_hooks.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
@@ -404,9 +403,6 @@ namespace GameWIP::IO
 
         try
         {
-#if IO_INTERNAL_TEST_HOOKS
-            ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::MemoryWriterWrite);
-#endif
 
             // Detect self-aliasing before appending can reallocate the vector. The source offset,
             // rather than the input pointer, remains usable after storage moves.
@@ -485,9 +481,6 @@ namespace GameWIP::IO
 
         try
         {
-#if IO_INTERNAL_TEST_HOOKS
-            ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::MemoryWriterReserve);
-#endif
             bytes_.reserve(capacity);
             return successStatus();
         }
@@ -534,9 +527,6 @@ namespace GameWIP::IO
 
         try
         {
-#if IO_INTERNAL_TEST_HOOKS
-            ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::MemoryWriterCopyText);
-#endif
             result.text.assign(textView.data(), textView.size());
         }
         catch (const std::bad_alloc &)

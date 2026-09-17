@@ -1,20 +1,15 @@
 include_guard(GLOBAL)
 
-# Resolves the normalized operating-system backend and includes its target-owned registration file.
+# Resolves the normalized operating-system backend and includes its target-owned
+# registration file.
 #
 # Public helpers:
 # - gamewip_resolve_platform_id(<output-variable>)
 # - gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)
 #
-# Inputs:
-# - TARGET names an existing target.
-# - ROOT names a directory containing <backend>/platform.cmake.
-#
-# Side effects:
-# - Includes exactly the active backend file, which owns sources, libraries, definitions, resources, and private includes.
-#
-# Failure contract:
-# - Unsupported OS families, missing targets, invalid arguments, and absent backend files stop configuration with a descriptive fatal error.
+# The selected backend owns sources, libraries, definitions, resources, and
+# private includes. Unsupported OS families, missing targets, invalid arguments,
+# and absent backend files stop configuration with a descriptive fatal error.
 
 function(gamewip_resolve_platform_id output_variable)
     if(DEFINED GAMEWIP_PLATFORM_ID AND NOT GAMEWIP_PLATFORM_ID STREQUAL "")

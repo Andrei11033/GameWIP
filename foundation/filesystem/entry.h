@@ -126,19 +126,19 @@ namespace GameWIP::FileSystem
     /// @return Entry metadata, or NotFound when the entry is missing.
     [[nodiscard]] Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
-    /// @brief Tests whether a path exists and is a regular file.
+    /// @brief Tests whether a path resolves to a regular file.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
     [[nodiscard]] Types::BoolResult isRegularFile(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
-    /// @brief Tests whether a path exists and is a directory.
+    /// @brief Tests whether a path resolves to a directory.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
     [[nodiscard]] Types::BoolResult isDirectory(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
-    /// @brief Tests whether a path exists and is a symbolic link or equivalent link-like entry.
+    /// @brief Tests whether a path resolves to a symbolic link or equivalent link-like entry.
     /// @param path Path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
@@ -162,7 +162,7 @@ namespace GameWIP::FileSystem
     /// @return Successful true or false, or NotFound when the entry is missing.
     [[nodiscard]] Types::BoolResult isReadOnly(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
-    /// @brief Changes the portable read-only state of an existing entry.
+    /// @brief Changes the portable basic read-only state of an existing entry.
     /// @param path Path to update.
     /// @param readOnly True to request read-only state; false to request writable state.
     /// @param options Symlink traversal behavior.

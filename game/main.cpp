@@ -1,9 +1,9 @@
 /// @file main.cpp
 /// @brief GameWIP process entry point and startup sequencing.
 ///
-/// This file should remain the stable process boundary. It handles process-level
-/// utility arguments, runs optional startup validation/benchmarks, and then
-/// delegates runtime execution to GameWIP::Game::run().
+/// The process entry point handles utility arguments and optional startup
+/// validation or benchmark runs before handing runtime execution to
+/// GameWIP::Game::run(). Runtime composition lives in runtime/game.cpp.
 
 #include "runtime/game.h"
 #include "validation/process_arguments.h"

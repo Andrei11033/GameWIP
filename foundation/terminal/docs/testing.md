@@ -1,4 +1,4 @@
-@page terminal_testing Maintainer validation
+@page terminal_testing Testing
 
 @note This page describes validation coverage and commands. Source-tree hook APIs are documented separately in @ref terminal_test_hooks.
 

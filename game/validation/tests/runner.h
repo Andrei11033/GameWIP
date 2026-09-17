@@ -35,8 +35,6 @@ namespace GameWIP::Validation::Tests
         std::size_t stressThreadCount = 8;
         /// @brief Per-worker operation count for Logger stress scenarios.
         std::size_t loggerStressIterationsPerThread = 20'000;
-        /// @brief Repetition count for Assert stress scenarios.
-        std::size_t assertStressIterations = 20'000;
         /// @brief Writes the complete validation report to reportPath.
         bool writeReport = true;
         /// @brief Appends the first selected module instead of truncating reportPath.

@@ -1,4 +1,4 @@
-# Shared GameWIP configuration and repository-path helpers.
+# Shared configuration and repository-path helpers.
 # Bootstrap validation is intentionally narrower than JSON Schema validation.
 
 Set-StrictMode -Version Latest
@@ -165,6 +165,8 @@ function Assert-GameWipProjectToolConfig
     }
     foreach ($toolInfo in @($ProjectTools.tools))
     {
+        # Validate the provider-independent contract before checking details
+        # that belong to a specific installation provider.
         if ($providerKinds -notcontains $toolInfo.provider.kind)
         {
             throw "Tool '$($toolInfo.id)' uses unsupported provider '$($toolInfo.provider.kind)'."
@@ -194,6 +196,8 @@ function Assert-GameWipProjectToolConfig
         {
             @()
         }
+        # Provider-specific fields are checked together so each provider's
+        # installation code can rely on one complete configuration contract.
         switch ([string]$toolInfo.provider.kind)
         {
             'msys2'
@@ -261,6 +265,8 @@ function Assert-GameWipProjectToolConfig
             }
         }
 
+        # Validate every live reference against the repository before accepting
+        # the registry, because update planning later relies on these paths.
         foreach ($reference in @($toolInfo.references))
         {
             if ($reference -isnot [hashtable] -or -not $reference.Contains('path') -or -not $reference.Contains('kind'))
@@ -285,6 +291,8 @@ function Assert-GameWipProjectToolConfig
             {
                 1
             }
+            # Each reference kind has a different comparison contract; reject
+            # unsupported fields here instead of making mutation code guess.
             switch ([string]$reference.kind)
             {
                 'text'
@@ -383,10 +391,26 @@ function Assert-GameWipValidPreset
 function Assert-GameWipValidModule
 {
     param([Parameter(Mandatory = $true)][string]$Name)
-    if ($Name -ne 'all' -and @($CommandConfig.Modules) -notcontains $Name)
+    if ($Name -ne 'all' -and @(Get-GameWipValidationModuleName) -notcontains $Name)
     {
         throw "Unknown validation module '$Name'. Run 'gamewip list' to see available modules."
     }
+}
+
+function Get-GameWipValidationModuleName
+{
+    return @($CommandConfig.Modules | ForEach-Object { [string]$_.Id })
+}
+
+function Get-GameWipValidationModule
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+    $module = @($CommandConfig.Modules | Where-Object { $_.Id -eq $Name } | Select-Object -First 1)
+    if ($module.Count -eq 0)
+    {
+        throw "Unknown validation module '$Name'. Run 'gamewip list' to see available modules."
+    }
+    return $module[0]
 }
 
 function Get-GameWipProjectCommand
@@ -460,7 +484,7 @@ function Assert-GameWipCommandConfig
     Assert-GameWipUniqueId -Label 'action' -Items $actions
     Assert-GameWipUniqueId -Label 'interactive menu' -Items $menus
     Assert-GameWipUniqueId -Label 'project command' -Items $commands
-    $requiredActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'benchmark', 'runs', 'list', 'help')
+    $requiredActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'ubsan', 'benchmark', 'runs', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
     if ((($requiredActions | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
@@ -485,7 +509,7 @@ function Assert-GameWipCommandConfig
         'menu-hygiene', 'menu-tools', 'menu-installed-tools', 'menu-tool-updates', 'menu-repository',
         'menu-git-workspace', 'menu-github-workflows', 'menu-maintenance', 'menu-unicode-data', 'menu-run-history',
         'doctor', 'help', 'configure', 'build', 'run', 'docs', 'test', 'module', 'stress', 'wizard', 'benchmark',
-        'coverage', 'asan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
+        'coverage', 'asan', 'ubsan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
         'analyze', 'links', 'hygiene-standard', 'hygiene-deep', 'hygiene-check', 'hygiene-list', 'hygiene-status', 'tools-status',
         'tools-check-updates', 'tools-preview', 'tools-update', 'setup-guidance', 'git-status', 'git-fetch',
         'git-switch', 'git-create', 'git-update', 'git-push', 'git-cleanup', 'git-log', 'workflow-list',
@@ -530,7 +554,8 @@ function Assert-GameWipCommandConfig
 
     $moduleRoot = Join-Path $RepositoryRoot 'game\validation\tests'
     $discoveredModules = @(Get-ChildItem -LiteralPath $moduleRoot -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'CMakeLists.txt') } | ForEach-Object { $_.Name } | Sort-Object)
-    $configuredModules = @($CommandConfig.Modules | Sort-Object)
+    Assert-GameWipUniqueId -Label 'validation module' -Items @($CommandConfig.Modules)
+    $configuredModules = @(Get-GameWipValidationModuleName | Sort-Object)
     if (($discoveredModules -join "`n") -ne ($configuredModules -join "`n"))
     {
         throw "Validation module catalog drift. Configured: $($configuredModules -join ', '); discovered: $($discoveredModules -join ', ')."
@@ -538,6 +563,60 @@ function Assert-GameWipCommandConfig
     if ($configuredModules -notcontains $CommandConfig.DefaultModule -and $CommandConfig.DefaultModule -ne 'all')
     {
         throw "Unknown default validation module '$($CommandConfig.DefaultModule)'."
+    }
+
+    $validBuilderKinds = @('boolean', 'choice', 'integer', 'text')
+    $validCommonCapabilities = @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report')
+    foreach ($module in @($CommandConfig.Modules))
+    {
+        $options = @(if ($module -is [hashtable] -and $module.ContainsKey('builderOptions'))
+            {
+                @($module['builderOptions'])
+            }
+            else
+            {
+                @()
+            })
+        if ($options.Count -eq 0)
+        {
+            continue
+        }
+        Assert-GameWipUniqueId -Label "validation builder option in '$($module.Id)'" -Items $options
+        foreach ($option in $options)
+        {
+            if ($validBuilderKinds -notcontains [string]$option.Kind)
+            {
+                throw "Unknown validation builder option kind '$($option.Kind)' in '$($module.Id)/$($option.Id)'."
+            }
+            $requiredCapabilities = @(if ($option -is [hashtable] -and $option.ContainsKey('requiresCommon'))
+                {
+                    @($option['requiresCommon'])
+                }
+                else
+                {
+                    @()
+                })
+            foreach ($capability in $requiredCapabilities)
+            {
+                if ($validCommonCapabilities -notcontains [string]$capability)
+                {
+                    throw "Unknown common capability '$capability' in validation builder option '$($module.Id)/$($option.Id)'."
+                }
+            }
+            $hasValue = @($option.Arguments | Where-Object { $_.Contains('{value}') }).Count -gt 0
+            if ($option.Kind -eq 'boolean' -and $hasValue)
+            {
+                throw "Boolean validation builder option '$($module.Id)/$($option.Id)' must not contain '{value}'."
+            }
+            if ($option.Kind -ne 'boolean' -and -not $hasValue)
+            {
+                throw "Validation builder option '$($module.Id)/$($option.Id)' must contain '{value}'."
+            }
+            if ($option.Kind -eq 'choice' -and @($option.Choices) -notcontains [string]$option.Default)
+            {
+                throw "Default for validation builder option '$($module.Id)/$($option.Id)' is not one of its choices."
+            }
+        }
     }
 
     foreach ($command in $commands)

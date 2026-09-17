@@ -113,7 +113,8 @@ Write-only `IO::Writer` with `open()`, `isOpen()`, `canSeek()`, `write()`, `flus
 ### `File`
 
 Read/write `IO::Reader` and `IO::Writer` with the common stream operations plus `access()`, `resize()`, and shared/exclusive lock acquisition.
-`access()` is meaningful only while open.
+`access()` is meaningful only while open. `resize()` preserves its observable position when possible; it can report a restore failure after changing
+the length. See @ref filesystem_file_open_modes.
 
 ### `FileLock`
 
@@ -138,7 +139,8 @@ filesystem_atomic_write.
 - Predicates: `exists()`, `isRegularFile()`, `isDirectory()`, `isSymlink()`.
 - Value queries: `getEntryInfo()`, `getFileSize()`, `getLastWriteTime()`, `isReadOnly()`.
 - Metadata mutation: `setReadOnly()`.
-- Size mutation: `resizeFile()`, `truncateFile()`, and `File::resize()`.
+- Size mutation: `resizeFile()`, `truncateFile()`, and `File::resize()`. Path helpers ignore private temporary-handle restoration and can report a
+  resize or close failure after the requested length applies.
 
 See @ref filesystem_metadata.
 

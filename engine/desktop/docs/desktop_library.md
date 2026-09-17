@@ -1,8 +1,9 @@
 @page desktop_library Desktop
 
 `GameWIP::Desktop` provides standalone portable ownership of native top-level
-desktop windows, optional managed child hosts, synchronous desktop Clipboard
-data exchange, and native data drag and drop. Its API provides checked lifecycle
+desktop windows, optional managed child hosts, synchronous Clipboard data
+exchange, native data drag and drop, and opt-in native dialogs. Its API provides
+checked lifecycle
 and mutation operations, fixed-capacity typed event queues, cached state,
 display discovery and inspection, and an explicit native interoperability
 boundary.
@@ -21,45 +22,47 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 
 ## Consumer manual
 
-- @subpage desktop_quick_start — Include, link, open, pump, inspect events, and
+- @subpage desktop_quick_start - Include, link, open, pump, inspect events, and
   close a Window.
-- @subpage desktop_public_api — Find headers, namespaces, owners, passive types,
+- @subpage desktop_public_api - Find headers, namespaces, owners, passive types,
   capability groups, and results.
-- @subpage desktop_package_abi — Understand why Window is shared and how its
+- @subpage desktop_package_abi - Understand why Desktop is shared and how its
   package, exports, manifest, and runtime identity work.
-- @subpage desktop_coordinates_and_dpi — Relate logical client units, physical
+- @subpage desktop_coordinates_and_dpi - Relate logical client units, physical
   pixels, desktop coordinates, framebuffers, scale, and DPI policy.
-- @subpage desktop_custom_cursors — Create shared native cursor images, supply
+- @subpage desktop_custom_cursors - Create shared native cursor images, supply
   DPI variants, select them on Windows, and restore system shapes.
-- @subpage desktop_child_surfaces — Host externally managed native descendants
+- @subpage desktop_child_surfaces - Host externally managed native descendants
   inside an optional managed child HWND.
-- @subpage desktop_clipboard — Exchange UTF-8 text, paths, RGBA8 images, and
+- @subpage desktop_clipboard - Exchange UTF-8 text, paths, RGBA8 images, and
   arbitrary named opaque data without opening a Window.
-- @subpage desktop_drag_drop — Exchange portable data through native drag
+- @subpage desktop_drag_drop - Exchange portable data through native drag
   sources and declarative target regions.
-- @subpage desktop_lifecycle_events — Understand thread ownership, dispatch,
+- @subpage desktop_dialogs - Present synchronous native choices and modeless
+  owner-thread operation progress.
+- @subpage desktop_lifecycle_events - Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
-- @subpage desktop_chrome_and_pointer_input — Configure system and custom chrome,
+- @subpage desktop_chrome_and_pointer_input - Configure system and custom chrome,
   drag regions, caption controls, cursor modes, and pointer routing.
-- @subpage desktop_fullscreen_monitors — Choose windowed, borderless, and
+- @subpage desktop_fullscreen_monitors - Choose windowed, borderless, and
   exclusive modes and handle monitor or topology changes.
-- @subpage desktop_native_interop — Access a native handle without taking
+- @subpage desktop_native_interop - Access a native handle without taking
   ownership or bypassing portable lifetime rules.
-- @subpage desktop_renderer_integration — Enable concurrent presentation reads,
+- @subpage desktop_renderer_integration - Enable concurrent presentation reads,
   attach renderer feedback, and publish packed pointer data.
-- @subpage desktop_examples — See lifecycle, events, displays, fullscreen,
+- @subpage desktop_examples - See lifecycle, events, displays, fullscreen,
   custom chrome, and renderer integration in context.
-- @subpage desktop_troubleshooting — Diagnose ownership, capabilities, queue
+- @subpage desktop_troubleshooting - Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer integration.
-- @subpage desktop_future_extensions — Understand where proposed accessibility,
-  drag/drop, dialogs, and related features belong.
+- @subpage desktop_future_extensions - Understand where proposed accessibility,
+  dialogs, shell integration, and related features belong.
 
 ## Maintainer validation
 
-- @subpage desktop_testing — See automated, package, ABI, and platform coverage.
-- @subpage desktop_test_hooks — Understand source-tree-only fault and state
+- @subpage desktop_testing - See automated, package, ABI, and platform coverage.
+- @subpage desktop_test_hooks - Understand source-tree-only fault and state
   inspection seams.
-- @subpage desktop_manual_validation — Run and interpret the visual behaviors
+- @subpage desktop_manual_validation - Run and interpret the visual behaviors
   that automation cannot prove.
 
 ## Generated API reference
@@ -70,6 +73,10 @@ values under `Types::DragDrop`, Clipboard results under `Types::Clipboard`, even
 and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`,
 drag sources under `Desktop::DragDrop`, display inspection under `Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers
 use @ref GameWIP::Desktop::Native::Win32 deliberately.
+
+Dialog values live under `Types::Dialogs`, synchronous one-shot operations
+under `Desktop::Dialogs`, and persistent modeless progress under
+@ref GameWIP::Desktop::ProgressDialog.
 
 ## Key behavior
 
@@ -106,19 +113,21 @@ The normal portable surface is assembled by `desktop/window.h` from focused `des
 `desktop/display.h`. Rich monitor/color inspection is opt-in through `desktop/display_info.h`. Renderer integration is opt-in through
 `desktop/renderer_bridge.h`, custom native cursors are opt-in through `desktop/cursor.h`, native child hosts are opt-in through
 `desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, native data drag
-and drop is opt-in through `desktop/drag_drop.h`, and Win32 interoperability is opt-in through `desktop/native/win32.h`.
+and drop is opt-in through `desktop/drag_drop.h`, native dialogs and progress
+are opt-in through `desktop/dialogs.h`, and Win32 interoperability is opt-in
+through `desktop/native/win32.h`.
 
-Installed consumers link `GameWIP::Desktop`. Window is intentionally built as a shared library: process-local Window and monitor identities, native
+Installed consumers link `GameWIP::Desktop`. Desktop is intentionally built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked
 modules.
 
 ## Dependency boundary
 
-Window is installed as the shared target `GameWIP::Desktop`. IO and FileSystem
-are public package dependencies because Window headers expose their contracts;
+Desktop is installed as the shared target `GameWIP::Desktop`. IO and FileSystem
+are public package dependencies because Desktop headers expose their contracts;
 Unicode is a private native-text conversion dependency.
 
-Window owns top-level native state, cached geometry, event translation, queried
+Desktop owns top-level native state, cached geometry, event translation, queried
 display/color facts, and the persistent packed pointer mask published through
 `desktop/renderer_bridge.h`.
 

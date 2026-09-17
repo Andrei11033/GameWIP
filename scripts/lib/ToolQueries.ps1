@@ -1,4 +1,8 @@
-# GameWIP structured upstream tool-version query behavior.
+# Structured upstream tool-version queries.
+
+# ------------------------------------------------------------
+# Query results and provider requests
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 
@@ -161,8 +165,12 @@ function Get-GameWipToolLatestQuery
         {
             try
             {
-                $module = Find-Module -Name $Tool.provider.package -Repository PSGallery -ErrorAction Stop
-                return New-GameWipToolQueryResult -State resolved -Provider powershellGallery -Version $module.Version.ToString() -Attempts 1
+                $version = Get-GameWipPowerShellGalleryToolLatestVersion -Tool $Tool
+                if ([string]::IsNullOrWhiteSpace($version))
+                {
+                    throw "PowerShell Gallery returned no versions for '$($Tool.provider.package)'."
+                }
+                return New-GameWipToolQueryResult -State resolved -Provider powershellGallery -Version $version -Attempts 1
             }
             catch
             {

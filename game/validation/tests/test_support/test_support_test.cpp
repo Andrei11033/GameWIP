@@ -9,14 +9,6 @@
 
 #include "test_support/test_support.h"
 
-#ifndef TEST_SUPPORT_INTERNAL_TEST_HOOKS
-#define TEST_SUPPORT_INTERNAL_TEST_HOOKS 0
-#endif
-
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-#include "test_support/internal/test_support_test_hooks.h"
-#endif
-
 #include <algorithm>
 #include <array>
 #include <atomic>

@@ -22,7 +22,6 @@ endforeach()
 
 set(project_build_dir "${WORK_DIR}/project")
 set(install_prefix "${WORK_DIR}/prefix")
-set(absolute_data_dir "${WORK_DIR}/absolute-data")
 set(consumer_build_dir "${WORK_DIR}/consumer")
 file(REMOVE_RECURSE "${WORK_DIR}")
 
@@ -35,7 +34,6 @@ set(configure_command
     -G
     "${GENERATOR}"
     "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
-    "-DCMAKE_INSTALL_DATADIR=${absolute_data_dir}"
     -DGAMEWIP_BUILD_GAME=OFF
     -DGAMEWIP_BUILD_TESTS=OFF
     -DGAMEWIP_BUILD_BENCHMARKS=OFF

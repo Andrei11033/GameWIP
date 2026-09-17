@@ -5,6 +5,7 @@
 
 #include "terminal/internal/terminal_input.h"
 #include "terminal/internal/terminal_platform.h"
+#include "terminal/internal/terminal_status.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
@@ -107,30 +108,6 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status notOpenStatus() noexcept
         {
             return IO::makeStatus(ErrorCode::NotOpen);
-        }
-
-        [[nodiscard]] IO::Types::Status exceptionStatus() noexcept
-        {
-            try
-            {
-                throw;
-            }
-            catch (const std::bad_alloc &)
-            {
-                return IO::makeStatus(ErrorCode::OutOfMemory);
-            }
-            catch (const std::length_error &)
-            {
-                return IO::makeStatus(ErrorCode::SizeLimitExceeded);
-            }
-            catch (const std::format_error &)
-            {
-                return IO::makeStatus(ErrorCode::InvalidArgument);
-            }
-            catch (...)
-            {
-                return IO::makeStatus(ErrorCode::Unknown);
-            }
         }
 
         [[nodiscard]] bool operationSupported(const Types::Input::Capabilities &capabilities, ReadOperation operation) noexcept
@@ -1077,7 +1054,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return {.status = exceptionStatus(), .capabilities = {}};
+            return {.status = Detail::exceptionStatus(), .capabilities = {}};
         }
     }
 
@@ -1099,7 +1076,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return {.status = exceptionStatus(), .capabilities = {}};
+            return {.status = Detail::exceptionStatus(), .capabilities = {}};
         }
     }
 
@@ -1125,7 +1102,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return {.status = exceptionStatus(), .capabilities = {}};
+            return {.status = Detail::exceptionStatus(), .capabilities = {}};
         }
     }
 
@@ -1147,7 +1124,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return {.status = exceptionStatus(), .size = {}};
+            return {.status = Detail::exceptionStatus(), .size = {}};
         }
     }
 
@@ -1169,7 +1146,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1191,7 +1168,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1213,7 +1190,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return {.status = exceptionStatus(), .bytesWritten = 0};
+            return {.status = Detail::exceptionStatus(), .bytesWritten = 0};
         }
     }
 
@@ -1235,7 +1212,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1257,7 +1234,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1279,7 +1256,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1301,7 +1278,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1327,7 +1304,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1352,7 +1329,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1374,7 +1351,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1397,7 +1374,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return {.status = exceptionStatus(), .position = {}};
+            return {.status = Detail::exceptionStatus(), .position = {}};
         }
     }
 
@@ -1419,7 +1396,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1441,7 +1418,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1511,7 +1488,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1533,7 +1510,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1558,7 +1535,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1599,7 +1576,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1651,7 +1628,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1673,7 +1650,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 
@@ -1695,7 +1672,7 @@ namespace GameWIP::Terminal
         }
         catch (...)
         {
-            return exceptionStatus();
+            return Detail::exceptionStatus();
         }
     }
 

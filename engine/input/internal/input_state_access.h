@@ -1,3 +1,6 @@
+/// @file input_state_access.h
+/// @brief Private mutation bridge shared by Input's platform backends.
+
 #pragma once
 
 #include "input/input.h"

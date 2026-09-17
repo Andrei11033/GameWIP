@@ -1,4 +1,4 @@
-@page desktop_testing Maintainer validation
+@page desktop_testing Testing
 
 Desktop combines deterministic source-tree tests with opt-in desktop scenarios.
 This page records what each layer proves and which platform state must be
@@ -11,11 +11,13 @@ sticky close intent, ownership and thread affinity, native handles and messages,
 integration, fullscreen recovery, file drops, redraw, unexpected native destruction, deferred cleanup, and pump reentrancy. Focused coverage also
 exercises custom cursor validation and lifetime; Clipboard validation, native round trips, transactions, timeouts, and cleanup precedence; ChildSurface
 parent loss, geometry, queues, DPI, ordering, and native hosting; and DragDrop descriptions, negotiation, regions, conflicts, queues, Window loss, and
-registration rollback.
+registration rollback. Dialog coverage validates one-shot file/folder, Message, and Prompt contracts through deterministic native-boundary fixtures,
+and exercises the real modeless ProgressDialog HWND, controls, owner blocking, DPI relayout, cancellation, thread affinity, and cleanup.
 
 Process-isolated shutdown coverage uses routed child processes so failures after a suite function returns remain observable. It verifies exact zero
 exit codes after a standalone color query, a normal `WM_CLOSE` and final-Window close path, owner-thread exit with retained Window state, and
-DragDrop dispatcher exit with both normal and repeatedly failed native revocation.
+DragDrop dispatcher exit with both normal and repeatedly failed native revocation. ProgressDialog child protocols cover dispatcher exit with a
+surviving public object and the terminal path after injected native close failure.
 
 Renderer-facing publication coverage checks default allocation-free owner-thread getters, enablement validation, allocation failure, idempotent stable
 storage, and immediate publication. Enabled high-frequency tests cover compound coherence, DPI, scale, current monitor, presentation, visibility,
@@ -45,6 +47,7 @@ Repository validation compiles each supported Desktop entry header independently
 - `desktop/data_transfer.h`
 - `desktop/drag_drop.h`
 - `desktop/clipboard.h`
+- `desktop/dialogs.h`
 - `desktop/window.h`
 - `desktop/renderer_bridge.h`
 - `desktop/native/win32.h` on Win32
@@ -57,6 +60,18 @@ DIB, arbitrary case-insensitive registered formats, opaque bytes containing zero
 validates finite timeout behavior without an acquisition race. Hooks inject preparation, owner, access, clear, read, enumeration, selected
 publication, and close failures while checking exact external mutation state. These tests intentionally replace the interactive desktop Clipboard and
 clear it when the suite completes.
+
+File/folder dialog fixtures preserve caller filter order and generate exact native wildcard patterns while covering empty filters, compound
+extensions, preferred and returned filter indexes, authoritative save paths, strict UTF-8 conversion, embedded nulls, accepted/cancelled outcomes,
+owner validation, COM apartment reuse and conflict, and allocation/native/result failures. Message fixtures cover every portable button set, default,
+severity, dismissal, and result mapping. Prompt fixtures verify exact caller ID round trips independently from backend IDs, descriptions, defaults,
+cancel semantics, radio options, details, supplemental text, checkbox state, and malformed input.
+
+ProgressDialog coverage uses a real hidden-test HWND and native progress/cancel controls. It checks initial and live text, determinate range/rounding,
+marquee transitions with retained progress, sticky cancellation, noncancelable close behavior, ownerless and overlapping-owner blocking, restoration
+of pre-existing owner state, bounded event pumping, suggested DPI bounds, native destruction, close retry, class lifetime, reusable close/reopen,
+foreign-thread calls, deferred destruction, and dispatcher-exit cleanup. The unexpected-destruction regression also injects a failed owner-restore
+wake, verifies that an overlapping blocker remains effective, and confirms that retry restores the owner’s latest requested interaction state.
 
 DragDrop coverage uses the public target API plus source-tree-only effect and
 event-injection hooks. It validates closed/default behavior, invalid effects and
@@ -93,6 +108,8 @@ shell-visible state. See @ref desktop_manual_validation for the observable
 scenarios and expected results.
 
 `--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`,
-`files-shell`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow;
+`files-shell`, `dialogs`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow;
 `borderless`, `exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and
 record before/after mode-transition geometry so evidence survives a driver reset or process interruption.
+
+When manual tests are enabled and Desktop is being configured through the project validation command builder, this selector is exposed there as well.

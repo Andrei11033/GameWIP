@@ -1,4 +1,8 @@
-# Non-executable GameWIP project-helper bootstrap. Safe to dot-source from tests.
+# Shared project-helper bootstrap. It is safe to load from tests.
+
+# ------------------------------------------------------------
+# Repository paths and process defaults
+# ------------------------------------------------------------
 
 param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
 
@@ -12,6 +16,10 @@ $CommandConfigPath = Join-Path $ScriptsRoot 'config\commands.json'
 $ProjectToolsPath = Join-Path $ScriptsRoot 'config\project-tools.json'
 $HygieneConfigPath = Join-Path $RepositoryRoot 'config\quality\hygiene.json'
 $PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
+
+# ------------------------------------------------------------
+# Shared library loading and configuration validation
+# ------------------------------------------------------------
 
 # Long-lived terminals do not inherit PATH changes made by WinGet installers.
 # Refresh this helper process while preserving its existing path precedence.

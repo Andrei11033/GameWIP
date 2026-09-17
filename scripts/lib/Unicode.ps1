@@ -1,4 +1,8 @@
-# GameWIP Unicode data status, reproducibility verification, and intentional regeneration.
+# Unicode data status, reproducibility checks, and intentional regeneration.
+
+# ------------------------------------------------------------
+# Unicode paths and status
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

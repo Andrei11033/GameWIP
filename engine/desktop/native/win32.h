@@ -37,12 +37,12 @@ namespace GameWIP::Desktop::Native::Win32
     /// @param window Window whose native handles are requested.
     /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race Window close.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT HandleResult getHandle(const GameWIP::Desktop::Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT HandleResult getHandle(const GameWIP::Desktop::Window &window) noexcept;
 
     /// @brief Returns the borrowed Win32 host handle for an open ChildSurface on its owner thread.
     /// @param surface ChildSurface whose native host handle is requested.
     /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race ChildSurface close. Consumers must not destroy, reparent,
     /// subclass, or overwrite GameWIP-owned state on the returned host HWND.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT HandleResult getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT HandleResult getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept;
 } // namespace GameWIP::Desktop::Native::Win32

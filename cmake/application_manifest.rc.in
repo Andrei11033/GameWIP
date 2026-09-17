@@ -1,0 +1,5 @@
+// One executable manifest is generated after the application selects all
+// process-wide requirements.
+#include <winuser.h>
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "@GAMEWIP_APPLICATION_MANIFEST@"

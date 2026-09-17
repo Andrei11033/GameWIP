@@ -9,6 +9,10 @@
 
 namespace GameWIP::TestSupport
 {
+    // ------------------------------------------------------------
+    // Infrastructure status formatting
+    // ------------------------------------------------------------
+
     std::string formatInfrastructureStatus(const Types::InfrastructureStatus &status)
     {
         std::string_view errorName = "PlatformFailure";

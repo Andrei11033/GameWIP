@@ -113,7 +113,7 @@ contain later user data.
 
 ## Adding or changing setup behavior
 
-Prefer data over orchestration branches:
+Prefer data over new orchestration branches:
 
 - Add an ordinary project tool or justified MSYS2 package/dependency to
   `../config/project-tools.json` using the owning provider metadata.

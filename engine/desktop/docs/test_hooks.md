@@ -1,6 +1,6 @@
 @page desktop_test_hooks Internal test hooks
 
-Window deterministic failure/state hooks are source-tree-only and are enabled with `DESKTOP_ENABLE_TEST_HOOKS`, which defines
+Desktop deterministic failure/state hooks are source-tree-only and are enabled with `DESKTOP_ENABLE_TEST_HOOKS`, which defines
 `DESKTOP_INTERNAL_TEST_HOOKS` for repository validation targets.
 
 `desktop/internal/desktop_test_hooks.h` is not installed and is not a supported consumer header. Installed package validation explicitly checks that
@@ -31,6 +31,26 @@ Clipboard hooks provide one-shot failures for allocation, text/path/image prepar
 registered-format creation, and close. `failClipboardPublicationAt()` selects a zero-based caller item, while
 `failClipboardEnumerationAfter()` preserves a requested materialized prefix before failure. `resetFailures()` clears these thread-local controls.
 Hooks preserve the real public cleanup and mutation semantics and never appear in installed headers.
+
+Dialog hooks arm one deterministic completion for each file/folder, Message, or Prompt operation. Their snapshots expose the converted native text,
+ordered filter names and wildcard patterns, backend button/option IDs, defaults, flags, and secondary content without opening interactive UI. Failure
+points cover text conversion, suggested-directory setup, modal invocation, result materialization, ProgressDialog class registration/release, owner
+blocking, owner-restore wake delivery, and native mutation. The owner-restore wake seam makes the dispatcher retry path deterministic without
+replacing native ownership. ProgressDialog inspection keeps the real HWND and controls authoritative while exposing passive bounds, text, range,
+position, marquee, cancellation, owner, registry, deferred-cleanup, and class-reference state. Test-only actions request cancel/close, simulate a DPI
+suggested rectangle, and destroy the native window; they do not replace the public lifecycle path.
+
+The passive `progressOwnerRestoreMessageRegistrationAttempted()` observation
+supports a fresh-process regression that ordinary Window use does not register
+the ProgressDialog owner-restore message.
+
+`WindowStyleQuery` is a one-shot native style/ex-style query failure used by
+checked geometry, mode, control, DPI, child-surface, and ProgressDialog paths.
+`WindowUserDataInstallation` is a one-shot top-level `WM_NCCREATE` userdata
+installation failure. `WindowCreationCallback` returns `-1` from `WM_CREATE`
+after `WM_NCCREATE` has installed userdata, so it exercises failed native
+construction cleanup. These return deterministic native failure status and are
+cleared by `resetFailures()`; neither can publish the new Window state.
 
 Hook-facing passive types follow the standardized public domains (`Types::Events`, `Types::Display`, `Types::Renderer`) instead of creating a parallel
 public vocabulary.

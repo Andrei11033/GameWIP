@@ -1,4 +1,8 @@
-# GameWIP repository quality orchestration. Checks return evidence; presentation is aggregated here.
+# Repository quality orchestration. Checks return evidence; presentation is aggregated here.
+
+# ------------------------------------------------------------
+# Quality scope and policy selection
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 
@@ -440,6 +444,7 @@ function Invoke-GameWipQualityCheck
         @{ Name = 'quality ownership'; Body = { Invoke-GameWipQualityNative -Name quality-ownership -FilePath $python -Arguments @('.github/scripts/check_quality_ownership.py') } },
         @{ Name = 'helper standardization'; Body = { Invoke-GameWipQualityNative -Name helper-standardization -FilePath $python -Arguments @('.github/scripts/check_helper_standardization.py') } },
         @{ Name = 'repository standards'; Body = { Invoke-GameWipQualityNative -Name repository-standards -FilePath $python -Arguments @('.github/scripts/check_repository_standards.py') } },
+        @{ Name = 'repository standards tests'; Body = { Invoke-GameWipQualityNative -Name repository-standards-tests -FilePath $python -Arguments @('-m', 'unittest', 'discover', '-s', '.github/scripts', '-p', 'test_*.py') } },
         @{ Name = 'documentation standards'; Body = { Invoke-GameWipQualityNative -Name documentation-standards -FilePath $python -Arguments @('.github/scripts/check_documentation_standards.py') } },
         @{ Name = 'Markdown links'; Body = { Invoke-GameWipMarkdownLink } }
     )

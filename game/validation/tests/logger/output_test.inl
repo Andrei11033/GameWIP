@@ -10,9 +10,9 @@ void testFileLoggingAndUtf8Truncation(TestContext &context)
     expectStarted(context, "UTF-8 file init", Logger::init(config.ready()));
 
     const std::string message = "prefix \xF0\x9F\x98\x80 \xE2\x98\x85 payload that truncates";
-    Logger::info(testSource, message);
-    Logger::info(testSource, "formatted {}", message);
-    const Logger::Types::Report::Result report = Logger::reportError(testSource, "formatted {}", message);
+    Logger::info(kTestSource, message);
+    Logger::info(kTestSource, "formatted {}", message);
+    const Logger::Types::Report::Result report = Logger::reportError(kTestSource, "formatted {}", message);
     context.expectTrue("UTF-8 formatted report delivered", reportDelivered(report));
     context.expectTrue("UTF-8 file flush", flushCompleted(Logger::flush(2s)));
     const std::string logFile = Logger::getLogFilePath();
@@ -20,7 +20,7 @@ void testFileLoggingAndUtf8Truncation(TestContext &context)
 
     const std::string contents = readWholeFile(context, pathFromText(logFile));
     context.expectContains("truncation suffix written", contents, "[truncated]");
-    context.expectTrue("UTF-8 prefix retained", contents.find("prefix ") != std::string::npos);
+    context.expectTrue("UTF-8 prefix retained", contents.contains("prefix "));
     context.expectContains("strict formatted truncation suffix written", contents, "formatted... [truncated]");
     context.expectEq(
         "Logger-owned truncation preserves valid UTF-8",

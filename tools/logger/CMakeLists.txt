@@ -1,38 +1,53 @@
+# Logger always builds as a shared runtime because queue state, sink ownership,
+# report delivery, and exported formatting bridges live behind one process-wide service.
+
+# ------------------------------------------------------------
+# Configuration and package helpers
+# ------------------------------------------------------------
+
 option(LOGGER_ENABLE_TEST_HOOKS "Enable Logger internal test hooks" OFF)
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-include(GenerateExportHeader)
+include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 
 if(NOT COMMAND gamewip_target_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
 
+# ------------------------------------------------------------
+# Target and public headers
+# ------------------------------------------------------------
+
 add_library(Logger SHARED)
 add_library(GameWIP::Logger ALIAS Logger)
 
 set(LOGGER_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${LOGGER_GENERATED_INCLUDE_DIR}/logger")
-generate_export_header(
-    Logger
-    BASE_NAME GAMEWIP_LOGGER
-    EXPORT_FILE_NAME "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
-    EXPORT_MACRO_NAME GAMEWIP_LOGGER_EXPORT
-    NO_EXPORT_MACRO_NAME GAMEWIP_LOGGER_NO_EXPORT
-    STATIC_DEFINE GAMEWIP_LOGGER_STATIC_DEFINE
+
+gamewip_generate_export_header(
+    # LOGGER_EXPORT is the installed production/runtime ABI. Source-tree
+    # validation hooks use logger_test_export.h and are never installed.
+    TARGET Logger
+    OUTPUT "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
+    EXPORT_MACRO LOGGER_EXPORT
+    BUILD_DEFINE LOGGER_BUILDING_DLL
 )
 
 target_sources(
     Logger
     PRIVATE
+        core/logger_config.cpp
         core/logger_filters.cpp
         core/logger_format.cpp
         core/logger_queue.cpp
         core/logger_reports.cpp
+        core/logger_runtime.cpp
         core/logger_state.cpp
+        core/logger_stats.cpp
         core/logger_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
@@ -51,6 +66,10 @@ gamewip_target_platform_backend(TARGET Logger ROOT "${CMAKE_CURRENT_SOURCE_DIR}/
 
 include(GNUInstallDirs)
 
+# ------------------------------------------------------------
+# Compile and runtime contracts
+# ------------------------------------------------------------
+
 target_include_directories(
     Logger
     PUBLIC
@@ -60,6 +79,7 @@ target_include_directories(
 )
 
 target_compile_features(Logger PUBLIC cxx_std_23)
+
 target_compile_definitions(
     Logger
     PRIVATE LOGGER_INTERNAL_TEST_HOOKS=$<BOOL:${LOGGER_ENABLE_TEST_HOOKS}>
@@ -67,6 +87,10 @@ target_compile_definitions(
 )
 
 target_link_libraries(Logger PUBLIC IO PRIVATE FileSystem Terminal Unicode $<BUILD_INTERFACE:GameWIPBase>)
+
+# ------------------------------------------------------------
+# Output, documentation, and installation
+# ------------------------------------------------------------
 
 set_target_properties(
     Logger

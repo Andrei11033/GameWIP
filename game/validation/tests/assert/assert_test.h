@@ -26,8 +26,6 @@ namespace GameWIP::Test
         bool verboseConsole = false;
         /// @brief Number of worker threads used by assert stress tests.
         std::size_t stressThreadCount = 4;
-        /// @brief Number of repeated operations used by assert stress tests.
-        std::size_t stressIterations = 1'000;
         /// @brief Writes test progress and summaries to reportPath in addition to stdout.
         bool writeReport = true;
         /// @brief Appends to reportPath instead of replacing it when report writing is enabled.

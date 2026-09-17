@@ -1,11 +1,12 @@
 @page project_testing Correctness testing
 
-Correctness tests answer whether behavior is correct. They must not contain benchmark loops, machine-dependent timing thresholds, or
-performance-regression policy.
+Correctness tests answer whether behavior is correct. They must not contain
+benchmark loops, machine-dependent timing thresholds, or performance-regression
+policy.
 
-This guide explains how correctness tests are divided into modules and suites,
-how they use shared source interfaces, what a useful test must prove, and how
-reports, artifacts, child scenarios, and manual checks fit together.
+This guide explains how the tests are divided into modules and suites, how they
+use shared source interfaces, what they need to prove, and how reports,
+artifacts, child scenarios, and manual checks fit together.
 
 Runner architecture and command-line ownership are documented in @ref project_validation. Performance measurements are documented in @ref
 project_benchmarking. Library-specific test coverage and approved hooks remain documented in each library manual.
@@ -242,14 +243,14 @@ definitions.
 
 The combined consumer verifies cross-library integration. Separate isolated consumers call only one `find_package()` for each package, proving that
 higher-level configs discover every imported dependency in their exported interface. The combined and isolated TestSupport cases compile and run
-representative status, formatting, and process-result contracts while explicitly rejecting `TEST_SUPPORT_INTERNAL_TEST_HOOKS`. Focused installed
+representative status, formatting, and process-result contracts. Focused installed
 consumers also compile `test_support/types.h`, `reporting.h`, `files.h`, `process.h`, and `stress.h` independently. Additional cases cover
 split-prefix runtime Assert and disabled/interface-only Assert.
 
 The dedicated `Packages (CMake)` job owns ordinary package compatibility across
 Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest
-entries instead of repeating the single-config cases. Coverage and
-AddressSanitizer still run their package entries because those executions prove
+entries instead of repeating the single-config cases. The `coverage`, `asan`, and
+`ubsan` presets still run their package entries because those executions prove
 that separately instrumented consumers link and run. The root CMake 4.4.2
 requirement is propagated into each independently configured consumer rather
 than copied into consumer source.
@@ -269,16 +270,13 @@ are the preferred standard.
 
 Module headers and adapters require complete contract comments because they are shared source interfaces between validation components.
 
-## Maintainer notes
+## Adding tests
 
-When adding tests:
-
-- Start from the contract being guaranteed.
-- Put reusable fixtures in TestSupport only when multiple modules need them.
-- Keep module adapters thin.
-- Reset approved hook state before and after mutation.
-- Record focused commands in the pull request.
-- Update the owning library manual when a test reveals an undocumented public contract.
+Start from the contract being guaranteed. Put a fixture in TestSupport only when
+multiple modules need it, and keep module adapters thin. Reset approved hook
+state before and after mutation. Record focused commands in the pull request,
+and update the owning library manual when a test reveals an undocumented public
+contract.
 
 ## Related pages
 

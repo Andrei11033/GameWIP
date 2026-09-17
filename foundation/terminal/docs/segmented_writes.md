@@ -1,7 +1,8 @@
 @page terminal_segmented_writes Segmented writes
 
-Segmented writes emit one logical batch containing plain text, styled text, and—on suitable endpoints—raw bytes without requiring the caller to
-concatenate one owning string first.
+Segmented writes emit one logical batch containing plain text, styled text, and
+raw bytes when the endpoint supports them. The caller does not need to build one
+owning string first.
 
 ## Segment construction
 

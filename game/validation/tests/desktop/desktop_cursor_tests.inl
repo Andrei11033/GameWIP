@@ -255,7 +255,9 @@ void testCursorWindowIntegration(TestSupport::Context &context)
     auto second = CursorTest::create(pixels, 144);
     static_cast<void>(context.expectTrue("cursor integration resources create", first.status.ok() && second.status.ok()));
     if (!first.cursor.isValid() || !second.cursor.isValid())
+    {
         return;
+    }
 
     Desktop::Window closed;
     static_cast<void>(
@@ -268,7 +270,9 @@ void testCursorWindowIntegration(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("custom cursor fixture opens", window.open(description, 8).ok()));
     if (!window.isOpen())
+    {
         return;
+    }
 
     Desktop::Cursor invalid;
     static_cast<void>(context.expectEq("invalid Cursor selection is rejected", ErrorCode::InvalidArgument, Desktop::setCursor(window, invalid).code));
@@ -374,7 +378,9 @@ void testCursorLifecycle(TestSupport::Context &context)
     auto cursor = Desktop::createCursor(images);
     static_cast<void>(context.expectTrue("DPI cursor resource creates", cursor.status.ok()));
     if (!cursor.cursor.isValid())
+    {
         return;
+    }
 
     Desktop::Types::Description description;
     description.title = "GameWIP custom cursor lifecycle";
@@ -385,7 +391,9 @@ void testCursorLifecycle(TestSupport::Context &context)
     const auto native = Desktop::Native::Win32::getHandle(window);
     static_cast<void>(context.expectTrue("DPI cursor fixture exposes its native handle", native.status.ok()));
     if (!native.status.ok())
+    {
         return;
+    }
     RECT suggested{};
     static_cast<void>(GetWindowRect(native.handle.window, &suggested));
     static_cast<void>(SendMessageW(native.handle.window, WM_DPICHANGED, MAKEWPARAM(120, 120), reinterpret_cast<LPARAM>(&suggested)));

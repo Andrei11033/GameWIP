@@ -42,22 +42,34 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             DWORD result = 0;
             if ((effects & DD::Effect::Copy) != DD::Effect::None)
+            {
                 result |= DROPEFFECT_COPY;
+            }
             if ((effects & DD::Effect::Move) != DD::Effect::None)
+            {
                 result |= DROPEFFECT_MOVE;
+            }
             if ((effects & DD::Effect::Link) != DD::Effect::None)
+            {
                 result |= DROPEFFECT_LINK;
+            }
             return result;
         }
         [[nodiscard]] DD::Effect portableEffects(DWORD effects) noexcept
         {
             DD::Effect result = DD::Effect::None;
             if (effects & DROPEFFECT_COPY)
+            {
                 result |= DD::Effect::Copy;
+            }
             if (effects & DROPEFFECT_MOVE)
+            {
                 result |= DD::Effect::Move;
+            }
             if (effects & DROPEFFECT_LINK)
+            {
                 result |= DD::Effect::Link;
+            }
             return result;
         }
         [[nodiscard]] DD::Result droppedSourceResult(DWORD performed, DD::Effect allowed) noexcept
@@ -67,7 +79,9 @@ namespace GameWIP::Desktop::Detail::Platform
             const DWORD native = performed & knownEffects;
             const DD::Effect effect = portableEffects(performed);
             if ((performed & ~knownEffects) != 0 || (native & (native - 1U)) != 0 || (effect & allowed) != effect)
+            {
                 result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure, E_UNEXPECTED);
+            }
             else
             {
                 result.status = IO::successStatus();
@@ -85,7 +99,9 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             if (description.items.empty() || !validEffects(description.allowedEffects) ||
                 static_cast<unsigned>(description.triggerButton) > static_cast<unsigned>(DD::TriggerButton::Middle))
+            {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+            }
             try
             {
                 prepared.reserve(description.items.size());
@@ -93,13 +109,19 @@ namespace GameWIP::Desktop::Detail::Platform
                 for (const auto &item : description.items)
                 {
                     if (Detail::consumeFailure(TestHooks::FailurePoint::DragDropPreparation))
+                    {
                         return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
+                    }
                     DataTransfer::PreparedItem value;
                     IO::Types::Status status = DataTransfer::prepare(item, value);
                     if (!status.ok())
+                    {
                         return status;
+                    }
                     if (!formats.insert(value.format).second)
+                    {
                         return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                    }
                     prepared.push_back(std::move(value));
                 }
                 return IO::successStatus();
@@ -145,7 +167,9 @@ namespace GameWIP::Desktop::Detail::Platform
                         return accepts(region, offeredFormat);
                     });
                 if (inside && acceptedFormat)
+                {
                     result = &region;
+                }
             }
             return result;
         }
@@ -160,7 +184,9 @@ namespace GameWIP::Desktop::Detail::Platform
             [[nodiscard]] IO::Types::Status acquire() noexcept
             {
                 if (Detail::consumeFailure(TestHooks::FailurePoint::DragDropOleInitialization))
+                {
                     return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
+                }
                 const HRESULT hr = OleInitialize(nullptr);
                 if (hr == S_OK || hr == S_FALSE)
                 {
@@ -172,7 +198,9 @@ namespace GameWIP::Desktop::Detail::Platform
             ~OleLease() noexcept
             {
                 if (held_)
+                {
                     OleUninitialize();
+                }
             }
             void release() noexcept
             {
@@ -205,12 +233,18 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, void **out) noexcept override
             {
                 if (!out)
+                {
                     return E_POINTER;
+                }
                 *out = nullptr;
                 if (id == IID_IUnknown || id == IID_IDropTarget)
+                {
                     *out = static_cast<IDropTarget *>(this);
+                }
                 else
+                {
                     return E_NOINTERFACE;
+                }
                 AddRef();
                 return S_OK;
             }
@@ -222,13 +256,17 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 const ULONG count = --references_;
                 if (!count)
+                {
                     delete this;
+                }
                 return count;
             }
             HRESULT STDMETHODCALLTYPE DragEnter(IDataObject *object, DWORD, POINTL point, DWORD *effect) noexcept override
             {
                 if (!effect || !object)
+                {
                     return E_INVALIDARG;
+                }
                 if (state_ == nullptr)
                 {
                     *effect = DROPEFFECT_NONE;
@@ -276,7 +314,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (!effect || !formats_ || state_ == nullptr)
                 {
                     if (effect)
+                    {
                         *effect = DROPEFFECT_NONE;
+                    }
                     return S_OK;
                 }
                 const auto pos = clientPosition(*state_, point);
@@ -297,7 +337,9 @@ namespace GameWIP::Desktop::Detail::Platform
                     return S_OK;
                 }
                 if (session_.isValid())
+                {
                     routeDragDropEvent(*state_, DD::Events::Left{session_});
+                }
                 clearSession();
                 return S_OK;
             }
@@ -306,7 +348,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (!effect || !object || !formats_ || state_ == nullptr)
                 {
                     if (effect)
+                    {
                         *effect = DROPEFFECT_NONE;
+                    }
                     clearSession();
                     return S_OK;
                 }
@@ -324,6 +368,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     Transfer::Payload payload;
                     for (std::size_t index = 0; index < region->formats.size(); ++index)
+                    {
                         if (std::ranges::find(nativeFormats_, static_cast<CLIPFORMAT>(region->nativeFormats[index])) != nativeFormats_.end())
                         {
                             if (!materializationStatus().ok())
@@ -342,6 +387,7 @@ namespace GameWIP::Desktop::Detail::Platform
                             }
                             payload.push_back(std::move(item));
                         }
+                    }
                     if (payload.empty())
                     {
                         *effect = DROPEFFECT_NONE;
@@ -411,12 +457,18 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, void **out) noexcept override
             {
                 if (!out)
+                {
                     return E_POINTER;
+                }
                 *out = nullptr;
                 if (id == IID_IUnknown || id == IID_IEnumFORMATETC)
+                {
                     *out = static_cast<IEnumFORMATETC *>(this);
+                }
                 else
+                {
                     return E_NOINTERFACE;
+                }
                 AddRef();
                 return S_OK;
             }
@@ -428,21 +480,31 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 auto n = --refs_;
                 if (!n)
+                {
                     delete this;
+                }
                 return n;
             }
             HRESULT STDMETHODCALLTYPE Next(ULONG count, FORMATETC *out, ULONG *fetched) noexcept override
             {
                 if (fetched)
+                {
                     *fetched = 0;
+                }
                 if (!out || (!fetched && count != 1))
+                {
                     return E_INVALIDARG;
+                }
                 auto destination = nativeSpan(out, static_cast<std::size_t>(count));
                 ULONG n = 0;
                 while (n < count && index_ < formats_.size())
+                {
                     destination[n++] = formats_[index_++];
+                }
                 if (fetched)
+                {
                     *fetched = n;
+                }
                 return n == count ? S_OK : S_FALSE;
             }
             HRESULT STDMETHODCALLTYPE Skip(ULONG count) noexcept override
@@ -460,7 +522,9 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE Clone(IEnumFORMATETC **out) noexcept override
             {
                 if (!out)
+                {
                     return E_POINTER;
+                }
                 *out = nullptr;
                 try
                 {
@@ -495,12 +559,18 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, void **out) noexcept override
             {
                 if (!out)
+                {
                     return E_POINTER;
+                }
                 *out = nullptr;
                 if (id == IID_IUnknown || id == IID_IDataObject)
+                {
                     *out = static_cast<IDataObject *>(this);
+                }
                 else
+                {
                     return E_NOINTERFACE;
+                }
                 AddRef();
                 return S_OK;
             }
@@ -512,21 +582,33 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 auto n = --refs_;
                 if (!n)
+                {
                     delete this;
+                }
                 return n;
             }
             HRESULT STDMETHODCALLTYPE GetData(FORMATETC *format, STGMEDIUM *medium) noexcept override
             {
                 if (!format || !medium)
+                {
                     return E_INVALIDARG;
+                }
                 if (format->dwAspect != DVASPECT_CONTENT)
+                {
                     return DV_E_DVASPECT;
+                }
                 if (format->ptd != nullptr)
+                {
                     return DV_E_DVTARGETDEVICE;
+                }
                 if (format->lindex != -1)
+                {
                     return DV_E_LINDEX;
+                }
                 if (!(format->tymed & TYMED_HGLOBAL))
+                {
                     return DV_E_TYMED;
+                }
                 auto found = std::ranges::find_if(
                     items_,
                     [&](const auto &i)
@@ -534,11 +616,15 @@ namespace GameWIP::Desktop::Detail::Platform
                         return i.format == format->cfFormat;
                     });
                 if (found == items_.end())
+                {
                     return DV_E_FORMATETC;
+                }
                 HGLOBAL global = nullptr;
                 auto status = DataTransfer::copyToGlobal(*found, global);
                 if (!status.ok())
+                {
                     return status.code == IO::Types::ErrorCode::OutOfMemory ? E_OUTOFMEMORY : E_FAIL;
+                }
                 medium->tymed = TYMED_HGLOBAL;
                 medium->hGlobal = global;
                 medium->pUnkForRelease = nullptr;
@@ -551,15 +637,25 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE QueryGetData(FORMATETC *f) noexcept override
             {
                 if (!f)
+                {
                     return E_INVALIDARG;
+                }
                 if (f->dwAspect != DVASPECT_CONTENT)
+                {
                     return DV_E_DVASPECT;
+                }
                 if (f->ptd != nullptr)
+                {
                     return DV_E_DVTARGETDEVICE;
+                }
                 if (f->lindex != -1)
+                {
                     return DV_E_LINDEX;
+                }
                 if (!(f->tymed & TYMED_HGLOBAL))
+                {
                     return DV_E_TYMED;
+                }
                 return std::ranges::any_of(
                            items_,
                            [&](const auto &i)
@@ -572,7 +668,9 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE GetCanonicalFormatEtc(FORMATETC *, FORMATETC *out) noexcept override
             {
                 if (out)
+                {
                     out->ptd = nullptr;
+                }
                 return E_NOTIMPL;
             }
             HRESULT STDMETHODCALLTYPE SetData(FORMATETC *, STGMEDIUM *, BOOL) noexcept override
@@ -582,16 +680,22 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE EnumFormatEtc(DWORD direction, IEnumFORMATETC **out) noexcept override
             {
                 if (!out)
+                {
                     return E_POINTER;
+                }
                 *out = nullptr;
                 if (direction != DATADIR_GET)
+                {
                     return E_NOTIMPL;
+                }
                 try
                 {
                     std::vector<FORMATETC> formats;
                     formats.reserve(items_.size());
                     for (const auto &i : items_)
+                    {
                         formats.push_back({i.format, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL});
+                    }
                     *out = new FormatEnumerator(std::move(formats));
                     return S_OK;
                 }
@@ -635,12 +739,18 @@ namespace GameWIP::Desktop::Detail::Platform
             HRESULT STDMETHODCALLTYPE QueryInterface(REFIID id, void **out) noexcept override
             {
                 if (!out)
+                {
                     return E_POINTER;
+                }
                 *out = nullptr;
                 if (id == IID_IUnknown || id == IID_IDropSource)
+                {
                     *out = static_cast<IDropSource *>(this);
+                }
                 else
+                {
                     return E_NOINTERFACE;
+                }
                 AddRef();
                 return S_OK;
             }
@@ -652,15 +762,21 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 auto n = --refs_;
                 if (!n)
+                {
                     delete this;
+                }
                 return n;
             }
             HRESULT STDMETHODCALLTYPE QueryContinueDrag(BOOL escape, DWORD keys) noexcept override
             {
                 if (escape)
+                {
                     return DRAGDROP_S_CANCEL;
+                }
                 if (!(keys & mask_))
+                {
                     return DRAGDROP_S_DROP;
+                }
                 return S_OK;
             }
             HRESULT STDMETHODCALLTYPE GiveFeedback(DWORD) noexcept override
@@ -686,13 +802,21 @@ namespace GameWIP::Desktop::Detail::Platform
         // Apartment-affine cleanup is explicit in closeDragDropTarget(). A record that
         // still owns OLE resources must be retained, never finalized by this deleter.
         if (data == nullptr)
+        {
             return;
+        }
         if (data->registered)
+        {
             return;
+        }
         if (data->target != nullptr)
+        {
             data->target->Release();
+        }
         if (data->oleHeld)
+        {
             OleUninitialize();
+        }
         delete data;
     }
 
@@ -702,7 +826,9 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const auto &targets = dispatcher().dragDropTargets;
             if (!targets)
+            {
                 return nullptr;
+            }
             const auto found = std::ranges::find_if(
                 *targets,
                 [&](const DragDropState *target)
@@ -716,10 +842,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             auto &targets = dispatcher().dragDropTargets;
             if (!targets)
+            {
                 return;
+            }
             targets->erase(std::remove(targets->begin(), targets->end(), &state), targets->end());
             if (targets->empty())
+            {
                 targets.reset();
+            }
         }
     } // namespace
 
@@ -737,9 +867,13 @@ namespace GameWIP::Desktop::Detail::Platform
                     IO::Types::Status status;
                     const CLIPFORMAT native = DataTransfer::nativeFormat(format, status);
                     if (!status.ok())
+                    {
                         return status;
+                    }
                     if (!identities.insert(native).second)
+                    {
                         return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                    }
                     normalized.push_back(native);
                 }
                 region.nativeFormats = std::move(normalized);
@@ -762,9 +896,13 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             Dispatcher &current = dispatcher();
             if (targetForWindow(window) != nullptr)
+            {
                 return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+            }
             if (!current.dragDropTargets)
+            {
                 current.dragDropTargets = std::make_unique<std::vector<DragDropState *>>();
+            }
             current.dragDropTargets->push_back(&state);
             auto data = std::unique_ptr<DragDropData, DragDropDataDeleter>(new DragDropData{});
             data->window = window.platform->handle;
@@ -812,16 +950,24 @@ namespace GameWIP::Desktop::Detail::Platform
     CloseResult closeDragDropTarget(DragDropState &state) noexcept
     {
         if (!state.platform)
+        {
             return {IO::successStatus(), true};
+        }
         if (state.platform->ownerThreadId != GetCurrentThreadId())
+        {
             return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
+        }
         HRESULT hr = S_OK;
         if (state.platform->registered)
+        {
             hr = (Detail::consumeFailure(TestHooks::FailurePoint::DragDropRevocation) || Detail::consumeDragDropRevocationFailure())
                      ? E_FAIL
                      : RevokeDragDrop(state.platform->window);
+        }
         if (FAILED(hr) && hr != DRAGDROP_E_NOTREGISTERED)
+        {
             return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed, hr), false};
+        }
         state.platform->registered = false;
         if (state.platform->target)
         {
@@ -841,7 +987,9 @@ namespace GameWIP::Desktop::Detail::Platform
     bool closeDragDropTargetBestEffort(DragDropState &state) noexcept
     {
         if (!state.platform)
+        {
             return true;
+        }
         return state.platform->ownerThreadId == GetCurrentThreadId() && closeDragDropTarget(state).resourceClosed;
     }
 
@@ -904,14 +1052,18 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             current.activeResult->eventsDropped += state.droppedEvents - droppedBefore;
             if (queued)
+            {
                 ++current.activeResult->eventsQueued;
+            }
         }
     }
     bool windowClosingDragDrop(WindowState &window, bool nativeDestroyed) noexcept
     {
         DragDropState *target = targetForWindow(window);
         if (target == nullptr)
+        {
             return true;
+        }
         const CloseResult closed = closeDragDropTarget(*target);
         if (closed.resourceClosed || nativeDestroyed)
         {
@@ -950,13 +1102,17 @@ namespace GameWIP::Desktop::Detail::Platform
         std::vector<DataTransfer::PreparedItem> prepared;
         result.status = prepareSource(description, prepared);
         if (!result.status.ok())
+        {
             return result;
+        }
         try
         {
             OleLease ole;
             result.status = ole.acquire();
             if (!result.status.ok())
+            {
                 return result;
+            }
             auto *object = new DataObject(std::move(prepared));
             DropSource *source = nullptr;
             try
@@ -986,9 +1142,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 result.effect = DD::Effect::None;
             }
             else if (hr == DRAGDROP_S_DROP)
+            {
                 result = droppedSourceResult(performed, description.allowedEffects);
+            }
             else
+            {
                 result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure, hr);
+            }
             return result;
         }
         catch (const std::bad_alloc &)
@@ -1061,7 +1221,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 FORMATETC cloneOut{};
                 const bool clonePosition = cloned && clone->Next(1, &cloneOut, nullptr) == S_OK && cloneOut.cfFormat == CF_UNICODETEXT;
                 if (clone != nullptr)
+                {
                     clone->Release();
+                }
                 enumerator->Release();
                 enumerationContracts = next && exhausted && reset && clonePosition;
             }
@@ -1100,7 +1262,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 IO::Types::Status status;
                 const CLIPFORMAT identity = DataTransfer::nativeFormat(format, status);
                 if (!status.ok())
+                {
                     return {};
+                }
                 native.push_back(identity);
             }
             const DragDropRegion *matched = regionAt(state, position, native);
@@ -1124,7 +1288,9 @@ namespace GameWIP::Desktop::Detail::Platform
         std::scoped_lock lock(current.deferredMutex);
         std::size_t count = 0;
         for (DragDropState *state = current.deferredDragDropCleanupHead.get(); state != nullptr; state = state->deferredCleanupNext)
+        {
             ++count;
+        }
         return count;
     }
 } // namespace GameWIP::Desktop::Detail::Platform

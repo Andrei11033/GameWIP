@@ -1,7 +1,8 @@
 @page unicode_testing Testing
 
-Unicode validation covers public contracts, generated property data, official grapheme conformance, package boundaries, sanitizers, static analysis,
-and diagnostic performance benchmarks.
+Unicode validation covers the public contracts, generated property data, official
+grapheme conformance, package boundaries, sanitizers, static analysis, and
+diagnostic benchmarks.
 
 ## Common workflow
 
@@ -137,7 +138,8 @@ A Unicode version update is an intentional behavior change rather than a routine
 3. Refresh official data and regenerate the table.
 4. Review Unicode release changes, the generated diff, candidate-layout report, selected block size, high-start value, and total table bytes.
 5. Run official grapheme conformance with `GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS=1`.
-6. Run normal correctness/package validation, AddressSanitizer, static analysis/formatting, documentation checks, and benchmark registration.
+6. Run normal correctness/package validation, AddressSanitizer and UndefinedBehaviorSanitizer, static analysis/formatting,
+   documentation checks, and benchmark registration.
 7. Compare representative `BM_Unicode_*` benchmark results when data or segmentation behavior changes materially.
 8. Record compatibility impact when updated Unicode rules or properties change grapheme boundaries.
 
@@ -163,13 +165,14 @@ where a nearby safe restart exists, and linear-overall repeated cursor traversal
 
 ## Final validation
 
-For an implementation, generated-data, test, or manual change, run:
+For a change to the implementation, generated data, tests, or these docs, run:
 
 ```powershell
 .\gamewip.bat format check
 .\gamewip.bat unicode verify
 .\gamewip.bat test test
 .\gamewip.bat asan
+.\gamewip.bat ubsan
 .\gamewip.bat analyze
 .\gamewip.bat benchmark
 .\gamewip.bat docs

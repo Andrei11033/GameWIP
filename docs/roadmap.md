@@ -2,14 +2,12 @@
 
 ## Purpose
 
-This roadmap connects GameWIP's long-term vision to concrete release work. It
-describes broad phases, ordered capability slices, and validation proofs.
-GitHub issues remain the active tracker for implementation, bugs, validation,
-and follow-up work.
+This is the working roadmap for GameWIP. I use it to connect the long-term
+direction to actual release work, while GitHub issues hold the implementation,
+bug, validation, and follow-up details.
 
-The roadmap does not reserve release numbers for speculative work. It keeps
-only understood near-term release gates concrete and leaves implementation
-choices open until evidence makes them timely.
+Only near-term release gates get concrete milestone numbers here. Longer-term
+ideas stay broad until there is enough evidence to turn one into release work.
 
 ## Planning model
 
@@ -29,8 +27,9 @@ reserve a release number and is not a strict waterfall.
 
 A **capability slice** is an ordered outcome worth proving. It has no R number
 or release version until it is understood well enough to become concrete
-release work. Neighboring slices may overlap when real dependencies justify
-it, but slices must not become a speculative issue ledger.
+release work. Neighboring slices may overlap when real dependencies justify it.
+The slice is the outcome and its proof; the detailed work belongs in the active
+issues.
 
 A **release milestone** is a concrete release gate. When a capability slice is
 promoted, it receives the next sequential R number, concrete completion
@@ -112,15 +111,15 @@ front.
 These are the only numbered milestones currently reserved. No release number
 is assigned after R05 until a capability slice is ready for promotion.
 
-### R00 — Bootstrap and Reusable-Library Baseline
+### R00: Bootstrap and reusable-library baseline
 
 Status: `[x]` complete and published as `v0.0.1`.
 
-Completion checklist:
+What R00 established:
 
 - [x] Repository builds with CMake presets.
 - [x] Windows MSYS2 UCRT64 development workflow exists.
-- [x] MSYS2 CLANG64 AddressSanitizer workflow exists.
+- [x] MSYS2 CLANG64 AddressSanitizer and UndefinedBehaviorSanitizer workflows exist.
 - [x] Root project version and generated runtime build identity exist.
 - [x] Public-header, installed-consumer, and package-boundary checks exist for reusable libraries.
 - [x] `foundation/io` exists with status/result and stream contracts.
@@ -134,17 +133,17 @@ Completion checklist:
 - [x] Benchmark registration exists under `game/validation/benchmarks`.
 - [x] Static analysis, formatting, Doxygen, coverage, profiling, and repository-check workflows exist.
 - [x] Generated developer documentation is grouped by reusable libraries, project manual pages, project contracts, quality workflows, and planning.
-- [x] GitHub issues are the active task tracker; this roadmap is the milestone checklist.
+- [x] GitHub issues are the active task tracker; this page shows the milestone state.
 - [x] The `v0.0.1` R00 tag and GitHub release are published.
 
-### R01 — Desktop, Input, and Action Foundation
+### R01: Desktop, input, and action foundation
 
 Status: `[~]` active.
 
-Purpose: establish the first engine-facing runtime loop and user input layer
+R01 establishes the first engine-facing runtime loop and user input layer
 without committing to final rendering or gameplay systems.
 
-Completion checklist:
+R01 is complete when:
 
 - [x] `engine/desktop` has a documented public API and package boundary.
 - [x] A native Win32 window can be created, shown, resized, focused, and closed.
@@ -174,14 +173,15 @@ Completion checklist:
 Binding persistence in R01 is configuration persistence, not creation or world
 persistence.
 
-### R02 — Math Foundation
+### R02: Math foundation
 
 Status: `[ ]`
 
-Purpose: provide only the math required by imminent rendering, physics, and
-simulation work instead of building a speculative general framework.
+R02 provides the math required by the next rendering, physics, and simulation
+work. It is not a reason to build a general framework before those needs are
+clear.
 
-Completion checklist:
+R02 is complete when:
 
 - [ ] Required vector, matrix, rotation or quaternion, and transform operations exist.
 - [ ] Rays, planes, bounds, and the required geometry helpers exist.
@@ -191,14 +191,14 @@ Completion checklist:
 - [ ] Public API, examples, testing, troubleshooting, package, and installed-consumer boundaries are complete where applicable.
 - [TBD] Exact types and policies are selected from imminent rendering, physics, and simulation requirements.
 
-### R03 — Minimal Rendering and Debug Visualization
+### R03: Minimal rendering and debug visualization
 
 Status: `[ ]`
 
-Purpose: make later simulation and physics observable without building the
-final renderer.
+R03 makes later simulation and physics observable without trying to finish the
+renderer.
 
-Completion checklist:
+R03 is complete when:
 
 - [ ] The renderer backend decision is made during this milestone.
 - [ ] A render surface attaches to the R01 window path.
@@ -209,11 +209,11 @@ Completion checklist:
 - [ ] Rendering lifecycle, failure, and validation boundaries are documented.
 - [TBD] Backend API, shader layout, and resource lifetime are selected from the proof needs.
 
-### R04 — Simulation Timing
+### R04: Simulation timing
 
 Status: `[ ]`
 
-Completion checklist:
+R04 is complete when:
 
 - [ ] Frame timing exists.
 - [ ] A fixed-timestep accumulator exists.
@@ -224,14 +224,14 @@ Completion checklist:
 - [ ] Simulation behavior remains independent from render frame rate.
 - [TBD] Exact time source and replay requirements are selected from demonstrated needs.
 
-### R05 — Audio Foundation
+### R05: Audio foundation
 
 Status: `[ ]`
 
-Purpose: establish useful simulation-driven audio before physics and damage
-become deep, without attempting advanced acoustics.
+R05 establishes useful simulation-driven audio before physics and damage become
+deep. Advanced acoustics can wait.
 
-Completion checklist:
+R05 is complete when:
 
 - [ ] The audio backend and device path are selected and initialize and shut down cleanly.
 - [ ] Sound assets can be loaded and played.
@@ -248,7 +248,7 @@ spine before serious physics work begins.
 
 ## Capability roadmap
 
-The following slices have no release numbers or release versions. Their order
+The slices below have no release numbers or release versions. Their order
 expresses dependency and focus direction, not a strict waterfall.
 
 ### Playable Authoritative Simulation
@@ -568,13 +568,15 @@ persistence. These are future questions, not current decisions.
 
 ## Maintaining the roadmap
 
-- Keep only active and understood near-term release milestones numbered and concrete.
-- Promote a slice only when it can own meaningful completion criteria and active issues.
-- Assign the next sequential R number at promotion; never reserve numbers for unpromoted slices.
-- Keep slices as outcomes, proofs, and constraints, not speculative checklists or issue ledgers.
-- Create detailed GitHub issues only for active concrete milestone work.
-- Update @ref project_versioning when release meaning changes.
-- Update @ref project_decisions when roadmap changes reflect durable project direction.
+I keep release numbers for milestones with a real target. Ideas stay in the
+capability sections until a slice has a clear outcome, proof, and useful set of
+active issues. When I promote one, it gets the next sequential R number and
+concrete exit criteria. Detailed GitHub issues are written when the work is
+ready to start, not years ahead of it.
+
+Update @ref project_versioning when the meaning of a release changes. Update
+@ref project_decisions when a roadmap change records a project-wide
+technical decision.
 
 Locked architecture includes headless authoritative simulation, fixed timing,
 command and state boundaries across authority, local authority without transport

@@ -15,14 +15,18 @@ namespace GameWIP::Terminal
         struct Color;
     } // namespace Types::Style
 
-    /// @brief Creates the terminal default color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Style::Color defaultColor() noexcept;
+    /// @brief Creates a color request that uses the terminal's default foreground/background color.
+    [[nodiscard]] TERMINAL_EXPORT Types::Style::Color defaultColor() noexcept;
 
-    /// @brief Creates a portable basic terminal color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Style::Color basicColor(Types::Style::BasicColor color) noexcept;
+    /// @brief Creates a portable 16-color request.
+    /// @param color Basic color value to represent.
+    [[nodiscard]] TERMINAL_EXPORT Types::Style::Color basicColor(Types::Style::BasicColor color) noexcept;
 
-    /// @brief Creates an RGB terminal color.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Style::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
+    /// @brief Creates an RGB color request; exact output depends on stream capabilities.
+    /// @param red Red channel in the range [0, 255].
+    /// @param green Green channel in the range [0, 255].
+    /// @param blue Blue channel in the range [0, 255].
+    [[nodiscard]] TERMINAL_EXPORT Types::Style::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
 
     namespace Types::Style
     {
@@ -55,75 +59,56 @@ namespace GameWIP::Terminal
         /// @brief Portable basic terminal colors.
         enum class BasicColor
         {
-            /// @brief Normal black.
             Black,
-            /// @brief Normal red.
             Red,
-            /// @brief Normal green.
             Green,
-            /// @brief Normal yellow.
             Yellow,
-            /// @brief Normal blue.
             Blue,
-            /// @brief Normal magenta.
             Magenta,
-            /// @brief Normal cyan.
             Cyan,
-            /// @brief Normal white.
             White,
 
             /// @brief Bright black, commonly rendered as gray.
             BrightBlack,
-            /// @brief Bright red.
             BrightRed,
-            /// @brief Bright green.
             BrightGreen,
-            /// @brief Bright yellow.
             BrightYellow,
-            /// @brief Bright blue.
             BrightBlue,
-            /// @brief Bright magenta.
             BrightMagenta,
-            /// @brief Bright cyan.
             BrightCyan,
-            /// @brief Bright white.
             BrightWhite
         };
 
         /// @brief Portable terminal color request.
         struct Color
         {
-            /// @brief Creates the terminal default color.
+            /// @brief Creates a request for the terminal's default color.
             Color() noexcept = default;
 
-            /// @brief Returns the stored color representation.
+            /// @brief Returns which stored representation supplies this color.
             [[nodiscard]] Types::Style::ColorKind kind() const noexcept
             {
                 return kind_;
             }
 
-            /// @brief Returns the stored basic color.
             /// @note Meaningful only when kind() is Types::Style::ColorKind::Basic.
             [[nodiscard]] Types::Style::BasicColor basic() const noexcept
             {
                 return basic_;
             }
 
-            /// @brief Returns the stored red channel.
             /// @note Meaningful only when kind() is Types::Style::ColorKind::Rgb.
             [[nodiscard]] std::uint8_t red() const noexcept
             {
                 return red_;
             }
 
-            /// @brief Returns the stored green channel.
             /// @note Meaningful only when kind() is Types::Style::ColorKind::Rgb.
             [[nodiscard]] std::uint8_t green() const noexcept
             {
                 return green_;
             }
 
-            /// @brief Returns the stored blue channel.
             /// @note Meaningful only when kind() is Types::Style::ColorKind::Rgb.
             [[nodiscard]] std::uint8_t blue() const noexcept
             {
@@ -131,8 +116,8 @@ namespace GameWIP::Terminal
             }
 
         private:
-            friend GAMEWIP_TERMINAL_EXPORT Color GameWIP::Terminal::basicColor(Types::Style::BasicColor color) noexcept;
-            friend GAMEWIP_TERMINAL_EXPORT Color GameWIP::Terminal::rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
+            friend TERMINAL_EXPORT Color GameWIP::Terminal::basicColor(Types::Style::BasicColor color) noexcept;
+            friend TERMINAL_EXPORT Color GameWIP::Terminal::rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
 
             explicit Color(Types::Style::BasicColor color) noexcept;
             Color(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;

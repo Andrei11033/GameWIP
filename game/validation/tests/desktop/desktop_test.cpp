@@ -10,11 +10,13 @@
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
 #include "desktop/drag_drop.h"
+#include "desktop/dialogs.h"
 #include "desktop/internal/drag_drop_state.h"
 #include "desktop/internal/cursor_selection.h"
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
+#include "unicode/unicode.h"
 
 #include <shellapi.h>
 #include <shlobj.h>
@@ -60,6 +62,12 @@ namespace
     inline constexpr std::string_view kOwnerExitColorChildArgument = "--desktop-test-child=owner-exit-color-shutdown";
     inline constexpr std::string_view kOwnerExitDragDropChildArgument = "--desktop-test-child=owner-exit-drag-drop-shutdown";
     inline constexpr std::string_view kOwnerExitDragDropFailureChildArgument = "--desktop-test-child=owner-exit-drag-drop-revocation-failure";
+    inline constexpr std::string_view kOwnerExitProgressChildArgument = "--desktop-test-child=owner-exit-progress-shutdown";
+    inline constexpr std::string_view kOwnerExitProgressFailureChildArgument = "--desktop-test-child=owner-exit-progress-close-failure";
+    inline constexpr std::string_view kDeferredPumpFailureWaitChildArgument = "--desktop-test-child=deferred-pump-failure-wait";
+#if DESKTOP_INTERNAL_TEST_HOOKS
+    inline constexpr std::string_view kProgressRestoreMessageLazinessChildArgument = "--desktop-test-child=progress-restore-message-laziness";
+#endif
 
     static_assert(!std::is_move_constructible_v<Desktop::Window>);
     static_assert(!std::is_move_assignable_v<Desktop::Window>);
@@ -69,6 +77,8 @@ namespace
     static_assert(!std::is_move_assignable_v<Desktop::ChildSurface>);
     static_assert(!std::is_copy_constructible_v<Desktop::ChildSurface>);
     static_assert(!std::is_copy_assignable_v<Desktop::ChildSurface>);
+    static_assert(!std::is_move_constructible_v<Desktop::ProgressDialog>);
+    static_assert(!std::is_copy_constructible_v<Desktop::ProgressDialog>);
     static_assert(noexcept(Desktop::Events::poll()));
     static_assert(noexcept(Desktop::Events::wait()));
     static_assert(noexcept(std::declval<Desktop::Window &>().close()));
@@ -91,7 +101,9 @@ namespace
     {
         const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
         if (!primary.status.ok())
+        {
             return 2;
+        }
         return Desktop::Display::getColorInfo(primary.monitor.id).status.ok() ? 0 : 3;
     }
 
@@ -99,7 +111,9 @@ namespace
     {
         const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
         if (!primary.status.ok() || !Desktop::Display::getColorInfo(primary.monitor.id).status.ok())
+        {
             return 2;
+        }
 
         Desktop::Types::Description description;
         description.title = "Desktop color shutdown child";
@@ -107,9 +121,13 @@ namespace
         description.visible = false;
         Desktop::Window window;
         if (!window.open(description, 4).ok())
+        {
             return 3;
+        }
         if (!Desktop::Display::getColorInfo(window).status.ok())
+        {
             return 4;
+        }
 
         const auto handle = Desktop::Native::Win32::getHandle(window);
         if (!handle.status.ok() || handle.handle.window == nullptr || PostMessageW(static_cast<HWND>(handle.handle.window), WM_CLOSE, 0, 0) == FALSE)
@@ -117,7 +135,9 @@ namespace
             return 5;
         }
         if (!Desktop::Events::poll().status.ok() || !window.hasCloseRequest())
+        {
             return 6;
+        }
         return window.close().ok() ? 0 : 7;
     }
 
@@ -147,9 +167,13 @@ namespace
             });
         owner.join();
         if (workerResult != 0)
+        {
             return workerResult;
+        }
         if (!survivingWindow || survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+        {
             return 4;
+        }
         survivingWindow.reset();
         return 0;
     }
@@ -185,7 +209,9 @@ namespace
                 }
 #if DESKTOP_INTERNAL_TEST_HOOKS
                 if (forceRepeatedRevocationFailure)
+                {
                     Desktop::TestHooks::failDragDropRevocations(64);
+                }
 #else
                 static_cast<void>(forceRepeatedRevocationFailure);
 #endif
@@ -195,20 +221,140 @@ namespace
             });
         owner.join();
         if (workerResult != 0)
+        {
             return workerResult;
+        }
         if (!survivingWindow || !survivingTarget)
+        {
             return 4;
+        }
         if (survivingTarget->isOpen() || survivingTarget->lifetimeState() != Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize ||
             survivingTarget->windowId() != retainedWindowId)
+        {
             return 5;
+        }
         if (survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+        {
             return 6;
+        }
         if (!survivingTarget->close().ok())
+        {
             return 7;
+        }
         survivingTarget.reset();
         survivingWindow.reset();
         return 0;
     }
+
+    [[nodiscard]] int runOwnerExitProgressShutdownChild(bool forceCloseFailure) noexcept
+    {
+        std::unique_ptr<Desktop::ProgressDialog> survivingProgress;
+        int workerResult = 0;
+        std::thread owner(
+            [&]
+            {
+                auto progress = std::make_unique<Desktop::ProgressDialog>();
+                Desktop::Types::Dialogs::Progress::Description description;
+                description.title = "Desktop owner-exit ProgressDialog child";
+                description.message = "Dispatcher teardown must finalize this presentation";
+                if (!progress->open(description).ok())
+                {
+                    workerResult = 2;
+                    return;
+                }
+#if DESKTOP_INTERNAL_TEST_HOOKS
+                if (forceCloseFailure)
+                {
+                    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Close);
+                }
+#else
+                static_cast<void>(forceCloseFailure);
+#endif
+                survivingProgress = std::move(progress);
+            });
+        owner.join();
+        if (workerResult != 0)
+        {
+            return workerResult;
+        }
+        if (!survivingProgress || survivingProgress->ownedByCurrentThread() || survivingProgress->isOpen())
+        {
+            return 3;
+        }
+        survivingProgress.reset();
+        return 0;
+    }
+
+    [[nodiscard]] int runDeferredPumpFailureWaitChild() noexcept
+    {
+#if !DESKTOP_INTERNAL_TEST_HOOKS
+        return 6;
+#else
+        Desktop::Window owner;
+        Desktop::Types::Description windowDescription;
+        windowDescription.title = "Deferred pump failure owner";
+        windowDescription.clientSize = {160, 100};
+        windowDescription.visible = false;
+        if (!owner.open(windowDescription, 4).ok())
+        {
+            return 2;
+        }
+
+        Desktop::ProgressDialog progress;
+        Desktop::Types::Dialogs::Progress::Description progressDescription;
+        progressDescription.title = "Deferred pump failure progress";
+        progressDescription.message = "The wait must return the already-recorded error.";
+        progressDescription.owner = &owner;
+        progressDescription.blocksOwner = true;
+        if (!progress.open(progressDescription).ok())
+        {
+            static_cast<void>(owner.close());
+            return 3;
+        }
+
+        Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
+        if (!Desktop::TestHooks::destroyNativeProgressDialog(progress).ok())
+        {
+            static_cast<void>(progress.close());
+            static_cast<void>(owner.close());
+            return 4;
+        }
+
+        const Desktop::Types::Events::PumpResult waitResult = Desktop::Events::wait();
+        static_cast<void>(progress.close());
+        static_cast<void>(owner.close());
+        return waitResult.status.ok() ? 5 : 0;
+#endif
+    }
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
+    [[nodiscard]] int runProgressRestoreMessageLazinessChild() noexcept
+    {
+        if (Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted())
+        {
+            return 2;
+        }
+
+        Desktop::Window window;
+        Desktop::Types::Description description;
+        description.title = "Progress restore registration laziness";
+        description.clientSize = {160, 100};
+        description.visible = false;
+        if (!window.open(description, 4).ok())
+        {
+            return 3;
+        }
+        if (!Desktop::Events::poll().status.ok())
+        {
+            return 4;
+        }
+        if (!window.close().ok())
+        {
+            return 5;
+        }
+        return Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted() ? 6 : 0;
+    }
+#endif
 
     void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
     {
@@ -218,6 +364,12 @@ namespace
             kOwnerExitColorChildArgument,
             kOwnerExitDragDropChildArgument,
             kOwnerExitDragDropFailureChildArgument,
+            kOwnerExitProgressChildArgument,
+            kOwnerExitProgressFailureChildArgument,
+            kDeferredPumpFailureWaitChildArgument,
+#if DESKTOP_INTERNAL_TEST_HOOKS
+            kProgressRestoreMessageLazinessChildArgument,
+#endif
         };
         for (const std::string_view argument : childArguments)
         {
@@ -239,7 +391,13 @@ namespace
         }
     }
 
-#include "validation/tests/desktop/desktop_manual_tests.inl"
+#include "validation/tests/desktop/desktop_manual_support.inl"
+#include "validation/tests/desktop/desktop_manual_window_tests.inl"
+#include "validation/tests/desktop/desktop_manual_transfer_tests.inl"
+#include "validation/tests/desktop/desktop_manual_display_tests.inl"
+#include "validation/tests/desktop/desktop_dialog_tests.inl"
+#include "validation/tests/desktop/desktop_progress_dialog_tests.inl"
+#include "validation/tests/desktop/desktop_manual_dialog_tests.inl"
 #include "validation/tests/desktop/desktop_lifecycle_tests.inl"
 #include "validation/tests/desktop/desktop_event_tests.inl"
 #include "validation/tests/desktop/desktop_renderer_tests.inl"
@@ -255,15 +413,43 @@ namespace GameWIP::Test
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
         if (hasArgument(argc, argv, kStandaloneColorChildArgument))
+        {
             return runStandaloneColorShutdownChild();
+        }
         if (hasArgument(argc, argv, kWindowColorChildArgument))
+        {
             return runWindowColorShutdownChild();
+        }
         if (hasArgument(argc, argv, kOwnerExitColorChildArgument))
+        {
             return runOwnerExitColorShutdownChild();
+        }
         if (hasArgument(argc, argv, kOwnerExitDragDropChildArgument))
+        {
             return runOwnerExitDragDropShutdownChild(false);
+        }
         if (hasArgument(argc, argv, kOwnerExitDragDropFailureChildArgument))
+        {
             return runOwnerExitDragDropShutdownChild(true);
+        }
+        if (hasArgument(argc, argv, kOwnerExitProgressChildArgument))
+        {
+            return runOwnerExitProgressShutdownChild(false);
+        }
+        if (hasArgument(argc, argv, kOwnerExitProgressFailureChildArgument))
+        {
+            return runOwnerExitProgressShutdownChild(true);
+        }
+        if (hasArgument(argc, argv, kDeferredPumpFailureWaitChildArgument))
+        {
+            return runDeferredPumpFailureWaitChild();
+        }
+#if DESKTOP_INTERNAL_TEST_HOOKS
+        if (hasArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
+        {
+            return runProgressRestoreMessageLazinessChild();
+        }
+#endif
 
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
@@ -273,7 +459,9 @@ namespace GameWIP::Test
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value).starts_with(manualSuitePrefix))
+            {
                 selectedManualSuite = std::string_view(value).substr(manualSuitePrefix.size());
+            }
         }
         constexpr std::array manualSuiteNames{
             std::string_view{"lifecycle"},
@@ -285,6 +473,7 @@ namespace GameWIP::Test
             std::string_view{"child-surface"},
             std::string_view{"files-shell"},
             std::string_view{"drag-drop"},
+            std::string_view{"dialogs"},
             std::string_view{"fullscreen"},
             std::string_view{"borderless"},
             std::string_view{"exclusive"},
@@ -319,9 +508,18 @@ namespace GameWIP::Test
         runner.runSuite("Window Clipboard multi-format and failure semantics", testClipboardMultiFormatAndFailures);
         runner.runSuite("Window native data drag and drop", testDragDrop);
         runner.runSuite("Window description validation", testDescriptionValidation);
+        runner.runSuite("Window native construction lifecycle", testNativeConstructionLifecycle);
         runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
         runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
 #if DESKTOP_INTERNAL_TEST_HOOKS
+        runner.runSuite("Desktop file and folder dialogs", testFileAndFolderDialogs);
+        runner.runSuite("Desktop dialog COM apartments", testDialogApartmentContracts);
+        runner.runSuite("Desktop fixed-button messages", testMessageDialogs);
+        runner.runSuite("Desktop semantic prompts", testPromptDialogs);
+        runner.runSuite("Desktop ProgressDialog validation", testProgressDialogValidation);
+        runner.runSuite("Desktop ProgressDialog native lifecycle", testProgressDialogNativeLifecycle);
+        runner.runSuite("Desktop ProgressDialog ownership", testProgressDialogOwnership);
+        runner.runSuite("Desktop ProgressDialog exceptional lifetime", testProgressDialogExceptionalLifetime);
         runner.runSuite("Window custom cursor native resources", testCursorNativeResources);
         runner.runSuite("Window custom cursor integration", testCursorWindowIntegration);
         runner.runSuite("Window custom cursor lifecycle", testCursorLifecycle);
@@ -365,7 +563,9 @@ namespace GameWIP::Test
         const auto runManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
             if (!validManualSelection || (selectedManualSuite && *selectedManualSuite != selector))
+            {
                 return;
+            }
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)
@@ -376,7 +576,9 @@ namespace GameWIP::Test
         const auto runSelectedManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
             if (!validManualSelection || !selectedManualSuite || *selectedManualSuite != selector)
+            {
                 return;
+            }
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)
@@ -393,6 +595,7 @@ namespace GameWIP::Test
         runManualSuite("Window manual native child surface", "child-surface", testManualChildSurface);
         runManualSuite("Window manual files and shell behavior", "files-shell", testManualFilesAndShell);
         runManualSuite("Window manual native data drag and drop", "drag-drop", testManualDragDrop);
+        runManualSuite("Desktop manual native dialogs", "dialogs", testManualDialogs);
         runManualSuite(
             "Window manual fullscreen and topology",
             "fullscreen",

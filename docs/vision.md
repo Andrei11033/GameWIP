@@ -20,7 +20,7 @@ required up front.
 Creations are physical systems, not static collections of blocks. Structure,
 mass, connectivity, power, control, and damage should influence one another.
 When a part is hit, the result may be deformation, lost strength, detachment, an
-exposed internal system, or a functional failure—not merely a missing visual
+exposed internal system, or a functional failure, not merely a missing visual
 piece.
 
 Realism serves this feedback loop. It is valuable when it creates a decision a

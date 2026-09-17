@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "terminal/internal/terminal_test_export.h"
 #include "terminal/input.h"
 #include "terminal/output.h"
 
@@ -77,8 +78,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
 
         bool captureEnabled = false;
         std::vector<std::byte> capturedOutput;
-        std::size_t preparationCalls = 0;
-        std::size_t textWriteCalls = 0;
 
         bool terminalSizeOverrideEnabled = false;
         Terminal::Types::Size terminalSizeOverride{};
@@ -104,6 +103,9 @@ namespace GameWIP::Terminal::Detail::TestHooks
         HookFailure nextOutputPreparationFailure;
         HookFailure nextInputModeFailure;
         HookFailure nextReadFailure;
+        HookFailure nextEndpointIdentityFailure;
+        HookFailure nextCancellationResetFailure;
+        HookFailure nextCancellationSignalFailure;
         HookFailure nextTerminalSizeFailure;
         HookFailure nextCursorPositionFailure;
         HookFailure nextTextWriteFailure;
@@ -114,14 +116,14 @@ namespace GameWIP::Terminal::Detail::TestHooks
     };
 
     /// @brief Singleton hook state; callers lock mutex before non-atomic access.
-    extern TerminalTestHookState terminalTestHookState;
+    extern TERMINAL_TEST_EXPORT TerminalTestHookState terminalTestHookState;
 
     /// @brief Maps the only supported input stream to its hook-state array slot.
     [[nodiscard]] std::size_t inputIndex(Terminal::Types::Input::Stream stream) noexcept;
     /// @brief Maps stdout or stderr to its hook-state array slot.
     [[nodiscard]] std::size_t outputIndex(Terminal::Types::Output::Stream stream) noexcept;
     /// @brief Atomically consumes a one-shot forced failure and returns its portable code.
-    [[nodiscard]] std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept;
+    [[nodiscard]] TERMINAL_TEST_EXPORT std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept;
     /// @brief Blocks at an armed operation gate until the test releases it.
     void waitAtBlock(HookBlock &block);
     /// @brief Restores the complete process-wide hook state to deterministic defaults.
@@ -132,31 +134,23 @@ namespace GameWIP::Terminal::TestHooks
 {
     /// @brief Clears all pending terminal test-hook failures, captures, and overrides.
     /// @warning Test-only API. Available only when TERMINAL_INTERNAL_TEST_HOOKS is enabled.
-    GAMEWIP_TERMINAL_EXPORT void reset() noexcept;
+    TERMINAL_TEST_EXPORT void reset() noexcept;
 
     /// @brief Overrides reported input capabilities for a stream.
-    /// @warning Test-only API. Persistent until reset or clearInputCapabilitiesOverride.
-    GAMEWIP_TERMINAL_EXPORT void setInputCapabilitiesOverride(
+    /// @warning Test-only API. Persistent until reset.
+    TERMINAL_TEST_EXPORT void setInputCapabilitiesOverride(
         Terminal::Types::Input::Stream stream,
         const Terminal::Types::Input::Capabilities &capabilities);
 
-    /// @brief Clears an input capabilities override.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearInputCapabilitiesOverride(Terminal::Types::Input::Stream stream) noexcept;
-
     /// @brief Overrides reported output capabilities for a stream.
-    /// @warning Test-only API. Persistent until reset or clearOutputCapabilitiesOverride.
-    GAMEWIP_TERMINAL_EXPORT void setOutputCapabilitiesOverride(
+    /// @warning Test-only API. Persistent until reset.
+    TERMINAL_TEST_EXPORT void setOutputCapabilitiesOverride(
         Terminal::Types::Output::Stream stream,
         const Terminal::Types::Output::Capabilities &capabilities);
 
-    /// @brief Clears an output capabilities override.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearOutputCapabilitiesOverride(Terminal::Types::Output::Stream stream) noexcept;
-
     /// @brief Overrides capabilities reported after output preparation.
-    /// @warning Test-only API. Persistent until reset or clearOutputCapabilitiesOverride.
-    GAMEWIP_TERMINAL_EXPORT void setPreparedOutputCapabilitiesOverride(
+    /// @warning Test-only API. Persistent until reset.
+    TERMINAL_TEST_EXPORT void setPreparedOutputCapabilitiesOverride(
         Terminal::Types::Output::Stream stream,
         const Terminal::Types::Output::Capabilities &capabilities);
 
@@ -164,28 +158,15 @@ namespace GameWIP::Terminal::TestHooks
     /// @param endOfStreamWhenEmpty True makes an empty hook stream report EOF; false reports WouldBlock/TimedOut.
     /// @throws Any allocation exception from copying bytes into hook-owned storage.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void setInputBytes(Terminal::Types::Input::Stream stream, std::string_view bytes, bool endOfStreamWhenEmpty = true);
-
-    /// @brief Appends bytes to the in-memory input stream.
-    /// @throws Any allocation exception from extending hook-owned storage.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void appendInputBytes(Terminal::Types::Input::Stream stream, std::string_view bytes);
-
-    /// @brief Disables in-memory input bytes for a stream.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearInputBytes(Terminal::Types::Input::Stream stream) noexcept;
+    TERMINAL_TEST_EXPORT void setInputBytes(Terminal::Types::Input::Stream stream, std::string_view bytes, bool endOfStreamWhenEmpty = true);
 
     /// @brief Replaces deterministic structured events consumed by readEvent() and managed line editing.
     /// @param endOfStreamWhenEmpty True reports EOF after the final event; false reports WouldBlock/TimedOut.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void setInputEvents(
+    TERMINAL_TEST_EXPORT void setInputEvents(
         Terminal::Types::Input::Stream stream,
         std::span<const Terminal::Types::Event> events,
         bool endOfStreamWhenEmpty = true);
-
-    /// @brief Disables deterministic structured-event input.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearInputEvents(Terminal::Types::Input::Stream stream) noexcept;
 
 #if defined(_WIN32)
     /// @brief Test-only mirror of native Win32 key-decoder dispositions.
@@ -206,10 +187,14 @@ namespace GameWIP::Terminal::TestHooks
     };
 
     /// @brief Clears deterministic Win32 key-down, surrogate, and pending-repeat decoder state.
-    GAMEWIP_TERMINAL_EXPORT void resetWin32KeyDecoder() noexcept;
+    TERMINAL_TEST_EXPORT void resetWin32KeyDecoder() noexcept;
+
+    /// @brief Returns the number of native console waits attempted since the last reset.
+    /// @warning Test-only Win32 diagnostic counter; reset() clears it.
+    [[nodiscard]] TERMINAL_TEST_EXPORT std::size_t consoleWaitCallCount() noexcept;
 
     /// @brief Decodes one synthetic Win32 KEY_EVENT_RECORD described only by portable integer fields.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Win32KeyDecodeResult decodeWin32KeyRecord(
+    [[nodiscard]] TERMINAL_TEST_EXPORT Win32KeyDecodeResult decodeWin32KeyRecord(
         bool keyDown,
         std::uint16_t virtualKey,
         char16_t unicodeCharacter = u'\0',
@@ -218,20 +203,20 @@ namespace GameWIP::Terminal::TestHooks
         std::uint16_t scanCode = 0) noexcept;
 
     /// @brief Returns a pending repeat event retained by the deterministic Win32 decoder.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
+    [[nodiscard]] TERMINAL_TEST_EXPORT std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
 #endif
 
     /// @brief Seeds the native pending UTF-16 high surrogate for endpoint-replacement validation.
     /// @warning Test-only API. Available only on the Win32 validation backend.
-    GAMEWIP_TERMINAL_EXPORT void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept;
+    TERMINAL_TEST_EXPORT void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept;
 
     /// @brief Returns whether the current native input endpoint retains a pending UTF-16 high surrogate.
     /// @warning Test-only API. Available only on the Win32 validation backend.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept;
+    [[nodiscard]] TERMINAL_TEST_EXPORT bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept;
 
     /// @brief Overrides internal native-mode capture/set/restore with deterministic in-memory flags.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void setInputModeOverride(
+    TERMINAL_TEST_EXPORT void setInputModeOverride(
         Terminal::Types::Input::Stream stream,
         bool lineBuffered = true,
         bool echoInput = true,
@@ -239,7 +224,7 @@ namespace GameWIP::Terminal::TestHooks
 
     /// @brief Returns whether the deterministic input-mode override currently matches all requested flags.
     /// @warning Test-only API.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool inputModeOverrideMatches(
+    [[nodiscard]] TERMINAL_TEST_EXPORT bool inputModeOverrideMatches(
         Terminal::Types::Input::Stream stream,
         bool lineBuffered,
         bool echoInput,
@@ -247,107 +232,96 @@ namespace GameWIP::Terminal::TestHooks
 
     /// @brief Returns whether deterministic managed-event flags match the requested state.
     /// @warning Test-only API.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool inputManagedEventModeOverrideMatches(
+    [[nodiscard]] TERMINAL_TEST_EXPORT bool inputManagedEventModeOverrideMatches(
         Terminal::Types::Input::Stream stream,
         bool reportResizeEvents,
         bool reportPointerEvents,
         bool exclusiveEventDelivery) noexcept;
 
-    /// @brief Clears an input mode override.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearInputModeOverride(Terminal::Types::Input::Stream stream) noexcept;
-
     /// @brief Enables or disables output capture for a stream.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void setOutputCapture(Terminal::Types::Output::Stream stream, bool enabled) noexcept;
+    TERMINAL_TEST_EXPORT void setOutputCapture(Terminal::Types::Output::Stream stream, bool enabled) noexcept;
 
     /// @brief Returns captured output bytes in write order.
     /// @throws Any allocation exception from creating the returned snapshot.
     /// @warning Test-only API.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::vector<std::byte> capturedOutput(Terminal::Types::Output::Stream stream);
+    [[nodiscard]] TERMINAL_TEST_EXPORT std::vector<std::byte> capturedOutput(Terminal::Types::Output::Stream stream);
 
     /// @brief Returns captured output bytes as a string for text-oriented assertions.
     /// @throws Any allocation exception from creating the returned snapshot.
     /// @warning Test-only API.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::string capturedOutputText(Terminal::Types::Output::Stream stream);
+    [[nodiscard]] TERMINAL_TEST_EXPORT std::string capturedOutputText(Terminal::Types::Output::Stream stream);
 
     /// @brief Clears captured output for a stream.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearCapturedOutput(Terminal::Types::Output::Stream stream) noexcept;
-
-    /// @brief Returns the number of output preparation calls for a stream.
-    /// @warning Test-only API.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::size_t outputPreparationCallCount(Terminal::Types::Output::Stream stream) noexcept;
-
-    /// @brief Returns the number of backend text-write calls for a stream.
-    /// @warning Test-only API.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::size_t textWriteCallCount(Terminal::Types::Output::Stream stream) noexcept;
+    TERMINAL_TEST_EXPORT void clearCapturedOutput(Terminal::Types::Output::Stream stream) noexcept;
 
     /// @brief Overrides terminal size query results for a stream.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void setTerminalSizeOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Size size);
-
-    /// @brief Clears a terminal size override.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearTerminalSizeOverride(Terminal::Types::Output::Stream stream) noexcept;
+    TERMINAL_TEST_EXPORT void setTerminalSizeOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Size size);
 
     /// @brief Overrides cursor position query results for a stream.
     /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void setCursorPositionOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Cursor::Position position);
-
-    /// @brief Clears a cursor position override.
-    /// @warning Test-only API.
-    GAMEWIP_TERMINAL_EXPORT void clearCursorPositionOverride(Terminal::Types::Output::Stream stream) noexcept;
+    TERMINAL_TEST_EXPORT void setCursorPositionOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Cursor::Position position);
 
     /// @brief Enables deterministic cursor advancement, wrapping, viewport scrolling, and resize reflow.
     /// @warning Test-only API. Text-cell simulation is intended for ASCII managed-line rendering fixtures.
-    GAMEWIP_TERMINAL_EXPORT void enableCursorRenderingSimulation(
+    TERMINAL_TEST_EXPORT void enableCursorRenderingSimulation(
         Terminal::Types::Output::Stream stream,
         Terminal::Types::Size size,
         Terminal::Types::Cursor::Position position,
         Terminal::Types::Cursor::Position viewportOrigin = {});
 
     /// @brief Returns the simulated viewport origin after writes and resize events.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Terminal::Types::Cursor::Position cursorRenderingViewportOrigin(
+    [[nodiscard]] TERMINAL_TEST_EXPORT Terminal::Types::Cursor::Position cursorRenderingViewportOrigin(
         Terminal::Types::Output::Stream stream) noexcept;
 
     /// @brief Returns backend-stable positions requested by managed line redraw.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT std::vector<Terminal::Types::Cursor::Position> cursorRenderingSetHistory(
+    [[nodiscard]] TERMINAL_TEST_EXPORT std::vector<Terminal::Types::Cursor::Position> cursorRenderingSetHistory(
         Terminal::Types::Output::Stream stream);
 
     /// @brief Arms the next backend read to pause after taking Terminal input serialization.
-    GAMEWIP_TERMINAL_EXPORT void blockNextRead();
+    TERMINAL_TEST_EXPORT void blockNextRead();
     /// @brief Waits until an armed backend read reaches its deterministic pause point.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool waitUntilReadBlocked(std::chrono::milliseconds timeout = std::chrono::seconds{5});
+    [[nodiscard]] TERMINAL_TEST_EXPORT bool waitUntilReadBlocked(std::chrono::milliseconds timeout = std::chrono::seconds{5});
     /// @brief Releases a backend read paused by blockNextRead().
-    GAMEWIP_TERMINAL_EXPORT void releaseBlockedRead() noexcept;
+    TERMINAL_TEST_EXPORT void releaseBlockedRead() noexcept;
 
     /// @brief Arms the next backend text write to pause while holding Terminal stream serialization.
-    GAMEWIP_TERMINAL_EXPORT void blockNextTextWrite();
+    TERMINAL_TEST_EXPORT void blockNextTextWrite();
     /// @brief Waits until an armed backend text write reaches its deterministic pause point.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT bool waitUntilTextWriteBlocked(std::chrono::milliseconds timeout = std::chrono::seconds{5});
+    [[nodiscard]] TERMINAL_TEST_EXPORT bool waitUntilTextWriteBlocked(std::chrono::milliseconds timeout = std::chrono::seconds{5});
     /// @brief Releases a backend text write paused by blockNextTextWrite().
-    GAMEWIP_TERMINAL_EXPORT void releaseBlockedTextWrite() noexcept;
+    TERMINAL_TEST_EXPORT void releaseBlockedTextWrite() noexcept;
 
     /// @brief Forces the next input-capability query to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextInputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextInputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     /// @brief Forces the next output-capability query to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextOutputCapabilityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     /// @brief Forces the next output-preparation attempt to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextOutputPreparationFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextOutputPreparationFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
     /// @brief Forces the next internal input-mode capture/set/restore operation to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
     /// @brief Forces the next input read to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;
+    /// @brief Forces the next native stdin endpoint identity duplication to fail.
+    /// @details The hook is Win32-only, one-shot, and reports the configured portable code; reset() clears it.
+    TERMINAL_TEST_EXPORT void forceNextEndpointIdentityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
+    /// @brief Forces the next native cancellation-event ResetEvent operation to fail.
+    /// @details The hook is Win32-only, one-shot, and translates deterministic ERROR_GEN_FAILURE; reset() clears it.
+    TERMINAL_TEST_EXPORT void forceNextCancellationResetFailure() noexcept;
+    /// @brief Forces the next stop callback to skip its best-effort native cancellation signal.
+    /// @details The hook is Win32-only, one-shot, and cannot make the callback return a status; reset() clears it.
+    TERMINAL_TEST_EXPORT void forceNextCancellationSignalFailure() noexcept;
     /// @brief Forces the next terminal-size query to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextTerminalSizeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextTerminalSizeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     /// @brief Forces the next cursor-position query to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextCursorPositionFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextCursorPositionFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;
     /// @brief Forces the next text write to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextTextWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextTextWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
     /// @brief Forces the next byte write to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextByteWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextByteWriteFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::WriteFailed) noexcept;
     /// @brief Forces the next flush operation to fail with code.
-    GAMEWIP_TERMINAL_EXPORT void forceNextFlushFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::FlushFailed) noexcept;
+    TERMINAL_TEST_EXPORT void forceNextFlushFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::FlushFailed) noexcept;
 } // namespace GameWIP::Terminal::TestHooks
 #endif

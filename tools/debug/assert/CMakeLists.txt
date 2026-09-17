@@ -1,17 +1,22 @@
+# Assert builds as a shared failure-handling runtime or a header-only disabled interface.
+# Consumer definitions select macro behavior; the runtime retains all exported handlers.
+
+# ------------------------------------------------------------
+# Configuration and target selection
+# ------------------------------------------------------------
+
 set(ASSERT_ENABLED "AUTO" CACHE STRING "Force assertions on, off, or let NDEBUG choose")
 set_property(CACHE ASSERT_ENABLED PROPERTY STRINGS AUTO ON OFF)
 set(ASSERT_CHECKS_ENABLED "AUTO" CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose")
 set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
-option(ASSERT_ENABLE_COMMON_CONTROLS_MANIFEST "Prepare the explicit Common Controls v6 resource helper for Assert consumers" ON)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
-
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-include(GenerateExportHeader)
+include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 include(GNUInstallDirs)
 
 if(NOT COMMAND gamewip_target_platform_backend)
@@ -48,6 +53,8 @@ internal_assert_resolve_auto_option(ASSERT_CHECKS_ENABLED_EFFECTIVE "${ASSERT_CH
 internal_assert_public_option(ASSERT_ENABLED_PUBLIC "${ASSERT_ENABLED_VALUE}")
 internal_assert_public_option(ASSERT_CHECKS_ENABLED_PUBLIC "${ASSERT_CHECKS_ENABLED_VALUE}")
 
+# Target type is fixed at configure time. Multi-config builds retain the DLL if any
+# configuration can use it, even when a release configuration disables calls.
 set(ASSERT_RUNTIME_TARGET_ENABLED OFF)
 if(ASSERT_MULTI_CONFIG)
     if(NOT (ASSERT_ENABLED_VALUE STREQUAL "OFF" AND ASSERT_CHECKS_ENABLED_VALUE STREQUAL "OFF"))
@@ -59,6 +66,7 @@ else()
     endif()
 endif()
 
+# This separate value controls consumer calls, potentially per build configuration.
 if(ASSERT_ENABLED_VALUE STREQUAL "ON" OR ASSERT_CHECKS_ENABLED_VALUE STREQUAL "ON")
     set(ASSERT_RUNTIME_PUBLIC 1)
 elseif(ASSERT_ENABLED_VALUE STREQUAL "OFF" AND ASSERT_CHECKS_ENABLED_VALUE STREQUAL "OFF")
@@ -88,18 +96,24 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
 else()
     add_library(Assert INTERFACE)
 endif()
+
 add_library(GameWIP::Assert ALIAS Assert)
 
+# ------------------------------------------------------------
+# Headers and compile contracts
+# ------------------------------------------------------------
+
+# Both target forms provide the same generated visibility-header include path.
 set(ASSERT_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert")
+
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    generate_export_header(
-        Assert
-        BASE_NAME GAMEWIP_ASSERT
-        EXPORT_FILE_NAME "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
-        EXPORT_MACRO_NAME GAMEWIP_ASSERT_EXPORT
-        NO_EXPORT_MACRO_NAME GAMEWIP_ASSERT_NO_EXPORT
-        STATIC_DEFINE GAMEWIP_ASSERT_STATIC_DEFINE
+    gamewip_generate_export_header(
+        # ASSERT_EXPORT is the installed production/runtime ABI.
+        TARGET Assert
+        OUTPUT "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
+        EXPORT_MACRO ASSERT_EXPORT
+        BUILD_DEFINE ASSERT_BUILDING_DLL
     )
     target_sources(
         Assert
@@ -110,7 +124,7 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
                 FILES "${CMAKE_CURRENT_SOURCE_DIR}/assert.h" "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h"
     )
 else()
-    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/cmake/assert_export_static.h.in" "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h" @ONLY)
+    gamewip_generate_export_header(INTERFACE OUTPUT "${ASSERT_GENERATED_INCLUDE_DIR}/debug/assert/assert_export.h" EXPORT_MACRO ASSERT_EXPORT)
     target_sources(
         Assert
         INTERFACE
@@ -124,6 +138,7 @@ endif()
 if(ASSERT_RUNTIME_TARGET_ENABLED)
     target_sources(Assert PRIVATE core/assert.cpp)
 endif()
+
 gamewip_target_platform_backend(TARGET Assert ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
@@ -135,6 +150,8 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     )
     target_compile_features(Assert PUBLIC cxx_std_23)
+    # The DLL contains all runtime bridges. INTERFACE definitions independently
+    # decide which bridges each consumer macro expansion can call.
     target_compile_definitions(
         Assert
         PRIVATE
@@ -170,27 +187,12 @@ target_compile_definitions(
     INTERFACE ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE} ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
 )
 
-# Validation object libraries need Assert's compile contract without inheriting
-# executable resources such as the Common Controls manifest.
-add_library(AssertCompileInterface INTERFACE)
-target_include_directories(
-    AssertCompileInterface
-    INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools> $<BUILD_INTERFACE:${ASSERT_GENERATED_INCLUDE_DIR}>
-)
-target_compile_features(AssertCompileInterface INTERFACE cxx_std_23)
-target_compile_definitions(
-    AssertCompileInterface
-    INTERFACE
-        ASSERT_INTERNAL_RUNTIME=${ASSERT_RUNTIME_PUBLIC}
-        ASSERT_ENABLED=${ASSERT_ENABLED_PUBLIC}
-        ASSERT_CHECKS_ENABLED=${ASSERT_CHECKS_ENABLED_PUBLIC}
-        ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
-        ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
-        ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
-)
+# ------------------------------------------------------------
+# Runtime dependencies and output
+# ------------------------------------------------------------
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
-    target_link_libraries(Assert PRIVATE Logger $<BUILD_INTERFACE:GameWIPBase>)
+    target_link_libraries(Assert PRIVATE Logger Unicode $<BUILD_INTERFACE:GameWIPBase>)
 endif()
 
 if(ASSERT_RUNTIME_TARGET_ENABLED)
@@ -204,6 +206,10 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
             ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 endif()
+
+# ------------------------------------------------------------
+# Documentation and package installation
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     # Assert owns its public API docs and Markdown manual pages. The root docs
@@ -229,4 +235,4 @@ else()
     install(TARGETS Assert EXPORT AssertTargets FILE_SET public_headers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 endif()
 
-gamewip_install_package(TARGET Assert CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in" PATH_VARS CMAKE_INSTALL_DATADIR)
+gamewip_install_package(TARGET Assert CONFIG_TEMPLATE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/AssertConfig.cmake.in")

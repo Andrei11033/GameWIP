@@ -1,4 +1,8 @@
-# GameWIP uninstall inventory, ownership classification, consent, and conservative removal.
+# Uninstall inventory, ownership classification, consent, and conservative removal.
+
+# ------------------------------------------------------------
+# Uninstall inventory and ownership checks
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

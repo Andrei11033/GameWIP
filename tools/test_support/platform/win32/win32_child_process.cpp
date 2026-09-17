@@ -2,8 +2,7 @@
 /// @brief Windows child-process backend for the TestSupport library.
 
 #include "test_support/process.h"
-#include "test_support/internal/test_support_test_hooks.h"
-#include "unicode/unicode.h"
+#include "test_support/internal/win32_text.h"
 
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
@@ -20,6 +19,7 @@
 #include <cstddef>
 #include <cwchar>
 #include <cwctype>
+#include <functional>
 #include <limits>
 #include <new>
 #include <stdexcept>
@@ -35,6 +35,10 @@ namespace GameWIP::TestSupport
 #if defined(_WIN32)
     namespace
     {
+        // ------------------------------------------------------------
+        // Native handles and startup attributes
+        // ------------------------------------------------------------
+
         struct NativeInfrastructureFailure
         {
             Types::InfrastructureError error;
@@ -188,45 +192,14 @@ namespace GameWIP::TestSupport
             }
         }
 
-        [[nodiscard]] std::wstring utf8ToWide(std::string_view text)
-        {
-            if (text.find('\0') != std::string_view::npos)
-            {
-                throw std::invalid_argument("Child-process text contains an embedded null");
-            }
-            if (text.empty())
-            {
-                return {};
-            }
-            const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
-            if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
-            {
-                throw std::length_error("Child-process text exceeds the Unicode conversion limit");
-            }
-            if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
-            {
-                throw std::invalid_argument("Child-process text is not valid UTF-8");
-            }
-
-            std::vector<char16_t> converted(measurement.requiredCodeUnits);
-            const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
-            if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
-            {
-                throw std::runtime_error("Unicode child-process text conversion failed");
-            }
-
-            std::wstring output(conversion.codeUnitsWritten, L'\0');
-            for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
-            {
-                output[index] = static_cast<wchar_t>(converted[index]);
-            }
-            return output;
-        }
+        // ------------------------------------------------------------
+        // UTF-8, path, and command-line conversion
+        // ------------------------------------------------------------
 
         [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path)
         {
             std::wstring text = path.wstring();
-            if (text.find(L'\0') != std::wstring::npos)
+            if (text.contains(L'\0'))
             {
                 throw std::invalid_argument("Child-process executable path contains an embedded null");
             }
@@ -277,10 +250,14 @@ namespace GameWIP::TestSupport
             for (const std::string &argument : options.arguments)
             {
                 commandLine.push_back(L' ');
-                commandLine += quoteWindowsArgument(utf8ToWide(argument));
+                commandLine += quoteWindowsArgument(Detail::Win32::utf8ToWide(argument));
             }
             return commandLine;
         }
+
+        // ------------------------------------------------------------
+        // Child environment block construction
+        // ------------------------------------------------------------
 
         [[nodiscard]] std::wstring lowerEnvironmentName(std::wstring_view text)
         {
@@ -310,12 +287,12 @@ namespace GameWIP::TestSupport
 
         void applyEnvironmentOverride(std::vector<std::wstring> &entries, const Types::Process::EnvironmentOverride &variable)
         {
-            if (variable.name.empty() || variable.name.find('=') != std::string::npos)
+            if (variable.name.empty() || variable.name.contains('='))
             {
                 throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }
 
-            const std::wstring variableName = utf8ToWide(variable.name);
+            const std::wstring variableName = Detail::Win32::utf8ToWide(variable.name);
             const auto matchesName = [&variableName](const std::wstring &entry)
             {
                 return sameEnvironmentName(environmentEntryName(entry), variableName);
@@ -327,7 +304,7 @@ namespace GameWIP::TestSupport
                 return;
             }
 
-            const std::wstring replacement = variableName + L"=" + utf8ToWide(*variable.value);
+            const std::wstring replacement = variableName + L"=" + Detail::Win32::utf8ToWide(*variable.value);
             const auto existing = std::find_if(entries.begin(), entries.end(), matchesName);
             if (existing != entries.end())
             {
@@ -405,6 +382,10 @@ namespace GameWIP::TestSupport
             return block;
         }
 
+        // ------------------------------------------------------------
+        // Timeout conversion
+        // ------------------------------------------------------------
+
         [[nodiscard]] DWORD timeoutMilliseconds(std::chrono::milliseconds timeout)
         {
             if (timeout.count() < 0)
@@ -417,6 +398,126 @@ namespace GameWIP::TestSupport
                 return (std::numeric_limits<DWORD>::max)() - 1;
             }
             return static_cast<DWORD>(timeout.count());
+        }
+
+        // ------------------------------------------------------------
+        // Process cleanup and output capture
+        // ------------------------------------------------------------
+
+        void terminateProcessAndWait(HANDLE processHandle, DWORD terminationCode) noexcept
+        {
+            static_cast<void>(TerminateProcess(processHandle, terminationCode));
+            static_cast<void>(WaitForSingleObject(processHandle, INFINITE));
+        }
+
+        void terminateJobAndWait(HANDLE jobHandle, HANDLE processHandle, DWORD terminationCode) noexcept
+        {
+            static_cast<void>(TerminateJobObject(jobHandle, terminationCode));
+            static_cast<void>(WaitForSingleObject(processHandle, INFINITE));
+        }
+
+        void readCapturedOutput(
+            HANDLE outputReadHandle,
+            HANDLE outputDoneHandle,
+            std::size_t captureLimit,
+            std::string &outputBytes,
+            bool &outputTruncated,
+            Types::InfrastructureStatus &outputStatus) noexcept
+        {
+            const auto setOutputFailure = [&outputStatus](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
+            {
+                if (outputStatus.ok())
+                {
+                    outputStatus.error = error;
+                    outputStatus.nativeCode = nativeCode;
+                }
+            };
+
+            try
+            {
+                char buffer[4096];
+                {
+                    while (true)
+                    {
+                        DWORD bytesRead = 0;
+                        if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
+                        {
+                            const DWORD readError = GetLastError();
+                            if (readError != ERROR_BROKEN_PIPE)
+                            {
+                                setOutputFailure(Types::InfrastructureError::CaptureFailed, readError);
+                            }
+                            break;
+                        }
+                        if (bytesRead == 0)
+                        {
+                            break;
+                        }
+
+                        const std::size_t retained = outputBytes.size();
+                        const std::size_t available = retained < captureLimit ? captureLimit - retained : 0;
+                        const std::size_t appendCount = std::min<std::size_t>(available, bytesRead);
+                        if (appendCount > 0)
+                        {
+                            outputBytes.append(buffer, appendCount);
+                        }
+                        if (appendCount < bytesRead)
+                        {
+                            outputTruncated = true;
+                        }
+                    }
+                }
+            }
+            catch (const std::bad_alloc &)
+            {
+                setOutputFailure(Types::InfrastructureError::OutOfMemory);
+            }
+            catch (...)
+            {
+                setOutputFailure(Types::InfrastructureError::CaptureFailed);
+            }
+
+            if (SetEvent(outputDoneHandle) == FALSE)
+            {
+                setOutputFailure(Types::InfrastructureError::CaptureFailed, GetLastError());
+            }
+        }
+
+        void finishOutputReader(
+            std::thread &outputReader,
+            HANDLE outputDoneHandle,
+            UniqueHandle &outputRead,
+            Types::InfrastructureStatus &outputStatus) noexcept
+        {
+            if (!outputReader.joinable())
+            {
+                return;
+            }
+
+            DWORD outputWaitError = ERROR_SUCCESS;
+            DWORD outputWait = WaitForSingleObject(outputDoneHandle, 2000);
+            if (outputWait != WAIT_OBJECT_0)
+            {
+                outputWaitError = outputWait == WAIT_FAILED ? GetLastError() : outputWait;
+
+                // Cancel the synchronous read before closing the handle that supplies EOF.
+                static_cast<void>(CancelSynchronousIo(reinterpret_cast<HANDLE>(outputReader.native_handle())));
+                outputWait = WaitForSingleObject(outputDoneHandle, 2000);
+                if (outputWait != WAIT_OBJECT_0)
+                {
+                    outputRead.reset();
+                    static_cast<void>(WaitForSingleObject(outputDoneHandle, INFINITE));
+                }
+            }
+            outputReader.join();
+
+            // The reader owns outputStatus until it exits. Even a timed-out
+            // wait must join before reading or publishing a competing failure.
+            if (outputWaitError != ERROR_SUCCESS && outputStatus.ok())
+            {
+                outputStatus.error = Types::InfrastructureError::CaptureFailed;
+                outputStatus.nativeCode = outputWaitError;
+            }
         }
     } // namespace
 #endif
@@ -447,33 +548,11 @@ namespace GameWIP::TestSupport
         try
         {
             constexpr DWORD kTestTerminationCode = 0x54455354u;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Allocation))
-            {
-                setFailure(Types::InfrastructureError::OutOfMemory, *injected);
-                return result;
-            }
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Unsupported))
-            {
-                setFailure(Types::InfrastructureError::Unsupported, *injected);
-                return result;
-            }
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Platform))
-            {
-                setFailure(Types::InfrastructureError::PlatformFailure, *injected);
-                return result;
-            }
-#endif
             std::wstring commandLine = buildCommandLine(options);
             std::wstring environmentBlock = buildEnvironmentBlock(options);
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessSetup))
-            {
-                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
-                return result;
-            }
-#endif
+            // A job object gives timeout and setup-failure cleanup one owner for the
+            // whole child process tree, not just the first process handle.
             UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
             if (jobHandle.get() == nullptr)
             {
@@ -490,6 +569,8 @@ namespace GameWIP::TestSupport
                 return result;
             }
 
+            // Standard handles must be inheritable for CreateProcessW, but the parent
+            // read end of the capture pipe must be made non-inheritable before launch.
             SECURITY_ATTRIBUTES securityAttributes{};
             securityAttributes.nLength = sizeof(securityAttributes);
             securityAttributes.bInheritHandle = TRUE;
@@ -498,13 +579,6 @@ namespace GameWIP::TestSupport
             UniqueHandle outputWrite;
             if (options.captureOutput)
             {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::PipeCreation))
-                {
-                    setFailure(Types::InfrastructureError::PipeCreationFailed, *injected);
-                    return result;
-                }
-#endif
                 HANDLE outputReadRaw = nullptr;
                 HANDLE outputWriteRaw = nullptr;
                 if (CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
@@ -521,13 +595,6 @@ namespace GameWIP::TestSupport
                 }
             }
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::HandleSetup))
-            {
-                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
-                return result;
-            }
-#endif
             UniqueHandle childInput = inheritableStandardHandle(STD_INPUT_HANDLE, GENERIC_READ);
             if (childInput.get() == nullptr || childInput.get() == INVALID_HANDLE_VALUE)
             {
@@ -553,6 +620,8 @@ namespace GameWIP::TestSupport
                 }
             }
 
+            // PROC_THREAD_ATTRIBUTE_HANDLE_LIST prevents unrelated inheritable handles
+            // in the parent process from leaking into validation children.
             std::vector<HANDLE> inheritedHandles;
             inheritedHandles.reserve(3);
             appendInheritedHandle(inheritedHandles, childInput.get());
@@ -573,13 +642,6 @@ namespace GameWIP::TestSupport
             startupInfo.StartupInfo.hStdError = options.captureOutput ? outputWrite.get() : childError.get();
             startupInfo.lpAttributeList = attributeList.get();
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessLaunch))
-            {
-                setFailure(Types::InfrastructureError::ProcessLaunchFailed, *injected);
-                return result;
-            }
-#endif
             PROCESS_INFORMATION processInfo{};
             const BOOL created = CreateProcessW(
                 nullptr,
@@ -594,6 +656,8 @@ namespace GameWIP::TestSupport
                 &processInfo);
             const DWORD launchError = created == FALSE ? GetLastError() : ERROR_SUCCESS;
 
+            // Close parent-owned duplicate write handles immediately so the capture
+            // reader can observe EOF after the child closes its inherited handles.
             outputWrite.reset();
             childInput.reset();
             childOutput.reset();
@@ -608,26 +672,17 @@ namespace GameWIP::TestSupport
             UniqueHandle processHandle(processInfo.hProcess);
             UniqueHandle threadHandle(processInfo.hThread);
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::JobAssignment))
-            {
-                static_cast<void>(TerminateProcess(processHandle.get(), kTestTerminationCode));
-                static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
-                setFailure(Types::InfrastructureError::ProcessSetupFailed, *injected);
-                result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                return result;
-            }
-#endif
             if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
             {
                 const DWORD assignmentError = GetLastError();
-                static_cast<void>(TerminateProcess(processHandle.get(), kTestTerminationCode));
-                static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                terminateProcessAndWait(processHandle.get(), kTestTerminationCode);
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, assignmentError);
                 result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                 return result;
             }
 
+            // Output capture runs on a separate reader so a verbose child cannot block
+            // forever on a full pipe while the parent waits for process exit.
             std::string outputBytes;
             bool outputTruncated = false;
             Types::InfrastructureStatus outputStatus;
@@ -635,22 +690,11 @@ namespace GameWIP::TestSupport
             UniqueHandle outputDoneEvent;
             if (options.captureOutput)
             {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::CaptureSetup))
-                {
-                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
-                    setFailure(Types::InfrastructureError::CaptureFailed, *injected);
-                    result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                    return result;
-                }
-#endif
                 outputDoneEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
                 if (outputDoneEvent.get() == nullptr)
                 {
                     const DWORD eventError = GetLastError();
-                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     setFailure(Types::InfrastructureError::CaptureFailed, eventError);
                     result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     return result;
@@ -658,101 +702,28 @@ namespace GameWIP::TestSupport
 
                 try
                 {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                    if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ThreadCreation))
-                    {
-                        static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                        static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
-                        setFailure(Types::InfrastructureError::CaptureFailed, *injected);
-                        result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                        return result;
-                    }
-#endif
                     const HANDLE outputReadHandle = outputRead.get();
                     const HANDLE outputDoneHandle = outputDoneEvent.get();
                     const std::size_t captureLimit = options.maxCapturedOutputBytes;
                     outputReader = std::thread(
-                        [outputReadHandle, outputDoneHandle, captureLimit, &outputBytes, &outputTruncated, &outputStatus]
-                        {
-                            const auto setOutputFailure = [&outputStatus](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
-                            {
-                                if (outputStatus.ok())
-                                {
-                                    outputStatus.error = error;
-                                    outputStatus.nativeCode = nativeCode;
-                                }
-                            };
-
-                            try
-                            {
-                                char buffer[4096];
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                                if (const auto injected =
-                                        Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::CaptureRead))
-                                {
-                                    setOutputFailure(Types::InfrastructureError::CaptureFailed, *injected);
-                                }
-                                else
-#endif
-                                {
-                                    while (true)
-                                    {
-                                        DWORD bytesRead = 0;
-                                        if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
-                                        {
-                                            const DWORD readError = GetLastError();
-                                            if (readError != ERROR_BROKEN_PIPE)
-                                            {
-                                                setOutputFailure(Types::InfrastructureError::CaptureFailed, readError);
-                                            }
-                                            break;
-                                        }
-                                        if (bytesRead == 0)
-                                        {
-                                            break;
-                                        }
-
-                                        const std::size_t retained = outputBytes.size();
-                                        const std::size_t available = retained < captureLimit ? captureLimit - retained : 0;
-                                        const std::size_t appendCount = std::min<std::size_t>(available, bytesRead);
-                                        if (appendCount > 0)
-                                        {
-                                            outputBytes.append(buffer, appendCount);
-                                        }
-                                        if (appendCount < bytesRead)
-                                        {
-                                            outputTruncated = true;
-                                        }
-                                    }
-                                }
-                            }
-                            catch (const std::bad_alloc &)
-                            {
-                                setOutputFailure(Types::InfrastructureError::OutOfMemory);
-                            }
-                            catch (...)
-                            {
-                                setOutputFailure(Types::InfrastructureError::CaptureFailed);
-                            }
-
-                            if (SetEvent(outputDoneHandle) == FALSE)
-                            {
-                                setOutputFailure(Types::InfrastructureError::CaptureFailed, GetLastError());
-                            }
-                        });
+                        readCapturedOutput,
+                        outputReadHandle,
+                        outputDoneHandle,
+                        captureLimit,
+                        std::ref(outputBytes),
+                        std::ref(outputTruncated),
+                        std::ref(outputStatus));
                 }
                 catch (const std::bad_alloc &)
                 {
-                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     setFailure(Types::InfrastructureError::OutOfMemory);
                     result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     return result;
                 }
                 catch (const std::system_error &error)
                 {
-                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     setFailure(
                         Types::InfrastructureError::CaptureFailed,
                         static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.code().value())));
@@ -761,23 +732,17 @@ namespace GameWIP::TestSupport
                 }
                 catch (...)
                 {
-                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                    terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     setFailure(Types::InfrastructureError::CaptureFailed);
                     result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     return result;
                 }
             }
 
+            // The child starts suspended so setup can attach the job object and capture
+            // reader before any child code runs.
             bool resumeFailed = false;
             std::uint64_t resumeNativeCode = 0;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-            if (const auto injected = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ThreadResume))
-            {
-                resumeFailed = true;
-                resumeNativeCode = *injected;
-            }
-#endif
             if (!resumeFailed && ResumeThread(threadHandle.get()) == static_cast<DWORD>(-1))
             {
                 resumeFailed = true;
@@ -786,35 +751,17 @@ namespace GameWIP::TestSupport
 
             if (resumeFailed)
             {
-                static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, resumeNativeCode);
                 result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
             }
             else
             {
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                if (const auto waitFailure = Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::Wait))
-                {
-                    setFailure(Types::InfrastructureError::WaitFailed, *waitFailure);
-                    result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                    static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                    static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
-                }
-                else
-#endif
                 {
                     const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
                     if (waitResult == WAIT_TIMEOUT)
                     {
                         result.outcome = Types::Process::Outcome::TimedOut;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto cleanupFailure =
-                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
-                        {
-                            setFailure(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
-                        }
-#endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
                         {
                             setFailure(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
@@ -829,22 +776,13 @@ namespace GameWIP::TestSupport
                         const DWORD waitError = GetLastError();
                         setFailure(Types::InfrastructureError::WaitFailed, waitError);
                         result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
-                        static_cast<void>(TerminateJobObject(jobHandle.get(), kTestTerminationCode));
-                        static_cast<void>(WaitForSingleObject(processHandle.get(), INFINITE));
+                        terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     }
                     else
                     {
                         DWORD exitCode = 0;
                         bool inspectionFailed = false;
                         std::uint64_t inspectionNativeCode = 0;
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto inspectionFailure =
-                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessInspection))
-                        {
-                            inspectionFailed = true;
-                            inspectionNativeCode = *inspectionFailure;
-                        }
-#endif
                         if (!inspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) == FALSE)
                         {
                             inspectionFailed = true;
@@ -862,13 +800,6 @@ namespace GameWIP::TestSupport
                             result.outcome = Types::Process::Outcome::OutcomeUnavailable;
                         }
 
-#if TEST_SUPPORT_INTERNAL_TEST_HOOKS
-                        if (const auto cleanupFailure =
-                                Detail::TestHooks::consumeChildProcessFailure(TestHooks::ChildProcessFailurePoint::ProcessCleanup))
-                        {
-                            setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, *cleanupFailure);
-                        }
-#endif
                         if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
                         {
                             setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
@@ -879,24 +810,7 @@ namespace GameWIP::TestSupport
 
             if (outputReader.joinable())
             {
-                DWORD outputWait = WaitForSingleObject(outputDoneEvent.get(), 2000);
-                if (outputWait != WAIT_OBJECT_0)
-                {
-                    const DWORD outputWaitError = outputWait == WAIT_FAILED ? GetLastError() : outputWait;
-                    if (outputStatus.ok())
-                    {
-                        outputStatus.error = Types::InfrastructureError::CaptureFailed;
-                        outputStatus.nativeCode = outputWaitError;
-                    }
-                    static_cast<void>(CancelSynchronousIo(reinterpret_cast<HANDLE>(outputReader.native_handle())));
-                    outputWait = WaitForSingleObject(outputDoneEvent.get(), 2000);
-                    if (outputWait != WAIT_OBJECT_0)
-                    {
-                        outputRead.reset();
-                        static_cast<void>(WaitForSingleObject(outputDoneEvent.get(), INFINITE));
-                    }
-                }
-                outputReader.join();
+                finishOutputReader(outputReader, outputDoneEvent.get(), outputRead, outputStatus);
             }
 
             if (!outputStatus.ok())

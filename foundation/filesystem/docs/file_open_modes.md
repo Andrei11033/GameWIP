@@ -1,7 +1,7 @@
 @page filesystem_file_open_modes Handles, sharing, and locks
 
-This page explains the state owned by an open handle and the choices that
-control creation, truncation, sharing, seeking, flushing, and whole-file locks.
+This page explains what an open handle owns and how its creation, truncation,
+sharing, seeking, flushing, and whole-file lock choices work.
 
 ## Lifecycle and ownership
 
@@ -45,7 +45,8 @@ Normal file handles are seekable. Append writer modes are not.
 `Types::File::InitialPosition::End` performs one seek after open; subsequent writes occur at the current position and do not have append semantics.
 
 `File::resize()` requires write access. On success it attempts to restore the previous position when that position still fits. If shrinking places the
-old position beyond the new end, the position remains at the new end.
+old position beyond the new end, the position remains at the new end. If the native size update succeeds but restoring the previous position fails,
+`File::resize()` reports that failure even though the requested length already applies.
 
 Capability queries such as `canSeek()` are advisory state snapshots. The status returned by the requested operation remains authoritative.
 

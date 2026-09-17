@@ -1,44 +1,42 @@
 @page project_repository_automation Repository and project automation
 
-GameWIP uses declarative local automation and event-driven GitHub automation
-for repeatable tool, metadata, and project-status updates. Automation is
-deliberately limited to deterministic state. Priority, scope, security
-disclosure, milestone intent, and product decisions remain human
-responsibilities.
+GameWIP uses local scripts and GitHub workflows for the updates that are easy to
+make repeatable: tool declarations, project metadata, and project status. The
+scripts handle deterministic state. Priority, scope, security disclosures,
+milestone intent, and product decisions still belong to a maintainer.
 
-The automation described here stages project-tool declarations, reconciles
-GitHub project status and linked pull-request metadata, and responds to
-repository events. The guide also explains required configuration and tokens,
-preview and dry-run behavior, and the points that still require a maintainer's
-judgment.
+This page covers the project-tool updater, project reconciliation, event
+handling, required configuration, and dry-run behavior. The important boundary
+is that the automation can apply a plan, but it does not decide what the
+project should build or how a security report should be handled.
 
 Contributor-facing GitHub workflow rules are documented in `docs/contributing.md`.
 
 ## Project-tool update automation
 
-Project-tool updates are data-driven from
-`scripts/config/project-tools.json`. Provider adapters own upstream queries,
-installation, verification, and rollback of provider-managed machine state.
-The shared tool engine owns discovery, complete planning, tracked staging,
-staged validation, preview and consent, application, post-update verification,
-and the final quality gate. Adding a normal tool for an existing provider or a
-new declared reference does not require tool-specific updater code.
+Project-tool updates start with `scripts/config/project-tools.json`. Provider
+adapters handle upstream queries, installation, verification, and rollback for
+the machine state they manage. The shared tool engine handles discovery,
+planning, tracked staging, validation, preview, consent, application,
+post-update verification, and the final quality gate. A normal tool for an
+existing provider, or another reference to an existing tool version, belongs in
+configuration rather than new updater code.
 
-Tracked mutation is closed-world. The updater may change only planned registry
-string fields and declared live references. Registry changes are
-source-preserving compare-and-set operations with an expected old value and a
-planned new value; unrelated JSON source remains byte-for-byte stable. Text
-reference `pattern` values are literal templates with exactly one `{version}`
-token, not regular expressions. `text` and `cmakeMinimum` references are live,
-while `path` references are informational and never rewritten.
+The updater has a closed set of files and fields that it may change. It may
+update planned registry string fields and declared live references only. Registry
+changes use the expected old value and planned new value as a compare-and-set,
+and unrelated JSON source stays byte-for-byte stable. A text-reference
+`pattern` is a literal template with exactly one `{version}` token, not a regular
+expression. `text` and `cmakeMinimum` references are live; `path` references
+only record where a tool is used and are never rewritten.
 
 Repository text reads use strict UTF-8 and reject malformed input. Writes use
-UTF-8 without a byte-order mark. `tools update ... -Preview` completes
-discovery, planning, staging, and validation before stopping without persistent
-tracked or machine mutation. A current plan stages nothing and does not
-reinstall an identical tool. A provider that begins changing managed machine
-state owns rollback until its operation succeeds; the shared engine does not
-attempt a universal machine transaction.
+UTF-8 without a byte-order mark. `tools update ... -Preview` still runs
+discovery, planning, staging, and validation, then stops before changing tracked
+files or machine state. When everything is current, the plan stages nothing and
+does not reinstall an identical tool. A provider owns rollback once it starts
+changing its managed machine state; the shared engine does not try to wrap every
+provider in one universal machine transaction.
 
 ## Project status rules
 
@@ -80,8 +78,10 @@ manually selected milestone remain preserved.
 
 ## Events and reconciliation
 
-`.github/workflows/project-automation.yml` reacts to issue and pull request changes. It also reconciles the complete project every six hours so
-dependency, review, or project-side changes that do not emit a usable repository event are repaired.
+`.github/workflows/project-automation.yml` reacts to issue and pull request
+changes. It also reconciles the complete project every six hours. That scheduled
+run repairs dependency, review, or project-side changes that did not produce a
+usable repository event.
 
 Manual dispatch supports all items or one issue or pull request, with an optional dry run.
 
@@ -90,8 +90,9 @@ correlates the visible run to the current GitHub CLI user, workflow, branch, and
 dispatch window. If more than one new run still satisfies that correlation, the
 helper fails closed rather than attaching to an arbitrary workflow run.
 
-The pull request trigger uses `pull_request_target` and checks out automation from the default branch. Pull request code is never executed with the
-project token.
+The pull request trigger uses `pull_request_target` and checks out automation
+from the default branch. Pull request code is never executed with the project
+token.
 
 ## Required repository configuration
 
@@ -137,10 +138,11 @@ Inspect the workflow summary. If the dry run is correct, run one normal reconcil
 
 Repository checks for automation scripts should also pass locally when those scripts change:
 
-```powershell
-node --check .github/scripts/project-automation.js
-node --check .github/scripts/project-automation.test.js
-node --test .github/scripts/project-automation.test.js
+```bash
+for file in .github/scripts/*.js; do
+    node --check "$file"
+done
+node --test .github/scripts/*.test.js
 ```
 
 ## Failure behavior
@@ -153,24 +155,22 @@ node --test .github/scripts/project-automation.test.js
 | Authentication fails. | `PROJECT_TOKEN` is missing or lacks required scopes. | Replace the secret with a dedicated token that has `repo` and `project` scopes. |
 | A security review flags `pull_request_target`. | The workflow may be executing untrusted PR code. | Verify that automation code is checked out from the default branch and PR code is not executed. |
 
-## Maintainer notes
+## When automation changes
 
-Automation may reconcile deterministic metadata and status. It must not decide product priority, accept security disclosure responsibility, override
-human scope decisions, or execute untrusted pull-request code with privileged credentials.
+Automation may reconcile deterministic metadata and status. It must not decide
+product priority, take responsibility for a security disclosure, override a
+scope decision, or execute untrusted pull-request code with privileged
+credentials.
 
 Native GitHub project workflows may still auto-add repository items or perform simple close transitions. This repository workflow is the authority
 that reconciles final metadata and status.
 
-When changing automation:
-
-- Update script tests with the behavior change.
-- Run Node syntax and unit tests.
-- Run a dry-run reconciliation before a write reconciliation.
-- Keep token use out of logs.
-- Update `docs/contributing.md` when contributor-facing workflow changes.
-- Keep project-tool facts and reference declarations in
-  `scripts/config/project-tools.json`; add provider code only for a new provider
-  contract.
+When automation changes, update the script tests, run the Node syntax and unit
+tests, and perform a dry-run reconciliation before a write reconciliation. Keep
+tokens out of logs. Update `docs/contributing.md` when the contributor-facing
+workflow changes. Project-tool facts and reference declarations belong in
+`scripts/config/project-tools.json`; provider code is needed only for a new
+provider contract.
 
 ## Related pages
 

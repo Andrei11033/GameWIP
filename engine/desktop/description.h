@@ -49,7 +49,6 @@ namespace GameWIP::Desktop::Types
         bool closable = true;    ///< Whether the close control is enabled.
         bool minimizable = true; ///< Whether the minimize control is enabled.
         bool maximizable = true; ///< Whether the maximize control is enabled.
-        /// @brief Compares every control flag.
         friend constexpr bool operator==(Controls, Controls) noexcept = default;
     };
 

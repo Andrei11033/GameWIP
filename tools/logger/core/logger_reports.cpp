@@ -12,12 +12,51 @@ namespace GameWIP::Logger::Detail::Core
             return deadline != nullptr && std::chrono::steady_clock::now() >= *deadline;
         }
 
+        [[nodiscard]] bool markReportTimedOutIfExpired(const FlushDeadline *deadline, Types::Report::Result &result) noexcept
+        {
+            if (!deadlineExpired(deadline))
+            {
+                return false;
+            }
+
+            result.outcome = Types::Report::Outcome::TimedOut;
+            return true;
+        }
+
+        [[nodiscard]] bool markFlushTimedOutIfExpired(const FlushDeadline *deadline, Types::FlushResult &result) noexcept
+        {
+            if (!deadlineExpired(deadline))
+            {
+                return false;
+            }
+
+            result.outcome = Types::FlushOutcome::TimedOut;
+            return true;
+        }
+
+        [[nodiscard]] bool markSinkTimedOutIfExpired(const FlushDeadline *deadline, ReportSinkProgress &progress) noexcept
+        {
+            if (!deadlineExpired(deadline))
+            {
+                return false;
+            }
+
+            progress.timedOut = true;
+            return true;
+        }
+
         [[nodiscard]] Types::Report::Delivery deliveryFrom(std::size_t eligible, std::size_t delivered) noexcept
         {
             if (delivered == 0)
+            {
                 return Types::Report::Delivery::None;
+            }
+
             if (delivered >= eligible)
+            {
                 return Types::Report::Delivery::Complete;
+            }
+
             return Types::Report::Delivery::Partial;
         }
 
@@ -42,10 +81,16 @@ namespace GameWIP::Logger::Detail::Core
     {
         const FlushDeadline now = std::chrono::steady_clock::now();
         if (timeout.count() <= 0)
+        {
             return now;
+        }
+
         const auto available = FlushDeadline::max() - now;
         if (timeout >= std::chrono::duration_cast<std::chrono::milliseconds>(available))
+        {
             return FlushDeadline::max();
+        }
+
         return now + timeout;
     }
 
@@ -54,9 +99,13 @@ namespace GameWIP::Logger::Detail::Core
         while (!lock.try_lock())
         {
             if (std::chrono::steady_clock::now() >= deadline)
+            {
                 return false;
+            }
+
             std::this_thread::yield();
         }
+
         return true;
     }
 
@@ -87,10 +136,6 @@ namespace GameWIP::Logger::Detail::Core
 
     Status openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter)
     {
-#if LOGGER_INTERNAL_TEST_HOOKS
-        if (consumeTestHook(loggerTestHookState.nextFileOpenFailure))
-            return forcedFileStatus(ErrorCode::OpenFailed);
-#endif
         const FileSystem::Types::File::WriterOpenOptions options{
             .mode = FileSystem::Types::File::WriterMode::CreateNew,
             .share = FileSystem::Types::File::Share::Read,
@@ -104,8 +149,11 @@ namespace GameWIP::Logger::Detail::Core
     {
 #if LOGGER_INTERNAL_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileWriteFailure))
+        {
             return forcedFileStatus(ErrorCode::WriteFailed);
+        }
 #endif
+
         return IO::writeAllText(writer, text).status;
     }
 
@@ -113,8 +161,11 @@ namespace GameWIP::Logger::Detail::Core
     {
 #if LOGGER_INTERNAL_TEST_HOOKS
         if (consumeTestHook(loggerTestHookState.nextFileFlushFailure))
+        {
             return forcedFileStatus(ErrorCode::FlushFailed);
+        }
 #endif
+
         return writer.flush(IO::Types::FlushMode::Data);
     }
 
@@ -132,9 +183,8 @@ namespace GameWIP::Logger::Detail::Core
             progress.status = IO::makeStatus(ErrorCode::InvalidArgument);
             return progress;
         }
-        if (deadlineExpired(deadline))
+        if (markSinkTimedOutIfExpired(deadline, progress))
         {
-            progress.timedOut = true;
             return progress;
         }
 
@@ -143,17 +193,22 @@ namespace GameWIP::Logger::Detail::Core
             const OutputMode mode = runtimeStateOutput(loggerState().runtimeStateBits.load(std::memory_order_acquire));
             const bool consoleOutput = hasConsoleOutput(mode);
             const bool fileOutput = hasFileOutput(mode);
+
             progress.eligible = static_cast<std::size_t>(consoleOutput) + static_cast<std::size_t>(fileOutput);
             if (progress.eligible == 0)
+            {
                 return progress;
+            }
 
             std::string boundedScratch;
             bool truncatedNow = false;
             const std::string_view messageText = boundedMessageView(message, alreadyTruncated, boundedScratch, truncatedNow);
             const bool truncated = alreadyTruncated || truncatedNow;
+
             TimestampCache timestamp;
             std::string line;
             const LogStyle style = getLogStyle(level);
+
             buildLogLine(line, getTimestampText(timestamp), style.text, source, messageText);
 
             Status consoleStatus;
@@ -161,7 +216,9 @@ namespace GameWIP::Logger::Detail::Core
             {
                 std::unique_lock<std::mutex> outputLock(loggerState().outputMutex, std::defer_lock);
                 if (deadline == nullptr)
+                {
                     outputLock.lock();
+                }
                 else if (!lockBefore(outputLock, *deadline))
                 {
                     progress.timedOut = true;
@@ -170,33 +227,38 @@ namespace GameWIP::Logger::Detail::Core
 
                 if (consoleOutput)
                 {
-                    if (deadlineExpired(deadline))
-                        progress.timedOut = true;
-                    else
+                    if (!markSinkTimedOutIfExpired(deadline, progress))
                     {
                         consoleStatus = writeConsoleLine(style, line);
                         if (consoleStatus.ok())
+                        {
                             ++progress.delivered;
+                        }
                         else
+                        {
                             progress.status = firstFailure(std::move(progress.status), consoleStatus);
+                        }
                     }
                 }
 
                 if (fileOutput && !progress.timedOut)
                 {
-                    if (deadlineExpired(deadline))
-                        progress.timedOut = true;
-                    else if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) && loggerState().logFile.isOpen())
+                    if (!markSinkTimedOutIfExpired(deadline, progress) && loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) &&
+                        loggerState().logFile.isOpen())
                     {
                         std::string fileLine(line);
                         fileLine.push_back('\n');
                         fileStatus = writeFileForLogger(loggerState().logFile, fileLine);
                         if (fileStatus.ok())
+                        {
                             ++progress.delivered;
+                        }
                         else
+                        {
                             progress.status = firstFailure(std::move(progress.status), fileStatus);
+                        }
                     }
-                    else
+                    else if (!progress.timedOut)
                     {
                         fileStatus = IO::makeStatus(ErrorCode::NotOpen);
                         progress.status = firstFailure(std::move(progress.status), fileStatus);
@@ -205,7 +267,10 @@ namespace GameWIP::Logger::Detail::Core
             }
 
             if (!consoleStatus.ok())
+            {
                 recordHealthFailure(Types::Health::FailureSource::Console, consoleStatus, true);
+            }
+
             if (!fileStatus.ok())
             {
                 loggerState().stats.fileWriteFailures.fetch_add(1, std::memory_order_relaxed);
@@ -215,9 +280,14 @@ namespace GameWIP::Logger::Detail::Core
             {
                 loggerState().stats.written.fetch_add(1, std::memory_order_relaxed);
                 if (truncated)
+                {
                     loggerState().stats.truncated.fetch_add(1, std::memory_order_relaxed);
+                }
+
                 if (unknownSource)
+                {
                     recordUnknownSourceUse();
+                }
             }
         }
         catch (const std::bad_alloc &)
@@ -249,18 +319,27 @@ namespace GameWIP::Logger::Detail::Core
         const std::uint32_t runtime = loggerState().runtimeStateBits.load(std::memory_order_acquire);
         const OutputMode mode = runtimeStateOutput(runtime);
         if (mode == OutputMode::None || !isValidLevel(entry.level))
+        {
             return result;
+        }
+
         if (toLevelValue(entry.level) < toLevelValue(runtimeStateMinLevel(runtime)))
+        {
             return result;
+        }
+
         const auto registry = entry.usesRegisteredSource ? loadSourceRegistry() : std::shared_ptr<SourceRegistry>{};
         const std::uint8_t bit = levelBit(entry.level);
         if (bit == 0 || (runtimeStateLevelMask(runtime) & bit) == 0 ||
             (entry.usesRegisteredSource && !sourceEnabledRuntime(registry.get(), entry.sourceId)))
+        {
             return result;
+        }
 
         const LogStyle style = getLogStyle(entry.level);
         bool unknown = false;
         const std::string_view source = resolveSourceText(entry, registry.get(), unknown);
+
         buildLogLine(lineScratch, getTimestampText(timestamp), style.text, source, entry.message.view());
 
         if (hasConsoleOutput(mode))
@@ -270,9 +349,12 @@ namespace GameWIP::Logger::Detail::Core
                 std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
                 consoleStatus = writeConsoleLine(style, lineScratch);
             }
+
             result.acceptedImmediateSink = consoleStatus.ok();
             if (!consoleStatus.ok())
+            {
                 recordHealthFailure(Types::Health::FailureSource::Console, consoleStatus, true);
+            }
         }
 
         if (hasFileOutput(mode))
@@ -284,15 +366,22 @@ namespace GameWIP::Logger::Detail::Core
                 result.queuedFile = true;
             }
         }
+
         if (unknown)
+        {
             recordUnknownSourceUse();
+        }
+
         return result;
     }
 
     bool flushFileBatch(std::string &fileBatchScratch, bool forceFlush)
     {
         if (fileBatchScratch.empty())
+        {
             return true;
+        }
+
         Status status = IO::makeStatus(ErrorCode::NotOpen);
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
@@ -300,9 +389,12 @@ namespace GameWIP::Logger::Detail::Core
             {
                 status = writeFileForLogger(loggerState().logFile, fileBatchScratch);
                 if (status.ok() && (forceFlush || loggerState().flushFileEveryBatchAtomic.load(std::memory_order_acquire)))
+                {
                     status = flushFileForLogger(loggerState().logFile);
+                }
             }
         }
+
         fileBatchScratch.clear();
         if (!status.ok())
         {
@@ -310,6 +402,7 @@ namespace GameWIP::Logger::Detail::Core
             recordHealthFailure(Types::Health::FailureSource::File, status, true);
             return false;
         }
+
         return true;
     }
 
@@ -322,7 +415,9 @@ namespace GameWIP::Logger::Detail::Core
 
         std::unique_lock<std::mutex> outputLock(loggerState().outputMutex, std::defer_lock);
         if (deadline == nullptr)
+        {
             outputLock.lock();
+        }
         else if (!lockBefore(outputLock, *deadline))
         {
             result.outcome = Types::FlushOutcome::TimedOut;
@@ -331,16 +426,19 @@ namespace GameWIP::Logger::Detail::Core
 
         if (hasConsoleOutput(mode))
         {
-            if (deadlineExpired(deadline))
-                result.outcome = Types::FlushOutcome::TimedOut;
-            else
+            if (!markFlushTimedOutIfExpired(deadline, result))
             {
                 Status stdoutStatus = Terminal::flush(Terminal::Types::Output::Stream::Stdout, IO::Types::FlushMode::Data);
                 Status stderrStatus;
                 if (!deadlineExpired(deadline))
+                {
                     stderrStatus = Terminal::flush(Terminal::Types::Output::Stream::Stderr, IO::Types::FlushMode::Data);
+                }
                 else
+                {
                     result.outcome = Types::FlushOutcome::TimedOut;
+                }
+
                 consoleStatus = firstFailure(std::move(stdoutStatus), stderrStatus);
                 result.status = firstFailure(std::move(result.status), consoleStatus);
             }
@@ -348,14 +446,13 @@ namespace GameWIP::Logger::Detail::Core
 
         if (hasFileOutput(mode) && result.outcome != Types::FlushOutcome::TimedOut)
         {
-            if (deadlineExpired(deadline))
-                result.outcome = Types::FlushOutcome::TimedOut;
-            else if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) && loggerState().logFile.isOpen())
+            if (!markFlushTimedOutIfExpired(deadline, result) && loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) &&
+                loggerState().logFile.isOpen())
             {
                 fileStatus = flushFileForLogger(loggerState().logFile);
                 result.status = firstFailure(std::move(result.status), fileStatus);
             }
-            else
+            else if (result.outcome != Types::FlushOutcome::TimedOut)
             {
                 fileStatus = IO::makeStatus(ErrorCode::NotOpen);
                 result.status = firstFailure(std::move(result.status), fileStatus);
@@ -364,12 +461,16 @@ namespace GameWIP::Logger::Detail::Core
         outputLock.unlock();
 
         if (!consoleStatus.ok())
+        {
             recordHealthFailure(Types::Health::FailureSource::Console, consoleStatus, true);
+        }
+
         if (!fileStatus.ok())
         {
             loggerState().stats.fileWriteFailures.fetch_add(1, std::memory_order_relaxed);
             recordHealthFailure(Types::Health::FailureSource::File, fileStatus, true);
         }
+
         return result;
     }
 
@@ -417,6 +518,7 @@ namespace GameWIP::Logger::Detail::Core
                 }
             }
         }
+
         return flushSinksInternal(deadline);
     }
 
@@ -451,7 +553,9 @@ namespace GameWIP::Logger::Detail::Core
         const FlushDeadline *deadline = timeout ? &deadlineValue : nullptr;
         std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
         if (deadline == nullptr)
+        {
             lifecycleLock.lock();
+        }
         else if (!lockBefore(lifecycleLock, *deadline))
         {
             result.outcome = Types::Report::Outcome::TimedOut;
@@ -467,22 +571,27 @@ namespace GameWIP::Logger::Detail::Core
         result.status = firstFailure(std::move(result.status), normal.status);
         std::size_t eligible = normal.eligible;
         std::size_t delivered = normal.delivered;
+
         if (normal.timedOut)
+        {
             result.outcome = Types::Report::Outcome::TimedOut;
+        }
 
         const bool debugEligible = loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire);
         if (debugEligible)
         {
             ++eligible;
-            if (deadlineExpired(deadline))
-                result.outcome = Types::Report::Outcome::TimedOut;
-            else
+            if (!markReportTimedOutIfExpired(deadline, result))
             {
                 const Status debugStatus = GameWIP::Logger::writeDebugOutput(level, source, reportMessage);
                 if (debugStatus.ok())
+                {
                     ++delivered;
+                }
                 else
+                {
                     result.status = firstFailure(std::move(result.status), debugStatus);
+                }
             }
         }
 
@@ -498,26 +607,33 @@ namespace GameWIP::Logger::Detail::Core
             const Types::FlushResult flushed = flushSinksInternal(deadline);
             result.status = firstFailure(std::move(result.status), flushed.status);
             if (flushed.outcome == Types::FlushOutcome::TimedOut)
+            {
                 result.outcome = Types::Report::Outcome::TimedOut;
+            }
         }
 
         const bool popupEligible = showPopup && loggerState().fatalPopupEnabledAtomic.load(std::memory_order_acquire);
         if (popupEligible)
         {
             ++eligible;
-            if (deadlineExpired(deadline))
-                result.outcome = Types::Report::Outcome::TimedOut;
-            else
+            if (!markReportTimedOutIfExpired(deadline, result))
             {
                 Status popupStatus;
 #if LOGGER_INTERNAL_TEST_HOOKS
                 if (consumeTestHook(loggerTestHookState.nextFatalPopupFailure))
+                {
                     popupStatus = forcedFatalPopupStatus();
+                }
                 else
 #endif
+                {
                     popupStatus = GameWIP::Logger::Detail::Platform::showFatalPopup(reportMessage);
+                }
+
                 if (popupStatus.ok())
+                {
                     ++delivered;
+                }
                 else
                 {
                     result.status = firstFailure(std::move(result.status), popupStatus);
@@ -527,6 +643,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         result.delivery = deliveryFrom(eligible, delivered);
+
         return result;
     }
 } // namespace GameWIP::Logger::Detail::Core
@@ -612,7 +729,10 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPref
 void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if (!shouldLog(level))
+    {
         return;
+    }
+
     try
     {
         enqueueAndWakeWorker(makePendingEntry(level, source, message));
@@ -625,7 +745,10 @@ void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_v
 void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view message) noexcept
 {
     if (!shouldLog(level, source))
+    {
         return;
+    }
+
     try
     {
         enqueueAndWakeWorker(makePendingEntry(level, source, message));
@@ -636,7 +759,7 @@ void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view mess
     }
 }
 
-#define GAMEWIP_LOGGER_DEFINE_LEVEL(name, levelValue) \
+#define LOGGER_DEFINE_LEVEL(name, levelValue) \
     void GameWIP::Logger::name(std::string_view source, std::string_view message) noexcept \
     { \
         log(levelValue, source, message); \
@@ -645,13 +768,13 @@ void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view mess
     { \
         log(levelValue, source, message); \
     }
-GAMEWIP_LOGGER_DEFINE_LEVEL(trace, LogLevel::Trace)
-GAMEWIP_LOGGER_DEFINE_LEVEL(debug, LogLevel::Debug)
-GAMEWIP_LOGGER_DEFINE_LEVEL(info, LogLevel::Info)
-GAMEWIP_LOGGER_DEFINE_LEVEL(warn, LogLevel::Warn)
-GAMEWIP_LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
-GAMEWIP_LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
-#undef GAMEWIP_LOGGER_DEFINE_LEVEL
+LOGGER_DEFINE_LEVEL(trace, LogLevel::Trace)
+LOGGER_DEFINE_LEVEL(debug, LogLevel::Debug)
+LOGGER_DEFINE_LEVEL(info, LogLevel::Info)
+LOGGER_DEFINE_LEVEL(warn, LogLevel::Warn)
+LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
+LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
+#undef LOGGER_DEFINE_LEVEL
 
 // ------------------------------------------------------------
 // Synchronous reporting
@@ -756,12 +879,20 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(
 GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if (!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
+    {
         return {};
+    }
+
     if (!isValidLevel(level))
+    {
         return IO::makeStatus(ErrorCode::InvalidArgument);
+    }
+
     if (Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
         Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
+    {
         return IO::makeStatus(ErrorCode::EncodingFailed);
+    }
 
     try
     {
@@ -771,13 +902,20 @@ GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std
         Status timeStatus;
         const std::string timestamp = getDebugTimestampText(&timeStatus);
         if (!timeStatus.ok())
+        {
             recordHealthFailure(Types::Health::FailureSource::TimeConversion, timeStatus, false);
+        }
+
         std::string line;
         buildLogLine(line, timestamp, getLogStyle(level).text, source, messageText);
         line.push_back('\n');
+
         const Status status = GameWIP::Logger::Detail::Platform::writeDebugOutput(line);
         if (!status.ok())
+        {
             recordHealthFailure(Types::Health::FailureSource::DebugOutput, status, true);
+        }
+
         return status;
     }
     catch (const std::bad_alloc &)

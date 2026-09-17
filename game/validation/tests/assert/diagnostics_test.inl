@@ -17,20 +17,14 @@ void testDiagnosticConfiguration(TestContext &context)
     const std::string contents = readFile(context, Logger::getLogFilePath());
 
 #if ASSERT_DIAGNOSTICS
-    context.expectTrue("diagnostics include condition", contents.find("false") != std::string::npos, "condition text missing");
-    context.expectTrue("diagnostics include message", contents.find("assert diagnostic message") != std::string::npos, "custom message missing");
-    context.expectTrue("diagnostics include location", contents.find("diagnostics_test.inl") != std::string::npos, "file text missing");
-    context.expectTrue(
-        "diagnostics include caller function",
-        contents.find("testDiagnosticConfiguration") != std::string::npos,
-        "function text missing");
+    context.expectTrue("diagnostics include condition", contents.contains("false"), "condition text missing");
+    context.expectTrue("diagnostics include message", contents.contains("assert diagnostic message"), "custom message missing");
+    context.expectTrue("diagnostics include location", contents.contains("diagnostics_test.inl"), "file text missing");
+    context.expectTrue("diagnostics include caller function", contents.contains("testDiagnosticConfiguration"), "function text missing");
 #else
-    context.expectTrue("diagnostics stripped condition", contents.find("false") == std::string::npos, "condition text was embedded");
-    context.expectTrue(
-        "diagnostics stripped message",
-        contents.find("assert diagnostic message") == std::string::npos,
-        "custom message was embedded");
-    context.expectTrue("diagnostics stripped location", contents.find("diagnostics_test.inl") == std::string::npos, "location text was embedded");
+    context.expectTrue("diagnostics stripped condition", !contents.contains("false"), "condition text was embedded");
+    context.expectTrue("diagnostics stripped message", !contents.contains("assert diagnostic message"), "custom message was embedded");
+    context.expectTrue("diagnostics stripped location", !contents.contains("diagnostics_test.inl"), "location text was embedded");
 #endif
 #else
     context.pass("diagnostic logger test skipped because ASSERT_CHECKS_ENABLED=0");
@@ -54,15 +48,12 @@ void testDiagnosticMessageEvaluation(TestContext &context)
 
 #if ASSERT_DIAGNOSTICS
     context.expectEq("diagnostic message evaluated when enabled", evaluations, 1);
-    context.expectTrue(
-        "diagnostic evaluated message logged",
-        contents.find("evaluated diagnostic message") != std::string::npos,
-        "evaluated message missing");
+    context.expectTrue("diagnostic evaluated message logged", contents.contains("evaluated diagnostic message"), "evaluated message missing");
 #else
     context.expectEq("diagnostic message skipped when stripped", evaluations, 0);
     context.expectTrue(
         "diagnostic evaluated message stripped",
-        contents.find("evaluated diagnostic message") == std::string::npos,
+        !contents.contains("evaluated diagnostic message"),
         "diagnostic message was embedded");
 #endif
 #else
@@ -126,5 +117,17 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     context.expectContains("truncated diagnostic has visible suffix", logText.text, "... [truncated]");
 #else
     context.pass("UTF-8 diagnostic truncation skipped because checks or diagnostics are disabled");
+#endif
+}
+
+/// @brief Verifies failed popup diagnostic preparation remains inside the noexcept emergency boundary.
+void testDiagnosticPreparationEmergencyPath(TestContext &context)
+{
+#if ASSERT_INTERNAL_TEST_HOOKS
+    context.expectTrue(
+        "diagnostic preparation failure reaches static emergency popup path",
+        GameWIP::Debug::Assert::TestHooks::runDiagnosticPreparationEmergencyPathForTest());
+#else
+    context.pass("diagnostic preparation emergency path skipped because Assert test hooks are disabled");
 #endif
 }

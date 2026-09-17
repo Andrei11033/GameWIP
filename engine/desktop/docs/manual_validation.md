@@ -105,6 +105,24 @@ timestamped before/after cached and native mode geometry for every display-chang
 | Resizable/maximizable combinations | Every valid combination works, invalid transition orders fail without partial change, and closable/minimizable remain independent. |
 | Owned Window taskbar state | An owned Window has no independent entry by default; removing and restoring the owner restores the corresponding styles and taskbar behavior. |
 
+## Native dialogs
+
+Run only the guided dialog workflow with:
+
+```powershell
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=dialogs
+```
+
+| Scenario | Expected behavior |
+| --- | --- |
+| File open and save | Single and multiple file selection, ordered filters, preferred filter, suggested save name/extension, overwrite confirmation, Unicode paths, and returned selection order match the native shell UI. |
+| Folder selection | Single and multiple folder selection accept existing folders without fabricated file filters. |
+| Message | Every portable button set and severity uses the expected native Task Dialog controls, owner modality, default behavior, keyboard dismissal, and close behavior. |
+| Prompt | Custom command-link buttons and descriptions, radio options, defaults, explicit cancel choice, details, supplemental text, severity, and checkbox are visible and return the chosen semantic state. |
+| Determinate progress | Title, heading, message, and value update live; the UI remains responsive; owner blocking works; Cancel and the close button set a sticky request without closing the window. |
+| Indeterminate and noncancelable progress | Mode switches live to marquee. A noncancelable window has no Cancel control, ignores its native close button, and can leave its owner interactive when `blocksOwner` is false. |
+| Progress ownership and DPI | Overlapping blockers keep the owner disabled until the last closes; ownerless progress remains independent; moving between scales relayouts crisply without clipping. |
+
 ## Clipboard interoperability
 
 These scenarios use normal desktop applications and do not require an open GameWIP Window:
@@ -136,7 +154,7 @@ preferred; its inset green Region 2 overlaps it and prefers `Move`. Live
 `Entered`, `Moved`, region-transition, `Left`, and `Dropped` counts appear in the
 diagnostics Window.
 The runner checks same-process payload bytes and negotiated effects after each
-accepted prompt. Answer `skip`—never `yes`—when a controlled custom or malformed
+accepted prompt. Answer `skip`, never `yes`, when a controlled custom or malformed
 `IDataObject` provider/consumer is unavailable.
 
 | Scenario | Expected behavior |

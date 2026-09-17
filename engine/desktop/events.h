@@ -208,9 +208,9 @@ namespace GameWIP::Desktop::Events
 
     /// @brief Pumps currently pending native events for the calling thread without waiting.
     /// @return Pump status and the numbers of events queued and dropped by this call.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Events::PumpResult poll() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Events::PumpResult poll() noexcept;
     /// @brief Waits for native work, then pumps events for the calling thread.
     /// @param timeout Zero to poll, a positive duration for a bounded wait, or kWaitForever.
     /// @return Pump status, timeout state, and the numbers of events queued and dropped by this call.
-    [[nodiscard]] GAMEWIP_DESKTOP_EXPORT Types::Events::PumpResult wait(std::chrono::milliseconds timeout = kWaitForever) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Events::PumpResult wait(std::chrono::milliseconds timeout = kWaitForever) noexcept;
 } // namespace GameWIP::Desktop::Events

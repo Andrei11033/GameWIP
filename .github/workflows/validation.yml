@@ -261,7 +261,9 @@ jobs:
 
       - name: Check Python scripts
         shell: bash
-        run: python3 -m py_compile .github/scripts/*.py
+        run: |
+          python3 -m py_compile .github/scripts/*.py
+          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
       - name: Install actionlint
         shell: bash

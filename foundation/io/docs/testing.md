@@ -1,10 +1,11 @@
-@page io_testing Maintainer validation
+@page io_testing Testing
 
 @note This page documents validation coverage, not consumer API.
 
 ## Focused module
 
-The `io` correctness module validates the public contract through the shared GameWIP validation runner. Run it with:
+The `io` correctness module checks the public contract through the shared GameWIP
+validation runner. Run it with:
 
 ```powershell
 .\build\test\GameWIPTests.exe --test-module=io --no-test-report
@@ -27,7 +28,6 @@ The focused suite covers:
 - Strict UTF-8 text reads across scalar/chunk boundaries, malformed and incomplete suffixes, valid-prefix preservation, and failure precedence.
 - Partial progress, backend failures, impossible transfer counts, zero progress, premature end-of-stream, and capability-query failures.
 - Whole-stream write retries, final-call progress, empty input, pre-write UTF-8 validation, and invalid writer behavior.
-- Deterministic allocation, length, and unexpected-failure translation for memory-writer and whole-stream allocation points.
 - Compile-time proof that public checked Reader and Writer operations are `noexcept`.
 
 ## Public and package validation
@@ -43,16 +43,14 @@ The repository validation also checks:
 IO is static, so it has no shared-library export allowlist test. Package and compatibility policy are documented in @ref
 project_library_compatibility.
 
-Use @ref io_test_hooks for the source-tree-only deterministic failure API and reset protocol.
-
 ## Extension changes
 
-When changing Reader, Writer, result, or helper behavior:
-
-- Add focused coverage for the public contract being guaranteed.
-- Include partial-progress and zero-progress cases where relevant.
-- Verify both known-size and unknown-size paths when read-all behavior changes.
-- Keep custom test adapters deterministic and free of operating-system dependencies unless the behavior belongs to a concrete backend library.
+When Reader, Writer, result, or helper behavior changes, add focused coverage
+for the contract being guaranteed. Include partial-progress and zero-progress
+cases where they matter, and cover both known-size and unknown-size paths when
+read-all behavior changes. Keep custom test adapters deterministic and free of
+operating-system dependencies unless the behavior belongs to a concrete backend
+library.
 
 ## Related pages
 

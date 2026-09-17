@@ -1,3 +1,6 @@
+/// @file window_manager.h
+/// @brief Source-tree window ownership and event-routing interface.
+
 #pragma once
 
 #include "window/window.h"
@@ -12,7 +15,9 @@ namespace GameWIP::Input
 
 namespace GameWIP
 {
-    /// @brief Owns and routes events for platform windows.
+    /// @brief Preserved legacy WindowManager interface.
+    /// @note Not currently compiled or supported; retained for a later
+    /// coordination-layer migration.
     class WindowManager
     {
     public:

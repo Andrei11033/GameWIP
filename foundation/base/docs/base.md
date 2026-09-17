@@ -2,8 +2,9 @@
 
 # Purpose
 
-Base is source-tree-only infrastructure for mechanisms shared by otherwise independent GameWIP implementations. Its admission rule is: share
-mechanisms, not domain policy.
+Base is source-tree-only infrastructure for mechanisms shared by otherwise
+independent GameWIP implementations. The rule is simple: share mechanisms, not
+domain policy.
 
 # Dependency boundary
 
@@ -13,8 +14,9 @@ to Base or its include directory.
 
 # What belongs in Base
 
-Code belongs here only when it is a small, stable mechanism needed unchanged by multiple first-party components. Checked unsigned arithmetic and
-typed native procedure lookup are explicit yes examples.
+Code belongs here only when it is a small, stable mechanism that multiple
+first-party components need unchanged. Checked unsigned arithmetic and typed
+native procedure lookup are the current examples.
 
 # What does not belong in Base
 
@@ -58,8 +60,8 @@ installed consumer API.
 
 A mechanism belongs in Base only when it is already duplicated across independent
 components, contains no domain-specific result, error, lifetime, or policy
-decision, remains independent of every GameWIP library target, and exposes a
-narrow, directly testable surface.
+decision, stays independent of every GameWIP library target, and exposes a
+narrow surface that can be tested directly.
 
 # Testing
 

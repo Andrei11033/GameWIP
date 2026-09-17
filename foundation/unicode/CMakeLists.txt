@@ -1,8 +1,14 @@
+# Unicode is a static, platform-neutral implementation backed by generated
+# Unicode property data.
 include(GNUInstallDirs)
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
+# ------------------------------------------------------------
+# Target and source ownership
+# ------------------------------------------------------------
 
 add_library(Unicode STATIC)
 add_library(GameWIP::Unicode ALIAS Unicode)
@@ -13,12 +19,20 @@ target_sources(
     PUBLIC FILE_SET public_headers TYPE HEADERS BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES "${CMAKE_CURRENT_SOURCE_DIR}/unicode.h"
 )
 
+# ------------------------------------------------------------
+# Compile, link, and output contracts
+# ------------------------------------------------------------
+
 target_include_directories(Unicode PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(Unicode PUBLIC cxx_std_23)
 target_link_libraries(Unicode PRIVATE $<BUILD_INTERFACE:GameWIPBase>)
 
 set_target_properties(Unicode PROPERTIES POSITION_INDEPENDENT_CODE ON ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+
+# ------------------------------------------------------------
+# Documentation and installation
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
     gamewip_register_doxygen_library(

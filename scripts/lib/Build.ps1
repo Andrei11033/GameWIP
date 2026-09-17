@@ -1,4 +1,8 @@
-# GameWIP configure/build/project-command behavior.
+# Project configure, build, and command execution helpers.
+
+# ------------------------------------------------------------
+# Preset configuration and build operations
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

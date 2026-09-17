@@ -19,7 +19,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic FileSystem module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "filesystem",
         .order = 20,
         .run = run,

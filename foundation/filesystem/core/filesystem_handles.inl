@@ -548,7 +548,17 @@ IO::Types::Status File::resize(std::uint64_t sizeBytes) noexcept
         return IO::makeStatus(ErrorCode::NotOpen);
     }
 
-    return Detail::Platform::resizeFile(*state_, sizeBytes);
+    return Detail::Platform::resizeFile(*state_, sizeBytes, true);
+}
+
+IO::Types::Status File::resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept
+{
+    if (!isOpen())
+    {
+        return IO::makeStatus(ErrorCode::NotOpen);
+    }
+
+    return Detail::Platform::resizeFile(*state_, sizeBytes, false);
 }
 
 Types::Lock::Result File::tryLockShared() noexcept

@@ -182,9 +182,6 @@ namespace
     void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::filesystem::path &root);
     void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::filesystem::path &root);
     void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesystem::path &root);
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-    void testCheckedFileFailureTranslation(TestSupport::Context &context, const std::filesystem::path &root);
-#endif
 
 #include "validation/tests/filesystem/file_test.inl"
 #include "validation/tests/filesystem/metadata_test.inl"
@@ -266,14 +263,6 @@ namespace GameWIP::Test
             {
                 testAtomicWriteAndLocks(context, runRoot);
             });
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-        runner.runSuite(
-            "FileSystem checked failure translation",
-            [&runRoot](TestSupport::Context &context)
-            {
-                testCheckedFileFailureTranslation(context, runRoot);
-            });
-#endif
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("FileSystem library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));

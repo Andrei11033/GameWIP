@@ -1,9 +1,9 @@
 @page project_public_api_contract Public API contract
 
-Use these rules when designing or reviewing a reusable public C++ API. They
-give GameWIP libraries a common vocabulary for names, text, failures,
-ownership, threading, performance, and compatibility. Callers should not need
-to relearn those fundamentals for every package.
+Use these rules when designing or reviewing a reusable public C++ API. They give
+GameWIP libraries a common vocabulary for names, text, failures, ownership,
+threading, performance, and compatibility. Callers should not need to relearn
+those fundamentals for every package.
 
 A library manual may strengthen or narrow a rule when its domain requires it.
 That local contract must be stated explicitly and remain compatible with the
@@ -17,6 +17,8 @@ project-wide rule; silence is not an exception.
   would collide with an operation or obscure the question, as in `isScalarValue()` and `isOpen()`. Use `has...` for presence or containment,
   `can...` for capability, `supports...` for advertised semantics, and forms such as `should...`, `would...`, `was...`, and `try...` when those words
   express distinct behavior rather than decoration.
+- Namespace-scope constants use `kUpperCamelCase`. Ordinary function-local constants use `lowerCamelCase`; do not add `k` to mutable namespace
+  state, class data members, enum values, or macros.
 - Keep conventional operation names such as `flush()` when the owning type or namespace already supplies the context. Use a differentiated form such
   as `flushTo(destination)` only when the destination or semantic distinction is real; do not mechanically restate context in the name.
 - Mutating operations use verbs. A name must disclose destructive side effects that are not otherwise obvious; for example, a write-and-clear
@@ -24,14 +26,16 @@ project-wide rule; silence is not an exception.
 - Use one property vocabulary across a type. A getter and setter should describe the same property unless the operations intentionally have different
   semantics.
 - Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence. The
-  accepted Win32 adapter is the deliberate singular exception to the general plural-collection rule: `Desktop::Native::Win32::HandleView`,
+  accepted Win32 adapter is the one deliberate exception to the general plural-collection rule: `Desktop::Native::Win32::HandleView`,
   `HandleResult`, and `getHandle(...)` describe one coherent native-handle view/result even though the view contains both `HINSTANCE` and `HWND`.
 
 ## Text and bytes
 
-Public APIs that call data text use UTF-8. Encoding-agnostic or unvalidated data is called bytes.
-A Text API has the same UTF-8 validity contract regardless of whether the active backend is a console, redirected byte stream, file, pipe, or another
-native endpoint. Backend selection must not decide whether malformed text is accepted.
+Public APIs that treat data as text use UTF-8. Encoding-agnostic or unvalidated
+data is described as bytes. A text API has the same UTF-8 validity contract
+regardless of whether the active backend is a console, redirected byte stream,
+file, pipe, or another native endpoint.
+Backend selection must not change whether malformed text is accepted.
 
 UTF-8 text continues to use `std::string`, `std::string_view`, and caller-owned `std::span<char>` storage. GameWIP does not migrate public UTF-8 APIs
 to `std::u8string` or `std::u8string_view`.
@@ -47,6 +51,14 @@ to `std::u8string` or `std::u8string_view`.
 
 IO `Reader`, `Writer`, and byte helpers remain encoding-agnostic byte primitives. IO text helpers enforce the project UTF-8 contract and may use the
 foundational Unicode library to do so; that dependency must not add Unicode work to byte-only paths.
+
+## Unicode conversion authority
+
+Maintained first-party C++ must use `foundation/unicode` for UTF-8/UTF-16
+conversion. Native UTF-16 values may be copied at an operating-system boundary,
+but platform code must not introduce an independent Win32 codec implementation.
+Keeping conversion in one library makes validation, malformed-input handling,
+and boundary behavior consistent across consumers.
 
 ## Predicates, units, and offsets
 

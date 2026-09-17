@@ -1,15 +1,17 @@
 @page project_benchmarking Benchmarking
 
-GameWIP uses Google Benchmark for performance measurement. Google Benchmark owns iteration control, calibration, timing, repetitions, statistics, and
+GameWIP uses Google Benchmark for performance measurement. Google Benchmark
+owns iteration control, calibration, timing, repetitions, statistics, and
 benchmark filtering.
 
 Benchmarks are not correctness tests and do not define merge-gating performance thresholds.
 
 This guide covers benchmark registration, runner integration, measurement
-rules, result interpretation, the current scenarios, and retained output. It
-also marks the boundary between a repeatable measurement and a correctness test.
+rules, result interpretation, current scenarios, and retained output. It also
+draws the line between repeatable measurements and correctness tests.
 
-Correctness behavior must be covered through @ref project_testing before performance coverage is added. Startup ordering is documented in @ref
+Correctness behavior must be covered through @ref project_testing before
+performance coverage is added. Startup ordering is documented in @ref
 project_game_executable.
 
 ## Common workflow
@@ -32,9 +34,10 @@ List registered scenarios without measuring them:
 .\gamewip.bat benchmark list
 ```
 
-CI performs registration dry runs only. Machine-dependent timings are not merge gates. Direct executable invocation remains supported when diagnosing
-Google Benchmark itself, but the helper is the normal local workflow because it standardizes optimized builds, arguments, retained results, and run
-metadata.
+CI performs registration dry runs only. Machine-dependent timings are not merge
+gates. Direct executable invocation remains available when diagnosing Google
+Benchmark itself, but the helper is the normal local workflow because it
+standardizes optimized builds, arguments, retained results, and run metadata.
 
 Print the complete option set for the pinned Google Benchmark executable without
 running a measurement:
@@ -43,14 +46,15 @@ running a measurement:
 .\build\benchmark\GameWIPBenchmarks.exe --help
 ```
 
-That generated help is authoritative for direct third-party runner flags. This
-page owns GameWIP's wrapper behavior and supported measurement workflow.
+That generated help is the reference for direct third-party runner flags. This
+page covers GameWIP's wrapper behavior and supported measurement workflow.
 
 ## Runner source API
 
 Use @ref GameWIP::Validation::Benchmarks and @ref GameWIP::Validation::BenchmarkResult for the generated source reference.
 
-`Benchmarks::run(int, char **, bool embedded)` performs one Google Benchmark lifecycle:
+`Benchmarks::run(int, char **, bool embedded)` performs one Google Benchmark
+lifecycle:
 
 1. Build an argv view with owned string storage.
 2. Initialize Google Benchmark.
@@ -58,13 +62,15 @@ Use @ref GameWIP::Validation::Benchmarks and @ref GameWIP::Validation::Benchmark
 4. Run selected benchmark registrations.
 5. Shut Google Benchmark down.
 
-The runner is intended for one benchmark invocation at a time in a process because Google Benchmark owns process-global registration and runtime
-state.
+The runner is intended for one benchmark invocation at a time in a process
+because Google Benchmark owns process-global registration and runtime state.
 
-The runner is not an exception boundary. Allocation failures while it copies arguments, and any exception that escapes Google Benchmark initialization
-or execution, propagate to the caller. `BenchmarkResult` describes only a normally completed invocation. The current standalone benchmark entry point
-and embedded game entry point do not catch such exceptions, so an exception that reaches `main()` follows the language runtime's uncaught-exception
-behavior.
+The runner is not an exception boundary. Allocation failures while it copies
+arguments, and exceptions that escape Google Benchmark initialization or
+execution, propagate to the caller. `BenchmarkResult` describes only a normally
+completed invocation. The current standalone benchmark entry point and embedded
+game entry point do not catch such exceptions, so one that reaches `main()`
+follows the language runtime's uncaught-exception behavior.
 
 ### Standalone argument behavior
 
@@ -78,8 +84,9 @@ With `embedded == true`, the runner forwards only:
 - Arguments beginning with `--benchmark_`.
 - Arguments beginning with `--v=`.
 
-GameWIP startup, validation, and runtime arguments are not passed to Google Benchmark. The original process arguments remain unchanged for later
-executable stages.
+GameWIP startup, validation, and runtime arguments are not passed to Google
+Benchmark. The original process arguments remain unchanged for later executable
+stages.
 
 ### `BenchmarkResult`
 
@@ -88,8 +95,10 @@ executable stages.
 | `benchmarksRun` | Number returned by `benchmark::RunSpecifiedBenchmarks()`. Zero selected benchmarks is not by itself a runner failure. |
 | `argumentsValid` | False only when Google Benchmark reports unrecognized forwarded arguments. |
 
-`ok()` reflects argument validity only. It does not encode performance thresholds, propagated exceptions, or every per-scenario `SkipWithError()`
-diagnostic. Inspect Google Benchmark output and retained results for scenario-level setup errors.
+`ok()` reflects argument validity only. It does not encode performance
+thresholds, propagated exceptions, or every per-scenario `SkipWithError()`
+diagnostic. Inspect Google Benchmark output and retained results for
+scenario-level setup errors.
 
 The standalone benchmark executable returns failure only when `ok()` is false. Startup benchmarks use the same rule before entering game runtime code.
 
@@ -132,8 +141,10 @@ Compare two retained JSON results descriptively:
   -Candidate build\gamewip\runs\<after>\artifacts\benchmark-results.json
 ```
 
-The comparison matches benchmark run names, normalizes time units, prefers Google Benchmark's mean aggregate when present, and reports CPU and
-real-time percentage changes. It is descriptive evidence, not a statistical significance test or performance gate.
+The comparison matches benchmark run names, normalizes time units, prefers
+Google Benchmark's mean aggregate when present, and reports CPU and real-time
+percentage changes. It is descriptive evidence, not a statistical significance
+test or performance gate.
 
 ### Helper options
 
@@ -177,12 +188,13 @@ gamewip_add_benchmark_module(
 )
 ```
 
-Use stable `BM_<Module>_<Scenario>` names. The parent directory discovers immediate module directories containing `CMakeLists.txt`; each module still
+Use stable `BM_<Module>_<Scenario>` names. The parent directory discovers
+immediate module directories containing `CMakeLists.txt`; each module still
 lists sources and dependencies explicitly.
 
 ## Measurement rules
 
-Benchmarks must:
+Meaningful benchmark coverage has a few requirements:
 
 - Use the optimized benchmark preset for meaningful measurements.
 - Let Google Benchmark control iteration and timing.
@@ -207,7 +219,8 @@ Benchmarks must:
 | `BM_Terminal_*` | Output-buffer formatting, segmented writes, and terminal-facing hot paths without interactive correctness policy. |
 | `BM_Unicode_*` | Strict UTF-8 decode, validation, scalar encoding, code-point traversal, and extended grapheme traversal on representative ASCII and non-ASCII text. |
 
-Logger scenarios report queue, drop, flush, or error counters where necessary so a fast producer result cannot hide lost work.
+Logger scenarios report queue, drop, flush, or error counters where necessary,
+so a fast producer result cannot hide lost work.
 
 Benchmark fixtures are created below `build/benchmark/temp` for standalone runs and below the active game preset's `temp` directory for embedded
 runs. The runner scopes and restores `TEMP`, `TMP`, and `TMPDIR`, so fixture and Logger benchmark files do not spill into the host temporary directory.
@@ -227,12 +240,14 @@ build/gamewip/runs/<timestamp>_benchmark-run/
     benchmark-results.json
 ```
 
-Console output is streamed live and retained in the step log. The manifest records the selected profile, effective options, commands, timings, exit
-codes, and output paths. JSON is the default measurement artifact because it supports later comparison and issue attachments.
+Console output is streamed live and retained in the step log. The manifest
+records the selected profile, effective options, commands, timings, exit codes,
+and output paths. JSON is the default measurement artifact because it supports
+later comparison and issue attachments.
 
 An explicit `-Output` may point outside the checkout. Inside the checkout it
-must remain canonically under `build/` on every supported host; benchmark output
-must not be written into source directories.
+must remain canonically under `build/` on every supported host. Benchmark output
+does not belong in source directories.
 
 ## Failure behavior
 

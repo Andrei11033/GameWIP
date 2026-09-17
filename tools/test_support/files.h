@@ -12,7 +12,7 @@ namespace GameWIP::TestSupport
 {
     /// @brief Owns one unique directory beneath the process temporary directory.
     /// @details The validation runner scopes the process temporary directory to its active preset; standalone consumers use the host default.
-    /// @details Construction is non-throwing and leaves an inert guard on failure. Destruction performs best-effort recursive cleanup.
+    /// Construction is non-throwing and leaves an inert guard on failure. Destruction performs best-effort recursive cleanup.
     class ScopedTemporaryDirectory
     {
     public:

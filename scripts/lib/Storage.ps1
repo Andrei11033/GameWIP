@@ -1,4 +1,8 @@
-# GameWIP repository-owned storage and conservative recursive-deletion policy.
+# Repository-owned storage and conservative recursive-deletion policy.
+
+# ------------------------------------------------------------
+# Path resolution and storage roots
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

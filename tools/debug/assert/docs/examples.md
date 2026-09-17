@@ -25,10 +25,12 @@ Use `VERIFY` for expressions with side effects that must happen even when assert
 
 ```cpp
 CHECK_MSG(optionalConfig.isValid(), "Optional config failed validation");
-CHECK_MSG(cache.refresh(), "Cache refresh failed; continuing with old data");
+const bool refreshed = cache.refresh();
+CHECK_MSG(refreshed, "Cache refresh failed; continuing with old data");
 ```
 
-Use `CHECK` when the failure should be visible to diagnostics but normal control flow can continue.
+Use `CHECK` when the failure should be visible to diagnostics but normal control flow can continue. Required operations such as `cache.refresh()`
+run outside the macro so disabling checks does not skip them.
 
 ## Check once
 

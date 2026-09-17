@@ -74,6 +74,12 @@ TOP_LEVEL_SIDEBAR = (
     "project_planning",
 )
 
+# Deprecated source-tree-only notes remain Markdown-linted, but are not generated
+# manual pages until their owning subsystem is supported.
+EXCLUDED_MANUAL_FILES = {
+    Path("engine/input/docs/test_hooks.md"),
+}
+
 PROJECT_MANUAL_SIDEBAR = (
     "project_getting_started",
     "project_environment_setup",
@@ -99,7 +105,11 @@ def relative(path: Path) -> str:
 def maintained_manual_files() -> list[Path]:
     files: list[Path] = []
     for root in (ROOT / "docs", ROOT / "foundation", ROOT / "engine", ROOT / "tools"):
-        files.extend(path for path in root.rglob("*.md") if "releases" not in path.relative_to(ROOT).parts)
+        files.extend(
+            path
+            for path in root.rglob("*.md")
+            if "releases" not in path.relative_to(ROOT).parts and path.relative_to(ROOT) not in EXCLUDED_MANUAL_FILES
+        )
     return sorted(files)
 
 

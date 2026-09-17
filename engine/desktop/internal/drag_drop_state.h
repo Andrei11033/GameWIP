@@ -44,7 +44,9 @@ namespace GameWIP::Desktop::Detail
         void clearRetainedEvents() noexcept
         {
             for (std::size_t slot = eventHead; slot != noSlot; slot = queueNext[slot])
+            {
                 eventStorage[slot] = {};
+            }
             eventHead = noSlot;
             eventTail = noSlot;
             movementHead = noSlot;

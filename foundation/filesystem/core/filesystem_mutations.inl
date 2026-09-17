@@ -17,7 +17,7 @@ IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, c
             return openStatus;
         }
 
-        IO::Types::Status resizeStatus = file.resize(sizeBytes);
+        IO::Types::Status resizeStatus = file.resizeWithoutPositionRestore(sizeBytes);
         IO::Types::Status closeStatus = file.close();
         if (!resizeStatus.ok())
         {
@@ -104,6 +104,7 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
             return readerOpenStatus;
         }
 
+        // Once destination creation or truncation begins, copy is non-transactional; later failures do not roll back destination state.
         const Types::File::WriterMode writerMode = options.replaceMode == Types::ReplaceMode::ReplaceExisting
                                                        ? Types::File::WriterMode::CreateOrTruncate
                                                        : Types::File::WriterMode::CreateNew;

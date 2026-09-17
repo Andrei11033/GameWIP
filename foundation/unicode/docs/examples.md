@@ -1,7 +1,7 @@
 @page unicode_examples Examples
 
-These examples use only the supported public header. Application-specific buffering, replacement, editing, rendering, and platform policy remain with
-the caller.
+These examples use only the supported public header. Buffering, replacement,
+editing, rendering, and platform policy still belong to the caller.
 
 ## Classify an incremental UTF-8 prefix
 

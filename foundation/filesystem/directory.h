@@ -125,9 +125,7 @@ namespace GameWIP::FileSystem
     public:
         /// @brief Creates a closed cursor.
         DirectoryCursor() noexcept;
-        /// @brief Directory cursors are not copy-constructible.
         DirectoryCursor(const DirectoryCursor &) = delete;
-        /// @brief Directory cursors are not copy-assignable.
         DirectoryCursor &operator=(const DirectoryCursor &) = delete;
         /// @brief Move-constructs a cursor and leaves the source closed.
         DirectoryCursor(DirectoryCursor &&other) noexcept;
@@ -141,7 +139,8 @@ namespace GameWIP::FileSystem
         /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
         /// @return Success, AlreadyOpen, or a validation/open failure status.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
-        /// @brief Returns whether this object owns an active enumeration.
+        /// @brief Reports whether this cursor owns an active backend enumeration.
+        /// @return True while an enumeration is active.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the next accepted child or successful exhaustion.
         /// @return One entry, successful exhaustion, NotOpen, SizeLimitExceeded, or an enumeration failure.

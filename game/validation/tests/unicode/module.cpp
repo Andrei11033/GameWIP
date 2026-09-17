@@ -19,7 +19,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic Unicode module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "unicode",
         .order = 15,
         .run = run,

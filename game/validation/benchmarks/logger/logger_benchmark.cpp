@@ -20,9 +20,9 @@ namespace
     namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
 
-    constexpr std::string_view source = "LoggerBenchmark";
-    constexpr std::string_view message = "logger benchmark message";
-    constexpr Logger::Types::SourceId registeredSource = 1;
+    constexpr std::string_view kSource = "LoggerBenchmark";
+    constexpr std::string_view kMessage = "logger benchmark message";
+    constexpr Logger::Types::SourceId kRegisteredSource = 1;
 
     Logger::Types::Config baseConfig()
     {
@@ -112,7 +112,9 @@ namespace
                 state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
                 state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
                 if (!flushCompleted(flushResult))
+                {
                     state.SkipWithError("Logger flush failed or timed out.");
+                }
             }
             initialized_ = false;
             workspace_.reset();
@@ -147,11 +149,13 @@ namespace
     BENCHMARK_DEFINE_F(OutputDisabledFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
+        {
             return;
+        }
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            Logger::info(source, message);
+            Logger::info(kSource, kMessage);
         }
         state.SetItemsProcessed(state.iterations());
     }
@@ -173,12 +177,14 @@ namespace
     BENCHMARK_DEFINE_F(FilteredFormattedFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
+        {
             return;
+        }
         std::size_t value = 0;
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            Logger::info(source, "filtered {} {}", value, value + 1);
+            Logger::info(kSource, "filtered {} {}", value, value + 1);
             ++value;
         }
         state.SetItemsProcessed(state.iterations());
@@ -201,11 +207,13 @@ namespace
     BENCHMARK_DEFINE_F(EnabledFileFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
+        {
             return;
+        }
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            Logger::info(source, message);
+            Logger::info(kSource, kMessage);
         }
         state.SetItemsProcessed(state.iterations());
     }
@@ -217,7 +225,7 @@ namespace
 
         void SetUp(benchmark::State &state) override
         {
-            const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
+            const std::array sources{Logger::Types::SourceDefinition{kRegisteredSource, "RegisteredBenchmark"}};
             Logger::Types::Config config = baseConfig();
             config.output = Logger::Types::OutputMode::File;
             config.sources = sources;
@@ -228,11 +236,13 @@ namespace
     BENCHMARK_DEFINE_F(RegisteredSourceFixture, Producer)(benchmark::State &state)
     {
         if (!initialized_)
+        {
             return;
+        }
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
-            Logger::info(registeredSource, message);
+            Logger::info(kRegisteredSource, kMessage);
         }
         state.SetItemsProcessed(state.iterations());
     }
@@ -265,7 +275,7 @@ namespace
                     else
                     {
                         directoryText = workspace->path().string();
-                        const std::array sources{Logger::Types::SourceDefinition{registeredSource, "RegisteredBenchmark"}};
+                        const std::array sources{Logger::Types::SourceDefinition{kRegisteredSource, "RegisteredBenchmark"}};
                         Logger::Types::Config config = baseConfig();
                         config.output = Logger::Types::OutputMode::File;
                         config.logDirectory = directoryText;
@@ -284,13 +294,15 @@ namespace
         }
 
         if (!initialized)
+        {
             state.SkipWithError("Logger initialization failed.");
+        }
         else
         {
             for (auto iteration : state)
             {
                 static_cast<void>(iteration);
-                Logger::info(registeredSource, message);
+                Logger::info(kRegisteredSource, kMessage);
             }
             state.SetItemsProcessed(state.iterations());
         }
@@ -311,7 +323,9 @@ namespace
                 state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
                 state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
                 if (!flushed)
+                {
                     state.SkipWithError("Logger flush failed or timed out.");
+                }
             }
         }
     }

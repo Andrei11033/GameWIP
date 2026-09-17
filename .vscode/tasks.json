@@ -122,6 +122,14 @@
       "problemMatcher": ["$gcc"]
     },
     {
+      "label": "GameWIP: Undefined Behavior Sanitizer",
+      "type": "process",
+      "command": "${workspaceFolder}\\gamewip.bat",
+      "args": ["ubsan"],
+      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" } },
+      "problemMatcher": ["$gcc"]
+    },
+    {
       "label": "GameWIP: Analyze",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",

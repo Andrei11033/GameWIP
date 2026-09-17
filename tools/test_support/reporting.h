@@ -62,7 +62,7 @@ namespace GameWIP::TestSupport
             Summary summary;                  ///< Suite pass/fail/skip counts.
             double elapsedMilliseconds = 0.0; ///< Wall-clock suite duration in milliseconds.
 
-            /// @brief Returns summary.ok().
+            /// @brief Reports whether this suite recorded no failed checks.
             [[nodiscard]] bool ok() const noexcept;
         };
 
@@ -100,6 +100,10 @@ namespace GameWIP::TestSupport
     } // namespace Detail
     /// @endcond
 
+    // ------------------------------------------------------------
+    // Timing diagnostics
+    // ------------------------------------------------------------
+
     /// @brief Monotonic elapsed-time helper for test diagnostics.
     /// @note Timer uses std::chrono::steady_clock and is not benchmark-grade measurement.
     class Timer
@@ -116,6 +120,10 @@ namespace GameWIP::TestSupport
         using Clock = std::chrono::steady_clock;
         Clock::time_point start_; ///< Current measurement origin.
     };
+
+    // ------------------------------------------------------------
+    // Test context
+    // ------------------------------------------------------------
 
     /// @brief Test context that records outcomes and routes categorized report lines.
     class Context
@@ -202,7 +210,7 @@ namespace GameWIP::TestSupport
         [[nodiscard]] const std::string &suiteName() const noexcept;
         /// @brief Returns a coherent snapshot of this context's counts.
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
-        /// @brief Returns result().ok().
+        /// @brief Reports whether this context has recorded no failed checks.
         [[nodiscard]] bool ok() const noexcept;
 
     private:
@@ -218,6 +226,10 @@ namespace GameWIP::TestSupport
         void writeLine(std::string_view category, std::string_view message);
         void writeFailureLine(std::string_view name, std::string_view reason, const std::source_location &location);
     };
+
+    // ------------------------------------------------------------
+    // Test runner
+    // ------------------------------------------------------------
 
     /// @brief Runs named suites and aggregates one shared report.
     class Runner
@@ -241,7 +253,7 @@ namespace GameWIP::TestSupport
 
         /// @brief Returns aggregate counts across suites that have finished.
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
-        /// @brief Returns result().ok().
+        /// @brief Reports whether no completed suite has recorded a failure.
         [[nodiscard]] bool ok() const noexcept;
         /// @brief Returns zero when no failures were recorded, otherwise one.
         [[nodiscard]] int exitCode() const noexcept;
@@ -253,6 +265,10 @@ namespace GameWIP::TestSupport
 
         void recordSuiteResult(const Types::Reporting::SuiteResult &result);
     };
+
+    // ------------------------------------------------------------
+    // Sections and manual checks
+    // ------------------------------------------------------------
 
     /// @brief RAII helper that reports a named section and its elapsed time.
     class Section
@@ -275,6 +291,10 @@ namespace GameWIP::TestSupport
     /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @return Selected answer, or Skipped on end-of-input.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question);
+
+    // ------------------------------------------------------------
+    // Template implementations
+    // ------------------------------------------------------------
 
     template <typename Expected, typename Actual>
     bool Context::expectEq(std::string_view name, const Expected &expected, const Actual &actual, std::source_location location)

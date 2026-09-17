@@ -100,13 +100,11 @@ namespace GameWIP::Logger::Types
             QueueStorageFallback = 1u << 4u    ///< Requested queue storage failed and a smaller usable allocation was selected.
         };
 
-        /// @brief Combines initialization-adjustment flags.
         [[nodiscard]] constexpr Adjustment operator|(Adjustment left, Adjustment right) noexcept
         {
             return static_cast<Adjustment>(static_cast<std::uint32_t>(left) | static_cast<std::uint32_t>(right));
         }
 
-        /// @brief Adds an initialization-adjustment flag in place.
         constexpr Adjustment &operator|=(Adjustment &left, Adjustment right) noexcept
         {
             left = left | right;
@@ -127,7 +125,7 @@ namespace GameWIP::Logger::Types
             Adjustment adjustments = Adjustment::None;     ///< Recoverable changes made by init().
             OutputMode requestedOutput = OutputMode::None; ///< Caller-requested output mode.
             OutputMode effectiveOutput = OutputMode::None; ///< Output mode actually left active.
-            IO::Types::Status outputSetupStatus;           ///< Direct File/output setup status.
+            IO::Types::Status outputSetupStatus;           ///< File/timestamp setup failure preserved when startup can recover.
         };
     } // namespace Init
 

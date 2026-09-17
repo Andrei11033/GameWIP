@@ -74,7 +74,7 @@ platform boundary and use the same explicit status/outcome semantics as the othe
 ## Dependencies and package boundary
 
 TestSupport is a static library. It may depend on foundational `GameWIP::Unicode` for actual UTF-8 text semantics. It must not acquire IO, FileSystem,
-Terminal, Logger, Assert, Window, or engine dependencies merely for convenience.
+Terminal, Logger, Assert, Desktop, or engine dependencies merely for convenience.
 
 The installed package resolves the exact matching Unicode package automatically. Public headers remain standard-library based; the Unicode dependency
 is implementation-only text validation.

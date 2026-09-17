@@ -1,7 +1,6 @@
 @page terminal_test_hooks Source-tree test hooks
 
-@warning These hooks are source-tree maintainer interfaces. They are not installed, not consumer API, and not covered by package compatibility
-guarantees.
+@warning These hooks are source-tree validation interfaces. They are not installed, not consumer API, and not part of the package ABI.
 
 ## Availability
 
@@ -21,7 +20,7 @@ Approved build-tree consumers receive `TERMINAL_INTERNAL_TEST_HOOKS=1`. Producti
 
 Link the source-tree `Terminal` target. The header and hook exports are intentionally absent from installed packages.
 
-The public hook namespace is `GameWIP::Terminal::TestHooks`.
+The source-tree hook namespace is `GameWIP::Terminal::TestHooks`.
 
 ## Reset rule
 
@@ -34,19 +33,16 @@ Tests sharing a process must not assume hook state is isolated automatically.
 
 ## Capability overrides
 
-- `setInputCapabilitiesOverride()` and `clearInputCapabilitiesOverride()` control one input stream's observed capabilities.
-- `setOutputCapabilitiesOverride()` and `clearOutputCapabilitiesOverride()` control active output capabilities.
-- `setPreparedOutputCapabilitiesOverride()` controls capabilities returned after a preparation attempt. Clearing the normal output override or calling
-  `reset()` removes the prepared override.
+- `setInputCapabilitiesOverride()` controls one input stream's observed capabilities.
+- `setOutputCapabilitiesOverride()` controls active output capabilities.
+- `setPreparedOutputCapabilitiesOverride()` controls capabilities returned after a preparation attempt.
 
-Overrides persist until cleared or reset.
+Overrides persist until reset.
 
 ## In-memory input and internal native-mode state
 
 - `setInputBytes()` replaces the deterministic input bytes and selects EOF-versus-no-data behavior when the buffer becomes empty.
-- `appendInputBytes()` adds bytes to the deterministic input stream.
-- `clearInputBytes()` disables the in-memory byte-input path.
-- `setInputEvents()` and `clearInputEvents()` provide deterministic portable events for managed line-editor tests.
+- `setInputEvents()` provides deterministic portable events for managed line-editor tests.
 - `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 event decoder's endpoint-owned surrogate state for the
   stdin-replacement regression.
 - `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and
@@ -57,20 +53,16 @@ Overrides persist until cleared or reset.
 - `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
 - Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting
   production decoder symbols.
-- `clearInputModeOverride()` restores normal backend behavior.
-
 The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable
 backend output and therefore obey the normal Event contract. Native-mode/decoder hooks exist only because validation must prove exact managed
 restoration and Win32 normalization; public consumers configure input through `SessionOptions`.
 
-## Output capture and counters
+## Output capture
 
 - `setOutputCapture()` enables or disables capture for stdout or stderr.
 - `capturedOutput()` returns captured bytes.
 - `capturedOutputText()` returns the captured bytes as a string for text-oriented assertions.
 - `clearCapturedOutput()` clears captured data without disabling capture.
-- `outputPreparationCallCount()` reports preparation attempts.
-- `textWriteCallCount()` reports backend text-write calls.
 
 Returned vectors and strings are snapshots owned by the caller.
 
@@ -84,15 +76,15 @@ succeed, and release it before joining the worker. A gate is consumed only by th
 
 ## Exception behavior
 
-Hook functions marked `noexcept` do not propagate failures. Other hook functions retain normal standard-library exception behavior: replacing or
-appending input can throw while allocating owned string storage, and `capturedOutput()` or `capturedOutputText()` can throw while allocating the
+Hook functions marked `noexcept` do not propagate failures. Other hook functions retain normal standard-library exception behavior: replacing input
+can throw while allocating owned string storage, and `capturedOutput()` or `capturedOutputText()` can throw while allocating the
 returned snapshot. These source-tree hooks do not provide a status-based allocation-failure channel; reset the scenario before reuse after an
 unexpected exception.
 
 ## Geometry overrides
 
-- `setTerminalSizeOverride()` / `clearTerminalSizeOverride()` control size queries.
-- `setCursorPositionOverride()` / `clearCursorPositionOverride()` control cursor-position queries.
+- `setTerminalSizeOverride()` controls size queries.
+- `setCursorPositionOverride()` controls cursor-position queries.
 
 ## One-shot failures
 
@@ -103,14 +95,32 @@ Each function arms one failure consumed atomically by the next matching operatio
 - `forceNextOutputPreparationFailure()`;
 - `forceNextInputModeFailure()`;
 - `forceNextReadFailure()`;
+- `forceNextEndpointIdentityFailure()`;
+- `forceNextCancellationResetFailure()`;
+- `forceNextCancellationSignalFailure()`;
 - `forceNextTerminalSizeFailure()`;
 - `forceNextCursorPositionFailure()`;
 - `forceNextTextWriteFailure()`;
 - `forceNextByteWriteFailure()`;
 - `forceNextFlushFailure()`.
 
-The optional argument selects the portable IO error code. One-shot failures are intended for one deterministic assertion; arm them immediately before
-the target operation.
+Hooks that expose an optional `ErrorCode` parameter return that configured
+portable failure. The cancellation-reset and cancellation-signal hooks are
+fixed Win32-native seams and therefore take no configurable portable code. The
+reset hook simulates native `ResetEvent` failure; the signal hook simulates the
+stop callback's failed best-effort `SetEvent`, after which cancellation is
+observed by bounded native wait slices. One-shot failures are intended for one
+deterministic assertion; arm them immediately before the target operation.
+
+`consoleWaitCallCount()` is a Win32-only diagnostic counter. It counts native
+console wait attempts through both `WaitForMultipleObjects` and
+`WaitForSingleObject` since `reset()` and is intended for deterministic testing
+of wait paths; `reset()` clears it. The observation interval is an internal
+implementation detail, not a public timing guarantee.
+
+Source-tree Win32 cancellation tests use the internal synthetic console-wait
+adapter to run the production `WaitForMultipleObjects` and stop-callback path
+without depending on the process's physical console stdin.
 
 ## Example
 

@@ -1,10 +1,10 @@
 @page project_coverage Coverage workflow
 
-Coverage is an opt-in validation workflow that reports which correctness-test paths executed.
+Coverage is an opt-in validation workflow that reports which correctness-test
+paths executed.
 
-The sections below explain the coverage preset, exactly which code contributes
-to the report, where the HTML and machine-readable artifacts go, and how to
-diagnose an incomplete or failed run.
+This page covers the coverage preset, report scope, output locations, and the
+failure cases that make a report incomplete or unusable.
 
 ## Common workflow
 
@@ -15,8 +15,8 @@ Run coverage from the repository root:
 ```
 
 The helper removes and recreates `build/coverage` on every high-level coverage
-run before configuring, building, testing, and generating the report. This
-prevents obsolete `.gcda`/`.gcno` data and generated files from surviving
+run before configuring, building, testing, and generating the report. This keeps
+obsolete `.gcda`/`.gcno` data and generated files from surviving
 source moves, target changes, or instrumentation changes.
 
 The equivalent raw CMake sequence is:
@@ -28,14 +28,15 @@ ctest --preset coverage
 cmake --build build/coverage --target coverage
 ```
 
-When using the raw sequence for an authoritative result, begin with a clean
-`build/coverage` tree. Raw CMake commands otherwise remain incremental.
+For a clean raw-CMake result, begin with an empty `build/coverage` tree. Raw
+CMake commands otherwise remain incremental.
 
 The coverage workflow requires standalone tests.
 
 ## Build controls
 
-`GAMEWIP_ENABLE_COVERAGE=ON` adds GCC/Clang coverage instrumentation and creates the `coverage` target. The `coverage` preset enables this option and
+`GAMEWIP_ENABLE_COVERAGE=ON` adds GCC or Clang coverage instrumentation and
+creates the `coverage` target. The `coverage` preset enables this option and
 disables the game executable.
 
 The project rejects `GAMEWIP_ENABLE_COVERAGE=ON` when `GAMEWIP_BUILD_TESTS=OFF`.
@@ -49,14 +50,20 @@ build/coverage/coverage/index.html
 build/coverage/coverage/coverage.xml
 ```
 
-The report includes maintained implementation sources for Base, Unicode, IO, FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop, plus the
-modular correctness-test sources under `game/validation/tests`. Header-only Base code contributes where instantiated by tests and consumers.
-Third-party sources under `external/`, generated build output, and intentionally provisional engine code are excluded.
-Coverage data discovery is restricted to the active coverage build tree so archived or neighboring instrumented builds cannot contaminate the report.
+The report includes maintained implementation sources for Base, Unicode, IO,
+FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop, plus modular
+correctness-test sources under `game/validation/tests`. Header-only Base code
+contributes where tests or consumers instantiate it. Third-party sources under
+`external/`, generated build output, and deprecated engine code are excluded.
+Coverage data is read only from the active coverage build tree, so archived or
+neighboring instrumented builds cannot contaminate the report.
 
-GCC profile updates are atomic so parallel test processes cannot overwrite one another's counters. Corrupt or negative profile data is a report
-failure. The workflow must not suppress parser errors. Identical inline or template functions can be emitted with different declaration line records
-across translation units, so reports merge those records at the lowest reported line while preserving their combined coverage.
+GCC profile updates are atomic so parallel test processes cannot overwrite one
+another's counters. Corrupt or negative profile data fails report generation.
+The workflow must not suppress parser errors. Identical inline or template
+functions can be emitted with different declaration line records across
+translation units, so reports merge those records at the lowest reported line
+while preserving their combined coverage.
 
 ## CI behavior
 
@@ -84,7 +91,8 @@ When changing coverage behavior:
 
 - Keep coverage separate from normal validation.
 - Keep third-party and generated sources excluded.
-- Update the documented inclusion list and report filters together when coverage scope changes.
+- Update the documented inclusion list and report filters together when coverage
+  scope changes.
 - Do not replace focused tests with a percentage target.
 - Preserve report failure visibility.
 - Update CI artifact paths if output locations change.

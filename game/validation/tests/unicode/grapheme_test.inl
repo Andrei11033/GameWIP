@@ -140,7 +140,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
     while (std::getline(input, line))
     {
         ++lineNumber;
-        if (line.find("GraphemeBreakTest-17.0.0.txt") != std::string::npos)
+        if (line.contains("GraphemeBreakTest-17.0.0.txt"))
         {
             versionConfirmed = true;
         }

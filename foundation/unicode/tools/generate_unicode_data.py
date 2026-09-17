@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate GameWIP's compact Unicode 17 grapheme-property trie.
+"""Generate the compact Unicode 17 grapheme-property trie used by GameWIP.
 
 The script consumes an unpacked Unicode Character Database directory. It never
 runs as part of an ordinary configure, build, test, package, or consumer flow.

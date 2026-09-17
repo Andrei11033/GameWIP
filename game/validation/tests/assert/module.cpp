@@ -42,7 +42,6 @@ namespace
         options.enableManualTests = invocation.options.enableManualTests;
         options.verboseConsole = invocation.options.verboseConsole;
         options.stressThreadCount = invocation.options.stressThreadCount;
-        options.stressIterations = invocation.options.assertStressIterations;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;
         options.reportPath = invocation.options.reportPath;
@@ -50,7 +49,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic Assert module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "assert",
         .order = 60,
         .run = run,

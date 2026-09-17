@@ -20,9 +20,10 @@ namespace GameWIP::Logger
     /// @cond INTERNAL
     namespace Detail::Core
     {
+        /// @brief Converts enum sources to SourceId while preserving string-like sources.
         template <typename Source> constexpr decltype(auto) normalizeSource(Source &&source) noexcept
         {
-            if constexpr (isSourceEnum<Source>)
+            if constexpr (kIsSourceEnum<Source>)
             {
                 return sourceId(source);
             }
@@ -32,27 +33,29 @@ namespace GameWIP::Logger
             }
         }
 
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message) noexcept;
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
+        // Formatting templates end by crossing into exported non-template code.
+        // This keeps queue/report ownership rules in one implementation unit.
+        LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, std::string_view source, std::string_view message) noexcept;
+        LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
             bool alreadyTruncated) noexcept;
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message) noexcept;
-        GAMEWIP_LOGGER_EXPORT void enqueuePreformattedMessage(
+        LOGGER_EXPORT void enqueuePreformattedMessage(Types::Level level, Types::SourceId source, std::string_view message) noexcept;
+        LOGGER_EXPORT void enqueuePreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
             bool alreadyTruncated) noexcept;
 
-        GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
+        LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
             std::string_view source,
             std::string_view message,
             bool showPopup,
             bool alreadyTruncated,
             const std::chrono::milliseconds *timeout) noexcept;
-        GAMEWIP_LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
+        LOGGER_EXPORT Types::Report::Result reportPreformattedMessage(
             Types::Level level,
             Types::SourceId source,
             std::string_view message,
@@ -60,13 +63,15 @@ namespace GameWIP::Logger
             bool alreadyTruncated,
             const std::chrono::milliseconds *timeout) noexcept;
 
-        GAMEWIP_LOGGER_EXPORT void recordAllocationFailure() noexcept;
-        GAMEWIP_LOGGER_EXPORT void recordFormatFailure() noexcept;
-        GAMEWIP_LOGGER_EXPORT std::string &formatScratch();
-        GAMEWIP_LOGGER_EXPORT std::size_t getMaxMessageLengthForFormatting();
-        GAMEWIP_LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
-        GAMEWIP_LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch) noexcept;
+        LOGGER_EXPORT void recordAllocationFailure() noexcept;
+        LOGGER_EXPORT void recordFormatFailure() noexcept;
+        LOGGER_EXPORT std::string &formatScratch();
+        LOGGER_EXPORT std::size_t getMaxMessageLengthForFormatting();
+        LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
+        LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch) noexcept;
 
+        /// @brief RAII handle for one nested use of the per-thread formatting scratch buffer.
+        /// @details Public formatting templates use this so early returns and exceptions release scratch consistently.
         class FormatScratchLease
         {
         public:
@@ -76,6 +81,8 @@ namespace GameWIP::Logger
             }
             ~FormatScratchLease() noexcept
             {
+                // The destructor runs only after the constructor acquired this thread's storage
+                // frame successfully; the no-throw release therefore has a matching owner.
                 releaseFormatScratchIfNeeded(scratch_);
             }
             FormatScratchLease(const FormatScratchLease &) = delete;
@@ -89,12 +96,18 @@ namespace GameWIP::Logger
             std::string &scratch_;
         };
 
+        // ------------------------------------------------------------
+        // Message truncation
+        // ------------------------------------------------------------
+
+        /// @brief Finds a truncation boundary that does not split a UTF-8 continuation sequence.
         [[nodiscard]] inline std::size_t utf8PrefixBoundary(std::string_view text, std::size_t limit) noexcept
         {
             if (limit >= text.size())
             {
                 return text.size();
             }
+
             std::size_t boundary = limit;
             while (boundary > 0)
             {
@@ -105,9 +118,11 @@ namespace GameWIP::Logger
                 }
                 --boundary;
             }
+
             return boundary;
         }
 
+        /// @brief Appends the visible truncation marker while respecting very small message limits.
         inline void appendTruncationSuffix(std::string &scratch, std::size_t maxMessageLength)
         {
             constexpr std::string_view suffix = "... [truncated]";
@@ -121,9 +136,11 @@ namespace GameWIP::Logger
                 scratch.assign(suffix.substr(0, maxMessageLength));
                 return;
             }
+
             scratch.append(suffix);
         }
 
+        /// @brief Rewrites scratch to the retained prefix plus truncation marker.
         inline void truncateScratch(std::string &scratch, std::size_t maxMessageLength)
         {
             constexpr std::string_view suffix = "... [truncated]";
@@ -136,19 +153,28 @@ namespace GameWIP::Logger
             {
                 scratch.clear();
             }
+
             appendTruncationSuffix(scratch, maxMessageLength);
         }
 
+        /// @brief Applies Logger's retained-message byte limit after an unbounded formatting pass.
         inline bool truncateScratchIfNeeded(std::string &scratch, std::size_t maxMessageLength)
         {
             if (scratch.size() <= maxMessageLength)
             {
                 return false;
             }
+
             truncateScratch(scratch, maxMessageLength);
             return true;
         }
 
+        // ------------------------------------------------------------
+        // Bounded formatting
+        // ------------------------------------------------------------
+
+        /// @brief Output iterator that counts every formatted byte and stores only the configured prefix.
+        /// @details StrictBounded formatting avoids building a full oversized message before truncation.
         class BoundedFormatIterator
         {
         public:
@@ -198,6 +224,7 @@ namespace GameWIP::Logger
             bool *truncated_ = nullptr;
         };
 
+        /// @brief Formats through the bounded iterator and reports whether output was truncated.
         template <typename Format, typename... Args>
         bool formatBounded(std::string &scratch, std::size_t maxMessageLength, Format format, Args &&...args)
         {
@@ -205,15 +232,19 @@ namespace GameWIP::Logger
             std::size_t written = 0;
             bool truncated = false;
             BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+
             std::format_to(output, format, std::forward<Args>(args)...);
+
             if (!truncated)
             {
                 return false;
             }
+
             truncateScratch(scratch, maxMessageLength);
             return true;
         }
 
+        /// @brief Bounded formatter for strings that are only known at runtime.
         template <typename... Args>
         bool runtimeFormatBounded(std::string &scratch, std::size_t maxMessageLength, Types::RuntimeFormat format, Args &...args)
         {
@@ -221,15 +252,19 @@ namespace GameWIP::Logger
             std::size_t written = 0;
             bool truncated = false;
             BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+
             std::vformat_to(output, format.text, std::make_format_args(args...));
+
             if (!truncated)
             {
                 return false;
             }
+
             truncateScratch(scratch, maxMessageLength);
             return true;
         }
 
+        /// @brief Applies the active formatting policy before Logger takes ownership of the message text.
         template <typename Format, typename... Args>
         bool formatWithPolicy(std::string &scratch, std::size_t maxMessageLength, Format format, Args &&...args)
         {
@@ -242,6 +277,7 @@ namespace GameWIP::Logger
             return formatBounded(scratch, maxMessageLength, format, std::forward<Args>(args)...);
         }
 
+        /// @brief Applies the active formatting policy to runtime-provided format strings.
         template <typename... Args>
         bool runtimeFormatWithPolicy(std::string &scratch, std::size_t maxMessageLength, Types::RuntimeFormat format, Args &...args)
         {
@@ -254,6 +290,11 @@ namespace GameWIP::Logger
             return runtimeFormatBounded(scratch, maxMessageLength, format, args...);
         }
 
+        // ------------------------------------------------------------
+        // Public template bridges
+        // ------------------------------------------------------------
+
+        /// @brief Formats a normal log message and contains all formatting/allocation failures.
         template <typename Source, typename... Args>
         void formatAndLog(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args) noexcept
         {
@@ -274,6 +315,7 @@ namespace GameWIP::Logger
             }
         }
 
+        /// @brief Runtime-format log bridge that avoids moving arguments before std::make_format_args observes them.
         template <typename Source, typename... Args>
         void runtimeFormatAndLog(Types::Level level, Source source, Types::RuntimeFormat format, Args &...args) noexcept
         {
@@ -294,6 +336,7 @@ namespace GameWIP::Logger
             }
         }
 
+        /// @brief Builds a report result for failures that happen before report delivery begins.
         [[nodiscard]] inline Types::Report::Result reportFailure(IO::Types::ErrorCode code) noexcept
         {
             Types::Report::Result result;
@@ -301,6 +344,7 @@ namespace GameWIP::Logger
             return result;
         }
 
+        /// @brief Formats a synchronous report and maps formatting/allocation failures into the report result.
         template <typename Source, typename... Args>
         Types::Report::Result formatAndReport(
             Types::Level level,
@@ -334,6 +378,7 @@ namespace GameWIP::Logger
             }
         }
 
+        /// @brief Runtime-format report bridge that maps formatting failures into the synchronous result.
         template <typename Source, typename... Args>
         Types::Report::Result runtimeFormatAndReport(
             Types::Level level,

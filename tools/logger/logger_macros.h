@@ -1,7 +1,6 @@
 /// @file logger_macros.h
 /// @brief Optional lazy convenience macros for Logger.
-///
-/// Include this header only when the global `LOGGER_*` shortcuts are wanted.
+/// @details Include this header only when the global `LOGGER_*` shortcuts are wanted.
 /// Active normal macros evaluate the source expression once, call
 /// `GameWIP::Logger::shouldLog(...)`, and evaluate message/format arguments only
 /// after that check passes. Compiled-out Trace/Debug macros evaluate no arguments.
@@ -15,7 +14,7 @@
 /// @def LOGGER_INTERNAL_LOG(levelValue, callName, sourceValue, ...)
 /// @brief Internal lazy logger macro body shared by the public `LOGGER_*` macros.
 /// @details Evaluates and captures the source expression once, then evaluates message/format arguments only after
-/// Logger::shouldLog() passes. The called Logger function rechecks filters before queueing because filters may change concurrently.
+/// `Logger::shouldLog()` passes. The called Logger function rechecks filters before queueing because filters may change concurrently.
 #define LOGGER_INTERNAL_LOG(levelValue, callName, sourceValue, ...) \
     do \
     { \

@@ -1,5 +1,5 @@
 /// @file terminal_test_hooks.cpp
-/// @brief Source-tree deterministic Terminal overrides, capture, counters, and one-shot failure injection.
+/// @brief Source-tree deterministic Terminal overrides, capture, and one-shot failure injection.
 
 #include "terminal/internal/terminal_test_hooks.h"
 #include "terminal/internal/terminal_platform.h"
@@ -90,8 +90,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
             state.prepared = false;
             state.captureEnabled = false;
             state.capturedOutput.clear();
-            state.preparationCalls = 0;
-            state.textWriteCalls = 0;
             state.terminalSizeOverrideEnabled = false;
             state.terminalSizeOverride = {};
             state.cursorPositionOverrideEnabled = false;
@@ -107,6 +105,9 @@ namespace GameWIP::Terminal::Detail::TestHooks
         terminalTestHookState.nextOutputPreparationFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextInputModeFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextReadFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextEndpointIdentityFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextCancellationResetFailure.enabled.store(false, std::memory_order_release);
+        terminalTestHookState.nextCancellationSignalFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextTerminalSizeFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextCursorPositionFailure.enabled.store(false, std::memory_order_release);
         terminalTestHookState.nextTextWriteFailure.enabled.store(false, std::memory_order_release);
@@ -141,9 +142,11 @@ namespace GameWIP::Terminal::TestHooks
     void reset() noexcept
     {
         resetTerminalTestHooks();
-        Detail::Platform::TestHooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, 0);
 #if defined(_WIN32)
+        Detail::Platform::TestHooks::resetWin32InputState();
         Detail::Platform::TestHooks::resetWin32KeyDecoder();
+#else
+        Detail::Platform::TestHooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, 0);
 #endif
     }
 
@@ -151,6 +154,11 @@ namespace GameWIP::Terminal::TestHooks
     void resetWin32KeyDecoder() noexcept
     {
         Detail::Platform::TestHooks::resetWin32KeyDecoder();
+    }
+
+    std::size_t consoleWaitCallCount() noexcept
+    {
+        return Detail::Platform::TestHooks::consoleWaitCallCount();
     }
 
     Win32KeyDecodeResult decodeWin32KeyRecord(
@@ -182,31 +190,12 @@ namespace GameWIP::Terminal::TestHooks
         state.capabilitiesOverrideEnabled = true;
     }
 
-    void clearInputCapabilitiesOverride(Terminal::Types::Input::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.capabilitiesOverride = {};
-        state.capabilitiesOverrideEnabled = false;
-    }
-
     void setOutputCapabilitiesOverride(Terminal::Types::Output::Stream stream, const Terminal::Types::Output::Capabilities &capabilities)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
         state.capabilitiesOverride = capabilities;
         state.capabilitiesOverrideEnabled = true;
-        state.prepared = false;
-    }
-
-    void clearOutputCapabilitiesOverride(Terminal::Types::Output::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
-        state.capabilitiesOverride = {};
-        state.capabilitiesOverrideEnabled = false;
-        state.preparedCapabilitiesOverride = {};
-        state.preparedCapabilitiesOverrideEnabled = false;
         state.prepared = false;
     }
 
@@ -227,23 +216,6 @@ namespace GameWIP::Terminal::TestHooks
         state.inputBytesOverrideEnabled = true;
     }
 
-    void appendInputBytes(Terminal::Types::Input::Stream stream, std::string_view bytes)
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.inputBytes.append(bytes.data(), bytes.size());
-        state.inputBytesOverrideEnabled = true;
-    }
-
-    void clearInputBytes(Terminal::Types::Input::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.inputBytes.clear();
-        state.inputBytesOverrideEnabled = false;
-        state.endOfStreamWhenInputEmpty = true;
-    }
-
     void setInputEvents(Terminal::Types::Input::Stream stream, std::span<const Terminal::Types::Event> events, bool endOfStreamWhenEmpty)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -252,16 +224,6 @@ namespace GameWIP::Terminal::TestHooks
         state.nextInputEvent = 0;
         state.endOfStreamWhenEventsEmpty = endOfStreamWhenEmpty;
         state.inputEventsOverrideEnabled = true;
-    }
-
-    void clearInputEvents(Terminal::Types::Input::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.inputEvents.clear();
-        state.nextInputEvent = 0;
-        state.endOfStreamWhenEventsEmpty = true;
-        state.inputEventsOverrideEnabled = false;
     }
 
     void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept
@@ -304,19 +266,6 @@ namespace GameWIP::Terminal::TestHooks
                state.exclusiveEventDelivery == exclusiveEventDelivery;
     }
 
-    void clearInputModeOverride(Terminal::Types::Input::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        InputHookState &state = terminalTestHookState.inputStreams[inputIndex(stream)];
-        state.lineBuffered = true;
-        state.echoInput = true;
-        state.processControlKeys = true;
-        state.reportResizeEvents = false;
-        state.reportPointerEvents = false;
-        state.exclusiveEventDelivery = false;
-        state.inputModeOverrideEnabled = false;
-    }
-
     // ------------------------------------------------------------
     // Output capture and simulation
     // ------------------------------------------------------------
@@ -357,18 +306,6 @@ namespace GameWIP::Terminal::TestHooks
         terminalTestHookState.outputStreams[outputIndex(stream)].capturedOutput.clear();
     }
 
-    std::size_t outputPreparationCallCount(Terminal::Types::Output::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        return terminalTestHookState.outputStreams[outputIndex(stream)].preparationCalls;
-    }
-
-    std::size_t textWriteCallCount(Terminal::Types::Output::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        return terminalTestHookState.outputStreams[outputIndex(stream)].textWriteCalls;
-    }
-
     void setTerminalSizeOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Size size)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -377,28 +314,12 @@ namespace GameWIP::Terminal::TestHooks
         state.terminalSizeOverrideEnabled = true;
     }
 
-    void clearTerminalSizeOverride(Terminal::Types::Output::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
-        state.terminalSizeOverride = {};
-        state.terminalSizeOverrideEnabled = false;
-    }
-
     void setCursorPositionOverride(Terminal::Types::Output::Stream stream, Terminal::Types::Cursor::Position position)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
         OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
         state.cursorPositionOverride = position;
         state.cursorPositionOverrideEnabled = true;
-    }
-
-    void clearCursorPositionOverride(Terminal::Types::Output::Stream stream) noexcept
-    {
-        std::lock_guard lock(terminalTestHookState.mutex);
-        OutputHookState &state = terminalTestHookState.outputStreams[outputIndex(stream)];
-        state.cursorPositionOverride = {};
-        state.cursorPositionOverrideEnabled = false;
     }
 
     void enableCursorRenderingSimulation(
@@ -530,6 +451,21 @@ namespace GameWIP::Terminal::TestHooks
     void forceNextReadFailure(IO::Types::ErrorCode code) noexcept
     {
         forceFailure(terminalTestHookState.nextReadFailure, code);
+    }
+
+    void forceNextEndpointIdentityFailure(IO::Types::ErrorCode code) noexcept
+    {
+        forceFailure(terminalTestHookState.nextEndpointIdentityFailure, code);
+    }
+
+    void forceNextCancellationResetFailure() noexcept
+    {
+        forceFailure(terminalTestHookState.nextCancellationResetFailure, IO::Types::ErrorCode::NativeFailure);
+    }
+
+    void forceNextCancellationSignalFailure() noexcept
+    {
+        forceFailure(terminalTestHookState.nextCancellationSignalFailure, IO::Types::ErrorCode::NativeFailure);
     }
 
     void forceNextTerminalSizeFailure(IO::Types::ErrorCode code) noexcept

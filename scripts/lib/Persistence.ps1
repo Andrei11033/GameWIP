@@ -1,4 +1,8 @@
-# GameWIP atomic persistence and common ownership-marker contracts.
+# Atomic text persistence and ownership-marker contracts.
+
+# ------------------------------------------------------------
+# Text, JSON, and ownership persistence
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 

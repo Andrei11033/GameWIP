@@ -1,4 +1,9 @@
-# GameWIP External tool-provider behavior. Dot-sourced by scripts/lib/Tools.ps1.
+# External tool-provider support for the project helper.
+
+# ------------------------------------------------------------
+# External ownership boundary
+# ------------------------------------------------------------
+
 function Get-GameWipExternalToolLatestVersion
 {
     param([hashtable]$Tool)

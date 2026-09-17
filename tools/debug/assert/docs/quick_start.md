@@ -14,7 +14,7 @@ Include the public header:
 
 ## Installed CMake
 
-Use the package target. The package resolves Logger when Assert was built with runtime support:
+Use the package target. The package resolves the shared application manifest helper and, when runtime support is enabled, Logger:
 
 Set `GAMEWIP_REQUIRED_VERSION` from the consuming project's dependency lock; see @ref project_library_compatibility.
 
@@ -30,6 +30,9 @@ When building inside the repository, link the short target:
 ```cmake
 target_link_libraries(MyTarget PRIVATE Assert)
 ```
+
+Applications that use interactive assertions can request Common Controls v6 for the preferred Task Dialog path. See @ref assert_configuration for
+application manifest setup, including composition with Desktop.
 
 ## Minimal usage
 
@@ -65,12 +68,11 @@ if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
 
 ## Failure handling
 
-Fatal failures report through Logger, may show Assert-owned UI, break only when the path requires a debugger break, and then either abort or follow
-the selected interactive action. Recoverable checks report through Logger and continue. Disabled macro behavior is documented in @ref
-assert_macro_behavior.
+Fatal failures report through Logger and may show Assert-owned UI. Non-interactive fatal failures break only when a debugger is attached and then
+abort; interactive failures follow the selected Break, Abort, Ignore Once, or Always Ignore action. Recoverable checks report through Logger and
+continue. Disabled macro behavior is documented in @ref assert_macro_behavior.
 
-Automated tests must not depend on real dialog interaction. Deterministic validation paths are documented in @ref assert_testing and @ref
-assert_test_hooks.
+Automated tests must not depend on real dialog interaction. Deterministic validation paths are documented in @ref assert_testing.
 
 ## Where to go next
 

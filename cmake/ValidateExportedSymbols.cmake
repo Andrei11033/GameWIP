@@ -20,6 +20,8 @@ foreach(line IN LISTS nm_lines)
     endif()
 
     set(symbol "${CMAKE_MATCH_1}")
+    # Hook exports are permitted only in explicitly hook-enabled validation builds;
+    # permanent allowlists continue to describe production ABI only.
     if(ALLOW_TEST_HOOKS AND symbol MATCHES "::(Detail::)?TestHooks::")
         continue()
     endif()

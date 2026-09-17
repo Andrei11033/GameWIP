@@ -294,27 +294,26 @@ namespace GameWIP::Terminal
                 /// @brief Unicode scalar value. Terminal-produced values are never surrogate code points.
                 char32_t value = U'\0';
 
-                /// @brief Compares Unicode scalar values.
                 friend constexpr bool operator==(CharacterKey, CharacterKey) noexcept = default;
             };
 
             /// @brief Portable non-character key reported by terminal input.
             enum class NamedKey : std::uint8_t
             {
-                Backspace,   ///< Backspace key.
-                Tab,         ///< Tab key. Shift+Tab is represented by the Shift modifier.
-                Enter,       ///< Enter or Return key.
-                Escape,      ///< Escape key.
-                Insert,      ///< Insert key.
-                Delete,      ///< Delete key.
-                Home,        ///< Home key.
-                End,         ///< End key.
-                PageUp,      ///< Page Up key.
-                PageDown,    ///< Page Down key.
-                ArrowUp,     ///< Up-arrow key.
-                ArrowDown,   ///< Down-arrow key.
-                ArrowLeft,   ///< Left-arrow key.
-                ArrowRight,  ///< Right-arrow key.
+                Backspace,
+                Tab, ///< Tab key. Shift+Tab is represented by the Shift modifier.
+                Enter,
+                Escape,
+                Insert,
+                Delete,
+                Home,
+                End,
+                PageUp,
+                PageDown,
+                ArrowUp,
+                ArrowDown,
+                ArrowLeft,
+                ArrowRight,
                 Begin,       ///< Begin or keypad-center navigation key where reportable.
                 CapsLock,    ///< Caps Lock key transition where reportable.
                 NumLock,     ///< Num Lock key transition where reportable.
@@ -330,7 +329,6 @@ namespace GameWIP::Terminal
                 /// @brief One-based function-key number. Terminal-produced values are always nonzero.
                 std::uint16_t number = 0;
 
-                /// @brief Compares function-key numbers.
                 friend constexpr bool operator==(FunctionKey, FunctionKey) noexcept = default;
             };
 
@@ -377,19 +375,16 @@ namespace GameWIP::Terminal
                 ScrollLock = 1U << 8U ///< Scroll Lock state is active where reportable.
             };
 
-            /// @brief Combines modifier-state bits.
             [[nodiscard]] constexpr KeyModifier operator|(KeyModifier left, KeyModifier right) noexcept
             {
                 return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) | static_cast<std::uint16_t>(right));
             }
 
-            /// @brief Intersects modifier-state bits.
             [[nodiscard]] constexpr KeyModifier operator&(KeyModifier left, KeyModifier right) noexcept
             {
                 return static_cast<KeyModifier>(static_cast<std::uint16_t>(left) & static_cast<std::uint16_t>(right));
             }
 
-            /// @brief Adds modifier-state bits to an existing mask.
             constexpr KeyModifier &operator|=(KeyModifier &left, KeyModifier right) noexcept
             {
                 left = left | right;
@@ -499,50 +494,50 @@ namespace GameWIP::Terminal
 
     /// @brief Returns a snapshot of capabilities for stdin.
     /// @return Status and capabilities observed for the current stdin endpoint. A successful Detached result is possible.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities() noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities() noexcept;
 
     /// @brief Returns capabilities for an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities(Types::Input::Stream stream) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities(Types::Input::Stream stream) noexcept;
 
     /// @name Input
     /// @{
 
     /// @brief Reads one structured input event from stdin through temporary managed ownership.
     /// @return Status, stopping outcome, and optional event payload.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::EventResult readEvent(const Types::Input::EventOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::EventResult readEvent(const Types::Input::EventOptions &options = {}) noexcept;
 
     /// @brief Reads one structured input event from an input stream through temporary managed ownership.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::EventResult readEvent(
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::EventResult readEvent(
         Types::Input::Stream stream,
         const Types::Input::EventOptions &options = {}) noexcept;
 
     /// @brief Reads one UTF-8 line from stdin.
     /// @return Status, stopping outcome, returned line, consumed ending, and truncation state. Partial line text may accompany
     /// EndOfStream, TimedOut, WouldBlock, Cancelled, or a later failure.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::LineResult readLine(const Types::Input::LineOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::LineResult readLine(const Types::Input::LineOptions &options = {}) noexcept;
 
     /// @brief Reads one line from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::LineResult readLine(
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::LineResult readLine(
         Types::Input::Stream stream,
         const Types::Input::LineOptions &options = {}) noexcept;
 
     /// @brief Reads one available complete UTF-8 text chunk from stdin.
     /// @return Status, stopping outcome, text, and truncation state. Size limits never split a valid UTF-8 code point.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::TextResult readText(const Types::Input::TextOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::TextResult readText(const Types::Input::TextOptions &options = {}) noexcept;
 
     /// @brief Reads one available UTF-8 text chunk from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::TextResult readText(
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::TextResult readText(
         Types::Input::Stream stream,
         const Types::Input::TextOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from stdin into caller storage.
     /// @return Status, stopping outcome, and bytes copied. Partial progress may accompany a later failure or terminating outcome.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::ByteResult readBytes(
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::ByteResult readBytes(
         std::span<std::byte> outputBuffer,
         const Types::Input::ByteOptions &options = {}) noexcept;
 
     /// @brief Reads bytes from an input stream into caller storage.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Input::ByteResult readBytes(
+    [[nodiscard]] TERMINAL_EXPORT Types::Input::ByteResult readBytes(
         Types::Input::Stream stream,
         std::span<std::byte> outputBuffer,
         const Types::Input::ByteOptions &options = {}) noexcept;

@@ -7,6 +7,7 @@ foreach(
         PROJECT_BUILD_DIR
         PROJECT_SOURCE_DIR
         INSTALL_PREFIX
+        INSTALL_LIBDIR
         CONSUMER_SOURCE_DIR
         CONSUMER_BUILD_DIR
         GENERATOR
@@ -17,6 +18,7 @@ foreach(
         CXX_COMPILER
         COVERAGE_ENABLED
         ADDRESS_SANITIZER_ENABLED
+        UNDEFINED_BEHAVIOR_SANITIZER_ENABLED
         EXECUTABLE_SUFFIX
 )
     if(NOT DEFINED ${required_variable})
@@ -34,6 +36,22 @@ execute_process(
 )
 if(NOT install_result EQUAL 0)
     message(FATAL_ERROR "GameWIP package installation failed.\n${install_output}\n${install_error}")
+endif()
+
+# Repeat the independent-directory probes using only the installed helper and
+# templates, so source-tree paths cannot accidentally make package tests pass.
+execute_process(
+    COMMAND
+        "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${CONSUMER_BUILD_DIR}/application-manifests"
+        "-DMODULE_DIR=${INSTALL_PREFIX}/${INSTALL_LIBDIR}/cmake/GameWIPApplication" "-DGENERATOR=${GENERATOR}" "-DCXX_COMPILER=${CXX_COMPILER}"
+        "-DBUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}" -P
+        "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
+    RESULT_VARIABLE manifest_result
+    OUTPUT_VARIABLE manifest_output
+    ERROR_VARIABLE manifest_error
+)
+if(NOT manifest_result EQUAL 0)
+    message(FATAL_ERROR "Installed application manifest validation failed.\n${manifest_output}\n${manifest_error}")
 endif()
 
 set(expected_gamewip_headers
@@ -74,6 +92,7 @@ set(expected_gamewip_headers
     desktop/cursor.h
     desktop/data_transfer.h
     desktop/description.h
+    desktop/dialogs.h
     desktop/display.h
     desktop/display_info.h
     desktop/drag_drop.h
@@ -111,7 +130,13 @@ function(
     prefix_path
 )
     file(REMOVE_RECURSE "${build_dir}")
-    string(REPLACE ";" "\\;" escaped_prefix_path "${prefix_path}")
+
+    set(package_prefix_path)
+    foreach(prefix IN LISTS prefix_path)
+        list(APPEND package_prefix_path "${prefix}" "${prefix}/${INSTALL_LIBDIR}/cmake")
+    endforeach()
+
+    string(REPLACE ";" "\\;" escaped_prefix_path "${package_prefix_path}")
 
     set(configure_command
         "${CMAKE_COMMAND}"
@@ -127,6 +152,7 @@ function(
         "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}"
         "-DGAMEWIP_CONSUMER_LINK_COVERAGE=${COVERAGE_ENABLED}"
         "-DGAMEWIP_CONSUMER_ENABLE_ADDRESS_SANITIZER=${ADDRESS_SANITIZER_ENABLED}"
+        "-DGAMEWIP_CONSUMER_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER=${UNDEFINED_BEHAVIOR_SANITIZER_ENABLED}"
     )
     if(NOT MULTI_CONFIG)
         list(APPEND configure_command "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}")
@@ -183,17 +209,16 @@ foreach(
     )
 endforeach()
 
-# Assert must retain its own resource prefix while Logger and its dependencies
+# Assert must retain its own package prefix while its dependencies
 # are discovered from a separate installation root on every supported CMake.
 set(assert_prefix "${CONSUMER_BUILD_DIR}/assert-prefix")
 file(REMOVE_RECURSE "${assert_prefix}")
-file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/lib/cmake" "${assert_prefix}/share" "${assert_prefix}/bin")
+file(MAKE_DIRECTORY "${assert_prefix}/include/debug" "${assert_prefix}/${INSTALL_LIBDIR}/cmake" "${assert_prefix}/bin")
 file(COPY "${INSTALL_PREFIX}/include/debug/assert" DESTINATION "${assert_prefix}/include/debug")
-file(COPY "${INSTALL_PREFIX}/lib/cmake/Assert" DESTINATION "${assert_prefix}/lib/cmake")
-file(COPY "${INSTALL_PREFIX}/share/Assert" DESTINATION "${assert_prefix}/share")
-file(GLOB assert_link_files "${INSTALL_PREFIX}/lib/*Assert*")
+file(COPY "${INSTALL_PREFIX}/${INSTALL_LIBDIR}/cmake/Assert" DESTINATION "${assert_prefix}/${INSTALL_LIBDIR}/cmake")
+file(GLOB assert_link_files "${INSTALL_PREFIX}/${INSTALL_LIBDIR}/*Assert*")
 if(assert_link_files)
-    file(COPY ${assert_link_files} DESTINATION "${assert_prefix}/lib")
+    file(COPY ${assert_link_files} DESTINATION "${assert_prefix}/${INSTALL_LIBDIR}")
 endif()
 file(GLOB assert_runtime_files "${INSTALL_PREFIX}/bin/*Assert*")
 if(assert_runtime_files)

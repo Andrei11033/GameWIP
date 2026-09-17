@@ -28,7 +28,9 @@ void testChildSurfaces(TestSupport::Context &context)
     Desktop::Window parent;
     static_cast<void>(context.expectTrue("ChildSurface parent opens", parent.open(parentDescription, 32).ok()));
     if (!parent.isOpen())
+    {
         return;
+    }
 
     std::span<ChildEvent> emptyStorage;
     static_cast<void>(
@@ -140,13 +142,21 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectEq("ChildSurface coordinate conversion round-trips origin", Desktop::Types::LogicalPosition{}, local.position));
 
     static_cast<void>(context.expectTrue("ChildSurface show is idempotent", surface.show().ok()));
+    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::WindowStyleQuery);
+    static_cast<void>(context.expectEq("visibility query failure is returned", ErrorCode::NativeFailure, surface.hide().code));
+    static_cast<void>(context.expectTrue("visibility query failure preserves cache", surface.visible()));
+    static_cast<void>(context.expectTrue(
+        "visibility query failure restores native visibility",
+        (static_cast<DWORD>(GetWindowLongPtrW(Desktop::Native::Win32::getHandle(surface).handle.window, GWL_STYLE)) & WS_VISIBLE) != 0));
     static_cast<void>(context.expectTrue("ChildSurface hide succeeds", surface.hide().ok()));
     static_cast<void>(context.expectFalse("hide updates visibility cache", surface.visible()));
     static_cast<void>(context.expectTrue("ChildSurface show succeeds", surface.show().ok()));
     static_cast<void>(context.expectTrue("show updates visibility cache", surface.visible()));
     bool foundVisibilityEvent = false;
     while (surface.popEvent(geometryEvent))
+    {
         foundVisibilityEvent = foundVisibilityEvent || geometryEvent.getIf<ChildEvents::VisibilityChanged>() != nullptr;
+    }
     static_cast<void>(context.expectTrue("show and hide queue VisibilityChanged", foundVisibilityEvent));
     static_cast<void>(context.expectTrue("ChildSurface interaction enables", surface.setUserInteractionEnabled(true).ok()));
     static_cast<void>(context.expectTrue("interaction cache updates", surface.userInteractionEnabled()));
@@ -201,7 +211,9 @@ void testChildSurfaces(TestSupport::Context &context)
     const auto *position = event.getIf<ChildEvents::PositionChanged>();
     static_cast<void>(context.expectTrue("coalesced event has PositionChanged payload", position != nullptr));
     if (position != nullptr)
+    {
         static_cast<void>(context.expectEq("coalesced position retains latest value", Desktop::Types::LogicalPosition{20, 20}, position->position));
+    }
     const std::uint64_t lifetimeSequence = event.sequence;
 
     static_cast<void>(sibling.close());
@@ -244,7 +256,9 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectEq("reopen before finalization is rejected", ErrorCode::AlreadyOpen, surface.open(parent).code));
     bool foundNativeDestroyed = false;
     while (surface.popEvent(event))
+    {
         foundNativeDestroyed = foundNativeDestroyed || event.getIf<ChildEvents::NativeDestroyed>() != nullptr;
+    }
     static_cast<void>(context.expectTrue("NativeDestroyed survives a full queue", foundNativeDestroyed));
     static_cast<void>(context.expectTrue("NativeDestroyed eviction increments drop count", surface.eventQueueInfo().droppedEvents > 0));
     surface.clearDroppedEventCount();
@@ -309,11 +323,15 @@ void testChildSurfaces(TestSupport::Context &context)
 void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Window native child surface"))
+    {
         return;
+    }
 
     Desktop::Window parent;
     if (!openManualWindow(context, parent, "GameWIP ChildSurface native-host validation"))
+    {
         return;
+    }
     Desktop::ChildSurface surface;
     Desktop::Types::ChildSurface::Description description;
     description.rect = {{180, 140}, {600, 260}};

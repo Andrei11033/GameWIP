@@ -1,8 +1,8 @@
 @page filesystem_quick_start Quick start
 
 The first workflow writes and reads a complete UTF-8 file with checked results.
-It also shows the package dependencies and status handling every FileSystem
-consumer needs.
+It also shows the package dependencies and status handling used by a typical
+FileSystem consumer.
 
 ## Include
 
@@ -117,7 +117,8 @@ the replacement is already visible.
 
 ## Failure handling
 
-Always inspect the status before consuming a result as complete. Some failures intentionally preserve progress:
+Always inspect the status before treating a result as complete. Some failures
+intentionally preserve progress:
 
 - whole-file reads may return collected bytes or text with a failed status;
 - non-atomic writes may return a nonzero `bytesWritten` with failure;

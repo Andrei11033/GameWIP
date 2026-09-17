@@ -36,11 +36,9 @@ namespace GameWIP::Terminal
         struct Segment;
     } // namespace Types::Output
 
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment textSegment(std::string_view text) noexcept;
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment styledTextSegment(
-        std::string_view text,
-        const Types::Style::Request &style) noexcept;
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment byteSegment(std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment textSegment(std::string_view text) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment styledTextSegment(std::string_view text, const Types::Style::Request &style) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment byteSegment(std::span<const std::byte> bytes) noexcept;
 
     /// @brief Default timeout used by best-effort terminal control queries.
     inline constexpr std::chrono::milliseconds kDefaultQueryTimeout{100};
@@ -271,10 +269,10 @@ namespace GameWIP::Terminal
                 }
 
             private:
-                friend GAMEWIP_TERMINAL_EXPORT Segment GameWIP::Terminal::textSegment(std::string_view text) noexcept;
-                friend GAMEWIP_TERMINAL_EXPORT Segment
+                friend TERMINAL_EXPORT Segment GameWIP::Terminal::textSegment(std::string_view text) noexcept;
+                friend TERMINAL_EXPORT Segment
                 GameWIP::Terminal::styledTextSegment(std::string_view text, const Types::Style::Request &style) noexcept;
-                friend GAMEWIP_TERMINAL_EXPORT Segment GameWIP::Terminal::byteSegment(std::span<const std::byte> bytes) noexcept;
+                friend TERMINAL_EXPORT Segment GameWIP::Terminal::byteSegment(std::span<const std::byte> bytes) noexcept;
 
                 Segment(
                     Types::Output::SegmentKind kind,
@@ -362,7 +360,7 @@ namespace GameWIP::Terminal
     /// @param text Caller-owned UTF-8 text.
     /// @return A non-owning segment that refers to text.
     /// @warning The referenced text must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment textSegment(std::string_view text) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment textSegment(std::string_view text) noexcept;
 
     /// @brief Rejects temporary string storage that would leave the segment dangling.
     template <typename String>
@@ -374,9 +372,7 @@ namespace GameWIP::Terminal
     /// @param style Style copied into the segment.
     /// @return A non-owning segment that refers to text and owns a copy of style.
     /// @warning The referenced text must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment styledTextSegment(
-        std::string_view text,
-        const Types::Style::Request &style) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment styledTextSegment(std::string_view text, const Types::Style::Request &style) noexcept;
 
     /// @brief Rejects temporary string storage that would leave the segment dangling.
     template <typename String>
@@ -387,7 +383,7 @@ namespace GameWIP::Terminal
     /// @param bytes Caller-owned bytes.
     /// @return A non-owning segment that refers to bytes.
     /// @warning The referenced bytes must remain alive until the segment's writeSegments() call returns.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::Segment byteSegment(std::span<const std::byte> bytes) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment byteSegment(std::span<const std::byte> bytes) noexcept;
 
     /// @brief Rejects temporary contiguous storage that would leave the segment dangling.
     template <std::ranges::contiguous_range Range>
@@ -408,7 +404,7 @@ namespace GameWIP::Terminal
     /// @details Failure before the enter sequence is emitted produces an inactive scope. A flush failure after emission preserves
     /// active leave responsibility. Failed explicit leave remains active for retry. Nesting is coordinated per output stream; do
     /// not mix manual transitions with active scopes for that stream.
-    class GAMEWIP_TERMINAL_EXPORT AlternateScreenScope final
+    class TERMINAL_EXPORT AlternateScreenScope final
     {
     public:
         /// @brief Creates an inactive alternate screen scope.
@@ -440,7 +436,7 @@ namespace GameWIP::Terminal
 
     private:
         friend class Session;
-        friend GAMEWIP_TERMINAL_EXPORT AlternateScreenScope
+        friend TERMINAL_EXPORT AlternateScreenScope
         scopedAlternateScreen(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept;
 
         Types::Output::Stream stream_ = Types::Output::Stream::Stdout;
@@ -455,7 +451,7 @@ namespace GameWIP::Terminal
     /// @details Failure before the hide sequence is emitted produces an inactive scope. A flush failure after emission preserves
     /// active restoration responsibility. Failed explicit restoration remains active for retry. Nesting is coordinated per output
     /// stream; do not mix manual visibility changes with active scopes for that stream.
-    class GAMEWIP_TERMINAL_EXPORT CursorHiddenScope final
+    class TERMINAL_EXPORT CursorHiddenScope final
     {
     public:
         /// @brief Creates an inactive cursor-hidden scope.
@@ -487,7 +483,7 @@ namespace GameWIP::Terminal
 
     private:
         friend class Session;
-        friend GAMEWIP_TERMINAL_EXPORT CursorHiddenScope
+        friend TERMINAL_EXPORT CursorHiddenScope
         scopedCursorHidden(Types::Output::Stream stream, const Types::Output::ControlOptions &options) noexcept;
 
         Types::Output::Stream stream_ = Types::Output::Stream::Stdout;
@@ -511,7 +507,7 @@ namespace GameWIP::Terminal
     /// @details The object owns its string storage and is not internally synchronized. Text arguments are valid UTF-8 by
     /// contract. Allocating mutation and formatting report failures through IO::Types::Status and preserve the previous
     /// complete buffer contents when an operation fails.
-    class GAMEWIP_TERMINAL_EXPORT OutputBuffer final
+    class TERMINAL_EXPORT OutputBuffer final
     {
     public:
         /// @brief Creates an empty output buffer using the native line ending.
@@ -581,24 +577,24 @@ namespace GameWIP::Terminal
 
     /// @brief Observes a snapshot of currently active stdout capabilities without preparing the stream.
     /// @return Status and capabilities observed for the current stdout endpoint. Later endpoint changes can stale the snapshot.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities() noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities() noexcept;
 
     /// @brief Observes currently active capabilities without preparing the stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities(Types::Output::Stream stream) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities(Types::Output::Stream stream) noexcept;
 
     /// @brief Enables stdout support required by styling and terminal controls.
     /// @details Preparation is idempotent. Redirected streams need no setup, detached streams report NotOpen,
     /// and styled writes or controls prepare lazily when needed.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult prepareOutput() noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::CapabilitiesResult prepareOutput() noexcept;
 
     /// @brief Enables stream support required by styling and terminal controls.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Output::CapabilitiesResult prepareOutput(Types::Output::Stream stream) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Output::CapabilitiesResult prepareOutput(Types::Output::Stream stream) noexcept;
 
     /// @brief Returns the terminal size for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::SizeResult getTerminalSize() noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::SizeResult getTerminalSize() noexcept;
 
     /// @brief Returns the terminal size for an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::SizeResult getTerminalSize(Types::Output::Stream stream) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::SizeResult getTerminalSize(Types::Output::Stream stream) noexcept;
 
     // ------------------------------------------------------------
     // Output
@@ -608,46 +604,44 @@ namespace GameWIP::Terminal
     /// @{
 
     /// @brief Writes UTF-8 text to stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(
-        std::string_view utf8Text,
-        const Types::Output::TextOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeText(std::string_view utf8Text, const Types::Output::TextOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text to an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeText(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeText(
         Types::Output::Stream stream,
         std::string_view utf8Text,
         const Types::Output::TextOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text followed by a line ending to stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeLine(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeLine(
         std::string_view utf8Text = {},
         const Types::Output::LineOptions &options = {}) noexcept;
 
     /// @brief Writes UTF-8 text followed by a line ending to an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeLine(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeLine(
         Types::Output::Stream stream,
         std::string_view utf8Text = {},
         const Types::Output::LineOptions &options = {}) noexcept;
 
     /// @brief Writes bytes to stdout where the endpoint supports raw byte output.
     /// @return Accepted-byte count and status. A requested flush can fail after the full byte count was accepted.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
         std::span<const std::byte> bytes,
         const Types::Output::ByteOptions &options = {}) noexcept;
 
     /// @brief Writes bytes to an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::WriteResult writeBytes(
         Types::Output::Stream stream,
         std::span<const std::byte> bytes,
         const Types::Output::ByteOptions &options = {}) noexcept;
 
     /// @brief Writes text, styled text, and byte segments to stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeSegments(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeSegments(
         std::span<const Types::Output::Segment> segments,
         const Types::Output::SegmentOptions &options = {}) noexcept;
 
     /// @brief Writes text, styled text, and byte segments to an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status writeSegments(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status writeSegments(
         Types::Output::Stream stream,
         std::span<const Types::Output::Segment> segments,
         const Types::Output::SegmentOptions &options = {}) noexcept;
@@ -693,10 +687,10 @@ namespace GameWIP::Terminal
         Args &&...args) noexcept;
 
     /// @brief Flushes stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
     /// @brief Flushes an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status flush(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status flush(
         Types::Output::Stream stream,
         IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
@@ -710,106 +704,104 @@ namespace GameWIP::Terminal
     /// @{
 
     /// @brief Resets style on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status resetStyle(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Resets style on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status resetStyle(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status resetStyle(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Moves the cursor on stdout.
     /// @note A zero amount emits no control sequence but can still honor options.flushMode.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status moveCursor(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status moveCursor(
         Types::Cursor::MoveDirection direction,
         std::uint32_t amount = 1,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Moves the cursor on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status moveCursor(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status moveCursor(
         Types::Output::Stream stream,
         Types::Cursor::MoveDirection direction,
         std::uint32_t amount = 1,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor position on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorPosition(
         Types::Cursor::Position position,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor position on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorPosition(
         Types::Output::Stream stream,
         Types::Cursor::Position position,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Queries cursor position on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Cursor::PositionResult getCursorPosition(const Types::Cursor::QueryOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT Types::Cursor::PositionResult getCursorPosition(const Types::Cursor::QueryOptions &options = {}) noexcept;
 
     /// @brief Queries cursor position through an output stream and reads protocol responses from an input stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT Types::Cursor::PositionResult getCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT Types::Cursor::PositionResult getCursorPosition(
         Types::Output::Stream outputStream,
         Types::Input::Stream responseStream,
         const Types::Cursor::QueryOptions &options = {}) noexcept;
 
     /// @brief Saves cursor position on stdout.
     /// @note Saved position is backend state, not a guaranteed stack; a later save can replace it.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status saveCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status saveCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Saves cursor position on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status saveCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status saveCursorPosition(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Restores cursor position on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Restores cursor position on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status restoreCursorPosition(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor visibility on stdout.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorVisible(
-        bool visible,
-        const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorVisible(bool visible, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets cursor visibility on an output stream.
     /// @warning Do not mix manual visibility changes with active CursorHiddenScope objects for the same stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setCursorVisible(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setCursorVisible(
         Types::Output::Stream stream,
         bool visible,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Hides the cursor on stdout until the returned scope restores it.
     /// @warning Do not use manual visibility changes while the returned scope is active.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT CursorHiddenScope scopedCursorHidden(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT CursorHiddenScope scopedCursorHidden(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Hides the cursor on an output stream until the returned scope restores it.
     /// @warning Do not use manual visibility changes for the same stream while the returned scope is active.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT CursorHiddenScope
+    [[nodiscard]] TERMINAL_EXPORT CursorHiddenScope
     scopedCursorHidden(Types::Output::Stream stream, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Clears a screen or line region on stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status clear(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status clear(
         Types::Output::ClearTarget target = Types::Output::ClearTarget::EntireScreen,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Clears a screen or line region on an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status clear(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status clear(
         Types::Output::Stream stream,
         Types::Output::ClearTarget target = Types::Output::ClearTarget::EntireScreen,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Scrolls stdout.
     /// @note A zero line count emits no control sequence but can still honor options.flushMode.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status scroll(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status scroll(
         Types::Output::ScrollDirection direction,
         std::uint32_t lines = 1,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Scrolls an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status scroll(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status scroll(
         Types::Output::Stream stream,
         Types::Output::ScrollDirection direction,
         std::uint32_t lines = 1,
@@ -817,51 +809,49 @@ namespace GameWIP::Terminal
 
     /// @brief Enters alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status enterAlternateScreen(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Leaves alternate screen mode on stdout.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for stdout.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Leaves alternate screen mode on an output stream.
     /// @warning Do not mix manual transitions with active AlternateScreenScope objects for the same stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status leaveAlternateScreen(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on stdout until the returned scope leaves it.
     /// @warning Do not use manual alternate-screen transitions while the returned scope is active.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT AlternateScreenScope scopedAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT AlternateScreenScope scopedAlternateScreen(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Enters alternate screen mode on an output stream until the returned scope leaves it.
     /// @warning Do not use manual alternate-screen transitions for the same stream while the returned scope is active.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT AlternateScreenScope
+    [[nodiscard]] TERMINAL_EXPORT AlternateScreenScope
     scopedAlternateScreen(Types::Output::Stream stream, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets the terminal title through stdout.
     /// @details Backend limits and sanitization apply; the current Win32 backend replaces C0 controls and DEL with spaces.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setTitle(
-        std::string_view utf8Title,
-        const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setTitle(std::string_view utf8Title, const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Sets the terminal title through an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status setTitle(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status setTitle(
         Types::Output::Stream stream,
         std::string_view utf8Title,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Emits the terminal bell control through stdout.
     /// @note Terminal or user settings decide whether the control produces an audible sound.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status ringBell(const Types::Output::ControlOptions &options = {}) noexcept;
 
     /// @brief Rings the terminal bell through an output stream.
-    [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status ringBell(
+    [[nodiscard]] TERMINAL_EXPORT IO::Types::Status ringBell(
         Types::Output::Stream stream,
         const Types::Output::ControlOptions &options = {}) noexcept;
 
@@ -871,7 +861,7 @@ namespace GameWIP::Terminal
     {
         /// @brief Exported ABI bridge used by the public print() templates.
         /// @warning Internal support symbol; consumers must call print() instead.
-        [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status vprint(
+        [[nodiscard]] TERMINAL_EXPORT IO::Types::Status vprint(
             Types::Output::Stream stream,
             const Types::Output::TextOptions &options,
             std::string_view format,
@@ -879,7 +869,7 @@ namespace GameWIP::Terminal
 
         /// @brief Exported ABI bridge used by the public println() templates.
         /// @warning Internal support symbol; consumers must call println() instead.
-        [[nodiscard]] GAMEWIP_TERMINAL_EXPORT IO::Types::Status vprintln(
+        [[nodiscard]] TERMINAL_EXPORT IO::Types::Status vprintln(
             Types::Output::Stream stream,
             const Types::Output::LineOptions &options,
             std::string_view format,

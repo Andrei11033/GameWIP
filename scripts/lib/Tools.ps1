@@ -1,4 +1,8 @@
-# GameWIP project-tool public surface and provider-independent helpers.
+# Project-tool commands and provider-independent helpers.
+
+# ------------------------------------------------------------
+# Registry and provider selection
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 
@@ -382,7 +386,7 @@ function Get-GameWipToolchainPathPrefix
     {
         return ''
     }
-    if ($PresetName -eq 'asan')
+    if ($PresetName -in @('asan', 'ubsan'))
     {
         return Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'clang64/bin'
     }

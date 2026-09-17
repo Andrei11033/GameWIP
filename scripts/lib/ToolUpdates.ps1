@@ -1,4 +1,8 @@
-# GameWIP tool update/ensure planning, preflight, installation, and tracked commit behavior.
+# Tool update and ensure planning, preflight, installation, and tracked commits.
+
+# ------------------------------------------------------------
+# Update planning and tracked mutations
+# ------------------------------------------------------------
 
 Set-StrictMode -Version Latest
 
@@ -31,15 +35,26 @@ function Get-GameWipRepositoryRelativePath
 
 function Get-GameWipToolUpdatePlan
 {
-    param([string]$ToolId)
-    $selected = @(Get-GameWipProjectToolSelection -Selector $(if ([string]::IsNullOrWhiteSpace($ToolId))
+    param([string[]]$ToolId)
+    if ($null -eq $ToolId -or $ToolId.Count -eq 0 -or ($ToolId.Count -eq 1 -and [string]::IsNullOrWhiteSpace($ToolId[0])))
+    {
+        $ToolId = @('all')
+    }
+
+    # Resolve the complete selection before querying or mutating anything. A
+    # tool selected twice still belongs to this one update plan only once.
+    $selected = [System.Collections.Generic.List[object]]::new()
+    $selectedIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($selector in $ToolId)
+    {
+        foreach ($tool in @(Get-GameWipProjectToolSelection -Selector $selector))
+        {
+            if ($selectedIds.Add([string]$tool.id))
             {
-                'all'
+                $selected.Add($tool)
             }
-            else
-            {
-                $ToolId
-            }))
+        }
+    }
 
     $plan = [System.Collections.Generic.List[object]]::new()
     Write-Host "Checking $($selected.Count) declared tool(s) for upstream versions..."
@@ -469,15 +484,84 @@ function Test-GameWipToolPlanRequiresInstall
     )
 }
 
+function Invoke-GameWipToolInstallPlan
+{
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$InstallPlan,
+        [Parameter(Mandatory = $true)]$TrackedPlan
+    )
+
+    if ($InstallPlan.Count -eq 0)
+    {
+        return
+    }
+    Initialize-GameWipManagedToolRoot
+    foreach ($item in $InstallPlan)
+    {
+        Assert-GameWipNotCancelled
+        $installTool = Get-GameWipPlannedInstallTool -PlanItem $item -TrackedPlan $TrackedPlan
+        $version = if ($installTool.Contains('requiredVersion'))
+        {
+            [string]$installTool.requiredVersion
+        }
+        else
+        {
+            $null
+        }
+        Write-GameWipOperationEvent -Phase execute -Step $item.Tool.id -Severity progress -Message "Installing/verifying $($item.Tool.name) $(if ($version) { $version } else { '' })..."
+        $functionName = Get-GameWipProviderFunction -Tool $installTool -Operation Install
+        & $functionName -Tool $installTool -Version $version
+        $verified = Get-GameWipDetectedTool -Tool $installTool
+        $compatibility = Get-GameWipToolCompatibility -Tool $installTool -Detected $verified
+        if ($compatibility -ne 'compatible' -or -not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified))
+        {
+            throw "Tool '$($installTool.id)' failed post-install verification (state=$compatibility, location=$($verified.Location))."
+        }
+        Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
+    }
+}
+
+function Invoke-GameWipTrackedToolMutation
+{
+    param([Parameter(Mandatory = $true)]$TrackedPlan)
+
+    $originalTrackedContent = @{}
+    $writtenTrackedPaths = [System.Collections.Generic.List[string]]::new()
+    foreach ($entry in $TrackedPlan.Files.GetEnumerator())
+    {
+        $originalTrackedContent[[string]$entry.Key] = Read-GameWipUtf8Text -Path ([string]$entry.Key)
+    }
+    try
+    {
+        foreach ($entry in $TrackedPlan.Files.GetEnumerator())
+        {
+            Assert-GameWipNotCancelled
+            Write-GameWipTextAtomic -Path ([string]$entry.Key) -Content ([string]$entry.Value)
+            $writtenTrackedPaths.Add([string]$entry.Key) | Out-Null
+            Add-GameWipOperationChange -Message "Updated tracked file $(Get-GameWipRepositoryRelativePath -Path ([string]$entry.Key))"
+        }
+    }
+    catch
+    {
+        # Restore in reverse order so a partial plan leaves the tracked tree as it was.
+        for ($index = $writtenTrackedPaths.Count - 1; $index -ge 0; --$index)
+        {
+            $writtenPath = $writtenTrackedPaths[$index]
+            Write-GameWipTextAtomic -Path $writtenPath -Content ([string]$originalTrackedContent[$writtenPath])
+        }
+        throw
+    }
+}
+
 function Invoke-GameWipToolUpdate
 {
-    param([string]$ToolId, [switch]$PreviewOnly)
-    if ([string]::IsNullOrWhiteSpace($ToolId))
+    param([string[]]$ToolId, [switch]$PreviewOnly)
+    if ($null -eq $ToolId -or $ToolId.Count -eq 0 -or ($ToolId.Count -eq 1 -and [string]::IsNullOrWhiteSpace($ToolId[0])))
     {
-        $ToolId = 'all'
+        $ToolId = @('all')
     }
 
-    Write-GameWipOperationEvent -Phase discover -Severity info -Message "Resolving project-tool state for '$ToolId'..."
+    Write-GameWipOperationEvent -Phase discover -Severity info -Message "Resolving project-tool state for '$($ToolId -join ', ')'..."
     $plan = @(Get-GameWipToolUpdatePlan -ToolId $ToolId)
     $trackedPlan = Get-GameWipTrackedToolMutationPlan -Plan $plan
 
@@ -517,60 +601,8 @@ function Invoke-GameWipToolUpdate
     }
 
     Invoke-GameWipMutationBody -Body {
-        if ($installPlan.Count -ne 0)
-        {
-            Initialize-GameWipManagedToolRoot
-        }
-
-        foreach ($item in $installPlan)
-        {
-            Assert-GameWipNotCancelled
-            $installTool = Get-GameWipPlannedInstallTool -PlanItem $item -TrackedPlan $trackedPlan
-            $version = if ($installTool.Contains('requiredVersion'))
-            {
-                [string]$installTool.requiredVersion
-            }
-            else
-            {
-                $null
-            }
-            Write-GameWipOperationEvent -Phase execute -Step $item.Tool.id -Severity progress -Message "Installing/verifying $($item.Tool.name) $(if ($version) { $version } else { '' })..."
-            $functionName = Get-GameWipProviderFunction -Tool $installTool -Operation Install
-            & $functionName -Tool $installTool -Version $version
-            $verified = Get-GameWipDetectedTool -Tool $installTool
-            $compatibility = Get-GameWipToolCompatibility -Tool $installTool -Detected $verified
-            if ($compatibility -ne 'compatible' -or -not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified))
-            {
-                throw "Tool '$($installTool.id)' failed post-install verification (state=$compatibility, location=$($verified.Location))."
-            }
-            Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
-        }
-
-        $originalTrackedContent = @{}
-        $writtenTrackedPaths = [System.Collections.Generic.List[string]]::new()
-        foreach ($entry in $trackedPlan.Files.GetEnumerator())
-        {
-            $originalTrackedContent[[string]$entry.Key] = Read-GameWipUtf8Text -Path ([string]$entry.Key)
-        }
-        try
-        {
-            foreach ($entry in $trackedPlan.Files.GetEnumerator())
-            {
-                Assert-GameWipNotCancelled
-                Write-GameWipTextAtomic -Path ([string]$entry.Key) -Content ([string]$entry.Value)
-                $writtenTrackedPaths.Add([string]$entry.Key) | Out-Null
-                Add-GameWipOperationChange -Message "Updated tracked file $(Get-GameWipRepositoryRelativePath -Path ([string]$entry.Key))"
-            }
-        }
-        catch
-        {
-            for ($index = $writtenTrackedPaths.Count - 1; $index -ge 0; --$index)
-            {
-                $writtenPath = $writtenTrackedPaths[$index]
-                Write-GameWipTextAtomic -Path $writtenPath -Content ([string]$originalTrackedContent[$writtenPath])
-            }
-            throw
-        }
+        Invoke-GameWipToolInstallPlan -InstallPlan $installPlan -TrackedPlan $trackedPlan
+        Invoke-GameWipTrackedToolMutation -TrackedPlan $trackedPlan
 
         if ($trackedPlan.RegistryChanged)
         {
@@ -634,7 +666,11 @@ function Assert-GameWipPinnedToolAvailable
         {
             try
             {
-                $null = Find-Module -Name ([string]$Tool.provider.package) -RequiredVersion $version -Repository PSGallery -ErrorAction Stop
+                $versions = @(Get-GameWipPowerShellGalleryVersions -Package ([string]$Tool.provider.package))
+                if ($versions -notcontains $version)
+                {
+                    throw "Gallery metadata does not list version $version."
+                }
             }
             catch
             {

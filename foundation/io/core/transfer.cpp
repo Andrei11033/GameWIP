@@ -2,7 +2,6 @@
 /// @brief Implements IO status helpers, default interfaces, memory streams, and whole-transfer algorithms.
 
 #include "io/transfer.h"
-#include "io/internal/io_test_hooks.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
@@ -21,9 +20,8 @@ namespace GameWIP::IO::Detail::Core
 {
     namespace
     {
-        /// @brief Returns whether a reader capability failure should select the unknown-size path.
-        /// @param status Status returned by a reader capability query.
-        /// @return True when helpers may continue through the unknown-size path.
+        // Non-seekable readers are allowed to use the streaming path; other
+        // capability failures must propagate instead of being hidden.
         [[nodiscard]] bool isUnsupportedReaderCapability(const Types::Status &status) noexcept
         {
             return status.code == Types::ErrorCode::NotSeekable || status.code == Types::ErrorCode::Unsupported;
@@ -40,9 +38,6 @@ namespace GameWIP::IO::Detail::Core
             bool known = false;
         };
 
-        /// @brief Finds a known readable byte count when a reader exposes size and optionally position.
-        /// @param reader Reader to query.
-        /// @return Known remaining bytes, unknown success, or a capability-query failure.
         [[nodiscard]] KnownReadableByteCount knownReadableByteCount(Reader &reader) noexcept
         {
             KnownReadableByteCount result;
@@ -114,11 +109,6 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
-        /// @brief Reads a known number of bytes directly into the final output vector.
-        /// @param reader Reader to drain.
-        /// @param knownByteCount Known bytes remaining from the current reader position.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected bytes and final status.
         [[nodiscard]] Types::ReadAllBytesResult readAllBytesKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes) noexcept
         {
             Types::ReadAllBytesResult result;
@@ -144,9 +134,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllBytesStorage);
-#endif
                 result.bytes.resize(expectedSize);
             }
             catch (const std::bad_alloc &)
@@ -206,11 +193,6 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
-        /// @brief Reads a known number of bytes directly into the final output string.
-        /// @param reader Reader to drain.
-        /// @param knownByteCount Known bytes remaining from the current reader position.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected text bytes and final status.
         [[nodiscard]] Types::ReadAllTextResult readAllTextKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes) noexcept
         {
             Types::ReadAllTextResult result;
@@ -236,9 +218,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllTextStorage);
-#endif
                 result.text.resize(expectedSize);
             }
             catch (const std::bad_alloc &)
@@ -299,14 +278,11 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
-        /// @brief Appends bytes to a vector without value-initializing the destination range first.
-        /// @param destination Destination vector.
-        /// @param source Source bytes to append.
-        /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
-        [[nodiscard]] Types::Status appendBytes(
-            std::vector<std::byte> &destination,
-            std::span<const std::byte> source,
-            bool injectReadAllFailure) noexcept
+        // These helpers copy scratch data directly into their destinations so
+        // the transfer path does not create a second temporary range.
+        // Both public streaming entry points reject an empty scratch buffer
+        // before reaching these helpers, so each read request can make progress.
+        [[nodiscard]] Types::Status appendBytes(std::vector<std::byte> &destination, std::span<const std::byte> source) noexcept
         {
             if (source.empty())
             {
@@ -320,14 +296,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                if (injectReadAllFailure)
-                {
-                    ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllBytesStorage);
-                }
-#else
-                static_cast<void>(injectReadAllFailure);
-#endif
                 destination.insert(destination.end(), source.begin(), source.end());
             }
             catch (const std::bad_alloc &)
@@ -346,10 +314,6 @@ namespace GameWIP::IO::Detail::Core
             return successStatus();
         }
 
-        /// @brief Appends bytes to a string without value-initializing the destination range first.
-        /// @param destination Destination string.
-        /// @param source Source bytes to append.
-        /// @return Success, SizeLimitExceeded for a representational limit, or OutOfMemory for allocation failure.
         [[nodiscard]] Types::Status appendTextBytes(std::string &destination, std::span<const std::byte> source) noexcept
         {
             if (source.empty())
@@ -364,9 +328,6 @@ namespace GameWIP::IO::Detail::Core
 
             try
             {
-#if IO_INTERNAL_TEST_HOOKS
-                ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllTextStorage);
-#endif
                 destination.append(reinterpret_cast<const char *>(source.data()), source.size());
             }
             catch (const std::bad_alloc &)
@@ -416,11 +377,6 @@ namespace GameWIP::IO::Detail::Core
             return makeStatus(Types::ErrorCode::ReadFailed);
         }
 
-        /// @brief Reads unknown-size bytes through caller-provided scratch storage.
-        /// @param reader Reader to drain.
-        /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected bytes and final status.
         [[nodiscard]] Types::ReadAllBytesResult readAllBytesWithScratch(
             Reader &reader,
             std::span<std::byte> scratchBuffer,
@@ -451,7 +407,7 @@ namespace GameWIP::IO::Detail::Core
 
                 if (readResult.bytesRead > 0)
                 {
-                    Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)), true);
+                    Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)));
                     if (!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
@@ -480,11 +436,6 @@ namespace GameWIP::IO::Detail::Core
             }
         }
 
-        /// @brief Reads unknown-size text bytes through caller-provided scratch storage.
-        /// @param reader Reader to drain.
-        /// @param scratchBuffer Temporary transfer buffer. Must not be empty.
-        /// @param maxBytes Caller byte limit.
-        /// @return Collected text bytes and final status.
         [[nodiscard]] Types::ReadAllTextResult readAllTextWithScratch(
             Reader &reader,
             std::span<std::byte> scratchBuffer,
@@ -583,9 +534,6 @@ namespace GameWIP::IO
         // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
-#if IO_INTERNAL_TEST_HOOKS
-            ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllScratchAllocation);
-#endif
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
         }
         catch (const std::bad_alloc &)
@@ -667,9 +615,6 @@ namespace GameWIP::IO
         // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
         try
         {
-#if IO_INTERNAL_TEST_HOOKS
-            ::GameWIP::IO::Detail::TestHooks::throwIfArmed(::GameWIP::IO::TestHooks::FailurePoint::ReadAllScratchAllocation);
-#endif
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
         }
         catch (const std::bad_alloc &)

@@ -20,23 +20,22 @@ Assert's public C++ surface is the installed header `debug/assert/assert.h`. The
 
 ## Runtime namespace
 
-`GameWIP::Debug::Assert` contains the small typed runtime API used by interactive handling and explicit breakpoints:
+When Assert builds a runtime target, `GameWIP::Debug::Assert` contains the small typed API used by interactive handling and explicit breakpoints:
 
 | API | Purpose |
 | --- | --- |
 | `FailureAction` | Interactive action enum with `Break`, `Abort`, `IgnoreOnce`, and `AlwaysIgnore`. |
 | `debugBreak() noexcept` | Calls the platform debugger break instruction when the runtime library is available. |
 
-`debugBreak()` is the function used by `DEBUG_BREAK()` in runtime-enabled builds. Normal fatal assertion handling checks debugger state before
-breaking; `DEBUG_BREAK()` intentionally force-breaks.
+`debugBreak()` is the function used by `DEBUG_BREAK()` in runtime-enabled builds. Interface-only builds keep `DEBUG_BREAK()` available through the
+header fallback path. Normal fatal assertion handling checks debugger state before breaking; `DEBUG_BREAK()` intentionally force-breaks.
 
 ## Configuration API
 
 The public macro behavior is selected by Assert CMake options and propagated compile definitions. Application code should configure the target instead
 of redefining Assert macros locally.
 
-See @ref assert_configuration for `ASSERT_ENABLED`, `ASSERT_CHECKS_ENABLED`, diagnostics, unreachable behavior, Windows manifest behavior, and
-test-hook availability.
+See @ref assert_configuration for `ASSERT_ENABLED`, `ASSERT_CHECKS_ENABLED`, diagnostics, unreachable behavior, and Windows manifest behavior.
 
 ## Package and ABI surface
 

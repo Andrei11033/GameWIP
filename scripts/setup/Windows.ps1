@@ -1,4 +1,8 @@
-# GameWIP Windows setup executable entry point. All reusable behavior lives under setup/lib/.
+# Windows setup entry point. Reusable behavior lives under setup/lib/.
+
+# ------------------------------------------------------------
+# Command-line contract and bootstrap
+# ------------------------------------------------------------
 
 [CmdletBinding()]
 param(
@@ -24,6 +28,10 @@ if ($Quiet)
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 . (Join-Path $PSScriptRoot '..\lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 . (Join-Path $PSScriptRoot 'lib\Orchestration.ps1')
+
+# ------------------------------------------------------------
+# Early command validation and common exits
+# ------------------------------------------------------------
 
 if ($Action -in @('--help', '-h', '-?'))
 {

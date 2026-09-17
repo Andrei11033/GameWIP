@@ -1,22 +1,31 @@
+# TestSupport is a static validation helper library. It stays below IO,
+# FileSystem, Logger, Assert, and engine layers so tests can use it to validate those libraries.
+
+# ------------------------------------------------------------
+# Configuration and package helpers
+# ------------------------------------------------------------
+
 include(GNUInstallDirs)
 
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-option(TEST_SUPPORT_ENABLE_TEST_HOOKS "Enable TestSupport internal test hooks" OFF)
-
 if(NOT COMMAND gamewip_target_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
+
+# ------------------------------------------------------------
+# Target and public headers
+# ------------------------------------------------------------
 
 add_library(TestSupport STATIC)
 add_library(GameWIP::TestSupport ALIAS TestSupport)
 
 target_sources(
     TestSupport
-    PRIVATE core/test_support.cpp core/reporting.cpp core/files.cpp core/process_state.cpp core/stress.cpp core/test_support_test_hooks.cpp
+    PRIVATE core/test_support.cpp core/reporting.cpp core/files.cpp core/process_state.cpp core/stress.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -32,15 +41,13 @@ target_sources(
 
 gamewip_target_platform_backend(TARGET TestSupport ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
+# ------------------------------------------------------------
+# Compile and dependency contracts
+# ------------------------------------------------------------
+
 target_include_directories(TestSupport PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/tools> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 target_compile_features(TestSupport PUBLIC cxx_std_23)
-target_compile_definitions(
-    TestSupport
-    PRIVATE TEST_SUPPORT_INTERNAL_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>
-    INTERFACE $<BUILD_INTERFACE:TEST_SUPPORT_INTERNAL_TEST_HOOKS=$<BOOL:${TEST_SUPPORT_ENABLE_TEST_HOOKS}>>
-)
-
 target_link_libraries(TestSupport PRIVATE Unicode)
 
 # TestSupport may use foundational Unicode for real text semantics, but must not
@@ -72,6 +79,10 @@ foreach(property_name LINK_LIBRARIES INTERFACE_LINK_LIBRARIES)
         endforeach()
     endif()
 endforeach()
+
+# ------------------------------------------------------------
+# Output, documentation, and installation
+# ------------------------------------------------------------
 
 set_target_properties(TestSupport PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 

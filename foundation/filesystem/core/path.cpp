@@ -38,7 +38,7 @@ namespace GameWIP::FileSystem
             return {.status = IO::makeStatus(code), .utf8 = std::string{}};
         }
 
-        [[nodiscard]] bool isValidUtf8(std::string_view text) noexcept
+        [[nodiscard]] bool validUtf8(std::string_view text) noexcept
         {
             return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
         }
@@ -52,31 +52,53 @@ namespace GameWIP::FileSystem
 
             ErrorCode code = fallback;
             if (ec == std::errc::no_such_file_or_directory)
+            {
                 code = ErrorCode::NotFound;
+            }
             else if (ec == std::errc::not_a_directory)
+            {
                 code = ErrorCode::NotDirectory;
+            }
             else if (ec == std::errc::permission_denied || ec == std::errc::operation_not_permitted)
+            {
                 code = ErrorCode::PermissionDenied;
+            }
             else if (ec == std::errc::file_exists)
+            {
                 code = ErrorCode::AlreadyExists;
+            }
             else if (ec == std::errc::filename_too_long)
+            {
                 code = ErrorCode::PathTooLong;
+            }
             else if (ec == std::errc::no_space_on_device)
+            {
                 code = ErrorCode::StorageFull;
+            }
             else if (ec == std::errc::device_or_resource_busy)
+            {
                 code = ErrorCode::ResourceBusy;
+            }
             else if (ec == std::errc::interrupted)
+            {
                 code = ErrorCode::Interrupted;
+            }
             else if (ec == std::errc::too_many_symbolic_link_levels)
+            {
                 code = ErrorCode::Unsupported;
+            }
             else if (ec == std::errc::directory_not_empty)
+            {
                 code = ErrorCode::DirectoryNotEmpty;
+            }
 
             try
             {
                 std::string message = ec.message();
-                if (isValidUtf8(message))
+                if (validUtf8(message))
+                {
                     return IO::makeStatus(code, ec.value(), std::move(message));
+                }
                 return IO::makeStatus(code, ec.value());
             }
             catch (...)
@@ -402,7 +424,7 @@ namespace GameWIP::FileSystem
 
     Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept
     {
-        if (!isValidUtf8(utf8Path))
+        if (!validUtf8(utf8Path))
         {
             return pathFailure(ErrorCode::EncodingFailed);
         }
@@ -428,7 +450,7 @@ namespace GameWIP::FileSystem
         {
             std::u8string u8String = path.u8string();
             std::string utf8{u8String.begin(), u8String.end()};
-            if (!isValidUtf8(utf8))
+            if (!validUtf8(utf8))
             {
                 return utf8Failure(ErrorCode::EncodingFailed);
             }

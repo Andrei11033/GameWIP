@@ -9,6 +9,10 @@
 #include <algorithm>
 #include <string_view>
 
+#ifndef TERMINAL_INTERNAL_TEST_HOOKS
+#define TERMINAL_INTERNAL_TEST_HOOKS 0
+#endif
+
 namespace
 {
     /// @brief Detects isolated child invocations owned by Terminal tests.
@@ -17,11 +21,21 @@ namespace
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value != nullptr && (std::string_view(value) == "--terminal-test-child=reentrant-format" ||
-                                     std::string_view(value) == "--terminal-test-child=session-reentrant-format"))
+            if (value == nullptr)
+            {
+                continue;
+            }
+            const std::string_view argument(value);
+            if (argument == "--terminal-test-child=reentrant-format" || argument == "--terminal-test-child=session-reentrant-format")
             {
                 return true;
             }
+#if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
+            if (argument == "--terminal-test-child=cancellation-signal-failure")
+            {
+                return true;
+            }
+#endif
         }
         return false;
     }
@@ -39,7 +53,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic Terminal module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "terminal",
         .order = 30,
         .run = run,

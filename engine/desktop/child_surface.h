@@ -96,7 +96,7 @@ namespace GameWIP::Desktop
     /// @brief Non-copyable, non-movable RAII owner of one native child host.
     /// @details A successful open inherits the parent Window owner thread. Cached getters are
     /// unsynchronized; native operations and event consumption require that owner thread.
-    class GAMEWIP_DESKTOP_EXPORT ChildSurface final
+    class DESKTOP_EXPORT ChildSurface final
     {
     public:
         // ------------------------------------------------------------

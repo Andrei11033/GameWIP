@@ -49,7 +49,7 @@ namespace
     }
 
     /// @brief Process-local static registration for deterministic TestSupport module discovery.
-    const GameWIP::Validation::Tests::Registration registration({
+    const GameWIP::Validation::Tests::Registration kRegistration({
         .name = "test_support",
         .order = 40,
         .run = run,
