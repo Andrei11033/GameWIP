@@ -331,10 +331,12 @@ namespace GameWIP::Desktop::Detail::Platform
         return progressOwnerRestoreMessageState().error.load(std::memory_order_acquire);
     }
 
+#if DESKTOP_INTERNAL_TEST_HOOKS
     bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
     {
         return progressOwnerRestoreMessageState().attempted.load(std::memory_order_acquire);
     }
+#endif
 
     IO::Types::Status queryWindowLong(HWND window, int index, LONG_PTR &value, const char *operation) noexcept
     {
