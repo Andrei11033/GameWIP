@@ -18,9 +18,8 @@ and the [roadmap](docs/roadmap.md). The latest published baseline is
 
 ## Development approach
 
-I write the C++ and CMake implementation myself. I use AI for learning,
-research, review, documentation, and comments; the PowerShell helper is
-AI-written.
+I write the implementation myself. I only use AI for learning,
+research, review and to help me make shure the documentation and comments are correct and worded nicely.
 
 ## Start here
 
