@@ -16,19 +16,3 @@ updates:
     commit-message:
       prefix: 'build'
       include: 'scope'
-
-  - package-ecosystem: 'gitsubmodule'
-    directory: '/'
-    schedule:
-      interval: 'weekly'
-      day: 'saturday'
-      time: '09:30'
-      timezone: 'Europe/Bucharest'
-    open-pull-requests-limit: 5
-    labels:
-      - 'area:github'
-      - 'priority:normal'
-      - 'type:task'
-    commit-message:
-      prefix: 'build'
-      include: 'scope'

@@ -87,7 +87,7 @@ Inspect the retained candidate, verify the pinned version/source configuration, 
 The maintenance workflow expects the GameWIP MSYS2 UCRT64 Python and clang-format tools. Run:
 
 ```powershell
-.\gamewip.bat doctor
+.\gamewip.bat ready
 .\setup.bat repair
 ```
 

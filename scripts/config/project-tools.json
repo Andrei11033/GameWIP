@@ -378,7 +378,7 @@
         "package": "ruff"
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.16.6",
+      "requiredVersion": "0.16.8",
       "detection": {
         "command": "ruff",
         "versionArguments": ["--version"],
@@ -405,22 +405,22 @@
       "provider": {
         "kind": "githubRelease",
         "repository": "BlankSpruce/gersemi",
-        "releaseTag": "0.28.1",
+        "releaseTag": "0.29.1",
         "assets": {
           "linux-amd64": {
             "archive": "gersemi-linux",
-            "sha256": "df733517a99c8a29239ba01d974c54aa38c968786bc57f3791094b54d5fd07ea",
+            "sha256": "11efe1ae9ce679086abb3fb78a8fdb52fba8236612884b11793ec992e499e045",
             "format": "executable"
           },
           "windows-amd64": {
             "archive": "gersemi-windows.exe",
-            "sha256": "a5b766b77f45fdc27325345c2f9587ff94db2e0e1ac15ab86dfa50f9a03f093e",
+            "sha256": "b4645853c4f289942a1d96f1192580c150eaffc199830f9d6ecde7d339023b09",
             "format": "executable"
           }
         }
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.28.1",
+      "requiredVersion": "0.29.1",
       "detection": {
         "command": "gersemi",
         "versionArguments": ["--version"],
@@ -519,7 +519,7 @@
         ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "10.10.0",
+      "requiredVersion": "10.11.0",
       "detection": {
         "command": "eslint",
         "versionArguments": ["--version"],
@@ -545,10 +545,16 @@
       "category": "quality",
       "provider": {
         "kind": "npm",
-        "package": "prettier"
+        "package": "prettier",
+        "dependencies": [
+          {
+            "package": "prettier-plugin-powershell",
+            "version": "2.1.12"
+          }
+        ]
       },
       "versionPolicy": "exact",
-      "requiredVersion": "3.9.6",
+      "requiredVersion": "3.9.8",
       "detection": {
         "command": "prettier",
         "versionArguments": ["--version"],
@@ -577,7 +583,7 @@
         "package": "markdownlint-cli2"
       },
       "versionPolicy": "exact",
-      "requiredVersion": "0.23.2",
+      "requiredVersion": "0.23.3",
       "detection": {
         "command": "markdownlint-cli2",
         "versionArguments": ["--version"],
@@ -708,32 +714,6 @@
         "update": true
       },
       "references": []
-    },
-    {
-      "id": "tracy",
-      "name": "Tracy",
-      "category": "profiling",
-      "provider": {
-        "kind": "gitSubmodule",
-        "path": "external/tracy"
-      },
-      "versionPolicy": "informational",
-      "detection": {
-        "command": "git",
-        "versionArguments": ["-C", "external/tracy", "rev-parse", "HEAD"],
-        "versionPattern": "([0-9a-f]{40})"
-      },
-      "capabilities": {
-        "detectInstalled": true,
-        "checkLatest": false,
-        "update": false
-      },
-      "references": [
-        {
-          "path": ".gitmodules",
-          "kind": "path"
-        }
-      ]
     },
     {
       "id": "unicode",

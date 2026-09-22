@@ -11,14 +11,14 @@ function Initialize-GameWipTestPresetBuild
     param([Parameter(Mandatory = $true)][string]$Name, [switch]$NoBuild, [switch]$Fresh)
     if ($NoBuild -and $Fresh)
     {
-        throw '-Fresh cannot be combined with -NoBuild because a recreated preset must be configured and built.'
+        throw '-CleanBuild cannot be combined with -SkipBuild because a recreated preset must be configured and built.'
     }
     $testFile = Join-Path $RepositoryRoot "build\$Name\CTestTestfile.cmake"
     if ($NoBuild)
     {
         if (-not (Test-Path -LiteralPath $testFile))
         {
-            throw (New-GameWipDiagnosticException -Code 'prerequisite-build-disabled' -Summary "CTest preset '$Name' has no configured test tree." -SuggestedActions @("Run '.\gamewip.bat build $Name'.", 'Rerun without -NoBuild.'))
+            throw (New-GameWipDiagnosticException -Code 'prerequisite-build-disabled' -Summary "CTest preset '$Name' has no configured test tree." -SuggestedActions @("Run '.\gamewip.bat build $Name'.", 'Rerun without -SkipBuild.'))
         }
         return
     }
@@ -451,7 +451,7 @@ function Invoke-GameWipValidationCommandWizard
     }
     if (Read-GameWipYesNo -Prompt 'Run this command now?' -Default $true)
     {
-        Invoke-GameWipMutation -Summary 'Run the composed validation command.' -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', 'Execute the composed correctness command.') -Body {
+        Invoke-GameWipMutation -Summary 'Run the composed validation command.' -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', 'Execute the composed correctness command.') -Body {
             Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
             Invoke-GameWipNative -Name 'validation-wizard' -FilePath $executable -Arguments $arguments.ToArray() -UseWorkspaceTemp
         } | Out-Null

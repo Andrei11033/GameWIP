@@ -52,15 +52,22 @@ declared packages. Repair reapplies missing state without requesting ordinary
 upgrades. Update fetches and fast-forwards the current branch from its configured
 upstream, performs complete `pacman -Syu` passes, and applies the newest
 compatible environment/provider releases while keeping CMake at the declared
-minimum `4.4.2` or newer and retaining submodule revisions recorded by the
+minimum `4.4.2` or newer and retaining dependency revisions recorded by the
 updated checkout. It refuses dirty trees, missing upstreams, and
 non-fast-forward merges. WinGet is used for MSYS2 only for the first installation
 at the explicit `C:\MSYS2` root.
 
 `setup.bat update` owns environment and package-manager updates. The separate
-`gamewip tools update` workflow advances reviewed project tool/version policy
+`gamewip tool update` workflow advances reviewed project tool/version policy
 and exact pins through a staged, source-preserving compare-and-set plan; setup
 does not silently advance those pins.
+
+The dependency cache follows the same pinned-lock policy. Complete, repair, and
+update setup actions prepare or reuse the sources recorded in
+`../config/dependencies.json`; they do not select newer dependency versions.
+The read-only environment check verifies that every cached source and manifest
+entry matches the current lock file. The explicit `setup.bat deps`
+action runs the same preparation step without duplicating dependency logic.
 
 The editor stage installs only selected editors. VS Code integration installs
 Microsoft C++/CMake extensions and packages the local workflow extension as a
@@ -71,14 +78,16 @@ a marked, repository-guarded block at the end of the user's
 replace only that block. This is required because VS Code user rules outrank
 extension defaults.
 
-Tracy checks the complete installed executable set and its recorded pinned
+Tracy checks the complete installed executable set and its recorded locked
 source version before doing build work. When they match, setup reuses the
 installed tools; otherwise it rebuilds five upstream CMake projects from the
-pinned submodule using UCRT64 GCC/Ninja. Reproducible CMake/CPM build state lives
-under `build/gamewip/cache/tracy`, while the candidate executable/DLL set stages
-only under the current `build/gamewip/temp/<operation-id>/tracy-stage`. Generated
+shared `build/gamewip/cache/dependencies/fetchcontent/tracy-src` source using
+UCRT64 GCC/Ninja. Reproducible CMake/CPM build state lives under
+`build/gamewip/cache/tracy`, while the candidate executable/DLL set stages only
+under the current `build/gamewip/temp/<operation-id>/tracy-stage`. Generated
 compatibility adjustments provide the POSIX `memmem` operation missing from
-UCRT64 and remove incompatible COFF LTO flags without modifying the submodule.
+UCRT64 and remove incompatible COFF LTO flags without modifying the cached
+dependency source.
 The required Windows security library is linked explicitly.
 `C:\MSYS2\GameWIPTools\tools\tracy` changes only after the complete candidate
 is verified, using a same-volume directory swap so a failed replacement can
@@ -95,7 +104,8 @@ initializes metadata in place, connects the official remote, compares fetched
 branches with the extracted files, and asks which branch to track. Existing
 interactive checkouts also offer a branch choice; `-Branch` supplies it for
 automation. Branch switches refuse tracked local changes. Extracted files remain
-untouched while pinned submodules become available.
+untouched while the locked dependency cache is prepared by the normal setup
+flow.
 
 Persistent directly managed tools live under
 `C:\MSYS2\GameWIPTools`. A non-empty root without valid ownership proof is never

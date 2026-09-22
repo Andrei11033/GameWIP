@@ -1,9 +1,96 @@
 {
   "schemaVersion": 1,
+  "options": [
+    {
+      "id": "Preview",
+      "kind": "switch",
+      "description": "Show the setup plan without applying its requested changes.",
+      "global": true
+    },
+    {
+      "id": "NonInteractive",
+      "kind": "switch",
+      "description": "Never prompt for input.",
+      "global": true
+    },
+    {
+      "id": "Yes",
+      "kind": "switch",
+      "description": "Grant consent after the setup plan is known.",
+      "global": true
+    },
+    {
+      "id": "Json",
+      "kind": "switch",
+      "description": "Emit the final setup result as JSON.",
+      "global": true
+    },
+    {
+      "id": "Quiet",
+      "kind": "switch",
+      "description": "Reduce normal output while retaining logs and receipt data.",
+      "global": true
+    },
+    {
+      "id": "NoColor",
+      "kind": "switch",
+      "description": "Use plain terminal presentation.",
+      "global": true
+    },
+    {
+      "id": "OutputMode",
+      "kind": "choice",
+      "valueName": "mode",
+      "choices": ["Summary", "Stream", "LogOnly"],
+      "description": "Select native-process presentation policy.",
+      "global": true
+    },
+    {
+      "id": "Verbose",
+      "kind": "switch",
+      "description": "Use PowerShell's common parameter for detailed progress.",
+      "global": true
+    },
+    {
+      "id": "Debug",
+      "kind": "switch",
+      "description": "Use PowerShell's common parameter for diagnostic debugging.",
+      "global": true
+    },
+    {
+      "id": "Branch",
+      "kind": "string",
+      "valueName": "name",
+      "description": "Select the repository branch for repository preparation."
+    },
+    {
+      "id": "SkipDocs",
+      "kind": "switch",
+      "description": "Skip generated documentation during complete, update, or repair setup."
+    }
+  ],
+  "actionOptions": {
+    "full": ["Branch", "SkipDocs"],
+    "check": [],
+    "repair": ["Branch", "SkipDocs"],
+    "update": ["Branch", "SkipDocs"],
+    "repo": ["Branch"],
+    "tool": [],
+    "deps": [],
+    "msys2": [],
+    "editor": [],
+    "doc": [],
+    "profiler": [],
+    "vs": [],
+    "uninstall": [],
+    "list": [],
+    "help": [],
+    "menu": []
+  },
   "actions": [
     {
       "id": "full",
-      "name": "Complete setup (recommended)",
+      "name": "Complete setup",
       "description": "Install or repair every required component and verify the checkout.",
       "risk": "machine",
       "network": true,
@@ -12,21 +99,12 @@
     },
     {
       "id": "check",
-      "name": "Check environment (read only)",
+      "name": "Check environment",
       "description": "Verify required tools and project state without changing them.",
       "risk": "read-only",
       "network": false,
       "mutation": "none",
       "key": "2"
-    },
-    {
-      "id": "update",
-      "name": "Update environment (includes MSYS2)",
-      "description": "Update compatible environment software without advancing project pins, update the checkout, then verify.",
-      "risk": "machine",
-      "network": true,
-      "mutation": "machine",
-      "key": "3"
     },
     {
       "id": "repair",
@@ -35,16 +113,46 @@
       "risk": "machine",
       "network": true,
       "mutation": "machine",
-      "key": "4"
+      "key": "3"
     },
     {
-      "id": "editor",
-      "name": "Choose and configure editors/IDEs",
-      "description": "Choose editors and install their GameWIP integrations.",
+      "id": "update",
+      "name": "Update environment",
+      "description": "Update compatible environment software without advancing project pins, update the checkout, then verify.",
       "risk": "machine",
       "network": true,
       "mutation": "machine",
+      "key": "4"
+    },
+    {
+      "id": "repo",
+      "aliases": ["repository"],
+      "name": "Prepare repository",
+      "description": "Prepare the Git checkout and configure repository-local development state.",
+      "risk": "local",
+      "network": true,
+      "mutation": "local",
       "key": "5"
+    },
+    {
+      "id": "tool",
+      "aliases": ["tools"],
+      "name": "Install project tools",
+      "description": "Install or repair declared exact/compatible project tools without advancing pins.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "6"
+    },
+    {
+      "id": "deps",
+      "aliases": ["dependencies"],
+      "name": "Prepare dependency cache",
+      "description": "Fetch or reuse the exact dependency sources required by the checkout.",
+      "risk": "local",
+      "network": true,
+      "mutation": "local",
+      "key": "7"
     },
     {
       "id": "msys2",
@@ -53,47 +161,49 @@
       "risk": "machine",
       "network": true,
       "mutation": "machine",
-      "key": "6"
-    },
-    {
-      "id": "repository",
-      "name": "Prepare repository",
-      "description": "Initialize pinned submodules and configure repository-local development state.",
-      "risk": "local",
-      "network": true,
-      "mutation": "local",
-      "key": "7"
-    },
-    {
-      "id": "tools",
-      "name": "Install project tools",
-      "description": "Ensure declared exact/compatible project tools without advancing pins.",
-      "risk": "machine",
-      "network": true,
-      "mutation": "machine",
       "key": "8"
     },
     {
-      "id": "docs",
+      "id": "editor",
+      "name": "Configure editors/IDEs",
+      "description": "Choose editors and install their GameWIP integrations.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "9"
+    },
+    {
+      "id": "doc",
+      "aliases": ["docs"],
       "name": "Build documentation",
       "description": "Build and verify the generated manual.",
       "risk": "local",
       "network": false,
       "mutation": "local",
-      "key": "9"
+      "key": "0"
     },
     {
       "id": "profiler",
       "name": "Install matching Tracy profiler tools",
-      "description": "Build and install tools matching the pinned Tracy client.",
+      "description": "Prepare or reuse the locked Tracy source, then build and install matching profiler tools.",
       "risk": "machine",
       "network": true,
       "mutation": "machine",
-      "key": "0"
+      "key": "P"
+    },
+    {
+      "id": "vs",
+      "aliases": ["visual-studio"],
+      "name": "Install/repair Visual Studio",
+      "description": "Apply the repository Visual Studio configuration.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "V"
     },
     {
       "id": "uninstall",
-      "name": "Uninstall GameWIP-owned environment resources",
+      "name": "Uninstall GameWIP-owned resources",
       "description": "Inventory and remove only resources with sufficient GameWIP ownership evidence.",
       "risk": "destructive",
       "network": true,
@@ -101,15 +211,8 @@
       "key": "U"
     },
     {
-      "id": "visual-studio",
-      "name": "Install or repair Visual Studio Community",
-      "description": "Apply the repository Visual Studio configuration.",
-      "risk": "machine",
-      "network": true,
-      "mutation": "machine"
-    },
-    {
       "id": "list",
+      "aliases": ["ls"],
       "name": "List setup actions",
       "description": "List supported setup actions and their behavior.",
       "risk": "read-only",
@@ -118,6 +221,7 @@
     },
     {
       "id": "help",
+      "aliases": ["h"],
       "name": "Show setup help",
       "description": "Print command-line usage and common options.",
       "risk": "read-only",
@@ -126,6 +230,7 @@
     },
     {
       "id": "menu",
+      "aliases": [],
       "name": "Open the interactive setup menu",
       "description": "Open the persistent setup menu.",
       "risk": "read-only",

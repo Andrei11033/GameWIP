@@ -51,18 +51,19 @@ Exact version-sensitive quality-tool pins are declared centrally:
 
 | Tool | Exact version | Provider |
 | --- | --- | --- |
-| Ruff | 0.16.6 | Python |
-| ESLint | 10.10.0 | npm |
-| Prettier | 3.9.6 | npm |
-| Gersemi | 0.28.1 | verified GitHub release |
-| markdownlint-cli2 | 0.23.2 | npm |
+| Ruff | 0.16.8 | Python |
+| ESLint | 10.11.0 | npm |
+| Prettier | 3.9.8 | npm |
+| prettier-plugin-powershell | 2.1.12 | npm dependency of Prettier |
+| Gersemi | 0.29.1 | verified GitHub release |
+| markdownlint-cli2 | 0.23.3 | npm |
 | yamllint | 1.38.0 | Python |
 | jsonschema | 4.26.0 | Python |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
 | actionlint | 1.7.12 | verified GitHub release |
 
-`gamewip tools status` is offline. `gamewip tools check-updates` performs an
-explicit online query without changing files or installations. `gamewip tools
+`gamewip tool status` is offline. `gamewip tool check-updates` performs an
+explicit online query without changing files or installations. `gamewip tool
 update <id|all>` builds and validates a complete staged plan before consent.
 The update applies source-preserving compare-and-set registry mutations and
 declared live references, verifies the planned provider state, and runs the

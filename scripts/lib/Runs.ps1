@@ -292,7 +292,7 @@ function Show-GameWipRunList
     }
     if (-not $All -and $displayItems.Count -lt $items.Count)
     {
-        Write-Host "  Showing the newest $($displayItems.Count) of $($items.Count) runs. Use 'gamewip runs list all' for complete history."
+        Write-Host "  Showing the newest $($displayItems.Count) of $($items.Count) runs. Use 'gamewip history list all' for complete history."
         Write-Host ''
     }
     $runWidth = [Math]::Min(60, [Math]::Max(38, [int](@($displayItems | ForEach-Object { $_.Name.Length }) | Measure-Object -Maximum).Maximum))

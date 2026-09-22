@@ -44,7 +44,11 @@ function Reset-GameWipPresetBuildTree
 
 function Invoke-GameWipConfigurePreset
 {
-    param([Parameter(Mandatory = $true)][string]$Name, [switch]$Fresh)
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [switch]$Fresh,
+        [switch]$Offline
+    )
     Assert-GameWipValidPreset -Kind 'configure' -Name $Name
     if ($Fresh)
     {
@@ -53,6 +57,15 @@ function Invoke-GameWipConfigurePreset
     Confirm-GameWipToolchain -PresetName $Name
     $pathPrefix = Get-GameWipToolchainPathPrefix $Name
     $arguments = @('--preset', $Name)
+    $offlineValue = if ($Offline)
+    {
+        'ON'
+    }
+    else
+    {
+        'OFF'
+    }
+    $arguments += "-DGAMEWIP_DEPENDENCIES_OFFLINE=$offlineValue"
     $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
     if ((Test-GameWipWindowsHost) -and (Test-Path -LiteralPath $cache))
     {
@@ -104,7 +117,11 @@ function Invoke-GameWipConfigurePreset
 
 function Invoke-GameWipBuildPreset
 {
-    param([Parameter(Mandatory = $true)][string]$Name, [switch]$Fresh)
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [switch]$Fresh,
+        [switch]$Offline
+    )
     Assert-GameWipValidPreset -Kind 'build' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
     $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
@@ -112,12 +129,21 @@ function Invoke-GameWipBuildPreset
     {
         Reset-GameWipPresetBuildTree -Name $Name
         Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message "Fresh build requested; configuration is a prerequisite."
-        Invoke-GameWipConfigurePreset -Name $Name
+        Invoke-GameWipConfigurePreset -Name $Name -Offline:$Offline
     }
     elseif (-not (Test-Path -LiteralPath $cache))
     {
         Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message "Build preset '$Name' is not configured; configuration is a prerequisite."
-        Invoke-GameWipConfigurePreset -Name $Name
+        Invoke-GameWipConfigurePreset -Name $Name -Offline:$Offline
+    }
+    elseif ($Offline)
+    {
+        Write-GameWipOperationEvent `
+            -Phase plan `
+            -Step "configure-$Name-offline" `
+            -Severity info `
+            -Message "Offline dependency mode requested; refreshing preset '$Name' with downloads disabled."
+        Invoke-GameWipConfigurePreset -Name $Name -Offline
     }
     Invoke-GameWipNative -Name "build-$Name" -FilePath 'cmake' -Arguments @('--build', '--preset', $Name, '--parallel') -PathPrefix (Get-GameWipToolchainPathPrefix $Name)
 }
@@ -161,8 +187,8 @@ function Initialize-GameWipProjectCommandBuild
         throw (New-GameWipDiagnosticException `
                 -Code 'prerequisite-build-disabled' `
                 -Summary "Required executable is missing: $executable" `
-                -Details "Automatic prerequisite builds were disabled with -NoBuild." `
-                -SuggestedActions @("Build preset '$($Command.BuildPreset)' first.", 'Rerun without -NoBuild to let GameWIP ensure prerequisites.'))
+                -Details "Automatic prerequisite builds were disabled with -SkipBuild." `
+                -SuggestedActions @("Build preset '$($Command.BuildPreset)' first.", 'Rerun without -SkipBuild to let GameWIP ensure prerequisites.'))
     }
     Write-GameWipOperationEvent -Phase plan -Step 'prerequisite-build' -Severity info -Message "Executable is missing; GameWIP will configure/build preset '$($Command.BuildPreset)' first."
     Invoke-GameWipConfigurePreset -Name $Command.BuildPreset

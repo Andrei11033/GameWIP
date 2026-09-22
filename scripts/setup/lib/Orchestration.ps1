@@ -17,10 +17,99 @@ foreach ($file in @('Common.ps1', 'Winget.ps1', 'Msys2.ps1', 'Repository.ps1', '
 # Action catalog and presentation
 # ------------------------------------------------------------
 
+function Get-GameWipSetupActionOptionIds
+{
+    param([Parameter(Mandatory = $true)][string]$Action)
+
+    $ids = @($SetupActionConfig.Options | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global } | ForEach-Object { [string]$_.Id })
+    if ($SetupActionConfig.ActionOptions.ContainsKey($Action))
+    {
+        $ids += @($SetupActionConfig.ActionOptions[$Action])
+    }
+    return @($ids | Select-Object -Unique)
+}
+
+function Assert-GameWipSetupOptionCatalog
+{
+    $options = @($SetupActionConfig.Options)
+    $duplicateOptions = @($options | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object Count -gt 1)
+    if ($duplicateOptions.Count -ne 0)
+    {
+        throw "Duplicate setup option IDs: $($duplicateOptions.Name -join ', ')."
+    }
+    $optionIds = @{}
+    foreach ($option in $options)
+    {
+        $id = [string]$option.Id
+        if ($id -notmatch '^[A-Za-z][A-Za-z0-9]*$')
+        {
+            throw "Setup option '$id' has an invalid identifier."
+        }
+        $optionIds[$id.ToLowerInvariant()] = $id
+        if ($option.Kind -in @('string', 'integer', 'choice', 'string-list') -and [string]::IsNullOrWhiteSpace([string]$option.ValueName))
+        {
+            throw "Setup option '$id' must declare valueName."
+        }
+        if ($option.Kind -eq 'choice' -and @($option.Choices).Count -eq 0)
+        {
+            throw "Setup option '$id' must declare choices."
+        }
+    }
+    $actionIds = @($SetupActionConfig.Actions | ForEach-Object { [string]$_.Id })
+    foreach ($actionName in $SetupActionConfig.ActionOptions.Keys)
+    {
+        if ($actionIds -notcontains [string]$actionName)
+        {
+            throw "Setup option mapping references unknown action '$actionName'."
+        }
+        foreach ($optionId in @($SetupActionConfig.ActionOptions[$actionName]))
+        {
+            if (-not $optionIds.ContainsKey(([string]$optionId).ToLowerInvariant()))
+            {
+                throw "Setup action '$actionName' references unknown option '$optionId'."
+            }
+        }
+    }
+    foreach ($actionId in $actionIds)
+    {
+        if (-not $SetupActionConfig.ActionOptions.ContainsKey($actionId))
+        {
+            throw "Setup action '$actionId' is missing an option mapping."
+        }
+    }
+}
+
+function Assert-GameWipSetupActionOptions
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Action,
+        [Parameter(Mandatory = $true)][hashtable]$BoundParameters
+    )
+
+    $allowed = @{}
+    foreach ($optionId in @(Get-GameWipSetupActionOptionIds -Action $Action))
+    {
+        $allowed[([string]$optionId).ToLowerInvariant()] = $true
+    }
+    foreach ($boundName in $BoundParameters.Keys)
+    {
+        $boundOption = @($SetupActionConfig.Options | Where-Object { [string]$_.Id -ieq [string]$boundName })
+        if ($boundOption.Count -eq 0)
+        {
+            continue
+        }
+        if (-not $allowed.ContainsKey(([string]$boundName).ToLowerInvariant()))
+        {
+            throw "Option '-$boundName' is not supported for setup action '$Action'."
+        }
+    }
+}
+
 function Assert-GameWipSetupActionCatalog
 {
     $actions = @($SetupActionConfig.Actions)
-    $requiredActionIds = @('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor', 'docs', 'list', 'help')
+    Assert-GameWipSetupOptionCatalog
+    $requiredActionIds = @('menu', 'full', 'check', 'update', 'repair', 'deps', 'uninstall', 'tool', 'vs', 'msys2', 'repo', 'profiler', 'editor', 'doc', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
     if ((($requiredActionIds | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
@@ -36,6 +125,40 @@ function Assert-GameWipSetupActionCatalog
     {
         throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')."
     }
+    $actionNames = @{}
+    foreach ($action in $actions)
+    {
+        $canonical = [string]$action.Id
+        $canonicalKey = $canonical.ToLowerInvariant()
+        if ($actionNames.ContainsKey($canonicalKey))
+        {
+            throw "Setup action name '$canonical' is duplicated or collides with an alias."
+        }
+        $actionNames[$canonicalKey] = $canonical
+        $hasAliases = ($action -is [hashtable] -and ($action.ContainsKey('aliases') -or $action.ContainsKey('Aliases'))) -or ($action.PSObject.Properties.Name -contains 'aliases')
+        if (-not $hasAliases -or $null -eq $action.Aliases)
+        {
+            $aliases = @()
+        }
+        else
+        {
+            $aliases = @($action.Aliases)
+        }
+        foreach ($alias in $aliases)
+        {
+            $aliasText = [string]$alias
+            if ($aliasText -notmatch '^[a-z][a-z0-9-]*$')
+            {
+                throw "Setup action '$canonical' has invalid alias '$aliasText'."
+            }
+            $aliasKey = $aliasText.ToLowerInvariant()
+            if ($actionNames.ContainsKey($aliasKey))
+            {
+                throw "Setup action alias '$aliasText' collides with '$($actionNames[$aliasKey])'."
+            }
+            $actionNames[$aliasKey] = $canonical
+        }
+    }
     foreach ($toolId in @($SetupActionConfig.BootstrapToolIds))
     {
         if (@($ProjectTools.tools.id) -notcontains $toolId)
@@ -45,10 +168,41 @@ function Assert-GameWipSetupActionCatalog
     }
 }
 
+function Resolve-GameWipSetupActionName
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    foreach ($action in @($SetupActionConfig.Actions))
+    {
+        if ([string]$action.Id -ieq $Name)
+        {
+            return [string]$action.Id
+        }
+        $hasAliases = ($action -is [hashtable] -and ($action.ContainsKey('aliases') -or $action.ContainsKey('Aliases'))) -or ($action.PSObject.Properties.Name -contains 'aliases')
+        if (-not $hasAliases -or $null -eq $action.Aliases)
+        {
+            $aliases = @()
+        }
+        else
+        {
+            $aliases = @($action.Aliases)
+        }
+        foreach ($alias in $aliases)
+        {
+            if ([string]$alias -ieq $Name)
+            {
+                return [string]$action.Id
+            }
+        }
+    }
+    return $null
+}
+
 function Get-GameWipSetupAction
 {
     param([Parameter(Mandatory = $true)][string]$Id)
-    $actionMatches = @($SetupActionConfig.Actions | Where-Object { $_.Id -eq $Id })
+    $canonicalId = Resolve-GameWipSetupActionName -Name $Id
+    $actionMatches = @($SetupActionConfig.Actions | Where-Object { $_.Id -eq $canonicalId })
     if ($actionMatches.Count -ne 1)
     {
         throw "Unknown setup action '$Id'. Run 'setup.bat list'."
@@ -61,18 +215,28 @@ function Show-GameWipSetupActionCatalog
     Write-GameWipSection 'Setup actions'
     foreach ($actionInfo in @($SetupActionConfig.Actions))
     {
-        Write-Host ('  {0,-16} [{1,-11}] {2}' -f $actionInfo.Id, $actionInfo.Risk, $actionInfo.Description)
+        $hasAliases = ($actionInfo -is [hashtable] -and ($actionInfo.ContainsKey('aliases') -or $actionInfo.ContainsKey('Aliases'))) -or ($actionInfo.PSObject.Properties.Name -contains 'aliases')
+        if ($hasAliases -and $null -ne $actionInfo.Aliases -and @($actionInfo.Aliases).Count -gt 0)
+        {
+            $aliases = " (aliases: $(@($actionInfo.Aliases) -join ', '))"
+        }
+        else
+        {
+            $aliases = ''
+        }
+        Write-Host ('  {0,-16} [{1,-11}] {2}{3}' -f $actionInfo.Id, $actionInfo.Risk, $actionInfo.Description, $aliases)
     }
 }
 
 function Show-GameWipSetupHelp
 {
     Write-Host 'Usage:'
-    Write-Host '  setup.bat <action> [-Branch <name>] [-Preview] [-NonInteractive] [-Yes] [-SkipDocs]'
+    Write-Host '  setup.bat <action> [options]'
     Write-Host ''
-    Show-GameWipCommonControlHelp -AdditionalOptions @(
-        '  -SkipDocs         Skip generated documentation during full/update/repair.'
-    )
+    Show-GameWipCommonControlHelp -OptionDefinitions $SetupActionConfig.Options
+    Write-Host ''
+    Write-Host 'Action-specific options:'
+    Show-GameWipOptionDefinitions -OptionDefinitions $SetupActionConfig.Options -OptionIds @('Branch', 'SkipDocs')
     Write-Host ''
     Show-GameWipSetupActionCatalog
 }
@@ -139,7 +303,7 @@ function Invoke-GameWipSetupMsys2Step
     $bash = Join-Path $ToolConfig.MsysRoot 'usr\bin\bash.exe'
     if (-not (Test-Path -LiteralPath $bash))
     {
-        $before = Get-GameWipDetectedTool -Tool $msys2Tool
+        $before = (Get-GameWipToolStatus -Tool $msys2Tool).Detected
         Install-GameWipWingetTool -Tool $msys2Tool -Version $null
         if (-not $before.Installed)
         {
@@ -196,6 +360,12 @@ function Invoke-GameWipSetupRepositoryStep
     Test-GameWipRepositoryState -RepositoryRoot $RepositoryRoot
 }
 
+function Invoke-GameWipSetupDependencyStep
+{
+    Write-GameWipSection 'GameWIP dependency cache'
+    Invoke-GameWipDependencyPreparation
+}
+
 function Invoke-GameWipSetupEditorStep
 {
     param([switch]$Choose, [switch]$Update)
@@ -227,6 +397,15 @@ function Invoke-GameWipSetupTracyStep
 {
     Write-GameWipSection 'Tracy profiler tools'
     Initialize-GameWipSetupManagedToolRoot
+    try
+    {
+        Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
+    }
+    catch
+    {
+        Write-Host '  Tracy source cache is not ready; preparing the shared dependency cache.'
+        Invoke-GameWipDependencyPreparation
+    }
     Invoke-GameWipTracyToolBuild -RepositoryRoot $RepositoryRoot -MsysRoot $ToolConfig.MsysRoot
 }
 
@@ -241,32 +420,10 @@ function Invoke-GameWipSetupEnvironmentCheck
 {
     Write-GameWipSection 'Environment check'
     $failures = [System.Collections.Generic.List[string]]::new()
-    Write-Host '  Checking declared MSYS2 packages...'
-    $packageConfig = Get-GameWipMsys2PackageConfig -ProjectTools $ProjectTools
-    $packages = @($packageConfig.Common) + @($packageConfig.Ucrt64) + @($packageConfig.Clang64)
-    foreach ($missing in @(Get-GameWipMissingMsys2Package -MsysRoot $ToolConfig.MsysRoot -Packages $packages))
+    $toolchain = Test-GameWipToolchain -DisplayStatus -Indent 4
+    foreach ($failure in @($toolchain.Failures))
     {
-        $failures.Add("Missing MSYS2 package: $missing") | Out-Null
-    }
-    $checkedTools = @($ProjectTools.tools | Where-Object { $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational' })
-    Write-Host "  Checking $($checkedTools.Count) declared project tools..."
-    for ($toolIndex = 0; $toolIndex -lt $checkedTools.Count; ++$toolIndex)
-    {
-        $tool = $checkedTools[$toolIndex]
-        $detected = Get-GameWipDetectedTool -Tool $tool
-        $compatibility = Get-GameWipToolCompatibility -Tool $tool -Detected $detected
-        $semantic = Get-GameWipToolCompatibilitySemantic -Compatibility $compatibility
-        Write-GameWipStatusLine `
-            -Status "$($toolIndex + 1)/$($checkedTools.Count)" `
-            -Text ([string]$tool.id) `
-            -Suffix "($compatibility)" `
-            -Semantic $semantic `
-            -SuffixSemantic Muted `
-            -Indent 4
-        if ($compatibility -ne 'compatible')
-        {
-            $failures.Add("Project tool '$($tool.id)' is not compatible.") | Out-Null
-        }
+        $failures.Add("Project toolchain: $failure") | Out-Null
     }
     Write-Host '  Checking matching Tracy tools...'
     if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
@@ -286,6 +443,15 @@ function Invoke-GameWipSetupEnvironmentCheck
     foreach ($failure in @(Get-GameWipEditorFailure -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selected))
     {
         $failures.Add($failure) | Out-Null
+    }
+    Write-Host '  Checking GameWIP dependency cache...'
+    try
+    {
+        Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
+    }
+    catch
+    {
+        $failures.Add($_.Exception.Message) | Out-Null
     }
     if ($failures.Count -ne 0)
     {
@@ -309,41 +475,45 @@ function Get-GameWipSetupPlan
     {
         'full'
         {
-            return @('Install/verify MSYS2 toolchains.', 'Ensure exact declared project tools.', 'Prepare repository/submodules.', 'Apply selected editor integrations.', 'Build matching Tracy tools.', 'Build docs unless skipped.', 'Verify complete environment.')
+            return @('Install/verify MSYS2 toolchains.', 'Install or repair exact declared project tools.', 'Prepare the repository and development configuration.', 'Prepare or reuse the locked dependency cache.', 'Apply selected editor integrations.', 'Build matching Tracy tools.', 'Build docs unless skipped.', 'Verify complete environment.')
         }
         'repair'
         {
-            return @('Reapply declared environment state without advancing project pins.', 'Verify complete environment.')
+            return @('Reapply declared environment state without advancing project pins.', 'Prepare or reuse the locked dependency cache.', 'Verify complete environment.')
         }
         'update'
         {
-            return @('Update MSYS2/environment packages without advancing exact project pins.', 'Ensure declared project tools.', 'Fast-forward repository.', 'Refresh integrations.', 'Verify complete environment.')
+            return @('Update MSYS2/environment packages without advancing exact project pins.', 'Install or update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.', 'Refresh integrations.', 'Verify complete environment.')
         }
-        'tools'
+        'deps'
         {
-            return @('Install/repair tools at versions already declared by the checkout.', 'Do not modify project pins.')
+            return @(Get-GameWipDependencyPreparationPlan)
+        }
+        'tool'
+        {
+            return @('Install, update, or repair tools at versions already declared by the checkout.', 'Do not modify project pins.')
         }
         'msys2'
         {
             return @('Install/repair declared UCRT64 and CLANG64 packages.')
         }
-        'repository'
+        'repo'
         {
-            return @('Prepare Git/submodules and development configuration.')
+            return @('Prepare the Git checkout and development configuration.')
         }
         'editor'
         {
             return @('Apply selected editor/IDE integrations.')
         }
-        'visual-studio'
+        'vs'
         {
             return @('Install/repair Visual Studio using .vsconfig.')
         }
         'profiler'
         {
-            return @('Build/install Tracy tools matching the pinned submodule.')
+            return @('Prepare or reuse the locked Tracy source, then build/install matching profiler tools.')
         }
-        'docs'
+        'doc'
         {
             return @(
                 'Configure and build the documentation preset.',
@@ -380,6 +550,7 @@ function Invoke-GameWipCompleteSetup
     Invoke-GameWipSetupMsys2Step -Update:$RefreshMsys2
     Invoke-GameWipSetupToolStep
     Invoke-GameWipSetupRepositoryStep -Update:$Update
+    Invoke-GameWipSetupDependencyStep
     Invoke-GameWipSetupEditorStep -Update:$Update
     Invoke-GameWipSetupTracyStep
     if (-not $SkipDocs)
@@ -406,15 +577,19 @@ function Invoke-GameWipSetupActionBody
         {
             Invoke-GameWipCompleteSetup -Update -RefreshMsys2
         }
+        'deps'
+        {
+            Invoke-GameWipSetupDependencyStep
+        }
         'check'
         {
             Invoke-GameWipSetupEnvironmentCheck
         }
-        'tools'
+        'tool'
         {
             Invoke-GameWipSetupToolStep
         }
-        'visual-studio'
+        'vs'
         {
             Invoke-GameWipSetupVisualStudioStep
         }
@@ -422,7 +597,7 @@ function Invoke-GameWipSetupActionBody
         {
             Invoke-GameWipSetupMsys2Step
         }
-        'repository'
+        'repo'
         {
             Invoke-GameWipSetupRepositoryStep
         }
@@ -434,7 +609,7 @@ function Invoke-GameWipSetupActionBody
         {
             Invoke-GameWipSetupEditorStep -Choose:(-not $NonInteractive)
         }
-        'docs'
+        'doc'
         {
             Invoke-GameWipSetupDocumentationStep -Open:(-not $NonInteractive)
         }

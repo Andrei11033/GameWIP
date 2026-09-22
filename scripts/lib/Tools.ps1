@@ -6,7 +6,7 @@
 
 Set-StrictMode -Version Latest
 
-foreach ($providerFile in @('Msys2.ps1', 'Npm.ps1', 'Python.ps1', 'PowerShellGallery.ps1', 'GitHubRelease.ps1', 'Winget.ps1', 'GitSubmodule.ps1', 'External.ps1'))
+foreach ($providerFile in @('Msys2.ps1', 'Npm.ps1', 'Python.ps1', 'PowerShellGallery.ps1', 'GitHubRelease.ps1', 'Winget.ps1', 'External.ps1'))
 {
     . (Join-Path $PSScriptRoot (Join-Path 'Providers' $providerFile))
 }
@@ -240,7 +240,7 @@ function Get-GameWipToolCompatibilitySemantic
 {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('compatible', 'missing', 'mismatch', 'outdated', 'unknown')]
+        [ValidateSet('compatible', 'missing', 'mismatch', 'outdated', 'unknown', 'dependency-missing')]
         [string]$Compatibility
     )
 
@@ -254,11 +254,255 @@ function Get-GameWipToolCompatibilitySemantic
         {
             return 'Failure'
         }
+        'dependency-missing'
+        {
+            return 'Failure'
+        }
         default
         {
             return 'Warning'
         }
     }
+}
+
+function Get-GameWipToolProviderDependencyStatus
+{
+    param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    $dependencies = @(
+        if ($Tool.provider.Contains('dependencies'))
+        {
+            @($Tool.provider.dependencies)
+        }
+        else
+        {
+            @()
+        }
+    )
+    if ($dependencies.Count -eq 0)
+    {
+        return @()
+    }
+
+    $functionName = switch ([string]$Tool.provider.kind)
+    {
+        'msys2'
+        {
+            'Get-GameWipMsys2ToolDependencyStatus'
+        }
+        'npm'
+        {
+            'Get-GameWipNpmToolDependencyStatus'
+        }
+        default
+        {
+            $null
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($functionName))
+    {
+        return @($dependencies | ForEach-Object {
+                [pscustomobject]@{
+                    Package = [string]$_.package
+                    RequiredVersion = if ($_.Contains('version'))
+                    {
+                        [string]$_.version
+                    }
+                    else
+                    {
+                        $null
+                    }
+                    InstalledVersion = $null
+                    State = 'unknown'
+                    Location = $null
+                    Reason = "Provider '$($Tool.provider.kind)' does not implement dependency checking."
+                }
+            })
+    }
+
+    try
+    {
+        return @(& $functionName -Tool $Tool)
+    }
+    catch
+    {
+        $errorMessage = $_.Exception.Message
+        return @($dependencies | ForEach-Object {
+                [pscustomobject]@{
+                    Package = [string]$_.package
+                    RequiredVersion = if ($_.Contains('version'))
+                    {
+                        [string]$_.version
+                    }
+                    else
+                    {
+                        $null
+                    }
+                    InstalledVersion = $null
+                    State = 'unknown'
+                    Location = $null
+                    Reason = $errorMessage
+                }
+            })
+    }
+}
+
+function Get-GameWipToolStatus
+{
+    param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    $detected = Get-GameWipDetectedTool -Tool $Tool
+    $compatibility = Get-GameWipToolCompatibility -Tool $Tool -Detected $detected
+    $dependencies = @(Get-GameWipToolProviderDependencyStatus -Tool $Tool)
+    $dependencyFailures = @($dependencies | Where-Object { $_.State -ne 'compatible' })
+    $state = if ($compatibility -ne 'compatible')
+    {
+        $compatibility
+    }
+    elseif ($dependencyFailures.Count -ne 0)
+    {
+        'dependency-missing'
+    }
+    else
+    {
+        'compatible'
+    }
+
+    return [pscustomobject]@{
+        Tool = $Tool
+        Detected = $detected
+        Compatibility = $compatibility
+        Dependencies = $dependencies
+        DependencyFailures = $dependencyFailures
+        State = $state
+        Ready = $state -eq 'compatible'
+        Error = $null
+    }
+}
+
+function Test-GameWipToolchain
+{
+    param(
+        [AllowEmptyCollection()][string[]]$ToolIds = @(),
+        [switch]$IncludeInformational,
+        [switch]$DisplayStatus,
+        [switch]$ThrowOnFailure,
+        [string]$FailureCode = 'toolchain-incomplete',
+        [string]$FailureSummary = 'The declared project toolchain is incomplete.',
+        [string[]]$SuggestedActions = @('.\gamewip.bat tools ensure all -Yes', '.\gamewip.bat tools status'),
+        [int]$Indent = 2
+    )
+
+    $selected = if ($ToolIds.Count -ne 0)
+    {
+        @($ToolIds | ForEach-Object { Get-GameWipProjectTool -Id $_ })
+    }
+    else
+    {
+        @($ProjectTools.tools)
+    }
+    if (-not $IncludeInformational)
+    {
+        $selected = @($selected | Where-Object { $_.versionPolicy -ne 'informational' })
+    }
+    $selected = @($selected | Where-Object { $_.capabilities.detectInstalled })
+    $results = [System.Collections.Generic.List[object]]::new()
+    $failures = [System.Collections.Generic.List[string]]::new()
+    $toolPaths = @{}
+
+    if ($DisplayStatus)
+    {
+        Write-Host "Checking $($selected.Count) declared tool(s)..."
+    }
+    for ($toolIndex = 0; $toolIndex -lt $selected.Count; ++$toolIndex)
+    {
+        $tool = $selected[$toolIndex]
+        try
+        {
+            $status = Get-GameWipToolStatus -Tool $tool
+        }
+        catch
+        {
+            $status = [pscustomobject]@{
+                Tool = $tool
+                Detected = [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; Candidates = @() }
+                Compatibility = 'unknown'
+                Dependencies = @()
+                DependencyFailures = @()
+                State = 'unknown'
+                Ready = $false
+                Error = $_.Exception.Message
+            }
+        }
+        $results.Add($status) | Out-Null
+
+        if ($status.Ready -and $status.Detected.Location)
+        {
+            $toolPaths[[string]$tool.id] = [string]$status.Detected.Location
+        }
+
+        if ($status.State -ne 'compatible' -and $status.State -ne 'dependency-missing')
+        {
+            $location = if ($status.Detected.Location)
+            {
+                [string]$status.Detected.Location
+            }
+            else
+            {
+                'not found'
+            }
+            $detail = if ($status.Error)
+            {
+                [string]$status.Error
+            }
+            else
+            {
+                $location
+            }
+            $failures.Add("$($tool.id): $($status.State) ($detail)") | Out-Null
+        }
+        foreach ($dependency in @($status.DependencyFailures))
+        {
+            $dependencyDetail = if ($dependency.Reason)
+            {
+                " - $($dependency.Reason)"
+            }
+            else
+            {
+                ''
+            }
+            $failures.Add("$($tool.id) dependency '$($dependency.Package)': $($dependency.State)$dependencyDetail") | Out-Null
+        }
+
+        if ($DisplayStatus)
+        {
+            $semantic = Get-GameWipToolCompatibilitySemantic -Compatibility $status.State
+            Write-GameWipStatusLine `
+                -Status "$($toolIndex + 1)/$($selected.Count)" `
+                -Text ([string]$tool.id) `
+                -Suffix "($($status.State))" `
+                -Semantic $semantic `
+                -SuffixSemantic Muted `
+                -Indent $Indent
+        }
+    }
+
+    $result = [pscustomobject]@{
+        Ready = $failures.Count -eq 0
+        Results = @($results)
+        Failures = @($failures)
+        Tools = $toolPaths
+    }
+    if (-not $result.Ready -and $ThrowOnFailure)
+    {
+        throw (New-GameWipDiagnosticException `
+                -Code $FailureCode `
+                -Summary $FailureSummary `
+                -Details ($failures -join "`n") `
+                -SuggestedActions $SuggestedActions)
+    }
+    return $result
 }
 
 function Test-GameWipDetectedToolFromDeclaredProvider
@@ -321,10 +565,6 @@ function Get-GameWipProviderFunction
         'winget'
         {
             'Winget'
-        }
-        'gitSubmodule'
-        {
-            'GitSubmodule'
         }
         'external'
         {
@@ -401,46 +641,13 @@ function Test-GameWipProjectReadiness
 
     Write-GameWipSection 'Project readiness'
 
-    foreach ($toolInfo in @($ProjectTools.tools | Where-Object {
-                $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
-            }))
+    $toolIds = @($ProjectTools.tools | Where-Object {
+            $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
+        } | ForEach-Object { [string]$_.id })
+    $toolchain = Test-GameWipToolchain -ToolIds $toolIds -DisplayStatus -Indent 2
+    foreach ($failure in @($toolchain.Failures))
     {
-        $detected = Get-GameWipDetectedTool -Tool $toolInfo
-        $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-
-        $status = if ($compatibility -eq 'compatible')
-        {
-            'ready'
-        }
-        else
-        {
-            $compatibility
-        }
-
-        $semantic = Get-GameWipToolCompatibilitySemantic -Compatibility $compatibility
-
-        $location = if ($detected.Location)
-        {
-            [string]$detected.Location
-        }
-        else
-        {
-            'not found'
-        }
-
-        Write-GameWipStatusLine `
-            -Status $status `
-            -Text "$($toolInfo.name):" `
-            -Suffix $location `
-            -Semantic $semantic `
-            -SuffixSemantic Muted `
-            -Indent 2 `
-            -MarkerWidth 10
-
-        if ($compatibility -ne 'compatible')
-        {
-            $failures.Add([string]$toolInfo.name) | Out-Null
-        }
+        $failures.Add([string]$failure) | Out-Null
     }
 
     if (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
@@ -554,7 +761,7 @@ function Resolve-GameWipPythonProviderHost
         {
             throw "Python provider host override does not exist: $candidate"
         }
-        return [pscustomobject]@{ Path = $candidate; Source = '-PythonProviderHostPath override'; Version = 'override' }
+        return [pscustomobject]@{ Path = $candidate; Source = '-PythonHostPath override'; Version = 'override' }
     }
     if (Test-GameWipWindowsHost)
     {
@@ -575,7 +782,7 @@ function Resolve-GameWipPythonProviderHost
     $resolved = Resolve-GameWipPython
     if ((Test-GameWipWindowsHost) -and $resolved.Path -match '(?i)[\\/](?:ucrt64|clang64|usr)[\\/]')
     {
-        throw 'Python provider host must be native CPython, not MSYS2 Python. Run setup.bat tools.'
+        throw 'Python provider host must be native CPython, not MSYS2 Python. Run setup.bat tool.'
     }
     return $resolved
 }

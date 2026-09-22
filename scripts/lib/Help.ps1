@@ -19,7 +19,15 @@ function Show-GameWipProjectCatalog
         Write-Host "  $((Get-Culture).TextInfo.ToTitleCase($group)):"
         foreach ($action in $items)
         {
-            Write-Host ('    {0,-12} [{1,-11}] {2}' -f $action.Id, $action.Risk, $action.Description)
+            if ($null -ne $action.Aliases -and @($action.Aliases).Count -gt 0)
+            {
+                $aliases = " (aliases: $(@($action.Aliases) -join ', '))"
+            }
+            else
+            {
+                $aliases = ''
+            }
+            Write-Host ('    {0,-12} [{1,-11}] {2}{3}' -f $action.Id, $action.Risk, $action.Description, $aliases)
         }
     }
 
@@ -137,23 +145,52 @@ function Show-GameWipActionFailure
     }
 }
 
+function Show-GameWipOptionDefinitions
+{
+    param(
+        [Parameter(Mandatory = $true)][object[]]$OptionDefinitions,
+        [Parameter(Mandatory = $true)][string[]]$OptionIds
+    )
+
+    foreach ($optionId in $OptionIds)
+    {
+        $option = @($OptionDefinitions | Where-Object { [string]$_.Id -ieq $optionId }) | Select-Object -First 1
+        if ($null -eq $option)
+        {
+            continue
+        }
+        $signature = "-$($option.Id)"
+        if ($option.Kind -ne 'switch')
+        {
+            $signature += " <$($option.ValueName)>"
+        }
+        $description = [string]$option.Description
+        if ($option.Kind -eq 'choice')
+        {
+            $description += " Choices: $(@($option.Choices) -join '|')."
+        }
+        Write-Host ('  {0,-34} {1}' -f $signature, $description)
+    }
+}
+
 function Show-GameWipCommonControlHelp
 {
-    param([string[]]$AdditionalOptions = @())
+    param(
+        [object[]]$OptionDefinitions = @(),
+        [string[]]$AdditionalOptions = @()
+    )
 
     Write-Host 'Common control options:'
-    Write-Host '  -Preview          Do not apply the requested action; retain only diagnostic run evidence.'
-    Write-Host '  -NonInteractive   Never prompt. This does not grant consent for any mutation risk.'
-    Write-Host '  -Yes              Grant consent after the operation plan is known.'
+    if ($OptionDefinitions.Count -eq 0 -and $null -ne (Get-Variable -Name CommandConfig -ErrorAction SilentlyContinue))
+    {
+        $OptionDefinitions = @($CommandConfig.Options)
+    }
+    $globalOptions = @($OptionDefinitions | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global } | ForEach-Object { [string]$_.Id })
+    Show-GameWipOptionDefinitions -OptionDefinitions $OptionDefinitions -OptionIds $globalOptions
     foreach ($option in $AdditionalOptions)
     {
         Write-Host $option
     }
-    Write-Host '  -OutputMode <Summary|Stream|LogOnly>  Stream is the default; native output remains visible.'
-    Write-Host '  -Quiet            Reduce normal command output; retained logs and receipt data remain available.'
-    Write-Host '  -NoColor          Request plain terminal presentation.'
-    Write-Host '  -Json             Emit the final operation result as JSON.'
-    Write-Host '  -Verbose          Use the PowerShell common parameter for detailed progress.'
 }
 
 function Show-GameWipHelp
@@ -163,35 +200,47 @@ function Show-GameWipHelp
     Write-Host '  .\gamewip.bat                         Open the interactive UI.'
     Write-Host ''
     Write-Host 'Available commands:'
-    Write-Host '  doctor'
+    Write-Host '  ready'
     Write-Host '  git <status|fetch|switch|update|cleanup|create|push|log> [branch]'
     Write-Host '  workflow <list|status|run> [workflow-id]'
     Write-Host '  unicode <status|verify|regenerate>'
     Write-Host '  format <check|apply>'
-    Write-Host '  quality <check|fix|status> [-Changed] [-FailFast]'
-    Write-Host '  quality hygiene [standard|deep|check-id|list|status] [-Enforce]'
-    Write-Host '  tools <list|status|check-updates|ensure|update> [tool-id|category|all]'
-    Write-Host '  configure [preset] [-Fresh]'
-    Write-Host '  build [preset] [-Fresh]'
-    Write-Host '  test [preset] [-NoBuild] [-Fresh]'
-    Write-Host '  module [name] [-NoBuild] [-ExtraArgs <args>]'
-    Write-Host '  wizard [-NoBuild]'
-    Write-Host '  stress [name] [-Count N] [-Parallel N] [-StopOnFailure] [-NoBuild]'
-    Write-Host '  run [project-command] [-NoBuild] [-ExtraArgs <args>]'
-    Write-Host '  bundle [id] [-NoBuild] [-Fresh]'
-    Write-Host '  docs | analyze | coverage | asan | ubsan | links'
-    Write-Host '  benchmark <run|dry-run|list|compare> [options]'
-    Write-Host '  runs list [all] | runs show [latest|run-name] | runs clean [run-name|all]'
+    Write-Host '  quality <check|fix|status> [-ChangedOnly] [-FailFast]'
+    Write-Host '  quality hygiene [standard|deep|check-id|list|status] [-FailOnFindings]'
+    Write-Host '  tool <list|status|check-updates|ensure|update> [tool-id|category|all]'
+    Write-Host '  deps <check|prepare>'
+    Write-Host '  config [preset] [-CleanBuild] [-Offline]'
+    Write-Host '  build [preset] [-CleanBuild] [-Offline]'
+    Write-Host '  test [preset] [-SkipBuild] [-CleanBuild]'
+    Write-Host '  module [name] [-SkipBuild] [-PassThroughArgs <arguments>]'
+    Write-Host '  wizard [-SkipBuild]'
+    Write-Host '  stress [name] [-RunCount N] [-WorkerCount N] [-FailFast] [-SkipBuild]'
+    Write-Host '  run [project-command] [-SkipBuild] [-PassThroughArgs <arguments>]'
+    Write-Host '  bundle [id] [-SkipBuild] [-CleanBuild]'
+    Write-Host '  doc | analyze | cov | asan | ubsan | links'
+    Write-Host '  bench <run|dry-run|list|compare> [options]'
+    Write-Host '  history list [all] | history show [latest|run-name] | history clean [run-name|all]'
     Write-Host '  list | help'
     Write-Host ''
-    Show-GameWipCommonControlHelp -AdditionalOptions @(
-        '  -NoBuild          Do not build prerequisites automatically; require existing usable build state.'
-        '  -Fresh            Recreate the selected known preset build tree before configuring or building.'
-    )
+    Write-Host 'Short and compatibility aliases:'
+    foreach ($action in @($CommandConfig.Actions | Where-Object { $null -ne $_.Aliases -and @($_.Aliases).Count -gt 0 }))
+    {
+        Write-Host "  $($action.Id): $(@($action.Aliases) -join ', ')"
+    }
     Write-Host ''
-    Write-Host 'Benchmark options remain named because they describe measurement policy rather than command routing:'
-    Write-Host '  -BenchmarkProfile <quick|standard|stable> -Filter <regex> -Repetitions N -MinTime <time>'
-    Write-Host '  -AggregatesOnly -Output <path> -OutputFormat <json|csv> -Baseline <json> -Candidate <json>'
+    Show-GameWipCommonControlHelp -OptionDefinitions $CommandConfig.Options
+    Write-Host ''
+    Write-Host 'Action-specific options:'
+    foreach ($action in @($CommandConfig.Actions | Where-Object { $CommandConfig.ActionOptions.ContainsKey([string]$_.Id) }))
+    {
+        $specific = @($CommandConfig.ActionOptions[[string]$action.Id] | Where-Object { @($CommandConfig.Options | Where-Object Id -eq $_ | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global }).Count -eq 0 })
+        if ($specific.Count -eq 0)
+        {
+            continue
+        }
+        Write-Host "  $($action.Id):"
+        Show-GameWipOptionDefinitions -OptionDefinitions $CommandConfig.Options -OptionIds $specific
+    }
     Write-Host ''
     Write-Host 'Use .\gamewip.bat list to discover valid IDs.'
 }

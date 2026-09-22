@@ -6,7 +6,7 @@ where an end-to-end run spends time.
 
 ## Common workflow
 
-Rebuild the Windows tools from the Tracy client pinned by the checkout:
+Rebuild the Windows tools from the Tracy client locked by the checkout:
 
 ```powershell
 .\setup.bat profiler
@@ -19,7 +19,7 @@ and `tracy-update.exe` under
 with a reproducible `x86-64-v3` baseline, stages the tools and required UCRT
 DLLs, and replaces existing tools only after verification. Visual Studio is not
 required. First use may take several minutes because the GUI profiler compiles
-substantial pinned dependencies.
+substantial upstream dependencies.
 
 Build the profiling preset:
 
@@ -122,8 +122,8 @@ Tracy must not appear in public library APIs, installed public headers, package 
 
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
-| The profiling build cannot find Tracy. | Submodules or external dependencies are not initialized. | Run `git submodule update --init --recursive` and reconfigure. |
-| The profiler executable is missing or mismatched. | `C:\MSYS2\GameWIPTools\tools\tracy` was not prepared for the pinned client. | Run `setup.bat profiler`; existing tools remain intact if rebuilding fails. |
+| The profiling build cannot find Tracy. | The locked dependency cache is not ready. | Run `setup.bat deps`, then reconfigure. |
+| The profiler executable is missing or mismatched. | `C:\MSYS2\GameWIPTools\tools\tracy` was not prepared for the locked client. | Run `setup.bat profiler`; existing tools remain intact if rebuilding fails. |
 | A disabled build still references Tracy. | A Tracy include or symbol leaked outside the enable guard. | Move the include to private implementation code and guard instrumentation. |
 | A capture is too noisy. | Markers are too fine-grained or use unstable names. | Collapse markers to meaningful phases and remove high-cardinality names. |
 | A profile suggests an optimization but benchmarks do not change. | The benchmark does not represent the profiled workload or the hotspot is end-to-end only. | Adjust the benchmark or keep the evidence as profiling-only. |

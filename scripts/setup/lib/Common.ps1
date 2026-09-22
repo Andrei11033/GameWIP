@@ -127,7 +127,7 @@ function Assert-GameWipSetupWindows
 function Assert-GameWipSetupRepository
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
-    foreach ($file in @('CMakeLists.txt', 'CMakePresets.json', '.gitmodules'))
+    foreach ($file in @('CMakeLists.txt', 'CMakePresets.json'))
     {
         if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot $file)))
         {

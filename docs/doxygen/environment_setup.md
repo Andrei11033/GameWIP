@@ -1,9 +1,9 @@
 @page project_environment_setup Development environment setup
 
 GameWIP's Windows 11 environment bootstrap is `setup.bat`. It owns machine
-preparation, repair, environment and package-manager updates, editor
-integration, profiler-tool preparation, ownership-aware uninstall, and complete
-environment verification.
+preparation, repair, environment and package-manager updates, pinned dependency
+cache preparation, editor integration, profiler-tool preparation,
+ownership-aware uninstall, and complete environment verification.
 
 ## Quick start
 
@@ -18,6 +18,7 @@ directly:
 .\setup.bat check
 .\setup.bat repair
 .\setup.bat full
+.\setup.bat deps
 ```
 
 Both interactive menus render declared key and label entries through the same
@@ -35,18 +36,49 @@ duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 | `setup.bat check` | Verify the selected environment without mutation. |
 | `setup.bat update` | Update compatible environment software and the checkout without advancing exact project pins, then verify. |
 | `setup.bat repair` | Reapply declared required state without requesting ordinary upgrades. |
+| `setup.bat deps` | Fetch or reuse dependency sources at the commits recorded by the checkout. |
 | `setup.bat editor` | Choose editors/IDEs and apply their GameWIP integration. |
 | `setup.bat msys2` | Install or repair declared UCRT64 and CLANG64 packages. |
-| `setup.bat repository` | Prepare Git/submodules and repository-local development state. |
-| `setup.bat tools` | Ensure project tools at versions already declared by the checkout. |
-| `setup.bat docs` | Build and verify generated documentation. |
-| `setup.bat profiler` | Build/install Tracy tools matching the pinned client. |
+| `setup.bat repo` | Prepare the Git checkout and repository-local development state. |
+| `setup.bat tool` | Install or repair project tools at versions already declared by the checkout. |
+| `setup.bat doc` | Build and verify generated documentation. |
+| `setup.bat profiler` | Reuse the locked Tracy source and build/install matching profiler tools. |
 | `setup.bat uninstall` | Inventory and remove only resources with sufficient GameWIP ownership evidence. |
-| `setup.bat visual-studio` | Install or repair Visual Studio Community using the repository configuration. |
+| `setup.bat vs` | Install or repair Visual Studio Community using the repository configuration. |
 | `setup.bat list` | Print the setup action catalog. |
 | `setup.bat help` | Print setup usage. |
 
 `setup.bat --help`, `setup.bat -h`, and `setup.bat -?` are help aliases.
+The canonical short setup names are `repo`, `tool`, `deps`, `doc`, and `vs`;
+the compatibility aliases `repository`, `tools`, `dependencies`, `docs`, and
+`visual-studio` remain accepted. `ls` aliases `list`, and `h` aliases `help`.
+
+## Dependency cache and offline builds
+
+The setup utility and project helper share the repository-local dependency cache
+under `build/gamewip/cache/dependencies`. The cache is controlled by
+`scripts/config/dependencies.json`, which records each repository and exact
+commit. Preparation reuses a matching source tree and only fetches a missing or
+out-of-date commit.
+
+Use the project helper for focused cache operations:
+
+```powershell
+.\gamewip.bat deps check
+.\gamewip.bat deps prepare
+```
+
+After the cache is ready, configure and build without allowing dependency
+downloads:
+
+```powershell
+.\gamewip.bat config profile -Offline
+.\gamewip.bat build profile -Offline
+```
+
+Offline mode requires the prepared sources and verifies their exact Git commits;
+it fails with a repair instruction instead of downloading anything. The setup
+`check` action verifies the cache but does not prepare or modify it.
 
 ## Controls
 
@@ -59,7 +91,7 @@ duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 
 - `-Preview` prints the planned scope and performs only the action's read-only
   discovery or preflight. It does not apply local, tracked, or machine changes;
-  diagnostic run logs and receipts are still retained. A focused `docs` preview
+  diagnostic run logs and receipts are still retained. A focused `doc` preview
   therefore does not configure, build, or open the manual.
 - `-NonInteractive` never prompts. This does not grant consent for any mutation risk.
 - `-Yes` grants consent after the operation plan is known.
@@ -117,13 +149,13 @@ content with unknown ownership.
 exact project pins. Use:
 
 ```powershell
-.\gamewip.bat tools ensure all
+.\gamewip.bat tool ensure all
 ```
 
 to repair or install the versions already declared by the checkout. Use:
 
 ```powershell
-.\gamewip.bat tools update all -Preview
+.\gamewip.bat tool update all -Preview
 ```
 
 to review an intentional project-pin advancement. See @ref

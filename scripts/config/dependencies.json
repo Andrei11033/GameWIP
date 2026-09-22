@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "dependencies": {
+    "tracy": {
+      "repository": "https://github.com/wolfpld/tracy",
+      "commit": "30997d5ca6bb632cc10807a1da8a6d3de0aeeb3c",
+      "cacheDirectory": "tracy"
+    },
+    "benchmark": {
+      "repository": "https://github.com/google/benchmark.git",
+      "commit": "192ef10025eb2c4cdd392bc502f0c852196baa48",
+      "cacheDirectory": "benchmark"
+    }
+  }
+}

@@ -40,8 +40,8 @@
     {
       "id": "powershell",
       "extensions": [".ps1", ".psd1", ".psm1"],
-      "formatter": "PSScriptAnalyzer formatter",
-      "checks": ["PowerShell parser", "PSScriptAnalyzer"],
+      "formatter": "Prettier with PowerShell plugin",
+      "checks": ["Prettier", "PowerShell parser", "PSScriptAnalyzer"],
       "allowTrailingWhitespace": false
     },
     {
@@ -111,7 +111,6 @@
         ".editorconfig",
         ".gitattributes",
         ".gitignore",
-        ".gitmodules",
         ".clang-format",
         ".clang-tidy",
         ".markdownlintignore",

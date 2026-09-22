@@ -19,11 +19,12 @@ and workflow pages describe the behavior inside each area.
 | `engine/` | The documented Desktop library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
+| `external/` | CMake integration for optional FetchContent dependencies. |
 | `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |
 | `docs/doxygen/` | Generated project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `.github/` | Pull-request policy, CI, documentation publishing, and repository automation. |
-| `external/` | Pinned third-party dependencies. |
+| `build/gamewip/cache/dependencies/` | Setup-managed locked third-party dependency sources. |
 
 Build output belongs under the build directories selected by CMake presets.
 

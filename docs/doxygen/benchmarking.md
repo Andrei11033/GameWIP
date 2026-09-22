@@ -19,19 +19,19 @@ project_game_executable.
 Build and run the standard optimized benchmark profile:
 
 ```powershell
-.\gamewip.bat benchmark
+.\gamewip.bat bench
 ```
 
 Validate registration without collecting meaningful timings:
 
 ```powershell
-.\gamewip.bat benchmark dry-run
+.\gamewip.bat bench dry-run
 ```
 
 List registered scenarios without measuring them:
 
 ```powershell
-.\gamewip.bat benchmark list
+.\gamewip.bat bench list
 ```
 
 CI performs registration dry runs only. Machine-dependent timings are not merge
@@ -107,38 +107,38 @@ The standalone benchmark executable returns failure only when `ok()` is false. S
 Run a focused family with the standard profile:
 
 ```powershell
-.\gamewip.bat benchmark -Filter BM_Logger
+.\gamewip.bat bench -NameFilter BM_Logger
 ```
 
 Request explicit repetitions and minimum measurement time:
 
 ```powershell
-.\gamewip.bat benchmark `
-  -Filter BM_Logger `
+.\gamewip.bat bench `
+  -NameFilter BM_Logger `
   -Repetitions 10 `
-  -MinTime 1s
+  -MinimumTime 1s
 ```
 
 Use a named profile:
 
 ```powershell
-.\gamewip.bat benchmark -BenchmarkProfile quick
-.\gamewip.bat benchmark -BenchmarkProfile standard
-.\gamewip.bat benchmark -BenchmarkProfile stable
+.\gamewip.bat bench -BenchmarkProfile quick
+.\gamewip.bat bench -BenchmarkProfile standard
+.\gamewip.bat bench -BenchmarkProfile stable
 ```
 
 Save results to an explicit path:
 
 ```powershell
-.\gamewip.bat benchmark -Filter BM_Logger -Output D:\Results\logger.json
+.\gamewip.bat bench -NameFilter BM_Logger -OutputPath D:\Results\logger.json
 ```
 
 Compare two retained JSON results descriptively:
 
 ```powershell
-.\gamewip.bat benchmark compare `
-  -Baseline build\gamewip\runs\<before>\artifacts\benchmark-results.json `
-  -Candidate build\gamewip\runs\<after>\artifacts\benchmark-results.json
+.\gamewip.bat bench compare `
+  -BaselinePath build\gamewip\runs\<before>\artifacts\benchmark-results.json `
+  -CandidatePath build\gamewip\runs\<after>\artifacts\benchmark-results.json
 ```
 
 The comparison matches benchmark run names, normalizes time units, prefers
@@ -153,18 +153,18 @@ test or performance gate.
 | `benchmark run` | Configure, build, measure, and retain results. This is the default. |
 | `benchmark dry-run` | Validate selected registrations without useful timings. |
 | `benchmark list` | Print selected registered benchmark names. |
-| `benchmark compare` | Compare two retained JSON files supplied with `-Baseline` and `-Candidate`. |
+| `benchmark compare` | Compare two retained JSON files supplied with `-BaselinePath` and `-CandidatePath`. |
 | `-BenchmarkProfile quick` | One short development measurement per scenario. |
 | `-BenchmarkProfile standard` | Five repetitions with aggregate reporting; this is the default profile. |
 | `-BenchmarkProfile stable` | Ten longer, randomly interleaved repetitions for careful local comparison. |
-| `-Filter <regex>` | Forward a Google Benchmark name filter. |
+| `-NameFilter <regex>` | Forward a Google Benchmark name filter. |
 | `-Repetitions <count>` | Override the selected profile's repetition count. |
-| `-MinTime <time>` | Override minimum measurement time, such as `0.5s`, `2s`, or `100x`. |
+| `-MinimumTime <time>` | Override minimum measurement time, such as `0.5s`, `2s`, or `100x`. |
 | `-AggregatesOnly` | Retain and display aggregate rows only. |
-| `-Output <path>` | Override the default retained result or comparison path. |
+| `-OutputPath <path>` | Override the default retained result or comparison path. |
 | `-OutputFormat json\|csv` | Select retained measurement format; JSON is the default and is required for helper comparison. |
-| `-NoBuild` | Use existing benchmark build state only. Never configure or build automatically; fail clearly when the executable is missing. |
-| `-ExtraArgs <arguments>` | Forward advanced Google Benchmark arguments not owned by a dedicated helper option. |
+| `-SkipBuild` | Use existing benchmark build state only. Never configure or build automatically; fail clearly when the executable is missing. |
+| `-PassThroughArgs <arguments>` | Forward advanced Google Benchmark arguments not owned by a dedicated helper option. |
 
 ## Module standard
 
@@ -245,7 +245,7 @@ records the selected profile, effective options, commands, timings, exit codes,
 and output paths. JSON is the default measurement artifact because it supports
 later comparison and issue attachments.
 
-An explicit `-Output` may point outside the checkout. Inside the checkout it
+An explicit `-OutputPath` may point outside the checkout. Inside the checkout it
 must remain canonically under `build/` on every supported host. Benchmark output
 does not belong in source directories.
 

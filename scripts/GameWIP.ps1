@@ -11,33 +11,36 @@ param(
     [Parameter(Position = 1)][string]$Command,
     [Parameter(Position = 2)][string]$Target,
     [string]$PythonPath,
-    [string]$PythonProviderHostPath,
+    [string]$PythonHostPath,
     [string]$ClangFormatPath,
-    [string]$UnicodeDataRoot,
+    [string]$UnicodeDataPath,
     [switch]$RefreshUnicodeData,
     [ValidateSet('all', 'issue', 'pull_request')][string]$WorkflowKind = 'all',
-    [int]$WorkflowNumber = 0,
+    [int]$ItemNumber = 0,
     [string]$ReleaseCommit,
     [string]$BenchmarkProfile = 'standard',
-    [string]$Filter,
+    [string]$NameFilter,
     [ValidateRange(0, 100000)][int]$Repetitions = 0,
-    [string]$MinTime,
-    [string]$Output,
+    [string]$MinimumTime,
+    [string]$OutputPath,
     [ValidateSet('json', 'csv')][string]$OutputFormat = 'json',
     [switch]$AggregatesOnly,
-    [string]$Baseline,
-    [string]$Candidate,
-    [ValidateRange(1, 100000)][int]$Count = 0,
-    [ValidateRange(1, 256)][int]$Parallel = 0,
-    [string[]]$ExtraArgs = @(),
-    [switch]$NoBuild,
-    [switch]$Fresh,
-    [switch]$StopOnFailure,
+    [string]$BaselinePath,
+    [string]$CandidatePath,
+    [Parameter(DontShow = $true)][Alias('Output')][string]$RetiredOutput,
+    [Parameter(DontShow = $true)][Alias('Baseline')][string]$RetiredBaseline,
+    [Parameter(DontShow = $true)][Alias('Candidate')][string]$RetiredCandidate,
+    [ValidateRange(1, 100000)][int]$RunCount = 0,
+    [ValidateRange(1, 256)][int]$WorkerCount = 0,
+    [string[]]$PassThroughArgs = @(),
+    [switch]$SkipBuild,
+    [switch]$CleanBuild,
+    [switch]$Offline,
     [switch]$FailFast,
-    [switch]$Changed,
-    [switch]$Enforce,
+    [switch]$ChangedOnly,
+    [switch]$FailOnFindings,
     [switch]$Json,
-    [switch]$NoWorkspaceTemp,
+    [switch]$UseCallerTemp,
     [switch]$Preview,
     [switch]$NonInteractive,
     [switch]$Yes,
@@ -55,6 +58,38 @@ if ($Quiet)
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 
+foreach ($retiredOption in @(
+        @{ Name = 'Output'; Bound = $PSBoundParameters.ContainsKey('RetiredOutput') -or $PSBoundParameters.ContainsKey('Output') },
+        @{ Name = 'Baseline'; Bound = $PSBoundParameters.ContainsKey('RetiredBaseline') -or $PSBoundParameters.ContainsKey('Baseline') },
+        @{ Name = 'Candidate'; Bound = $PSBoundParameters.ContainsKey('RetiredCandidate') -or $PSBoundParameters.ContainsKey('Candidate') }
+    ))
+{
+    if ($retiredOption.Bound)
+    {
+        throw "Option '-$($retiredOption.Name)' was renamed and is no longer accepted; use the canonical option shown by '.\gamewip.bat help'."
+    }
+}
+
+# Keep the focused libraries' internal names stable while exposing the clearer
+# public command-line vocabulary above.
+$PythonProviderHostPath = $PythonHostPath
+$UnicodeDataRoot = $UnicodeDataPath
+$WorkflowNumber = $ItemNumber
+$Filter = $NameFilter
+$MinTime = $MinimumTime
+$Output = $OutputPath
+$Baseline = $BaselinePath
+$Candidate = $CandidatePath
+$Count = $RunCount
+$Parallel = $WorkerCount
+$ExtraArgs = @($PassThroughArgs)
+$NoBuild = $SkipBuild
+$Fresh = $CleanBuild
+$StopOnFailure = $FailFast
+$Changed = $ChangedOnly
+$Enforce = $FailOnFindings
+$NoWorkspaceTemp = $UseCallerTemp
+
 # ------------------------------------------------------------
 # Early command validation and common exits
 # ------------------------------------------------------------
@@ -63,12 +98,18 @@ if ($Action -in @('--help', '-h', '-?'))
 {
     $Action = 'help'
 }
-$validActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'ubsan', 'benchmark', 'runs', 'list', 'help')
-if ($Action -notin $validActions)
+$resolvedAction = Resolve-GameWipActionName -Name $Action
+if ($null -eq $resolvedAction)
 {
     Write-GameWipHost "Unknown project action '$Action'." -ForegroundColor Red
     Write-Host 'Run .\gamewip.bat list to see available actions.'
     exit 2
+}
+$Action = $resolvedAction
+
+if ($Action -notin @('help', 'list', 'menu'))
+{
+    Assert-GameWipActionOptions -Action $Action -BoundParameters $PSBoundParameters
 }
 
 # Keep common PowerShell -Verbose semantics without inventing a parallel flag.
@@ -115,7 +156,7 @@ $result = Invoke-GameWipOperation `
         # Navigation and repository operations
         # ------------------------------------------------------------
 
-        'doctor'
+        'ready'
         {
             Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
         }
@@ -217,7 +258,7 @@ $result = Invoke-GameWipOperation `
             }
             if ($verb -eq 'fix')
             {
-                Invoke-GameWipMutation -Summary 'Apply deterministic formatters, then run the quality gate.' -Risk tracked -Plan @('Apply deterministic formatter changes.', 'Run all independent quality checks and aggregate failures.') -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed } | Out-Null
+                Invoke-GameWipMutation -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' -Risk tracked -Plan @('Validate every tool required by the quality workflow before mutation.', 'Apply deterministic formatter changes and normalize maintained text to LF.', 'Run all independent quality checks and aggregate failures.') -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed } | Out-Null
             }
             elseif ($verb -eq 'status')
             {
@@ -259,7 +300,7 @@ $result = Invoke-GameWipOperation `
                 Invoke-GameWipQuality -Mode check -FailFast:$FailFast -Changed:$Changed
             }
         }
-        'tools'
+        'tool'
         {
             $verb = if ([string]::IsNullOrWhiteSpace($Command))
             {
@@ -271,7 +312,7 @@ $result = Invoke-GameWipOperation `
             }
             if ($verb -notin @('list', 'status', 'check-updates', 'ensure', 'update'))
             {
-                throw "Unknown tools command '$verb'."
+                throw "Unknown tool command '$verb'."
             }
             $toolId = if ([string]::IsNullOrWhiteSpace($Target))
             {
@@ -312,7 +353,32 @@ $result = Invoke-GameWipOperation `
         # Configure, build, and validation operations
         # ------------------------------------------------------------
 
-        'configure'
+        'deps'
+        {
+            $verb = if ([string]::IsNullOrWhiteSpace($Command))
+            {
+                'check'
+            }
+            else
+            {
+                $Command
+            }
+
+            if ($verb -notin @('check', 'prepare'))
+            {
+                throw "Unknown deps command '$verb'. Use 'check' or 'prepare'."
+            }
+
+            if ($verb -eq 'prepare')
+            {
+                Invoke-GameWipDependencyPreparationOperation
+            }
+            else
+            {
+                Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
+            }
+        }
+        'config'
         {
             $preset = if ([string]::IsNullOrWhiteSpace($Command))
             {
@@ -322,6 +388,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             $configurePlan = if ($Fresh)
             {
                 @("Remove build/$preset completely.", "cmake --preset $preset")
@@ -330,7 +397,23 @@ $result = Invoke-GameWipOperation `
             {
                 @("cmake --preset $preset")
             }
-            Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan $configurePlan -Body { Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh } | Out-Null
+
+            if ($Offline)
+            {
+                $configurePlan += 'Require the prepared dependency cache and disallow downloads.'
+            }
+
+            Invoke-GameWipMutation `
+                -Summary "Configure preset '$preset'." `
+                -Risk local `
+                -Plan $configurePlan `
+                -Body {
+                Invoke-GameWipConfigurePreset `
+                    -Name $preset `
+                    -Fresh:$Fresh `
+                    -Offline:$Offline
+            } |
+                Out-Null
         }
         'build'
         {
@@ -342,15 +425,39 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             $buildPlan = if ($Fresh)
             {
-                @("Remove build/$preset completely.", 'Configure the recreated preset.', "cmake --build --preset $preset")
+                @(
+                    "Remove build/$preset completely.",
+                    'Configure the recreated preset.',
+                    "cmake --build --preset $preset"
+                )
             }
             else
             {
-                @('Ensure configure prerequisite if absent.', "cmake --build --preset $preset")
+                @(
+                    'Ensure configure prerequisite if absent.',
+                    "cmake --build --preset $preset"
+                )
             }
-            Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan $buildPlan -Body { Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh } | Out-Null
+
+            if ($Offline)
+            {
+                $buildPlan += 'Require the prepared dependency cache and disallow downloads.'
+            }
+
+            Invoke-GameWipMutation `
+                -Summary "Build preset '$preset'." `
+                -Risk local `
+                -Plan $buildPlan `
+                -Body {
+                Invoke-GameWipBuildPreset `
+                    -Name $preset `
+                    -Fresh:$Fresh `
+                    -Offline:$Offline
+            } |
+                Out-Null
         }
         'test'
         {
@@ -368,7 +475,7 @@ $result = Invoke-GameWipOperation `
             }
             else
             {
-                @('Ensure the preset build is current unless -NoBuild is used.', "ctest --preset $preset --output-on-failure")
+                @('Ensure the preset build is current unless -SkipBuild is used.', "ctest --preset $preset --output-on-failure")
             }
             Invoke-GameWipMutation -Summary "Run CTest preset '$preset'." -Risk local -Plan $testPlan -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
         }
@@ -386,7 +493,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -Arguments $ExtraArgs -NoBuild:$NoBuild } | Out-Null
+            Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -Arguments $ExtraArgs -NoBuild:$NoBuild } | Out-Null
         }
         'stress'
         {
@@ -414,7 +521,7 @@ $result = Invoke-GameWipOperation `
             {
                 [int]$CommandConfig.DefaultStressParallel
             }
-            Invoke-GameWipMutation -Summary "Stress validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -NoBuild is used.', "Run up to $runs validation processes with at most $workers workers.") -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -Arguments $ExtraArgs -NoBuild:$NoBuild -StopOnFailure:$StopOnFailure } | Out-Null
+            Invoke-GameWipMutation -Summary "Stress validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', "Run up to $runs validation processes with at most $workers workers.") -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -Arguments $ExtraArgs -NoBuild:$NoBuild -StopOnFailure:$StopOnFailure } | Out-Null
         }
         'run'
         {
@@ -426,7 +533,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable unless -NoBuild is used.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id -Arguments $ExtraArgs -NoBuild:$NoBuild } | Out-Null
+            Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable unless -SkipBuild is used.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id -Arguments $ExtraArgs -NoBuild:$NoBuild } | Out-Null
         }
         'bundle'
         {
@@ -438,14 +545,14 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -Fresh.', 'Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
+            Invoke-GameWipMutation -Summary "Run bundle '$id'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -CleanBuild.', 'Execute its declarative steps in order.') -Body { Invoke-GameWipBundle -Id $id -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
         }
 
         # ------------------------------------------------------------
         # Documentation, analysis, and retained-run operations
         # ------------------------------------------------------------
 
-        'docs'
+        'doc'
         {
             Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body { Invoke-GameWipConfigurePreset -Name docs; Invoke-GameWipBuildPreset -Name docs } | Out-Null
         }
@@ -453,7 +560,7 @@ $result = Invoke-GameWipOperation `
         {
             Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body { Invoke-GameWipConfigurePreset -Name analyze; Invoke-GameWipBuildPreset -Name analyze } | Out-Null
         }
-        'coverage'
+        'cov'
         {
             Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest with new profile data.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage -Fresh; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null
         }
@@ -465,7 +572,7 @@ $result = Invoke-GameWipOperation `
         {
             Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null
         }
-        'benchmark'
+        'bench'
         {
             $verb = if ([string]::IsNullOrWhiteSpace($Command))
             {
@@ -477,11 +584,11 @@ $result = Invoke-GameWipOperation `
             }
             if ($verb -notin @('run', 'dry-run', 'list', 'compare'))
             {
-                throw "Unknown benchmark command '$verb'."
+                throw "Unknown bench command '$verb'."
             }
             if ($verb -eq 'compare' -and ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate)))
             {
-                throw 'benchmark compare requires -Baseline and -Candidate.'
+                throw 'bench compare requires -BaselinePath and -CandidatePath.'
             }
             $benchmarkPlan = if ($verb -eq 'compare')
             {
@@ -489,7 +596,7 @@ $result = Invoke-GameWipOperation `
             }
             else
             {
-                @('Ensure the benchmark executable unless -NoBuild is used.', "Execute benchmark action '$verb'.", 'Retain measurement output when the action produces it.')
+                @('Ensure the benchmark executable unless -SkipBuild is used.', "Execute benchmark action '$verb'.", 'Retain measurement output when the action produces it.')
             }
             Invoke-GameWipMutation -Summary "Run benchmark action '$verb'." -Risk local -Plan $benchmarkPlan -Body {
                 if ($verb -eq 'compare')
@@ -502,7 +609,7 @@ $result = Invoke-GameWipOperation `
                 }
             } | Out-Null
         }
-        'runs'
+        'history'
         {
             $verb = if ([string]::IsNullOrWhiteSpace($Command))
             {
@@ -514,7 +621,7 @@ $result = Invoke-GameWipOperation `
             }
             if ($verb -notin @('list', 'show', 'clean'))
             {
-                throw "Unknown runs command '$verb'."
+                throw "Unknown history command '$verb'."
             }
             if ($verb -eq 'list')
             {

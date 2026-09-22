@@ -25,8 +25,11 @@ tool paths, records native command logs, and reports failures consistently:
 ```
 
 `quality check` is the complete non-mutating maintained-file quality-policy gate.
-`quality fix` applies only deterministic formatters and then runs the same
-complete check. The interactive GameWIP `Q` menu exposes both workflows directly.
+`quality fix` validates the declared toolchain before mutation, applies
+deterministic formatters, normalizes maintained text to LF without trailing
+whitespace, and then runs the
+same complete check. The interactive GameWIP `Q` menu exposes both workflows
+directly.
 
 The `analyze` preset selects `clang++` and requires the UCRT64 packages for
 CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python.
@@ -124,7 +127,7 @@ Confidence has four meanings:
 - `EXPLAINED`: a central policy entry documents why the matching structure is
   intentional.
 
-Report mode does not fail because it found candidates. `-Enforce` fails only for
+Report mode does not fail because it found candidates. `-FailOnFindings` fails only for
 `PROVEN` findings; provider, configuration, and tool failures always fail.
 The audit never edits source files. Public-header isolation translation units
 are centrally explained because their sole purpose is to compile a public
@@ -188,7 +191,9 @@ checks:
 - clang-format for maintained C/C++ formatting.
 - Ruff lint/format checks for maintained Python.
 - PSScriptAnalyzer formatting and warning/error analysis for maintained PowerShell.
-- ESLint plus Prettier for maintained JavaScript and structured text.
+- ESLint plus Prettier for maintained JavaScript and structured text; PowerShell
+  formatting uses a guarded Prettier candidate followed by PSScriptAnalyzer
+  validation and fallback formatting.
 - Gersemi for maintained CMake files.
 - yamllint with the shared 150-column rule enforced as an error.
 - markdownlint-cli2 and local relative Markdown link validation.
@@ -207,7 +212,7 @@ checks:
 Third-party `external/` content and generated `build/` output remain outside the
 maintained quality scope. Full quality enumerates maintained tracked files plus
 non-ignored untracked first-party worktree files, so a new source, script,
-configuration file, or manual page is checked before it is staged. `-Changed`
+configuration file, or manual page is checked before it is staged. `-ChangedOnly`
 is an optimization for ordinary edits; changing quality policy expands
 validation to the maintained scope it can affect.
 

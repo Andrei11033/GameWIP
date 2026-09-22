@@ -67,7 +67,8 @@ function Get-GameWipToolUpdatePlan
             -Text ([string]$toolInfo.id) `
             -Semantic Accent `
             -Indent 2
-        $detected = Get-GameWipDetectedTool -Tool $toolInfo
+        $currentStatus = Get-GameWipToolStatus -Tool $toolInfo
+        $detected = $currentStatus.Detected
         $query = Get-GameWipToolLatestQuery -Tool $toolInfo
         $dependencyQueries = @{}
         $latestDependencies = @{}
@@ -469,11 +470,12 @@ function Test-GameWipToolPlanRequiresInstall
         return $true
     }
     $installTool = Get-GameWipPlannedInstallTool -PlanItem $PlanItem -TrackedPlan $TrackedPlan
-    if ((Get-GameWipToolCompatibility -Tool $installTool -Detected $PlanItem.Detected) -ne 'compatible')
+    $currentStatus = Get-GameWipToolStatus -Tool $installTool
+    if (-not $currentStatus.Ready)
     {
         return $true
     }
-    if (-not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $PlanItem.Detected))
+    if (-not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $currentStatus.Detected))
     {
         return $true
     }
@@ -511,11 +513,21 @@ function Invoke-GameWipToolInstallPlan
         Write-GameWipOperationEvent -Phase execute -Step $item.Tool.id -Severity progress -Message "Installing/verifying $($item.Tool.name) $(if ($version) { $version } else { '' })..."
         $functionName = Get-GameWipProviderFunction -Tool $installTool -Operation Install
         & $functionName -Tool $installTool -Version $version
-        $verified = Get-GameWipDetectedTool -Tool $installTool
-        $compatibility = Get-GameWipToolCompatibility -Tool $installTool -Detected $verified
-        if ($compatibility -ne 'compatible' -or -not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified))
+        $verifiedStatus = Get-GameWipToolStatus -Tool $installTool
+        $verified = $verifiedStatus.Detected
+        $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified
+        if (-not $verifiedStatus.Ready -or -not $providerOk)
         {
-            throw "Tool '$($installTool.id)' failed post-install verification (state=$compatibility, location=$($verified.Location))."
+            $dependencyDetails = @($verifiedStatus.DependencyFailures | ForEach-Object { "$($_.Package): $($_.State)" })
+            $providerDetails = if ($providerOk)
+            {
+                'compatible'
+            }
+            else
+            {
+                'wrong provider source'
+            }
+            throw "Tool '$($installTool.id)' failed post-install verification (state=$($verifiedStatus.State), provider=$providerDetails, location=$($verified.Location), dependencies=$($dependencyDetails -join '; '))."
         }
         Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
     }
@@ -706,44 +718,63 @@ function Invoke-GameWipToolEnsure
     }
     $selected = @($selected | Where-Object { $_.capabilities.detectInstalled -and $_.capabilities.update })
     $plan = [System.Collections.Generic.List[object]]::new()
-    Write-Host "Checking $($selected.Count) declared tool(s)..."
-    for ($toolIndex = 0; $toolIndex -lt $selected.Count; ++$toolIndex)
+    $selectedToolIds = @($selected | ForEach-Object { [string]$_.id })
+    $toolchain = if ($selectedToolIds.Count -eq 0)
     {
-        $tool = $selected[$toolIndex]
-        Write-GameWipStatusLine `
-            -Status "$($toolIndex + 1)/$($selected.Count)" `
-            -Text ([string]$tool.id) `
-            -Semantic Accent `
-            -Indent 2
-        $detected = Get-GameWipDetectedTool -Tool $tool
-        $compatibility = Get-GameWipToolCompatibility -Tool $tool -Detected $detected
+        [pscustomobject]@{ Results = @() }
+    }
+    else
+    {
+        Test-GameWipToolchain `
+            -ToolIds $selectedToolIds `
+            -DisplayStatus
+    }
+    $statuses = @{}
+    foreach ($status in @($toolchain.Results))
+    {
+        $statuses[[string]$status.Tool.id] = $status
+    }
+    foreach ($tool in $selected)
+    {
+        $toolStatus = $statuses[[string]$tool.id]
+        $detected = $toolStatus.Detected
+        $compatibility = $toolStatus.Compatibility
         $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $tool -Detected $detected
-        $needsInstall = $compatibility -ne 'compatible' -or (-not $providerOk -and $tool.provider.kind -in @('python', 'npm', 'powershellGallery', 'githubRelease'))
-        $plan.Add([pscustomobject]@{ Tool = $tool; Detected = $detected; Compatibility = $compatibility; ProviderOk = $providerOk; NeedsInstall = $needsInstall }) | Out-Null
+        $providerRepairRequired = -not $providerOk -and $tool.provider.kind -in @('python', 'npm', 'powershellGallery', 'githubRelease')
+        $action = if (-not $detected.Installed)
+        {
+            'install'
+        }
+        elseif ($compatibility -ne 'compatible')
+        {
+            'update'
+        }
+        elseif ($toolStatus.DependencyFailures.Count -ne 0 -or $providerRepairRequired)
+        {
+            'repair'
+        }
+        else
+        {
+            'ready'
+        }
+        $needsInstall = $action -ne 'ready'
+        $plan.Add([pscustomobject]@{ Tool = $tool; Status = $toolStatus; Detected = $detected; Compatibility = $compatibility; ProviderOk = $providerOk; Action = $action; NeedsInstall = $needsInstall }) | Out-Null
         if ($needsInstall)
         {
             Assert-GameWipPinnedToolAvailable -Tool $tool
         }
     }
 
-    Write-GameWipSection "Tool ensure plan: $Selector"
+    Write-GameWipSection "Tool install plan: $Selector"
     foreach ($item in $plan)
     {
-        $state = if ($item.NeedsInstall)
-        {
-            'ensure'
-        }
-        else
-        {
-            'ready'
-        }
-        $stateSemantic = if ($item.NeedsInstall)
-        {
-            'Warning'
-        }
-        else
+        $stateSemantic = if ($item.Action -eq 'ready')
         {
             'Success'
+        }
+        else
+        {
+            'Warning'
         }
         $location = if ($item.Detected.Location)
         {
@@ -755,7 +786,7 @@ function Invoke-GameWipToolEnsure
         }
 
         Write-Host ('  {0,-20} ' -f $item.Tool.id) -NoNewline
-        Write-GameWipSemanticText -Object ('{0,-11}' -f $state) -Semantic $stateSemantic -NoNewline
+        Write-GameWipSemanticText -Object ('{0,-11}' -f $item.Action) -Semantic $stateSemantic -NoNewline
         Write-Host ' ' -NoNewline
         Write-GameWipSemanticText -Object $location -Semantic Muted
     }
@@ -779,7 +810,7 @@ function Invoke-GameWipToolEnsure
     {
         'local'
     }
-    if (-not $ConsentAlreadyGranted -and -not (Confirm-GameWipMutation -Summary "Install/repair $($needed.Count) selected tool(s) without changing repository pins?" -Risk $risk -Plan @($needed | ForEach-Object { "$($_.Tool.id): declared $($_.Tool.versionPolicy) version" })))
+    if (-not $ConsentAlreadyGranted -and -not (Confirm-GameWipMutation -Summary "Install/update $($needed.Count) selected tool(s) without changing repository pins?" -Risk $risk -Plan @($needed | ForEach-Object { "$($_.Action) $($_.Tool.id): declared $($_.Tool.versionPolicy) version" })))
     {
         return
     }
@@ -803,13 +834,32 @@ function Invoke-GameWipToolEnsure
             }
             $functionName = Get-GameWipProviderFunction -Tool $tool -Operation Install
             & $functionName -Tool $tool -Version $version
-            $verified = Get-GameWipDetectedTool -Tool $tool
-            $state = Get-GameWipToolCompatibility -Tool $tool -Detected $verified
-            if ($state -ne 'compatible')
+            $verifiedStatus = Get-GameWipToolStatus -Tool $tool
+            $verified = $verifiedStatus.Detected
+            if (-not $verifiedStatus.Ready)
             {
-                throw "Tool '$($tool.id)' is '$state' after ensure."
+                throw "Tool '$($tool.id)' is '$($verifiedStatus.State)' after ensure: $($verifiedStatus.Failures -join '; ')"
             }
-            Add-GameWipOperationChange -Message "Ensured $($tool.id) at $($verified.Location)"
+            $verb = switch ([string]$item.Action)
+            {
+                'install'
+                {
+                    'Installed'
+                }
+                'update'
+                {
+                    'Updated'
+                }
+                'repair'
+                {
+                    'Repaired'
+                }
+                default
+                {
+                    'Updated'
+                }
+            }
+            Add-GameWipOperationChange -Message "$verb $($tool.id) at $($verified.Location)"
         }
     }
 }

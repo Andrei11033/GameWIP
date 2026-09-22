@@ -1,8 +1,264 @@
 {
   "schemaVersion": 1,
+  "options": [
+    {
+      "id": "Preview",
+      "kind": "switch",
+      "description": "Show the operation plan without applying its requested changes.",
+      "global": true
+    },
+    {
+      "id": "NonInteractive",
+      "kind": "switch",
+      "description": "Never prompt for input.",
+      "global": true
+    },
+    {
+      "id": "Yes",
+      "kind": "switch",
+      "description": "Grant consent after the operation plan is known.",
+      "global": true
+    },
+    {
+      "id": "Json",
+      "kind": "switch",
+      "description": "Emit the final operation result as JSON.",
+      "global": true
+    },
+    {
+      "id": "Quiet",
+      "kind": "switch",
+      "description": "Reduce normal output while retaining logs and receipt data.",
+      "global": true
+    },
+    {
+      "id": "NoColor",
+      "kind": "switch",
+      "description": "Use plain terminal presentation.",
+      "global": true
+    },
+    {
+      "id": "OutputMode",
+      "kind": "choice",
+      "valueName": "mode",
+      "choices": ["Summary", "Stream", "LogOnly"],
+      "description": "Select native-process presentation policy.",
+      "global": true
+    },
+    {
+      "id": "Verbose",
+      "kind": "switch",
+      "description": "Use PowerShell's common parameter for detailed progress.",
+      "global": true
+    },
+    {
+      "id": "Debug",
+      "kind": "switch",
+      "description": "Use PowerShell's common parameter for diagnostic debugging.",
+      "global": true
+    },
+    {
+      "id": "PythonPath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Override the Python interpreter used by supported maintenance operations."
+    },
+    {
+      "id": "PythonHostPath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Override the native Python host used to provision managed Python tools."
+    },
+    {
+      "id": "ClangFormatPath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Override the clang-format executable used by formatting and quality operations."
+    },
+    {
+      "id": "UnicodeDataPath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Override the pinned Unicode source-data directory."
+    },
+    {
+      "id": "RefreshUnicodeData",
+      "kind": "switch",
+      "description": "Refresh official Unicode source data before verification or regeneration."
+    },
+    {
+      "id": "WorkflowKind",
+      "kind": "choice",
+      "valueName": "kind",
+      "choices": ["all", "issue", "pull_request"],
+      "description": "Limit project-reconciliation workflow scope."
+    },
+    {
+      "id": "ItemNumber",
+      "kind": "integer",
+      "valueName": "number",
+      "description": "Select the issue or pull request for a narrowed workflow."
+    },
+    {
+      "id": "ReleaseCommit",
+      "kind": "string",
+      "valueName": "sha",
+      "description": "Supply the exact release-finalization commit."
+    },
+    {
+      "id": "BenchmarkProfile",
+      "kind": "choice",
+      "valueName": "profile",
+      "choices": ["quick", "standard", "stable"],
+      "description": "Select benchmark measurement policy."
+    },
+    {
+      "id": "NameFilter",
+      "kind": "string",
+      "valueName": "regex",
+      "description": "Select benchmark names with a regular expression."
+    },
+    {
+      "id": "Repetitions",
+      "kind": "integer",
+      "valueName": "count",
+      "description": "Override the benchmark repetition count."
+    },
+    {
+      "id": "MinimumTime",
+      "kind": "string",
+      "valueName": "time",
+      "description": "Override benchmark minimum measurement time."
+    },
+    {
+      "id": "OutputPath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Write benchmark results or comparisons to this path."
+    },
+    {
+      "id": "OutputFormat",
+      "kind": "choice",
+      "valueName": "format",
+      "choices": ["json", "csv"],
+      "description": "Select benchmark result format."
+    },
+    {
+      "id": "AggregatesOnly",
+      "kind": "switch",
+      "description": "Retain and display aggregate benchmark rows only."
+    },
+    {
+      "id": "BaselinePath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Select the baseline benchmark JSON for comparison."
+    },
+    {
+      "id": "CandidatePath",
+      "kind": "string",
+      "valueName": "path",
+      "description": "Select the candidate benchmark JSON for comparison."
+    },
+    {
+      "id": "RunCount",
+      "kind": "integer",
+      "valueName": "count",
+      "description": "Select the number of stress-validation runs."
+    },
+    {
+      "id": "WorkerCount",
+      "kind": "integer",
+      "valueName": "count",
+      "description": "Select the maximum number of concurrent stress workers."
+    },
+    {
+      "id": "PassThroughArgs",
+      "kind": "string-list",
+      "valueName": "arguments",
+      "description": "Forward additional arguments to the selected validation or project executable."
+    },
+    {
+      "id": "SkipBuild",
+      "kind": "switch",
+      "description": "Do not build prerequisites automatically; require usable existing build state."
+    },
+    {
+      "id": "CleanBuild",
+      "kind": "switch",
+      "description": "Recreate the selected known preset build tree before configuring or building."
+    },
+    {
+      "id": "Offline",
+      "kind": "switch",
+      "description": "Require cached dependency sources and disallow dependency downloads."
+    },
+    {
+      "id": "FailFast",
+      "kind": "switch",
+      "description": "Stop launching new work or quality checks after the first failure."
+    },
+    {
+      "id": "ChangedOnly",
+      "kind": "switch",
+      "description": "Restrict supported quality work to ordinary changed maintained files."
+    },
+    {
+      "id": "FailOnFindings",
+      "kind": "switch",
+      "description": "Fail optional hygiene audits when they produce proven findings."
+    },
+    {
+      "id": "UseCallerTemp",
+      "kind": "switch",
+      "description": "Keep the caller's TEMP/TMP instead of using operation-owned helper temporary storage."
+    }
+  ],
+  "actionOptions": {
+    "ready": ["PythonPath", "PythonHostPath", "ClangFormatPath"],
+    "git": [],
+    "workflow": ["WorkflowKind", "ItemNumber", "ReleaseCommit"],
+    "unicode": ["PythonPath", "UnicodeDataPath", "RefreshUnicodeData"],
+    "format": ["ClangFormatPath"],
+    "quality": ["PythonPath", "ClangFormatPath", "FailFast", "ChangedOnly", "FailOnFindings"],
+    "tool": ["PythonPath", "PythonHostPath"],
+    "links": ["PythonPath"],
+    "deps": [],
+    "config": ["CleanBuild", "Offline"],
+    "build": ["CleanBuild", "Offline"],
+    "test": ["SkipBuild", "CleanBuild"],
+    "module": ["SkipBuild", "PassThroughArgs"],
+    "wizard": ["SkipBuild"],
+    "stress": ["RunCount", "WorkerCount", "PassThroughArgs", "SkipBuild", "FailFast", "UseCallerTemp"],
+    "run": ["SkipBuild", "PassThroughArgs"],
+    "bundle": ["SkipBuild", "CleanBuild"],
+    "doc": ["PythonPath"],
+    "analyze": [],
+    "cov": [],
+    "asan": [],
+    "ubsan": [],
+    "bench": [
+      "BenchmarkProfile",
+      "NameFilter",
+      "Repetitions",
+      "MinimumTime",
+      "OutputPath",
+      "OutputFormat",
+      "AggregatesOnly",
+      "BaselinePath",
+      "CandidatePath",
+      "SkipBuild",
+      "PassThroughArgs"
+    ],
+    "history": [],
+    "list": [],
+    "help": [],
+    "menu": []
+  },
   "actions": [
     {
       "id": "menu",
+      "aliases": [],
       "title": "Interactive menu",
       "description": "Open the hierarchical project UI.",
       "group": "navigation",
@@ -12,11 +268,11 @@
       "risk": "read-only"
     },
     {
-      "id": "doctor",
+      "id": "ready",
+      "aliases": [],
       "title": "Project readiness",
       "description": "Verify repository and declared tool readiness.",
       "group": "maintenance",
-      "key": "D",
       "visible": true,
       "network": false,
       "mutation": "none",
@@ -24,6 +280,7 @@
     },
     {
       "id": "git",
+      "aliases": ["g"],
       "title": "Git workspace",
       "description": "Guarded local Git workspace operations.",
       "group": "repository",
@@ -34,6 +291,7 @@
     },
     {
       "id": "workflow",
+      "aliases": ["wf"],
       "title": "GitHub workflows",
       "description": "List, inspect, and dispatch cataloged workflows.",
       "group": "repository",
@@ -44,6 +302,7 @@
     },
     {
       "id": "unicode",
+      "aliases": ["ucd"],
       "title": "Unicode data",
       "description": "Inspect, verify, or regenerate pinned Unicode data.",
       "group": "maintenance",
@@ -54,6 +313,7 @@
     },
     {
       "id": "format",
+      "aliases": ["fmt"],
       "title": "C/C++ formatting",
       "description": "Check or apply repository C/C++ formatting.",
       "group": "quality",
@@ -64,6 +324,7 @@
     },
     {
       "id": "quality",
+      "aliases": ["q"],
       "title": "Repository quality",
       "description": "Run, fix, or inspect repository quality and optional hygiene audits.",
       "group": "quality",
@@ -73,9 +334,10 @@
       "risk": "tracked"
     },
     {
-      "id": "tools",
+      "id": "tool",
+      "aliases": ["tools"],
       "title": "Project tools",
-      "description": "Inspect, ensure, or update declared project tools.",
+      "description": "Inspect, install/repair, or update declared project tools.",
       "group": "tools",
       "visible": true,
       "network": true,
@@ -84,6 +346,7 @@
     },
     {
       "id": "links",
+      "aliases": [],
       "title": "Markdown links",
       "description": "Validate maintained Markdown links.",
       "group": "quality",
@@ -93,7 +356,19 @@
       "risk": "read-only"
     },
     {
-      "id": "configure",
+      "id": "deps",
+      "aliases": ["dependencies"],
+      "title": "Dependency cache",
+      "description": "Prepare or verify the local Tracy and Google Benchmark cache.",
+      "group": "maintenance",
+      "visible": true,
+      "network": true,
+      "mutation": "conditional",
+      "risk": "local"
+    },
+    {
+      "id": "config",
+      "aliases": ["configure", "cfg", "c"],
       "title": "Configure",
       "description": "Configure a CMake preset.",
       "group": "development",
@@ -104,6 +379,7 @@
     },
     {
       "id": "build",
+      "aliases": ["b"],
       "title": "Build",
       "description": "Build a CMake preset and required configure state.",
       "group": "development",
@@ -114,6 +390,7 @@
     },
     {
       "id": "test",
+      "aliases": ["t"],
       "title": "CTest",
       "description": "Ensure prerequisites and run a CTest preset.",
       "group": "validation",
@@ -124,6 +401,7 @@
     },
     {
       "id": "module",
+      "aliases": ["mod"],
       "title": "Validation module",
       "description": "Run one correctness module or all modules.",
       "group": "validation",
@@ -134,6 +412,7 @@
     },
     {
       "id": "wizard",
+      "aliases": [],
       "title": "Validation wizard",
       "description": "Interactively compose common and declared module-specific validation arguments.",
       "group": "validation",
@@ -144,6 +423,7 @@
     },
     {
       "id": "stress",
+      "aliases": [],
       "title": "Stress validation",
       "description": "Repeat correctness validation with bounded workers.",
       "group": "validation",
@@ -154,6 +434,7 @@
     },
     {
       "id": "run",
+      "aliases": ["exec"],
       "title": "Project command",
       "description": "Run a cataloged executable-backed project command.",
       "group": "development",
@@ -164,6 +445,7 @@
     },
     {
       "id": "bundle",
+      "aliases": [],
       "title": "Validation bundle",
       "description": "Run a cataloged multi-step local validation bundle.",
       "group": "validation",
@@ -173,7 +455,8 @@
       "risk": "local"
     },
     {
-      "id": "docs",
+      "id": "doc",
+      "aliases": ["docs"],
       "title": "Documentation",
       "description": "Build and verify generated documentation.",
       "group": "development",
@@ -184,6 +467,7 @@
     },
     {
       "id": "analyze",
+      "aliases": ["tidy"],
       "title": "Static analysis",
       "description": "Run the analyze preset.",
       "group": "quality",
@@ -193,7 +477,8 @@
       "risk": "local"
     },
     {
-      "id": "coverage",
+      "id": "cov",
+      "aliases": ["coverage"],
       "title": "Coverage",
       "description": "Recreate the coverage tree, then run build/tests/report.",
       "group": "quality",
@@ -204,6 +489,7 @@
     },
     {
       "id": "asan",
+      "aliases": [],
       "title": "AddressSanitizer",
       "description": "Recreate the CLANG64 tree, then run AddressSanitizer validation.",
       "group": "quality",
@@ -214,6 +500,7 @@
     },
     {
       "id": "ubsan",
+      "aliases": [],
       "title": "UndefinedBehaviorSanitizer",
       "description": "Recreate the CLANG64 tree, then run UndefinedBehaviorSanitizer validation.",
       "group": "quality",
@@ -223,7 +510,8 @@
       "risk": "local"
     },
     {
-      "id": "benchmark",
+      "id": "bench",
+      "aliases": ["benchmark"],
       "title": "Benchmarks",
       "description": "Run, list, dry-run, or compare benchmarks.",
       "group": "validation",
@@ -233,7 +521,8 @@
       "risk": "local"
     },
     {
-      "id": "runs",
+      "id": "history",
+      "aliases": ["runs", "hist"],
       "title": "Run history",
       "description": "List, show, or clean retained operation receipts.",
       "group": "maintenance",
@@ -244,6 +533,7 @@
     },
     {
       "id": "list",
+      "aliases": ["ls"],
       "title": "Catalog",
       "description": "Print current project IDs and command catalog.",
       "group": "navigation",
@@ -254,6 +544,7 @@
     },
     {
       "id": "help",
+      "aliases": ["h"],
       "title": "Help",
       "description": "Print canonical command syntax.",
       "group": "navigation",
@@ -271,14 +562,41 @@
       "prompt": "Choose an area:",
       "exitLabel": "Exit",
       "items": [
-        { "key": "1", "label": "Development", "handler": "menu-development" },
-        { "key": "2", "label": "Validation", "handler": "menu-validation" },
-        { "key": "3", "label": "Quality", "handler": "menu-quality" },
-        { "key": "4", "label": "Tools and environment", "handler": "menu-tools" },
-        { "key": "5", "label": "Repository and GitHub", "handler": "menu-repository" },
-        { "key": "6", "label": "Maintenance", "handler": "menu-maintenance" },
-        { "key": "D", "label": "Project readiness", "handler": "doctor" },
-        { "key": "H", "label": "Help/catalog", "handler": "help" }
+        {
+          "key": "1",
+          "label": "Development",
+          "handler": "menu-development"
+        },
+        {
+          "key": "2",
+          "label": "Validation",
+          "handler": "menu-validation"
+        },
+        {
+          "key": "3",
+          "label": "Quality",
+          "handler": "menu-quality"
+        },
+        {
+          "key": "4",
+          "label": "Tools and environment",
+          "handler": "menu-tools"
+        },
+        {
+          "key": "5",
+          "label": "Git workspace",
+          "handler": "menu-git-workspace"
+        },
+        {
+          "key": "6",
+          "label": "Advanced",
+          "handler": "menu-advanced"
+        },
+        {
+          "key": "H",
+          "label": "Help/catalog",
+          "handler": "help"
+        }
       ]
     },
     {
@@ -287,10 +605,26 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Configure preset", "handler": "configure" },
-        { "key": "2", "label": "Build preset", "handler": "build" },
-        { "key": "3", "label": "Run project command", "handler": "run" },
-        { "key": "4", "label": "Build documentation", "handler": "docs" }
+        {
+          "key": "1",
+          "label": "Configure preset",
+          "handler": "config"
+        },
+        {
+          "key": "2",
+          "label": "Build preset",
+          "handler": "build"
+        },
+        {
+          "key": "3",
+          "label": "Run project command",
+          "handler": "run"
+        },
+        {
+          "key": "4",
+          "label": "Build documentation",
+          "handler": "doc"
+        }
       ]
     },
     {
@@ -299,15 +633,31 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Run CTest preset", "handler": "test" },
-        { "key": "2", "label": "Run validation module", "handler": "module" },
-        { "key": "3", "label": "Stress validation module", "handler": "stress" },
-        { "key": "4", "label": "Validation command builder", "handler": "wizard" },
-        { "key": "5", "label": "Benchmarks", "handler": "benchmark" },
-        { "key": "6", "label": "Coverage", "handler": "coverage" },
-        { "key": "7", "label": "Validation bundles", "handler": "bundle" },
-        { "key": "8", "label": "AddressSanitizer", "handler": "asan" },
-        { "key": "U", "label": "UndefinedBehaviorSanitizer", "handler": "ubsan" }
+        {
+          "key": "1",
+          "label": "Run CTest preset",
+          "handler": "test"
+        },
+        {
+          "key": "2",
+          "label": "Run validation module",
+          "handler": "module"
+        },
+        {
+          "key": "3",
+          "label": "Stress validation module",
+          "handler": "stress"
+        },
+        {
+          "key": "4",
+          "label": "Benchmarks",
+          "handler": "bench"
+        },
+        {
+          "key": "5",
+          "label": "Advanced validation",
+          "handler": "menu-advanced-validation"
+        }
       ]
     },
     {
@@ -316,32 +666,41 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Repository quality", "handler": "menu-repository-quality" },
-        { "key": "2", "label": "C/C++ formatting", "handler": "menu-formatting" },
-        { "key": "3", "label": "Static analysis", "handler": "analyze" },
-        { "key": "4", "label": "Hygiene audits", "handler": "menu-hygiene" },
-        { "key": "5", "label": "Markdown links only", "handler": "links" }
-      ]
-    },
-    {
-      "id": "repository-quality",
-      "title": "Repository quality",
-      "prompt": "Choose an action:",
-      "exitLabel": "Back",
-      "items": [
-        { "key": "1", "label": "Check", "handler": "quality-check" },
-        { "key": "2", "label": "Apply deterministic fixes, then check", "handler": "quality-fix" },
-        { "key": "3", "label": "Show coverage status", "handler": "quality-status" }
-      ]
-    },
-    {
-      "id": "formatting",
-      "title": "C/C++ formatting",
-      "prompt": "Choose an action:",
-      "exitLabel": "Back",
-      "items": [
-        { "key": "1", "label": "Check", "handler": "format-check" },
-        { "key": "2", "label": "Apply", "handler": "format-apply" }
+        {
+          "key": "1",
+          "label": "Repository quality check",
+          "handler": "quality-check"
+        },
+        {
+          "key": "2",
+          "label": "Apply quality fixes, then check",
+          "handler": "quality-fix"
+        },
+        {
+          "key": "3",
+          "label": "Show quality status",
+          "handler": "quality-status"
+        },
+        {
+          "key": "4",
+          "label": "Check C/C++ formatting",
+          "handler": "format-check"
+        },
+        {
+          "key": "5",
+          "label": "Apply C/C++ formatting",
+          "handler": "format-apply"
+        },
+        {
+          "key": "6",
+          "label": "Static analysis",
+          "handler": "analyze"
+        },
+        {
+          "key": "7",
+          "label": "Markdown links only",
+          "handler": "links"
+        }
       ]
     },
     {
@@ -350,11 +709,31 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Standard audit", "handler": "hygiene-standard" },
-        { "key": "2", "label": "Deep audit", "handler": "hygiene-deep" },
-        { "key": "3", "label": "Run one check", "handler": "hygiene-check" },
-        { "key": "4", "label": "List checks", "handler": "hygiene-list" },
-        { "key": "5", "label": "Configuration status", "handler": "hygiene-status" }
+        {
+          "key": "1",
+          "label": "Standard audit",
+          "handler": "hygiene-standard"
+        },
+        {
+          "key": "2",
+          "label": "Deep audit",
+          "handler": "hygiene-deep"
+        },
+        {
+          "key": "3",
+          "label": "Run one check",
+          "handler": "hygiene-check"
+        },
+        {
+          "key": "4",
+          "label": "List checks",
+          "handler": "hygiene-list"
+        },
+        {
+          "key": "5",
+          "label": "Configuration status",
+          "handler": "hygiene-status"
+        }
       ]
     },
     {
@@ -363,41 +742,49 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Project readiness", "handler": "doctor" },
-        { "key": "2", "label": "Installed tools", "handler": "menu-installed-tools" },
-        { "key": "3", "label": "Tool updates", "handler": "menu-tool-updates" },
-        { "key": "4", "label": "Setup guidance", "handler": "setup-guidance" }
-      ]
-    },
-    {
-      "id": "installed-tools",
-      "title": "Installed tools",
-      "prompt": "Choose an action:",
-      "exitLabel": "Back",
-      "items": [
-        { "key": "1", "label": "Show status", "handler": "tools-status" },
-        { "key": "2", "label": "Install or repair", "handler": "setup-guidance" }
+        {
+          "key": "1",
+          "label": "Readiness check",
+          "handler": "ready"
+        },
+        {
+          "key": "2",
+          "label": "Tool status",
+          "handler": "tool-status"
+        },
+        {
+          "key": "3",
+          "label": "Tool update plan/install",
+          "handler": "menu-tool-updates"
+        },
+        {
+          "key": "4",
+          "label": "Setup/repair guidance",
+          "handler": "setup-guidance"
+        }
       ]
     },
     {
       "id": "tool-updates",
-      "title": "Tool updates",
+      "title": "Tool update plan/install",
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Check upstream versions", "handler": "tools-check-updates" },
-        { "key": "2", "label": "Preview update", "handler": "tools-preview" },
-        { "key": "3", "label": "Apply update", "handler": "tools-update" }
-      ]
-    },
-    {
-      "id": "repository",
-      "title": "Repository and GitHub",
-      "prompt": "Choose an action:",
-      "exitLabel": "Back",
-      "items": [
-        { "key": "1", "label": "Git workspace", "handler": "menu-git-workspace" },
-        { "key": "2", "label": "GitHub workflows", "handler": "menu-github-workflows" }
+        {
+          "key": "1",
+          "label": "Show update plan",
+          "handler": "tool-plan"
+        },
+        {
+          "key": "2",
+          "label": "Preview update",
+          "handler": "tool-preview"
+        },
+        {
+          "key": "3",
+          "label": "Install/update tools",
+          "handler": "tool-update"
+        }
       ]
     },
     {
@@ -406,14 +793,46 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Status", "handler": "git-status" },
-        { "key": "2", "label": "Log", "handler": "git-log" },
-        { "key": "3", "label": "Fetch", "handler": "git-fetch" },
-        { "key": "4", "label": "Switch branch", "handler": "git-switch" },
-        { "key": "5", "label": "Create branch", "handler": "git-create" },
-        { "key": "6", "label": "Update branch", "handler": "git-update" },
-        { "key": "7", "label": "Push branch", "handler": "git-push" },
-        { "key": "8", "label": "Cleanup", "handler": "git-cleanup" }
+        {
+          "key": "1",
+          "label": "Status",
+          "handler": "git-status"
+        },
+        {
+          "key": "2",
+          "label": "Log",
+          "handler": "git-log"
+        },
+        {
+          "key": "3",
+          "label": "Fetch",
+          "handler": "git-fetch"
+        },
+        {
+          "key": "4",
+          "label": "Switch branch",
+          "handler": "git-switch"
+        },
+        {
+          "key": "5",
+          "label": "Create branch",
+          "handler": "git-create"
+        },
+        {
+          "key": "6",
+          "label": "Update branch",
+          "handler": "git-update"
+        },
+        {
+          "key": "7",
+          "label": "Push branch",
+          "handler": "git-push"
+        },
+        {
+          "key": "8",
+          "label": "Cleanup",
+          "handler": "git-cleanup"
+        }
       ]
     },
     {
@@ -422,19 +841,110 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "List", "handler": "workflow-list" },
-        { "key": "2", "label": "Show status", "handler": "workflow-status" },
-        { "key": "3", "label": "Run", "handler": "workflow-run" }
+        {
+          "key": "1",
+          "label": "List",
+          "handler": "workflow-list"
+        },
+        {
+          "key": "2",
+          "label": "Show status",
+          "handler": "workflow-status"
+        },
+        {
+          "key": "3",
+          "label": "Run",
+          "handler": "workflow-run"
+        }
       ]
     },
     {
-      "id": "maintenance",
-      "title": "Maintenance",
+      "id": "advanced",
+      "title": "Advanced",
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Unicode data", "handler": "menu-unicode-data" },
-        { "key": "2", "label": "Run history", "handler": "menu-run-history" }
+        {
+          "key": "1",
+          "label": "Advanced validation",
+          "handler": "menu-advanced-validation"
+        },
+        {
+          "key": "2",
+          "label": "Hygiene audits",
+          "handler": "menu-hygiene"
+        },
+        {
+          "key": "3",
+          "label": "GitHub workflows",
+          "handler": "menu-github-workflows"
+        },
+        {
+          "key": "4",
+          "label": "Dependency cache",
+          "handler": "menu-dependencies"
+        },
+        {
+          "key": "5",
+          "label": "Unicode data",
+          "handler": "menu-unicode-data"
+        },
+        {
+          "key": "6",
+          "label": "Run history",
+          "handler": "menu-run-history"
+        }
+      ]
+    },
+    {
+      "id": "advanced-validation",
+      "title": "Advanced validation",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        {
+          "key": "1",
+          "label": "Validation wizard",
+          "handler": "wizard"
+        },
+        {
+          "key": "2",
+          "label": "Validation bundles",
+          "handler": "bundle"
+        },
+        {
+          "key": "3",
+          "label": "Coverage",
+          "handler": "cov"
+        },
+        {
+          "key": "4",
+          "label": "AddressSanitizer",
+          "handler": "asan"
+        },
+        {
+          "key": "5",
+          "label": "UndefinedBehaviorSanitizer",
+          "handler": "ubsan"
+        }
+      ]
+    },
+    {
+      "id": "dependencies",
+      "title": "Dependency cache",
+      "prompt": "Choose an action:",
+      "exitLabel": "Back",
+      "items": [
+        {
+          "key": "1",
+          "label": "Check cache",
+          "handler": "deps-check"
+        },
+        {
+          "key": "2",
+          "label": "Prepare or update cache",
+          "handler": "deps-prepare"
+        }
       ]
     },
     {
@@ -443,9 +953,21 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "Show status", "handler": "unicode-status" },
-        { "key": "2", "label": "Verify generated data", "handler": "unicode-verify" },
-        { "key": "3", "label": "Regenerate tracked data", "handler": "unicode-regenerate" }
+        {
+          "key": "1",
+          "label": "Show status",
+          "handler": "unicode-status"
+        },
+        {
+          "key": "2",
+          "label": "Verify generated data",
+          "handler": "unicode-verify"
+        },
+        {
+          "key": "3",
+          "label": "Regenerate tracked data",
+          "handler": "unicode-regenerate"
+        }
       ]
     },
     {
@@ -454,9 +976,21 @@
       "prompt": "Choose an action:",
       "exitLabel": "Back",
       "items": [
-        { "key": "1", "label": "List", "handler": "runs-list" },
-        { "key": "2", "label": "Show", "handler": "runs-show" },
-        { "key": "3", "label": "Clean", "handler": "runs-clean" }
+        {
+          "key": "1",
+          "label": "List",
+          "handler": "history-list"
+        },
+        {
+          "key": "2",
+          "label": "Show",
+          "handler": "history-show"
+        },
+        {
+          "key": "3",
+          "label": "Clean",
+          "handler": "history-clean"
+        }
       ]
     }
   ],
@@ -466,8 +1000,12 @@
   },
   "defaultStressCount": 32,
   "modules": [
-    { "id": "assert" },
-    { "id": "base" },
+    {
+      "id": "assert"
+    },
+    {
+      "id": "base"
+    },
     {
       "id": "desktop",
       "builderOptions": [
@@ -502,14 +1040,30 @@
         }
       ]
     },
-    { "id": "filesystem" },
-    { "id": "input" },
-    { "id": "io" },
-    { "id": "logger" },
-    { "id": "runner" },
-    { "id": "terminal" },
-    { "id": "test_support" },
-    { "id": "unicode" }
+    {
+      "id": "filesystem"
+    },
+    {
+      "id": "input"
+    },
+    {
+      "id": "io"
+    },
+    {
+      "id": "logger"
+    },
+    {
+      "id": "runner"
+    },
+    {
+      "id": "terminal"
+    },
+    {
+      "id": "test_support"
+    },
+    {
+      "id": "unicode"
+    }
   ],
   "defaultBuildPreset": "test",
   "unicode": {
@@ -691,9 +1245,19 @@
           "preset": "asan",
           "kind": "CTest"
         },
-        { "kind": "Configure", "preset": "ubsan" },
-        { "kind": "Build", "preset": "ubsan" },
-        { "useWorkspaceTemp": true, "preset": "ubsan", "kind": "CTest" }
+        {
+          "kind": "Configure",
+          "preset": "ubsan"
+        },
+        {
+          "kind": "Build",
+          "preset": "ubsan"
+        },
+        {
+          "useWorkspaceTemp": true,
+          "preset": "ubsan",
+          "kind": "CTest"
+        }
       ]
     }
   ],

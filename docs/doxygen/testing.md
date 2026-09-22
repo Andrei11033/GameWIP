@@ -26,10 +26,10 @@ ordinary iteration or request a complete preset-tree recreation explicitly:
 
 ```powershell
 .\gamewip.bat test test
-.\gamewip.bat test test -Fresh
+.\gamewip.bat test test -CleanBuild
 ```
 
-Fresh mode cannot be combined with `-NoBuild`, because deleting the selected
+Clean-build mode cannot be combined with `-SkipBuild`, because deleting the selected
 tree makes configuration and compilation mandatory. Installed-package consumer
 tests continue to create their own isolated consumer build directories. CI
 jobs run in fresh hosted workspaces and do not restore CMake build trees.

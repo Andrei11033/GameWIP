@@ -177,10 +177,6 @@ function Get-GameWipToolLatestQuery
                 return New-GameWipToolQueryResult -State unavailable -Provider powershellGallery -Version $null -Reason $_.Exception.Message -Attempts 1
             }
         }
-        'gitSubmodule'
-        {
-            return New-GameWipToolQueryResult -State unsupported -Provider gitSubmodule -Version $null -Reason 'updated through repository dependency state'
-        }
         'external'
         {
             return New-GameWipToolQueryResult -State unsupported -Provider external -Version $null -Reason 'external provider has no updater'

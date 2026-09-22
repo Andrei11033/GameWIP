@@ -53,6 +53,7 @@ $libraryFiles = @(
     'Operation.ps1',
     'Runs.ps1',
     'Console.ps1',
+    'Dependencies.ps1',
     'Network.ps1',
     'Process.ps1',
     'Git.ps1',

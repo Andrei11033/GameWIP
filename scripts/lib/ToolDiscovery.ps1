@@ -285,7 +285,8 @@ function Show-GameWipToolStatus
     $results = [System.Collections.Generic.List[object]]::new()
     foreach ($toolInfo in @($ProjectTools.tools))
     {
-        $detected = Get-GameWipDetectedTool -Tool $toolInfo
+        $status = Get-GameWipToolStatus -Tool $toolInfo
+        $detected = $status.Detected
         $required = if ($toolInfo.Contains('requiredVersion'))
         {
             [string]$toolInfo.requiredVersion
@@ -310,12 +311,26 @@ function Show-GameWipToolStatus
         {
             $installed = $installed.Substring(0, 10) + '...'
         }
-        $state = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
+        $state = $status.State
         $stateSemantic = Get-GameWipToolCompatibilitySemantic -Compatibility $state
         Write-Host ('  {0,-20} {1,-13} {2,-13} ' -f $toolInfo.id, $required, $installed) -NoNewline
         Write-GameWipSemanticText -Object ('{0,-11}' -f $state) -Semantic $stateSemantic -NoNewline
         Write-Host (' {0}' -f $toolInfo.provider.kind)
-        $results.Add([pscustomobject]@{ Tool = $toolInfo; Detected = $detected; State = $state }) | Out-Null
+        $results.Add($status) | Out-Null
+
+        foreach ($dependency in @($status.DependencyFailures))
+        {
+            $detail = if ($dependency.Reason)
+            {
+                " - $($dependency.Reason)"
+            }
+            else
+            {
+                ''
+            }
+            Write-Host "    Dependency $($dependency.Package): " -NoNewline
+            Write-GameWipSemanticText -Object ("$($dependency.State)$detail") -Semantic Failure
+        }
     }
 
     $groups = @($results | Group-Object State | Sort-Object Name)
@@ -331,6 +346,10 @@ function Show-GameWipToolStatus
                 'Success'
             }
             'missing'
+            {
+                'Failure'
+            }
+            'dependency-missing'
             {
                 'Failure'
             }

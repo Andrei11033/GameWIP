@@ -32,10 +32,10 @@ Examples:
 .\gamewip.bat module unicode
 .\gamewip.bat quality check
 .\gamewip.bat quality hygiene status
-.\gamewip.bat tools status
-.\gamewip.bat tools ensure all
+.\gamewip.bat tool status
+.\gamewip.bat tool ensure all
 .\gamewip.bat workflow run release-check -Preview
-.\gamewip.bat runs show latest
+.\gamewip.bat history show latest
 ```
 
 Selection words are positional. The retired nested selector switches, such as
@@ -47,15 +47,16 @@ supported.
 | Action | Purpose |
 | --- | --- |
 | `menu` | Open the interactive project menu. |
-| `doctor` | Check complete project readiness. |
+| `ready` | Check complete project readiness. |
 | `git` | Run guarded repository operations such as status, fetch, switch, update, cleanup, create, push, and log. |
 | `workflow` | List, inspect, preview, or dispatch approved GitHub workflows. |
 | `unicode` | Inspect, verify, or regenerate pinned Unicode data. |
 | `format` | Check or apply maintained C/C++ formatting. |
 | `quality` | Run, fix, or summarize the repository quality policy. |
-| `tools` | List tools, report status, check upstream versions, ensure declared versions, or update reviewed pins. |
+| `tool` | List tools, report status, check upstream versions, install or repair declared versions, or update reviewed pins. |
 | `links` | Run the maintained Markdown-link checker. |
-| `configure` | Configure one visible CMake preset. |
+| `deps` | Check or prepare the shared pinned dependency cache. |
+| `config` | Configure one visible CMake preset. |
 | `build` | Ensure configuration and build one preset. |
 | `test` | Ensure prerequisites and run one CTest preset. |
 | `module` | Run all correctness modules or one named module. |
@@ -63,15 +64,24 @@ supported.
 | `stress` | Repeat a validation module with bounded parallelism. |
 | `run` | Run one declarative project command. |
 | `bundle` | Run one declarative multi-step bundle. |
-| `docs` | Build generated documentation. |
+| `doc` | Build generated documentation. |
 | `analyze` | Run the supported C++ static-analysis preset. |
-| `coverage` | Run the coverage validation workflow. |
+| `cov` | Run the coverage validation workflow. |
 | `asan` | Run the CLANG64 AddressSanitizer workflow. |
 | `ubsan` | Run the CLANG64 UndefinedBehaviorSanitizer workflow. |
-| `benchmark` | Measure, dry-run, list, or compare benchmarks. |
-| `runs` | List, inspect, or clean owned helper run history. |
+| `bench` | Measure, dry-run, list, or compare benchmarks. |
+| `history` | List, inspect, or clean owned helper run history. |
 | `list` | Print the current action/catalog values. |
 | `help` | Print helper usage. |
+
+Canonical names are used throughout this manual. Compatibility aliases remain
+accepted for existing scripts: `configure`/`cfg`/`c` for `config`, `b` for
+`build`, `t` for `test`, `q` for `quality`, `fmt` for `format`, `dependencies`
+for `deps`, `benchmark` for `bench`, `mod` for `module`, `wf` for `workflow`,
+`ucd` for `unicode`, `g` for `git`, `tools` for `tool`, `docs` for `doc`,
+`tidy` for `analyze`, `coverage` for `cov`, `runs`/`hist` for `history`,
+`exec` for `run`, `ls` for `list`, and `h` for `help`. The retired `doctor`
+command is not accepted; use `ready`.
 
 ## Subcommands and targets
 
@@ -95,23 +105,27 @@ The quality-hygiene selector may be `standard`, `deep`, a configured check ID,
 .\gamewip.bat quality hygiene deep
 .\gamewip.bat quality hygiene unused-includes
 .\gamewip.bat quality hygiene list
-.\gamewip.bat tools status
-.\gamewip.bat tools ensure quality
-.\gamewip.bat tools update all -Preview
-.\gamewip.bat configure test
+.\gamewip.bat tool status
+.\gamewip.bat tool ensure quality
+.\gamewip.bat tool update all -Preview
+.\gamewip.bat deps check
+.\gamewip.bat deps prepare
+.\gamewip.bat config test
 .\gamewip.bat build test
+.\gamewip.bat config test -Offline
+.\gamewip.bat build test -Offline
 .\gamewip.bat test test
-.\gamewip.bat test test -Fresh
+.\gamewip.bat test test -CleanBuild
 .\gamewip.bat module filesystem
 .\gamewip.bat stress logger
 .\gamewip.bat run benchmark-dry-run
 .\gamewip.bat bundle quick
-.\gamewip.bat benchmark dry-run
-.\gamewip.bat benchmark compare -Baseline before.json -Candidate after.json
-.\gamewip.bat runs list
-.\gamewip.bat runs list all
-.\gamewip.bat runs show latest
-.\gamewip.bat runs clean all
+.\gamewip.bat bench dry-run
+.\gamewip.bat bench compare -BaselinePath before.json -CandidatePath after.json
+.\gamewip.bat history list
+.\gamewip.bat history list all
+.\gamewip.bat history show latest
+.\gamewip.bat history clean all
 ```
 
 Use `gamewip.bat list` for current presets, modules, project commands, bundles,
@@ -130,33 +144,32 @@ module implementation.
 | `-Command <value>` | Explicitly bind the second positional selector when scripting. |
 | `-Target <value>` | Explicitly bind the third positional selector when scripting. |
 | `-PythonPath <path>` | Override Python resolution for supported maintenance work. |
-| `-PythonProviderHostPath <path>` | Override the Python host used to provision managed Python tools. |
+| `-PythonHostPath <path>` | Override the native Python host used to provision managed Python tools. |
 | `-ClangFormatPath <path>` | Override clang-format resolution. |
-| `-UnicodeDataRoot <path>` | Override the pinned Unicode source-data root. |
+| `-UnicodeDataPath <path>` | Override the pinned Unicode source-data directory. |
 | `-RefreshUnicodeData` | Refresh official Unicode data before verification/regeneration. |
 | `-WorkflowKind <all\|issue\|pull_request>` | Narrow project-reconciliation workflow scope. |
-| `-WorkflowNumber <number>` | Select the issue or pull request for a narrowed workflow. |
+| `-ItemNumber <number>` | Select the issue or pull request for a narrowed workflow. |
 | `-ReleaseCommit <sha>` | Supply the exact release-finalization commit. |
 | `-BenchmarkProfile <quick\|standard\|stable>` | Select benchmark policy. |
-| `-Filter <regex>` | Select benchmark names. |
+| `-NameFilter <regex>` | Select benchmark names. |
 | `-Repetitions <count>` | Override benchmark repetitions. |
-| `-MinTime <value>` | Override benchmark minimum measurement time. |
-| `-Output <path>` | Select an explicit retained benchmark/comparison output. |
+| `-MinimumTime <value>` | Override benchmark minimum measurement time. |
+| `-OutputPath <path>` | Select an explicit retained benchmark/comparison output. |
 | `-OutputFormat <json\|csv>` | Select benchmark result format. |
 | `-AggregatesOnly` | Request aggregate benchmark rows only. |
-| `-Baseline <path>` | Select the comparison baseline JSON. |
-| `-Candidate <path>` | Select the comparison candidate JSON. |
-| `-Count <count>` | Select stress-run count. |
-| `-Parallel <count>` | Select stress worker count. |
-| `-ExtraArgs <arguments>` | Forward arguments only where the selected declarative command permits them. |
-| `-NoBuild` | Do not build prerequisites automatically; require existing usable build state and fail when it is absent. |
-| `-Fresh` | Before `configure`, `build`, `test`, or `bundle`, remove each selected preset's complete `build/<preset>` tree and recreate it. Cannot be combined with `-NoBuild`. |
-| `-StopOnFailure` | Stop launching new stress work after the first failure. |
+| `-BaselinePath <path>` | Select the comparison baseline JSON. |
+| `-CandidatePath <path>` | Select the comparison candidate JSON. |
+| `-RunCount <count>` | Select stress-run count. |
+| `-WorkerCount <count>` | Select stress worker count. |
+| `-PassThroughArgs <arguments>` | Forward arguments only where the selected declarative command permits them. |
+| `-SkipBuild` | Do not build prerequisites automatically; require existing usable build state and fail when it is absent. |
+| `-CleanBuild` | Before `configure`, `build`, `test`, or `bundle`, remove each selected preset's complete `build/<preset>` tree and recreate it. Cannot be combined with `-SkipBuild`. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
-| `-Changed` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
-| `-Enforce` | Fail an optional hygiene audit when it produces a `PROVEN` finding. Likely, informational, and centrally explained findings remain report-only. |
+| `-ChangedOnly` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
+| `-FailOnFindings` | Fail an optional hygiene audit when it produces a `PROVEN` finding. Likely, informational, and centrally explained findings remain report-only. |
 | `-Json` | Emit the final structured operation result as JSON. |
-| `-NoWorkspaceTemp` | Keep the caller's TEMP/TMP instead of using operation-owned helper temp. Validation and benchmark executables still scope their own fixtures beneath the active preset tree. |
+| `-UseCallerTemp` | Keep the caller's TEMP/TMP instead of using operation-owned helper temp. Validation and benchmark executables still scope their own fixtures beneath the active preset tree. |
 | `-Preview` | Print the planned scope and perform only action-specific read-only discovery or preflight. Do not apply the requested local, tracked, machine, or remote mutation; diagnostic run logs and receipts are still retained under `build/gamewip/runs/`. |
 | `-NonInteractive` | Disable prompts. This never grants mutation consent at any risk class. |
 | `-Yes` | Approve the printed mutation plan for non-interactive execution. |
@@ -195,7 +208,7 @@ higher-level caller has already granted consent. `-Preview` never performs the
 mutation.
 
 Low-level configure, build, test, and ordinary bundle commands remain
-incremental unless `-Fresh` is supplied. The high-level `coverage`, `asan`, and
+incremental unless `-CleanBuild` is supplied. The high-level `coverage`, `asan`, and
 `ubsan` actions always recreate their preset trees so stale instrumentation or
 runtime artifacts cannot affect the result. The `local-release-check` and
 `sanitizer` bundles declare the same policy in the bundle catalog. `sanitizer`
@@ -210,7 +223,9 @@ directory and refuses reparse points.
 Full quality covers maintained tracked files and non-ignored untracked
 first-party files, while preserving the documented generated, historical, and
 third-party exclusions. Independent checks aggregate by default; use
-`-FailFast` only for focused diagnosis. `gamewip quality fix` applies deterministic formatters and then runs the same gate.
+`-FailFast` only for focused diagnosis. `gamewip quality fix` follows the
+formatter and text-normalization workflow described in @ref project_static_analysis,
+then runs the same gate.
 `gamewip quality status` reports maintained-file quality ownership.
 
 `gamewip quality hygiene [standard|deep|check-id]` is a separate optional
@@ -218,12 +233,12 @@ C/C++ investigation. It configures the `analyze` compilation database, runs
 only the selected hygiene rules, and retains normalized evidence as
 `artifacts/hygiene-report.json`. It is not part of normal builds, `quality
 check`, `analyze`, AddressSanitizer, UndefinedBehaviorSanitizer, or CI. Report
-mode succeeds when it finds review candidates. Add `-Enforce` when a caller
+mode succeeds when it finds review candidates. Add `-FailOnFindings` when a caller
 intentionally wants
 proven findings to fail the operation. `list` describes configured providers,
 and `status` performs read-only configuration and tool discovery.
 
-`gamewip tools ensure <id|category|all>` installs or repairs exactly the
+`gamewip tool ensure <id|category|all>` installs or repairs exactly the
 versions already declared by the checkout and does not advance pins. `gamewip
 tools update <id|all>` is the reviewed pin-advancement workflow and requires a
 clean tracked tree. Its preview performs discovery, source-preserving tracked
@@ -244,9 +259,9 @@ build/gamewip/runs/<operation-id>/
   summary.txt
 ```
 
-Use `gamewip runs list` for the newest 25 receipts, `gamewip runs list all`
-for complete history, `gamewip runs show latest`, and
-`gamewip runs clean <selector>` to inspect or clean that owned history.
+Use `gamewip history list` for the newest 25 receipts, `gamewip history list all`
+for complete history, `gamewip history show latest`, and
+`gamewip history clean <selector>` to inspect or clean that owned history.
 
 ## Related pages
 

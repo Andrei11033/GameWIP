@@ -217,10 +217,10 @@ Issue titles instead use their work type: `bug:`, `feature:`, `task:`,
 @ref project_contributing. Repository settings and check policy are owned by
 @ref project_repository_maintenance.
 
-First-party source and documentation use the Apache License 2.0. Dependencies
-under `external/` and non-code assets retain any separate licenses and notices
-that apply to them. Contribution licensing is covered in
-@ref project_contributing.
+First-party source and documentation use the Apache License 2.0. Setup-managed
+dependency sources in the local cache, optional integration helpers under
+`external/`, and non-code assets retain any separate licenses and notices that
+apply to them. Contribution licensing is covered in @ref project_contributing.
 
 The existing Git history is accepted for public visibility as project history.
 A newly discovered credential or sensitive artifact still requires rotation

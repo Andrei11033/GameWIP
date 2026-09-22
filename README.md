@@ -18,9 +18,8 @@ and the [roadmap](docs/roadmap.md). The latest published baseline is
 
 ## Development approach
 
-I write the C++ and CMake implementation myself. I use AI for learning,
-research, review, documentation, and comments; the PowerShell helper is
-AI-written.
+I write the implementation myself. I only use AI for research, review and
+to help me make sure the documentation and comments are correct.
 
 ## Start here
 
@@ -81,8 +80,9 @@ engine/       Supported Desktop plus deprecated Input, Action, and WindowManager
 tools/        Diagnostics, logging, assertions, and test support.
 game/         Game executable and source-tree validation.
 cmake/        Project build and validation infrastructure.
+external/     CMake integration for optional FetchContent dependencies.
 docs/         Product direction and developer documentation.
-external/     Pinned third-party dependencies.
+build/        Setup-managed dependency caches and generated build output.
 ```
 
 The root entry points stay short; detailed subsystem contracts and workflows
@@ -92,5 +92,5 @@ live in the [developer manual](docs/doxygen/index.md).
 
 GameWIP first-party source code and documentation are licensed under the
 [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for project attribution.
-Third-party dependencies under `external/` retain their own licenses and
-notices.
+Setup-managed third-party dependency sources retain their own licenses and
+notices in the local dependency cache.

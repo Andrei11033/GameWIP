@@ -26,10 +26,10 @@ GameWIP does not use C++ modules. Module dependency scanning is therefore
 disabled globally, which keeps Ninja compilation databases directly consumable
 by clang-tidy without requiring generated module-map response files.
 
-Before configuring a fresh checkout, initialize submodules:
+Before configuring a fresh checkout, prepare the locked dependency cache:
 
 ```powershell
-git submodule update --init --recursive
+.\setup.bat deps
 ```
 
 The `asan` and `ubsan` presets use the MSYS2 CLANG64 environment because the Windows sanitizer runtimes are provided there.
@@ -62,12 +62,22 @@ cmake --build --preset docs
 
 ### Incremental and fresh helper builds
 
-Ordinary `gamewip.bat configure`, `build`, and `test` invocations reuse the
-selected preset tree for fast local iteration. Add `-Fresh` when a result must
+Ordinary `gamewip.bat config`, `build`, and `test` invocations reuse the
+selected preset tree for fast local iteration. Add `-CleanBuild` when a result must
 not depend on prior generated files:
 
 ```powershell
-.\gamewip.bat test test -Fresh
+.\gamewip.bat test test -CleanBuild
+```
+
+For offline dependency use, prepare the shared cache once and pass `-Offline`
+to configure or build. The helper then requires the pinned sources already in
+the cache and CMake does not download them:
+
+```powershell
+.\gamewip.bat deps prepare
+.\gamewip.bat config profile -Offline
+.\gamewip.bat build profile -Offline
 ```
 
 Fresh mode removes the complete known `build/<preset>` directory before
