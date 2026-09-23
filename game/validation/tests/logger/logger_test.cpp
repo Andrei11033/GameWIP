@@ -173,6 +173,19 @@ namespace
         return std::filesystem::path(converted);
     }
 
+    [[nodiscard]] std::filesystem::path loggerLogFilePath(TestContext &context)
+    {
+        const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
+        if (!result.status.ok())
+        {
+            context.fail(
+                "query Logger log file path",
+                std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
+            return {};
+        }
+        return pathFromText(result.utf8);
+    }
+
     [[nodiscard]] std::string readWholeFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
@@ -345,6 +358,13 @@ namespace GameWIP::Test
                     [&]
                     {
                         testFatalPopupFailure(context);
+                    });
+                runCase(
+                    context,
+                    "query defaults and lifecycle",
+                    [&]
+                    {
+                        testQueryDefaultsAndLifecycle(context);
                     });
                 runCase(
                     context,

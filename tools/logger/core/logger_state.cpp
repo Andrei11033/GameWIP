@@ -465,7 +465,10 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
         }
     }
 
-    result.effectiveOutput = getOutput();
+    {
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        result.effectiveOutput = loggerState().mode;
+    }
     if (result.effectiveOutput == OutputMode::None)
     {
         result.status = result.outputSetupStatus.ok() ? IO::makeStatus(ErrorCode::OpenFailed) : result.outputSetupStatus;

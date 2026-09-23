@@ -14,7 +14,7 @@ void testDiagnosticConfiguration(TestContext &context)
 
     CHECK_MSG(false, "assert diagnostic message");
     Logger::flush(2s);
-    const std::string contents = readFile(context, Logger::getLogFilePath());
+    const std::string contents = readFile(context, loggerLogFilePath(context));
 
 #if ASSERT_DIAGNOSTICS
     context.expectTrue("diagnostics include condition", contents.contains("false"), "condition text missing");
@@ -44,7 +44,7 @@ void testDiagnosticMessageEvaluation(TestContext &context)
 
     int evaluations = 0;
     CHECK_MSG(false, makeDiagnosticMessage(evaluations));
-    const std::string contents = readFile(context, Logger::getLogFilePath());
+    const std::string contents = readFile(context, loggerLogFilePath(context));
 
 #if ASSERT_DIAGNOSTICS
     context.expectEq("diagnostic message evaluated when enabled", evaluations, 1);
@@ -107,7 +107,7 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     CHECK_MSG(false, message);
     Logger::flush(2s);
 
-    const TestSupport::Types::TextResult logText = TestSupport::readTextFile(Logger::getLogFilePath());
+    const TestSupport::Types::TextResult logText = TestSupport::readTextFile(loggerLogFilePath(context));
     const std::string statusText = TestSupport::formatInfrastructureStatus(logText.status);
     context.expectTrue("truncated diagnostic remains valid UTF-8", logText.status.ok(), statusText);
     if (!logText.status.ok())

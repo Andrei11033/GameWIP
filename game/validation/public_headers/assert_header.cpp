@@ -6,3 +6,7 @@
 /// from another GameWIP header.
 
 #include "debug/assert/assert.h"
+
+#if defined(ASSERT_POPUP_ON_ASSERT) || defined(ASSERT_POPUP_ON_CHECK)
+#error "Assert popup policy must remain private to the Assert runtime."
+#endif

@@ -73,7 +73,7 @@ void testEnsureBehavior(TestContext &context)
     context.expectEq("ENSURE evaluates once per call", evaluations, 2);
 
 #if ASSERT_CHECKS_ENABLED
-    const std::string contents = readFile(context, Logger::getLogFilePath());
+    const std::string contents = readFile(context, loggerLogFilePath(context));
 #if ASSERT_DIAGNOSTICS
     context.expectTrue("ENSURE diagnostics include caller function", contents.contains("testEnsureBehavior"), "caller function missing");
     context.expectTrue("ENSURE diagnostics avoid lambda function", !contents.contains("operator()"), "lambda function leaked into diagnostics");
@@ -101,7 +101,7 @@ void testCheckOnceLogging(TestContext &context)
     }
     Logger::flush(2s);
     const Logger::Types::Stats stats = Logger::getStats();
-    const std::string contents = readFile(context, Logger::getLogFilePath());
+    const std::string contents = readFile(context, loggerLogFilePath(context));
     context.expectEq("CHECK_ONCE reports without queueing", stats.queued, std::size_t{0});
     context.expectEq("CHECK_ONCE writes one failure synchronously", stats.written, std::size_t{1});
     context.expectTrue("CHECK_ONCE log contains error failure", contents.contains("[ERROR][Check]: Check failed"), "check failure missing from log");

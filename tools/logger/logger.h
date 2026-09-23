@@ -61,23 +61,23 @@ namespace GameWIP::Logger
     /// @brief Returns whether the worker currently accepts normal log records.
     LOGGER_EXPORT bool running() noexcept;
     /// @brief Returns the configured minimum severity.
-    LOGGER_EXPORT Types::Level getMinLevel();
+    LOGGER_EXPORT Types::Level getMinLevel() noexcept;
     /// @brief Returns the currently effective normal-output mode.
-    LOGGER_EXPORT Types::OutputMode getOutput();
-    /// @brief Returns the active log file path as UTF-8, or an empty string when unavailable.
-    LOGGER_EXPORT std::string getLogFilePath();
+    LOGGER_EXPORT Types::OutputMode getOutput() noexcept;
+    /// @brief Returns the active log-file path as UTF-8 with explicit query status.
+    LOGGER_EXPORT Types::LogFilePathResult getLogFilePath() noexcept;
     /// @brief Returns effective queue, batching, and message limits.
-    LOGGER_EXPORT Types::QueueLimits getQueueLimits();
+    LOGGER_EXPORT Types::QueueLimits getQueueLimits() noexcept;
     /// @brief Returns process-lifetime queue drops, unaffected by resetStats().
     LOGGER_EXPORT std::size_t getLifetimeDroppedLogCount() noexcept;
     /// @brief Returns a coherent Logger health snapshot.
-    [[nodiscard]] LOGGER_EXPORT Types::Health::Snapshot getHealth();
+    [[nodiscard]] LOGGER_EXPORT Types::Health::Snapshot getHealth() noexcept;
     /// @brief Returns relaxed resettable statistics counters.
-    LOGGER_EXPORT Types::Stats getStats();
+    LOGGER_EXPORT Types::Stats getStats() noexcept;
     /// @brief Returns Logger-retained and available process-memory statistics.
-    LOGGER_EXPORT Types::MemoryStats getMemoryStats();
+    LOGGER_EXPORT Types::MemoryStats getMemoryStats() noexcept;
     /// @brief Resets statistics counters without changing health state.
-    LOGGER_EXPORT void resetStats();
+    LOGGER_EXPORT void resetStats() noexcept;
 
     /// @}
 

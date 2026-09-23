@@ -15,10 +15,10 @@ void testFileLoggingAndUtf8Truncation(TestContext &context)
     const Logger::Types::Report::Result report = Logger::reportError(kTestSource, "formatted {}", message);
     context.expectTrue("UTF-8 formatted report delivered", reportDelivered(report));
     context.expectTrue("UTF-8 file flush", flushCompleted(Logger::flush(2s)));
-    const std::string logFile = Logger::getLogFilePath();
+    const std::filesystem::path logFile = loggerLogFilePath(context);
     static_cast<void>(Logger::shutdown());
 
-    const std::string contents = readWholeFile(context, pathFromText(logFile));
+    const std::string contents = readWholeFile(context, logFile);
     context.expectContains("truncation suffix written", contents, "[truncated]");
     context.expectTrue("UTF-8 prefix retained", contents.contains("prefix "));
     context.expectContains("strict formatted truncation suffix written", contents, "formatted... [truncated]");

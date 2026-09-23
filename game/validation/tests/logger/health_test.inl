@@ -1,6 +1,27 @@
 /// @file health_test.inl
 /// @brief Logger lifecycle health and statistics correctness suites.
 
+void testQueryDefaultsAndLifecycle(TestContext &context)
+{
+    ScopedLoggerShutdown shutdown;
+
+    const Logger::Types::LogFilePathResult beforeInitPath = Logger::getLogFilePath();
+    context.expectEq("log path before init reports NotOpen", beforeInitPath.status.code, IO::Types::ErrorCode::NotOpen);
+    context.expectEq("output before init is disabled", Logger::getOutput(), Logger::Types::OutputMode::None);
+    context.expectEq("queue limits before init are empty", Logger::getQueueLimits().softQueueSize, std::size_t{0});
+    context.expectEq("health before init is disabled", Logger::getHealth().state, Logger::Types::Health::State::Disabled);
+
+    expectStarted(context, "query lifecycle console init", Logger::init(makeConsoleConfig()));
+    context.expectEq("output while active is console", Logger::getOutput(), Logger::Types::OutputMode::Console);
+    const Logger::Types::LogFilePathResult consolePath = Logger::getLogFilePath();
+    context.expectEq("log path without file output reports NotOpen", consolePath.status.code, IO::Types::ErrorCode::NotOpen);
+
+    static_cast<void>(Logger::shutdown());
+    const Logger::Types::LogFilePathResult afterShutdownPath = Logger::getLogFilePath();
+    context.expectEq("log path after shutdown reports NotOpen", afterShutdownPath.status.code, IO::Types::ErrorCode::NotOpen);
+    context.expectEq("output after shutdown is disabled", Logger::getOutput(), Logger::Types::OutputMode::None);
+}
+
 void testShutdownAndHealthEpoch(TestContext &context)
 {
     ScopedLoggerShutdown shutdown;
