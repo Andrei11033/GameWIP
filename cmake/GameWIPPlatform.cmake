@@ -13,6 +13,14 @@ include_guard(GLOBAL)
 
 function(gamewip_resolve_platform_id output_variable)
     if(DEFINED GAMEWIP_PLATFORM_ID AND NOT GAMEWIP_PLATFORM_ID STREQUAL "")
+        if(NOT GAMEWIP_PLATFORM_ID MATCHES "^[a-z0-9]+(-[a-z0-9]+)*$")
+            message(
+                FATAL_ERROR
+                "GAMEWIP_PLATFORM_ID must be a normalized lowercase backend identifier "
+                "containing only letters, digits, and single hyphens: '${GAMEWIP_PLATFORM_ID}'."
+            )
+        endif()
+
         set(${output_variable} "${GAMEWIP_PLATFORM_ID}" PARENT_SCOPE)
         return()
     endif()

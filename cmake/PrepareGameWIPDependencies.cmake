@@ -94,7 +94,7 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
 
     string(
         APPEND _manifest_entries
-        "    \"${_cache_directory}\": {\n"
+        "    \"${gamewip_dependency}\": {\n"
         "      \"repository\": \"${_repository}\",\n"
         "      \"commit\": \"${_commit}\",\n"
         "      \"sourceDirectory\": "

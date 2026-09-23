@@ -20,8 +20,6 @@ endif()
 
 set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache")
 
-option(GAMEWIP_DEPENDENCIES_OFFLINE "Disallow dependency downloads and require the local cache" OFF)
-
 unset(_gamewip_default_dependency_cache)
 
 if(GAMEWIP_DEPENDENCY_CACHE_DIR)

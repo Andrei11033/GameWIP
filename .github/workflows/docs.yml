@@ -38,11 +38,26 @@ jobs:
           msystem: UCRT64
           update: true
           install: >-
+            git
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-doxygen
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-graphviz
             mingw-w64-ucrt-x86_64-ninja
+
+      - name: Restore locked dependency cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
+
+      - name: Prepare pinned dependencies
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 deps prepare -Yes -NonInteractive
+
+      - name: Verify pinned dependency cache
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 deps check -NonInteractive
 
       - name: Report CMake version
         shell: msys2 {0}
@@ -60,6 +75,7 @@ jobs:
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_BUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
 
       - name: Build documentation
         shell: msys2 {0}

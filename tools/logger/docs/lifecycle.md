@@ -28,3 +28,12 @@ Native IO already entered is synchronous and may complete after the deadline.
 
 `shutdown()` is repeat-safe and safe before init. It disables producer acceptance, joins/drains the worker, flushes sinks, closes File, and releases
 configured storage. Cleanup continues after failures and returns the first real IO failure. The final runtime state is Disabled.
+
+## Queries and failure reporting
+
+Queries are safe to call before initialization, during normal producer
+activity, and after shutdown. They are non-throwing and do not publish a
+process-wide last-error slot. Passive snapshots return the current value or a
+safe default; the allocating log-path query returns an explicit status-bearing
+result so `OutOfMemory`, encoding, and other conversion failures remain
+observable.

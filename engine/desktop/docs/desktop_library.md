@@ -9,7 +9,10 @@ display discovery and inspection, and an explicit native interoperability
 boundary.
 
 Desktop is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and invokes no user callbacks
-from a native window procedure.
+from a native window procedure. Worker or renderer code that needs an
+owner-thread mutation must use an application-owned transport queue and have
+the owner thread perform the Desktop call; Desktop intentionally provides no
+hidden worker or generic `post()` facility.
 
 ## How the library is organized
 

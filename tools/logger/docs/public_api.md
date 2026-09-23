@@ -14,6 +14,8 @@ Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` remains 
 - `Report::Result`: IO `status`, `Completed`/`TimedOut`, and `None`/`Partial`/`Complete` delivery.
 - `Health::Snapshot`: coherent current health and compact last-failure metadata.
 - `Config`, `QueueLimits`, `Stats`, and `MemoryStats`: configuration and runtime observation values.
+- `LogFilePathResult`: status-bearing UTF-8 path query result; the path is
+  meaningful only when its status succeeds.
 
 ## Lifecycle
 
@@ -26,6 +28,13 @@ indefinitely, zero is a poll/no-wait deadline, positive values are finite, and n
 `shutdown()` returns `IO::Types::Status`, performs best-effort draining/flushing/close, and always leaves Logger disabled.
 
 `running()` reports whether the worker currently accepts normal log records.
+
+All state and statistics queries are non-throwing. `getMinLevel()`,
+`getOutput()`, `getQueueLimits()`, `getHealth()`, `getStats()`, and
+`getMemoryStats()` return bounded snapshots or safe defaults when a query cannot
+complete. `getLogFilePath()` returns `Types::LogFilePathResult` so an owning
+string allocation or path conversion failure is reported through the operation
+result instead of an exception or an ambiguous empty path.
 
 ## Runtime filters
 

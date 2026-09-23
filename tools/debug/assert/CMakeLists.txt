@@ -10,6 +10,8 @@ set_property(CACHE ASSERT_ENABLED PROPERTY STRINGS AUTO ON OFF)
 set(ASSERT_CHECKS_ENABLED "AUTO" CACHE STRING "Force recoverable checks on, off, or let NDEBUG choose")
 set_property(CACHE ASSERT_CHECKS_ENABLED PROPERTY STRINGS AUTO ON OFF)
 option(ASSERT_DIAGNOSTICS "Embed assertion condition/file/function/message diagnostics" ON)
+option(ASSERT_POPUP_ON_ASSERT "Allow fatal assertion failures to show Assert-owned platform UI" ON)
+option(ASSERT_POPUP_ON_CHECK "Allow recoverable check failures to show Assert-owned platform UI" OFF)
 option(ASSERT_UNREACHABLE_ASSUME "Use compiler unreachable assumptions instead of a trap when UNREACHABLE is compiled without assertions" OFF)
 option(ASSERT_ENABLE_TEST_HOOKS "Enable Assert internal test hooks" OFF)
 if(NOT COMMAND gamewip_install_package)
@@ -83,6 +85,18 @@ if(ASSERT_DIAGNOSTICS)
     set(ASSERT_DIAGNOSTICS_VALUE 1)
 else()
     set(ASSERT_DIAGNOSTICS_VALUE 0)
+endif()
+
+if(ASSERT_POPUP_ON_ASSERT)
+    set(ASSERT_POPUP_ON_ASSERT_VALUE 1)
+else()
+    set(ASSERT_POPUP_ON_ASSERT_VALUE 0)
+endif()
+
+if(ASSERT_POPUP_ON_CHECK)
+    set(ASSERT_POPUP_ON_CHECK_VALUE 1)
+else()
+    set(ASSERT_POPUP_ON_CHECK_VALUE 0)
 endif()
 
 if(ASSERT_UNREACHABLE_ASSUME)
@@ -159,6 +173,8 @@ if(ASSERT_RUNTIME_TARGET_ENABLED)
             ASSERT_ENABLED=1
             ASSERT_CHECKS_ENABLED=1
             ASSERT_DIAGNOSTICS=${ASSERT_DIAGNOSTICS_VALUE}
+            ASSERT_POPUP_ON_ASSERT=${ASSERT_POPUP_ON_ASSERT_VALUE}
+            ASSERT_POPUP_ON_CHECK=${ASSERT_POPUP_ON_CHECK_VALUE}
             ASSERT_UNREACHABLE_ASSUME=${ASSERT_UNREACHABLE_ASSUME_VALUE}
             ASSERT_INTERNAL_TEST_HOOKS=$<BOOL:${ASSERT_ENABLE_TEST_HOOKS}>
         INTERFACE

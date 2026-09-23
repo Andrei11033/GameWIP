@@ -35,6 +35,8 @@ option(GAMEWIP_RUN_BENCHMARKS_AT_STARTUP "Compile and run benchmarks before game
 
 option(GAMEWIP_ENABLE_TRACY "Enable Tracy profiler instrumentation" ${_gamewip_default_enable_tracy})
 
+option(GAMEWIP_DEPENDENCIES_OFFLINE "Disallow dependency downloads and require the local cache" OFF)
+
 option(GAMEWIP_WARNINGS_AS_ERRORS "Treat GameWIP compiler warnings as build errors" OFF)
 
 option(GAMEWIP_ENABLE_ASSERTS "Enable assertions and recoverable checks" ON)
@@ -46,6 +48,8 @@ option(GAMEWIP_ENABLE_ADDRESS_SANITIZER "Enable AddressSanitizer instrumentation
 option(GAMEWIP_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER "Enable UndefinedBehaviorSanitizer instrumentation" OFF)
 
 option(GAMEWIP_ENABLE_STATIC_ANALYSIS "Create clang-tidy and clang-format validation targets" ${_gamewip_default_static_analysis})
+
+set(GAMEWIP_CLANG_TIDY_JOBS "4" CACHE STRING "Parallel clang-tidy process count")
 
 option(GAMEWIP_BUILD_DOCS "Build project Doxygen documentation" ${_gamewip_default_build_docs})
 

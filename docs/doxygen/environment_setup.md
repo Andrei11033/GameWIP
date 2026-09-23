@@ -60,6 +60,9 @@ under `build/gamewip/cache/dependencies`. The cache is controlled by
 `scripts/config/dependencies.json`, which records each repository and exact
 commit. Preparation reuses a matching source tree and only fetches a missing or
 out-of-date commit.
+Concurrent preparation requests serialize on an exclusive cache lock; a
+process interruption releases the lock through the operating system without
+requiring manual deletion of the lock file.
 
 Use the project helper for focused cache operations:
 
@@ -76,9 +79,10 @@ downloads:
 .\gamewip.bat build profile -Offline
 ```
 
-Offline mode requires the prepared sources and verifies their exact Git commits;
-it fails with a repair instruction instead of downloading anything. The setup
-`check` action verifies the cache but does not prepare or modify it.
+Offline mode is represented by `GAMEWIP_DEPENDENCIES_OFFLINE=ON` in direct CMake
+invocations. It requires the prepared sources and verifies their exact Git
+commits; it fails with a repair instruction instead of downloading anything.
+The setup `check` action verifies the cache but does not prepare or modify it.
 
 ## Controls
 

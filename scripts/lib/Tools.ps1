@@ -704,9 +704,36 @@ function Confirm-GameWipToolchain
         return
     }
     $prefix = Get-GameWipToolchainPathPrefix $PresetName
-    if (-not (Test-Path -LiteralPath (Join-Path $prefix 'cmake.exe')))
+    $requiredExecutables = [System.Collections.Generic.List[string]]::new()
+    $requiredExecutables.Add('cmake.exe')
+    $requiredExecutables.Add('ctest.exe')
+    $requiredExecutables.Add('ninja.exe')
+
+    if ($PresetName -in @('analyze', 'asan', 'ubsan'))
     {
-        Test-GameWipProjectReadiness -ThrowOnFailure | Out-Null
+        $requiredExecutables.Add('clang++.exe')
+    }
+    else
+    {
+        $requiredExecutables.Add('g++.exe')
+    }
+
+    if ($PresetName -in @('asan', 'ubsan'))
+    {
+        $requiredExecutables.Add('clang.exe')
+        $requiredExecutables.Add('ld.lld.exe')
+    }
+
+    $missingExecutables = @($requiredExecutables | Where-Object {
+            -not (Test-Path -LiteralPath (Join-Path $prefix $_) -PathType Leaf)
+        })
+    if ($missingExecutables.Count -ne 0)
+    {
+        throw (New-GameWipDiagnosticException `
+                -Code 'preset-toolchain-incomplete' `
+                -Summary "The '$PresetName' preset toolchain is incomplete." `
+                -Details ("Missing from '{0}': {1}" -f $prefix, ($missingExecutables -join ', ')) `
+                -SuggestedActions @('Run .\setup.bat repair.', "Verify the managed MSYS2 environment for the '$PresetName' preset.", 'Run .\gamewip.bat tools status.'))
     }
 }
 

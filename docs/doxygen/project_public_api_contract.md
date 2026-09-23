@@ -92,6 +92,37 @@ RAII owners use a closed or inert default state when practical, an explicit chec
 and an explicit observable cleanup operation such as `close()`, `stop()`, or `shutdown()`. Destructors are non-throwing and perform best-effort
 cleanup; an explicit cleanup failure remains observable and retryable where practical.
 
+## Lifecycle and threading classification
+
+Every stateful public type or process-wide service must document one primary
+threading category and its lifecycle boundary:
+
+- **Concurrent** means the documented operations are internally safe for the
+  supported concurrent combinations. It does not make object destruction or
+  move operations safe while another call is active.
+- **Owner-thread-affine** means native mutation and lifecycle operations require
+  the opening/owning thread. Wrong-thread calls return the library's status
+  vocabulary, and destruction performs only the documented best-effort handoff
+  or cleanup.
+- **Externally synchronized** means concurrent use is permitted only when the
+  caller supplies the synchronization that the API names.
+- **Passive/value** means the value can be copied or read according to its
+  ordinary C++ lifetime rules and owns no mutable runtime state.
+
+Process-wide services must document initialization, repeated initialization,
+shutdown-before-init, shutdown-after-failure, and final teardown behavior.
+Optional worker threads are permitted only when the owning library documents
+their start, admission, drain, join, and failure boundaries. A library must not
+silently create a worker thread merely to make an owner-thread-affine native
+resource appear thread-safe.
+
+When worker/render code produces results for an owner-thread-affine library,
+the application owns the transport queue and schedules the owner-thread
+mutation. A library may expose cached read-only publication or an explicit
+snapshot only when its consistency and memory-ordering contract is documented;
+individual atomic getters must not be presented as a coherent multi-field
+snapshot.
+
 ## Allocation, threading, and performance
 
 Performance is part of reusable API design. Correctness remains mandatory, but an API cleanup must not add redundant linear scans, allocation, mutex

@@ -189,20 +189,62 @@ function Invoke-GameWipDependencyPreparation
     $prepareScript = Resolve-GameWipRepositoryPath `
         -Path 'cmake/PrepareGameWIPDependencies.cmake'
 
-    $arguments = @(
-        "-DGAMEWIP_DEPENDENCY_CACHE_DIR=$cacheRoot"
-        '-P'
-        $prepareScript
-    )
+    New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
+    # The lock is held by an exclusive file handle; a leftover file after a
+    # crashed process is harmless because the next process can reopen it.
+    $lockPath = Join-Path $cacheRoot '.prepare.lock'
+    $lockStream = $null
+    $lockDeadline = [DateTime]::UtcNow.AddMinutes(10)
+    try
+    {
+        while ($null -eq $lockStream -and [DateTime]::UtcNow -lt $lockDeadline)
+        {
+            try
+            {
+                $lockStream = [IO.File]::Open(
+                    $lockPath,
+                    [IO.FileMode]::OpenOrCreate,
+                    [IO.FileAccess]::ReadWrite,
+                    [IO.FileShare]::None
+                )
+            }
+            catch [IO.IOException]
+            {
+                Start-Sleep -Milliseconds 250
+            }
+        }
 
-    Invoke-GameWipNative `
-        -Name 'dependencies-prepare' `
-        -FilePath 'cmake' `
-        -Arguments $arguments `
-        -PathPrefix (Get-GameWipToolchainPathPrefix -PresetName 'dev') |
-        Out-Null
+        if ($null -eq $lockStream)
+        {
+            throw (New-GameWipDiagnosticException `
+                    -Code 'dependency-cache-lock-timeout' `
+                    -Summary 'Timed out waiting for the dependency cache preparation lock.' `
+                    -Details "Another dependency preparation process may still be active: $lockPath" `
+                    -SuggestedActions @('Wait for the other dependency preparation operation to finish, then retry.', 'Inspect the retained helper run log if the lock remains unavailable.'))
+        }
 
-    Test-GameWipDependencyCache -ThrowOnFailure
+        $arguments = @(
+            "-DGAMEWIP_DEPENDENCY_CACHE_DIR=$cacheRoot"
+            '-P'
+            $prepareScript
+        )
+
+        Invoke-GameWipNative `
+            -Name 'dependencies-prepare' `
+            -FilePath 'cmake' `
+            -Arguments $arguments `
+            -PathPrefix (Get-GameWipToolchainPathPrefix -PresetName 'dev') |
+            Out-Null
+
+        Test-GameWipDependencyCache -ThrowOnFailure
+    }
+    finally
+    {
+        if ($null -ne $lockStream)
+        {
+            $lockStream.Dispose()
+        }
+    }
 }
 
 function Get-GameWipDependencyPreparationPlan

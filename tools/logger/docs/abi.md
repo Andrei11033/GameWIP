@@ -35,6 +35,11 @@ compatible compiler/runtime settings.
 Compatibility-relevant changes include public enum/structure layout, signatures, export sets, template requirements, macro behavior, and dependency
 requirements. Internal queue layout, worker implementation, timestamp cache, and private dependency wiring are not ABI promises.
 
+The status-bearing `Types::LogFilePathResult` is part of the public ABI. Its
+status must be inspected before consuming the UTF-8 path, and changes to its
+layout or the `getLogFilePath()` signature require the normal exact-version
+package and validation review.
+
 The shared-library implementation unregisters its MinGW formatting-scratch FLS callback during module teardown. Consumers that explicitly unload the
 shared library must first quiesce Logger calls and worker threads, as required for any callable code or retained object owned by that module.
 

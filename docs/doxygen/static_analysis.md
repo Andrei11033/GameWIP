@@ -66,6 +66,9 @@ The target includes:
 | `clang-tidy` | C and C++ translation units under maintained roots such as `foundation/`, `tools/`, `engine/`, and `game/`. Headers in those roots are checked when included by a translation unit. |
 | `clang-format-check` | `.cpp`, `.h`, `.hpp`, and `.inl` files under the same maintained roots. |
 
+`GAMEWIP_CLANG_TIDY_JOBS` controls the positive number of parallel
+`clang-tidy` processes used by the target and defaults to `4`.
+
 The VS Code workspace disables the C/C++ extension's integrated clang-tidy
 runner. Workspace IntelliSense uses the GCC-backed `dev` compilation database,
 while supported static analysis uses the Clang-backed `analyze` database.

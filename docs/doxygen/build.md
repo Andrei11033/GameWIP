@@ -72,7 +72,8 @@ not depend on prior generated files:
 
 For offline dependency use, prepare the shared cache once and pass `-Offline`
 to configure or build. The helper then requires the pinned sources already in
-the cache and CMake does not download them:
+the cache and CMake does not download them. Direct CMake invocations use
+`GAMEWIP_DEPENDENCIES_OFFLINE=ON`:
 
 ```powershell
 .\gamewip.bat deps prepare
@@ -155,6 +156,7 @@ Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/
 | `GAMEWIP_ENABLE_STARTUP_TESTS` | `OFF` | Compiles correctness tests into `GameWIP` for explicit `--startup-tests` execution. |
 | `GAMEWIP_RUN_BENCHMARKS_AT_STARTUP` | `OFF` | Compiles benchmark entry points into `GameWIP` and runs them after startup tests. |
 | `GAMEWIP_ENABLE_TRACY` | `ON` | Enables Tracy profiler integration when selected by a preset. |
+| `GAMEWIP_DEPENDENCIES_OFFLINE` | `OFF` | Requires the prepared locked dependency cache and disallows dependency downloads. |
 | `GAMEWIP_ENABLE_ASSERTS` | `ON` | Enables assertions and recoverable checks. |
 | `GAMEWIP_ENABLE_COVERAGE` | `OFF` | Adds coverage instrumentation and the `coverage` target. |
 | `GAMEWIP_ENABLE_ADDRESS_SANITIZER` | `OFF` | Adds AddressSanitizer instrumentation. |

@@ -26,6 +26,9 @@ published values without freeing or disabling the sidecar.
 
 This read contract lasts only while the C++ `Window` object remains alive. The application must stop or join the renderer before destroying the
 object. Desktop does not create a render thread, schedule frames, resize renderer resources, or invoke renderer callbacks from native messages.
+Renderer or worker results that require owner-thread Desktop mutation must be
+sent through an application-owned queue and applied by the Window owner. There
+is no library-owned worker and no generic Desktop `post()` API.
 
 ## Occlusion provider
 
