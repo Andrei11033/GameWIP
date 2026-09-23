@@ -9,7 +9,7 @@ namespace GameWIP::Logger::Detail::Core
     // Statistics and retained-memory accounting
     // ------------------------------------------------------------
 
-    LoggerStats snapshotStats()
+    LoggerStats snapshotStats() noexcept
     {
         return LoggerStats{
             loggerState().stats.queued.load(std::memory_order_relaxed),
@@ -156,35 +156,76 @@ bool GameWIP::Logger::running() noexcept
     return runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire));
 }
 
-GameWIP::Logger::Types::Level GameWIP::Logger::getMinLevel()
+GameWIP::Logger::Types::Level GameWIP::Logger::getMinLevel() noexcept
 {
-    std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return loggerState().minLevel;
+    try
+    {
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        return loggerState().minLevel;
+    }
+    catch (...)
+    {
+        return Types::Level::Info;
+    }
 }
 
-GameWIP::Logger::Types::OutputMode GameWIP::Logger::getOutput()
+GameWIP::Logger::Types::OutputMode GameWIP::Logger::getOutput() noexcept
 {
-    std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return loggerState().mode;
+    try
+    {
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        if (!runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
+        {
+            return Types::OutputMode::None;
+        }
+        return loggerState().mode;
+    }
+    catch (...)
+    {
+        return Types::OutputMode::None;
+    }
 }
 
-std::string GameWIP::Logger::getLogFilePath()
+GameWIP::Logger::Types::LogFilePathResult GameWIP::Logger::getLogFilePath() noexcept
 {
-    std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    const auto result = FileSystem::pathToUtf8(loggerState().logFilePath);
-    return result.status.ok() ? result.utf8 : std::string{};
+    try
+    {
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        if (loggerState().logFilePath.empty())
+        {
+            return {.status = IO::makeStatus(ErrorCode::NotOpen)};
+        }
+
+        auto result = FileSystem::pathToUtf8(loggerState().logFilePath);
+        return {.status = std::move(result.status), .utf8 = std::move(result.utf8)};
+    }
+    catch (const std::bad_alloc &)
+    {
+        return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
+    }
+    catch (...)
+    {
+        return {.status = IO::makeStatus(ErrorCode::Unknown)};
+    }
 }
 
-GameWIP::Logger::Types::QueueLimits GameWIP::Logger::getQueueLimits()
+GameWIP::Logger::Types::QueueLimits GameWIP::Logger::getQueueLimits() noexcept
 {
-    std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return {
-        loggerState().softQueueSize,
-        loggerState().hardQueueSize,
-        loggerState().hardQueueMultiplier,
-        loggerState().maxMessageLength,
-        loggerState().inlineMessageCapacity,
-        loggerState().workerBatchSize};
+    try
+    {
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        return {
+            loggerState().softQueueSize,
+            loggerState().hardQueueSize,
+            loggerState().hardQueueMultiplier,
+            loggerState().maxMessageLength,
+            loggerState().inlineMessageCapacity,
+            loggerState().workerBatchSize};
+    }
+    catch (...)
+    {
+        return {};
+    }
 }
 
 std::size_t GameWIP::Logger::getLifetimeDroppedLogCount() noexcept
@@ -192,46 +233,75 @@ std::size_t GameWIP::Logger::getLifetimeDroppedLogCount() noexcept
     return loggerState().droppedLogs.load(std::memory_order_relaxed);
 }
 
-GameWIP::Logger::Types::Health::Snapshot GameWIP::Logger::getHealth()
+GameWIP::Logger::Types::Health::Snapshot GameWIP::Logger::getHealth() noexcept
 {
-    std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    return {
-        loggerState().healthState,
-        loggerState().mode,
-        loggerState().lastFailureSource,
-        loggerState().lastHealthError,
-        loggerState().lastHealthNativeCode,
-        loggerState().healthFailureCount};
-}
-
-GameWIP::Logger::Types::Stats GameWIP::Logger::getStats()
-{
-    return snapshotStats();
-}
-
-GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats()
-{
-    LoggerMemoryStats memory;
+    try
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        memory.queueStorageBytes = queueStorageBytesUnlocked();
-        memory.messageArenaBytes = messageArenaBytesUnlocked();
-        memory.sourceRegistryBytes = publishedSourceRegistryBytes();
-        memory.entryTextHeapCapacityAvailable = entryTextHeapCapacityAvailableUnlocked();
-        memory.entryTextHeapCapacityBytes = memory.entryTextHeapCapacityAvailable ? entryTextHeapCapacityBytesUnlocked() : 0;
-        memory.loggerRetainedBytes = sizeof(LoggerState) + memory.queueStorageBytes + memory.messageArenaBytes + memory.sourceRegistryBytes +
-                                     memory.entryTextHeapCapacityBytes;
+        return {
+            loggerState().healthState,
+            loggerState().mode,
+            loggerState().lastFailureSource,
+            loggerState().lastHealthError,
+            loggerState().lastHealthNativeCode,
+            loggerState().healthFailureCount};
     }
-
-    const auto process = GameWIP::Logger::Detail::Platform::queryProcessMemory();
-    memory.processWorkingSetBytes = process.workingSetBytes;
-    memory.processPrivateBytes = process.privateBytes;
-    memory.processMemoryAvailable = process.available;
-    return memory;
+    catch (...)
+    {
+        return {};
+    }
 }
 
-void GameWIP::Logger::resetStats()
+GameWIP::Logger::Types::Stats GameWIP::Logger::getStats() noexcept
 {
-    std::lock_guard<std::mutex> lock(loggerState().logMutex);
-    resetAtomicStats(loggerState().queueDepth.load(std::memory_order_acquire));
+    try
+    {
+        return snapshotStats();
+    }
+    catch (...)
+    {
+        return {};
+    }
+}
+
+GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats() noexcept
+{
+    try
+    {
+        LoggerMemoryStats memory;
+        {
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            memory.queueStorageBytes = queueStorageBytesUnlocked();
+            memory.messageArenaBytes = messageArenaBytesUnlocked();
+            memory.sourceRegistryBytes = publishedSourceRegistryBytes();
+            memory.entryTextHeapCapacityAvailable = entryTextHeapCapacityAvailableUnlocked();
+            memory.entryTextHeapCapacityBytes = memory.entryTextHeapCapacityAvailable ? entryTextHeapCapacityBytesUnlocked() : 0;
+            memory.loggerRetainedBytes = sizeof(LoggerState) + memory.queueStorageBytes + memory.messageArenaBytes + memory.sourceRegistryBytes +
+                                         memory.entryTextHeapCapacityBytes;
+        }
+
+        const auto process = GameWIP::Logger::Detail::Platform::queryProcessMemory();
+        memory.processWorkingSetBytes = process.workingSetBytes;
+        memory.processPrivateBytes = process.privateBytes;
+        memory.processMemoryAvailable = process.available;
+        return memory;
+    }
+    catch (...)
+    {
+        return {};
+    }
+}
+
+void GameWIP::Logger::resetStats() noexcept
+{
+    try
+    {
+        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        resetAtomicStats(loggerState().queueDepth.load(std::memory_order_acquire));
+    }
+    catch (...)
+    {
+        // Statistics reset is best effort at this noexcept diagnostic boundary.
+        return;
+    }
 }

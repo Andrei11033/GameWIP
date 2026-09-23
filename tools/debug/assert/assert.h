@@ -42,22 +42,6 @@
 #define ASSERT_DIAGNOSTICS 1
 #endif
 
-/// @def ASSERT_POPUP_ON_ASSERT
-/// @brief Controls whether fatal assertion reports may show Assert-owned platform UI.
-/// @details This is compiled into the Assert runtime. Defining it only for a consumer target does
-/// not reconfigure an already-built runtime library.
-#ifndef ASSERT_POPUP_ON_ASSERT
-#define ASSERT_POPUP_ON_ASSERT 1
-#endif
-
-/// @def ASSERT_POPUP_ON_CHECK
-/// @brief Controls whether recoverable check reports may show Assert-owned platform UI.
-/// @details This is compiled into the Assert runtime. Defining it only for a consumer target does
-/// not reconfigure an already-built runtime library.
-#ifndef ASSERT_POPUP_ON_CHECK
-#define ASSERT_POPUP_ON_CHECK 0
-#endif
-
 /// @def ASSERT_UNREACHABLE_ASSUME
 /// @brief Selects the disabled-build backend used by `UNREACHABLE()`.
 /// @details `1` permits a compiler unreachable assumption where supported; `0` uses the trap path.
@@ -105,14 +89,6 @@
 #error "ASSERT_DIAGNOSTICS must be 0 or 1."
 #endif
 
-#if (ASSERT_POPUP_ON_ASSERT != 0) && (ASSERT_POPUP_ON_ASSERT != 1)
-#error "ASSERT_POPUP_ON_ASSERT must be 0 or 1."
-#endif
-
-#if (ASSERT_POPUP_ON_CHECK != 0) && (ASSERT_POPUP_ON_CHECK != 1)
-#error "ASSERT_POPUP_ON_CHECK must be 0 or 1."
-#endif
-
 #if (ASSERT_UNREACHABLE_ASSUME != 0) && (ASSERT_UNREACHABLE_ASSUME != 1)
 #error "ASSERT_UNREACHABLE_ASSUME must be 0 or 1."
 #endif
@@ -121,8 +97,6 @@ static_assert(ASSERT_INTERNAL_RUNTIME == 0 || ASSERT_INTERNAL_RUNTIME == 1, "ASS
 static_assert(ASSERT_ENABLED == 0 || ASSERT_ENABLED == 1, "ASSERT_ENABLED must be 0 or 1.");
 static_assert(ASSERT_CHECKS_ENABLED == 0 || ASSERT_CHECKS_ENABLED == 1, "ASSERT_CHECKS_ENABLED must be 0 or 1.");
 static_assert(ASSERT_DIAGNOSTICS == 0 || ASSERT_DIAGNOSTICS == 1, "ASSERT_DIAGNOSTICS must be 0 or 1.");
-static_assert(ASSERT_POPUP_ON_ASSERT == 0 || ASSERT_POPUP_ON_ASSERT == 1, "ASSERT_POPUP_ON_ASSERT must be 0 or 1.");
-static_assert(ASSERT_POPUP_ON_CHECK == 0 || ASSERT_POPUP_ON_CHECK == 1, "ASSERT_POPUP_ON_CHECK must be 0 or 1.");
 static_assert(ASSERT_UNREACHABLE_ASSUME == 0 || ASSERT_UNREACHABLE_ASSUME == 1, "ASSERT_UNREACHABLE_ASSUME must be 0 or 1.");
 
 #if !ASSERT_INTERNAL_RUNTIME && (ASSERT_ENABLED || ASSERT_CHECKS_ENABLED)

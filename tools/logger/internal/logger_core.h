@@ -741,7 +741,7 @@ namespace GameWIP::Logger::Detail::Core
     void recordQueueDropCounter(std::atomic<std::size_t> &counter);
     void recordDiagnosticFailureCounter(std::atomic<std::size_t> &counter);
     void updateAtomicMax(std::atomic<std::size_t> &target, std::size_t value);
-    LoggerStats snapshotStats();
+    LoggerStats snapshotStats() noexcept;
     std::size_t messageArenaBytesUnlocked();
     std::size_t queueStorageBytesUnlocked();
     std::size_t sourceRegistryBytes(const SourceRegistry *registry);
