@@ -1,6 +1,6 @@
 @page filesystem_unicode_paths Unicode paths
 
-Public operations use `GameWIP::FileSystem::Types::Path`, currently an alias to `std::filesystem::path`.
+Public operations use `GameWIP::FileSystem::Types::Path`, an alias to `std::filesystem::path`.
 
 ## Explicit UTF-8 boundary
 

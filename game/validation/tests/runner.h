@@ -47,7 +47,7 @@ namespace GameWIP::Validation::Tests
     /// @param argc Original process argument count.
     /// @param argv Borrowed original process arguments; recognized options are not removed before module callbacks.
     /// @param options Shared policy copied into the runner; recognized command-line arguments may override the copy.
-    /// @return Aggregate result, or an exact routed-child result when handledChildInvocation is true.
+    /// @return Aggregate result, or the routed-child result when handling a child invocation.
     /// @note Intended for one invocation at a time because modules, reporting, and scoped temporary-environment policy coordinate process-global
     /// state.
     [[nodiscard]] TestResult run(int argc, char **argv, RunOptions options = {});

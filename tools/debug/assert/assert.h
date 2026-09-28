@@ -172,7 +172,7 @@ namespace GameWIP::Debug::Assert::Detail
     /// @param alwaysIgnoreFlag Borrowed per-call-site atomic flag, valid through this call; null disables persistent suppression.
     /// @details Text views borrow UTF-8 data valid for the duration of the call. Reporting is synchronous;
     /// action selection can block on UI. Ignore actions return, Break returns if execution resumes,
-    /// and Abort terminates the process. AlwaysIgnore stores true in the supplied flag using relaxed ordering.
+    /// and Abort terminates the process. AlwaysIgnore stores true in the flag using relaxed ordering.
     ASSERT_EXPORT void handleInteractiveAssertFailure(
         std::string_view conditionText,
         std::string_view message,
@@ -365,7 +365,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def ASSERT_INTERACTIVE_MSG(condition, message)
 /// @brief ASSERT_INTERACTIVE with a custom diagnostic message.
 /// @param condition Boolean expression to validate.
-/// @param message Message text evaluated only on an unsuppressed failure and only when diagnostics are enabled.
+/// @param message Message text evaluated on an unsuppressed failure only when diagnostics are enabled.
 #define ASSERT_INTERACTIVE_MSG(condition, message) \
     do \
     { \
@@ -390,7 +390,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def VERIFY_MSG(condition, message)
 /// @brief VERIFY with a custom diagnostic message.
 /// @param condition Boolean expression to evaluate.
-/// @param message Message text evaluated only on failure and only when diagnostics are enabled.
+/// @param message Message text evaluated on failure only when diagnostics are enabled.
 #define VERIFY_MSG(condition, message) ASSERT_MSG(condition, message)
 
 /// @def VERIFY_INTERACTIVE(condition)
@@ -417,7 +417,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def VERIFY_INTERACTIVE_MSG(condition, message)
 /// @brief VERIFY_INTERACTIVE with a custom diagnostic message.
 /// @param condition Boolean expression to evaluate once.
-/// @param message Message text evaluated only on an unsuppressed failure and only when diagnostics are enabled.
+/// @param message Message text evaluated on an unsuppressed failure only when diagnostics are enabled.
 #define VERIFY_INTERACTIVE_MSG(condition, message) \
     do \
     { \
@@ -521,7 +521,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def CHECK_MSG(condition, message)
 /// @brief Recoverable check with a custom diagnostic message.
 /// @param condition Boolean expression to validate.
-/// @param message Message text evaluated only on failure and only when diagnostics are enabled.
+/// @param message Message text evaluated on failure only when diagnostics are enabled.
 #define CHECK_MSG(condition, message) \
     do \
     { \
@@ -555,7 +555,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def CHECK_ONCE_MSG(condition, message)
 /// @brief CHECK_ONCE with a custom diagnostic message.
 /// @param condition Boolean expression to validate.
-/// @param message Message text evaluated only for the first reported failure at this call site and only when diagnostics are enabled.
+/// @param message Message text evaluated for the first reported failure at this call site only when diagnostics are enabled.
 #define CHECK_ONCE_MSG(condition, message) \
     do \
     { \
@@ -572,7 +572,7 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def ENSURE(condition)
 /// @brief Evaluates condition once, reports when false, and returns the boolean result.
 /// @param condition Boolean expression to evaluate.
-/// @return true when condition is true, false otherwise.
+/// @return The evaluated condition.
 /// @details Useful for recoverable validation, for example: if (!ENSURE(load())) return false;
 // The lambda argument captures the enclosing function name before entering the lambda body.
 #define ENSURE(condition) \
@@ -590,8 +590,8 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def ENSURE_MSG(condition, message)
 /// @brief ENSURE with a custom diagnostic message.
 /// @param condition Boolean expression to evaluate.
-/// @param message Message text evaluated only on false results and only when diagnostics are enabled.
-/// @return true when condition is true, false otherwise.
+/// @param message Message text evaluated on false results only when diagnostics are enabled.
+/// @return The evaluated condition.
 #define ENSURE_MSG(condition, message) \
     ( \
         [&](const char *assertFunction_) -> bool \
@@ -629,14 +629,14 @@ namespace GameWIP::Debug::Assert::Detail
 /// @def ENSURE(condition)
 /// @brief Evaluates condition once and returns its boolean value when check reporting is disabled.
 /// @param condition Boolean expression to evaluate.
-/// @return true when condition is true, false otherwise.
+/// @return The evaluated condition.
 #define ENSURE(condition) (static_cast<bool>(condition))
 
 /// @def ENSURE_MSG(condition, message)
 /// @brief Evaluates condition once and returns its boolean value when check reporting is disabled.
 /// @param condition Boolean expression to evaluate.
 /// @param message Message text; not evaluated in this mode.
-/// @return true when condition is true, false otherwise.
+/// @return The evaluated condition.
 #define ENSURE_MSG(condition, message) (static_cast<bool>(condition))
 #endif
 /// @}

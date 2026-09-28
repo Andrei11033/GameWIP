@@ -55,7 +55,7 @@ namespace GameWIP::Desktop::Detail::Platform
     void releaseDisplayColorResources() noexcept;
     /// @brief Drops process-reclaimable display-color state during owner-thread teardown.
     void abandonDisplayColorResources() noexcept;
-    /// @brief Returns whether the calling thread currently owns an open top-level Window.
+    /// @brief Returns whether the calling thread owns an open top-level Window.
     [[nodiscard]] bool hasOpenWindowsOnCurrentThread() noexcept;
 
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;

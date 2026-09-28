@@ -1,4 +1,4 @@
-# Configures the explicitly registered Doxygen manual and fails when requested documentation prerequisites are unavailable.
+# Configures registered Doxygen manuals; fails when documentation prerequisites are unavailable.
 # GAMEWIP_BUILD_DOCS keeps documentation opt-in for ordinary builds.
 
 if(GAMEWIP_BUILD_DOCS)

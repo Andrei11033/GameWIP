@@ -80,7 +80,7 @@ namespace GameWIP::IO
         /// @return True until close() is called.
         [[nodiscard]] bool isOpen() const noexcept override;
 
-        /// @brief Returns whether seek operations are currently available.
+        /// @brief Returns whether seek operations are available.
         /// @return The same value as isOpen().
         [[nodiscard]] bool canSeek() const noexcept override;
 
@@ -157,7 +157,6 @@ namespace GameWIP::IO
 
         /// @brief Writes bytes from vector storage.
         /// @tparam Allocator Vector allocator type.
-        /// @param bytes Bytes to append.
         /// @return Write status and byte count.
         template <typename Allocator> [[nodiscard]] Types::WriteResult write(const std::vector<std::byte, Allocator> &bytes) noexcept
         {
@@ -195,8 +194,7 @@ namespace GameWIP::IO
         /// @return Current vector capacity in bytes.
         [[nodiscard]] std::size_t capacity() const noexcept;
 
-        /// @brief Returns whether no bytes have been written.
-        /// @return True when size() is zero.
+        /// @brief Reports whether the writer contains no bytes.
         [[nodiscard]] bool empty() const noexcept;
 
         /// @brief Clears written bytes while preserving allocated capacity.

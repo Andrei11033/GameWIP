@@ -204,7 +204,7 @@ namespace GameWIP::Logger::Types
         struct Snapshot
         {
             State state = State::Disabled;                                  ///< Aggregate health state.
-            OutputMode effectiveOutput = OutputMode::None;                  ///< Currently usable normal sinks.
+            OutputMode effectiveOutput = OutputMode::None;                  ///< Usable normal sinks.
             FailureSource lastFailureSource = FailureSource::None;          ///< Most recent failed channel.
             IO::Types::ErrorCode lastError = IO::Types::ErrorCode::Success; ///< Most recent portable error.
             std::int64_t lastNativeCode = 0;                                ///< Associated backend-native error.

@@ -121,8 +121,7 @@ namespace GameWIP::IO
             /// @brief Developer-facing UTF-8 diagnostic text; not stable for machine parsing.
             std::string message;
 
-            /// @brief Returns true when the operation succeeded.
-            /// @return True for ErrorCode::Success.
+            /// @brief Reports whether the status code is ErrorCode::Success.
             [[nodiscard]] constexpr bool ok() const noexcept
             {
                 return code == ErrorCode::Success;
@@ -134,7 +133,7 @@ namespace GameWIP::IO
     /// @param code Portable status code used for program decisions.
     /// @param nativeCode Backend-native error code, or zero when unavailable.
     /// @param message Developer-facing UTF-8 diagnostic text; not stable for machine parsing.
-    /// @return Status containing the supplied values.
+    /// @return Status containing code, nativeCode, and message.
     /// @pre message is valid UTF-8 when non-empty.
     /// @note The function is non-throwing, but constructing the by-value message argument occurs
     /// before function entry and may allocate. Code-only calls avoid that allocation.

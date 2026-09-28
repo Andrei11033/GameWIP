@@ -102,7 +102,7 @@ namespace GameWIP::Desktop
             std::uint32_t maximumCustomChromeRegions = 0; ///< Maximum draggable custom-chrome regions.
             std::uint32_t maximumPointerInputRegions = 0; ///< Maximum pointer-input regions.
 
-            /// @brief Returns whether a capability flag is present.
+            /// @brief Reports whether the requested capability flag is present.
             [[nodiscard]] constexpr bool supports(Capability capability) const noexcept
             {
                 const auto index = static_cast<std::uint8_t>(capability);
@@ -135,9 +135,7 @@ namespace GameWIP::Desktop
     /// @brief Returns cached backend/environment capabilities.
     /// @return The query status and capability flags available in the current process environment.
     [[nodiscard]] DESKTOP_EXPORT Types::CapabilitiesResult getCapabilities() noexcept;
-    /// @brief Returns whether the backend advertises a known capability.
-    /// @param capability Capability to test.
-    /// @return true when the capability is currently advertised; otherwise false.
+    /// @brief Reports whether the backend advertises the requested Window capability.
     [[nodiscard]] DESKTOP_EXPORT bool supports(Types::Capability capability) noexcept;
 
     /// @brief Non-copyable, non-movable RAII owner of one native top-level desktop Window.
@@ -180,8 +178,7 @@ namespace GameWIP::Desktop
         /// @return Success, or a status explaining why no native Window was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::span<Types::Event> eventStorage) noexcept;
 
-        /// @brief Returns whether the Window has a usable native lifetime.
-        /// @return true while native operations are available; otherwise false.
+        /// @brief Reports whether native Window operations are available.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the portable native-resource lifecycle state.
         /// @return The current lifecycle state, including pending owner-thread finalization.
@@ -201,12 +198,9 @@ namespace GameWIP::Desktop
         /// @brief Returns the current owner Window identity.
         /// @return The owner identity, or an invalid ID when this Window has no owner.
         [[nodiscard]] Types::WindowId ownerId() const noexcept;
-        /// @brief Returns whether the caller is the current open lifetime's owner thread.
-        /// @return true only when open and called by the opening thread.
+        /// @brief Reports whether the caller is the current open lifetime's owner thread.
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
-        /// @brief Returns whether the backend supports a capability for Window objects.
-        /// @param capability Capability to test.
-        /// @return true when the capability is advertised for Window objects; otherwise false.
+        /// @brief Reports whether the backend advertises the requested Window capability.
         [[nodiscard]] bool supports(Types::Capability capability) const noexcept;
         /// @brief Changes or clears the native owner relationship.
         /// @param owner New owner identity, or an invalid ID to remove the relationship.
@@ -218,7 +212,7 @@ namespace GameWIP::Desktop
         /// @{
 
         /// @brief Returns whether a close request is pending.
-        /// @return true after a close request and before it is cleared or the Window closes.
+        /// @return True after a close request and before it is cleared or the Window closes.
         [[nodiscard]] bool hasCloseRequest() const noexcept;
         /// @brief Queues a programmatic close request without destroying the native Window.
         /// @return Success, or the open-state, thread, or native queueing failure.
@@ -233,16 +227,15 @@ namespace GameWIP::Desktop
 
         /// @brief Removes the oldest queued event when available.
         /// @param outEvent Receives the removed event on success and is unchanged when the queue is empty.
-        /// @return true when an event was removed; otherwise false.
+        /// @return True when an event was removed; otherwise false.
         [[nodiscard]] bool popEvent(Types::Event &outEvent) noexcept;
         /// @brief Removes up to the destination size oldest queued events.
         /// @param destination Storage that receives events in queue order.
         /// @return The number of events copied and removed.
         [[nodiscard]] std::size_t popEvents(std::span<Types::Event> destination) noexcept;
-        /// @brief Removes all currently queued events.
+        /// @brief Removes all queued events.
         void clearEvents() noexcept;
-        /// @brief Returns event-queue storage and counter information.
-        /// @return A snapshot of capacity, queued count, and dropped-event count.
+        /// @brief Returns cached event-queue capacity, queued count, and dropped-event count.
         [[nodiscard]] Types::Events::QueueInfo eventQueueInfo() const noexcept;
         /// @brief Resets the current lifetime's dropped-event counter.
         void clearDroppedEventCount() noexcept;
@@ -326,52 +319,40 @@ namespace GameWIP::Desktop
         /// @brief Returns the cached backdrop treatment.
         /// @return Current optional platform backdrop effect.
         [[nodiscard]] Types::BackdropEffect backdropEffect() const noexcept;
-        /// @brief Returns the cached opacity in the inclusive range [0, 1].
+        /// @brief Returns the cached opacity in [0, 1].
         /// @return Current whole-Window opacity.
         [[nodiscard]] float opacity() const noexcept;
-        /// @brief Returns the cached visibility state.
+        /// @brief Reports whether the cached Window state requests visibility.
         /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
-        /// @return true when the Window is requested visible; otherwise false.
         [[nodiscard]] bool visible() const noexcept;
-        /// @brief Returns the cached keyboard-focus state.
-        /// @return true when the Window currently has keyboard focus.
+        /// @brief Reports whether the Window has keyboard focus.
         [[nodiscard]] bool focused() const noexcept;
-        /// @brief Returns whether an OS-managed interactive move or resize is active.
+        /// @brief Reports whether an OS-managed interactive move or resize is active.
         /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
-        /// @return true while the native interactive move/resize operation is active.
         [[nodiscard]] bool interactiveMoveResizeActive() const noexcept;
-        /// @brief Returns whether the cached presentation state is minimized.
+        /// @brief Reports whether the cached presentation state is minimized.
         /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
-        /// @return true when presentationState() is Minimized.
         [[nodiscard]] bool minimized() const noexcept;
-        /// @brief Returns whether the cached presentation state is maximized.
+        /// @brief Reports whether the cached presentation state is maximized.
         /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
-        /// @return true when presentationState() is Maximized.
         [[nodiscard]] bool maximized() const noexcept;
         /// @brief Returns renderer-supplied occlusion state when a provider is attached.
         /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return The last attached renderer report, or false without a provider.
         [[nodiscard]] bool occluded() const noexcept;
-        /// @brief Returns whether the cursor is cached inside the client area.
-        /// @return true when the latest native pointer state is inside the client area.
+        /// @brief Reports whether the cursor is cached inside the client area.
         [[nodiscard]] bool cursorInside() const noexcept;
-        /// @brief Returns the cached user-resizable policy.
-        /// @return true when user-driven resizing is enabled.
+        /// @brief Reports whether user-driven resizing is enabled.
         [[nodiscard]] bool resizable() const noexcept;
-        /// @brief Returns the cached focusable policy.
-        /// @return true when the Window is eligible for keyboard focus.
+        /// @brief Reports whether the Window is eligible for keyboard focus.
         [[nodiscard]] bool focusable() const noexcept;
-        /// @brief Returns the cached user-interaction policy.
-        /// @return true when native user interaction is enabled.
+        /// @brief Reports whether native user interaction is enabled.
         [[nodiscard]] bool userInteractionEnabled() const noexcept;
-        /// @brief Returns the cached topmost-ordering policy.
-        /// @return true when topmost ordering is requested.
+        /// @brief Reports whether topmost ordering is requested.
         [[nodiscard]] bool alwaysOnTop() const noexcept;
-        /// @brief Returns the cached portable file-drop policy.
-        /// @return true when portable file-drop events are enabled.
+        /// @brief Reports whether portable file-drop events are enabled.
         [[nodiscard]] bool fileDropEnabled() const noexcept;
-        /// @brief Returns whether framebuffer alpha is configured to reach the desktop.
-        /// @return true when transparent framebuffer composition is enabled.
+        /// @brief Reports whether transparent framebuffer composition is enabled.
         [[nodiscard]] bool transparentFramebuffer() const noexcept;
         /// @}
 
@@ -480,7 +461,7 @@ namespace GameWIP::Desktop
         /// @param alwaysOnTop Whether to request topmost ordering.
         /// @return Success, or the open-state, thread, capability, or native failure.
         [[nodiscard]] IO::Types::Status setAlwaysOnTop(bool alwaysOnTop) noexcept;
-        /// @brief Changes opacity in the inclusive range [0, 1].
+        /// @brief Changes opacity in [0, 1].
         /// @param opacity Fully transparent 0 through fully opaque 1.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
         [[nodiscard]] IO::Types::Status setOpacity(float opacity) noexcept;

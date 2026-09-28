@@ -190,8 +190,8 @@ function Invoke-GameWipDependencyPreparation
         -Path 'cmake/PrepareGameWIPDependencies.cmake'
 
     New-Item -ItemType Directory -Path $cacheRoot -Force | Out-Null
-    # The lock is held by an exclusive file handle; a leftover file after a
-    # crashed process is harmless because the next process can reopen it.
+    # The lock uses an exclusive file handle; leftovers from crashed processes
+    # are harmless because the next process can reopen it.
     $lockPath = Join-Path $cacheRoot '.prepare.lock'
     $lockStream = $null
     $lockDeadline = [DateTime]::UtcNow.AddMinutes(10)

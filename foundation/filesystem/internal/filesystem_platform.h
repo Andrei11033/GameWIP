@@ -142,14 +142,12 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @brief Queries one existing entry using backend-native filesystem semantics.
     /// @details FollowAll follows normal platform path resolution. DoNotFollow and FollowFinal must reject intermediate symlinks
     /// during handle-relative traversal rather than checking a path and reopening it later.
-    /// @param path Entry path to inspect.
     /// @param symlinkPolicy Symlink policy requested by the public operation.
     /// @return Entry metadata, InvalidArgument for invalid policy, or a portable/backend-native failure status.
     [[nodiscard]] EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
 
     /// @brief Opens a read-only file handle.
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
-    /// @param path File path to open.
     /// @param options Sharing and symlink-resolution behavior.
     /// @return Success, or a validation/open failure status.
     [[nodiscard]] IO::Types::Status openReader(
@@ -159,7 +157,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 
     /// @brief Opens a write-only file handle.
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
-    /// @param path File path to open.
     /// @param options Creation, append, sharing, symlink, and close-flush behavior.
     /// @return Success, or a validation/open failure status.
     [[nodiscard]] IO::Types::Status openWriter(
@@ -169,7 +166,6 @@ namespace GameWIP::FileSystem::Detail::Platform
 
     /// @brief Opens a read/write, read-only, or write-only file handle.
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
-    /// @param path File path to open.
     /// @param options Access, creation, sharing, initial-position, symlink, and close-flush behavior.
     /// @return Success, or a validation/open/seek failure status.
     [[nodiscard]] IO::Types::Status openFile(

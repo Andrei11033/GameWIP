@@ -130,30 +130,25 @@ namespace GameWIP::Input
         std::span<const InputDeviceInfo> getDevices() const;
 
         /// @brief Finds one device by runtime reference.
-        /// @param device Device reference.
         /// @return Device metadata, or nullptr when unknown; the pointer is invalidated
         /// by later registry mutation.
         const InputDeviceInfo *findDevice(InputDeviceRef device) const;
 
         /// @brief Finds metadata for a control.
-        /// @param control Control to inspect.
         /// @return Control metadata, or nullptr when unknown; the pointer is invalidated
         /// by later registry mutation.
         const InputControlInfo *findControl(InputControl control) const;
 
         /// @brief Returns whether a device is connected and canonical.
-        /// @param device Device reference.
         /// @return True when the device should feed input.
         bool shouldFeedDevice(InputDeviceRef device) const;
 
         /// @brief Returns whether one backend should feed a canonical device.
-        /// @param device Device reference.
         /// @param backend Backend asking to feed the device.
         /// @return True when this backend is the active feed for standard controls.
         bool shouldFeedDeviceBackend(InputDeviceRef device, InputDeviceBackend backend) const;
 
-        /// @brief Returns whether the registry has a connected native HID gamepad feed.
-        /// @return True when a canonical gamepad has an attached HID feed.
+        /// @brief Reports whether a canonical gamepad has a connected native HID feed.
         bool hasConnectedNativeGamepad() const;
 
     private:
@@ -399,7 +394,6 @@ namespace GameWIP::Input
     }
 
     /// @brief Creates a control for one standard mouse button.
-    /// @param button Mouse button to identify.
     constexpr InputControl makeMouseButton(MouseButton button)
     {
         return InputControl{InputDeviceType::Mouse, 0, InputControlType::Button, static_cast<ControlCode>(button)};
@@ -413,7 +407,6 @@ namespace GameWIP::Input
     }
 
     /// @brief Creates a control for one raw mouse-movement axis.
-    /// @param axis Mouse movement axis to identify.
     constexpr InputControl makeMouseAxis(MouseAxis axis)
     {
         return InputControl{InputDeviceType::Mouse, 0, InputControlType::Axis, static_cast<ControlCode>(axis)};
@@ -421,7 +414,6 @@ namespace GameWIP::Input
 
     /// @brief Creates a control for one standard gamepad button.
     /// @param deviceIndex Gamepad slot.
-    /// @param button Gamepad button to identify.
     constexpr InputControl makeGamepadButton(DeviceIndex deviceIndex, GamepadButton button)
     {
         return InputControl{InputDeviceType::Gamepad, deviceIndex, InputControlType::Button, static_cast<ControlCode>(button)};
@@ -429,7 +421,6 @@ namespace GameWIP::Input
 
     /// @brief Creates a control for one standard gamepad axis.
     /// @param deviceIndex Gamepad slot.
-    /// @param axis Gamepad axis to identify.
     constexpr InputControl makeGamepadAxis(DeviceIndex deviceIndex, GamepadAxis axis)
     {
         return InputControl{InputDeviceType::Gamepad, deviceIndex, InputControlType::Axis, static_cast<ControlCode>(axis)};
@@ -466,7 +457,7 @@ namespace GameWIP::Input
         InputState();
 
         /// @brief Clears active input state while preserving device connections.
-        /// @param emitReleaseActivations True to emit releases for currently held buttons.
+        /// @param emitReleaseActivations True to emit releases for held buttons.
         void clear(bool emitReleaseActivations = true);
 
         /// @brief Clears frame-local transitions, activations, text, wheel movement, and raw mouse deltas.
@@ -475,7 +466,7 @@ namespace GameWIP::Input
 
         // Buttons
 
-        /// @brief Checks whether a button is currently held.
+        /// @brief Checks whether a button is held.
         /// @note Returns false when control is not a button control.
         bool isButtonDown(InputControl control) const;
 
@@ -487,7 +478,7 @@ namespace GameWIP::Input
         /// @note Returns false when control is not a button control.
         bool wasButtonReleased(InputControl control) const;
 
-        /// @brief Returns currently held buttons without copying.
+        /// @brief Returns held buttons without copying.
         /// @return Read-only view invalidated by later input-state mutation.
         std::span<const InputControl> getCurrentButtonView() const;
 
@@ -498,7 +489,6 @@ namespace GameWIP::Input
         // Axes and pointer state
 
         /// @brief Returns an axis value.
-        /// @param control Axis to query.
         /// @return Current axis value, or 0 if unset.
         float getAxis(InputControl control) const;
 
@@ -510,20 +500,18 @@ namespace GameWIP::Input
         /// @return Relative y movement accumulated this frame.
         int getMouseDeltaY() const;
 
-        /// @brief Returns whether mouse position is known.
-        /// @return True if the latest mouse position is valid.
+        /// @brief Reports whether the latest mouse position is valid.
         bool hasMousePosition() const;
 
         /// @brief Returns the latest mouse X position.
-        /// @return Latest client-area x position, or 0 when hasMousePosition() is false.
+        /// @return Latest client-area x position, or 0 when unknown.
         int getMouseX() const;
 
         /// @brief Returns the latest mouse Y position.
-        /// @return Latest client-area y position, or 0 when hasMousePosition() is false.
+        /// @return Latest client-area y position, or 0 when unknown.
         int getMouseY() const;
 
         /// @brief Returns wheel movement.
-        /// @param control Wheel to query.
         /// @return Wheel amount, or 0 if unset.
         float getWheelDelta(InputControl control) const;
 
@@ -551,8 +539,7 @@ namespace GameWIP::Input
 
         // Text input
 
-        /// @brief Returns whether text input was received.
-        /// @return True if typed text was received this frame.
+        /// @brief Reports whether text input was received this frame.
         bool hasTextInput() const;
 
         /// @brief Returns typed text input.
@@ -574,7 +561,7 @@ namespace GameWIP::Input
             DeviceIndex deviceIndex = 0;                            // Device slot.
         };
 
-        /// @brief Currently held button controls.
+        /// @brief Held button controls.
         std::vector<InputControl> currentButtons{};
 
         /// @brief Button presses detected this frame.

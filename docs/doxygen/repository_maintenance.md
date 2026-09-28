@@ -179,7 +179,7 @@ Audit issue forms, Dependabot, area reconciliation, project automation, PR
 Standards, label descriptions, colors, and live metadata together. Canonical
 labels are lowercase, use a colon between dimension and value, and use
 kebab-case rather than underscores. Add an area when promoted work needs it,
-not simply because a subsystem might exist later.
+not because a subsystem might exist later.
 
 ## Public-repository baseline
 

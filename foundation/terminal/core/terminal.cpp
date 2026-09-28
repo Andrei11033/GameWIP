@@ -120,7 +120,7 @@ namespace GameWIP::Terminal
             std::string text_;
         };
 
-        /// @brief Validates the currently supported standard input stream enum.
+        /// @brief Validates supported standard input stream enum values.
         [[nodiscard]] bool validInputStream(Types::Input::Stream stream) noexcept
         {
             return stream == Types::Input::Stream::Stdin;

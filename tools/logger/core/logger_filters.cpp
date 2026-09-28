@@ -55,7 +55,6 @@ namespace GameWIP::Logger::Detail::Core
 
     /// @brief Finds a registered source by ID in a source registry snapshot.
     /// @param registry Source registry snapshot to search.
-    /// @param source SourceId to find.
     /// @return Pointer to source metadata, or nullptr when the ID is unknown.
     RegisteredSource *findSource(SourceRegistry &registry, SourceId source)
     {
@@ -64,7 +63,6 @@ namespace GameWIP::Logger::Detail::Core
 
     /// @brief Finds a registered source by ID in a source registry snapshot.
     /// @param registry Source registry snapshot to search.
-    /// @param source SourceId to find.
     /// @return Pointer to source metadata, or nullptr when the ID is unknown.
     const RegisteredSource *findSource(const SourceRegistry &registry, SourceId source)
     {
@@ -100,7 +98,6 @@ namespace GameWIP::Logger::Detail::Core
     }
 
     /// @brief Checks the runtime source filter.
-    /// @param source SourceId to test.
     /// @return True when the source is unknown or registered and enabled.
     /// @note Unknown sources intentionally log as UnknownSource instead of dropping.
     bool sourceEnabledRuntime(SourceId source)
@@ -111,7 +108,6 @@ namespace GameWIP::Logger::Detail::Core
 
     /// @brief Checks the runtime source filter using a caller-owned registry snapshot.
     /// @param registry Source registry snapshot, or nullptr when no sources are registered.
-    /// @param source SourceId to test.
     /// @return True when the source is unknown or registered and enabled.
     bool sourceEnabledRuntime(const SourceRegistry *registry, SourceId source)
     {
@@ -125,7 +121,6 @@ namespace GameWIP::Logger::Detail::Core
     }
 
     /// @brief Hot-path severity-only log gate used before formatting/allocation.
-    /// @param level Level to test.
     /// @return True when the logger is running, output is enabled, minLevel passes, and the level is enabled.
     bool shouldLogRuntime(LogLevel level)
     {
@@ -155,8 +150,6 @@ namespace GameWIP::Logger::Detail::Core
     }
 
     /// @brief Hot-path registered source log gate used before formatting/allocation.
-    /// @param level Level to test.
-    /// @param source SourceId to test.
     /// @return True when shouldLogRuntime(level) passes and the source filter allows the source.
     bool shouldLogRuntime(LogLevel level, SourceId source)
     {
@@ -164,7 +157,6 @@ namespace GameWIP::Logger::Detail::Core
     }
 
     /// @brief Rechecks a pending entry against the current packed runtime state.
-    /// @param entry Entry to test.
     /// @return Accept/drop reason for the enqueue path.
     /// @note This second check closes the race where filters change after formatting but before enqueue.
     FilterDecision checkPendingEntryAcceptedUnlocked(const PendingLogEntry &entry)

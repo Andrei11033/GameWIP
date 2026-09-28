@@ -81,7 +81,7 @@ namespace GameWIP::FileSystem
             {
                 /// @brief Operation status.
                 IO::Types::Status status;
-                /// @brief Direct child returned when hasEntry is true.
+                /// @brief Direct child returned when available.
                 Entry entry;
                 /// @brief Whether this step returned one accepted child.
                 bool hasEntry = false;
@@ -140,7 +140,6 @@ namespace GameWIP::FileSystem
         /// @return Success, AlreadyOpen, or a validation/open failure status.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
         /// @brief Reports whether this cursor owns an active backend enumeration.
-        /// @return True while an enumeration is active.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the next accepted child or successful exhaustion.
         /// @return One entry, successful exhaustion, NotOpen, SizeLimitExceeded, or an enumeration failure.
@@ -165,31 +164,31 @@ namespace GameWIP::FileSystem
     /// @{
 
     /// @brief Creates one directory level.
-    /// @param path Directory path to create.
+    /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
     [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Creates a directory and any missing parent directories.
-    /// @param path Directory path to create.
+    /// @param path Directory path.
     /// @param options Existing-directory and symlink traversal behavior.
     /// @return Success or a validation, conflict, permission, or directory-creation failure status.
     [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options = {}) noexcept;
 
     /// @brief Lists direct children of a directory in backend/native order.
-    /// @param path Directory path to enumerate.
+    /// @param path Directory path.
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
     /// @return Collected child entries and final status.
     [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
 
     /// @brief Removes one empty directory.
-    /// @param path Directory path to remove.
+    /// @param path Directory path.
     /// @param options Missing-target and symlink behavior.
     /// @return Success, DirectoryNotEmpty, or another validation, lookup, type, permission, or removal failure status.
     [[nodiscard]] IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
 
     /// @brief Recursively removes a directory tree without following discovered symlinked directories.
-    /// @param path Root directory path to remove.
+    /// @param path Root directory path.
     /// @param options Missing-target, initial symlink, and entry-limit behavior.
     /// @return Final status and number of entries removed before completion or failure.
     [[nodiscard]] Types::Directory::RemoveTreeResult removeDirectoryTree(

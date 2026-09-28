@@ -292,7 +292,7 @@ namespace GameWIP::Desktop::Types::Dialogs::Progress
         std::string_view heading;        ///< UTF-8 prominent heading, borrowed only during open().
         std::string_view message;        ///< UTF-8 operation message, borrowed only during open().
         Mode mode = Mode::Indeterminate; ///< Initial visual progress mode.
-        double progress = 0.0;           ///< Initial normalized value in the inclusive range [0, 1].
+        double progress = 0.0;           ///< Initial normalized value in [0, 1].
         bool cancelable = false;         ///< Whether user cancellation requests are exposed.
         bool blocksOwner = true;         ///< Whether a supplied owner is interaction-blocked while open.
     };
@@ -320,11 +320,9 @@ namespace GameWIP::Desktop
         /// @param description Initial owner, text, mode, progress, cancellation, and blocking settings.
         /// @return Success, or a status explaining why no presentation was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Dialogs::Progress::Description &description) noexcept;
-        /// @brief Returns whether a native presentation is live on its owner thread.
-        /// @return true only when called by the opening thread while the native presentation remains live.
+        /// @brief Reports whether a native presentation is live on its owner thread.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Safely reports whether the caller owns the retained lifetime.
-        /// @return true when the calling thread is the thread that successfully opened the retained lifetime.
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @brief Replaces the native window title.
         /// @param title Strict UTF-8 title with no embedded U+0000.
@@ -343,11 +341,10 @@ namespace GameWIP::Desktop
         /// @return Success, or a validation, ownership, lifetime, or native-operation failure.
         [[nodiscard]] IO::Types::Status setMode(Types::Dialogs::Progress::Mode mode) noexcept;
         /// @brief Retains a normalized numeric progress value and displays it when determinate.
-        /// @param progress New finite value in the inclusive range [0, 1].
+        /// @param progress New finite value in [0, 1].
         /// @return Success, or a validation, ownership, lifetime, or native-operation failure.
         [[nodiscard]] IO::Types::Status setProgress(double progress) noexcept;
-        /// @brief Returns the sticky owner-thread cancellation request.
-        /// @return true when cancellation was requested on the opening thread and has not been cleared.
+        /// @brief Reports whether an uncleared owner-thread cancellation request exists.
         [[nodiscard]] bool hasCancelRequest() const noexcept;
         /// @brief Clears the sticky owner-thread cancellation request.
         /// @details A call from another thread or without retained state has no effect.

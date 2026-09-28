@@ -27,7 +27,7 @@ indefinitely, zero is a poll/no-wait deadline, positive values are finite, and n
 
 `shutdown()` returns `IO::Types::Status`, performs best-effort draining/flushing/close, and always leaves Logger disabled.
 
-`running()` reports whether the worker currently accepts normal log records.
+`running()` reports whether the worker accepts normal log records.
 
 All state and statistics queries are non-throwing. `getMinLevel()`,
 `getOutput()`, `getQueueLimits()`, `getHealth()`, `getStats()`, and

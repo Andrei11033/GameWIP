@@ -23,9 +23,9 @@ namespace GameWIP::Terminal
     [[nodiscard]] TERMINAL_EXPORT Types::Style::Color basicColor(Types::Style::BasicColor color) noexcept;
 
     /// @brief Creates an RGB color request; exact output depends on stream capabilities.
-    /// @param red Red channel in the range [0, 255].
-    /// @param green Green channel in the range [0, 255].
-    /// @param blue Blue channel in the range [0, 255].
+    /// @param red Red channel in [0, 255].
+    /// @param green Green channel in [0, 255].
+    /// @param blue Blue channel in [0, 255].
     [[nodiscard]] TERMINAL_EXPORT Types::Style::Color rgbColor(std::uint8_t red, std::uint8_t green, std::uint8_t blue) noexcept;
 
     namespace Types::Style

@@ -9,8 +9,8 @@ policy and report lookup failures explicitly.
 `getEntryInfo()` returns portable metadata for one existing entry:
 
 - `kind`: `RegularFile`, `Directory`, `Symlink`, or `Other`;
-- `sizeBytes`: meaningful only when `hasSize` is true;
-- `lastWriteTime`: meaningful only when `hasLastWriteTime` is true;
+- `sizeBytes`: meaningful when available;
+- `lastWriteTime`: meaningful when available;
 - `readOnly`: portable basic read-only state.
 
 Portable size is available for regular files. Other kinds can report `hasSize == false` rather than inventing a value.

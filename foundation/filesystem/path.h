@@ -57,22 +57,18 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::Status setCurrentDirectory(const Types::Path &path) noexcept;
 
     /// @brief Returns the parent component of a path.
-    /// @param path Path to inspect.
     /// @return Parent path or a conversion/allocation failure status.
     [[nodiscard]] Types::PathResult parentPath(const Types::Path &path) noexcept;
 
     /// @brief Returns the filename component of a path.
-    /// @param path Path to inspect.
     /// @return Filename path or a conversion/allocation failure status.
     [[nodiscard]] Types::PathResult filename(const Types::Path &path) noexcept;
 
     /// @brief Returns the stem component of a path filename.
-    /// @param path Path to inspect.
     /// @return Stem path or a conversion/allocation failure status.
     [[nodiscard]] Types::PathResult stem(const Types::Path &path) noexcept;
 
     /// @brief Returns the extension component of a path filename.
-    /// @param path Path to inspect.
     /// @return Extension path or a conversion/allocation failure status.
     [[nodiscard]] Types::PathResult extension(const Types::Path &path) noexcept;
 
@@ -90,12 +86,10 @@ namespace GameWIP::FileSystem
     [[nodiscard]] Types::PathResult joinPath(const Types::Path &left, const Types::Path &right) noexcept;
 
     /// @brief Tests whether a path is absolute according to platform path rules.
-    /// @param path Path to inspect.
     /// @return Successful boolean result or a conversion/allocation failure status.
     [[nodiscard]] Types::BoolResult isAbsolutePath(const Types::Path &path) noexcept;
 
     /// @brief Tests whether a path is relative according to platform path rules.
-    /// @param path Path to inspect.
     /// @return Successful boolean result or a conversion/allocation failure status.
     [[nodiscard]] Types::BoolResult isRelativePath(const Types::Path &path) noexcept;
 
@@ -128,7 +122,6 @@ namespace GameWIP::FileSystem
     [[nodiscard]] Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept;
 
     /// @brief Converts a Path's stored spelling to UTF-8 text.
-    /// @param path Path to convert.
     /// @return UTF-8 path text or EncodingFailed/OutOfMemory.
     /// @note The result does not promise normalized or platform-independent separators.
     [[nodiscard]] Types::Utf8PathResult pathToUtf8(const Types::Path &path) noexcept;

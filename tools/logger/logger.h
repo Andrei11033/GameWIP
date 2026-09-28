@@ -58,11 +58,11 @@ namespace GameWIP::Logger
     /// @name State queries and statistics
     /// @{
 
-    /// @brief Returns whether the worker currently accepts normal log records.
+    /// @brief Returns whether the worker accepts normal log records.
     LOGGER_EXPORT bool running() noexcept;
     /// @brief Returns the configured minimum severity.
     LOGGER_EXPORT Types::Level getMinLevel() noexcept;
-    /// @brief Returns the currently effective normal-output mode.
+    /// @brief Returns the effective normal-output mode.
     LOGGER_EXPORT Types::OutputMode getOutput() noexcept;
     /// @brief Returns the active log-file path as UTF-8 with explicit query status.
     LOGGER_EXPORT Types::LogFilePathResult getLogFilePath() noexcept;

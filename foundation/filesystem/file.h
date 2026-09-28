@@ -396,7 +396,7 @@ namespace GameWIP::FileSystem
         /// @param options Sharing and symlink-resolution behavior.
         /// @return Success, AlreadyOpen when already open, or an open failure status.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::ReaderOpenOptions &options = {}) noexcept;
-        /// @brief Reports whether a file is currently open.
+        /// @brief Reports whether a file is open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
         /// @brief Reports whether normal file-position changes are available.
@@ -453,7 +453,7 @@ namespace GameWIP::FileSystem
         /// @return Success, AlreadyOpen when already open, or an open failure status.
         /// @note Append modes are non-seekable and each write targets the then-current end of file.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::WriterOpenOptions &options = {}) noexcept;
-        /// @brief Reports whether a file is currently open.
+        /// @brief Reports whether a file is open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
         /// @brief Reports whether normal file-position changes are available.
@@ -516,7 +516,7 @@ namespace GameWIP::FileSystem
         /// @note Modes that create or truncate require Write or ReadWrite access.
         /// @note A non-None flushOnClose requires Write or ReadWrite access.
         [[nodiscard]] IO::Types::Status open(const Types::Path &path, const Types::File::OpenOptions &options = {}) noexcept;
-        /// @brief Reports whether a file is currently open.
+        /// @brief Reports whether a file is open.
         /// @return True after a successful open() and before close().
         [[nodiscard]] bool isOpen() const noexcept override;
         /// @brief Reports whether normal file-position changes are available.

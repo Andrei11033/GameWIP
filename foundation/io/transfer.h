@@ -49,7 +49,7 @@ namespace GameWIP::IO
     /// @{
 
     /// @brief Reads from the current reader position until the known remainder, end-of-stream, or failure.
-    /// @param reader Reader to drain.
+    /// @param reader Reader starting at the current position.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
     /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
     /// @return Collected bytes and final status, preserving valid bytes produced before a later failure.
@@ -75,7 +75,7 @@ namespace GameWIP::IO
         std::uint64_t maxBytes = kNoByteLimit) noexcept;
 
     /// @brief Reads strict UTF-8 text from the current reader position into an owning string.
-    /// @param reader Reader to drain.
+    /// @param reader Reader starting at the current position.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
     /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
     /// @return Valid UTF-8 text and final status, preserving only the complete valid UTF-8 prefix on failure.
@@ -100,7 +100,7 @@ namespace GameWIP::IO
         std::uint64_t maxBytes = kNoByteLimit) noexcept;
 
     /// @brief Writes all bytes, retrying successful short writes until complete or failed.
-    /// @param writer Writer that receives the bytes.
+    /// @param writer Writer receiving the bytes.
     /// @param bytes Bytes valid for the duration of the call.
     /// @return Final status and total accepted bytes, including progress from a final failing write.
     /// @note Empty input succeeds without calling writer.write(). The helper does not flush or close
@@ -109,8 +109,6 @@ namespace GameWIP::IO
 
     /// @brief Writes all vector bytes, retrying successful short writes until complete or failed.
     /// @tparam Allocator Vector allocator type.
-    /// @param writer Writer to drain bytes into.
-    /// @param bytes Bytes to write.
     /// @return Final status and the total number of bytes accepted, including bytes accepted by a failing write.
     template <typename Allocator>
     [[nodiscard]] Types::WriteResult writeAllBytes(Writer &writer, const std::vector<std::byte, Allocator> &bytes) noexcept
@@ -119,7 +117,7 @@ namespace GameWIP::IO
     }
 
     /// @brief Writes complete strict UTF-8 text through writeAllBytes().
-    /// @param writer Writer that receives the UTF-8 bytes.
+    /// @param writer Writer receiving the UTF-8 bytes.
     /// @param utf8Text UTF-8 text view; embedded NUL bytes are preserved.
     /// @return EncodingFailed with zero bytes written for malformed or incomplete input; otherwise
     /// the writeAllBytes() status and total accepted-byte progress.

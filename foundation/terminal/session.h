@@ -66,7 +66,7 @@ namespace GameWIP::Terminal
         /// @brief Makes a best-effort non-throwing close and releases any remaining process-wide ownership.
         ~Session() noexcept;
 
-        /// @brief Returns whether this object currently owns an open Terminal session.
+        /// @brief Returns whether this object owns an open Terminal session.
         [[nodiscard]] bool isOpen() const noexcept;
 
         /// @brief Opens the session and acquires exclusive managed ownership of the selected input stream.

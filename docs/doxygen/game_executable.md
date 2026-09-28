@@ -105,7 +105,7 @@ startup wiring into runtime composition.
 - The returned integer becomes the executable's process exit code.
 - Reusable behavior must remain in its owning foundation or tools library rather than accumulating behind this facade.
 
-`run()` currently performs this runtime sequence:
+`run()` performs this runtime sequence:
 
 1. Initialize Logger console output at Debug severity.
 2. Enumerate connected displays and query each display's active mode, supported
@@ -130,7 +130,7 @@ pump events returns `EXIT_FAILURE`. Once Logger has started, shutdown is still
 attempted on every runtime failure, and a normal-path shutdown failure also
 changes the result to `EXIT_FAILURE`. A failed HDR or color query appears in the
 startup report for that display but does not prevent the window from opening.
-The facade currently ignores `argc` and `argv`; it neither retains nor
+The facade ignores `argc` and `argv`; it neither retains nor
 interprets them.
 
 Tracy-enabled builds identify display discovery, window open and close, the

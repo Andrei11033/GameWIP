@@ -126,7 +126,7 @@ on operating-system recovery.
 Whole-window `ClickThrough` applies `WS_EX_LAYERED | WS_EX_TRANSPARENT`, including the native frame; returning to `Normal` restores ordinary hit
 testing. Opacity and click-through are independent.
 
-Rectangular and per-pixel routing must reach arbitrary underlying desktop windows. Win32 currently reports `PointerRegions == false`, a zero region
+Rectangular and per-pixel routing must reach arbitrary underlying desktop windows. Win32 reports `PointerRegions == false`, a zero region
 limit, and `Unsupported`; it does not use same-thread `HTTRANSPARENT`.
 
 ## Native destruction was unexpected
@@ -145,7 +145,7 @@ must not destroy, reparent, or subclass the GameWIP host. Shut the external tech
 
 ## Clipboard reports ResourceBusy
 
-Another process or thread currently owns clipboard access. Use the explicit timeout overload when the operation has a different latency budget;
+Another process or thread owns clipboard access. Use the explicit timeout overload when the operation has a different latency budget;
 `Clipboard::kNoWait` performs one attempt and the convenience overload uses `kDefaultAccessTimeout`. Retrying remains bounded. A timeout cannot cancel
 a foreign delayed-rendering call already entered by Windows.
 

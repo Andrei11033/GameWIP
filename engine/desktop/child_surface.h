@@ -72,12 +72,16 @@ namespace GameWIP::Desktop::Types::ChildSurface
         Events::Payload data;       ///< Tagged event payload.
 
         /// @brief Returns the mutable payload when it has the requested type.
+        /// @tparam PayloadType One alternative in Events::Payload.
+        /// @return Pointer to the stored payload, or nullptr when the type does not match.
         template <typename PayloadType> [[nodiscard]] PayloadType *getIf() noexcept
         {
             return std::get_if<PayloadType>(&data);
         }
 
         /// @brief Returns the immutable payload when it has the requested type.
+        /// @tparam PayloadType One alternative in Events::Payload.
+        /// @return Pointer to the stored payload, or nullptr when the type does not match.
         template <typename PayloadType> [[nodiscard]] const PayloadType *getIf() const noexcept
         {
             return std::get_if<PayloadType>(&data);
@@ -138,8 +142,7 @@ namespace GameWIP::Desktop
             Window &parent,
             const Types::ChildSurface::Description &description,
             std::span<Types::ChildSurface::Event> eventStorage) noexcept;
-        /// @brief Returns whether the native host is usable.
-        /// @return true while native operations are available; otherwise false.
+        /// @brief Reports whether native operations are available for the host.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the complete portable native-resource lifecycle state.
         /// @return Current state, including pending owner-thread finalization.
@@ -159,8 +162,7 @@ namespace GameWIP::Desktop
         /// @brief Returns the parent Window open-lifetime identity retained for this lifetime.
         /// @return Parent identity, including during pending finalization, or an invalid identity while closed.
         [[nodiscard]] Types::WindowId parentId() const noexcept;
-        /// @brief Returns whether the calling thread owns the current lifetime.
-        /// @return true on the inherited owner thread while retained state exists.
+        /// @brief Reports whether the calling thread owns the current retained lifetime.
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @}
 
@@ -173,7 +175,7 @@ namespace GameWIP::Desktop
 
         /// @brief Removes the oldest queued event on the owner thread.
         /// @param outEvent Destination replaced with the oldest event when available.
-        /// @return true when an event was removed; otherwise false.
+        /// @return True when an event was removed; otherwise false.
         [[nodiscard]] bool popEvent(Types::ChildSurface::Event &outEvent) noexcept;
         /// @brief Removes up to destination.size() queued events in order.
         /// @param destination Caller-owned output slots.
@@ -181,8 +183,7 @@ namespace GameWIP::Desktop
         [[nodiscard]] std::size_t popEvents(std::span<Types::ChildSurface::Event> destination) noexcept;
         /// @brief Discards all queued events on the owner thread.
         void clearEvents() noexcept;
-        /// @brief Returns cached event-queue ownership, capacity, and counters.
-        /// @return Queue snapshot, or default values while closed.
+        /// @brief Returns cached event-queue ownership, capacity, and counters; defaults while closed.
         [[nodiscard]] Types::Events::QueueInfo eventQueueInfo() const noexcept;
         /// @brief Resets the dropped-event counter on the owner thread.
         void clearDroppedEventCount() noexcept;
@@ -216,11 +217,9 @@ namespace GameWIP::Desktop
         /// @brief Returns the effective DPI snapshot.
         /// @return Cached effective DPI, or zero while closed.
         [[nodiscard]] Types::Dpi effectiveDpi() const noexcept;
-        /// @brief Returns whether native visibility is requested for the host.
-        /// @return true when the host has native visible style; otherwise false.
+        /// @brief Reports whether the cached host state requests visibility.
         [[nodiscard]] bool visible() const noexcept;
-        /// @brief Returns whether normal native interaction is enabled.
-        /// @return true when interaction is enabled; otherwise false.
+        /// @brief Reports whether normal native interaction is enabled.
         [[nodiscard]] bool userInteractionEnabled() const noexcept;
         /// @}
 

@@ -21,11 +21,11 @@ namespace GameWIP::Validation
         std::size_t modulesFailed = 0;
         /// @brief Normal aggregate exit code, or the exact owning-module code for a routed child invocation.
         int exitCode = 0;
-        /// @brief True when the caller must return immediately because child routing handled or rejected the invocation.
+        /// @brief Whether child routing handled or rejected the invocation; return immediately when true.
         bool handledChildInvocation = false;
 
-        /// @brief Returns true when no module or runner-level failure was recorded.
-        /// @return True when modulesFailed and exitCode are both zero.
+        /// @brief Whether no module or runner-level failure was recorded.
+        /// @return Whether modulesFailed and exitCode are both zero.
         [[nodiscard]] bool ok() const noexcept
         {
             return modulesFailed == 0 && exitCode == 0;
@@ -37,11 +37,11 @@ namespace GameWIP::Validation
     {
         /// @brief Number returned by Google Benchmark for the selected invocation; zero is not inherently a failure.
         std::size_t benchmarksRun = 0;
-        /// @brief False when Google Benchmark rejected one or more forwarded command-line arguments.
+        /// @brief Whether Google Benchmark accepted the forwarded command-line arguments.
         bool argumentsValid = true;
 
         /// @brief Returns whether runner-level argument validation succeeded.
-        /// @return True when forwarded arguments were accepted; scenario-level benchmark errors are reported by Google Benchmark output.
+        /// @return Whether forwarded arguments were accepted; Google Benchmark reports scenario errors.
         [[nodiscard]] bool ok() const noexcept
         {
             return argumentsValid;

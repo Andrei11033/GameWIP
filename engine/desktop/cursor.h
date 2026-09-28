@@ -45,8 +45,7 @@ namespace GameWIP::Desktop
         ~Cursor() noexcept;
         /// @}
 
-        /// @brief Reports whether this handle owns at least one native cursor variant.
-        /// @return true when the cursor may be selected on a Window.
+        /// @brief Reports whether this handle owns a selectable native cursor variant.
         [[nodiscard]] bool isValid() const noexcept;
 
     private:
@@ -110,9 +109,7 @@ namespace GameWIP::Desktop
     /// @return Success, or a status describing validation, thread, allocation, or native failure.
     [[nodiscard]] DESKTOP_EXPORT IO::Types::Status setCursor(Window &window, const Cursor &cursor) noexcept;
 
-    /// @brief Reports whether an open owner-thread Window currently retains a custom cursor.
-    /// @param window Window to inspect.
-    /// @return true only while a custom cursor override is bound to the native Window.
+    /// @brief Reports whether an open owner-thread Window has a custom cursor override.
     [[nodiscard]] DESKTOP_EXPORT bool hasCustomCursor(const Window &window) noexcept;
     /// @}
 } // namespace GameWIP::Desktop

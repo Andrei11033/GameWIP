@@ -16,7 +16,7 @@ and workflow pages describe the behavior inside each area.
 | --- | --- |
 | `foundation/` | Internal Base mechanisms and low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
-| `engine/` | The documented Desktop library plus provisional Input and Action code. Preserved WindowManager code is currently outside the build. |
+| `engine/` | The documented Desktop library plus provisional Input and Action code. Preserved WindowManager code is outside the build. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `external/` | CMake integration for optional FetchContent dependencies. |
@@ -93,9 +93,9 @@ keeps its portable result contracts free of unrelated higher-level dependencies.
 ## Engine-system status
 
 Desktop is the supported, documented engine library. Input, Action, and
-WindowManager are currently deprecated source-tree code and are excluded from
+WindowManager are deprecated source-tree code and are excluded from
 the supported installed API and generated documentation. WindowManager is
-not currently compiled.
+not compiled.
 
 Validation code may use libraries and approved internal hooks. Installed
 consumers must not see internal headers, test-hook headers, source-tree-only

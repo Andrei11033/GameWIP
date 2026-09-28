@@ -43,10 +43,10 @@ namespace GameWIP::Unicode
             /// @brief One complete Unicode scalar was decoded.
             Decoded,
 
-            /// @brief The supplied input is a valid encoded prefix but requires additional input.
+            /// @brief Input is a valid encoded prefix but requires more input.
             Incomplete,
 
-            /// @brief The supplied input is malformed and cannot become valid by appending input.
+            /// @brief Input is malformed and cannot become valid by appending input.
             InvalidEncoding
         };
 
@@ -56,7 +56,7 @@ namespace GameWIP::Unicode
             /// @brief The scalar was encoded successfully.
             Encoded,
 
-            /// @brief The supplied value is not a valid Unicode scalar.
+            /// @brief Value is not a valid Unicode scalar.
             InvalidScalar
         };
 
@@ -127,7 +127,7 @@ namespace GameWIP::Unicode
             /// @brief Outcome of traversing UTF-8 text boundaries.
             enum class BoundaryOutcome : std::uint8_t
             {
-                /// @brief The requested boundary was found.
+                /// @brief The boundary was found.
                 Found,
 
                 /// @brief Backward traversal was already at the beginning of the range.
@@ -136,7 +136,7 @@ namespace GameWIP::Unicode
                 /// @brief Forward traversal was already at the end of the range.
                 AtEnd,
 
-                /// @brief The supplied byte offset is outside the range or not code-point aligned.
+                /// @brief Byte offset is outside the range or not code-point aligned.
                 InvalidOffset,
 
                 /// @brief Malformed or incomplete UTF-8 prevented traversal.
@@ -318,8 +318,7 @@ namespace GameWIP::Unicode
     /// @{
 
     /// @brief Returns whether a value is a Unicode scalar value.
-    /// @param value Value to inspect.
-    /// @return True when value is no greater than U+10FFFF and is not a surrogate code point.
+    /// @return Whether value is at most U+10FFFF and not a surrogate.
     [[nodiscard]] constexpr bool isScalarValue(char32_t value) noexcept
     {
         constexpr char32_t firstSurrogate = static_cast<char32_t>(0xD800);
@@ -351,7 +350,6 @@ namespace GameWIP::Unicode
         [[nodiscard]] Types::Utf8::DecodeResult decodeScalar(std::string_view bytes) noexcept;
 
         /// @brief Encodes one Unicode scalar as UTF-8.
-        /// @param scalar Value to encode.
         /// @return Fixed-size encoded result, or InvalidScalar.
         [[nodiscard]] Types::Utf8::EncodeResult encodeScalar(char32_t scalar) noexcept;
 
@@ -437,10 +435,10 @@ namespace GameWIP::Unicode
             /// @brief Returns whether reset() completed successfully.
             [[nodiscard]] bool ready() const noexcept;
 
-            /// @brief Returns the current indexed grapheme-boundary byte offset, or 0 while not ready.
+            /// @brief Returns the indexed grapheme-boundary byte offset, or 0 while not ready.
             [[nodiscard]] std::size_t byteOffset() const noexcept;
 
-            /// @brief Returns the number of currently retained indexed boundaries, or 0 while not ready.
+            /// @brief Returns the retained indexed-boundary count, or 0 while not ready.
             [[nodiscard]] std::size_t boundaryCount() const noexcept;
 
             /// @brief Moves to one exact indexed grapheme boundary.
@@ -480,23 +478,20 @@ namespace GameWIP::Unicode
     namespace Utf16
     {
         /// @brief Returns whether a UTF-16 code unit is a high surrogate.
-        /// @param codeUnit Code unit to inspect.
-        /// @return True for values in the range 0xD800 through 0xDBFF.
+        /// @return True for values in [0xD800, 0xDBFF].
         [[nodiscard]] constexpr bool isHighSurrogate(char16_t codeUnit) noexcept
         {
             return codeUnit >= static_cast<char16_t>(0xD800) && codeUnit <= static_cast<char16_t>(0xDBFF);
         }
 
         /// @brief Returns whether a UTF-16 code unit is a low surrogate.
-        /// @param codeUnit Code unit to inspect.
-        /// @return True for values in the range 0xDC00 through 0xDFFF.
+        /// @return True for values in [0xDC00, 0xDFFF].
         [[nodiscard]] constexpr bool isLowSurrogate(char16_t codeUnit) noexcept
         {
             return codeUnit >= static_cast<char16_t>(0xDC00) && codeUnit <= static_cast<char16_t>(0xDFFF);
         }
 
         /// @brief Returns whether a UTF-16 code unit is any surrogate.
-        /// @param codeUnit Code unit to inspect.
         /// @return True when codeUnit is a high or low surrogate.
         [[nodiscard]] constexpr bool isSurrogate(char16_t codeUnit) noexcept
         {
@@ -511,7 +506,6 @@ namespace GameWIP::Unicode
         [[nodiscard]] Types::Utf16::DecodeResult decodeScalar(std::span<const char16_t> codeUnits) noexcept;
 
         /// @brief Encodes one Unicode scalar as UTF-16.
-        /// @param scalar Value to encode.
         /// @return Fixed-size encoded result, or InvalidScalar.
         [[nodiscard]] Types::Utf16::EncodeResult encodeScalar(char32_t scalar) noexcept;
 

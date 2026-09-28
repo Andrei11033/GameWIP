@@ -2,8 +2,8 @@
 
 `GameWIP::Desktop` provides standalone portable ownership of native top-level
 desktop windows, optional managed child hosts, synchronous Clipboard data
-exchange, native data drag and drop, and opt-in native dialogs. Its API provides
-checked lifecycle
+exchange, native data drag and drop, opt-in native dialogs, and additive shell
+integration. Its API provides checked lifecycle
 and mutation operations, fixed-capacity typed event queues, cached state,
 display discovery and inspection, and an explicit native interoperability
 boundary.
@@ -73,7 +73,8 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 Use @ref GameWIP::Desktop for library-wide capability operations and the non-copyable, non-movable @ref GameWIP::Desktop::Window owner. Passive values
 live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, drag-and-drop
 values under `Types::DragDrop`, Clipboard results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`,
-and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`,
+shell values under `Types::Shell`, and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations
+under `Desktop::Clipboard`,
 drag sources under `Desktop::DragDrop`, display inspection under `Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers
 use @ref GameWIP::Desktop::Native::Win32 deliberately.
 
@@ -114,7 +115,14 @@ its physical client pixels.
 
 The normal portable surface is assembled by `desktop/window.h` from focused `desktop/types.h`, `desktop/description.h`, `desktop/events.h`, and
 `desktop/display.h`. Rich monitor/color inspection is opt-in through `desktop/display_info.h`. Renderer integration is opt-in through
-`desktop/renderer_bridge.h`, custom native cursors are opt-in through `desktop/cursor.h`, native child hosts are opt-in through
+`desktop/renderer_bridge.h`, shell capability queries and the shared shell event queue are opt-in
+through `desktop/shell.h`, shell value types are opt-in through `desktop/shell_types.h`, taskbar
+publication is opt-in through `desktop/shell_taskbar.h`, tray-icon publication and menus are opt-in
+through `desktop/shell_tray.h`, notifications are opt-in through `desktop/shell_notifications.h`,
+jump-list and recent-item publication are opt-in through `desktop/shell_jump_lists.h`, current-user
+shell registration is opt-in through `desktop/shell_registration.h`, custom native cursors are opt-in through
+`desktop/cursor.h`,
+native child hosts are opt-in through
 `desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, native data drag
 and drop is opt-in through `desktop/drag_drop.h`, native dialogs and progress
 are opt-in through `desktop/dialogs.h`, and Win32 interoperability is opt-in

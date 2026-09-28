@@ -141,7 +141,7 @@ namespace GameWIP::Desktop::Types::DragDrop
         {
             SessionId sessionId;          ///< Identity shared by all events in this native session.
             LogicalPosition position;     ///< Current client-relative logical pointer position.
-            RegionId region;              ///< Matching accepted region, or invalid when no region currently matches.
+            RegionId region;              ///< Matching accepted region, or invalid when no region matches.
             Effect effect = Effect::None; ///< Effect negotiated for this position.
             FormatSnapshot formats;       ///< Immutable offered-format metadata for the session.
         };
@@ -259,8 +259,7 @@ namespace GameWIP::Desktop
             Window &window,
             const Types::DragDrop::TargetDescription &description,
             std::span<Types::DragDrop::Event> eventStorage) noexcept;
-        /// @brief Returns whether the native target registration is usable.
-        /// @return true while native operations are available; otherwise false.
+        /// @brief Reports whether native operations are available for the target.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the complete portable native-resource lifecycle state.
         /// @return Current state, including pending owner-thread finalization.
@@ -280,8 +279,7 @@ namespace GameWIP::Desktop
         /// @brief Returns the Window open-lifetime identity retained for this target.
         /// @return Window identity, including during pending finalization, or invalid while closed.
         [[nodiscard]] Types::WindowId windowId() const noexcept;
-        /// @brief Returns whether the calling thread owns the current lifetime.
-        /// @return true on the inherited owner thread while retained state exists.
+        /// @brief Reports whether the calling thread owns the current retained lifetime.
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @}
 
@@ -307,7 +305,7 @@ namespace GameWIP::Desktop
 
         /// @brief Removes the oldest queued event on the owner thread.
         /// @param outEvent Destination replaced with the oldest event when available.
-        /// @return true when an event was removed; otherwise false.
+        /// @return True when an event was removed; otherwise false.
         [[nodiscard]] bool popEvent(Types::DragDrop::Event &outEvent) noexcept;
         /// @brief Removes up to destination.size() queued events in order.
         /// @param destination Caller-owned output slots.
@@ -315,8 +313,7 @@ namespace GameWIP::Desktop
         [[nodiscard]] std::size_t popEvents(std::span<Types::DragDrop::Event> destination) noexcept;
         /// @brief Discards all queued events and releases retained drop payloads on the owner thread.
         void clearEvents() noexcept;
-        /// @brief Returns cached event-queue ownership, capacity, and counters.
-        /// @return Queue snapshot, or default values while closed.
+        /// @brief Returns cached event-queue ownership, capacity, and counters; defaults while closed.
         [[nodiscard]] Types::Events::QueueInfo eventQueueInfo() const noexcept;
         /// @brief Resets the dropped-event counter on the owner thread.
         void clearDroppedEventCount() noexcept;

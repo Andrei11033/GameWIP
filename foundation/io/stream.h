@@ -78,7 +78,6 @@ namespace GameWIP::IO
     } // namespace Types
 
     /// @brief Returns whether a flush mode is one of the defined FlushMode values.
-    /// @param mode Flush mode to validate.
     /// @return True for None, Data, and DataAndMetadataBestEffort; otherwise false.
     [[nodiscard]] constexpr bool isValidFlushMode(Types::FlushMode mode) noexcept
     {
@@ -125,11 +124,11 @@ namespace GameWIP::IO
         /// @brief Moves the base state; concrete readers define any native-handle transfer.
         Reader &operator=(Reader &&) noexcept = default;
 
-        /// @brief Returns whether this reader currently has readable state.
+        /// @brief Returns whether this reader has readable state.
         /// @return True for stateless readers by default.
         [[nodiscard]] virtual bool isOpen() const noexcept;
 
-        /// @brief Returns whether this reader currently supports seek operations.
+        /// @brief Returns whether this reader supports seek operations.
         /// @return False by default.
         /// @note This is advisory. Callers must still inspect position(), size(), and seek() results.
         [[nodiscard]] virtual bool canSeek() const noexcept;
@@ -138,7 +137,7 @@ namespace GameWIP::IO
         /// @param destination Destination memory valid for the duration of the call.
         /// @return Read status, byte count, and end-of-stream state.
         /// @note bytesRead must never exceed destination.size(). A successful zero-byte result is
-        /// valid only for an empty request or when endOfStream is true.
+        /// valid only for an empty request or at end of stream.
         [[nodiscard]] virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
 
         /// @brief Closes the reader when it owns closeable state.
@@ -193,11 +192,11 @@ namespace GameWIP::IO
         /// @brief Moves the base state; concrete writers define any native-handle transfer.
         Writer &operator=(Writer &&) noexcept = default;
 
-        /// @brief Returns whether this writer currently has writable state.
+        /// @brief Returns whether this writer has writable state.
         /// @return True for stateless writers by default.
         [[nodiscard]] virtual bool isOpen() const noexcept;
 
-        /// @brief Returns whether this writer currently supports seek operations.
+        /// @brief Returns whether this writer supports seek operations.
         /// @return False by default.
         /// @note This is advisory. Callers must still inspect position() and seek() results.
         [[nodiscard]] virtual bool canSeek() const noexcept;

@@ -126,7 +126,7 @@ namespace GameWIP::Desktop::Types
         CursorShape cursorShape = CursorShape::Arrow;                                 ///< Initial cursor shape.
         PointerInputMode pointerInputMode = PointerInputMode::Normal;                 ///< Initial pointer hit-test policy.
         BackdropEffect backdropEffect = BackdropEffect::None;                         ///< Initial backdrop treatment.
-        float opacity = 1.0F;                                                         ///< Initial opacity in the inclusive range [0, 1].
+        float opacity = 1.0F;                                                         ///< Initial opacity in [0, 1].
         bool visible = false;                                                         ///< Whether to show after opening.
         bool requestFocus = false;                                                    ///< Whether to request activation after opening.
         bool resizable = true;                                                        ///< Whether user resizing is enabled.

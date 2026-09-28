@@ -11,7 +11,7 @@ vehicles, structures, weapons, components, and meaningful destruction.
 I use the project to learn C++ and systems programming while keeping API
 contracts, ownership, builds, and validation deliberately strict.
 
-GameWIP supports Windows 11 and is currently pre-1.0. Active work is tracked
+GameWIP supports Windows 11 and is pre-1.0. Active work is tracked
 in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
 and the [roadmap](docs/roadmap.md). The latest published baseline is
 [v0.0.1](docs/releases/v0.0.1.md).

@@ -222,7 +222,7 @@ namespace GameWIP::Terminal::TestHooks
         bool echoInput = true,
         bool processControlKeys = true);
 
-    /// @brief Returns whether the deterministic input-mode override currently matches all requested flags.
+    /// @brief Returns whether the deterministic input-mode override matches all requested flags.
     /// @warning Test-only API.
     [[nodiscard]] TERMINAL_TEST_EXPORT bool inputModeOverrideMatches(
         Terminal::Types::Input::Stream stream,

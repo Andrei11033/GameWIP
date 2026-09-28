@@ -6,7 +6,7 @@ corrected boundary, or a different operation.
 
 ## UTF-8 decoding reports `Incomplete`
 
-The supplied bytes form a valid prefix of a longer UTF-8 scalar, such as a valid lead byte without all required continuation bytes.
+The bytes form a valid prefix of a longer UTF-8 scalar, such as a valid lead byte without all required continuation bytes.
 
 For streaming input, retain the incomplete bytes and provide more input according to the owning stream policy. For a complete message or file that is
 expected to end at this point, treat the input as truncated. Unicode does not insert a replacement character automatically.
@@ -34,15 +34,15 @@ Use separate source and destination storage.
 
 ## A boundary call returns `InvalidOffset`
 
-The supplied offset is greater than `text.size()` or points to a UTF-8 continuation byte rather than a code-point boundary.
+The offset is greater than `text.size()` or points to a UTF-8 continuation byte rather than a code-point boundary.
 
 Offsets may equal `text.size()`. Grapheme traversal does not require the offset itself to be a grapheme boundary; it requires only code-point
 alignment.
 
 ## Grapheme traversal returns `InvalidEncoding`
 
-Malformed or incomplete UTF-8 was encountered while establishing the requested boundary. Context-sensitive grapheme rules may require the
-implementation to inspect text before the supplied offset.
+Malformed or incomplete UTF-8 was encountered while establishing the boundary. Context-sensitive grapheme rules may require the
+implementation to inspect text before the offset.
 
 Validate or repair the complete owning text according to component policy before retrying. Unicode does not segment through replacement-character
 recovery.

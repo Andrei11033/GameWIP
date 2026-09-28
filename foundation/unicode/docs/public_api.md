@@ -21,7 +21,7 @@ The `GameWIP::Unicode::Types` namespace contains shared outcomes and `Version`. 
 `DecodeOutcome` distinguishes:
 
 - `Decoded`: one complete scalar was decoded.
-- `Incomplete`: the supplied encoded input is a valid prefix that requires additional input.
+- `Incomplete`: the encoded input is a valid prefix that requires additional input.
 - `InvalidEncoding`: the leading sequence is malformed and cannot become valid by appending input.
 
 Decode failure returns scalar `U+0000` and consumes zero bytes or code units.
@@ -66,11 +66,11 @@ written.
 
 `Types::Utf8::BoundaryOutcome` is:
 
-- `Found` when the requested next or previous boundary was found.
+- `Found` when the next or previous boundary was found.
 - `AtBeginning` when backward traversal starts at byte offset 0.
 - `AtEnd` when forward traversal starts at `text.size()`.
 - `InvalidOffset` when the offset is outside the range or is not UTF-8 code-point aligned.
-- `InvalidEncoding` when malformed or incomplete UTF-8 prevents the requested traversal.
+- `InvalidEncoding` when malformed or incomplete UTF-8 prevents traversal.
 
 `Types::Utf8::BoundaryResult::byteOffset` is the discovered boundary on `Found`. Endpoint outcomes retain the endpoint, and failures retain the
 original caller-provided offset.
@@ -80,7 +80,7 @@ original caller-provided offset.
 `Types::Utf8::GraphemeIndexOutcome` is:
 
 - `Indexed` when complete valid UTF-8 was segmented into caller-owned boundary storage.
-- `DestinationTooSmall` when the supplied boundary span cannot hold the complete index.
+- `DestinationTooSmall` when the boundary span cannot hold the complete index.
 - `InvalidEncoding` when malformed or incomplete UTF-8 prevents complete indexing.
 
 `Types::Utf8::GraphemeIndexResult::requiredBoundaryCount` includes offset 0 and the final `text.size()` boundary. It is meaningful on `Indexed` and
@@ -114,7 +114,7 @@ original caller-provided offset.
 
 ### `decodeScalar()`
 
-`Utf8::decodeScalar()` decodes only the leading scalar in the supplied view. Bytes after that scalar are not inspected. This makes the function
+`Utf8::decodeScalar()` decodes only the leading scalar in the view. Bytes after that scalar are not inspected. This makes the function
 suitable for incremental owners that retain their own stream state.
 
 ### `encodeScalar()`
@@ -149,7 +149,7 @@ pinned generated properties.
 
 The implementation is the Unicode default algorithm; it does not apply CLDR or locale-specific grapheme tailoring.
 
-The supplied offset must be code-point aligned but does not need to be a grapheme boundary:
+The offset must be code-point aligned but does not need to be a grapheme boundary:
 
 - From inside a cluster, `nextGraphemeBoundary()` returns the end of the containing cluster.
 - From inside a cluster, `previousGraphemeBoundary()` returns the beginning of the containing cluster.

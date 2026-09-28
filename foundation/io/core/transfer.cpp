@@ -32,7 +32,7 @@ namespace GameWIP::IO::Detail::Core
         {
             /// @brief Capability-query failure, or success when the count is known or intentionally unknown.
             Types::Status status;
-            /// @brief Remaining bytes from the current position when known is true.
+            /// @brief Remaining bytes from the current position when known.
             std::uint64_t byteCount = 0;
             /// @brief Whether byteCount is authoritative for the next reads.
             bool known = false;
