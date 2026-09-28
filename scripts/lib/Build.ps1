@@ -219,5 +219,12 @@ function Invoke-GameWipProjectCommand
         Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
     }
     $executable = Resolve-GameWipProjectExecutable -Command $command
-    Invoke-GameWipNative -Name "project-$Id" -FilePath $executable -Arguments (@($command.Arguments) + @($Arguments)) -UseWorkspaceTemp:([bool]$command.UseWorkspaceTemp)
+    $projectArguments = @($command.Arguments) + @($Arguments)
+    $interactive = $projectArguments -contains '--manual-tests'
+    Invoke-GameWipNative `
+        -Name "project-$Id" `
+        -FilePath $executable `
+        -Arguments $projectArguments `
+        -UseWorkspaceTemp:([bool]$command.UseWorkspaceTemp) `
+        -Interactive:$interactive
 }

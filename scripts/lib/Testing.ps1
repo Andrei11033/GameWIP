@@ -52,7 +52,13 @@ function Invoke-GameWipValidationModule
     {
         $testArguments.Add($argument) | Out-Null
     }
-    Invoke-GameWipNative -Name "module-$Name" -FilePath $executable -Arguments $testArguments.ToArray() -UseWorkspaceTemp
+    $interactive = @($testArguments) -contains '--manual-tests'
+    Invoke-GameWipNative `
+        -Name "module-$Name" `
+        -FilePath $executable `
+        -Arguments $testArguments.ToArray() `
+        -UseWorkspaceTemp `
+        -Interactive:$interactive
 }
 
 function Invoke-GameWipStressModule
@@ -66,6 +72,10 @@ function Invoke-GameWipStressModule
         [switch]$StopOnFailure
     )
     Assert-GameWipValidModule -Name $Name
+    if (@($Arguments) -contains '--manual-tests')
+    {
+        throw "Manual tests cannot run through 'stress' because stress launches concurrent validation processes. Use 'wizard' or 'module' instead."
+    }
     Initialize-GameWipRunLog
     $command = Get-GameWipProjectCommand -Id 'test-all'
     Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
@@ -453,7 +463,12 @@ function Invoke-GameWipValidationCommandWizard
     {
         Invoke-GameWipMutation -Summary 'Run the composed validation command.' -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', 'Execute the composed correctness command.') -Body {
             Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
-            Invoke-GameWipNative -Name 'validation-wizard' -FilePath $executable -Arguments $arguments.ToArray() -UseWorkspaceTemp
+            Invoke-GameWipNative `
+                -Name 'validation-wizard' `
+                -FilePath $executable `
+                -Arguments $arguments.ToArray() `
+                -UseWorkspaceTemp `
+                -Interactive:$manualTests
         } | Out-Null
     }
 }
