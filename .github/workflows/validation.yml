@@ -270,10 +270,14 @@ jobs:
           eslint_js_version="$(jq -r \
             '.tools[] | select(.id == "eslint") | .provider.dependencies[] | select(.package == "@eslint/js") | .version' \
             "$registry")"
+          prettier_powershell_version="$(jq -r \
+            '.tools[] | select(.id == "prettier") | .provider.dependencies[] | select(.package == "prettier-plugin-powershell") | .version' \
+            "$registry")"
           npm install --global \
             "eslint@$(version eslint)" \
             "@eslint/js@$eslint_js_version" \
             "prettier@$(version prettier)" \
+            "prettier-plugin-powershell@$prettier_powershell_version" \
             "markdownlint-cli2@$(version markdownlint-cli2)"
 
       - name: Install registry-pinned PowerShell analyzer
