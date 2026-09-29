@@ -36,7 +36,7 @@ come from the format's own schema.
 ## Timeouts and contention
 
 Every operation has a convenience overload and an explicit-timeout overload.
-The convenience form forwards to `kDefaultAccessTimeout`, currently 100 ms.
+The convenience form forwards to `kDefaultAccessTimeout`, 100 ms.
 `kNoWait` is zero and performs exactly one acquisition attempt. A positive
 timeout retries with private bounded backoff against `std::chrono::steady_clock`;
 a negative timeout is `InvalidArgument`. The service never busy-spins or waits

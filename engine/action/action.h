@@ -299,7 +299,7 @@ namespace GameWIP::Action
     template <typename ActionEnum> class ActionBindingBuilder
     {
     public:
-        /// @brief Creates a builder that targets one action in the supplied map.
+        /// @brief Creates a builder that targets one action in the map.
         /// @param map Map that receives the completed binding; the builder must not outlive it.
         /// @param action Action slot targeted by the completed binding.
         ActionBindingBuilder(ActionMap<ActionEnum> &map, ActionEnum action);
@@ -308,7 +308,7 @@ namespace GameWIP::Action
         ActionBindingBuilder &on(Input::InputControl primaryControl);
         /// @brief Appends one modifier to the pending combo.
         ActionBindingBuilder &withModifier(Input::InputControl modifier);
-        /// @brief Appends all supplied modifiers in their existing order.
+        /// @brief Appends all modifiers in their existing order.
         ActionBindingBuilder &withModifiers(std::span<const Input::InputControl> modifiers);
         /// @brief Requires the primary control to activate after all modifiers.
         ActionBindingBuilder &primaryLast();
@@ -352,11 +352,11 @@ namespace GameWIP::Action
     };
 
     /// @brief Maps physical input controls to typed actions and evaluates one frame at a time.
-    /// @tparam ActionEnum Contiguous action enum whose values are used as indices in the range [0, actionCount).
+    /// @tparam ActionEnum Contiguous action enum indexed in [0, actionCount).
     template <typename ActionEnum> class ActionMap
     {
     public:
-        /// @brief Creates an action map with the requested number of action slots.
+        /// @brief Creates an action map with actionCount slots.
         /// @param actionCount Number of action slots; ActionEnum values passed to this map must be below it.
         explicit ActionMap(ActionEnum actionCount);
 
@@ -365,11 +365,10 @@ namespace GameWIP::Action
         /// @note Bindings that target removed slots remain stored and are ignored until
         /// those slots exist again.
         void resize(ActionEnum actionCount);
-        /// @brief Returns the number of action slots currently allocated.
+        /// @brief Returns the number of allocated action slots.
         std::size_t getActionCount() const;
 
         /// @brief Reports whether an action enum value maps to an allocated slot.
-        /// @return True when action converts to an index within the allocated slots.
         bool isValidAction(ActionEnum action) const;
 
         /// @brief Selects the value-processing kind for one action slot.
@@ -385,24 +384,22 @@ namespace GameWIP::Action
         /// @note Call advanceFrame() before evaluation so pressed/released and snapshot data belong to one frame.
         void evaluate(const Input::InputState &inputState, float deltaSeconds);
 
-        /// @brief Returns whether captured text input is available.
-        /// @return True if text was received during the last evaluation.
+        /// @brief Reports whether text was captured during the last evaluation.
         bool hasTextInput() const;
 
         /// @brief Returns captured UTF-8 text input.
         /// @return Text received during the last evaluation; the view remains valid until the next advanceFrame() or evaluate().
         std::string_view getTextInputUtf8() const;
 
-        /// @brief Returns whether captured mouse position is valid.
-        /// @return True if the mouse position is known.
+        /// @brief Reports whether the captured mouse position is valid.
         bool hasMousePosition() const;
 
         /// @brief Returns captured mouse X position.
-        /// @return Latest client-area x position; meaningful only when hasMousePosition() is true.
+        /// @return Latest client-area x position; meaningful only when known.
         int getMouseX() const;
 
         /// @brief Returns captured mouse Y position.
-        /// @return Latest client-area y position; meaningful only when hasMousePosition() is true.
+        /// @return Latest client-area y position; meaningful only when known.
         int getMouseY() const;
 
         /// @brief Returns captured raw mouse X movement.
@@ -414,7 +411,6 @@ namespace GameWIP::Action
         int getMouseDeltaY() const;
 
         /// @brief Returns captured mouse wheel movement.
-        /// @param wheel Wheel axis to query.
         /// @return Wheel movement from the last evaluation, in the input backend's wheel units.
         float getMouseWheelDelta(Input::MouseWheel wheel) const;
 
@@ -451,7 +447,6 @@ namespace GameWIP::Action
         ActionResult addBinding(const ActionBinding<ActionEnum> &binding);
 
         /// @brief Starts a stateful rebind capture.
-        /// @param action Action slot to bind.
         /// @param options Rebinding behavior copied into outSession.
         /// @param outSession Session overwritten with the new capture state.
         /// @return Collecting on success, or an error result.
@@ -472,7 +467,6 @@ namespace GameWIP::Action
             std::span<const Input::InputControl> ignoredControls = {}) const;
 
         /// @brief Captures one binding from the current activations, preferring the newest eligible button or strongest eligible axis movement.
-        /// @param action Action slot to bind.
         /// @param inputState Raw input state to inspect.
         /// @param options Rebinding behavior used to filter and construct the binding.
         /// @param outCapture Capture data overwritten on every call.

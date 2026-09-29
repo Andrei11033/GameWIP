@@ -11,7 +11,7 @@ failure cases that make a report incomplete or unusable.
 Run coverage from the repository root:
 
 ```powershell
-.\gamewip.bat coverage
+.\gamewip.bat cov
 ```
 
 The helper removes and recreates `build/coverage` on every high-level coverage

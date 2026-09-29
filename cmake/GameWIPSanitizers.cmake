@@ -1,5 +1,5 @@
-# Enables supported sanitizer instrumentation only when explicitly requested and compile/link probing proves the selected toolchain supports it.
-# A requested but unsupported sanitizer configuration fails at configure time with the owning environment guidance.
+# Enables requested sanitizer instrumentation after compile/link probing confirms toolchain support.
+# Unsupported requests fail at configure time with environment guidance.
 
 if(GAMEWIP_ENABLE_ADDRESS_SANITIZER)
     include(CheckCXXSourceCompiles)

@@ -108,7 +108,7 @@ front.
 
 ## Concrete numbered milestones R00-R05
 
-These are the only numbered milestones currently reserved. No release number
+These are the only numbered milestones reserved. No release number
 is assigned after R05 until a capability slice is ready for promotion.
 
 ### R00: Bootstrap and reusable-library baseline

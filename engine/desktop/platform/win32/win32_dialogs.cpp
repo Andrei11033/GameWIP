@@ -19,10 +19,15 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // COM, text, and file-dialog preparation
+    // ------------------------------------------------------------
+
     namespace
     {
         using IO::Types::ErrorCode;
 
+        /// @brief Owns one COM interface pointer and releases it at scope exit.
         template <typename Interface> class ComPtr final
         {
         public:
@@ -64,6 +69,7 @@ namespace GameWIP::Desktop::Detail::Platform
             Interface *value_ = nullptr;
         };
 
+        /// @brief Releases a string allocated by a Shell COM API.
         class CoTaskMemString final
         {
         public:
@@ -74,6 +80,7 @@ namespace GameWIP::Desktop::Detail::Platform
             PWSTR value = nullptr;
         };
 
+        /// @brief Maps common COM outcomes to the portable dialog status vocabulary.
         [[nodiscard]] IO::Types::Status statusFromHResult(HRESULT result) noexcept
         {
             ErrorCode code = ErrorCode::NativeFailure;
@@ -100,9 +107,9 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(code, static_cast<std::int64_t>(result));
         }
 
-        // Native dialogs stay on the caller thread so ownership, modality, and
-        // thread-affine Win32 state remain explicit; reject incompatible
-        // apartments rather than hiding dispatch behind a worker STA.
+        /// @brief Keeps native dialog modality on the caller's compatible STA.
+        /// @details The dialog owns thread-affine state, so incompatible apartments are rejected
+        /// instead of being hidden behind a worker thread.
         class ApartmentLease final
         {
         public:
@@ -159,6 +166,7 @@ namespace GameWIP::Desktop::Detail::Platform
             bool ownsInitialization_ = false;
         };
 
+        /// @brief Resolves an optional portable owner to its current native HWND.
         [[nodiscard]] HWND ownerHandle(Window *owner) noexcept
         {
             if (owner == nullptr)
@@ -169,6 +177,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return state != nullptr ? static_cast<HWND>(nativeHandle(*state).window) : nullptr;
         }
 
+        /// @brief Converts validated UTF-8 dialog text without allowing exceptions across the API boundary.
         [[nodiscard]] IO::Types::Status convertText(std::string_view text, std::wstring &output) noexcept
         {
             try
@@ -196,6 +205,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Resolves and applies a suggested filesystem directory to a native dialog.
         [[nodiscard]] IO::Types::Status setSuggestedDirectory(IFileDialog &dialog, const FileSystem::Types::Path &directory) noexcept
         {
             if (directory.empty())
@@ -232,6 +242,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Owns UTF-16 filter storage referenced by COMDLG_FILTERSPEC entries.
         struct NativeFilters
         {
             std::vector<std::wstring> names;
@@ -239,6 +250,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::vector<COMDLG_FILTERSPEC> specifications;
         };
 
+        /// @brief Converts portable filter names/extensions while retaining stable COM pointers.
         [[nodiscard]] IO::Types::Status makeFilters(std::span<const Types::Dialogs::File::Filter> filters, NativeFilters &native) noexcept
         {
             if (filters.size() > std::numeric_limits<UINT>::max())
@@ -302,6 +314,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Applies shared title, directory, filter, and native-option configuration.
         [[nodiscard]] IO::Types::Status configureCommon(
             IFileDialog &dialog,
             std::string_view title,
@@ -367,6 +380,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Reads a native one-based filter index into the portable zero-based result.
         [[nodiscard]] IO::Types::Status selectedFilter(IFileDialog &dialog, std::size_t filterCount, std::optional<std::size_t> &selected) noexcept
         {
             selected.reset();
@@ -388,6 +402,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+        /// @brief Reuses native preparation rules for deterministic test-hook dialog responses.
         [[nodiscard]] IO::Types::Status prepareSimulatedFileDialog(
             TestHooks::FileDialogOperation operation,
             std::string_view title,
@@ -453,6 +468,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Completes one deterministic single-file response after shared validation.
         [[nodiscard]] Types::Dialogs::File::Result completeSimulatedSingleFileDialog(
             TestHooks::FileDialogOperation operation,
             const Types::Dialogs::File::OpenDescription &description,
@@ -498,6 +514,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return output;
         }
 
+        /// @brief Completes a deterministic multi-selection or folder response.
         [[nodiscard]] Types::Dialogs::File::ListResult completeSimulatedMultipleFileDialog(
             TestHooks::FileDialogOperation operation,
             const Types::Dialogs::File::OpenDescription &description,
@@ -543,6 +560,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return output;
         }
 
+        /// @brief Completes a deterministic save response while preserving filter selection.
         [[nodiscard]] Types::Dialogs::File::Result completeSimulatedSaveFileDialog(
             const Types::Dialogs::File::SaveDescription &description,
             TestHooks::FileDialogResponse response) noexcept
@@ -587,6 +605,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 #endif
 
+        /// @brief Extracts one Shell item filesystem path into the portable Path type.
         [[nodiscard]] IO::Types::Status extractPath(IShellItem &item, FileSystem::Types::Path &path) noexcept
         {
             CoTaskMemString native;
@@ -615,11 +634,13 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Recognizes the native cancellation result as a successful cancel outcome.
         [[nodiscard]] bool isCancellation(HRESULT result) noexcept
         {
             return result == HRESULT_FROM_WIN32(ERROR_CANCELLED);
         }
 
+        /// @brief Presents one native open or folder-selection dialog and maps its result.
         [[nodiscard]] Types::Dialogs::File::Result singleOpen(const Types::Dialogs::File::OpenDescription &description, bool folder) noexcept
         {
             Types::Dialogs::File::Result output;
@@ -709,6 +730,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return output;
         }
 
+        /// @brief Presents a native multi-open or multi-folder dialog and maps its result.
         [[nodiscard]] Types::Dialogs::File::ListResult multipleOpen(const Types::Dialogs::File::OpenDescription &description, bool folder) noexcept
         {
             Types::Dialogs::File::ListResult output;
@@ -834,6 +856,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return output;
         }
 
+        /// @brief Maps portable severity to the TaskDialog icon resource.
         [[nodiscard]] PCWSTR severityIcon(Types::Dialogs::Severity severity) noexcept
         {
             using Severity = Types::Dialogs::Severity;
@@ -851,6 +874,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return nullptr;
         }
 
+        /// @brief Maps a portable message result to its TaskDialog button identifier.
         [[nodiscard]] int nativeMessageButton(Types::Dialogs::Message::Button button) noexcept
         {
             using Button = Types::Dialogs::Message::Button;
@@ -872,6 +896,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return 0;
         }
 
+        /// @brief Maps a native TaskDialog button identifier back to a portable result.
         [[nodiscard]] Types::Dialogs::Message::Button portableMessageButton(int button) noexcept
         {
             using Button = Types::Dialogs::Message::Button;
@@ -892,12 +917,17 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Returns whether a message-button policy has a cancelable result.
         [[nodiscard]] bool messageHasCancel(Types::Dialogs::Message::Buttons buttons) noexcept
         {
             using Buttons = Types::Dialogs::Message::Buttons;
             return buttons == Buttons::OkCancel || buttons == Buttons::YesNoCancel || buttons == Buttons::RetryCancel;
         }
     } // namespace
+
+    // ------------------------------------------------------------
+    // File and folder dialogs
+    // ------------------------------------------------------------
 
     Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept
     {
@@ -1137,6 +1167,10 @@ namespace GameWIP::Desktop::Detail::Platform
             return result;
         }
     }
+
+    // ------------------------------------------------------------
+    // Message and prompt dialogs
+    // ------------------------------------------------------------
 
     Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept
     {

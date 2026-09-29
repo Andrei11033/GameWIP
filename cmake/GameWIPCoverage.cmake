@@ -10,7 +10,7 @@ if(GAMEWIP_ENABLE_COVERAGE)
             add_compile_options(-fprofile-update=atomic)
         endif()
     else()
-        message(WARNING "GAMEWIP_ENABLE_COVERAGE is currently configured only for GCC and Clang toolchains.")
+        message(WARNING "GAMEWIP_ENABLE_COVERAGE is configured only for GCC and Clang toolchains.")
     endif()
 
     set(GAMEWIP_COVERAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage")

@@ -8,6 +8,11 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Conversion status and strict text bridges
+    // ------------------------------------------------------------
+
+    /// @brief Maps a Win32 conversion error to the portable encoding failure vocabulary.
     IO::Types::ErrorCode unicodeConversionError(DWORD nativeCode, IO::Types::ErrorCode malformedEncodingFallback) noexcept
     {
         switch (nativeCode)
@@ -24,6 +29,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     namespace
     {
+        /// @brief Maps shared Unicode conversion outcomes to Win32-style error codes.
         [[nodiscard]] DWORD nativeCodeForConversion(GameWIP::Unicode::Types::ConversionOutcome outcome) noexcept
         {
             using Outcome = GameWIP::Unicode::Types::ConversionOutcome;
@@ -31,6 +37,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
+    /// @brief Converts strict UTF-8 to UTF-16 while returning the native conversion code.
     bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode)
     {
         output.clear();
@@ -76,6 +83,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return true;
     }
 
+    /// @brief Converts UTF-16 to strict UTF-8 while returning the native conversion code.
     bool utf16ToUtf8(std::wstring_view text, std::string &output, DWORD &nativeCode)
     {
         output.clear();

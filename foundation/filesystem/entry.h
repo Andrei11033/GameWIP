@@ -62,11 +62,11 @@ namespace GameWIP::FileSystem
         {
             /// @brief Portable entry kind.
             EntryKind kind = EntryKind::Other;
-            /// @brief Entry size in bytes when hasSize is true.
+            /// @brief Entry size in bytes when available.
             std::uint64_t sizeBytes = 0;
             /// @brief Whether sizeBytes is available and meaningful.
             bool hasSize = false;
-            /// @brief Last-write time when hasLastWriteTime is true.
+            /// @brief Last-write time when available.
             FileTime lastWriteTime{};
             /// @brief Whether lastWriteTime is available and meaningful.
             bool hasLastWriteTime = false;
@@ -115,55 +115,55 @@ namespace GameWIP::FileSystem
     } // namespace Types
 
     /// @brief Tests whether a filesystem entry exists.
-    /// @param path Path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
     [[nodiscard]] Types::BoolResult exists(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns portable metadata for an existing filesystem entry.
-    /// @param path Path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return Entry metadata, or NotFound when the entry is missing.
     [[nodiscard]] Types::EntryInfoResult getEntryInfo(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path resolves to a regular file.
-    /// @param path Path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
     [[nodiscard]] Types::BoolResult isRegularFile(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path resolves to a directory.
-    /// @param path Path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
     [[nodiscard]] Types::BoolResult isDirectory(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Tests whether a path resolves to a symbolic link or equivalent link-like entry.
-    /// @param path Path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false; missing entries produce successful false.
     [[nodiscard]] Types::BoolResult isSymlink(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the size of an existing regular file.
-    /// @param path File path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return File size, NotFound when missing, or InvalidArgument when the resolved entry is not a regular file with portable size.
     [[nodiscard]] IO::Types::SizeResult getFileSize(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the last-write time of an existing filesystem entry.
-    /// @param path Path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return Last-write time, or NotFound when the entry is missing.
     [[nodiscard]] Types::LastWriteTimeResult getLastWriteTime(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Returns the portable basic read-only state of an existing entry.
-    /// @param path Path to query.
+    /// @param path Filesystem path to query.
     /// @param options Symlink traversal behavior.
     /// @return Successful true or false, or NotFound when the entry is missing.
     [[nodiscard]] Types::BoolResult isReadOnly(const Types::Path &path, const Types::EntryOptions &options = {}) noexcept;
 
     /// @brief Changes the portable basic read-only state of an existing entry.
-    /// @param path Path to update.
+    /// @param path Filesystem path to update.
     /// @param readOnly True to request read-only state; false to request writable state.
     /// @param options Symlink traversal behavior.
     /// @return Success or a validation, lookup, permission, or metadata failure status.

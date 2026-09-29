@@ -2,14 +2,17 @@
 
 `GameWIP::Desktop` provides standalone portable ownership of native top-level
 desktop windows, optional managed child hosts, synchronous Clipboard data
-exchange, native data drag and drop, and opt-in native dialogs. Its API provides
-checked lifecycle
+exchange, native data drag and drop, opt-in native dialogs, and additive shell
+integration. Its API provides checked lifecycle
 and mutation operations, fixed-capacity typed event queues, cached state,
 display discovery and inspection, and an explicit native interoperability
 boundary.
 
 Desktop is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and invokes no user callbacks
-from a native window procedure.
+from a native window procedure. Worker or renderer code that needs an
+owner-thread mutation must use an application-owned transport queue and have
+the owner thread perform the Desktop call; Desktop intentionally provides no
+hidden worker or generic `post()` facility.
 
 ## How the library is organized
 
@@ -40,6 +43,8 @@ opt-in headers expose renderer integration and deliberate native interoperation.
   sources and declarative target regions.
 - @subpage desktop_dialogs - Present synchronous native choices and modeless
   owner-thread operation progress.
+- @subpage desktop_shell - Publish taskbar, tray, notification, jump-list,
+  recent-item, and current-user shell registration state.
 - @subpage desktop_lifecycle_events - Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage desktop_chrome_and_pointer_input - Configure system and custom chrome,
@@ -51,11 +56,11 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 - @subpage desktop_renderer_integration - Enable concurrent presentation reads,
   attach renderer feedback, and publish packed pointer data.
 - @subpage desktop_examples - See lifecycle, events, displays, fullscreen,
-  custom chrome, and renderer integration in context.
+  shell integration, custom chrome, and renderer integration in context.
 - @subpage desktop_troubleshooting - Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer integration.
-- @subpage desktop_future_extensions - Understand where proposed accessibility,
-  dialogs, shell integration, and related features belong.
+- @subpage desktop_future_extensions - Understand ownership boundaries for future
+  accessibility, UI, and platform extensions.
 
 ## Maintainer validation
 
@@ -70,7 +75,8 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 Use @ref GameWIP::Desktop for library-wide capability operations and the non-copyable, non-movable @ref GameWIP::Desktop::Window owner. Passive values
 live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, drag-and-drop
 values under `Types::DragDrop`, Clipboard results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`,
-and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations under `Desktop::Clipboard`,
+shell values under `Types::Shell`, and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations
+under `Desktop::Clipboard`,
 drag sources under `Desktop::DragDrop`, display inspection under `Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers
 use @ref GameWIP::Desktop::Native::Win32 deliberately.
 
@@ -83,6 +89,11 @@ under `Desktop::Dialogs`, and persistent modeless progress under
 Every successful `open()` creates one process-local `Types::WindowId` and one fixed event queue. `Window` is non-copyable and non-movable, keeping its
 address and thread affinity stable. Cached getters are allocation-free and never query the operating system. By default they remain owner-thread-only.
 The optional renderer bridge can lazily enable atomic publication for the documented presentation subset.
+
+Shell resources follow the same explicit ownership model without becoming Window members. The
+owner thread owns resource mutation and queue consumption; shell resources borrow an
+application-owned queue for typed interaction events, and their destructors perform only
+best-effort native cleanup.
 
 Native callbacks update cached state before inserting events, so queue overflow loses notification history without making current state stale. Close
 requests remain sticky even when their `Types::Events::CloseRequested` payload cannot be retained.
@@ -111,7 +122,14 @@ its physical client pixels.
 
 The normal portable surface is assembled by `desktop/window.h` from focused `desktop/types.h`, `desktop/description.h`, `desktop/events.h`, and
 `desktop/display.h`. Rich monitor/color inspection is opt-in through `desktop/display_info.h`. Renderer integration is opt-in through
-`desktop/renderer_bridge.h`, custom native cursors are opt-in through `desktop/cursor.h`, native child hosts are opt-in through
+`desktop/renderer_bridge.h`, shell capability queries and the shared shell event queue are opt-in
+through `desktop/shell.h`, shell value types are opt-in through `desktop/shell_types.h`, taskbar
+publication is opt-in through `desktop/shell_taskbar.h`, tray-icon publication and menus are opt-in
+through `desktop/shell_tray.h`, notifications are opt-in through `desktop/shell_notifications.h`,
+jump-list and recent-item publication are opt-in through `desktop/shell_jump_lists.h`, current-user
+shell registration is opt-in through `desktop/shell_registration.h`, custom native cursors are opt-in through
+`desktop/cursor.h`,
+native child hosts are opt-in through
 `desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, native data drag
 and drop is opt-in through `desktop/drag_drop.h`, native dialogs and progress
 are opt-in through `desktop/dialogs.h`, and Win32 interoperability is opt-in

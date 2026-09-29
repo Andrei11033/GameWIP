@@ -46,7 +46,7 @@ namespace GameWIP::Desktop::Types::Display
         ColorSpace activeColorSpace = ColorSpace::Unknown; ///< Current operating-system color space.
         bool wideColorGamutSupported = false;              ///< Whether wide-gamut output is supported.
         bool hdrSupported = false;                         ///< Whether HDR output is supported.
-        bool hdrEnabled = false;                           ///< Whether HDR output is currently enabled.
+        bool hdrEnabled = false;                           ///< Whether HDR output is enabled.
         std::uint16_t bitsPerColorChannel = 0;             ///< Active per-channel bit depth.
         float minimumLuminanceNits = 0.0F;                 ///< Minimum reported luminance.
         float maximumLuminanceNits = 0.0F;                 ///< Maximum reported luminance.

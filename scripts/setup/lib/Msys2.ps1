@@ -44,18 +44,13 @@ function Invoke-GameWipMsys2PacmanWithRetry
 function Get-GameWipMissingMsys2Package
 {
     param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string[]]$Packages)
-    $pacman = Join-Path $MsysRoot 'usr\bin\pacman.exe'
-    if (-not (Test-Path -LiteralPath $pacman))
+    $installed = Get-GameWipMsys2InstalledPackageNames -MsysRoot $MsysRoot
+    if ($installed.State -ne 'ready')
     {
         return $Packages
     }
-    $result = Invoke-GameWipProcess -FilePath $pacman -Arguments @('-Qq') -OutputMode LogOnly -TimeoutSeconds 60
-    if ($result.ExitCode -ne 0)
-    {
-        return $Packages
-    }
-    $installed = [System.Collections.Generic.HashSet[string]]::new([string[]]@($result.Stdout))
-    return @($Packages | Where-Object { -not $installed.Contains($_) })
+    $installedNames = [System.Collections.Generic.HashSet[string]]::new([string[]]$installed.Packages)
+    return @($Packages | Where-Object { -not $installedNames.Contains($_) })
 }
 
 function Test-GameWipMsys2PackageSet
@@ -141,14 +136,12 @@ function Install-GameWipMsys2PackageSet
 function Test-GameWipMsys2Toolchain
 {
     param([Parameter(Mandatory = $true)][hashtable]$ProjectTools)
-    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.provider.kind -eq 'msys2' -and $_.capabilities.detectInstalled }))
-    {
-        $detected = Get-GameWipDetectedTool -Tool $toolInfo
-        $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-        if ($compatibility -ne 'compatible')
-        {
-            throw "MSYS2 requirement '$($toolInfo.id)' is '$compatibility'."
-        }
-    }
+    $toolIds = @($ProjectTools.tools | Where-Object { $_.provider.kind -eq 'msys2' -and $_.capabilities.detectInstalled } | ForEach-Object { [string]$_.id })
+    Test-GameWipToolchain `
+        -ToolIds $toolIds `
+        -ThrowOnFailure `
+        -FailureCode msys2-toolchain-incomplete `
+        -FailureSummary 'The declared MSYS2 toolchain is incomplete.' `
+        -SuggestedActions @('.\setup.bat repair', '.\gamewip.bat tool status') | Out-Null
     Write-Host '  Ready: registry-declared UCRT64/CLANG64 requirements.'
 }

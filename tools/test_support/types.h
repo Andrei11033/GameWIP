@@ -39,7 +39,7 @@ namespace GameWIP::TestSupport
             InfrastructureError error = InfrastructureError::None; ///< Stable TestSupport-owned error category.
             std::uint64_t nativeCode = 0;                          ///< Platform/native diagnostic code, or zero when unavailable.
 
-            /// @brief Returns true only when the infrastructure operation completed successfully.
+            /// @brief Returns true when the infrastructure operation completed successfully.
             [[nodiscard]] constexpr bool ok() const noexcept
             {
                 return error == InfrastructureError::None;
@@ -69,7 +69,6 @@ namespace GameWIP::TestSupport
     } // namespace Types
 
     /// @brief Formats a TestSupport infrastructure status for human-readable reporting.
-    /// @param status Status to describe.
     /// @return Stable error-category name plus the numeric native diagnostic when present.
     /// @note Formatting is performed only when requested and may allocate.
     [[nodiscard]] std::string formatInfrastructureStatus(const Types::InfrastructureStatus &status);

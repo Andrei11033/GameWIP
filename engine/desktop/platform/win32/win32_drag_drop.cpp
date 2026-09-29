@@ -19,6 +19,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // Native target state
     // ------------------------------------------------------------
 
+    /// @brief Thread-affine native OLE target resources for one Window.
     struct DragDropData
     {
         HWND window = nullptr;
@@ -38,6 +39,7 @@ namespace GameWIP::Desktop::Detail::Platform
         namespace Transfer = Types::DataTransfer;
         thread_local bool sourceDragActive = false;
 
+        /// @brief Converts portable drag effects to the OLE bitmask.
         [[nodiscard]] DWORD nativeEffects(DD::Effect effects) noexcept
         {
             DWORD result = 0;
@@ -55,6 +57,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             return result;
         }
+        /// @brief Converts an OLE effect bitmask to the portable effect enum.
         [[nodiscard]] DD::Effect portableEffects(DWORD effects) noexcept
         {
             DD::Effect result = DD::Effect::None;
@@ -72,6 +75,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             return result;
         }
+        /// @brief Validates the effect reported by OLE after a source drag completes.
         [[nodiscard]] DD::Result droppedSourceResult(DWORD performed, DD::Effect allowed) noexcept
         {
             constexpr DWORD knownEffects = DROPEFFECT_COPY | DROPEFFECT_MOVE | DROPEFFECT_LINK;
@@ -90,11 +94,13 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             return result;
         }
+        /// @brief Tests whether an effect mask contains only supported nonzero effects.
         [[nodiscard]] bool validEffects(DD::Effect effects) noexcept
         {
             constexpr auto all = DD::Effect::Copy | DD::Effect::Move | DD::Effect::Link;
             return effects != DD::Effect::None && (effects & all) == effects;
         }
+        /// @brief Materializes and validates every source item before entering OLE.
         [[nodiscard]] IO::Types::Status prepareSource(const DD::Description &description, std::vector<DataTransfer::PreparedItem> &prepared) noexcept
         {
             if (description.items.empty() || !validEffects(description.allowedEffects) ||
@@ -135,15 +141,18 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::makeStatus(IO::Types::ErrorCode::Unknown);
             }
         }
+        /// @brief Consumes the materialization failure hook used by drag/drop tests.
         [[nodiscard]] IO::Types::Status materializationStatus() noexcept
         {
             return Detail::consumeFailure(TestHooks::FailurePoint::DragDropMaterialization) ? IO::makeStatus(IO::Types::ErrorCode::ReadFailed)
                                                                                             : IO::successStatus();
         }
+        /// @brief Tests whether one native format is accepted by a drop region.
         [[nodiscard]] bool accepts(const DragDropRegion &region, CLIPFORMAT offered) noexcept
         {
             return std::ranges::find(region.nativeFormats, static_cast<std::uint32_t>(offered)) != region.nativeFormats.end();
         }
+        /// @brief Converts a screen-pixel OLE point to Window-local logical units.
         [[nodiscard]] Types::LogicalPosition clientPosition(const DragDropState &state, POINTL screen) noexcept
         {
             POINT p{screen.x, screen.y};
@@ -151,6 +160,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const UINT dpi = state.platform ? dpiForWindow(state.platform->window) : kBaselineDpi;
             return {physicalToLogical(p.x, dpi), physicalToLogical(p.y, dpi)};
         }
+        /// @brief Selects the last matching region at a point for the offered formats.
         [[nodiscard]] const DragDropRegion *regionAt(
             const DragDropState &state,
             Types::LogicalPosition point,
@@ -178,6 +188,7 @@ namespace GameWIP::Desktop::Detail::Platform
         // OLE lifetime
         // ------------------------------------------------------------
 
+        /// @brief Owns the calling apartment's OLE initialization lease.
         class OleLease final
         {
         public:
@@ -223,6 +234,7 @@ namespace GameWIP::Desktop::Detail::Platform
         // Target callbacks
         // ------------------------------------------------------------
 
+        /// @brief OLE drop target that translates callbacks into portable events.
         class DropTarget final : public IDropTarget
         {
         public:
@@ -413,6 +425,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
         private:
+            /// @brief Clears the active OLE session without emitting a new event.
             void clearSession() noexcept
             {
                 formats_.reset();
@@ -432,6 +445,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::vector<CLIPFORMAT> nativeFormats_;
         };
 
+        /// @brief Creates a span over COM-provided FORMATETC storage.
         template <class T> [[nodiscard]] std::span<T> nativeSpan(T *data, std::size_t size) noexcept
         {
 #if defined(__clang__)
@@ -447,6 +461,7 @@ namespace GameWIP::Desktop::Detail::Platform
         // Source format enumeration
         // ------------------------------------------------------------
 
+        /// @brief COM enumerator over the formats exposed by the source data object.
         class FormatEnumerator final : public IEnumFORMATETC
         {
         public:
@@ -549,6 +564,7 @@ namespace GameWIP::Desktop::Detail::Platform
         // Source data object
         // ------------------------------------------------------------
 
+        /// @brief COM data object that serves prepared HGLOBAL payloads to OLE.
         class DataObject final : public IDataObject
         {
         public:
@@ -726,6 +742,7 @@ namespace GameWIP::Desktop::Detail::Platform
         // Source termination
         // ------------------------------------------------------------
 
+        /// @brief COM source policy that ends a drag on escape or trigger release.
         class DropSource final : public IDropSource
         {
         public:
@@ -797,6 +814,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // Target lifecycle
     // ------------------------------------------------------------
 
+    /// @brief Releases native target resources only after apartment-affine close has completed.
     void DragDropDataDeleter::operator()(DragDropData *data) const noexcept
     {
         // Apartment-affine cleanup is explicit in closeDragDropTarget(). A record that
@@ -822,6 +840,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     namespace
     {
+        /// @brief Finds the registered drop target associated with a Window.
         [[nodiscard]] DragDropState *targetForWindow(const WindowState &window) noexcept
         {
             const auto &targets = dispatcher().dragDropTargets;
@@ -838,6 +857,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return found == targets->end() ? nullptr : *found;
         }
 
+        /// @brief Removes a target from the current dispatcher's ownership list.
         void unregisterTarget(DragDropState &state) noexcept
         {
             auto &targets = dispatcher().dragDropTargets;
@@ -853,6 +873,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
+    /// @brief Resolves portable region formats to unique native clipboard identities.
     IO::Types::Status prepareDragDropRegions(std::vector<DragDropRegion> &regions) noexcept
     {
         try
@@ -890,6 +911,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Initializes OLE and registers a Window's native drop target.
     IO::Types::Status openDragDropTarget(DragDropState &state, WindowState &window) noexcept
     {
         try
@@ -947,6 +969,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
         }
     }
+    /// @brief Revokes the native drop target and releases its OLE apartment lease.
     CloseResult closeDragDropTarget(DragDropState &state) noexcept
     {
         if (!state.platform)
@@ -984,6 +1007,7 @@ namespace GameWIP::Desktop::Detail::Platform
         state.platform.reset();
         return {IO::successStatus(), true};
     }
+    /// @brief Attempts drop-target close without reporting teardown failures.
     bool closeDragDropTargetBestEffort(DragDropState &state) noexcept
     {
         if (!state.platform)
@@ -993,6 +1017,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return state.platform->ownerThreadId == GetCurrentThreadId() && closeDragDropTarget(state).resourceClosed;
     }
 
+    /// @brief Detaches portable state when the owner dispatcher is exiting.
     void finalizeDragDropTargetForDispatcherExit(DragDropState &state) noexcept
     {
         constexpr std::size_t retryCount = 4;
@@ -1027,22 +1052,27 @@ namespace GameWIP::Desktop::Detail::Platform
         state.window = nullptr;
         state.nativeDestroyedPendingFinalize = true;
     }
+    /// @brief Tests whether the current thread owns the target's OLE apartment.
     bool dragDropTargetOwnedByCurrentThread(const DragDropState &state) noexcept
     {
         return state.ownerNativeThreadId != 0 && state.ownerNativeThreadId == GetCurrentThreadId();
     }
+    /// @brief Tests whether the registered drop target still has a live HWND.
     bool hasLiveDragDropTarget(const DragDropState &state) noexcept
     {
         return state.platform && state.platform->registered && IsWindow(state.platform->window);
     }
+    /// @brief Tests whether native target storage remains attached to the state.
     bool hasNativeDragDropResources(const DragDropState &state) noexcept
     {
         return state.platform != nullptr;
     }
+    /// @brief Tests whether a Window currently owns a drop target.
     bool hasDragDropTarget(const WindowState &window) noexcept
     {
         return targetForWindow(window) != nullptr;
     }
+    /// @brief Enqueues one drag/drop event and accounts for queue pressure during pumping.
     void routeDragDropEvent(DragDropState &state, DD::Events::Payload data, bool terminal) noexcept
     {
         const std::uint64_t droppedBefore = state.droppedEvents;
@@ -1057,6 +1087,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
     }
+    /// @brief Closes or marks a Window's target during native Window destruction.
     bool windowClosingDragDrop(WindowState &window, bool nativeDestroyed) noexcept
     {
         DragDropState *target = targetForWindow(window);
@@ -1077,6 +1108,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // Source operation and validation hooks
     // ------------------------------------------------------------
 
+    /// @brief Runs one synchronous OLE source drag and translates its outcome.
     DD::Result beginNativeDrag(WindowState &window, const DD::Description &description) noexcept
     {
         DD::Result result;
@@ -1164,6 +1196,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return result;
     }
 
+    /// @brief Validates and materializes source data without starting OLE.
     IO::Types::Status prepareDragDropSource(const DD::Description &description) noexcept
     {
         std::vector<DataTransfer::PreparedItem> prepared;

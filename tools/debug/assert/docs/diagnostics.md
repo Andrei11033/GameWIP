@@ -37,8 +37,8 @@ or continuation behavior.
 
 `ASSERT_POPUP_ON_ASSERT` controls whether fatal assertion reports may show
 Assert-owned UI. `ASSERT_POPUP_ON_CHECK` controls whether recoverable check
-failures may show UI. These are runtime compile definitions; the Assert CMake
-target does not expose them as cache options.
+failures may show UI. These are CMake-owned Assert options compiled privately
+into the runtime; consumer translation units must not redefine them.
 
 Automated tests must not depend on real UI. The validation suite uses the
 documented environment-controlled paths for interactive behavior, plus the

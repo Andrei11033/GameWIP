@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace GameWIP::Logger::Types
@@ -38,6 +39,15 @@ namespace GameWIP::Logger::Types
     struct RuntimeFormat
     {
         std::string_view text = {}; ///< Runtime format text.
+    };
+
+    /// @brief Result returned by the Logger log-file path query.
+    /// @details The UTF-8 path is meaningful only when status is successful. A failed query leaves
+    /// the path empty and preserves the conversion or allocation failure through status.
+    struct LogFilePathResult
+    {
+        IO::Types::Status status; ///< Query status.
+        std::string utf8;         ///< Active log-file path in UTF-8 when status is successful.
     };
 
     /// @brief Effective queue and message limits selected by initialization.
@@ -194,7 +204,7 @@ namespace GameWIP::Logger::Types
         struct Snapshot
         {
             State state = State::Disabled;                                  ///< Aggregate health state.
-            OutputMode effectiveOutput = OutputMode::None;                  ///< Currently usable normal sinks.
+            OutputMode effectiveOutput = OutputMode::None;                  ///< Usable normal sinks.
             FailureSource lastFailureSource = FailureSource::None;          ///< Most recent failed channel.
             IO::Types::ErrorCode lastError = IO::Types::ErrorCode::Success; ///< Most recent portable error.
             std::int64_t lastNativeCode = 0;                                ///< Associated backend-native error.

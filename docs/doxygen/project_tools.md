@@ -10,7 +10,7 @@ orchestration path.
 ## Provider and version policy
 
 The supported providers are MSYS2, npm, Python, PowerShell Gallery, verified
-GitHub releases, WinGet, Git submodules, and external/manual state. Provider
+GitHub releases, WinGet, and external/manual state. Provider
 selection follows this order when the tool is available from more than one
 source:
 
@@ -72,19 +72,21 @@ packages after installation.
 
 ## Tool commands
 
-`gamewip.bat tools list` and `gamewip.bat tools status` are offline. `list` reports
+`gamewip.bat tool list` and `gamewip.bat tool status` are offline. `list` reports
 registry policy. `status` reports the selected executable/module, required and
-installed versions, compatibility, provider, and additional discovered copies.
-Selection follows a fixed order: the declared managed provider location wins on
-the Windows development environment, followed by other GameWIP-managed
-locations and then `PATH`. A repository-owned executable participates only when
-the registry explicitly declares its repository path.
+installed versions, compatibility, provider dependencies, and additional
+discovered copies. The shared checker used by status, setup, tool installation,
+and quality validates the same declared tool and dependency state. Selection follows
+a fixed order: the declared managed provider location wins on the Windows
+development environment, followed by other GameWIP-managed locations and then
+`PATH`. A repository-owned executable participates only when the registry
+explicitly declares its repository path.
 
-`gamewip.bat tools check-updates` is online and read-only. It resolves
+`gamewip.bat tool check-updates` is online and read-only. It resolves
 all requested latest versions, including versioned provider dependencies,
 without changing tracked files or installed software.
 
-`gamewip.bat tools update <id|all>` discovers upstream state and builds the plan
+`gamewip.bat tool update <id|all>` discovers upstream state and builds the plan
 before persistent mutation. `-Preview` runs discovery, planning, tracked
 staging, and staged validation, then prints exact registry fields and declared
 references without applying tracked or machine changes. A real update requires
@@ -194,14 +196,14 @@ stay outside maintained formatting through explicit policy boundaries.
 
 `gamewip quality check` performs deterministic format checks, language linters,
 schema and semantic validation, workflow validation, documentation checks, and
-link validation. `fix` runs deterministic formatters only and then executes the
-same check. It does not rewrite prose, workflow behavior, or semantic CMake
-policy.
+link validation. `fix` follows the formatter and text-normalization workflow
+described in @ref project_static_analysis, then executes the same check. It does
+not rewrite prose, workflow behavior, or semantic CMake policy.
 
 ## Troubleshooting
 
-Use `gamewip tools status` to inspect tool selection and competing
-copies. Use `gamewip doctor` to verify the complete declared development
+Use `gamewip tool status` to inspect tool selection and competing
+copies. Use `gamewip ready` to verify the complete declared development
 environment. Use `setup.bat repair` when provider-owned software is missing or
 incompatible.
 

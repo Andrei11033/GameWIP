@@ -3,7 +3,7 @@
 These focused examples build on the owner-thread lifecycle from
 @ref desktop_quick_start and demonstrate displays, custom cursors, native child
 hosts, Clipboard data exchange, native drag and drop, renderer integration, and
-native dialogs and interop without hiding status handling.
+native dialogs, shell integration, and interop without hiding status handling.
 
 ## Select a file
 
@@ -78,6 +78,45 @@ GameWIP::Desktop::Window window;
 if (auto status = window.open(description); !status.ok())
     return;
 ```
+
+## Publish shell state
+
+```cpp
+#include "desktop/shell.h"
+#include "desktop/shell_taskbar.h"
+
+if (GameWIP::Desktop::Shell::supports(
+        GameWIP::Desktop::Types::Shell::Capability::Taskbar) &&
+    GameWIP::Desktop::Shell::supports(
+        GameWIP::Desktop::Types::Shell::Capability::TaskbarProgress))
+{
+    GameWIP::Desktop::ShellEventQueue shellEvents;
+    if (shellEvents.open().ok())
+    {
+        GameWIP::Desktop::TaskbarItem taskbar;
+        GameWIP::Desktop::Types::Taskbar::Description taskbarDescription;
+        taskbarDescription.progress = GameWIP::Desktop::Types::Shell::Progress{
+            GameWIP::Desktop::Types::Shell::ProgressState::Normal, 0.5};
+
+        if (taskbar.open(window, taskbarDescription, shellEvents).ok())
+        {
+            // Consume shellEvents while the Window and taskbar binding remain open.
+            GameWIP::Desktop::Types::Shell::Event event;
+            while (shellEvents.popEvent(event))
+            {
+                // Handle typed taskbar, tray, or notification payloads here.
+            }
+            static_cast<void>(taskbar.close());
+        }
+        static_cast<void>(shellEvents.close());
+    }
+}
+```
+
+Shell resources are capability-aware, owner-thread-affine, and status-returning.
+Close each resource before its borrowed `ShellEventQueue`, then close the queue
+before the `Window`. See @ref desktop_shell for tray, notification, jump-list,
+registration, and unsupported-capability behavior.
 
 ## Pump and consume typed events
 

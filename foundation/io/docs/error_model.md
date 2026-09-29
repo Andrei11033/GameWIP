@@ -98,7 +98,7 @@ Transfer count and status are independent:
 - Whole-stream helpers preserve valid progress produced by the final failing call.
 - `ReadAllTextResult::text` always contains valid UTF-8; malformed or incomplete suffix bytes are removed before return.
 - Callers decide whether partial output is useful, retryable, or must be discarded.
-- A backend must never report a byte count larger than the supplied span.
+- A backend must never report a byte count larger than the span.
 
 For text reads, definitively malformed bytes produce `EncodingFailed` even when the same read also reports a backend failure. An incomplete suffix
 produces `EncodingFailed` only when IO has reached a definitive end of input; if a separate backend/limit failure stopped the stream first, IO

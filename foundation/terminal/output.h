@@ -208,7 +208,7 @@ namespace GameWIP::Terminal
                 /// @brief Whether to append one line ending after all segments.
                 bool appendLineEnding = false;
 
-                /// @brief Line ending used when appendLineEnding is true.
+                /// @brief Line ending used when appending.
                 Types::Output::LineEnding lineEnding = Types::Output::LineEnding::Native;
 
                 /// @brief Flush requested after the full segment batch.
@@ -575,11 +575,11 @@ namespace GameWIP::Terminal
 
     /// @}
 
-    /// @brief Observes a snapshot of currently active stdout capabilities without preparing the stream.
+    /// @brief Observes a snapshot of active stdout capabilities without preparing the stream.
     /// @return Status and capabilities observed for the current stdout endpoint. Later endpoint changes can stale the snapshot.
     [[nodiscard]] TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities() noexcept;
 
-    /// @brief Observes currently active capabilities without preparing the stream.
+    /// @brief Observes active capabilities without preparing the stream.
     [[nodiscard]] TERMINAL_EXPORT Types::Output::CapabilitiesResult getOutputCapabilities(Types::Output::Stream stream) noexcept;
 
     /// @brief Enables stdout support required by styling and terminal controls.

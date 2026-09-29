@@ -152,7 +152,7 @@ function Resolve-GameWipCommandConfigValue
 function Assert-GameWipProjectToolConfig
 {
     Assert-GameWipUniqueId -Items @($ProjectTools.tools) -Label 'project tool'
-    $providerKinds = @('msys2', 'npm', 'python', 'powershellGallery', 'githubRelease', 'winget', 'gitSubmodule', 'external')
+    $providerKinds = @('msys2', 'npm', 'python', 'powershellGallery', 'githubRelease', 'winget', 'external')
     $liveReferences = @{}
     $rootPath = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     $pathComparison = if (Test-GameWipWindowsHost)
@@ -469,6 +469,131 @@ function Assert-GameWipBundleAcyclic
     $Visited.Add($Id) | Out-Null
 }
 
+function Resolve-GameWipActionName
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+
+    $normalized = $Name.ToLowerInvariant()
+    foreach ($action in @($CommandConfig.Actions))
+    {
+        if ([string]$action.Id -ieq $normalized)
+        {
+            return [string]$action.Id
+        }
+        if ($null -eq $action.Aliases)
+        {
+            $aliases = @()
+        }
+        else
+        {
+            $aliases = @($action.Aliases)
+        }
+        foreach ($alias in $aliases)
+        {
+            if ([string]$alias -ieq $normalized)
+            {
+                return [string]$action.Id
+            }
+        }
+    }
+    return $null
+}
+
+function Get-GameWipOptionDefinition
+{
+    param([Parameter(Mandatory = $true)][string]$Id)
+    $optionMatches = @($CommandConfig.Options | Where-Object { [string]$_.Id -ieq $Id })
+    if ($optionMatches.Count -ne 1)
+    {
+        throw "Unknown project option '$Id'."
+    }
+    return $optionMatches[0]
+}
+
+function Get-GameWipActionOptionIds
+{
+    param([Parameter(Mandatory = $true)][string]$Action)
+
+    $ids = @($CommandConfig.Options | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global } | ForEach-Object { [string]$_.Id })
+    if ($CommandConfig.ActionOptions.ContainsKey($Action))
+    {
+        $ids += @($CommandConfig.ActionOptions[$Action])
+    }
+    return @($ids | Select-Object -Unique)
+}
+
+function Assert-GameWipOptionCatalog
+{
+    $options = @($CommandConfig.Options)
+    Assert-GameWipUniqueId -Label 'project option' -Items $options
+    $optionIds = @{}
+    foreach ($option in $options)
+    {
+        $id = [string]$option.Id
+        if ($id -notmatch '^[A-Za-z][A-Za-z0-9]*$')
+        {
+            throw "Project option '$id' has an invalid identifier."
+        }
+        $optionIds[$id.ToLowerInvariant()] = $id
+        if ($option.Kind -in @('string', 'integer', 'choice', 'string-list') -and [string]::IsNullOrWhiteSpace([string]$option.ValueName))
+        {
+            throw "Project option '$id' must declare valueName."
+        }
+        if ($option.Kind -eq 'choice' -and @($option.Choices).Count -eq 0)
+        {
+            throw "Project option '$id' must declare choices."
+        }
+    }
+    $actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })
+    foreach ($actionName in $CommandConfig.ActionOptions.Keys)
+    {
+        if ($actionIds -notcontains [string]$actionName)
+        {
+            throw "Project option mapping references unknown action '$actionName'."
+        }
+        foreach ($optionId in @($CommandConfig.ActionOptions[$actionName]))
+        {
+            if (-not $optionIds.ContainsKey(([string]$optionId).ToLowerInvariant()))
+            {
+                throw "Project action '$actionName' references unknown option '$optionId'."
+            }
+        }
+    }
+    foreach ($actionId in $actionIds)
+    {
+        if (-not $CommandConfig.ActionOptions.ContainsKey($actionId))
+        {
+            throw "Project action '$actionId' is missing an option mapping."
+        }
+    }
+}
+
+function Assert-GameWipActionOptions
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Action,
+        [Parameter(Mandatory = $true)][hashtable]$BoundParameters
+    )
+
+    $allowed = @{}
+    foreach ($optionId in @(Get-GameWipActionOptionIds -Action $Action))
+    {
+        $allowed[([string]$optionId).ToLowerInvariant()] = $true
+    }
+    foreach ($boundName in $BoundParameters.Keys)
+    {
+        $boundOption = @($CommandConfig.Options | Where-Object { [string]$_.Id -ieq [string]$boundName })
+        if ($boundOption.Count -eq 0)
+        {
+            continue
+        }
+        if (-not $allowed.ContainsKey(([string]$boundName).ToLowerInvariant()))
+        {
+            throw "Option '-$boundName' is not supported for project action '$Action'."
+        }
+    }
+}
+
 function Assert-GameWipCommandConfig
 {
     $configurePresets = @(Get-GameWipVisiblePresetName -Kind 'configure')
@@ -484,20 +609,54 @@ function Assert-GameWipCommandConfig
     Assert-GameWipUniqueId -Label 'action' -Items $actions
     Assert-GameWipUniqueId -Label 'interactive menu' -Items $menus
     Assert-GameWipUniqueId -Label 'project command' -Items $commands
-    $requiredActions = @('menu', 'doctor', 'git', 'workflow', 'unicode', 'format', 'quality', 'tools', 'links', 'configure', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'docs', 'analyze', 'coverage', 'asan', 'ubsan', 'benchmark', 'runs', 'list', 'help')
+    Assert-GameWipOptionCatalog
+    $requiredActions = @('menu', 'ready', 'git', 'workflow', 'unicode', 'format', 'quality', 'tool', 'links', 'deps', 'config', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'doc', 'analyze', 'cov', 'asan', 'ubsan', 'bench', 'history', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
     if ((($requiredActions | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
         throw "Project action catalog drift. Required: $($requiredActions -join ', '); configured: $($actionIds -join ', ')."
     }
-    if ($actionIds -contains 'analysis')
+    if ($actionIds -contains 'analysis' -or $actionIds -contains 'doctor')
     {
-        throw "Retired action alias 'analysis' must not be registered."
+        throw "Retired action name must not be registered."
+    }
+    $actionNames = @{}
+    foreach ($action in $actions)
+    {
+        $canonical = [string]$action.Id
+        $canonicalKey = $canonical.ToLowerInvariant()
+        if ($actionNames.ContainsKey($canonicalKey))
+        {
+            throw "Project action name '$canonical' is duplicated or collides with an alias."
+        }
+        $actionNames[$canonicalKey] = $canonical
+        if ($null -eq $action.Aliases)
+        {
+            $aliases = @()
+        }
+        else
+        {
+            $aliases = @($action.Aliases)
+        }
+        foreach ($alias in $aliases)
+        {
+            $aliasText = [string]$alias
+            if ($aliasText -notmatch '^[a-z][a-z0-9-]*$')
+            {
+                throw "Project action '$canonical' has invalid alias '$aliasText'."
+            }
+            $aliasKey = $aliasText.ToLowerInvariant()
+            if ($actionNames.ContainsKey($aliasKey))
+            {
+                throw "Project action alias '$aliasText' collides with '$($actionNames[$aliasKey])'."
+            }
+            $actionNames[$aliasKey] = $canonical
+        }
     }
     $requiredMenus = @(
-        'root', 'development', 'validation', 'quality', 'repository-quality', 'formatting', 'hygiene',
-        'tools', 'installed-tools', 'tool-updates', 'repository', 'git-workspace', 'github-workflows',
-        'maintenance', 'unicode-data', 'run-history'
+        'root', 'development', 'validation', 'quality', 'hygiene', 'tools', 'tool-updates',
+        'git-workspace', 'github-workflows', 'advanced', 'advanced-validation', 'dependencies',
+        'unicode-data', 'run-history'
     )
     $menuIds = @($menus | ForEach-Object { [string]$_.Id })
     if ((($requiredMenus | Sort-Object) -join "`n") -cne (($menuIds | Sort-Object) -join "`n"))
@@ -505,16 +664,16 @@ function Assert-GameWipCommandConfig
         throw "Interactive menu catalog drift. Required: $($requiredMenus -join ', '); configured: $($menuIds -join ', ')."
     }
     $supportedMenuHandlers = @(
-        'menu-development', 'menu-validation', 'menu-quality', 'menu-repository-quality', 'menu-formatting',
-        'menu-hygiene', 'menu-tools', 'menu-installed-tools', 'menu-tool-updates', 'menu-repository',
-        'menu-git-workspace', 'menu-github-workflows', 'menu-maintenance', 'menu-unicode-data', 'menu-run-history',
-        'doctor', 'help', 'configure', 'build', 'run', 'docs', 'test', 'module', 'stress', 'wizard', 'benchmark',
-        'coverage', 'asan', 'ubsan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
-        'analyze', 'links', 'hygiene-standard', 'hygiene-deep', 'hygiene-check', 'hygiene-list', 'hygiene-status', 'tools-status',
-        'tools-check-updates', 'tools-preview', 'tools-update', 'setup-guidance', 'git-status', 'git-fetch',
+        'menu-development', 'menu-validation', 'menu-quality', 'menu-hygiene', 'menu-tools', 'menu-tool-updates',
+        'menu-git-workspace', 'menu-github-workflows', 'menu-advanced', 'menu-advanced-validation',
+        'menu-dependencies', 'menu-unicode-data', 'menu-run-history', 'deps-check', 'deps-prepare',
+        'ready', 'help', 'config', 'build', 'run', 'doc', 'test', 'module', 'stress', 'wizard', 'bench',
+        'cov', 'asan', 'ubsan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
+        'analyze', 'links', 'hygiene-standard', 'hygiene-deep', 'hygiene-check', 'hygiene-list', 'hygiene-status', 'tool-status',
+        'tool-plan', 'tool-preview', 'tool-update', 'setup-guidance', 'git-status', 'git-fetch',
         'git-switch', 'git-create', 'git-update', 'git-push', 'git-cleanup', 'git-log', 'workflow-list',
         'workflow-status', 'workflow-run', 'unicode-status', 'unicode-verify', 'unicode-regenerate',
-        'runs-list', 'runs-show', 'runs-clean'
+        'history-list', 'history-show', 'history-clean'
     )
     foreach ($menu in $menus)
     {

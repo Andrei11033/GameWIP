@@ -7,11 +7,13 @@ namespace GameWIP::Desktop::Detail
 {
     namespace
     {
+        /// @brief Maps a logical queue position to its fixed-storage ring slot.
         [[nodiscard]] std::size_t physicalIndex(const ChildSurfaceState &state, std::size_t logicalIndex) noexcept
         {
             return (state.eventHead + logicalIndex) % state.eventStorage.size();
         }
 
+        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
         void discardAt(ChildSurfaceState &state, std::size_t index) noexcept
         {
             for (std::size_t current = index; current + 1 < state.eventCount; ++current)
@@ -24,6 +26,7 @@ namespace GameWIP::Desktop::Detail
         }
     } // namespace
 
+    /// @brief Returns whether a ChildSurface payload may replace a newer payload of the same type.
     bool isChildSurfaceEventCoalescible(const Types::ChildSurface::Events::Payload &data) noexcept
     {
         using namespace Types::ChildSurface::Events;
@@ -31,6 +34,7 @@ namespace GameWIP::Desktop::Detail
                std::holds_alternative<PixelSizeChanged>(data) || std::holds_alternative<ContentScaleChanged>(data);
     }
 
+    /// @brief Enqueues a ChildSurface event, coalescing geometry bursts before dropping durable events.
     ChildSurfaceEnqueueResult enqueueChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept
     {
         if (state.suppressEvents)

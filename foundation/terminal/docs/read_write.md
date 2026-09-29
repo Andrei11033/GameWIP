@@ -7,7 +7,7 @@ direct calls and Sessions.
 
 ## Streams and overloads
 
-Terminal currently exposes `Types::Input::Stream::Stdin` and `Types::Output::Stream::{Stdout, Stderr}`. Free reads default to stdin; free writes and
+Terminal exposes `Types::Input::Stream::Stdin` and `Types::Output::Stream::{Stdout, Stderr}`. Free reads default to stdin; free writes and
 controls default to stdout. Explicit-stream overloads make stderr or protocol endpoint selection visible.
 
 Unknown stream enum values return `InvalidArgument` before endpoint access.
@@ -63,7 +63,7 @@ synchronization for concurrent access. External `std::stop_token` cancellation r
 | `readLine()` | Returns one valid UTF-8 line or a terminating partial line. | `Types::Input::LineResult` |
 
 `Types::Input::ByteOptions::allowPartial = true` permits success after any positive byte count. With `allowPartial = false`, the operation attempts to
-fill the supplied span until completion, a terminating outcome, or failure.
+fill the destination span until completion, a terminating outcome, or failure.
 
 An empty byte span performs no transfer and returns a successful completed result with `bytesRead == 0`.
 
@@ -155,7 +155,7 @@ operating-system endpoint.
 
 ## Text writes
 
-`writeText()` writes exactly the supplied text. `writeLine()` appends the selected line ending. `print()` and `println()` use compile-time-checked
+`writeText()` writes exactly the input text. `writeLine()` appends the selected line ending. `print()` and `println()` use compile-time-checked
 `std::format_string` overloads, format before final stream serialization, then write one logical record.
 All Text operations require complete valid UTF-8 independent of the selected endpoint. Validation occurs before style preparation, capability-changing
 output work, or intentional emission; malformed or incomplete text returns `EncodingFailed`.

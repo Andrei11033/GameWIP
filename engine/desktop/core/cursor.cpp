@@ -29,11 +29,13 @@ namespace GameWIP::Desktop
     {
         using IO::Types::ErrorCode;
 
+        /// @brief Builds a portable status from a single error code.
         [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
         {
             return IO::makeStatus(code);
         }
 
+        /// @brief Validates cursor dimensions, pixel storage, DPI uniqueness, and hotspot bounds.
         [[nodiscard]] IO::Types::Status validateVariants(std::span<const Types::Cursor::ImageView> variants) noexcept
         {
             if (variants.empty())
@@ -109,6 +111,7 @@ namespace GameWIP::Desktop
     Cursor &Cursor::operator=(Cursor &&) noexcept = default;
     Cursor::~Cursor() noexcept = default;
 
+    /// @brief Creates a portable cursor handle that shares immutable native variants.
     Cursor::Cursor(std::shared_ptr<const Detail::CursorState> state) noexcept
         : state_(std::move(state))
     {
@@ -129,6 +132,7 @@ namespace GameWIP::Desktop
         Detail::Platform::destroyNativeCursorVariants(variants);
     }
 
+    /// @brief Selects the nearest retained native cursor variant for the requested DPI.
     const Detail::NativeCursorVariant &Detail::CursorState::variantForDpi(std::uint32_t dpi) const noexcept
     {
         std::size_t best = 0;
@@ -142,11 +146,13 @@ namespace GameWIP::Desktop
         return variants[best];
     }
 
+    /// @brief Reconstructs the public Cursor wrapper around validated immutable state.
     Cursor Detail::CursorAccess::make(std::shared_ptr<const CursorState> state) noexcept
     {
         return Cursor(std::move(state));
     }
 
+    /// @brief Exposes the private shared state to the desktop implementation.
     const std::shared_ptr<const Detail::CursorState> &Detail::CursorAccess::state(const Cursor &cursor) noexcept
     {
         return cursor.state_;

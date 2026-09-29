@@ -99,6 +99,13 @@ set(expected_gamewip_headers
     desktop/events.h
     desktop/native/win32.h
     desktop/renderer_bridge.h
+    desktop/shell.h
+    desktop/shell_jump_lists.h
+    desktop/shell_notifications.h
+    desktop/shell_registration.h
+    desktop/shell_taskbar.h
+    desktop/shell_tray.h
+    desktop/shell_types.h
     desktop/types.h
     desktop/window.h
     desktop/desktop_export.h

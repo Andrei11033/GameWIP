@@ -22,11 +22,35 @@ if ($duplicateKeys.Count -ne 0)
 {
     throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')."
 }
-foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tools', 'visual-studio', 'msys2', 'repository', 'profiler', 'editor', 'docs', 'list', 'help'))
+foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tool', 'vs', 'msys2', 'repo', 'deps', 'profiler', 'editor', 'doc', 'list', 'help'))
 {
     if (@($actions.Id) -notcontains $requiredAction)
     {
         throw "Missing setup action '$requiredAction'."
+    }
+}
+$expectedMenuOrder = @('full', 'check', 'repair', 'update', 'repo', 'tool', 'deps', 'msys2', 'editor', 'doc', 'profiler', 'vs', 'uninstall')
+$actualMenuOrder = @($menuActions | ForEach-Object { [string]$_.Id })
+if (($actualMenuOrder -join "`n") -cne ($expectedMenuOrder -join "`n"))
+{
+    throw 'Setup menu actions are not in the approved workflow order.'
+}
+foreach ($nonMenuAction in @('list', 'help', 'menu'))
+{
+    $action = @($actions | Where-Object Id -eq $nonMenuAction)[0]
+    if ($null -ne $action.PSObject.Properties['key'] -or ($action -is [hashtable] -and ($action.ContainsKey('key') -or $action.ContainsKey('Key'))))
+    {
+        throw "Setup direct action '$nonMenuAction' must not appear as an operational menu task."
+    }
+}
+foreach ($aliasExpectation in @{
+        tools = 'tool'; repository = 'repo'; dependencies = 'deps'; docs = 'doc'; 'visual-studio' = 'vs'; ls = 'list'; h = 'help'
+    }.GetEnumerator())
+{
+    $action = @($actions | Where-Object Id -eq $aliasExpectation.Value)
+    if ($action.Count -ne 1 -or $null -eq $action[0].Aliases -or @($action[0].Aliases) -notcontains $aliasExpectation.Key)
+    {
+        throw "Setup alias '$($aliasExpectation.Key)' is not registered for '$($aliasExpectation.Value)'."
     }
 }
 foreach ($action in $actions)
@@ -49,6 +73,13 @@ foreach ($requiredHelpText in @('setup.bat <action>', 'Setup actions', '-Preview
         throw "Setup helper help omits '$requiredHelpText'."
     }
 }
+foreach ($requiredOption in @('Preview', 'NonInteractive', 'Yes', 'Json', 'Quiet', 'NoColor', 'OutputMode', 'Verbose', 'Branch', 'SkipDocs'))
+{
+    if (@($actionConfig.Options | Where-Object Id -eq $requiredOption).Count -ne 1)
+    {
+        throw "Setup option catalog is missing '$requiredOption'."
+    }
+}
 
 # Bootstrap project internals without invoking the setup executable entrypoint.
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
@@ -62,6 +93,16 @@ foreach ($file in @('Common.ps1', 'Msys2.ps1', 'Editor.ps1', 'Uninstall.ps1'))
     . (Join-Path $SetupRoot (Join-Path 'lib' $file))
 }
 . (Join-Path $SetupRoot 'lib\Orchestration.ps1')
+Assert-GameWipSetupActionCatalog
+foreach ($aliasExpectation in @{
+        tools = 'tool'; repository = 'repo'; dependencies = 'deps'; docs = 'doc'; 'visual-studio' = 'vs'; ls = 'list'; h = 'help'
+    }.GetEnumerator())
+{
+    if ((Resolve-GameWipSetupActionName -Name $aliasExpectation.Key) -cne $aliasExpectation.Value)
+    {
+        throw "Setup alias '$($aliasExpectation.Key)' did not resolve to '$($aliasExpectation.Value)'."
+    }
+}
 
 $originalSetupStateRoot = [string]$ProjectConfig.storage.state
 $editorStateRoot = 'build/gamewip/temp/editor-state-test-' + [guid]::NewGuid().ToString('N')
@@ -188,7 +229,7 @@ function Assert-GameWipSetupWindows
 function Invoke-GameWipSetupActionBody
 {
     param([string]$SelectedAction)
-    if ($SelectedAction -eq 'docs')
+    if ($SelectedAction -eq 'doc')
     {
         $script:setupDocsBodyRan = $true
     }
@@ -205,7 +246,7 @@ try
 {
     $ProjectConfig.storage.runs = "$setupPreviewRoot/runs"
 
-    $docsPreview = Invoke-GameWipSetupOperation -SelectedAction docs
+    $docsPreview = Invoke-GameWipSetupOperation -SelectedAction doc
     if ($docsPreview.Status -ne 'passed' -or $script:setupDocsBodyRan)
     {
         throw 'setup docs -Preview executed the mutating documentation body.'

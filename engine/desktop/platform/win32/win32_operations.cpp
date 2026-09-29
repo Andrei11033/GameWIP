@@ -16,6 +16,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     namespace
     {
+        /// @brief Changes the HWND owner while preserving Win32's zero-value error ambiguity.
         [[nodiscard]] IO::Types::Status setNativeParent(HWND window, HWND owner) noexcept
         {
             SetLastError(ERROR_SUCCESS);
@@ -28,6 +29,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Converts a logical client rectangle into a DPI-scaled outer frame.
         [[nodiscard]] IO::Types::Status setOuterRect(WindowState &state, Types::ScreenPosition position, Types::LogicalSize size) noexcept
         {
             const UINT dpi = dpiForWindow(state.platform->handle);
@@ -86,6 +88,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return refreshCachedGeometry(state);
         }
 
+        /// @brief Selects the supplied icon image with the smallest size distance.
         [[nodiscard]] const Types::IconImageView &closestIcon(
             std::span<const Types::IconImageView> images,
             int desiredWidth,
@@ -105,6 +108,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 });
         }
 
+        /// @brief Creates a 32-bit BGRA HICON from a portable RGBA image.
         [[nodiscard]] HICON createIcon(const Types::IconImageView &image) noexcept
         {
             BITMAPV5HEADER header{};
@@ -271,6 +275,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DestroyIcon(large);
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "CreateIconIndirect small");
         }
+        // The Window owns both handles after publication and releases them on replacement or close.
         SendMessageW(state.platform->handle, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(large));
         SendMessageW(state.platform->handle, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(small));
         if (state.platform->largeIcon != nullptr)

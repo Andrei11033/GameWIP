@@ -115,7 +115,8 @@ function Show-GameWipHygieneList
 
 function Show-GameWipHygieneStatus
 {
-    $tidy = Get-GameWipDetectedTool -Tool (Get-GameWipProjectTool -Id clang-tidy)
+    $tidyStatus = Get-GameWipToolStatus -Tool (Get-GameWipProjectTool -Id clang-tidy)
+    $tidy = $tidyStatus.Detected
     $runner = Resolve-GameWipToolCommand -Command run-clang-tidy
     $python = Resolve-GameWipToolCommand -Command python
     $database = Join-Path $RepositoryRoot "build\$($HygieneConfig.AnalyzePreset)\compile_commands.json"

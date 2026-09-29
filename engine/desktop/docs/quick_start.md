@@ -15,7 +15,12 @@ The normal Window surface is:
 Include `desktop/display_info.h`, `desktop/cursor.h`, `desktop/child_surface.h`,
 `desktop/clipboard.h`, `desktop/drag_drop.h`, `desktop/renderer_bridge.h`, or `desktop/native/win32.h`
 only when using rich display inspection, custom native cursors, native child
-hosts, Clipboard/data transfer, native drag and drop, renderer integration, or Win32 interop.
+hosts, Clipboard/data transfer, native drag and drop, renderer integration, or
+Win32 interop. Include `desktop/shell.h`, `desktop/shell_types.h`, and the
+focused `desktop/shell_taskbar.h`, `desktop/shell_tray.h`,
+`desktop/shell_notifications.h`, `desktop/shell_jump_lists.h`, or
+`desktop/shell_registration.h` headers only when using shell capability queries,
+typed shell events, or the corresponding shell resources.
 
 ## Installed CMake
 
@@ -116,5 +121,6 @@ individual event payloads.
 - @ref desktop_child_surfaces explains native child hosting and external descendant ownership.
 - @ref desktop_clipboard explains service calls that work with no Window open.
 - @ref desktop_drag_drop explains native target regions, effects, events, and synchronous source dragging.
-- @ref desktop_examples provides focused display, renderer, and native examples.
+- @ref desktop_shell explains shell capabilities, resources, queue ownership, and manual validation.
+- @ref desktop_examples provides focused display, shell, renderer, and native examples.
 - @ref desktop_troubleshooting maps common failures to their owning contract.

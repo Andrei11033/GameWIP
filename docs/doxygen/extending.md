@@ -175,7 +175,7 @@ correctness assertions based on timing.
 Verify registration before collecting results:
 
 ```powershell
-.\gamewip.bat benchmark dry-run
+.\gamewip.bat bench dry-run
 ```
 
 Benchmark authoring rules are documented in @ref project_benchmarking.

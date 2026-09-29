@@ -225,7 +225,8 @@ function Invoke-GameWipProcess
         [ValidateSet('Summary', 'Stream', 'LogOnly')][string]$OutputMode,
         [ValidateRange(0, 86400)][int]$TimeoutSeconds = 0,
         [int[]]$SuccessfulExitCodes = @(0),
-        [string]$LogPath
+        [string]$LogPath,
+        [switch]$InheritConsole
     )
 
     Assert-GameWipNotCancelled
@@ -289,13 +290,19 @@ function Invoke-GameWipProcess
     $lastVisibleActivitySeconds = 0.0
     try
     {
+        # Manual validation must see the caller's real stdin/stdout handles. In
+        # that mode the child owns console presentation and output is intentionally
+        # not captured into the ordinary stream log files.
         $start = @{
             FilePath = $launch.FilePath
             WorkingDirectory = $WorkingDirectory
             PassThru = $true
             NoNewWindow = $true
-            RedirectStandardOutput = $stdoutPath
-            RedirectStandardError = $stderrPath
+        }
+        if (-not $InheritConsole)
+        {
+            $start.RedirectStandardOutput = $stdoutPath
+            $start.RedirectStandardError = $stderrPath
         }
         if (-not [string]::IsNullOrWhiteSpace([string]$launch.ArgumentLine))
         {
@@ -415,15 +422,19 @@ function Invoke-GameWipProcess
         Write-GameWipProcessNewOutput -Path $stderrPath -LineCount ([ref]$stderrLineCount) -Prefix '[stderr] ' -PrefixColor Yellow
     }
 
-    $stdout = @(if (Test-Path -LiteralPath $stdoutPath)
+    $stdout = @(if (-not $InheritConsole -and (Test-Path -LiteralPath $stdoutPath))
         {
             Get-Content -LiteralPath $stdoutPath -ErrorAction SilentlyContinue
         })
-    $stderr = @(if (Test-Path -LiteralPath $stderrPath)
+    $stderr = @(if (-not $InheritConsole -and (Test-Path -LiteralPath $stderrPath))
         {
             Get-Content -LiteralPath $stderrPath -ErrorAction SilentlyContinue
         })
     $combined = [System.Collections.Generic.List[string]]::new()
+    if ($InheritConsole)
+    {
+        $combined.Add('Interactive process output was inherited by the caller console and was not captured.') | Out-Null
+    }
     foreach ($line in $stdout)
     {
         $combined.Add([string]$line) | Out-Null
@@ -491,7 +502,8 @@ function Invoke-GameWipNative
         [hashtable]$Environment = @{},
         [ValidateRange(0, 86400)][int]$TimeoutSeconds = 0,
         [ValidateSet('Summary', 'Stream', 'LogOnly')][string]$OutputMode,
-        [int[]]$AllowedExitCodes = @(0)
+        [int[]]$AllowedExitCodes = @(0),
+        [switch]$Interactive
     )
 
     Initialize-GameWipRunLog
@@ -552,7 +564,8 @@ function Invoke-GameWipNative
             -TimeoutSeconds $TimeoutSeconds `
             -OutputMode $effectiveOutputMode `
             -SuccessfulExitCodes $AllowedExitCodes `
-            -LogPath $step.LogPath
+            -LogPath $step.LogPath `
+            -InheritConsole:$Interactive
     }
     catch [System.OperationCanceledException]
     {

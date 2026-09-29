@@ -67,7 +67,7 @@ function Resolve-GameWipWorkflowArgument
     {
         if ($ItemKind -ne 'all' -and $ItemNumber -le 0)
         {
-            throw "Project kind '$ItemKind' requires -WorkflowNumber with a positive issue or pull-request number."
+            throw "Project kind '$ItemKind' requires -ItemNumber with a positive issue or pull-request number."
         }
         @('-f', "kind=$ItemKind") | ForEach-Object { $arguments.Add($_) | Out-Null }
         if ($ItemKind -ne 'all')

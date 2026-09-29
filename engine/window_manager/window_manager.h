@@ -16,7 +16,7 @@ namespace GameWIP::Input
 namespace GameWIP
 {
     /// @brief Preserved legacy WindowManager interface.
-    /// @note Not currently compiled or supported; retained for a later
+    /// @note Not compiled or supported; retained for a later
     /// coordination-layer migration.
     class WindowManager
     {

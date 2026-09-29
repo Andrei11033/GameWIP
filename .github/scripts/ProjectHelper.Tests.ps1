@@ -15,7 +15,7 @@ $powerShellPath = (Get-Process -Id $PID).Path
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
-foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'quality', 'quality hygiene', '-Enforce', 'tools', 'runs', '-Preview', '-NonInteractive', '-Yes', '-NoBuild', '-Fresh', '-NoColor', '-Json'))
+foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'ready', 'quality', 'quality hygiene', '-FailOnFindings', 'tool', 'history', 'config: configure, cfg, c', '-Preview', '-NonInteractive', '-Yes', '-SkipBuild', '-CleanBuild', '-NoColor', '-Json', '-OutputPath', '-PassThroughArgs'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -27,21 +27,44 @@ Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
 
+foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'ChangedOnly', 'FailOnFindings', 'UseCallerTemp', 'PythonHostPath', 'UnicodeDataPath', 'ItemNumber'))
+{
+    if (@($CommandConfig.Options | Where-Object Id -eq $requiredOption).Count -ne 1)
+    {
+        throw "Project option catalog is missing '$requiredOption'."
+    }
+}
+
+$aliasExpectations = @{
+    configure = 'config'; cfg = 'config'; c = 'config'; b = 'build'; t = 'test'; q = 'quality'; fmt = 'format'; dependencies = 'deps'; benchmark = 'bench'; mod = 'module'; wf = 'workflow'; ucd = 'unicode'; g = 'git'; tools = 'tool'; docs = 'doc'; tidy = 'analyze'; coverage = 'cov'; runs = 'history'; hist = 'history'; exec = 'run'; ls = 'list'; h = 'help'
+}
+foreach ($alias in $aliasExpectations.Keys)
+{
+    if ((Resolve-GameWipActionName -Name $alias) -cne $aliasExpectations[$alias])
+    {
+        throw "Project alias '$alias' did not resolve to '$($aliasExpectations[$alias])'."
+    }
+}
+if ($null -ne (Resolve-GameWipActionName -Name doctor))
+{
+    throw "Retired project action 'doctor' must not resolve."
+}
+
 $validationMenu = @($CommandConfig.Menus | Where-Object Id -eq 'validation')[0]
 $validationHandlers = @($validationMenu.Items | ForEach-Object Handler)
-if (@($validationHandlers | Where-Object { $_ -eq 'coverage' }).Count -ne 1)
+if (@($validationHandlers | Where-Object { $_ -eq 'bench' }).Count -ne 1)
 {
-    throw 'Validation menu must contain Coverage exactly once.'
+    throw 'Validation menu must contain Benchmarks exactly once.'
 }
-if (@($validationHandlers | Where-Object { $_ -eq 'asan' }).Count -ne 1)
+if (@($validationHandlers | Where-Object { $_ -eq 'menu-advanced-validation' }).Count -ne 1)
 {
-    throw 'Validation menu must contain AddressSanitizer exactly once.'
+    throw 'Validation menu must contain Advanced validation exactly once.'
 }
 if (@($validationMenu.Items | ForEach-Object Key | Group-Object | Where-Object Count -gt 1).Count -ne 0)
 {
     throw 'Validation menu keys must be unique.'
 }
-foreach ($handler in @('test', 'module', 'stress', 'wizard', 'benchmark', 'coverage', 'bundle', 'asan'))
+foreach ($handler in @('test', 'module', 'stress', 'bench', 'menu-advanced-validation'))
 {
     if ($validationHandlers -notcontains $handler)
     {
@@ -98,7 +121,7 @@ $savedDetectedTool = (Get-Command Get-GameWipDetectedTool).ScriptBlock
 $savedLatestQuery = (Get-Command Get-GameWipToolLatestQuery).ScriptBlock
 try
 {
-    Set-Item -Path function:Get-GameWipDetectedTool -Value { param($Tool) [pscustomobject]@{ Version = '1.0.0' } }
+    Set-Item -Path function:Get-GameWipDetectedTool -Value { param($Tool) [pscustomobject]@{ Installed = $true; Version = '1.0.0'; Location = 'test'; Source = 'test'; SelectionReason = 'test'; Candidates = @() } }
     Set-Item -Path function:Get-GameWipToolLatestQuery -Value {
         param($Tool)
         [pscustomobject]@{ State = 'resolved'; Version = '1.0.0'; Metadata = $null }
@@ -144,12 +167,12 @@ try
     }
     Set-Item -Path function:Invoke-GameWipToolUpdate -Value {
         param([string[]]$ToolId, [switch]$PreviewOnly)
-        if (($ToolId -join ',') -ne 'clang-tidy,clang-format' -or [bool]$PreviewOnly -ne ($Script:UpdateMenuAction -eq 'tools-preview'))
+        if (($ToolId -join ',') -ne 'clang-tidy,clang-format' -or [bool]$PreviewOnly -ne ($Script:UpdateMenuAction -eq 'tool-preview'))
         {
             throw 'The tool menu did not forward the complete selection and preview policy.'
         }
     }
-    foreach ($action in @('tools-preview', 'tools-update'))
+    foreach ($action in @('tool-preview', 'tool-update'))
     {
         $Script:UpdateMenuAction = $action
         $Script:UpdateMenuReadCount = 0
@@ -310,14 +333,32 @@ foreach ($compatibility in $expectedToolSemantics.Keys)
 }
 
 $expectedMenuIds = @(
-    'root', 'development', 'validation', 'quality', 'repository-quality', 'formatting', 'hygiene',
-    'tools', 'installed-tools', 'tool-updates', 'repository', 'git-workspace', 'github-workflows',
-    'maintenance', 'unicode-data', 'run-history'
+    'root', 'development', 'validation', 'quality', 'hygiene', 'tools', 'tool-updates',
+    'git-workspace', 'github-workflows', 'advanced', 'advanced-validation', 'dependencies',
+    'unicode-data', 'run-history'
 )
 $actualMenuIds = @($CommandConfig.Menus | ForEach-Object { [string]$_.Id })
 if ((($expectedMenuIds | Sort-Object) -join "`n") -cne (($actualMenuIds | Sort-Object) -join "`n"))
 {
     throw 'Project helper interactive menu topology is not fully declarative.'
+}
+$rootHandlers = @($CommandConfig.Menus | Where-Object Id -eq 'root' | ForEach-Object { $_.Items } | ForEach-Object Handler)
+$expectedRootHandlers = @('menu-development', 'menu-validation', 'menu-quality', 'menu-tools', 'menu-git-workspace', 'menu-advanced', 'help')
+if (($rootHandlers -join "`n") -cne ($expectedRootHandlers -join "`n"))
+{
+    throw 'Project helper root menu does not expose the approved six-area topology.'
+}
+$advancedHandlers = @($CommandConfig.Menus | Where-Object Id -eq 'advanced' | ForEach-Object { $_.Items } | ForEach-Object Handler)
+foreach ($requiredAdvancedHandler in @('menu-advanced-validation', 'menu-hygiene', 'menu-github-workflows', 'menu-dependencies', 'menu-unicode-data', 'menu-run-history'))
+{
+    if ($advancedHandlers -notcontains $requiredAdvancedHandler)
+    {
+        throw "Advanced menu is missing '$requiredAdvancedHandler'."
+    }
+}
+if (@($actualMenuIds | Where-Object { $_ -in @('repository', 'repository-quality', 'formatting', 'installed-tools', 'maintenance') }).Count -ne 0)
+{
+    throw 'Retired project menu IDs remain registered.'
 }
 $standardHygiene = Get-GameWipHygieneSelection -Selector standard
 if (@($standardHygiene.Checks).Count -ne 4 -or @($standardHygiene.Checks | Where-Object Availability -ne available).Count -ne 0)
@@ -543,7 +584,7 @@ catch
 }
 if (-not $conflictingBuildPolicyRejected)
 {
-    throw '-Fresh and -NoBuild were not rejected as contradictory test policies.'
+    throw '-CleanBuild and -SkipBuild were not rejected as contradictory test policies.'
 }
 
 if ((Test-GameWipWindowsHost) -and (Get-GameWipExecutableNames -Command sample) -contains 'sample')
@@ -582,12 +623,16 @@ if ($actionIds -contains 'analysis')
 {
     throw "Retired 'analysis' alias is still public."
 }
-foreach ($requiredAction in @('menu', 'doctor', 'quality', 'tools', 'runs', 'analyze', 'help'))
+foreach ($requiredAction in @('menu', 'ready', 'quality', 'tool', 'history', 'analyze', 'help'))
 {
     if ($actionIds -notcontains $requiredAction)
     {
         throw "Missing action metadata '$requiredAction'."
     }
+}
+if ($actionIds -contains 'doctor')
+{
+    throw "Retired 'doctor' action is still public."
 }
 $duplicateActions = @($actionIds | Group-Object | Where-Object Count -gt 1)
 if ($duplicateActions.Count -ne 0)

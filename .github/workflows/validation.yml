@@ -17,8 +17,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare-dependencies:
+    name: Prepare dependency cache
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install dependency preparation tools
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-cmake
+
+      - name: Restore locked dependency cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
+          restore-keys: |
+            gamewip-dependencies-${{ runner.os }}-
+
+      - name: Prepare pinned dependencies
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 deps prepare -Yes -NonInteractive
+
+      - name: Verify pinned dependency cache
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 deps check -NonInteractive
+
   package-compatibility:
     name: Packages (CMake)
+    needs: prepare-dependencies
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -27,7 +64,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Install compiler
         uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
@@ -39,6 +75,12 @@ jobs:
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
+
+      - name: Restore locked dependency cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
 
       - name: Report CMake version
         shell: msys2 {0}
@@ -56,6 +98,7 @@ jobs:
           -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
           -DGAMEWIP_ENABLE_ASSERTS=ON
           -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
@@ -78,6 +121,7 @@ jobs:
           -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
           -DGAMEWIP_ENABLE_ASSERTS=ON
           -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
@@ -89,6 +133,7 @@ jobs:
 
   build-test:
     name: Build and Test
+    needs: prepare-dependencies
     runs-on: windows-latest
     timeout-minutes: 60
 
@@ -97,7 +142,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Install build tools
         uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
@@ -112,6 +156,12 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-python
+
+      - name: Restore locked dependency cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
 
       - name: Report CMake version
         shell: msys2 {0}
@@ -129,6 +179,7 @@ jobs:
           -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
           -DGAMEWIP_ENABLE_ASSERTS=ON
           -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
@@ -147,12 +198,10 @@ jobs:
         shell: msys2 {0}
         run: |
           python_path="$(cygpath -w "$(command -v python)")"
-          clang_format_path="$(cygpath -w "$(command -v clang-format)")"
           helper_path="$(cygpath -w "$PWD/scripts/GameWIP.ps1")"
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$helper_path" \
             unicode verify \
-            -PythonPath "$python_path" \
-            -ClangFormatPath "$clang_format_path"
+            -PythonPath "$python_path"
 
       - name: Test runtime and project contracts
         shell: msys2 {0}
@@ -168,7 +217,7 @@ jobs:
       - name: Static analysis
         shell: msys2 {0}
         run: |
-          cmake --preset analyze -DGAMEWIP_WARNINGS_AS_ERRORS=ON
+          cmake --preset analyze -DGAMEWIP_WARNINGS_AS_ERRORS=ON -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
           cmake --build --preset analyze
 
   repository-checks:
@@ -219,10 +268,14 @@ jobs:
           eslint_js_version="$(jq -r \
             '.tools[] | select(.id == "eslint") | .provider.dependencies[] | select(.package == "@eslint/js") | .version' \
             "$registry")"
+          prettier_powershell_version="$(jq -r \
+            '.tools[] | select(.id == "prettier") | .provider.dependencies[] | select(.package == "prettier-plugin-powershell") | .version' \
+            "$registry")"
           npm install --global \
             "eslint@$(version eslint)" \
             "@eslint/js@$eslint_js_version" \
             "prettier@$(version prettier)" \
+            "prettier-plugin-powershell@$prettier_powershell_version" \
             "markdownlint-cli2@$(version markdownlint-cli2)"
 
       - name: Install registry-pinned PowerShell analyzer
@@ -289,6 +342,7 @@ jobs:
 
   coverage:
     name: Coverage
+    needs: prepare-dependencies
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -297,7 +351,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Install coverage tools
         uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
@@ -311,13 +364,19 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-gcovr
 
+      - name: Restore locked dependency cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
+
       - name: Report CMake version
         shell: msys2 {0}
         run: cmake --version
 
       - name: Configure
         shell: msys2 {0}
-        run: cmake --preset coverage -DGAMEWIP_WARNINGS_AS_ERRORS=ON
+        run: cmake --preset coverage -DGAMEWIP_WARNINGS_AS_ERRORS=ON -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
 
       - name: Build
         shell: msys2 {0}
@@ -339,6 +398,7 @@ jobs:
 
   address-sanitizer:
     name: AddressSanitizer
+    needs: prepare-dependencies
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -347,7 +407,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Install CLANG64 tools
         uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
@@ -362,13 +421,19 @@ jobs:
             mingw-w64-clang-x86_64-lld
             mingw-w64-clang-x86_64-ninja
 
+      - name: Restore locked dependency cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
+
       - name: Report CMake version
         shell: msys2 {0}
         run: cmake --version
 
       - name: Configure
         shell: msys2 {0}
-        run: cmake --preset asan -DGAMEWIP_WARNINGS_AS_ERRORS=ON
+        run: cmake --preset asan -DGAMEWIP_WARNINGS_AS_ERRORS=ON -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
 
       - name: Build
         shell: msys2 {0}
@@ -380,6 +445,7 @@ jobs:
 
   docs-check:
     name: Docs Check
+    needs: prepare-dependencies
     runs-on: windows-latest
     timeout-minutes: 30
 
@@ -388,7 +454,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          submodules: recursive
 
       - name: Install documentation tools
         uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2
@@ -402,6 +467,12 @@ jobs:
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-graphviz
             mingw-w64-ucrt-x86_64-ninja
+
+      - name: Restore locked dependency cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
 
       - name: Report CMake version
         shell: msys2 {0}
@@ -419,6 +490,7 @@ jobs:
           -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
           -DGAMEWIP_BUILD_DOCS=ON
           -DGAMEWIP_ENABLE_TRACY=OFF
+          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
           -DGAMEWIP_WARNINGS_AS_ERRORS=ON
 
       - name: Build documentation

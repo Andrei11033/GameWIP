@@ -19,6 +19,10 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Native progress-window state and lifecycle helpers
+    // ------------------------------------------------------------
+
     struct ProgressDialogData;
 
     namespace
@@ -43,6 +47,7 @@ namespace GameWIP::Desktop::Detail::Platform
         void rollbackProgressOpenBestEffort(ProgressDialogState &state) noexcept;
     } // namespace
 
+    /// @brief Owns one modeless progress HWND and its child controls.
     struct ProgressDialogData
     {
         ProgressDialogState *owner = nullptr;
@@ -62,11 +67,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
     namespace
     {
+        /// @brief Scales baseline dialog layout units to the requested DPI.
         [[nodiscard]] LONG scaled(int value, UINT dpi) noexcept
         {
             return MulDiv(value, static_cast<int>(dpi), static_cast<int>(kBaselineDpi));
         }
 
+        /// @brief Reflows progress controls after creation or a DPI transition.
         IO::Types::Status layoutProgressWindow(ProgressDialogData &data, UINT dpi) noexcept
         {
             if (data.handle == nullptr)
@@ -118,6 +125,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Handles progress cancellation, DPI layout, and unexpected HWND destruction.
         [[nodiscard]] LRESULT CALLBACK progressWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         {
             auto *data = reinterpret_cast<ProgressDialogData *>(GetWindowLongPtrW(window, GWLP_USERDATA));
@@ -403,6 +411,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Re-enables a blocked Window after its last blocking progress dialog is gone.
         IO::Types::Status restoreOwnerAfterRemoval(const ProgressDialogState &state) noexcept
         {
             WindowState *owner = resolveWindowId(state.ownerId);
@@ -418,6 +427,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Adds one unexpected-owner-loss restoration to the dispatcher retry chain.
         void queueProgressOwnerRestore(ProgressDialogState &state) noexcept
         {
             if (state.ownerRestorePending)
@@ -430,6 +440,7 @@ namespace GameWIP::Desktop::Detail::Platform
             state.ownerRestorePending = true;
         }
 
+        /// @brief Removes a pending owner-restoration record before normal close completes.
         void cancelProgressOwnerRestore(ProgressDialogState &state) noexcept
         {
             if (!state.ownerRestorePending)
@@ -449,6 +460,7 @@ namespace GameWIP::Desktop::Detail::Platform
             state.ownerRestorePending = false;
         }
 
+        /// @brief Destroys native progress resources and reports whether portable cleanup completed.
         [[nodiscard]] ProgressCloseResult finalizeNative(ProgressDialogState &state, bool restoreOwner) noexcept
         {
             if (state.ownerRestorePending && restoreOwner)
@@ -514,6 +526,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return {IO::successStatus(), true};
         }
 
+        /// @brief Detaches thread-exit native state without deleting storage still reachable by HWNDs.
         void abandonNativeForThreadExit(ProgressDialogState &state) noexcept
         {
             if (!state.platform)
@@ -559,6 +572,7 @@ namespace GameWIP::Desktop::Detail::Platform
             state.platform.reset();
         }
 
+        /// @brief Rolls back a partially opened progress dialog while preserving the original failure.
         void rollbackProgressOpenBestEffort(ProgressDialogState &state) noexcept
         {
             // The original open failure remains authoritative; unresolved native state stays
@@ -567,6 +581,11 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // Native deleters and dispatcher ownership
+    // ------------------------------------------------------------
+
+    /// @brief Finalizes a progress allocation only after its HWND and class references are safe.
     void ProgressDialogDataDeleter::operator()(ProgressDialogData *data) const noexcept
     {
         if (data == nullptr)
@@ -634,6 +653,7 @@ namespace GameWIP::Desktop::Detail::Platform
         delete data;
     }
 
+    /// @brief Retries owner restoration records retained by the current dispatcher.
     void restorePendingProgressOwners(Dispatcher &current) noexcept
     {
         ProgressDialogState **link = &current.pendingProgressOwnerRestoreHead;
@@ -677,11 +697,13 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Returns the native thread identity associated with a progress dialog.
     DWORD progressOwnerNativeThreadId(const ProgressDialogState &state) noexcept
     {
         return state.platform ? state.platform->ownerThreadId : 0;
     }
 
+    /// @brief Creates and publishes the modeless native progress dialog.
     IO::Types::Status openProgress(ProgressDialogState &state, const Types::Dialogs::Progress::Description &description) noexcept
     {
         try
@@ -917,6 +939,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Closes native progress resources when called by their owner thread.
     ProgressCloseResult closeProgress(ProgressDialogState &state) noexcept
     {
         if (!state.platform)
@@ -930,6 +953,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return finalizeNative(state, true);
     }
 
+    /// @brief Performs destructor-safe progress cleanup, deferring owner-thread work when needed.
     bool closeProgressBestEffort(ProgressDialogState &state) noexcept
     {
         if (!state.platform)
@@ -960,6 +984,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return false;
     }
 
+    /// @brief Finalizes progress state during dispatcher teardown.
     void finalizeProgressForDispatcherExit(ProgressDialogState &state) noexcept
     {
         const ProgressCloseResult result = finalizeNative(state, false);
@@ -969,6 +994,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Closes or defers progress dialogs whose Window owner is being destroyed.
     IO::Types::Status notifyProgressOwnerLoss(WindowState &owner) noexcept
     {
         Dispatcher &current = dispatcher();
@@ -994,6 +1020,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Performs non-reporting progress cleanup for Window destruction paths.
     void notifyProgressOwnerLossBestEffort(WindowState &owner) noexcept
     {
         Dispatcher &current = dispatcher();
@@ -1018,6 +1045,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Returns whether any live progress dialog currently blocks the Window.
     bool windowHasBlockingProgressDialog(const WindowState &window) noexcept
     {
         Dispatcher &current = dispatcher();
@@ -1036,21 +1064,25 @@ namespace GameWIP::Desktop::Detail::Platform
         return false;
     }
 
+    /// @brief Applies a new native progress-dialog title.
     IO::Types::Status setProgressTitle(ProgressDialogState &state, std::string_view title) noexcept
     {
         return setNativeText(state.platform->handle, title);
     }
 
+    /// @brief Applies a new native progress-dialog heading.
     IO::Types::Status setProgressHeading(ProgressDialogState &state, std::string_view heading) noexcept
     {
         return setNativeText(state.platform->heading, heading);
     }
 
+    /// @brief Applies a new native progress-dialog message.
     IO::Types::Status setProgressMessage(ProgressDialogState &state, std::string_view message) noexcept
     {
         return setNativeText(state.platform->message, message);
     }
 
+    /// @brief Applies progress mode and restores the prior mode if native mutation fails.
     IO::Types::Status setProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept
     {
         IO::Types::Status status = applyProgressMode(state, mode);
@@ -1065,6 +1097,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return status;
     }
 
+    /// @brief Applies a determinate progress value to the native control.
     IO::Types::Status setProgressValue(ProgressDialogState &state, double progress) noexcept
     {
 #if DESKTOP_INTERNAL_TEST_HOOKS

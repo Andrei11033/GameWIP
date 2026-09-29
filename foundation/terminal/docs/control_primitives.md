@@ -47,7 +47,7 @@ Do not mix manual visibility or alternate-screen transitions with active scopes 
 
 ## Scope move assignment
 
-`CursorHiddenScope` and `AlternateScreenScope` are movable and non-copyable. Move assignment first restores/leaves state currently owned by the
+`CursorHiddenScope` and `AlternateScreenScope` are movable and non-copyable. Move assignment first restores/leaves state owned by the
 destination. If that operation fails, the destination remains active and the source is not consumed.
 
 ## Title and bell

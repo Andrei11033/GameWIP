@@ -26,6 +26,7 @@ namespace GameWIP::Desktop::Detail::Platform
         std::unordered_map<std::uint64_t, std::wstring> monitorDevices;
         std::atomic_uint64_t nextMonitorId{1};
 
+        /// @brief Minimal COM owner used by monitor and DXGI queries.
         template <typename Interface> class ComReference final
         {
         public:
@@ -86,6 +87,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         thread_local DisplayColorFactoryState displayColorFactory;
 
+        /// @brief Lazily creates or refreshes the calling thread's DXGI factory.
         [[nodiscard]] bool ensureDisplayColorFactory() noexcept
         {
             if (displayColorFactory.factory != nullptr && displayColorFactory.factory->IsCurrent() != FALSE)
@@ -97,6 +99,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return SUCCEEDED(CreateDXGIFactory1(IID_IDXGIFactory1, reinterpret_cast<void **>(&displayColorFactory.factory)));
         }
 
+        /// @brief Adds DXGI output color metadata when the monitor is exposed by DXGI.
         void addDxgiColorMetadata(HMONITOR monitor, DisplayColorSnapshot &snapshot) noexcept
         {
             if (!ensureDisplayColorFactory())
@@ -174,6 +177,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Returns the stable process-local identity for a monitor device name.
         [[nodiscard]] Types::Display::MonitorId idForDevice(std::wstring_view device)
         {
             std::scoped_lock lock(monitorRegistryMutex);
@@ -195,6 +199,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return id;
         }
 
+        /// @brief Converts a Win32 DEVMODE into the portable display-mode units.
         [[nodiscard]] Types::Display::Mode toDisplayMode(const DEVMODEW &native) noexcept
         {
             const std::uint32_t frequency = native.dmDisplayFrequency > 1 ? native.dmDisplayFrequency : 0;
@@ -206,6 +211,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 .interlaced = (native.dmDisplayFlags & DM_INTERLACED) != 0};
         }
 
+        /// @brief Converts a display-configuration refresh rational to millihertz.
         [[nodiscard]] std::uint32_t rationalMillihertz(DISPLAYCONFIG_RATIONAL value) noexcept
         {
             if (value.Numerator == 0 || value.Denominator == 0)
@@ -217,16 +223,19 @@ namespace GameWIP::Desktop::Detail::Platform
             return static_cast<std::uint32_t>(std::min<std::uint64_t>(rounded, std::numeric_limits<std::uint32_t>::max()));
         }
 
+        /// @brief Tests whether a display-configuration scanline order is interlaced.
         [[nodiscard]] bool interlaced(DISPLAYCONFIG_SCANLINE_ORDERING ordering) noexcept
         {
             return ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED || ordering == DISPLAYCONFIG_SCANLINE_ORDERING_INTERLACED_LOWERFIELDFIRST;
         }
 
+        /// @brief Active display path used for target refresh and color metadata.
         struct ActiveDisplayPath
         {
             DISPLAYCONFIG_PATH_INFO path;
         };
 
+        /// @brief Finds the active display-config path matching a GDI device name.
         [[nodiscard]] IO::Types::Status findActiveDisplayPath(std::wstring_view device, ActiveDisplayPath &result) noexcept
         {
             constexpr UINT32 flags = QDC_ONLY_ACTIVE_PATHS | QDC_VIRTUAL_MODE_AWARE;
@@ -280,6 +289,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 "display topology changed repeatedly during QueryDisplayConfig");
         }
 
+        /// @brief Adds modern or legacy advanced-color metadata to a display snapshot.
         void addDisplayConfigColorMetadata(const ActiveDisplayPath &active, DisplayColorSnapshot &snapshot) noexcept
         {
             Compat::AdvancedColorInfo2 advanced{
@@ -351,6 +361,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Queries one current or preferred mode from the monitor device.
         [[nodiscard]] Types::Display::ModeResult queryDisplayMode(Types::Display::MonitorId monitor, DWORD selector) noexcept
         {
             if (!monitor.isValid())
@@ -392,12 +403,14 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief State passed through EnumDisplayMonitors callbacks.
         struct EnumerationContext
         {
             std::vector<Types::Display::Info> *monitors = nullptr;
             IO::Types::Status status;
         };
 
+        /// @brief Appends one enumerated native monitor to the portable result.
         BOOL CALLBACK enumerateMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM userData)
         {
             auto &context = *reinterpret_cast<EnumerationContext *>(userData);
@@ -424,12 +437,14 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief State used to resolve a monitor handle from a device name.
         struct NativeMonitorContext
         {
             std::wstring_view device;
             HMONITOR monitor = nullptr;
         };
 
+        /// @brief Finds the native monitor whose device name matches the requested identity.
         BOOL CALLBACK findNativeMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM userData)
         {
             auto &context = *reinterpret_cast<NativeMonitorContext *>(userData);
@@ -443,6 +458,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return TRUE;
         }
 
+        /// @brief Converts a capability enum into its bit-mask position.
         [[nodiscard]] constexpr std::uint64_t capabilityBit(Types::Capability capability) noexcept
         {
             return std::uint64_t{1} << static_cast<std::uint8_t>(capability);
@@ -452,6 +468,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Runtime capabilities
     // ------------------------------------------------------------
+    /// @brief Returns the cached Windows build number used for capability gates.
     std::uint32_t runtimeWindowsBuild() noexcept
     {
         static const std::uint32_t build = []
@@ -478,16 +495,19 @@ namespace GameWIP::Desktop::Detail::Platform
         return build;
     }
 
+    /// @brief Tests whether the current Windows build supports system backdrops.
     bool supportsSystemBackdrop() noexcept
     {
         return runtimeWindowsBuild() >= 22621;
     }
 
+    /// @brief Tests whether the current Windows build supports transparent framebuffers.
     bool supportsTransparentFramebuffer() noexcept
     {
         return runtimeWindowsBuild() >= 26100;
     }
 
+    /// @brief Computes all Window capabilities from the current Windows build.
     Types::CapabilitiesResult getCapabilities() noexcept
     {
         using C = Types::Capability;
@@ -515,6 +535,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Monitor queries
     // ------------------------------------------------------------
+    /// @brief Converts a native monitor handle into portable geometry and color information.
     Types::Display::InfoResult monitorFromNative(HMONITOR monitor) noexcept
     {
         if (monitor == nullptr)
@@ -614,6 +635,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Enumerates current native monitors in stable portable form.
     Types::Display::MonitorsResult getMonitors() noexcept
     {
         Types::Display::MonitorsResult result;
@@ -651,12 +673,14 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Returns the primary native monitor in portable form.
     Types::Display::InfoResult getPrimaryMonitor() noexcept
     {
         const POINT origin{};
         return monitorFromNative(MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY));
     }
 
+    /// @brief Resolves a stable portable monitor identity to current native information.
     Types::Display::InfoResult getMonitor(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
@@ -671,6 +695,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return monitorFromNative(native);
     }
 
+    /// @brief Resolves a stable portable monitor identity to an HMONITOR.
     HMONITOR nativeMonitor(Types::Display::MonitorId id) noexcept
     {
         if (!id.isValid())
@@ -687,6 +712,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return context.monitor;
     }
 
+    /// @brief Returns the GDI device name associated with a stable monitor identity.
     std::wstring monitorDeviceName(Types::Display::MonitorId id) noexcept
     {
         try
@@ -704,6 +730,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Display modes
     // ------------------------------------------------------------
+    /// @brief Enumerates supported native display modes for one monitor.
     Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
@@ -782,11 +809,13 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Returns the currently active display mode for one monitor.
     Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept
     {
         return queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
     }
 
+    /// @brief Returns the preferred display mode for one monitor.
     Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
@@ -847,6 +876,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Display color state
     // ------------------------------------------------------------
+    /// @brief Returns HDR, gamut, luminance, and SDR reference-white metadata.
     Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
@@ -909,6 +939,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Consumes a test or native display-color configuration change signal.
     bool consumeDisplayColorConfigurationChange() noexcept
     {
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -953,16 +984,19 @@ namespace GameWIP::Desktop::TestHooks
     // ------------------------------------------------------------
     // Validation support
     // ------------------------------------------------------------
+    /// @brief Converts a refresh rational into the portable millihertz representation.
     std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept
     {
         return Detail::Platform::rationalMillihertz({numerator, denominator});
     }
 
+    /// @brief Injects a display-color configuration change for validation.
     void simulateDisplayColorConfigurationChange() noexcept
     {
         Detail::Platform::displayColorFactory.forceConfigurationChange = true;
     }
 
+    /// @brief Makes the next display-color metadata query report unavailable metadata.
     void makeNextDisplayColorMetadataUnavailable() noexcept
     {
         Detail::Platform::displayColorFactory.forceMetadataUnavailable = true;

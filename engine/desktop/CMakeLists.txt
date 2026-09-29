@@ -50,6 +50,7 @@ target_sources(
         core/events.cpp
         core/progress_dialog.cpp
         core/renderer_bridge.cpp
+        core/shell.cpp
         core/window.cpp
         core/desktop_test_hooks.cpp
         internal/cursor_platform.h
@@ -63,6 +64,8 @@ target_sources(
         internal/dialogs_platform.h
         internal/progress_dialog_state.h
         internal/presentation_publication_state.h
+        internal/shell_platform.h
+        internal/shell_state.h
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -79,6 +82,13 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shell.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shell_jump_lists.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shell_notifications.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shell_registration.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shell_taskbar.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shell_tray.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shell_types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
                 "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
@@ -137,6 +147,13 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/drag_drop.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/events.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/renderer_bridge.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell_jump_lists.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell_notifications.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell_registration.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell_taskbar.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell_tray.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/shell_types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"

@@ -18,7 +18,6 @@ REQUIRED_REPOSITORY_FILES = (
     ROOT / ".editorconfig",
     ROOT / ".gitattributes",
     ROOT / ".gitignore",
-    ROOT / ".gitmodules",
     ROOT / ".vsconfig",
     ROOT / "CMakePresets.json",
     ROOT / "README.md",
@@ -109,7 +108,6 @@ SUPPORTED_PROVIDERS = {
     "powershellGallery",
     "githubRelease",
     "winget",
-    "gitSubmodule",
     "external",
 }
 OBSOLETE_LIVE_REFERENCES = (
@@ -291,9 +289,12 @@ def check_issue_area_mapping(failures: list[str]) -> None:
             failures.append(f".github/ISSUE_TEMPLATE/release.yml: required release metadata is missing: {required}")
 
     dependabot = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    ecosystem_count = dependabot.count("  - package-ecosystem:")
+    if ecosystem_count == 0:
+        failures.append(".github/dependabot.yml: no ecosystems are configured")
     for label in ("area:github", "type:task", "priority:normal"):
-        if dependabot.count(f"      - '{label}'") != 2:
-            failures.append(f".github/dependabot.yml: both ecosystems must create '{label}'")
+        if dependabot.count(f"      - '{label}'") != ecosystem_count:
+            failures.append(f".github/dependabot.yml: every ecosystem must create '{label}'")
     for forbidden in ("type:tooling", "area:test_support"):
         if forbidden in dependabot or any(
             forbidden in (ROOT / ".github/ISSUE_TEMPLATE" / name).read_text(encoding="utf-8") for name in GENERAL_ISSUE_FORMS
@@ -621,9 +622,9 @@ def check_registry_relationships(failures: list[str]) -> None:
 
     for required_action in (
         "quality",
-        "tools",
+        "tool",
         "list",
-        "doctor",
+        "ready",
         "unicode",
         "workflow",
     ):

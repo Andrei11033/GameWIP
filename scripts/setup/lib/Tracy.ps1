@@ -1,4 +1,4 @@
-# Tracy version matching, reproducible build cache, staging, and persistent tool installation.
+# Tracy dependency-source resolution, reproducible build cache, staging, and persistent tool installation.
 
 # ------------------------------------------------------------
 # Tracy discovery and reproducible staging
@@ -10,14 +10,33 @@ Set-StrictMode -Version Latest
 # Installed tool discovery and verification
 # ------------------------------------------------------------
 
+function Get-GameWipTracySourcePath
+{
+    $status = @(Get-GameWipDependencyCacheStatus | Where-Object Id -eq 'tracy')
+    if ($status.Count -ne 1)
+    {
+        throw "The Tracy dependency is not declared in scripts/config/dependencies.json."
+    }
+    if (-not $status[0].Ready)
+    {
+        throw "The locked Tracy source is not ready at $($status[0].SourcePath). Run 'setup.bat deps' first."
+    }
+    $sourcePath = [IO.Path]::GetFullPath([string]$status[0].SourcePath)
+    if (-not (Test-Path -LiteralPath (Join-Path $sourcePath 'CMakeLists.txt') -PathType Leaf))
+    {
+        throw "The cached Tracy source is incomplete: $sourcePath"
+    }
+    return $sourcePath
+}
+
 function Get-GameWipTracyVersion
 {
-    param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
+    $tracyRoot = Get-GameWipTracySourcePath
 
-    $header = Join-Path $RepositoryRoot 'external\tracy\public\common\TracyVersion.hpp'
+    $header = Join-Path $tracyRoot 'public\common\TracyVersion.hpp'
     if (-not (Test-Path -LiteralPath $header))
     {
-        throw 'The Tracy submodule is not initialized; prepare the repository first.'
+        throw "The cached Tracy source is missing its version header: $header"
     }
 
     $text = Get-Content -LiteralPath $header -Raw
@@ -69,10 +88,17 @@ function Test-GameWipTracyToolSet
     if (-not (Test-Path -LiteralPath $versionFile))
     {
         # Executable presence alone cannot prove that the tools match the
-        # pinned client. Rebuild once to establish a trustworthy marker.
+        # locked client. Rebuild once to establish a trustworthy marker.
         return $false
     }
-    $expected = "source-$(Get-GameWipTracyVersion -RepositoryRoot $RepositoryRoot)"
+    try
+    {
+        $expected = "source-$(Get-GameWipTracyVersion)"
+    }
+    catch
+    {
+        return $false
+    }
     return (Get-Content -LiteralPath $versionFile -Raw).Trim() -eq $expected
 }
 
@@ -180,10 +206,10 @@ function Invoke-GameWipTracyToolBuild
         [Parameter(Mandatory = $true)][string]$MsysRoot
     )
 
-    $version = Get-GameWipTracyVersion -RepositoryRoot $RepositoryRoot
+    $version = Get-GameWipTracyVersion
     if (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot)
     {
-        Write-Host "  Ready: complete Tracy tool set for pinned client $version"
+        Write-Host "  Ready: complete Tracy tool set for locked client $version"
         return
     }
 
@@ -207,7 +233,7 @@ function Invoke-GameWipTracyToolBuild
             throw "The UCRT64 Tracy build toolchain is incomplete; missing $compiler"
         }
     }
-    $tracyRoot = Join-Path $RepositoryRoot 'external\tracy'
+    $tracyRoot = Get-GameWipTracySourcePath
     $setupRoot = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.cache 'tracy')
     $buildRoot = Join-Path $setupRoot 'ucrt64'
     $stageRoot = Join-Path $Script:OperationContext.Temp 'tracy-stage'
@@ -244,7 +270,7 @@ function Invoke-GameWipTracyToolBuild
     $previousGitConfigValue = $env:GIT_CONFIG_VALUE_0
     try
     {
-        # Configure and build each pinned Tracy project in dependency order.
+        # Configure and build each locked Tracy project in dependency order.
         $env:CPM_SOURCE_CACHE = $cacheRoot
         $env:Path = @($ucrtBin, $previousPath) -join [IO.Path]::PathSeparator
         $env:GIT_CONFIG_COUNT = '1'
@@ -254,7 +280,7 @@ function Invoke-GameWipTracyToolBuild
         $cmakeCompilerCompatibilityHeader = $compilerCompatibilityHeader.Replace('\', '/')
         foreach ($project in $projects)
         {
-            Write-Host "Building Tracy $($project.Name) $version from the pinned submodule..."
+            Write-Host "Building Tracy $($project.Name) $version from the locked dependency source..."
             $source = Join-Path $tracyRoot $project.Source
             $build = Join-Path $buildRoot $project.Name
             if (Test-Path -LiteralPath $build)
@@ -277,7 +303,7 @@ function Invoke-GameWipTracyToolBuild
             # Tracy forces IPO/LTO for Release builds, which can produce
             # incompatible COFF LTO objects across its dependency graph under
             # UCRT64 GCC. Strip only those generated flags while keeping the
-            # pinned submodule pristine.
+            # cached dependency source pristine.
             foreach ($ninjaFile in Get-ChildItem -LiteralPath $build -Recurse -Filter '*.ninja')
             {
                 $ninjaText = Get-Content -LiteralPath $ninjaFile.FullName -Raw
@@ -370,7 +396,7 @@ function Invoke-GameWipTracyToolBuild
             }
             throw
         }
-        Add-GameWipOperationChange -Message "Installed verified Tracy tools for pinned client $version."
+        Add-GameWipOperationChange -Message "Installed verified Tracy tools for locked client $version."
     }
     finally
     {
@@ -409,5 +435,5 @@ function Invoke-GameWipTracyToolBuild
     {
         Write-Host "  Installed: $($file.FullName)"
     }
-    Write-Host "  Ready: rebuilt Tracy Windows tools with UCRT64 from pinned client $version"
+    Write-Host "  Ready: rebuilt Tracy Windows tools with UCRT64 from locked client $version"
 }

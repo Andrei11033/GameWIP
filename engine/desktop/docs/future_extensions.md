@@ -4,11 +4,14 @@ The core `desktop/window.h` contract intentionally models only native top-level 
 ownership model: they belong in opt-in headers within the existing `GameWIP::Desktop` target and `Desktop` package, not in new top-level engine
 libraries or an expanded umbrella header. Active implementation work remains tracked in GitHub issues rather than on this page.
 
-## Platform shell integration
+## Platform shell boundary
 
-Taskbar features, notifications, tray icons and their operating-system menus, jump lists, file associations, recent files, and application shell
-policy belong in a focused Desktop shell header. They must not introduce a separate platform-services library or place shell-specific state in every
-core `Window` instance.
+Taskbar features, notifications, tray icons and their operating-system menus, jump lists, file
+associations, recent files, and application shell policy are implemented in the focused
+`desktop/shell*.h` headers and remain part of the existing `GameWIP::Desktop` target. They do not
+introduce a separate platform-services library or place shell-specific state in every core
+`Window` instance. Future work is limited to explicitly advertised optional capabilities and
+additional platform backends; the existing portable ownership and queue contracts are stable.
 
 ## Accessibility provider bridge
 
@@ -37,6 +40,7 @@ advance.
 ## Related pages
 
 - @ref desktop_public_api
+- @ref desktop_shell
 - @ref desktop_native_interop
 - @ref desktop_renderer_integration
 - @ref project_extending

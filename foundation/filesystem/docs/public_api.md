@@ -85,7 +85,7 @@ Unknown enum values and invalid option combinations return `InvalidArgument`.
 - `LastWriteTimeResult`: `status`, `time`.
 - `PathResult`: `status`, `path`.
 - `Utf8PathResult`: `status`, `utf8`.
-- `Types::Directory::Entry`: child `path` and `info`. The path is the supplied parent path joined with the child name; it is not necessarily absolute.
+- `Types::Directory::Entry`: child `path` and `info`. The path is the parent path joined with the child name; it is not necessarily absolute.
 - `Types::Directory::CursorNextResult`: `status`, one `entry`, and `hasEntry`; successful exhaustion has `hasEntry == false`.
 - `Types::Directory::ListResult`: `status`, collected `entries`.
 - `Types::Directory::RemoveTreeResult`: `status`, completed `removedEntries`.

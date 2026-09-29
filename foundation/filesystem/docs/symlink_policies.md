@@ -1,6 +1,6 @@
 @page filesystem_symlink_policies Symlink policies
 
-`SymlinkPolicy` controls how policy-bearing operations resolve the supplied path. The default is `DoNotFollow` because a path check followed by an
+`SymlinkPolicy` controls how policy-bearing operations resolve the path. The default is `DoNotFollow` because a path check followed by an
 ordinary reopen can be replaced between those steps.
 
 ## Policies
@@ -30,7 +30,7 @@ options.
 
 Creation applies the policy to existing path components. Listing applies its policy when opening the directory and obtaining child metadata.
 
-The listed child path remains the supplied directory path joined with the child name. The metadata can describe the child link or the resolved target
+The listed child path remains the directory path joined with the child name. The metadata can describe the child link or the resolved target
 depending on policy.
 
 ### Copy
@@ -42,7 +42,7 @@ not a directory tree.
 
 `movePath()` applies the selected policy to source resolution and destination parent traversal. Rename/removal-style mutation of a final symlink
 target is not always implementable without changing the safety contract. `FollowFinal` or `FollowAll` can therefore return `Unsupported` when the
-final supplied path is a symlink.
+final path is a symlink.
 
 With `DoNotFollow`, operations act on the link-like entry itself where that operation accepts the entry kind.
 

@@ -9,6 +9,10 @@ function(gamewip_create_static_analysis_targets)
         return()
     endif()
 
+    if(NOT GAMEWIP_CLANG_TIDY_JOBS MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "GAMEWIP_CLANG_TIDY_JOBS must be a positive decimal integer.")
+    endif()
+
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     find_program(GAMEWIP_CLANG_TIDY_EXECUTABLE NAMES clang-tidy REQUIRED)
     find_program(GAMEWIP_RUN_CLANG_TIDY_EXECUTABLE NAMES run-clang-tidy run-clang-tidy.py REQUIRED)

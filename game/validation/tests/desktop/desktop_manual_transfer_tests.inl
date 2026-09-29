@@ -123,6 +123,261 @@ void testManualFilesAndShell(TestSupport::Context &context, const GameWIP::Test:
         static_cast<void>(window.clearIcon());
     }
 
+    const auto shellCapabilities = Desktop::Shell::getCapabilities().capabilities;
+    Desktop::ShellEventQueue shellQueue;
+    if (shellQueue.open(64).ok())
+    {
+        const auto drainShellEvents = [&]
+        {
+            std::size_t eventCount = 0;
+            std::string observation;
+            Desktop::Types::Shell::Event event;
+            while (shellQueue.popEvent(event))
+            {
+                ++eventCount;
+                if (const auto *trayActivation = event.getIf<Desktop::Types::Shell::Events::TrayActivated>())
+                {
+                    observation =
+                        std::format("Tray activation: icon={} kind={}", trayActivation->iconId.value, static_cast<int>(trayActivation->kind));
+                }
+                else if (const auto *trayCommand = event.getIf<Desktop::Types::Shell::Events::TrayCommandInvoked>())
+                {
+                    observation = std::format("Tray command: icon={} command={}", trayCommand->iconId.value, trayCommand->commandId.value);
+                }
+                else if (const auto *taskbarCommand = event.getIf<Desktop::Types::Shell::Events::TaskbarThumbnailButtonInvoked>())
+                {
+                    observation =
+                        std::format("Taskbar command: window={} command={}", taskbarCommand->windowId.value, taskbarCommand->commandId.value);
+                }
+                else if (const auto *notification = event.getIf<Desktop::Types::Shell::Events::NotificationActivated>())
+                {
+                    observation = std::format("Notification activation: id={}", notification->notificationId.value);
+                }
+            }
+            if (manualStatusWindow != nullptr)
+            {
+                manualStatusWindow->setObservation(std::format("Shell events received={} {}", eventCount, observation));
+            }
+        };
+
+        if (shellCapabilities.supports(Desktop::Types::Shell::Capability::TaskbarThumbnailButtons))
+        {
+            Desktop::Types::Taskbar::ThumbnailButton thumbnailButton{{701}, "Shell manual command"};
+            Desktop::Types::Taskbar::Description taskbarDescription;
+            taskbarDescription.progress = Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Normal, 0.35};
+            taskbarDescription.thumbnailButtons = std::span{&thumbnailButton, 1};
+            Desktop::TaskbarItem taskbar;
+            const IO::Types::Status taskbarStatus = taskbar.open(window, taskbarDescription, shellQueue);
+            if (taskbarStatus.ok())
+            {
+                for (const Desktop::Types::Shell::Progress progress :
+                     {Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Indeterminate, 0.0},
+                      Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Paused, 0.65},
+                      Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Error, 0.65},
+                      Desktop::Types::Shell::Progress{Desktop::Types::Shell::ProgressState::Normal, 1.0}})
+                {
+                    static_cast<void>(taskbar.setProgress(progress));
+                }
+                recordManualCheck(
+                    context,
+                    window,
+                    "taskbar progress and thumbnail buttons",
+                    "Observe the taskbar progress states, then open the thumbnail preview and click the Shell manual command. Answer yes only if the "
+                    "command event is shown in the diagnostics.",
+                    drainShellEvents);
+                static_cast<void>(taskbar.close());
+            }
+            else
+            {
+                context.skip(
+                    "taskbar progress and thumbnail buttons",
+                    std::format("native taskbar publication returned {}", IO::errorCodeName(taskbarStatus.code)));
+            }
+        }
+        else
+        {
+            context.skip("taskbar progress and thumbnail buttons", "backend does not advertise TaskbarThumbnailButtons");
+        }
+
+        const std::array<std::byte, 4> trayPixel{std::byte{0x36}, std::byte{0xD2}, std::byte{0xFF}, std::byte{0xFF}};
+        const Desktop::Types::IconImageView trayIconImage{{1, 1}, trayPixel};
+        Desktop::Types::Tray::MenuItem trayCommand;
+        trayCommand.kind = Desktop::Types::Tray::MenuItemKind::Command;
+        trayCommand.commandId = {702};
+        trayCommand.label = "Shell manual command";
+        Desktop::Types::Tray::Description trayDescription;
+        trayDescription.icons = std::span{&trayIconImage, 1};
+        trayDescription.tooltip = "GameWIP shell manual validation";
+        trayDescription.menu.items = std::span{&trayCommand, 1};
+        Desktop::TrayIcon tray;
+        if (shellCapabilities.supports(Desktop::Types::Shell::Capability::TrayMenu))
+        {
+            const IO::Types::Status trayStatus = tray.open(trayDescription, shellQueue);
+            if (trayStatus.ok())
+            {
+                recordManualCheck(
+                    context,
+                    window,
+                    "tray icon and recursive menu",
+                    "Open the notification-area menu, activate Shell manual command, and answer yes only if the tray command event is shown in the "
+                    "diagnostics.",
+                    drainShellEvents);
+                static_cast<void>(tray.close());
+            }
+            else
+            {
+                context.skip("tray icon and recursive menu", std::format("native tray publication returned {}", IO::errorCodeName(trayStatus.code)));
+            }
+        }
+        else
+        {
+            context.skip("tray icon and recursive menu", "backend does not advertise TrayMenu");
+        }
+
+        Desktop::NotificationCenter notificationCenter;
+        if (shellCapabilities.supports(Desktop::Types::Shell::Capability::Notifications))
+        {
+            const IO::Types::Status notificationOpenStatus = notificationCenter.open(shellQueue);
+            if (notificationOpenStatus.ok())
+            {
+                Desktop::Types::Notifications::Description notificationDescription;
+                notificationDescription.title = "GameWIP shell manual validation";
+                notificationDescription.body = "Verify the notification appearance and dismissal.";
+                const auto published = notificationCenter.publish(notificationDescription);
+                if (published.status.ok())
+                {
+                    recordManualCheck(
+                        context,
+                        window,
+                        "notification appearance and dismissal",
+                        "Verify the title/body and sound policy, then dismiss the notification. Answer yes only if the notification appeared and "
+                        "disappeared normally.",
+                        drainShellEvents);
+                    static_cast<void>(notificationCenter.dismiss(published.id));
+                }
+                else
+                {
+                    context.skip(
+                        "notification appearance and dismissal",
+                        std::format("native notification publication returned {}", IO::errorCodeName(published.status.code)));
+                }
+                static_cast<void>(notificationCenter.close());
+            }
+            else
+            {
+                context.skip(
+                    "notification appearance and dismissal",
+                    std::format("notification center returned {}", IO::errorCodeName(notificationOpenStatus.code)));
+            }
+        }
+        else
+        {
+            context.skip("notification appearance and dismissal", "backend does not advertise Notifications");
+        }
+
+        const std::filesystem::path executable = std::filesystem::absolute("GameWIPTests.exe");
+        const std::array<Desktop::Types::Shell::LaunchArgumentView, 0> noArguments{};
+        const Desktop::Types::Shell::LaunchActionView launchAction{Desktop::Types::Shell::PathTargetView{std::cref(executable)}, noArguments};
+        const Desktop::Types::JumpLists::Task jumpTask{"GameWIP shell manual validation", "Desktop shell integration", launchAction};
+        const std::array jumpTasks{jumpTask};
+        Desktop::Types::JumpLists::Description jumpListDescription;
+        jumpListDescription.tasks = jumpTasks;
+        if (shellCapabilities.supports(Desktop::Types::Shell::Capability::JumpLists))
+        {
+            const IO::Types::Status jumpListStatus = Desktop::JumpLists::publish(jumpListDescription);
+            if (jumpListStatus.ok())
+            {
+                recordManualCheck(
+                    context,
+                    window,
+                    "jump-list publication",
+                    "Open this application's taskbar context menu and verify the GameWIP shell manual validation task appears and launches this "
+                    "validation executable.");
+                static_cast<void>(Desktop::JumpLists::publish({}));
+            }
+            else
+            {
+                context.skip(
+                    "jump-list publication",
+                    std::format("native jump-list publication returned {}", IO::errorCodeName(jumpListStatus.code)));
+            }
+        }
+        else
+        {
+            context.skip("jump-list publication", "backend does not advertise JumpLists");
+        }
+
+        const std::string ownerKey = std::format("GameWIP.Validation.Shell.{}", GetCurrentProcessId());
+        const std::string extension = std::format(".gamewip-validation-{}", GetCurrentProcessId());
+        const std::string scheme = std::format("gamewip-validation-{}", GetCurrentProcessId());
+        Desktop::Types::Registration::FileExtensionDescription fileRegistration;
+        fileRegistration.ownerKey = ownerKey;
+        fileRegistration.extension = extension;
+        fileRegistration.displayName = "GameWIP shell manual validation";
+        fileRegistration.defaultAction = launchAction;
+        fileRegistration.conflictPolicy = Desktop::Types::Registration::ConflictPolicy::Coexist;
+        if (shellCapabilities.supports(Desktop::Types::Shell::Capability::FileAssociationRegistration))
+        {
+            const auto registration = Desktop::Registration::registerFileExtension(fileRegistration);
+            if (registration.status.ok())
+            {
+                recordManualCheck(
+                    context,
+                    window,
+                    "current-user file registration",
+                    std::format(
+                        "Open a file with extension {} and verify this validation executable is offered or launched. Answer yes only if the "
+                        "current-user registration behaves as documented.",
+                        extension));
+            }
+            else
+            {
+                context.skip("current-user file registration", std::format("registration returned {}", IO::errorCodeName(registration.status.code)));
+            }
+            static_cast<void>(Desktop::Registration::unregisterFileExtension(ownerKey, extension));
+        }
+        else
+        {
+            context.skip("current-user file registration", "backend does not advertise FileAssociationRegistration");
+        }
+
+        Desktop::Types::Registration::UriSchemeDescription uriRegistration;
+        uriRegistration.ownerKey = ownerKey;
+        uriRegistration.scheme = scheme;
+        uriRegistration.displayName = "GameWIP shell manual validation";
+        uriRegistration.defaultAction = launchAction;
+        uriRegistration.conflictPolicy = Desktop::Types::Registration::ConflictPolicy::Coexist;
+        if (shellCapabilities.supports(Desktop::Types::Shell::Capability::UriSchemeRegistration))
+        {
+            const auto registration = Desktop::Registration::registerUriScheme(uriRegistration);
+            if (registration.status.ok())
+            {
+                recordManualCheck(
+                    context,
+                    window,
+                    "current-user URI registration",
+                    std::format(
+                        "Open a {}:// URI from a browser or Run dialog and verify this validation executable is offered or launched.",
+                        scheme));
+            }
+            else
+            {
+                context.skip("current-user URI registration", std::format("registration returned {}", IO::errorCodeName(registration.status.code)));
+            }
+            static_cast<void>(Desktop::Registration::unregisterUriScheme(ownerKey, scheme));
+        }
+        else
+        {
+            context.skip("current-user URI registration", "backend does not advertise UriSchemeRegistration");
+        }
+
+        static_cast<void>(shellQueue.close());
+    }
+    else
+    {
+        context.skip("Desktop shell manual resources", "shell event queue could not open");
+    }
+
     static_cast<void>(context.expectTrue("attention request succeeds", window.requestAttention().ok()));
     recordManualCheck(context, window, "attention indication", "Did Windows show its normal taskbar/native attention indication?");
 

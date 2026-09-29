@@ -14,6 +14,11 @@ parent loss, geometry, queues, DPI, ordering, and native hosting; and DragDrop d
 registration rollback. Dialog coverage validates one-shot file/folder, Message, and Prompt contracts through deterministic native-boundary fixtures,
 and exercises the real modeless ProgressDialog HWND, controls, owner blocking, DPI relayout, cancellation, thread affinity, and cleanup.
 
+Shell coverage validates the fixed-capacity `ShellEventQueue`, FIFO sequence and overflow rules, owner-thread enforcement, reopen behavior, descriptor
+validation, one-taskbar-binding enforcement, tray and notification queue borrowing, notification identity lifecycle, and deterministic native-open,
+native-apply, and native-close failure/retry paths. Native shell smoke checks are capability-aware and skip when the current environment cannot
+provide the corresponding taskbar, tray, or notification service.
+
 Process-isolated shutdown coverage uses routed child processes so failures after a suite function returns remain observable. It verifies exact zero
 exit codes after a standalone color query, a normal `WM_CLOSE` and final-Window close path, owner-thread exit with retained Window state, and
 DragDrop dispatcher exit with both normal and repeatedly failed native revocation. ProgressDialog child protocols cover dispatcher exit with a
@@ -50,6 +55,13 @@ Repository validation compiles each supported Desktop entry header independently
 - `desktop/dialogs.h`
 - `desktop/window.h`
 - `desktop/renderer_bridge.h`
+- `desktop/shell.h`
+- `desktop/shell_types.h`
+- `desktop/shell_taskbar.h`
+- `desktop/shell_tray.h`
+- `desktop/shell_notifications.h`
+- `desktop/shell_jump_lists.h`
+- `desktop/shell_registration.h`
 - `desktop/native/win32.h` on Win32
 
 Installed-consumer validation additionally proves exact-version package discovery, `GameWIP::Desktop` linking, public dependency propagation,
@@ -96,7 +108,7 @@ custom schemas require the manual workflow in @ref desktop_manual_validation.
 The exhaustive Desktop validation is one scenario suite, with
 responsibility-focused implementation includes for manual scenarios,
 lifecycle/state, events, renderer integration, display behavior, Clipboard,
-ChildSurface, and DragDrop. Tests use public API except for approved deterministic
+ChildSurface, DragDrop, and shell integration. Tests use public API except for approved deterministic
 source-tree hooks documented by @ref desktop_test_hooks.
 
 ## Manual tests
@@ -108,7 +120,9 @@ shell-visible state. See @ref desktop_manual_validation for the observable
 scenarios and expected results.
 
 `--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`,
-`files-shell`, `dialogs`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. `fullscreen` retains the complete workflow;
+`files-shell`, `dialogs`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. The `files-shell` suite also covers
+visible taskbar progress and thumbnail buttons, tray activation and recursive menus, notification appearance and dismissal, Explorer file/URI
+activation, and jump-list ordering. `fullscreen` retains the complete workflow;
 `borderless`, `exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and
 record before/after mode-transition geometry so evidence survives a driver reset or process interruption.
 

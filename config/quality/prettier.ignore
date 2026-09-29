@@ -6,6 +6,5 @@ docs/releases/
 **/*.cmake
 CMakeLists.txt
 **/*.py
-**/*.ps1
 **/*.bat
 **/*.{c,cc,cpp,cxx,h,hpp,inl}

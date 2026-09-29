@@ -206,7 +206,7 @@ namespace GameWIP::Desktop::Events
     inline constexpr std::chrono::milliseconds kNoWait{0};       ///< Non-blocking wait duration.
     inline constexpr std::chrono::milliseconds kWaitForever{-1}; ///< Unbounded wait sentinel.
 
-    /// @brief Pumps currently pending native events for the calling thread without waiting.
+    /// @brief Pumps pending native events for the calling thread without waiting.
     /// @return Pump status and the numbers of events queued and dropped by this call.
     [[nodiscard]] DESKTOP_EXPORT Types::Events::PumpResult poll() noexcept;
     /// @brief Waits for native work, then pumps events for the calling thread.

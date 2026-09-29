@@ -38,6 +38,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Native class lifetime
     // ------------------------------------------------------------
+    /// @brief Acquires the process-wide native Window class reference.
     IO::Types::Status acquireWindowClass(HINSTANCE instance) noexcept
     {
         std::scoped_lock lock(classMutex);
@@ -72,6 +73,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Releases one process-wide native Window class reference.
     IO::Types::Status releaseWindowClass() noexcept
     {
         std::scoped_lock lock(classMutex);
@@ -94,6 +96,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Assigns a nonzero portable identity and publishes it in the process registry.
     void registerWindowId(WindowState &state)
     {
         std::uint64_t value = nextWindowId.fetch_add(1, std::memory_order_relaxed);
@@ -109,6 +112,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Window identity and native styles
     // ------------------------------------------------------------
+    /// @brief Removes a Window identity and clears owners that pointed at it.
     void unregisterWindowId(WindowState &state) noexcept
     {
         std::scoped_lock lock(windowRegistryMutex);
@@ -145,6 +149,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Computes the native frame style from cached portable Window policy.
     DWORD styleFor(const WindowState &state) noexcept
     {
         DWORD style = WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
@@ -179,6 +184,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return style;
     }
 
+    /// @brief Computes extended native styles for ownership, focus, opacity, and input policy.
     DWORD extendedStyleFor(const WindowState &state) noexcept
     {
         DWORD style = state.owner.isValid() ? 0 : WS_EX_APPWINDOW;
@@ -203,6 +209,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     namespace
     {
+        /// @brief Sets a window long value while preserving Win32's zero-value ambiguity.
         bool setLong(HWND window, int index, LONG_PTR value, DWORD &nativeCode) noexcept
         {
             SetLastError(ERROR_SUCCESS);
@@ -237,6 +244,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::atomic_bool attempted{false};
         };
 
+        /// @brief Registers a process-wide message and retains its native failure code.
         [[nodiscard]] RegisteredMessage registerMessage(const wchar_t *name) noexcept
         {
             SetLastError(ERROR_SUCCESS);
@@ -249,12 +257,14 @@ namespace GameWIP::Desktop::Detail::Platform
             return {.value = 0, .error = error == ERROR_SUCCESS ? ERROR_FUNCTION_FAILED : error};
         }
 
+        /// @brief Lazily returns the message used to wake event waits.
         [[nodiscard]] const RegisteredMessage &wakeMessageInfo() noexcept
         {
             static const RegisteredMessage info = registerMessage(L"GameWIP.Window.WakeEventWait");
             return info;
         }
 
+        /// @brief Returns thread-local state for the progress-owner restoration message.
         [[nodiscard]] ProgressOwnerRestoreMessageState &progressOwnerRestoreMessageState() noexcept
         {
             static ProgressOwnerRestoreMessageState state;
@@ -272,6 +282,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return wakeMessageInfo().error;
     }
 
+    /// @brief Wakes an owner dispatcher through its thread message queue.
     IO::Types::Status postWakeMessage(DWORD threadId, std::string_view operation) noexcept
     {
         const UINT message = wakeMessage();
@@ -287,6 +298,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Publishes the progress-owner restoration message once per process.
     UINT ensureProgressOwnerRestoreMessage() noexcept
     {
         ProgressOwnerRestoreMessageState &state = progressOwnerRestoreMessageState();
@@ -321,23 +333,27 @@ namespace GameWIP::Desktop::Detail::Platform
         return state.value.load(std::memory_order_acquire);
     }
 
+    /// @brief Reads the published progress-owner restoration message identifier.
     UINT registeredProgressOwnerRestoreMessage() noexcept
     {
         return progressOwnerRestoreMessageState().value.load(std::memory_order_acquire);
     }
 
+    /// @brief Reads the native error from progress-owner message registration.
     DWORD progressOwnerRestoreMessageError() noexcept
     {
         return progressOwnerRestoreMessageState().error.load(std::memory_order_acquire);
     }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    /// @brief Reports whether progress-owner message registration has been attempted.
     bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
     {
         return progressOwnerRestoreMessageState().attempted.load(std::memory_order_acquire);
     }
 #endif
 
+    /// @brief Queries a native window value with test-hook injection and error translation.
     IO::Types::Status queryWindowLong(HWND window, int index, LONG_PTR &value, const char *operation) noexcept
     {
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -357,6 +373,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Enqueues a Window event and updates the active pump accounting.
     void routeEvent(WindowState &state, Types::Events::Payload data) noexcept
     {
         const std::uint64_t droppedBefore = state.droppedEvents;
@@ -372,6 +389,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Publishes the first pump failure while retaining deferred failures for later polling.
     void recordPumpFailure(IO::Types::Status status) noexcept
     {
         Dispatcher &current = dispatcher();
@@ -386,6 +404,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Registers an open Window with the current dispatcher and message queue.
     void registerOpenState(WindowState &state)
     {
         Dispatcher &current = dispatcher();
@@ -398,6 +417,7 @@ namespace GameWIP::Desktop::Detail::Platform
         current.windows.push_back(&state);
     }
 
+    /// @brief Removes an open Window and releases thread-local display-color resources when idle.
     void unregisterOpenState(WindowState &state) noexcept
     {
         Dispatcher &current = dispatcher();
@@ -408,6 +428,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Tests whether the calling thread currently owns any open top-level Window.
     bool hasOpenWindowsOnCurrentThread() noexcept
     {
         std::scoped_lock lock(dispatcherRegistryMutex);
@@ -415,6 +436,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return found != dispatcherRegistry.end() && found->second != nullptr && !found->second->windows.empty();
     }
 
+    /// @brief Registers an open child surface with the current dispatcher.
     void registerOpenChildSurface(ChildSurfaceState &state)
     {
         Dispatcher &current = dispatcher();
@@ -427,12 +449,14 @@ namespace GameWIP::Desktop::Detail::Platform
         current.childSurfaces.push_back(&state);
     }
 
+    /// @brief Removes an open child surface from the current dispatcher.
     void unregisterOpenChildSurface(ChildSurfaceState &state) noexcept
     {
         Dispatcher &current = dispatcher();
         current.childSurfaces.erase(std::remove(current.childSurfaces.begin(), current.childSurfaces.end(), &state), current.childSurfaces.end());
     }
 
+    /// @brief Registers an open progress dialog with the current dispatcher.
     void registerOpenProgressDialog(ProgressDialogState &state)
     {
         Dispatcher &current = dispatcher();
@@ -452,6 +476,7 @@ namespace GameWIP::Desktop::Detail::Platform
         current.progressDialogs->push_back(&state);
     }
 
+    /// @brief Removes an open progress dialog from the current dispatcher.
     void unregisterOpenProgressDialog(ProgressDialogState &state) noexcept
     {
         Dispatcher &current = dispatcher();
@@ -467,6 +492,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Enqueues a child-surface event and updates the active pump accounting.
     void routeChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept
     {
         const std::uint64_t droppedBefore = state.droppedEvents;
@@ -482,6 +508,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Refreshes child screen rectangles after a parent Window moves.
     void refreshChildSurfaceScreenRectsForParent(Types::WindowId parentId) noexcept
     {
         if (!parentId.isValid())
@@ -497,6 +524,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Retries cleanup deferred from foreign threads before the next pump.
     void pruneAbandonedStates(Dispatcher &current) noexcept
     {
         restorePendingProgressOwners(current);
@@ -691,6 +719,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Resolves a portable Window identity under the registry mutex.
     WindowState *resolveWindowId(Types::WindowId id) noexcept
     {
         if (!id.isValid())
@@ -705,6 +734,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Native status conversion
     // ------------------------------------------------------------
+    /// @brief Maps a Win32 error and operation name into a portable status.
     IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept
     {
         using IO::Types::ErrorCode;
@@ -759,6 +789,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Maps a display-mode change result into a portable status.
     IO::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept
     {
         IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure;
@@ -783,12 +814,14 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Geometry and hit testing
     // ------------------------------------------------------------
+    /// @brief Returns the effective per-monitor DPI for a Window or the current thread context.
     UINT dpiForWindow(HWND window) noexcept
     {
         const UINT dpi = window != nullptr ? GetDpiForWindow(window) : GetDpiForSystem();
         return dpi == 0 ? kBaselineDpi : dpi;
     }
 
+    /// @brief Converts one logical coordinate using rounded DPI scaling.
     LONG logicalToPhysical(std::int32_t value, UINT dpi) noexcept
     {
         LONG output = -1;
@@ -796,6 +829,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return output;
     }
 
+    /// @brief Converts one logical coordinate while rejecting Win32 LONG overflow.
     bool logicalToPhysicalChecked(std::int32_t value, UINT dpi, LONG &output) noexcept
     {
         if (dpi == 0)
@@ -811,16 +845,19 @@ namespace GameWIP::Desktop::Detail::Platform
         output = static_cast<LONG>(rounded);
         return true;
     }
+    /// @brief Converts one physical coordinate to logical units at a given DPI.
     std::int32_t physicalToLogical(LONG value, UINT dpi) noexcept
     {
         return MulDiv(value, kBaselineDpi, static_cast<int>(dpi));
     }
+    /// @brief Converts logical dimensions to physical pixels.
     Types::PixelSize logicalToPhysicalSize(Types::LogicalSize value, UINT dpi) noexcept
     {
         return {
             static_cast<std::uint32_t>(logicalToPhysical(static_cast<std::int32_t>(value.width), dpi)),
             static_cast<std::uint32_t>(logicalToPhysical(static_cast<std::int32_t>(value.height), dpi))};
     }
+    /// @brief Converts physical dimensions to logical units.
     Types::LogicalSize physicalToLogicalSize(std::uint32_t width, std::uint32_t height, UINT dpi) noexcept
     {
         return {
@@ -828,6 +865,7 @@ namespace GameWIP::Desktop::Detail::Platform
             static_cast<std::uint32_t>(std::max(0, physicalToLogical(static_cast<LONG>(height), dpi)))};
     }
 
+    /// @brief Tests whether a logical point lies within a logical rectangle.
     bool pointInRect(Types::LogicalPosition point, const Types::LogicalRect &rect) noexcept
     {
         const std::int64_t right = static_cast<std::int64_t>(rect.position.x) + rect.size.width;
@@ -835,6 +873,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return point.x >= rect.position.x && point.y >= rect.position.y && point.x < right && point.y < bottom;
     }
 
+    /// @brief Loads a system cursor resource for the portable cursor shape.
     HCURSOR loadCursor(Types::CursorShape shape) noexcept
     {
         if (Detail::consumeFailure(TestHooks::FailurePoint::SystemCursorLoad))
@@ -892,6 +931,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Cached native state
     // ------------------------------------------------------------
+    /// @brief Re-reads native client geometry and republishes cached Window values.
     IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
@@ -942,6 +982,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Recomputes the monitor containing the Window and publishes changes.
     void updateCurrentMonitor(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
@@ -967,6 +1008,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Applies cursor visibility, confinement, and relative-motion policy.
     IO::Types::Status applyCursorState(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
@@ -1079,6 +1121,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Exclusive-mode cleanup
     // ------------------------------------------------------------
+    /// @brief Leaves exclusive mode and restores the saved desktop display mode.
     IO::Types::Status leaveExclusive(WindowState &state) noexcept
     {
         if (state.platform && state.mode != Types::Mode::Windowed && Detail::consumeFailure(TestHooks::FailurePoint::DisplayRestoration))
@@ -1108,6 +1151,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Temporarily releases exclusive mode while another process is active.
     IO::Types::Status suspendExclusive(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode || state.platform->exclusiveSuspended)
@@ -1124,6 +1168,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Reclaims exclusive mode after this process becomes active again.
     IO::Types::Status resumeExclusive(WindowState &state) noexcept
     {
         if (!state.platform || state.platform->modeTransitionDepth != 0 || !state.platform->hasSavedDisplayMode ||
@@ -1158,6 +1203,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // Deferred ownership is committed under deferredMutex before this best-effort wake. A failed
     // wake cannot lose the cleanup obligation; the owner processes the durable queue on its next
     // pump or during thread-exit cleanup.
+    /// @brief Transfers a wrong-thread Window to its owner dispatcher for cleanup.
     bool deferCleanupToOwner(std::unique_ptr<WindowState> &state) noexcept
     {
         if (!state || !state->platform)
@@ -1180,6 +1226,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return true;
     }
 
+    /// @brief Transfers a wrong-thread child surface to its owner dispatcher.
     bool deferChildSurfaceCleanupToOwner(std::unique_ptr<ChildSurfaceState> &state) noexcept
     {
         if (!state || !state->platform)
@@ -1202,6 +1249,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return true;
     }
 
+    /// @brief Transfers a wrong-thread progress dialog to its owner dispatcher.
     bool deferProgressCleanupToOwner(std::unique_ptr<ProgressDialogState> &state) noexcept
     {
         if (!state || !state->platform)
@@ -1246,6 +1294,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return true;
     }
 
+    /// @brief Transfers a wrong-thread OLE target to its owner dispatcher.
     bool deferDragDropCleanupToOwner(std::unique_ptr<DragDropState> &state) noexcept
     {
         if (!state || state->ownerNativeThreadId == 0)

@@ -18,7 +18,7 @@ function Invoke-GameWipBundle
     $effectiveFresh = [bool]$Fresh -or $freshByDefault
     if ($NoBuild -and $effectiveFresh)
     {
-        throw "Bundle '$Id' cannot combine clean build-tree recreation with -NoBuild."
+        throw "Bundle '$Id' cannot combine clean build-tree recreation with -SkipBuild."
     }
     if ($null -eq $FreshenedPresets)
     {

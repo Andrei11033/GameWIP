@@ -52,6 +52,13 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
             desktop_display_info.cpp
             desktop_window.cpp
             desktop_renderer_bridge.cpp
+            desktop_shell.cpp
+            desktop_shell_types.cpp
+            desktop_shell_taskbar.cpp
+            desktop_shell_tray.cpp
+            desktop_shell_notifications.cpp
+            desktop_shell_jump_lists.cpp
+            desktop_shell_registration.cpp
     )
     if(WIN32)
         target_sources(GameWIPIsolatedConsumer PRIVATE desktop_native_win32.cpp)

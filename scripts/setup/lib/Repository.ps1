@@ -1,4 +1,4 @@
-# Repository initialization, branch selection, update, submodule, and dev configuration.
+# Repository initialization, branch selection, update, and dev configuration.
 
 # ------------------------------------------------------------
 # Repository initialization and branch management
@@ -151,8 +151,6 @@ function Initialize-GameWipRepository
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$Branch, [switch]$ChooseBranch)
     Initialize-GameWipZipCheckout -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:$ChooseBranch
-    Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'submodule', 'sync', '--recursive') | Out-Null
-    Invoke-GameWipSetupNative -FilePath git -ArgumentList @('-C', $RepositoryRoot, 'submodule', 'update', '--init', '--recursive') | Out-Null
     $ucrtBin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64\bin'
     Invoke-GameWipNative -Name 'setup-configure-dev' -FilePath cmake -Arguments @('--preset', 'dev') -PathPrefix $ucrtBin | Out-Null
 }
@@ -182,9 +180,15 @@ function Invoke-GameWipRepositoryUpdate
 function Test-GameWipRepositoryState
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
-    $result = Invoke-GameWipProcess -FilePath git -Arguments @('-C', $RepositoryRoot, 'submodule', 'status', '--recursive') -OutputMode LogOnly -TimeoutSeconds 60
-    if ($result.ExitCode -ne 0 -or @($result.Stdout | Where-Object { $_ -match '^[-+U]' }).Count -ne 0)
+    $result = Invoke-GameWipProcess -FilePath git -Arguments @('-C', $RepositoryRoot, 'rev-parse', '--show-toplevel') -OutputMode LogOnly -TimeoutSeconds 60
+    if ($result.ExitCode -ne 0)
     {
-        throw 'Git submodules are missing, conflicted, or not at committed revisions.'
+        throw 'The GameWIP checkout is not a valid Git repository.'
+    }
+    $actualRoot = [IO.Path]::GetFullPath(($result.Stdout -join '').Trim())
+    $expectedRoot = [IO.Path]::GetFullPath($RepositoryRoot)
+    if (-not [string]::Equals($actualRoot, $expectedRoot, [StringComparison]::OrdinalIgnoreCase))
+    {
+        throw "Git repository root mismatch. Expected '$expectedRoot', found '$actualRoot'."
     }
 }

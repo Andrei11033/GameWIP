@@ -8,7 +8,7 @@ between windowed, borderless, and exclusive fullscreen states.
 
 Monitor identity and physical modes are grouped under `Desktop::Types::Display`:
 
-- `MonitorId` is a process-local identity for a currently known monitor and uses `isValid()`.
+- `MonitorId` is a process-local identity for a known monitor and uses `isValid()`.
 - `Mode` describes physical resolution, millihertz refresh, color depth, and interlace state.
 - `ModesResult` and `ModeResult` are checked mode-query results.
 
@@ -25,7 +25,7 @@ Rich monitor snapshots and OS color state are opt-in through `desktop/display_in
 Code that needs monitor enumeration or color inspection includes `desktop/display_info.h` and uses `getMonitors()`, `getPrimaryMonitor()`,
 `getMonitor()`, and `getColorInfo()`.
 
-`getColorInfo(const Window&)` is a checked convenience query for the display currently relevant to a Window. It exists because selecting the relevant
+`getColorInfo(const Window&)` is a checked convenience query for the display relevant to a Window. It exists because selecting the relevant
 native display is platform behavior; equivalent overloads are not added to unrelated operations merely for symmetry.
 
 ## Window modes

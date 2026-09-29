@@ -10,6 +10,8 @@ macros in application source after including `debug/assert/assert.h`.
 | `ASSERT_ENABLED` | `AUTO`, `ON`, `OFF` | `AUTO` | Controls fatal assertion failure handling for `ASSERT`, `VERIFY`, interactive fatal variants, and `UNREACHABLE`. |
 | `ASSERT_CHECKS_ENABLED` | `AUTO`, `ON`, `OFF` | `AUTO` | Controls recoverable reporting for `CHECK`, `CHECK_ONCE`, and `ENSURE`. |
 | `ASSERT_DIAGNOSTICS` | `ON`, `OFF` | `ON` | Includes condition text, message text, file, line, and function data in failure reports. |
+| `ASSERT_POPUP_ON_ASSERT` | `ON`, `OFF` | `ON` | Allows fatal assertion failures to show Assert-owned platform UI. |
+| `ASSERT_POPUP_ON_CHECK` | `ON`, `OFF` | `OFF` | Allows recoverable check failures to show Assert-owned platform UI. |
 | `ASSERT_UNREACHABLE_ASSUME` | `ON`, `OFF` | `OFF` | Uses compiler unreachable assumptions instead of a trap when `UNREACHABLE()` is compiled without assertion handling. |
 
 `AUTO` follows the active build configuration: assertions and checks are enabled outside release-style configurations and disabled for `Release`,
@@ -24,9 +26,10 @@ runtime handlers are linked.
 Multi-config generators need a runtime target unless both families are forced off, because different configurations can enable different macro
 behavior from the same generated target.
 
-## Public compile definitions
+## Target compile-time definitions
 
-The Assert target propagates the compile definitions that the public header consumes:
+The Assert target owns the compile-time definitions that control its public
+assertion behavior. Consumers must not redefine target-owned definitions.
 
 | Definition | Owner | Purpose |
 | --- | --- | --- |
@@ -36,11 +39,11 @@ The Assert target propagates the compile definitions that the public header cons
 | `ASSERT_DIAGNOSTICS` | `ASSERT_DIAGNOSTICS` CMake option | Selects diagnostic payload collection and message-expression evaluation. |
 | `ASSERT_UNREACHABLE_ASSUME` | `ASSERT_UNREACHABLE_ASSUME` CMake option | Selects the disabled `UNREACHABLE()` backend. |
 
-`ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are compile-time runtime
-controls declared by the public header. The Assert CMake target does not expose
-them as cache options. Because popup decisions are compiled into the Assert
-runtime, changing those definitions only on a consumer target does not
-reconfigure an already-built runtime library.
+Popup policy is private to the Assert runtime. `ASSERT_POPUP_ON_ASSERT` and
+`ASSERT_POPUP_ON_CHECK` are CMake-owned options whose values are compiled into
+the runtime target; they are not part of the supported consumer configuration
+interface. The public header does not provide a supported override for either
+policy.
 
 ## Diagnostics
 

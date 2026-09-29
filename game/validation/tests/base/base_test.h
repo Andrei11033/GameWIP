@@ -12,11 +12,11 @@ namespace GameWIP::Test
     {
         /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
         bool verboseConsole = false;
-        /// @brief Writes test progress and summaries to reportPath in addition to stdout.
+        /// @brief Writes test progress and summaries to reportPath and stdout.
         bool writeReport = true;
         /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
         bool appendReport = true;
-        /// @brief Report destination used as supplied; the shared runner normally resolves it before invocation.
+        /// @brief Report destination before shared-runner resolution.
         std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
     };
 

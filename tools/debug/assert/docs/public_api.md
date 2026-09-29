@@ -32,10 +32,12 @@ header fallback path. Normal fatal assertion handling checks debugger state befo
 
 ## Configuration API
 
-The public macro behavior is selected by Assert CMake options and propagated compile definitions. Application code should configure the target instead
-of redefining Assert macros locally.
+The public macro behavior is selected by Assert CMake options and the runtime
+popup policy is compiled privately into the Assert target. Application code
+should configure the target instead of redefining Assert macros or popup policy
+locally.
 
-See @ref assert_configuration for `ASSERT_ENABLED`, `ASSERT_CHECKS_ENABLED`, diagnostics, unreachable behavior, and Windows manifest behavior.
+See @ref assert_configuration for `ASSERT_ENABLED`, `ASSERT_CHECKS_ENABLED`, diagnostics, popup policy, unreachable behavior, and Windows manifest behavior.
 
 ## Package and ABI surface
 

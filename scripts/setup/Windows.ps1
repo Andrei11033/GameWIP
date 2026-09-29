@@ -37,12 +37,17 @@ if ($Action -in @('--help', '-h', '-?'))
 {
     $Action = 'help'
 }
-$validActions = @($SetupActionConfig.Actions | ForEach-Object { [string]$_.Id })
-if ($Action -notin $validActions)
+$resolvedAction = Resolve-GameWipSetupActionName -Name $Action
+if ($null -eq $resolvedAction)
 {
     Write-GameWipHost "Unknown setup action '$Action'." -ForegroundColor Red
     Write-Host 'Run .\setup.bat list to see available actions.'
     exit 2
+}
+$Action = $resolvedAction
+if ($Action -notin @('help', 'list', 'menu'))
+{
+    Assert-GameWipSetupActionOptions -Action $Action -BoundParameters $PSBoundParameters
 }
 if ($Action -eq 'help')
 {

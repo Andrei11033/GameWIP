@@ -1,5 +1,5 @@
 /// @file types.h
-/// @brief Shared portable value vocabulary for GameWIP Window.
+/// @brief Shared portable value vocabulary for GameWIP Desktop.
 
 #pragma once
 
@@ -9,7 +9,7 @@
 /// @brief Portable desktop-window ownership, state, event, display, and control APIs.
 namespace GameWIP::Desktop
 {
-    /// @brief Passive portable values shared across focused Window API surfaces.
+    /// @brief Passive portable values shared across focused Desktop API surfaces.
     namespace Types
     {
         /// @brief Portable native-resource lifecycle state.

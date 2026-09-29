@@ -58,8 +58,6 @@ namespace GameWIP::Desktop::Renderer
     /// @brief Returns whether concurrent renderer-facing presentation reads have been enabled.
     /// @details Returns false by default without allocating. It remains true across close/reopen after the first successful enable. After enablement
     /// completes, it may be read from another thread. Do not call concurrently with enableConcurrentPresentationReads() or C++ object destruction.
-    /// @param window Window to inspect.
-    /// @return true after this Window object has successfully enabled the facility.
     [[nodiscard]] DESKTOP_EXPORT bool concurrentPresentationReadsEnabled(const Window &window) noexcept;
     /// @}
 
@@ -72,8 +70,6 @@ namespace GameWIP::Desktop::Renderer
     /// @return Success, or the open-state, thread, or already-attached failure.
     [[nodiscard]] DESKTOP_EXPORT IO::Types::Status attachOcclusionProvider(Window &window) noexcept;
     /// @brief Returns whether an occlusion provider is attached.
-    /// @param window Window to inspect.
-    /// @return true when a renderer provider is currently attached.
     [[nodiscard]] DESKTOP_EXPORT bool hasOcclusionProvider(const Window &window) noexcept;
     /// @brief Publishes a renderer-observed occlusion transition.
     /// @param window Window receiving renderer presentation feedback.
@@ -106,13 +102,12 @@ namespace GameWIP::Desktop::Renderer
         Window &window,
         std::uint64_t generation,
         std::span<const Types::Renderer::PointerHitMaskWord> words) noexcept;
-    /// @brief Clears any currently published pointer hit mask.
+    /// @brief Clears any published pointer hit mask.
     /// @param window Window whose mask is cleared.
     /// @return Success, or the open-state or wrong-thread failure.
     [[nodiscard]] DESKTOP_EXPORT IO::Types::Status clearPointerHitMask(Window &window) noexcept;
     /// @brief Returns whether a current pointer hit mask is published.
-    /// @param window Window to inspect.
-    /// @return true when a mask matching the current framebuffer generation is published.
+    /// @return True when a mask matching the current framebuffer generation is published.
     [[nodiscard]] DESKTOP_EXPORT bool hasPointerHitMask(const Window &window) noexcept;
     /// @}
 } // namespace GameWIP::Desktop::Renderer

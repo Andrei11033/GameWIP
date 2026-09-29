@@ -104,6 +104,18 @@ timestamped before/after cached and native mode geometry for every display-chang
 | Shell-visible Window state | The blue/cyan patterned icon is correct at small and large shell sizes; attention, focusability, disabled interaction, topmost state, and standard controls follow their requested state. |
 | Resizable/maximizable combinations | Every valid combination works, invalid transition orders fail without partial change, and closable/minimizable remain independent. |
 | Owned Window taskbar state | An owned Window has no independent entry by default; removing and restoring the owner restores the corresponding styles and taskbar behavior. |
+| Taskbar progress and thumbnail commands | A taskbar binding shows determinate, indeterminate, paused, and error progress states; enabled thumbnail commands arrive in the shared shell queue with their caller-defined identities, while disabled commands do not. |
+| Tray icon and recursive menu | The tray icon survives tooltip and icon replacement, primary/secondary activation reaches the queue, nested commands preserve their identities, and check/radio/separator presentation matches the copied menu description. |
+| Notification lifecycle | A basic notification appears with the requested title/body and sound policy, update preserves its identity, dismissal removes it, and a queue-bound interaction is delivered as a typed event where the platform exposes it. |
+| Jump-list publication | User tasks and categories appear in the requested order, launch the expected executable/arguments, and recent filesystem paths or URIs appear with their intended spelling. |
+| Current-user registration | A unique validation extension and URI scheme open through the registered application, foreign ownership is reported rather than overwritten, and cleanup removes only the validation owner’s entries. |
+
+These shell-visible checks are intentionally manual because they depend on Explorer state, taskbar
+settings, notification policy, and another application observing the registration. The automated
+shell suite covers the portable contracts and native-boundary failure behavior without depending on
+those external observations. Record unavailable notification policy, disabled taskbar thumbnail
+previews, or an Explorer restart as skipped environmental conditions rather than implementation
+passes.
 
 ## Native dialogs
 
@@ -215,3 +227,4 @@ the Window remains either unchanged and retryable or completely closed according
 - @ref desktop_fullscreen_monitors
 - @ref desktop_testing
 - @ref desktop_clipboard
+- @ref desktop_shell

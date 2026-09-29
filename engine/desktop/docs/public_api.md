@@ -18,6 +18,13 @@ Desktop exposes one public `GameWIP::Desktop::Types` tree and focused headers by
 - `desktop/data_transfer.h` is the opt-in shared non-owning/owning transfer vocabulary for Clipboard and drag and drop.
 - `desktop/drag_drop.h` is the opt-in native data target/source API, declarative regions, effects, and typed target events.
 - `desktop/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.
+- `desktop/shell.h` owns shell capability queries and the owner-thread-affine shell event queue.
+- `desktop/shell_jump_lists.h` owns stateless complete jump-list and recent-item publication.
+- `desktop/shell_notifications.h` owns the owner-thread-affine notification center and notification publication.
+- `desktop/shell_registration.h` owns stateless current-user file-extension and URI-scheme registration.
+- `desktop/shell_taskbar.h` owns the opt-in per-Window taskbar binding, progress, overlay, and thumbnail-button publication.
+- `desktop/shell_tray.h` owns the opt-in process-local tray-icon binding, recursive menu publication, and tray interaction delivery.
+- `desktop/shell_types.h` contains the opt-in passive shell identities, targets, launch values, progress state, and event payloads.
 - `desktop/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
   resources, Clipboard/data transfer, native drag and drop, renderer integration, or native interop.
 - `desktop/renderer_bridge.h` owns concurrent presentation-read opt-in, renderer feedback, and packed pointer publication.
@@ -25,10 +32,45 @@ Desktop exposes one public `GameWIP::Desktop::Types` tree and focused headers by
 
 Passive data stays under `Types`; stateless domain operations live in the matching service namespace.
 
+## Shell integration
+
+`desktop/shell.h` is the shared shell-services entry point. `Desktop::Shell::getCapabilities()` and
+`Desktop::Shell::supports()` report the cached backend and environment support advertised for shell
+integration. `Desktop::ShellEventQueue` provides one fixed-capacity typed event queue for shell
+resources; it is non-copyable, non-movable, owner-thread-affine for opening, closing, consumption,
+and queue mutation, and permits shell resources to publish events from other threads.
+
+`desktop/shell_types.h` remains the passive entry point. Its identities, targets, launch
+values, progress state, and `Types::Shell::Event` payloads can be used without opening a shell
+resource. Domain-specific shell resources belong in focused headers and bind to a
+`Desktop::ShellEventQueue` rather than adding shell state to every `Window`.
+
+`desktop/shell_taskbar.h` provides `Desktop::TaskbarItem`, which binds one taskbar
+publication to one open `Window` lifetime. It reuses the shared shell progress and icon image
+values, optionally publishes thumbnail-button invocations through a `Desktop::ShellEventQueue`,
+and does not add taskbar state or callbacks to `Window`.
+
+`desktop/shell_tray.h` provides `Desktop::TrayIcon`, which owns one process-local tray-icon
+publication independent of `Window`. It reuses the shared shell event queue and icon-image values,
+supports copied recursive menu snapshots, and permits passive presentation before one-time queue binding.
+
+`desktop/shell_notifications.h` provides `Desktop::NotificationCenter`, which owns one
+owner-thread notification publication lifetime and can publish, update, and dismiss multiple
+process-local notification identities. Interactive actions, text inputs, and dismissal events
+use the shared shell event queue.
+
+`desktop/shell_jump_lists.h` provides stateless complete publication of application tasks,
+categories, and target-based recent items. `desktop/shell_registration.h` provides stateless
+current-user file-extension and URI-scheme registration with stable ownership keys, atomic
+same-owner replacement, and explicit conflict reporting.
+
+See @ref desktop_shell for the complete shell lifecycle, capability, ownership, testing, and
+manual-validation contract.
+
 ## Library and Window capabilities
 
 `getCapabilities()` and `supports()` report backend/environment capability. `Window::supports()` has the same capability semantics; it does not report
-whether a custom cursor is selected or a renderer provider is currently attached. Custom cursor selection state is queried with
+whether a custom cursor is selected or a renderer provider is attached. Custom cursor selection state is queried with
 `hasCustomCursor()`, and renderer attachment state with `Renderer::hasOcclusionProvider()`.
 
 ## Window ownership and state

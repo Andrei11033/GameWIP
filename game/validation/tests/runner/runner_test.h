@@ -18,7 +18,7 @@ namespace GameWIP::Test
         bool writeReport = true;
         /// @brief Appends to reportPath instead of replacing it when report writing is enabled.
         bool appendReport = true;
-        /// @brief Report destination used as supplied; the shared runner normally resolves it before invocation.
+        /// @brief Report destination before shared-runner resolution.
         std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
     };
 

@@ -22,7 +22,7 @@ Filters for entry kind and hidden state are applied before `maxEntries`. Filtere
 When another matching child exists beyond the accepted limit, the operation returns `SizeLimitExceeded` and preserves collected entries.
 `kNoEntryLimit` removes only the caller limit.
 
-`Types::Directory::Entry::path` is the supplied parent path joined with the child name. A relative parent produces relative child paths.
+`Types::Directory::Entry::path` is the parent path joined with the child name. A relative parent produces relative child paths.
 
 `Types::Directory::ListResult` owns every accepted entry, so peak result storage is proportional to the number and path length of returned children.
 `DirectoryCursor` provides the same filters, ordering, symlink policy, and entry limit without retaining siblings. On Win32, child metadata is queried

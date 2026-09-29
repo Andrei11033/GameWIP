@@ -5,10 +5,14 @@
       "label": "GameWIP: Configure Development",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["configure", "dev"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": ["config", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [],
-      "presentation": { "reveal": "silent" },
+      "presentation": {
+        "reveal": "silent"
+      },
       "hide": true
     },
     {
@@ -16,41 +20,66 @@
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
       "args": ["build", "dev"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": ["$gcc"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
       "dependsOn": "GameWIP: Configure Development",
       "dependsOrder": "sequence",
-      "group": { "kind": "build", "isDefault": true }
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     },
     {
       "label": "GameWIP: Run Development",
       "type": "process",
       "command": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
-      "options": { "cwd": "${workspaceFolder}\\build\\dev", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "options": {
+        "cwd": "${workspaceFolder}\\build\\dev",
+        "env": {
+          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+        }
+      },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Development",
       "dependsOrder": "sequence",
-      "presentation": { "reveal": "always", "panel": "dedicated" }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
     {
       "label": "GameWIP: Run Development With Startup Tests",
       "type": "process",
       "command": "${workspaceFolder}\\build\\dev\\GameWIP.exe",
       "args": ["--startup-tests"],
-      "options": { "cwd": "${workspaceFolder}\\build\\dev", "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" } },
+      "options": {
+        "cwd": "${workspaceFolder}\\build\\dev",
+        "env": {
+          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+        }
+      },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Development",
       "dependsOrder": "sequence",
-      "presentation": { "reveal": "always", "panel": "dedicated" }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
     {
       "label": "GameWIP: Configure Tests",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["configure", "test"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": ["config", "test"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [],
-      "presentation": { "reveal": "silent" },
+      "presentation": {
+        "reveal": "silent"
+      },
       "hide": true
     },
     {
@@ -58,8 +87,10 @@
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
       "args": ["build", "test"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": ["$gcc"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
       "dependsOn": "GameWIP: Configure Tests",
       "dependsOrder": "sequence",
       "hide": true
@@ -68,20 +99,27 @@
       "label": "GameWIP: Test",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["test", "test", "-NoBuild"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": ["test", "test", "-SkipBuild"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": [],
       "dependsOn": "GameWIP: Build Tests",
       "dependsOrder": "sequence",
-      "group": { "kind": "test", "isDefault": true }
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
     },
     {
       "label": "GameWIP: Benchmark",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["benchmark", "run"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": ["$gcc"]
+      "args": ["bench", "run"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Profile",
@@ -89,10 +127,15 @@
       "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; & '${workspaceFolder}\\build\\profile\\GameWIP.exe'",
       "options": {
         "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+        "env": {
+          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+        },
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-NoProfile", "-Command"]
+        }
       },
-      "problemMatcher": ["$gcc"]
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Profile Startup Tests",
@@ -100,65 +143,90 @@
       "command": "cmake --preset profile; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; cmake --build --preset profile --parallel; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; $profiler = 'C:\\MSYS2\\GameWIPTools\\tools\\tracy\\tracy-profiler.exe'; if (!(Test-Path -LiteralPath $profiler)) { throw 'Matching Tracy profiler tools are missing; run setup.bat profiler.' }; if ($null -eq (Get-Process -Name tracy-profiler -ErrorAction SilentlyContinue)) { Start-Process -FilePath $profiler -WorkingDirectory (Split-Path $profiler) }; Push-Location '${workspaceFolder}\\build\\profile'; & '.\\GameWIP.exe' --startup-tests; $exitCode = $LASTEXITCODE; Pop-Location; exit $exitCode",
       "options": {
         "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+        "env": {
+          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+        },
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-NoProfile", "-Command"]
+        }
       },
-      "problemMatcher": ["$gcc"]
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Coverage",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["coverage"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": ["$gcc"]
+      "args": ["cov"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Address Sanitizer",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
       "args": ["asan"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" } },
-      "problemMatcher": ["$gcc"]
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+        }
+      },
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Undefined Behavior Sanitizer",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
       "args": ["ubsan"],
-      "options": { "cwd": "${workspaceFolder}", "env": { "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}" } },
-      "problemMatcher": ["$gcc"]
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "env": {
+          "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+        }
+      },
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Analyze",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
       "args": ["analyze"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "problemMatcher": ["$gcc"]
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
     },
     {
       "label": "GameWIP: Quality Check",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
       "args": ["quality", "check"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Tools Status",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["tools", "status"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": ["tool", "status"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Documentation",
       "type": "process",
       "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["docs"],
-      "options": { "cwd": "${workspaceFolder}" },
+      "args": ["doc"],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
       "problemMatcher": []
     },
     {
@@ -167,10 +235,15 @@
       "command": "& '${workspaceFolder}\\gamewip.bat' build release; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; & '${workspaceFolder}\\build\\release\\GameWIP.exe'",
       "options": {
         "cwd": "${workspaceFolder}",
-        "env": { "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}" },
-        "shell": { "executable": "powershell.exe", "args": ["-NoProfile", "-Command"] }
+        "env": {
+          "PATH": "C:\\MSYS2\\ucrt64\\bin;${env:PATH}"
+        },
+        "shell": {
+          "executable": "powershell.exe",
+          "args": ["-NoProfile", "-Command"]
+        }
       },
-      "problemMatcher": ["$gcc"]
+      "problemMatcher": []
     }
   ]
 }

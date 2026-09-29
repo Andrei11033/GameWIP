@@ -1,13 +1,13 @@
 @page terminal_capabilities_and_redirection Capabilities, preparation, and redirection
 
 Capabilities describe the current stdin, stdout, or stderr endpoint. They are snapshots, not reservations: redirection, handle replacement, session
-setup, or external native calls can make a previous result stale. The status returned by the requested operation remains authoritative.
+setup, or external native calls can make a previous result stale. The operation's status remains authoritative.
 
 ## Stream kinds
 
 | `StreamKind` | Meaning |
 | --- | --- |
-| `Detached` | No usable backend handle is currently attached. |
+| `Detached` | No usable backend handle is attached. |
 | `Terminal` | A real interactive terminal/console endpoint. |
 | `Redirected` | A pipe, regular file, IDE capture stream, or similar byte endpoint. |
 | `Other` | A valid endpoint that cannot be classified safely as terminal or redirected. |

@@ -19,10 +19,13 @@ into the condition expression or surrounding code.
 Automated tests must not depend on real UI. Suppress popups through the
 documented environment controls; see @ref assert_testing.
 
-## Popup settings did not change after adding a compile definition
+## Popup settings did not change after reconfiguring Assert
 
-`ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are compiled into the Assert runtime. Defining them only on a consumer target does not change an
-already-built shared runtime. Reconfigure/rebuild Assert with the intended runtime definitions or use popup suppression for tests.
+`ASSERT_POPUP_ON_ASSERT` and `ASSERT_POPUP_ON_CHECK` are CMake-owned options
+compiled privately into the Assert runtime. Configure and rebuild Assert with
+the intended option values; defining either name on a consumer target does not
+change an already-built shared runtime. Use popup suppression for automated
+tests.
 
 ## Always Ignore did not suppress another assert
 

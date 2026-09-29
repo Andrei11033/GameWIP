@@ -5,6 +5,12 @@
   "semi": true,
   "trailingComma": "all",
   "endOfLine": "lf",
+  "powershellPreset": "invoke-formatter",
+  "powershellBraceStyle": "allman",
+  "powershellIndentSize": 4,
+  "powershellLineWidth": 120,
+  "powershellBlankLineAfterParam": true,
+  "powershellTrailingComma": "none",
   "overrides": [
     {
       "files": ["*.json", "*.jsonc", "*.yml", "*.yaml", ".vsconfig", "*.code-workspace"],

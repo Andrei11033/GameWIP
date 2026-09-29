@@ -12,16 +12,19 @@ namespace GameWIP::Desktop::Detail
 {
     namespace
     {
+        /// @brief Maps a logical queue position to its fixed-storage ring slot.
         [[nodiscard]] std::size_t physicalIndex(const WindowState &state, std::size_t logicalIndex) noexcept
         {
             return (state.eventHead + logicalIndex) % state.eventStorage.size();
         }
 
+        /// @brief Returns whether two payloads can share the latest coalesced event slot.
         [[nodiscard]] bool sameCoalescibleType(const Types::Events::Payload &left, const Types::Events::Payload &right) noexcept
         {
             return left.index() == right.index() && isCoalescible(left);
         }
 
+        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
         void discardAt(WindowState &state, std::size_t index) noexcept
         {
             for (std::size_t current = index; current + 1 < state.eventCount; ++current)
@@ -34,6 +37,7 @@ namespace GameWIP::Desktop::Detail
         }
     } // namespace
 
+    /// @brief Returns whether a Window payload may replace a newer payload of the same type.
     bool isCoalescible(const Types::Events::Payload &data) noexcept
     {
         using namespace Types::Events;
@@ -41,6 +45,7 @@ namespace GameWIP::Desktop::Detail
                std::holds_alternative<FramebufferSizeChanged>(data) || std::holds_alternative<ContentScaleChanged>(data);
     }
 
+    /// @brief Enqueues a Window event, preserving durable events when the fixed queue is full.
     EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept
     {
         if (state.suppressEvents)
@@ -101,6 +106,7 @@ namespace GameWIP::Desktop::Detail
         return EnqueueResult::Queued;
     }
 
+    /// @brief Records one close request and avoids repeating it for the same open lifetime.
     EnqueueResult requestClose(WindowState &state, Types::Events::CloseRequestSource source) noexcept
     {
         if (state.closeRequested)
@@ -111,6 +117,7 @@ namespace GameWIP::Desktop::Detail
         return enqueueEvent(state, Types::Events::CloseRequested{source});
     }
 
+    /// @brief Publishes the interactive move/resize transition and its matching event.
     EnqueueResult setInteractiveMoveResizeActive(WindowState &state, bool active) noexcept
     {
         if (state.interactiveMoveResizeActive == active)
@@ -132,6 +139,10 @@ namespace GameWIP::Desktop::Detail
 
 namespace GameWIP::Desktop::Events
 {
+    // ------------------------------------------------------------
+    // Event pumping
+    // ------------------------------------------------------------
+
     Types::Events::PumpResult poll() noexcept
     {
         return Detail::Platform::pumpEvents(kNoWait, false);

@@ -21,6 +21,7 @@ namespace GameWIP::Desktop
         std::atomic_uint64_t nextThreadToken{1};
         thread_local std::uint64_t callingThreadToken = 0;
 
+        /// @brief Returns a stable nonzero identity for the calling thread.
         [[nodiscard]] std::uint64_t currentThreadToken() noexcept
         {
             if (callingThreadToken == 0)
@@ -34,21 +35,25 @@ namespace GameWIP::Desktop
             return callingThreadToken;
         }
 
+        /// @brief Builds a portable status from a single error code.
         [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
         {
             return IO::makeStatus(code);
         }
 
+        /// @brief Rejects embedded NUL characters before text reaches a native dialog API.
         [[nodiscard]] IO::Types::Status validateText(std::string_view text) noexcept
         {
             return text.contains('\0') ? error(ErrorCode::InvalidArgument) : IO::successStatus();
         }
 
+        /// @brief Validates the determinate and indeterminate progress modes.
         [[nodiscard]] bool validMode(Types::Dialogs::Progress::Mode mode) noexcept
         {
             return mode == Types::Dialogs::Progress::Mode::Determinate || mode == Types::Dialogs::Progress::Mode::Indeterminate;
         }
 
+        /// @brief Validates state presence, owner-thread access, and native liveness.
         [[nodiscard]] IO::Types::Status requireLiveState(const Detail::ProgressDialogState *state, bool owned) noexcept
         {
             if (state == nullptr)
@@ -62,6 +67,10 @@ namespace GameWIP::Desktop
             return state->nativeDestroyedPendingFinalize || !state->platform ? error(ErrorCode::NotOpen) : IO::successStatus();
         }
     } // namespace
+
+    // ------------------------------------------------------------
+    // Lifecycle and owner-thread state
+    // ------------------------------------------------------------
 
     ProgressDialog::ProgressDialog() noexcept = default;
 
@@ -180,6 +189,10 @@ namespace GameWIP::Desktop
         const std::uint64_t token = ownerThreadToken_.load(std::memory_order_acquire);
         return token != 0 && token == currentThreadToken();
     }
+
+    // ------------------------------------------------------------
+    // Native mutations and cancellation
+    // ------------------------------------------------------------
 
     IO::Types::Status ProgressDialog::setTitle(std::string_view title) noexcept
     {

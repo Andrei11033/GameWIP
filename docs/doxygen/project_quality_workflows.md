@@ -12,7 +12,7 @@ Correctness validation is documented separately in @ref project_validation and @
   optional hygiene audits, documentation, link, workflow, and
   repository-consistency checks.
 - @subpage project_coverage - Generate and interpret correctness-test coverage
-  for the currently instrumented source set.
+  for the instrumented source set.
 - @subpage project_profiling - Capture an instrumented runtime session with
   Tracy and interpret project-owned zones.
 - @subpage project_benchmarking - Register, validate, measure, retain, and

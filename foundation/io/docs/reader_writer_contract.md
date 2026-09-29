@@ -162,7 +162,7 @@ embedded NUL bytes. It performs no normalization, BOM transformation, flush, or 
 - Direct temporary `std::string` and byte-vector construction is deleted.
 - Caller-created dangling spans and string views remain the caller's responsibility.
 - Reads use overlap-safe copying, so the destination may overlap the source.
-- Seeking is bounded to the inclusive range from position zero through end-of-stream.
+- Seeking is bounded to [0, end-of-stream].
 - An invalid origin returns `InvalidArgument`; an out-of-range target returns `SeekFailed`.
 - `close()` is idempotent and never modifies the source.
 - After close, read, size, position, and seek operations return `NotOpen`; `canSeek()` returns false.

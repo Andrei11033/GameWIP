@@ -1,13 +1,13 @@
 @page terminal_troubleshooting Troubleshooting
 
-Terminal behavior depends on the endpoint currently attached to a standard
+Terminal behavior depends on the endpoint attached to a standard
 stream. Check the operation status and a fresh capability snapshot, then use
 the matching case below to distinguish redirection, ownership, encoding, and
 native-state failures.
 
 ## A control returns `Unsupported`
 
-The selected endpoint does not currently advertise the required terminal feature. Redirected, detached, and `Other` endpoints commonly cannot run
+The selected endpoint does not advertise the required terminal feature. Redirected, detached, and `Other` endpoints commonly cannot run
 cursor, clear, alternate-screen, title, or bell controls.
 
 Query `getOutputCapabilities()` for planning, but still handle the operation status because capabilities can change.
@@ -89,7 +89,7 @@ destroyed object cannot be retried.
 
 ## A stop token returns `Unsupported`
 
-The token is stoppable and the requested read may block, but the endpoint cannot currently observe cancellation safely. Use an endpoint that
+The token is stoppable and a read may block, but the endpoint cannot observe cancellation safely. Use an endpoint that
 advertises `supportsCancellation`, use a `0ms` poll loop owned by the application where appropriate, or omit the stoppable token when indefinite
 blocking is acceptable.
 

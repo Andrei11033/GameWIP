@@ -234,6 +234,32 @@ namespace
         return path.generic_string();
     }
 
+    std::filesystem::path pathFromText(std::string_view text)
+    {
+        std::u8string converted(text.size(), u8'\0');
+        std::ranges::transform(
+            text,
+            converted.begin(),
+            [](char byte)
+            {
+                return static_cast<char8_t>(byte);
+            });
+        return std::filesystem::path(converted);
+    }
+
+    std::filesystem::path loggerLogFilePath(TestContext &context)
+    {
+        const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
+        if (!result.status.ok())
+        {
+            context.fail(
+                "query Assert log file path",
+                std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
+            return {};
+        }
+        return pathFromText(result.utf8);
+    }
+
     std::string readFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
@@ -379,13 +405,11 @@ namespace GameWIP::Test
                 context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
                 context.emit(
                     std::format(
-                        "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={} popupAssert={} popupCheck={}\n",
+                        "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={}\n",
                         ASSERT_INTERNAL_RUNTIME,
                         ASSERT_ENABLED,
                         ASSERT_CHECKS_ENABLED,
-                        ASSERT_DIAGNOSTICS,
-                        ASSERT_POPUP_ON_ASSERT,
-                        ASSERT_POPUP_ON_CHECK));
+                        ASSERT_DIAGNOSTICS));
                 context.emit(
                     std::format(
                         "[INFO] Assert test options: stress={} fatalChild={} automatedInteractive={} manualTests={} "

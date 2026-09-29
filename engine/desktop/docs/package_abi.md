@@ -14,6 +14,9 @@ changing their layout, alternatives, enum representation, or field types is an
 ABI change. `DragDrop::beginDrag()` is an exported free operation in the same
 shared library.
 
+Shell resource declarations, shell value aggregates, and exported shell service
+operations are also part of the exact-version C++ package and ABI contract.
+
 ## Installed headers
 
 The supported public headers are:
@@ -31,6 +34,13 @@ The supported public headers are:
 - `desktop/window.h`
 - `desktop/dialogs.h`
 - `desktop/renderer_bridge.h`
+- `desktop/shell.h`
+- `desktop/shell_types.h`
+- `desktop/shell_taskbar.h`
+- `desktop/shell_tray.h`
+- `desktop/shell_notifications.h`
+- `desktop/shell_jump_lists.h`
+- `desktop/shell_registration.h`
 - `desktop/native/win32.h` on Win32
 - generated `desktop/desktop_export.h`
 

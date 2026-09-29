@@ -11,6 +11,7 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    /// @brief Converts native color metadata into a sanitized portable snapshot.
     Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
     {
         const auto reliableLuminance = [](float value) noexcept
@@ -36,6 +37,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Display
 {
+    // ------------------------------------------------------------
+    // Monitor and display-color queries
+    // ------------------------------------------------------------
+
     Types::Display::MonitorsResult getMonitors() noexcept
     {
         return Detail::Platform::getMonitors();

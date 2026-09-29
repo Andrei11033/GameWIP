@@ -3,6 +3,12 @@
 `getStats()` remains a relaxed snapshot of resettable counters. It is intended for diagnostics/tests rather than transactional state.
 Queue/drop/allocation/format/truncation counters keep their existing meanings, and `resetStats()` does not alter health.
 
+All query functions are non-throwing. `getStats()`, `getHealth()`, queue-limit
+queries, and memory snapshots return safe value objects. `getLogFilePath()`
+differs only in return shape: it is also non-throwing, but returns a
+status-bearing `Types::LogFilePathResult` so failures while producing an owning
+UTF-8 string remain observable.
+
 `getHealth()` is separate and coherent. `Types::Health::Snapshot` contains current `Healthy`, `Degraded`, or `Disabled` state, effective normal
 output, compact failure source, portable IO error, native code, and the failure count for the current initialization epoch.
 

@@ -7,6 +7,10 @@
 
 namespace GameWIP::Desktop::Display
 {
+    // ------------------------------------------------------------
+    // Display-mode queries
+    // ------------------------------------------------------------
+
     Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept
     {
         return Detail::Platform::getModes(monitor);

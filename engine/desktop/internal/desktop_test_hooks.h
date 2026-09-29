@@ -14,6 +14,10 @@
 #include "desktop/drag_drop.h"
 #include "desktop/events.h"
 #include "desktop/renderer_bridge.h"
+#include "desktop/shell.h"
+#include "desktop/shell_notifications.h"
+#include "desktop/shell_taskbar.h"
+#include "desktop/shell_tray.h"
 
 #include <array>
 #include <optional>
@@ -215,7 +219,10 @@ namespace GameWIP::Desktop::TestHooks
         ProgressMutation,
         WindowStyleQuery,
         WindowUserDataInstallation,
-        WindowCreationCallback
+        WindowCreationCallback,
+        ShellNativeOpen,
+        ShellNativeApply,
+        ShellNativeClose
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -319,6 +326,8 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t createdCustomCursorCount() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t destroyedCustomCursorCount() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT CustomCursorNativeSnapshot inspectCustomCursorVariant(const Cursor &cursor, std::size_t index) noexcept;
+    /// @brief Publishes one synthetic shell event through the queue's normal fixed-capacity path.
+    DESKTOP_TEST_EXPORT void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept;
 #endif
 } // namespace GameWIP::Desktop::TestHooks
 

@@ -8,6 +8,10 @@
 
 namespace GameWIP::Desktop::Clipboard
 {
+    // ------------------------------------------------------------
+    // Format and read operations
+    // ------------------------------------------------------------
+
     Types::Clipboard::FormatResult hasFormat(Types::DataTransfer::FormatView format) noexcept
     {
         return hasFormat(format, kDefaultAccessTimeout);
@@ -22,6 +26,7 @@ namespace GameWIP::Desktop::Clipboard
     {
         return getFormats(kDefaultAccessTimeout);
     }
+
     Types::Clipboard::FormatsResult getFormats(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardGetFormats(timeout);
@@ -31,6 +36,7 @@ namespace GameWIP::Desktop::Clipboard
     {
         return readText(kDefaultAccessTimeout);
     }
+
     Types::Clipboard::TextResult readText(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardReadText(timeout);
@@ -40,6 +46,7 @@ namespace GameWIP::Desktop::Clipboard
     {
         return readFiles(kDefaultAccessTimeout);
     }
+
     Types::Clipboard::FileListResult readFiles(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardReadFiles(timeout);
@@ -49,6 +56,7 @@ namespace GameWIP::Desktop::Clipboard
     {
         return readImage(kDefaultAccessTimeout);
     }
+
     Types::Clipboard::ImageResult readImage(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardReadImage(timeout);
@@ -68,6 +76,7 @@ namespace GameWIP::Desktop::Clipboard
     {
         return writeText(text, kDefaultAccessTimeout);
     }
+
     Types::Clipboard::WriteResult writeText(std::string_view text, std::chrono::milliseconds timeout) noexcept
     {
         const std::array<Types::DataTransfer::ItemView, 1> items{Types::DataTransfer::TextView{text}};
@@ -121,6 +130,7 @@ namespace GameWIP::Desktop::Clipboard
     {
         return clear(kDefaultAccessTimeout);
     }
+
     Types::Clipboard::ClearResult clear(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardClear(timeout);

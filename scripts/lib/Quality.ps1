@@ -14,16 +14,17 @@ function Get-GameWipQualityTool
 {
     param([Parameter(Mandatory = $true)][string]$Id)
     $toolInfo = Get-GameWipProjectTool -Id $Id
-    $detected = Get-GameWipDetectedTool -Tool $toolInfo
-    if ((Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected) -ne 'compatible')
+    $status = Get-GameWipToolStatus -Tool $toolInfo
+    if (-not $status.Ready)
     {
+        $details = @("Tool state: $($status.State)") + @($status.DependencyFailures | ForEach-Object { "$($_.Package): $($_.State)" })
         throw (New-GameWipDiagnosticException `
                 -Code 'quality-tool-unavailable' `
                 -Summary "Quality tool '$Id' is missing or incompatible." `
-                -Details "Run '.\gamewip.bat tools ensure quality -Yes' to repair the declared quality toolchain." `
+                -Details ($details -join '; ') `
                 -SuggestedActions @('.\gamewip.bat tools ensure quality -Yes', '.\gamewip.bat tools status'))
     }
-    return [string]$detected.Location
+    return [string]$status.Detected.Location
 }
 
 function Select-GameWipQualityFile
@@ -124,6 +125,68 @@ function Get-GameWipCMakeFile
             Sort-Object -Unique)
 }
 
+function Invoke-GameWipLineEndingNormalization
+{
+    # Formatters may choose their own platform newline or preserve trailing
+    # whitespace. Apply the repository's text policy after every formatter has finished.
+    param([string[]]$Files = @())
+
+    $candidates = @(
+        if ($null -ne $Files -and @($Files).Count -ne 0)
+        {
+            $Files |
+                ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
+                Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+                Sort-Object -Unique
+        }
+        else
+        {
+            Get-GameWipMaintainedWorktreeFile |
+                ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
+                Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
+                Sort-Object -Unique
+        }
+    )
+
+    $utf8 = [Text.UTF8Encoding]::new($false, $true)
+    $normalizedCount = 0
+    $skippedCount = 0
+    foreach ($file in $candidates)
+    {
+        $bytes = [IO.File]::ReadAllBytes($file)
+        if ($bytes -contains [byte]0)
+        {
+            $skippedCount++
+            continue
+        }
+
+        try
+        {
+            $text = $utf8.GetString($bytes)
+        }
+        catch [Text.DecoderFallbackException]
+        {
+            $skippedCount++
+            continue
+        }
+
+        $normalized = $text.Replace("`r`n", "`n").Replace("`r", "`n")
+        $normalized = [regex]::Replace($normalized, '(?m)[ \t]+$', '')
+        if ($normalized -cne $text)
+        {
+            Write-GameWipTextAtomic -Path $file -Content $normalized
+            Add-GameWipOperationChange -Message "Normalized text whitespace in $(Get-GameWipRepositoryRelativePath -Path $file)"
+            $normalizedCount++
+        }
+    }
+
+    Write-GameWipStatusLine `
+        -Status pass `
+        -Text "Text normalization: checked $($candidates.Count) maintained file(s), normalized LF/trailing whitespace in $normalizedCount, skipped $skippedCount non-text/binary file(s)." `
+        -Semantic Success `
+        -Indent 2
+}
+
 # ------------------------------------------------------------
 # Quality tool execution
 # ------------------------------------------------------------
@@ -139,51 +202,177 @@ function Invoke-GameWipQualityNative
     Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -Environment $Environment | Out-Null
 }
 
+function Get-GameWipPrettierPluginArguments
+{
+    $toolInfo = Get-GameWipProjectTool -Id prettier
+    $pluginDependency = @($toolInfo.provider.dependencies | Where-Object { $_.package -eq 'prettier-plugin-powershell' }) | Select-Object -First 1
+    if ($null -eq $pluginDependency)
+    {
+        return @()
+    }
+
+    # Resolve the managed plugin explicitly because Prettier's ESM loader does
+    # not reliably find globally installed package-name plugins from the repo.
+    $moduleRoot = Get-GameWipNpmGlobalModuleRoot
+    $pluginEntry = Get-GameWipNpmInstalledPackageEntryPath `
+        -ModuleRoot $moduleRoot `
+        -Package ([string]$pluginDependency.package)
+    return @('--plugin', $pluginEntry)
+}
+
 function Invoke-GameWipPowerShellQuality
 {
-    param([switch]$Fix, [string[]]$Files)
+    param([string[]]$Files)
     $moduleRoot = Get-GameWipQualityTool -Id psscriptanalyzer
     Import-Module (Join-Path $moduleRoot 'PSScriptAnalyzer.psd1') -Force
     $settings = Join-Path $RepositoryRoot 'config\quality\psscriptanalyzer.psd1'
     $targets = @(Get-GameWipPowerShellFile -Files $Files)
-    if ($null -ne $Files -and @($Files).Count -ne 0 -and $targets.Count -eq 0)
-    {
-        return
-    }
     $analysisFailures = [System.Collections.Generic.List[object]]::new()
-    $formatFailures = [System.Collections.Generic.List[string]]::new()
     foreach ($file in $targets)
     {
-        $current = Get-Content -Raw -LiteralPath $file.FullName
-        $formatted = Invoke-Formatter -ScriptDefinition $current -Settings $settings
-        $formatted = [regex]::Replace($formatted, '(?m)[ \t]+$', '')
-        $expected = $formatted.TrimEnd() + "`n"
-        if ($Fix)
-        {
-            if ($current.Replace("`r`n", "`n") -cne $expected)
-            {
-                Write-GameWipTextAtomic -Path $file.FullName -Content $expected
-                Add-GameWipOperationChange -Message "Formatted $(Get-GameWipRepositoryRelativePath -Path $file.FullName)"
-            }
-        }
-        elseif ($current.Replace("`r`n", "`n") -cne $expected)
-        {
-            $formatFailures.Add($file.FullName) | Out-Null
-        }
         foreach ($finding in @(Invoke-ScriptAnalyzer -Path $file.FullName -Settings $settings -Severity Warning, Error))
         {
             $analysisFailures.Add($finding) | Out-Null
         }
-    }
-    if ($formatFailures.Count -ne 0)
-    {
-        throw "$($formatFailures.Count) PowerShell file(s) differ from repository formatting. Run '.\gamewip.bat quality fix'."
     }
     if ($analysisFailures.Count -ne 0)
     {
         $analysisFailures | Format-Table -AutoSize | Out-Host
         throw "PSScriptAnalyzer reported $($analysisFailures.Count) warning/error finding(s)."
     }
+}
+
+function Test-GameWipPowerShellSyntax
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$ScriptDefinition,
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    $tokens = $null
+    $errors = $null
+    [System.Management.Automation.Language.Parser]::ParseInput($ScriptDefinition, [ref]$tokens, [ref]$errors) | Out-Null
+    $details = @($errors | ForEach-Object {
+            '{0}:{1}:{2} {3}' -f $Path, $_.Extent.StartLineNumber, $_.Extent.StartColumnNumber, $_.Message
+        })
+    return [pscustomobject]@{
+        Valid = $errors.Count -eq 0
+        Details = $details
+    }
+}
+
+function Invoke-GameWipPowerShellFormat
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Prettier,
+        [string[]]$Files
+    )
+
+    $moduleRoot = Get-GameWipQualityTool -Id psscriptanalyzer
+    Import-Module (Join-Path $moduleRoot 'PSScriptAnalyzer.psd1') -Force
+    $settings = Join-Path $RepositoryRoot 'config\quality\psscriptanalyzer.psd1'
+    $targets = @(Get-GameWipPowerShellFile -Files $Files)
+    if ($targets.Count -eq 0)
+    {
+        return
+    }
+    if ($null -eq $Script:OperationContext -or [string]::IsNullOrWhiteSpace([string]$Script:OperationContext.Temp))
+    {
+        throw 'PowerShell formatting requires an initialized GameWIP operation-temp directory.'
+    }
+
+    $candidateRoot = Join-Path $Script:OperationContext.Temp 'powershell-format-candidates'
+    New-Item -ItemType Directory -Path $candidateRoot | Out-Null
+    $candidates = [System.Collections.Generic.List[object]]::new()
+    for ($index = 0; $index -lt $targets.Count; ++$index)
+    {
+        $target = $targets[$index]
+        $candidatePath = Join-Path $candidateRoot ('{0:D4}-{1}' -f $index, $target.Name)
+        Copy-Item -LiteralPath $target.FullName -Destination $candidatePath
+        $candidates.Add([pscustomobject]@{ Target = $target; Candidate = $candidatePath }) | Out-Null
+    }
+
+    $pluginArguments = Get-GameWipPrettierPluginArguments
+    $candidatePaths = @($candidates | ForEach-Object { $_.Candidate })
+    $prettierSucceeded = $true
+    try
+    {
+        Invoke-GameWipQualityNative `
+            -Name prettier-powershell-candidate `
+            -FilePath $Prettier `
+            -Arguments (@('--config', (Join-Path $RepositoryRoot 'config\quality\prettier.json'), '--write') + $pluginArguments + $candidatePaths)
+    }
+    catch
+    {
+        $prettierSucceeded = $false
+        Write-GameWipOperationEvent `
+            -Phase execute `
+            -Severity warning `
+            -Message "Prettier could not produce PowerShell candidates; using Invoke-Formatter fallback. $($_.Exception.Message)"
+    }
+
+    $acceptedPrettierCount = 0
+    $fallbackCount = 0
+    $changedCount = 0
+    foreach ($candidate in $candidates)
+    {
+        $target = $candidate.Target
+        $source = Read-GameWipUtf8Text -Path $target.FullName
+        $formatted = $null
+        if ($prettierSucceeded -and (Test-Path -LiteralPath $candidate.Candidate -PathType Leaf))
+        {
+            $prettierText = Read-GameWipUtf8Text -Path $candidate.Candidate
+            $prettierSyntax = Test-GameWipPowerShellSyntax -ScriptDefinition $prettierText -Path $target.FullName
+            if ($prettierSyntax.Valid)
+            {
+                try
+                {
+                    $formatted = [string](Invoke-Formatter -ScriptDefinition $prettierText -Settings $settings)
+                    $finalSyntax = Test-GameWipPowerShellSyntax -ScriptDefinition $formatted -Path $target.FullName
+                    if (-not $finalSyntax.Valid)
+                    {
+                        $formatted = $null
+                    }
+                    else
+                    {
+                        $acceptedPrettierCount++
+                    }
+                }
+                catch
+                {
+                    $formatted = $null
+                }
+            }
+        }
+
+        if ($null -eq $formatted)
+        {
+            $fallbackCount++
+            $formatted = [string](Invoke-Formatter -ScriptDefinition $source -Settings $settings)
+            $fallbackSyntax = Test-GameWipPowerShellSyntax -ScriptDefinition $formatted -Path $target.FullName
+            if (-not $fallbackSyntax.Valid)
+            {
+                throw (New-GameWipDiagnosticException `
+                        -Code 'powershell-format-invalid' `
+                        -Summary "PowerShell formatter produced invalid output for '$($target.FullName)'." `
+                        -Details ($fallbackSyntax.Details -join "`n") `
+                        -SuggestedActions @('Inspect the retained quality log.', 'Run PSScriptAnalyzer directly on the affected file.'))
+            }
+        }
+
+        if ($formatted -cne $source)
+        {
+            Write-GameWipTextAtomic -Path $target.FullName -Content $formatted
+            Add-GameWipOperationChange -Message "Formatted PowerShell source in $(Get-GameWipRepositoryRelativePath -Path $target.FullName)"
+            $changedCount++
+        }
+    }
+
+    Write-GameWipStatusLine `
+        -Status pass `
+        -Text "PowerShell formatting: checked $($targets.Count) file(s), accepted Prettier output for $acceptedPrettierCount, used Invoke-Formatter fallback for $fallbackCount, changed $changedCount." `
+        -Semantic Success `
+        -Indent 2
 }
 
 function Get-GameWipChangedRepositoryFile
@@ -222,9 +411,41 @@ function Show-GameWipQualityCoverageStatus
 # Check and fix workflows
 # ------------------------------------------------------------
 
+function Get-GameWipQualityToolchain
+{
+    $requiredToolIds = @(
+        'python',
+        'clang-format',
+        'ruff',
+        'psscriptanalyzer',
+        'eslint',
+        'prettier',
+        'gersemi',
+        'yamllint',
+        'markdownlint-cli2',
+        'actionlint',
+        'jsonschema'
+    )
+    # The common checker also validates provider dependencies, such as npm
+    # plugins, before quality mutates any maintained file.
+    $check = Test-GameWipToolchain `
+        -ToolIds $requiredToolIds `
+        -DisplayStatus `
+        -ThrowOnFailure `
+        -FailureCode quality-toolchain-incomplete `
+        -FailureSummary 'The declared quality toolchain is incomplete.' `
+        -SuggestedActions @('.\gamewip.bat tools ensure quality -Yes', '.\gamewip.bat tools status')
+    return $check.Tools
+}
+
 function Invoke-GameWipQualityCheck
 {
-    param([switch]$FailFast, [switch]$Changed, [AllowNull()]$ScopeInfo = $null)
+    param(
+        [switch]$FailFast,
+        [switch]$Changed,
+        [AllowNull()]$ScopeInfo = $null,
+        [AllowNull()][hashtable]$Tools = $null
+    )
 
     $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
     if ($null -eq $ScopeInfo)
@@ -248,6 +469,12 @@ function Invoke-GameWipQualityCheck
     {
         Write-GameWipOperationEvent -Phase plan -Severity info -Message 'A quality policy/configuration file changed; expanding quality scope to the complete maintained worktree.'
     }
+
+    if ($null -eq $Tools)
+    {
+        $Tools = Get-GameWipQualityToolchain
+    }
+    $tools = $Tools
 
     $cppFiles = @(if ($useChangedScope)
         {
@@ -278,6 +505,8 @@ function Invoke-GameWipQualityCheck
     {
         $jsFiles = @($eslintConfigFile) + $jsFiles
     }
+    # PowerShell uses the guarded candidate/fallback path in the fix workflow;
+    # the regular Prettier command must never write directly to repository PS files.
     $prettierFiles = @(if ($useChangedScope)
         {
             Select-GameWipQualityFile -Files $scope -Extensions @('.js', '.mjs', '.cjs', '.json', '.jsonc', '.yml', '.yaml', '.css')
@@ -320,72 +549,12 @@ function Invoke-GameWipQualityCheck
         })
 
     $nodePath = Get-GameWipNpmGlobalModuleRoot
+    $prettierPluginArguments = Get-GameWipPrettierPluginArguments
     $python = (Resolve-GameWipPython).Path
     $managedPython = Get-GameWipPythonEnvironmentInterpreterPath -Root (Join-Path (Get-GameWipManagedToolRoot) 'python')
     if (Test-Path -LiteralPath $managedPython)
     {
         $python = $managedPython
-    }
-
-    # Resolve every required quality tool before running checks so one missing
-    # executable cannot hide a second missing/incompatible tool.
-    $tools = @{}
-    $toolFailures = [System.Collections.Generic.List[string]]::new()
-    $requiredToolIds = @('ruff', 'eslint', 'prettier', 'gersemi', 'yamllint', 'markdownlint-cli2', 'actionlint', 'jsonschema')
-    Write-Host "Checking $($requiredToolIds.Count) required quality tools..."
-    for ($toolIndex = 0; $toolIndex -lt $requiredToolIds.Count; ++$toolIndex)
-    {
-        $id = $requiredToolIds[$toolIndex]
-
-        try
-        {
-            $toolInfo = Get-GameWipProjectTool -Id $id
-            $detected = Get-GameWipDetectedTool -Tool $toolInfo
-            $compatibility = Get-GameWipToolCompatibility -Tool $toolInfo -Detected $detected
-            $semantic = Get-GameWipToolCompatibilitySemantic -Compatibility $compatibility
-
-            Write-GameWipStatusLine `
-                -Status "$($toolIndex + 1)/$($requiredToolIds.Count)" `
-                -Text $id `
-                -Suffix "($compatibility)" `
-                -Semantic $semantic `
-                -SuffixSemantic Muted `
-                -Indent 2
-
-            if ($compatibility -eq 'compatible')
-            {
-                $tools[$id] = [string]$detected.Location
-                continue
-            }
-
-            $location = if ($detected.Location)
-            {
-                [string]$detected.Location
-            }
-            else
-            {
-                'not found'
-            }
-
-            $toolFailures.Add("${id}: $compatibility ($location)") | Out-Null
-        }
-        catch
-        {
-            Write-GameWipStatusLine `
-                -Status "$($toolIndex + 1)/$($requiredToolIds.Count)" `
-                -Text $id `
-                -Suffix '(error)' `
-                -Semantic Failure `
-                -SuffixSemantic Muted `
-                -Indent 2
-
-            $toolFailures.Add("${id}: $($_.Exception.Message)") | Out-Null
-        }
-    }
-
-    if ($toolFailures.Count -ne 0)
-    {
-        throw (New-GameWipDiagnosticException -Code quality-toolchain-incomplete -Summary "$($toolFailures.Count) quality tool(s) are unavailable." -Details ($toolFailures -join "`n") -SuggestedActions @('.\gamewip.bat tools ensure quality -Yes', '.\gamewip.bat tools status'))
     }
 
     $checks = @(
@@ -416,12 +585,12 @@ function Invoke-GameWipQualityCheck
         },
         @{ Name = 'Prettier'; Body = { if (-not $useChangedScope -or $prettierFiles.Count -ne 0)
                 {
-                    Invoke-GameWipQualityNative -Name prettier-check -FilePath $tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--check') + $prettierFiles)
+                    Invoke-GameWipQualityNative -Name prettier-check -FilePath $tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--check') + $prettierPluginArguments + $prettierFiles)
                 } }
         },
         @{ Name = 'Prettier special JSON'; Body = { if (-not $useChangedScope -or $specialJsonFiles.Count -ne 0)
                 {
-                    Invoke-GameWipQualityNative -Name prettier-special-json-check -FilePath $tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--parser', 'json', '--check') + $specialJsonFiles)
+                    Invoke-GameWipQualityNative -Name prettier-special-json-check -FilePath $tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json')) + $prettierPluginArguments + @('--parser', 'json', '--check') + $specialJsonFiles)
                 } }
         },
         @{ Name = 'Gersemi'; Body = { if (-not $useChangedScope -or $cmakeFiles.Count -ne 0)
@@ -503,7 +672,10 @@ function Invoke-GameWipQualityCheck
 
 function Invoke-GameWipQualityFix
 {
-    param([Parameter(Mandatory = $true)]$ScopeInfo)
+    param(
+        [Parameter(Mandatory = $true)]$ScopeInfo,
+        [Parameter(Mandatory = $true)][hashtable]$Tools
+    )
 
     $qualityConfig = Join-Path $RepositoryRoot 'config\quality'
     $python = (Resolve-GameWipPython).Path
@@ -569,8 +741,9 @@ function Invoke-GameWipQualityFix
         {
             Get-GameWipCMakeFile
         })
+    $prettierPluginArguments = Get-GameWipPrettierPluginArguments
 
-    $ruff = Get-GameWipQualityTool -Id ruff
+    $ruff = $Tools.ruff
     if (-not $useChangedScope)
     {
         Invoke-GameWipFormat -Mode apply
@@ -584,22 +757,33 @@ function Invoke-GameWipQualityFix
         Invoke-GameWipQualityNative -Name ruff-fix -FilePath $ruff -Arguments (@('check', '--fix', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
         Invoke-GameWipQualityNative -Name ruff-format -FilePath $ruff -Arguments (@('format', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
     }
-    if (-not $useChangedScope -or $powerShellFiles.Count -ne 0)
-    {
-        Invoke-GameWipPowerShellQuality -Fix -Files $powerShellFiles
-    }
     if ($prettierFiles.Count -ne 0)
     {
-        Invoke-GameWipQualityNative -Name prettier-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--write') + $prettierFiles)
+        Invoke-GameWipQualityNative -Name prettier-write -FilePath $Tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--ignore-path', (Join-Path $qualityConfig 'prettier.ignore'), '--write') + $prettierPluginArguments + $prettierFiles)
     }
     if ($specialJsonFiles.Count -ne 0)
     {
-        Invoke-GameWipQualityNative -Name prettier-special-json-write -FilePath (Get-GameWipQualityTool -Id prettier) -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json'), '--parser', 'json', '--write') + $specialJsonFiles)
+        Invoke-GameWipQualityNative -Name prettier-special-json-write -FilePath $Tools.prettier -Arguments (@('--config', (Join-Path $qualityConfig 'prettier.json')) + $prettierPluginArguments + @('--parser', 'json', '--write') + $specialJsonFiles)
     }
     if ($cmakeFiles.Count -ne 0)
     {
-        Invoke-GameWipQualityNative -Name gersemi-format -FilePath (Get-GameWipQualityTool -Id gersemi) -Arguments (@('--config', (Join-Path $qualityConfig 'gersemi.yml'), '--in-place') + $cmakeFiles)
+        Invoke-GameWipQualityNative -Name gersemi-format -FilePath $Tools.gersemi -Arguments (@('--config', (Join-Path $qualityConfig 'gersemi.yml'), '--in-place') + $cmakeFiles)
     }
+    if (-not $useChangedScope -or $powerShellFiles.Count -ne 0)
+    {
+        Invoke-GameWipPowerShellFormat -Prettier $Tools.prettier -Files $powerShellFiles
+        Invoke-GameWipPowerShellQuality -Files $powerShellFiles
+    }
+
+    $lineEndingFiles = if ($useChangedScope)
+    {
+        $scope
+    }
+    else
+    {
+        @()
+    }
+    Invoke-GameWipLineEndingNormalization -Files $lineEndingFiles
 }
 
 function Invoke-GameWipQuality
@@ -611,9 +795,11 @@ function Invoke-GameWipQuality
     )
     Initialize-GameWipStorage
     $scopeInfo = Get-GameWipQualityScope -Changed:$Changed
+    $qualityTools = $null
     if ($Mode -eq 'fix')
     {
-        Invoke-GameWipQualityFix -ScopeInfo $scopeInfo
+        $qualityTools = Get-GameWipQualityToolchain
+        Invoke-GameWipQualityFix -ScopeInfo $scopeInfo -Tools $qualityTools
     }
-    Invoke-GameWipQualityCheck -FailFast:$FailFast -Changed:$Changed -ScopeInfo $scopeInfo
+    Invoke-GameWipQualityCheck -FailFast:$FailFast -Changed:$Changed -ScopeInfo $scopeInfo -Tools $qualityTools
 }

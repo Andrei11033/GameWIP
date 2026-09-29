@@ -487,7 +487,7 @@ namespace GameWIP::Logger::Detail::Core
         }
     }
 
-    /// @brief atexit callback that delegates to the idempotent public shutdown path.
+    /// @brief Callback registered with atexit that delegates to the idempotent public shutdown path.
     void shutdownLoggerAtExit()
     {
         GameWIP::Logger::shutdown();

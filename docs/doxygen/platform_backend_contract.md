@@ -4,7 +4,7 @@ GameWIP reusable libraries keep platform-specific behavior behind internal
 backend contracts. The public API stays portable unless the platform concept is
 itself part of the public contract.
 
-FileSystem, Terminal, Logger, Desktop, and future platform-dependent components
+FileSystem, Terminal, Logger, Assert, TestSupport, Desktop, and future platform-dependent components
 use the same backend shape. This page covers layout, platform selection, native
 error translation, cleanup, and test seams so each library has a consistent
 boundary.
@@ -32,7 +32,10 @@ Repository platform mapping is centralized in `cmake/GameWIPPlatform.cmake`:
 Windows maps to `win32`, Linux to `linux`, and Darwin to `macos`. Every
 platform-aware target calls
 `gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)`.
-Configuration fails when the selected backend file is absent.
+Configuration fails when the selected backend file is absent. An externally
+provided `GAMEWIP_PLATFORM_ID` must be a lowercase backend identifier made from
+letters, digits, and single hyphens; the validator remains extensible and does
+not claim that a valid identifier is implemented by every library.
 
 Add a new platform ID only when CMake cannot already map the target environment.
 Platform IDs must be stable, lowercase, and suitable for directory names.
@@ -142,6 +145,11 @@ When adding a backend:
 - Update platform selection only when needed.
 - Update the owning library's testing and troubleshooting docs.
 - Run the relevant validation, installed-consumer, and documentation workflows.
+
+Unicode and IO are portable foundation libraries and do not receive artificial
+backend directories. Input and Action remain compile-only surfaces for now;
+they are not part of the supported backend-completeness contract. WindowManager
+is outside this contract's scope.
 
 ## Allowed exceptions
 

@@ -16,6 +16,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     namespace
     {
+        /// @brief Publishes a visibility transition observed from the native HWND.
         void synchronizeVisibility(WindowState &state) noexcept
         {
             const bool visible = IsWindowVisible(state.platform->handle) != FALSE;
@@ -30,6 +31,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Publishes minimized/maximized/normal state observed from the native HWND.
         void synchronizePresentation(WindowState &state) noexcept
         {
             const Types::PresentationState value = IsIconic(state.platform->handle)   ? Types::PresentationState::Minimized
@@ -46,6 +48,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Applies a cached style change transactionally and restores the old value on failure.
         template <typename Value, typename Apply>
         [[nodiscard]] IO::Types::Status updateStyleValue(WindowState &state, Value &destination, const Value &value, Apply &&apply) noexcept
         {

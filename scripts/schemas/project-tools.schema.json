@@ -44,7 +44,6 @@
         { "$ref": "#/$defs/providerPowerShellGallery" },
         { "$ref": "#/$defs/providerGitHubRelease" },
         { "$ref": "#/$defs/providerWinget" },
-        { "$ref": "#/$defs/providerGitSubmodule" },
         { "$ref": "#/$defs/providerExternal" }
       ]
     },
@@ -109,15 +108,6 @@
         "package": { "type": "string", "minLength": 1 },
         "managedPath": { "type": "string", "minLength": 1 },
         "installArguments": { "type": "array", "items": { "type": "string" } }
-      }
-    },
-    "providerGitSubmodule": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["kind", "path"],
-      "properties": {
-        "kind": { "const": "gitSubmodule" },
-        "path": { "type": "string", "minLength": 1 }
       }
     },
     "providerExternal": {

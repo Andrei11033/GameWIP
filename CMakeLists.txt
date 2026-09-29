@@ -26,6 +26,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 include(GameWIPVersion)
 include(GameWIPOptions)
+include(GameWIPDependencies)
 include(GameWIPPlatform)
 include(GameWIPPackage)
 include(GameWIPRuntimeDependencies)
