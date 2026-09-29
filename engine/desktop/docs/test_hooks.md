@@ -11,6 +11,13 @@ fullscreen rollback/restoration, close, event pumping, unexpected native destruc
 notification, Window and ChildSurface DPI transitions, ChildSurface unexpected native destruction, refresh-rate conversion, and exact exclusive-mode
 matching.
 
+Shell hooks add three one-shot native-boundary failures: `ShellNativeOpen`, `ShellNativeApply`,
+and `ShellNativeClose`. They make resource-open failure, transactional publication failure, and
+retryable close failure deterministic without replacing the Win32 shell objects. The
+`enqueueShellEvent()` hook injects a typed payload through the real fixed-capacity queue path so
+FIFO order, sequence reset, overflow, and owned-event lifetime can be tested without requiring a
+human to activate a tray, taskbar, or notification surface.
+
 DragDrop hooks expose portable effect negotiation, source completion mapping,
 and deterministic target-event injection for queue/coalescing/terminal-event
 tests. They do not expose COM objects and remain source-tree-only. One-shot

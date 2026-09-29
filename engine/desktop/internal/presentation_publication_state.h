@@ -20,6 +20,7 @@ namespace GameWIP::Desktop::Detail
     public:
         PresentationPublicationState() noexcept = default;
 
+        /// @brief Resets all published values for a closed or newly reopened Window.
         void reset() noexcept
         {
             clientSize_.store(0, std::memory_order_release);
@@ -30,46 +31,55 @@ namespace GameWIP::Desktop::Detail
             flags_.store(0, std::memory_order_release);
         }
 
+        /// @brief Publishes the logical client extent with release ordering.
         void publishClientSize(Types::LogicalSize value) noexcept
         {
             clientSize_.store(packUnsigned(value.width, value.height), std::memory_order_release);
         }
 
+        /// @brief Publishes the physical framebuffer extent with release ordering.
         void publishFramebufferSize(Types::PixelSize value) noexcept
         {
             framebufferSize_.store(packUnsigned(value.width, value.height), std::memory_order_release);
         }
 
+        /// @brief Publishes logical-to-physical content scale with release ordering.
         void publishContentScale(Types::ContentScale value) noexcept
         {
             contentScale_.store(packFloats(value.x, value.y), std::memory_order_release);
         }
 
+        /// @brief Publishes effective DPI with release ordering.
         void publishDpi(Types::Dpi value) noexcept
         {
             dpi_.store(packFloats(value.x, value.y), std::memory_order_release);
         }
 
+        /// @brief Publishes the current monitor identity with release ordering.
         void publishMonitor(Types::Display::MonitorId value) noexcept
         {
             monitor_.store(value.value, std::memory_order_release);
         }
 
+        /// @brief Publishes presentation state through the packed flags word.
         void publishPresentationState(Types::PresentationState value) noexcept
         {
             updateFlags(kPresentationMask, static_cast<std::uint32_t>(value));
         }
 
+        /// @brief Publishes the cached visibility flag.
         void publishVisible(bool value) noexcept
         {
             updateFlag(kVisible, value);
         }
 
+        /// @brief Publishes the interactive move/resize flag.
         void publishInteractiveMoveResizeActive(bool value) noexcept
         {
             updateFlag(kInteractiveMoveResizeActive, value);
         }
 
+        /// @brief Publishes the renderer-reported occlusion flag.
         void publishOccluded(bool value) noexcept
         {
             updateFlag(kOccluded, value);
@@ -130,11 +140,13 @@ namespace GameWIP::Desktop::Detail
         static constexpr std::uint32_t kInteractiveMoveResizeActive = 1U << 3U;
         static constexpr std::uint32_t kOccluded = 1U << 4U;
 
+        /// @brief Packs two 32-bit values into one atomically published word.
         [[nodiscard]] static constexpr std::uint64_t packUnsigned(std::uint32_t low, std::uint32_t high) noexcept
         {
             return static_cast<std::uint64_t>(low) | (static_cast<std::uint64_t>(high) << 32U);
         }
 
+        /// @brief Bit-packs two floats without changing their representation.
         [[nodiscard]] static constexpr std::uint64_t packFloats(float low, float high) noexcept
         {
             return packUnsigned(std::bit_cast<std::uint32_t>(low), std::bit_cast<std::uint32_t>(high));
@@ -160,11 +172,13 @@ namespace GameWIP::Desktop::Detail
             return std::bit_cast<float>(highUnsigned(value));
         }
 
+        /// @brief Updates one flag bit while preserving unrelated publication state.
         void updateFlag(std::uint32_t flag, bool value) noexcept
         {
             updateFlags(flag, value ? flag : 0U);
         }
 
+        /// @brief Performs a compare-exchange update of selected packed flag bits.
         void updateFlags(std::uint32_t mask, std::uint32_t value) noexcept
         {
             std::uint32_t current = flags_.load(std::memory_order_relaxed);
@@ -173,6 +187,7 @@ namespace GameWIP::Desktop::Detail
             }
         }
 
+        /// @brief Reads one published flag with acquire ordering.
         [[nodiscard]] bool testFlag(std::uint32_t flag) const noexcept
         {
             return (flags_.load(std::memory_order_acquire) & flag) != 0;

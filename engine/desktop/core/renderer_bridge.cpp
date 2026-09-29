@@ -16,6 +16,7 @@ namespace GameWIP::Desktop::Renderer
 {
     namespace
     {
+        /// @brief Validates that a renderer bridge operation runs on a live Window owner thread.
         [[nodiscard]] IO::Types::Status requireOwner(Window &window, Detail::WindowState *&state) noexcept
         {
             state = Detail::WindowAccess::state(window);
@@ -30,6 +31,7 @@ namespace GameWIP::Desktop::Renderer
             return IO::successStatus();
         }
 
+        /// @brief Lazily creates optional renderer state while converting allocation failures to null.
         [[nodiscard]] Detail::RendererIntegrationState *ensureIntegration(Window &window) noexcept
         {
             try
@@ -192,6 +194,7 @@ namespace GameWIP::Desktop::Renderer
     // ------------------------------------------------------------
     // Pointer hit masks
     // ------------------------------------------------------------
+    /// @brief Returns the packed word count required for one framebuffer-sized hit mask.
     std::size_t requiredPointerHitMaskWords(Types::PixelSize size) noexcept
     {
         constexpr std::size_t bitsPerWord = std::numeric_limits<Types::Renderer::PointerHitMaskWord>::digits;
@@ -209,6 +212,7 @@ namespace GameWIP::Desktop::Renderer
         return wordsPerRow * height;
     }
 
+    /// @brief Reserves a generation and exact target size for a two-phase hit-mask publication.
     Types::Renderer::PointerHitMaskResult beginPointerHitMaskUpdate(Window &window) noexcept
     {
         Detail::WindowState *state = nullptr;
@@ -257,6 +261,7 @@ namespace GameWIP::Desktop::Renderer
             .target = {.generation = generation, .framebufferSize = state->framebufferSize, .requiredWordCount = required}};
     }
 
+    /// @brief Validates and publishes the reserved hit-mask generation atomically from the owner thread.
     IO::Types::Status publishPointerHitMask(
         Window &window,
         std::uint64_t generation,
@@ -333,6 +338,7 @@ namespace GameWIP::Desktop::Renderer
         }
     }
 
+    /// @brief Invalidates the active hit mask without replacing the renderer integration state.
     IO::Types::Status clearPointerHitMask(Window &window) noexcept
     {
         Detail::WindowState *state = nullptr;

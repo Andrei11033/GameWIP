@@ -16,20 +16,27 @@
 
 namespace GameWIP::Desktop
 {
+    // ------------------------------------------------------------
+    // Validation and cached-state helpers
+    // ------------------------------------------------------------
+
     namespace
     {
         using IO::Types::ErrorCode;
 
+        /// @brief Builds a portable status from a single error code.
         [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
         {
             return IO::makeStatus(code);
         }
 
+        /// @brief Returns the state only when the current thread owns the ChildSurface lifetime.
         [[nodiscard]] Detail::ChildSurfaceState *owned(Detail::ChildSurfaceState *state) noexcept
         {
             return state != nullptr && state->ownerThread == std::this_thread::get_id() ? state : nullptr;
         }
 
+        /// @brief Validates both native liveness and owner-thread access for a mutating operation.
         [[nodiscard]] IO::Types::Status requireOpen(Detail::ChildSurfaceState *state) noexcept
         {
             if (state == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*state))
@@ -43,6 +50,7 @@ namespace GameWIP::Desktop
             return IO::successStatus();
         }
 
+        /// @brief Converts baseline logical units to physical pixels using the current effective DPI.
         [[nodiscard]] Types::PixelSize physicalSize(Types::LogicalSize size, Types::Dpi dpi) noexcept
         {
             constexpr double baseline = 96.0;
@@ -51,6 +59,7 @@ namespace GameWIP::Desktop
                 static_cast<std::uint32_t>(std::llround(static_cast<double>(size.height) * static_cast<double>(dpi.y) / baseline))};
         }
 
+        /// @brief Seeds portable state before native creation and suppresses construction-time events.
         void initializeCachedState(Detail::ChildSurfaceState &state, const Types::ChildSurface::Description &description) noexcept
         {
             state.ownerThread = std::this_thread::get_id();
@@ -60,11 +69,13 @@ namespace GameWIP::Desktop
             state.suppressEvents = true;
         }
 
+        /// @brief Releases retained queue entries before state storage is destroyed or replaced.
         void releaseEventStorage(Detail::ChildSurfaceState &state) noexcept
         {
             state.clearRetainedEvents();
         }
 
+        /// @brief Publishes only the geometry events whose cached values changed.
         void queueGeometryChanges(Detail::ChildSurfaceState &state, Types::LogicalRect previous, Types::PixelSize previousPixels) noexcept
         {
             if (previous.position != state.rect.position)
@@ -81,6 +92,10 @@ namespace GameWIP::Desktop
             }
         }
     } // namespace
+
+    // ------------------------------------------------------------
+    // Lifecycle and ownership
+    // ------------------------------------------------------------
 
     ChildSurface::ChildSurface() noexcept = default;
 
@@ -255,6 +270,10 @@ namespace GameWIP::Desktop
         return result.status;
     }
 
+    // ------------------------------------------------------------
+    // Cached state and event queue
+    // ------------------------------------------------------------
+
     Types::WindowId ChildSurface::parentId() const noexcept
     {
         return state_ ? state_->parentId : Types::WindowId{};
@@ -328,38 +347,50 @@ namespace GameWIP::Desktop
     {
         return state_ ? state_->rect : Types::LogicalRect{};
     }
+
     Types::LogicalPosition ChildSurface::position() const noexcept
     {
         return rect().position;
     }
+
     Types::LogicalSize ChildSurface::size() const noexcept
     {
         return rect().size;
     }
+
     Types::PixelSize ChildSurface::pixelSize() const noexcept
     {
         return state_ ? state_->pixelSize : Types::PixelSize{};
     }
+
     Types::ScreenRect ChildSurface::screenRect() const noexcept
     {
         return state_ ? state_->screenRect : Types::ScreenRect{};
     }
+
     Types::ContentScale ChildSurface::contentScale() const noexcept
     {
         return state_ ? state_->contentScale : Types::ContentScale{};
     }
+
     Types::Dpi ChildSurface::effectiveDpi() const noexcept
     {
         return state_ ? state_->dpi : Types::Dpi{};
     }
+
     bool ChildSurface::visible() const noexcept
     {
         return state_ && state_->visible;
     }
+
     bool ChildSurface::userInteractionEnabled() const noexcept
     {
         return state_ && state_->interactionEnabled;
     }
+
+    // ------------------------------------------------------------
+    // Geometry and coordinate conversion
+    // ------------------------------------------------------------
 
     IO::Types::Status ChildSurface::setRect(Types::LogicalRect newRect) noexcept
     {
@@ -414,6 +445,10 @@ namespace GameWIP::Desktop
         }
         return Detail::Platform::childSurfaceScreenToClient(*state_, position);
     }
+
+    // ------------------------------------------------------------
+    // Visibility and sibling ordering
+    // ------------------------------------------------------------
 
     IO::Types::Status ChildSurface::show() noexcept
     {

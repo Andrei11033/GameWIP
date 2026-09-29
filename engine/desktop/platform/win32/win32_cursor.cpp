@@ -26,26 +26,32 @@ namespace GameWIP::Desktop::Detail::Platform
 
         struct CursorBinding final
         {
+            /// @brief Shared immutable cursor pixels retained by the HWND property.
             std::shared_ptr<const CursorState> state;
+            /// @brief Intended DPI of the native handle currently selected for the Window.
             std::uint32_t selectedDpi = 0;
         };
 
+        /// @brief Retrieves the custom cursor binding stored on one HWND.
         [[nodiscard]] CursorBinding *cursorBinding(HWND window) noexcept
         {
             return static_cast<CursorBinding *>(GetPropW(window, kCursorBindingProperty));
         }
 
+        /// @brief Tests whether the current Window state should display its cursor.
         [[nodiscard]] bool cursorVisible(const WindowState &state) noexcept
         {
             return state.cursorInside && state.cursorMode != Types::CursorMode::Hidden && state.cursorMode != Types::CursorMode::HiddenConfined &&
                    state.cursorMode != Types::CursorMode::Relative;
         }
 
+        /// @brief Converts a failed cursor API call into the library status convention.
         [[nodiscard]] IO::Types::Status nativeCursorFailure(DWORD nativeCode, const char *operation) noexcept
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode == ERROR_SUCCESS ? ERROR_GEN_FAILURE : nativeCode, operation);
         }
 
+        /// @brief Materializes one RGBA cursor image as a Win32 color/mask icon.
         [[nodiscard]] IO::Types::Status createNativeCursor(const Types::Cursor::ImageView &image, HCURSOR &cursor) noexcept
         {
             cursor = nullptr;

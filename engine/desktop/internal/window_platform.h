@@ -15,6 +15,7 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    /// @brief Best-effort color metadata gathered from display configuration and DXGI.
     struct DisplayColorSnapshot
     {
         Types::Display::ColorSpace activeColorSpace = Types::Display::ColorSpace::Unknown;
@@ -28,18 +29,23 @@ namespace GameWIP::Desktop::Detail::Platform
         std::uint32_t sdrWhiteLevelMilli80Nits = 0;
     };
 
+    /// @brief Result of closing an owner-thread native resource.
     struct CloseResult
     {
         IO::Types::Status status;
         bool resourceClosed = false;
     };
 
+    /// @brief Opaque native module/window pair exposed to the Win32 interop layer.
     struct NativeHandleView
     {
         void *instance = nullptr;
         void *window = nullptr;
     };
 
+    // ------------------------------------------------------------
+    // Process, display, and event services
+    // ------------------------------------------------------------
     [[nodiscard]] Types::CapabilitiesResult getCapabilities() noexcept;
     [[nodiscard]] Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept;
     [[nodiscard]] Types::Display::MonitorsResult getMonitors() noexcept;
@@ -58,6 +64,9 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Returns whether the calling thread owns an open top-level Window.
     [[nodiscard]] bool hasOpenWindowsOnCurrentThread() noexcept;
 
+    // ------------------------------------------------------------
+    // Window lifetime and ownership
+    // ------------------------------------------------------------
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;
     [[nodiscard]] CloseResult close(WindowState &state) noexcept;
     void closeBestEffort(WindowState &state) noexcept;
@@ -67,6 +76,9 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status wakeEventWait(const WindowState &state) noexcept;
     [[nodiscard]] NativeHandleView nativeHandle(const WindowState &state) noexcept;
 
+    // ------------------------------------------------------------
+    // Ownership, metadata, and geometry
+    // ------------------------------------------------------------
     [[nodiscard]] IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept;
     [[nodiscard]] IO::Types::Status setTitle(WindowState &state, std::string_view utf8Title) noexcept;
     [[nodiscard]] IO::Types::Status setIcon(WindowState &state, std::span<const Types::IconImageView> images) noexcept;
@@ -79,6 +91,10 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status setAspectRatio(WindowState &state, std::optional<Types::AspectRatio> ratio) noexcept;
     [[nodiscard]] Types::ScreenPositionResult clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept;
     [[nodiscard]] Types::LogicalPositionResult screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept;
+
+    // ------------------------------------------------------------
+    // Visibility, mode, style, and cursor controls
+    // ------------------------------------------------------------
     [[nodiscard]] IO::Types::Status show(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status hide(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status requestFocus(WindowState &state) noexcept;

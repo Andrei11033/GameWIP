@@ -10,6 +10,7 @@
 #include "desktop/internal/drag_drop_platform.h"
 #include "desktop/internal/dialogs_platform.h"
 #include "desktop/internal/progress_dialog_state.h"
+#include "desktop/internal/shell_state.h"
 #include "desktop/internal/window_platform.h"
 #include "desktop/internal/window_state.h"
 
@@ -21,6 +22,7 @@
 
 namespace
 {
+    // These thread-local controls keep injected failures deterministic and owner-thread scoped.
     thread_local GameWIP::Desktop::TestHooks::FailurePoint armedFailure = GameWIP::Desktop::TestHooks::FailurePoint::None;
     thread_local std::size_t cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
@@ -164,6 +166,15 @@ namespace GameWIP::Desktop::TestHooks
     void failNext(FailurePoint point) noexcept
     {
         armedFailure = point;
+    }
+
+    void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept
+    {
+        Detail::ShellEventQueueState *state = Detail::ShellEventQueueAccess::state(queue);
+        if (state != nullptr)
+        {
+            Detail::publishShellEvent(*state, std::move(payload));
+        }
     }
 
     void resetFailures() noexcept

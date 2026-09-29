@@ -22,6 +22,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Detail
 {
+    /// @brief Outcome of inserting one ChildSurface event into fixed storage.
     enum class ChildSurfaceEnqueueResult
     {
         Queued,
@@ -29,6 +30,7 @@ namespace GameWIP::Desktop::Detail
         Dropped
     };
 
+    /// @brief Stable portable ChildSurface state retained across native backend calls.
     struct ChildSurfaceState
     {
         ~ChildSurfaceState() noexcept
@@ -36,6 +38,7 @@ namespace GameWIP::Desktop::Detail
             clearRetainedEvents();
         }
 
+        /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
             if (!eventStorage.empty())
@@ -55,7 +58,7 @@ namespace GameWIP::Desktop::Detail
         std::thread::id ownerThread;
         Types::WindowId parentId;
         std::vector<Types::ChildSurface::Event> internalEvents;
-        std::span<Types::ChildSurface::Event> eventStorage;
+        std::span<Types::ChildSurface::Event> eventStorage; ///< Internal or caller-owned slots retained until close.
         Types::Events::StorageKind eventStorageKind = Types::Events::StorageKind::Internal;
         std::size_t eventHead = 0;
         std::size_t eventCount = 0;
@@ -68,8 +71,8 @@ namespace GameWIP::Desktop::Detail
         Types::Dpi dpi;
         bool visible = false;
         bool interactionEnabled = true;
-        bool suppressEvents = true;
-        bool nativeDestroyedPendingFinalize = false;
+        bool suppressEvents = true;                  ///< Suppresses construction-time native callbacks.
+        bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
     };
 
     [[nodiscard]] bool isChildSurfaceEventCoalescible(const Types::ChildSurface::Events::Payload &data) noexcept;

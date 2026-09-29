@@ -15,6 +15,7 @@ namespace GameWIP::Desktop::Detail
     // Keep this as one lazy allocation while its optional renderer features remain small and closely related. If it grows substantially with
     // independent features such as presentation timing, HDR/color metadata, damage tracking, or frame-latency state, split focused optional
     // sub-states instead of turning this into a generic renderer-state container.
+    /// @brief Optional renderer-facing state shared by hit-mask and occlusion bridges.
     struct RendererIntegrationState
     {
         std::vector<Types::Renderer::PointerHitMaskWord> pointerHitMask;
@@ -29,6 +30,7 @@ namespace GameWIP::Desktop::Detail
         bool occlusionProviderAttached = false;
         bool occluded = false;
 
+        /// @brief Clears the active mask and advances its generation for stale-publish rejection.
         void invalidatePointerHitMask() noexcept
         {
             pointerHitMask.clear();
@@ -47,6 +49,7 @@ namespace GameWIP::Desktop::Detail
             }
         }
 
+        /// @brief Clears optional renderer state at the end of one Window lifetime.
         void finishWindowLifetime() noexcept
         {
             pointerHitMask.clear();

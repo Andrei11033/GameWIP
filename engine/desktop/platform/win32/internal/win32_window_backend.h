@@ -30,13 +30,13 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Backend-owned state for one native child-host HWND.
     struct ChildSurfaceData
     {
-        ChildSurfaceState *owner = nullptr;
-        HINSTANCE instance = nullptr;
-        HWND handle = nullptr;
-        DWORD ownerThreadId = 0;
-        bool classReferenceHeld = false;
-        bool registered = false;
-        bool destroying = false;
+        ChildSurfaceState *owner = nullptr; ///< Stable portable state owning this record.
+        HINSTANCE instance = nullptr;       ///< Module used to register/create the child class.
+        HWND handle = nullptr;              ///< Native child HWND, owner-thread affine.
+        DWORD ownerThreadId = 0;            ///< Thread permitted to mutate/destroy the HWND.
+        bool classReferenceHeld = false;    ///< Whether this record owns one class reference.
+        bool registered = false;            ///< Whether the HWND is registered with its parent.
+        bool destroying = false;            ///< Prevents reentrant callbacks during close.
     };
 
     inline constexpr UINT kBaselineDpi = 96;                                  ///< Win32 logical-coordinate baseline.

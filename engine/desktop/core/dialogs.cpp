@@ -15,16 +15,19 @@ namespace GameWIP::Desktop::Dialogs
     {
         using IO::Types::ErrorCode;
 
+        /// @brief Builds a portable status from a single error code.
         [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
         {
             return IO::makeStatus(code);
         }
 
+        /// @brief Rejects embedded NUL characters before text reaches a native dialog API.
         [[nodiscard]] IO::Types::Status validateText(std::string_view text) noexcept
         {
             return text.contains('\0') ? error(ErrorCode::InvalidArgument) : IO::successStatus();
         }
 
+        /// @brief Validates optional Window ownership and enforces owner-thread dialog calls.
         [[nodiscard]] IO::Types::Status validateOwner(Window *owner) noexcept
         {
             if (owner == nullptr)
@@ -39,17 +42,20 @@ namespace GameWIP::Desktop::Dialogs
             return Detail::Platform::ownedByCurrentThread(*state) ? IO::successStatus() : error(ErrorCode::ResourceBusy);
         }
 
+        /// @brief Returns whether an extension is one native-filter-safe filename component.
         [[nodiscard]] bool validExtensionSyntax(std::string_view extension) noexcept
         {
             return !extension.empty() && !extension.starts_with('.') && !extension.contains('*') && !extension.contains('?') &&
                    !extension.contains('/') && !extension.contains('\\') && !extension.contains('\0');
         }
 
+        /// @brief Applies the additional delimiter rule used by native filter construction.
         [[nodiscard]] bool validFilterExtensionSyntax(std::string_view extension) noexcept
         {
             return validExtensionSyntax(extension) && !extension.contains(';');
         }
 
+        /// @brief Validates filter text and the selected filter index before native conversion.
         [[nodiscard]] IO::Types::Status validateFilters(
             std::span<const Types::Dialogs::File::Filter> filters,
             std::optional<std::size_t> preferredFilterIndex) noexcept
@@ -81,12 +87,14 @@ namespace GameWIP::Desktop::Dialogs
             return IO::successStatus();
         }
 
+        /// @brief Validates the portable severity values accepted by every dialog backend.
         [[nodiscard]] bool validSeverity(Types::Dialogs::Severity severity) noexcept
         {
             using Severity = Types::Dialogs::Severity;
             return severity == Severity::None || severity == Severity::Information || severity == Severity::Warning || severity == Severity::Error;
         }
 
+        /// @brief Validates the supported message-button combinations.
         [[nodiscard]] bool validMessageButtons(Types::Dialogs::Message::Buttons buttons) noexcept
         {
             using Buttons = Types::Dialogs::Message::Buttons;
@@ -94,6 +102,7 @@ namespace GameWIP::Desktop::Dialogs
                    buttons == Buttons::RetryCancel;
         }
 
+        /// @brief Returns whether a message-button set contains the requested result.
         [[nodiscard]] bool messageContainsButton(Types::Dialogs::Message::Buttons buttons, Types::Dialogs::Message::Button button) noexcept
         {
             using Button = Types::Dialogs::Message::Button;
@@ -114,6 +123,7 @@ namespace GameWIP::Desktop::Dialogs
             return false;
         }
 
+        /// @brief Returns whether a prompt button identifier is unique within the description.
         [[nodiscard]] bool containsButton(std::span<const Types::Dialogs::Prompt::Button> buttons, Types::Dialogs::Prompt::ButtonId id) noexcept
         {
             for (const auto &button : buttons)
@@ -126,6 +136,7 @@ namespace GameWIP::Desktop::Dialogs
             return false;
         }
 
+        /// @brief Returns whether a prompt option identifier is unique within the description.
         [[nodiscard]] bool containsOption(std::span<const Types::Dialogs::Prompt::Option> options, Types::Dialogs::Prompt::OptionId id) noexcept
         {
             for (const auto &option : options)
@@ -138,6 +149,7 @@ namespace GameWIP::Desktop::Dialogs
             return false;
         }
 
+        /// @brief Validates prompt text, identifiers, defaults, and optional checkbox state.
         [[nodiscard]] IO::Types::Status validatePrompt(const Types::Dialogs::Prompt::Description &description) noexcept
         {
             if (!validSeverity(description.severity) || description.buttons.empty())
@@ -221,6 +233,10 @@ namespace GameWIP::Desktop::Dialogs
             return IO::successStatus();
         }
     } // namespace
+
+    // ------------------------------------------------------------
+    // File dialogs
+    // ------------------------------------------------------------
 
     Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept
     {
@@ -360,6 +376,10 @@ namespace GameWIP::Desktop::Dialogs
         }
         return result;
     }
+
+    // ------------------------------------------------------------
+    // Message and prompt dialogs
+    // ------------------------------------------------------------
 
     Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept
     {

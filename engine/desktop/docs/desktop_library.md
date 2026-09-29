@@ -43,6 +43,8 @@ opt-in headers expose renderer integration and deliberate native interoperation.
   sources and declarative target regions.
 - @subpage desktop_dialogs - Present synchronous native choices and modeless
   owner-thread operation progress.
+- @subpage desktop_shell - Publish taskbar, tray, notification, jump-list,
+  recent-item, and current-user shell registration state.
 - @subpage desktop_lifecycle_events - Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage desktop_chrome_and_pointer_input - Configure system and custom chrome,
@@ -54,11 +56,11 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 - @subpage desktop_renderer_integration - Enable concurrent presentation reads,
   attach renderer feedback, and publish packed pointer data.
 - @subpage desktop_examples - See lifecycle, events, displays, fullscreen,
-  custom chrome, and renderer integration in context.
+  shell integration, custom chrome, and renderer integration in context.
 - @subpage desktop_troubleshooting - Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer integration.
-- @subpage desktop_future_extensions - Understand where proposed accessibility,
-  dialogs, shell integration, and related features belong.
+- @subpage desktop_future_extensions - Understand ownership boundaries for future
+  accessibility, UI, and platform extensions.
 
 ## Maintainer validation
 
@@ -87,6 +89,11 @@ under `Desktop::Dialogs`, and persistent modeless progress under
 Every successful `open()` creates one process-local `Types::WindowId` and one fixed event queue. `Window` is non-copyable and non-movable, keeping its
 address and thread affinity stable. Cached getters are allocation-free and never query the operating system. By default they remain owner-thread-only.
 The optional renderer bridge can lazily enable atomic publication for the documented presentation subset.
+
+Shell resources follow the same explicit ownership model without becoming Window members. The
+owner thread owns resource mutation and queue consumption; shell resources borrow an
+application-owned queue for typed interaction events, and their destructors perform only
+best-effort native cleanup.
 
 Native callbacks update cached state before inserting events, so queue overflow loses notification history without making current state stale. Close
 requests remain sticky even when their `Types::Events::CloseRequested` payload cannot be retained.

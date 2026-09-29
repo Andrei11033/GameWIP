@@ -13,6 +13,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     namespace
     {
+        /// @brief Marks a mode transition so synchronous native callbacks do not compete for geometry.
         class ModeTransitionScope
         {
         public:
@@ -34,6 +35,7 @@ namespace GameWIP::Desktop::Detail::Platform
             WindowData &data_;
         };
 
+        /// @brief Resolves an explicit monitor or falls back to the Window's nearest monitor.
         [[nodiscard]] HMONITOR targetMonitor(WindowState &state, Types::Display::MonitorId requested) noexcept
         {
             if (requested.isValid())
@@ -47,6 +49,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY);
         }
 
+        /// @brief Saves windowed placement and styles before entering fullscreen.
         [[nodiscard]] IO::Types::Status saveWindowedPlacement(WindowState &state) noexcept
         {
             WindowData &data = *state.platform;
@@ -76,6 +79,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Compares a native display mode with the portable mode contract.
         [[nodiscard]] bool displayModeMatches(const DEVMODEW &native, const Types::Display::Mode &mode) noexcept
         {
             const std::uint32_t frequency = native.dmDisplayFrequency > 1 ? native.dmDisplayFrequency * 1000U : 0;
@@ -84,6 +88,7 @@ namespace GameWIP::Desktop::Detail::Platform
                    ((native.dmDisplayFlags & DM_INTERLACED) != 0) == mode.interlaced;
         }
 
+        /// @brief Finds the exact native display mode requested by the caller.
         [[nodiscard]] IO::Types::Status findNativeMode(std::wstring_view device, const Types::Display::Mode &requested, DEVMODEW &output)
         {
             const std::wstring deviceName(device);
@@ -104,6 +109,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
+        /// @brief Publishes a mode transition and refreshes the current monitor identity.
         void reportModeChange(WindowState &state, Types::Mode previous) noexcept
         {
             if (previous != state.mode)
@@ -129,6 +135,7 @@ namespace GameWIP::Desktop::Detail::Platform
             bool exactDisplayMode = false;
         };
 
+        /// @brief Captures every native and portable value needed for transactional rollback.
         [[nodiscard]] IO::Types::Status captureModeSnapshot(WindowState &state, const RECT &rect, ModeSnapshot &snapshot)
         {
             WindowData &data = *state.platform;
@@ -160,6 +167,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Restores a captured mode snapshot after a failed transition.
         [[nodiscard]] IO::Types::Status restoreModeSnapshot(WindowState &state, ModeSnapshot &snapshot) noexcept
         {
             WindowData &data = *state.platform;
@@ -226,6 +234,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return rollback;
         }
 
+        /// @brief Returns the original transition failure unless rollback also failed.
         [[nodiscard]] IO::Types::Status failWithRollback(WindowState &state, ModeSnapshot &snapshot, IO::Types::Status failure) noexcept
         {
             IO::Types::Status rollback = restoreModeSnapshot(state, snapshot);

@@ -50,6 +50,7 @@ target_sources(
         core/events.cpp
         core/progress_dialog.cpp
         core/renderer_bridge.cpp
+        core/shell.cpp
         core/window.cpp
         core/desktop_test_hooks.cpp
         internal/cursor_platform.h
@@ -63,6 +64,8 @@ target_sources(
         internal/dialogs_platform.h
         internal/progress_dialog_state.h
         internal/presentation_publication_state.h
+        internal/shell_platform.h
+        internal/shell_state.h
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS

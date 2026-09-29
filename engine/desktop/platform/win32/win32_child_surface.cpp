@@ -14,6 +14,10 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // ChildSurface class and geometry helpers
+    // ------------------------------------------------------------
+
     namespace
     {
         inline constexpr wchar_t kChildSurfaceClassName[] = L"GameWIP.Window.ChildSurface";
@@ -26,6 +30,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status releaseChildSurfaceClass() noexcept;
         [[nodiscard]] LRESULT CALLBACK childSurfaceProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
 
+        /// @brief Temporarily enables mixed-DPI hosting for a child HWND operation.
         class DpiHostingScope final
         {
         public:
@@ -51,6 +56,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DPI_HOSTING_BEHAVIOR previous_ = DPI_HOSTING_BEHAVIOR_INVALID;
         };
 
+        /// @brief Converts logical child geometry to checked Win32 pixel coordinates.
         [[nodiscard]] bool physicalRect(const Types::LogicalRect &rect, UINT dpi, int &x, int &y, int &width, int &height) noexcept
         {
             LONG nativeX = 0;
@@ -72,6 +78,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return true;
         }
 
+        /// @brief Refreshes cached virtual-screen geometry from the live child HWND.
         void refreshChildScreenRect(ChildSurfaceState &state) noexcept
         {
             if (!state.platform || state.platform->handle == nullptr)
@@ -89,6 +96,7 @@ namespace GameWIP::Desktop::Detail::Platform
                  static_cast<std::uint32_t>(std::max<LONG>(0, native.bottom - native.top))}};
         }
 
+        /// @brief Reads visibility while preserving the distinction between a zero style and API failure.
         [[nodiscard]] IO::Types::Status childVisible(HWND window, bool &visible) noexcept
         {
             LONG_PTR style = 0;
@@ -101,6 +109,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Acquires the process-local child class registration with reference counting.
         [[nodiscard]] IO::Types::Status acquireChildSurfaceClass(HINSTANCE instance) noexcept
         {
             std::scoped_lock lock(childClassMutex);
@@ -133,6 +142,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Releases the child class only after its last native user has closed.
         [[nodiscard]] IO::Types::Status releaseChildSurfaceClass() noexcept
         {
             std::scoped_lock lock(childClassMutex);
@@ -155,6 +165,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Translates child HWND lifecycle and DPI messages into portable state/events.
         [[nodiscard]] LRESULT CALLBACK childSurfaceProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         {
             auto *state = reinterpret_cast<ChildSurfaceState *>(GetWindowLongPtrW(window, GWLP_USERDATA));
@@ -251,16 +262,23 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
+    // ------------------------------------------------------------
+    // ChildSurface lifecycle and native operations
+    // ------------------------------------------------------------
+
+    /// @brief Deletes backend state after owner-thread native cleanup has completed.
     void ChildSurfaceDataDeleter::operator()(ChildSurfaceData *data) const noexcept
     {
         delete data;
     }
 
+    /// @brief Refreshes cached child geometry after a parent or DPI transition.
     void refreshChildSurfaceScreenRect(ChildSurfaceState &state) noexcept
     {
         refreshChildScreenRect(state);
     }
 
+    /// @brief Creates and publishes a child HWND beneath a live parent Window.
     IO::Types::Status openChildSurface(ChildSurfaceState &state, WindowState &parent) noexcept
     {
         try
@@ -362,6 +380,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Closes one child HWND and releases its class reference on the owner thread.
     CloseResult closeChildSurface(ChildSurfaceState &state) noexcept
     {
         if (!state.platform)
@@ -401,6 +420,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return {std::move(status), true};
     }
 
+    /// @brief Performs non-reporting child cleanup used by destructors and failed opens.
     void closeChildSurfaceBestEffort(ChildSurfaceState &state) noexcept
     {
         if (!state.platform)
@@ -436,21 +456,25 @@ namespace GameWIP::Desktop::Detail::Platform
         state.platform.reset();
     }
 
+    /// @brief Returns whether the calling thread matches the native child owner.
     bool isChildSurfaceOwnedByCurrentThread(const ChildSurfaceState &state) noexcept
     {
         return state.platform && state.platform->ownerThreadId == GetCurrentThreadId();
     }
 
+    /// @brief Returns whether the state still references a live child HWND.
     bool hasLiveNativeChildSurface(const ChildSurfaceState &state) noexcept
     {
         return state.platform && state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE;
     }
 
+    /// @brief Returns the native instance/window pair for a live child surface.
     NativeHandleView childSurfaceNativeHandle(const ChildSurfaceState &state) noexcept
     {
         return state.platform ? NativeHandleView{state.platform->instance, state.platform->handle} : NativeHandleView{};
     }
 
+    /// @brief Applies checked logical child geometry without activating or reordering the HWND.
     IO::Types::Status setChildSurfaceRect(ChildSurfaceState &state, Types::LogicalRect rect) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
@@ -474,6 +498,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Converts child-local logical coordinates to virtual-screen pixels.
     Types::ScreenPositionResult childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept
     {
         LONG x = 0;
@@ -491,6 +516,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return {.status = IO::successStatus(), .position = {point.x, point.y}};
     }
 
+    /// @brief Converts virtual-screen pixels to child-local logical coordinates.
     Types::LogicalPositionResult childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept
     {
         POINT point{position.x, position.y};
@@ -502,6 +528,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
 
+    /// @brief Changes native child visibility and verifies the resulting style bit.
     IO::Types::Status showChildSurface(ChildSurfaceState &state, bool visible) noexcept
     {
         const bool previousVisible = state.visible;
@@ -522,6 +549,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Changes native child input enablement and verifies the resulting state.
     IO::Types::Status setChildSurfaceInteractionEnabled(ChildSurfaceState &state, bool enabled) noexcept
     {
         static_cast<void>(EnableWindow(state.platform->handle, enabled ? TRUE : FALSE));
@@ -532,6 +560,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Places the child at the front or back of its native sibling order.
     IO::Types::Status orderChildSurfaceEdge(ChildSurfaceState &state, bool front) noexcept
     {
         if (SetWindowPos(state.platform->handle, front ? HWND_TOP : HWND_BOTTOM, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE) == FALSE)
@@ -541,6 +570,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
+    /// @brief Places the child immediately above or below a validated native sibling.
     IO::Types::Status orderChildSurface(ChildSurfaceState &state, const ChildSurfaceState *sibling, bool above) noexcept
     {
         HWND insertAfter = sibling->platform->handle;

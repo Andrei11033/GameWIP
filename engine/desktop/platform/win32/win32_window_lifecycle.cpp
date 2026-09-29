@@ -17,11 +17,13 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Native lifecycle
     // ------------------------------------------------------------
+    /// @brief Deletes portable Window backend storage after native cleanup is complete.
     void WindowDataDeleter::operator()(WindowData *data) const noexcept
     {
         delete data;
     }
 
+    /// @brief Creates the native HWND and publishes the initialized Window state.
     IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept
     {
         try
@@ -294,6 +296,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
+    /// @brief Closes a Window on its owner thread and reports whether native ownership ended.
     CloseResult close(WindowState &state) noexcept
     {
         if (!state.platform)
@@ -388,6 +391,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return {std::move(classStatus), true};
     }
 
+    /// @brief Performs best-effort Window teardown for normal and dispatcher-exit paths.
     void closeBestEffort(WindowState &state) noexcept
     {
         if (!state.platform)
@@ -453,11 +457,13 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Ownership, wakeup, and native state
     // ------------------------------------------------------------
+    /// @brief Tests whether the current thread owns the Window's native resources.
     bool ownedByCurrentThread(const WindowState &state) noexcept
     {
         return state.platform && state.platform->ownerThreadId == GetCurrentThreadId();
     }
 
+    /// @brief Wakes the owner thread so a pending event wait can observe cross-thread work.
     IO::Types::Status wakeEventWait(const WindowState &state) noexcept
     {
         if (!state.platform)
@@ -467,6 +473,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return postWakeMessage(state.platform->ownerThreadId, "PostThreadMessageW wake");
     }
 
+    /// @brief Returns opaque native handles for owner-thread interop.
     NativeHandleView nativeHandle(const WindowState &state) noexcept
     {
         if (!state.platform)
@@ -476,6 +483,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return {state.platform->instance, state.platform->handle};
     }
 
+    /// @brief Tests whether the Window still has a live HWND.
     bool hasLiveNativeWindow(const WindowState &state) noexcept
     {
         return state.platform && state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE;

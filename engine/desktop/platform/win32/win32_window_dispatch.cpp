@@ -7,6 +7,7 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    /// @brief Pumps the owner-thread dispatcher and optionally waits for native input.
     Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept
     {
         Dispatcher &current = dispatcher();

@@ -26,6 +26,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Detail
 {
+    struct TaskbarItemState;
+
+    /// @brief Outcome of inserting one Window event into fixed-capacity storage.
     enum class EnqueueResult
     {
         Queued,
@@ -33,6 +36,7 @@ namespace GameWIP::Desktop::Detail
         Dropped
     };
 
+    /// @brief Stable portable Window state retained across native backend calls.
     struct WindowState
     {
         ~WindowState() noexcept
@@ -40,6 +44,7 @@ namespace GameWIP::Desktop::Detail
             clearRetainedEvents();
         }
 
+        /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
             if (!eventStorage.empty())
@@ -61,7 +66,7 @@ namespace GameWIP::Desktop::Detail
         Types::WindowId owner;
 
         std::vector<Types::Event> internalEvents;
-        std::span<Types::Event> eventStorage;
+        std::span<Types::Event> eventStorage; ///< Internal or caller-owned slots retained until close.
         Types::Events::StorageKind eventStorageKind = Types::Events::StorageKind::Internal;
         std::size_t eventHead = 0;
         std::size_t eventCount = 0;
@@ -110,15 +115,21 @@ namespace GameWIP::Desktop::Detail
         bool alwaysOnTop = false;
         bool fileDropEnabled = false;
         bool transparentFramebuffer = false;
-        bool suppressEvents = false;
-        bool nativeDestroyedPendingFinalize = false;
+        bool suppressEvents = false;                 ///< Suppresses construction-time native callbacks.
+        bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
+        TaskbarItemState *taskbarItem = nullptr;
     };
 
+    /// @brief Returns whether a Window payload may replace a newer payload of the same type.
     [[nodiscard]] bool isCoalescible(const Types::Events::Payload &data) noexcept;
+    /// @brief Enqueues one payload while preserving durable events under pressure.
     [[nodiscard]] EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept;
+    /// @brief Records a close request once per open lifetime.
     [[nodiscard]] EnqueueResult requestClose(WindowState &state, Types::Events::CloseRequestSource source) noexcept;
+    /// @brief Publishes an interactive move/resize transition and its event.
     [[nodiscard]] EnqueueResult setInteractiveMoveResizeActive(WindowState &state, bool active) noexcept;
 
+    /// @brief Copies owner-thread presentation values into stable atomic publication storage.
     inline void publishCachedPresentationState(PresentationPublicationState &publication, const WindowState &state) noexcept
     {
         publication.publishClientSize(state.clientSize);
@@ -131,6 +142,7 @@ namespace GameWIP::Desktop::Detail
         publication.publishInteractiveMoveResizeActive(state.interactiveMoveResizeActive);
     }
 
+    /// @brief Publishes cached presentation values when concurrent reads are enabled.
     inline void publishCachedPresentationState(WindowState &state) noexcept
     {
         if (state.presentationPublication != nullptr)
@@ -139,6 +151,7 @@ namespace GameWIP::Desktop::Detail
         }
     }
 
+    /// @brief Resets stable presentation publication values for a new native lifetime.
     inline void resetPresentationPublication(WindowState &state) noexcept
     {
         if (state.presentationPublication != nullptr)
@@ -147,6 +160,7 @@ namespace GameWIP::Desktop::Detail
         }
     }
 
+    /// @brief Invalidates renderer hit-mask state when Window geometry changes.
     inline void invalidatePointerHitMask(WindowState &state) noexcept
     {
         if (state.rendererIntegration != nullptr)
@@ -155,6 +169,7 @@ namespace GameWIP::Desktop::Detail
         }
     }
 
+    /// @brief Tests a client-local logical point against the published framebuffer mask.
     [[nodiscard]] inline bool pointerHitMaskAccepts(const WindowState &state, Types::LogicalPosition position) noexcept
     {
         const RendererIntegrationState *renderer = state.rendererIntegration;

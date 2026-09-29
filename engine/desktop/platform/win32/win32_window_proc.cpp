@@ -4,6 +4,8 @@
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/internal/drag_drop_platform.h"
 #include "desktop/internal/dialogs_platform.h"
+#include "desktop/internal/shell_platform.h"
+#include <commctrl.h>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -12,6 +14,7 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    inline constexpr WORD kTaskbarThumbnailButtonClicked = 0x1800U;
     // ------------------------------------------------------------
     // Native message translation
     // ------------------------------------------------------------
@@ -20,6 +23,7 @@ namespace GameWIP::Desktop::Detail::Platform
         constexpr UINT kFirstRegisteredWindowMessage = 0xC000U;
         constexpr UINT kLastRegisteredWindowMessage = 0xFFFFU;
 
+        /// @brief Emits only the geometry events whose cached values changed.
         void emitGeometryChanges(
             WindowState &state,
             Types::ScreenPosition previousPosition,
@@ -40,6 +44,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Maps a screen point near a resizable frame to a Win32 resize hit code.
         [[nodiscard]] LRESULT resizeHitTest(WindowState &state, POINT screenPoint) noexcept
         {
             if (!state.resizable || state.presentation != Types::PresentationState::Normal || state.mode != Types::Mode::Windowed)
@@ -91,6 +96,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return HTNOWHERE;
         }
 
+        /// @brief Converts a screen-pixel point to Window-local logical units.
         [[nodiscard]] Types::LogicalPosition logicalClientPoint(WindowState &state, POINT screenPoint) noexcept
         {
             ScreenToClient(state.platform->handle, &screenPoint);
@@ -98,6 +104,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return {physicalToLogical(screenPoint.x, dpi), physicalToLogical(screenPoint.y, dpi)};
         }
 
+        /// @brief Applies custom chrome buttons and draggable regions to hit testing.
         [[nodiscard]] LRESULT customHitTest(WindowState &state, POINT screenPoint) noexcept
         {
             const LRESULT resize = resizeHitTest(state, screenPoint);
@@ -134,6 +141,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return HTCLIENT;
         }
     } // namespace
+
     // ------------------------------------------------------------
     // Window procedure
     // ------------------------------------------------------------
@@ -231,6 +239,13 @@ namespace GameWIP::Desktop::Detail::Platform
             if (!state->focusable)
             {
                 return MA_NOACTIVATE;
+            }
+            break;
+        case WM_COMMAND:
+            if (HIWORD(wParam) == kTaskbarThumbnailButtonClicked)
+            {
+                routeTaskbarCommand(*state, LOWORD(wParam));
+                return 0;
             }
             break;
         case WM_CLOSE:
@@ -648,6 +663,7 @@ namespace GameWIP::Desktop::Detail::Platform
             resetPresentationPublication(*state);
             return 0;
         case WM_NCDESTROY:
+            notifyTaskbarWindowDestroyed(*state);
             notifyProgressOwnerLossBestEffort(*state);
             static_cast<void>(windowClosingDragDrop(*state, true));
             releaseCustomCursorBinding(window);

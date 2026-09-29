@@ -25,15 +25,18 @@ namespace GameWIP::Desktop::Detail
     namespace
     {
         constexpr auto kAllEffects = Types::DragDrop::Effect::Copy | Types::DragDrop::Effect::Move | Types::DragDrop::Effect::Link;
+        /// @brief Validates that no unsupported effect bits cross the internal policy boundary.
         [[nodiscard]] constexpr bool validEffectBits(Types::DragDrop::Effect value) noexcept
         {
             return (static_cast<std::uint8_t>(value) & ~static_cast<std::uint8_t>(kAllEffects)) == 0;
         }
+        /// @brief Returns whether an event participates in the secondary movement index.
         [[nodiscard]] bool movement(const Types::DragDrop::Event &event) noexcept
         {
             return event.getIf<Types::DragDrop::Events::Moved>() != nullptr;
         }
 
+        /// @brief Removes one movement event from the secondary linked list.
         void unlinkMovement(DragDropState &state, std::size_t slot) noexcept
         {
             const std::size_t previous = state.movementPrevious[slot];
@@ -58,6 +61,7 @@ namespace GameWIP::Desktop::Detail
             state.movementNext[slot] = DragDropState::noSlot;
         }
 
+        /// @brief Removes a slot from both queue indexes and returns it to the free list.
         void removeSlot(DragDropState &state, std::size_t slot) noexcept
         {
             if (movement(state.eventStorage[slot]))
@@ -90,6 +94,7 @@ namespace GameWIP::Desktop::Detail
             --state.eventCount;
         }
 
+        /// @brief Appends a slot to FIFO order and indexes movement events for selective eviction.
         void appendSlot(DragDropState &state, std::size_t slot, Types::DragDrop::Event event) noexcept
         {
             state.eventStorage[slot] = std::move(event);
@@ -122,6 +127,7 @@ namespace GameWIP::Desktop::Detail
         }
     } // namespace
 
+    /// @brief Builds the queue and movement linked-list free-list for fixed-capacity storage.
     void initializeDragDropEventQueue(DragDropState &state)
     {
         const std::size_t capacity = state.eventStorage.size();
@@ -137,6 +143,7 @@ namespace GameWIP::Desktop::Detail
         state.freeHead = capacity == 0 ? DragDropState::noSlot : 0;
     }
 
+    /// @brief Allocates a nonzero session identity, skipping the wrapped zero value.
     Types::DragDrop::SessionId allocateDragDropSessionId(DragDropState &state) noexcept
     {
         std::uint64_t value = state.nextSessionId++;
@@ -147,6 +154,7 @@ namespace GameWIP::Desktop::Detail
         return {value};
     }
 
+    /// @brief Chooses one deterministic effect from the source/target intersection.
     Types::DragDrop::Effect negotiateDragDropEffect(
         Types::DragDrop::Effect source,
         Types::DragDrop::Effect target,
@@ -181,6 +189,7 @@ namespace GameWIP::Desktop::Detail
         return Types::DragDrop::Effect::None;
     }
 
+    /// @brief Queues movement updates compactly and reserves eviction for terminal events.
     bool enqueueDragDropEvent(DragDropState &state, Types::DragDrop::Events::Payload data, bool terminal) noexcept
     {
         if (state.eventStorage.empty())
@@ -230,19 +239,23 @@ namespace GameWIP::Desktop
     {
         using IO::Types::ErrorCode;
         constexpr auto kAllEffects = Types::DragDrop::Effect::Copy | Types::DragDrop::Effect::Move | Types::DragDrop::Effect::Link;
+        /// @brief Builds a portable status from a single error code.
         [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
         {
             return IO::makeStatus(code);
         }
+        /// @brief Returns whether exactly one supported effect bit is selected.
         [[nodiscard]] bool singleEffect(Types::DragDrop::Effect effect) noexcept
         {
             const auto bits = static_cast<std::uint8_t>(effect);
             return bits != 0 && (bits & (bits - 1U)) == 0 && (effect & kAllEffects) == effect;
         }
+        /// @brief Returns whether a region declares at least one supported effect.
         [[nodiscard]] bool validAllowed(Types::DragDrop::Effect effect) noexcept
         {
             return effect != Types::DragDrop::Effect::None && (effect & kAllEffects) == effect;
         }
+        /// @brief Validates a non-empty logical region against native signed-coordinate limits.
         [[nodiscard]] bool validRect(const Types::LogicalRect &rect) noexcept
         {
             const auto right = static_cast<std::int64_t>(rect.position.x) + rect.size.width;
@@ -250,6 +263,7 @@ namespace GameWIP::Desktop
             return rect.size.width != 0 && rect.size.height != 0 && right <= std::numeric_limits<std::int32_t>::max() &&
                    bottom <= std::numeric_limits<std::int32_t>::max();
         }
+        /// @brief Validates a portable drag-and-drop format, including strict custom UTF-8.
         [[nodiscard]] bool validFormat(Types::DataTransfer::FormatView format) noexcept
         {
             using Kind = Types::DataTransfer::FormatKind;
@@ -265,6 +279,7 @@ namespace GameWIP::Desktop
             }
             return false;
         }
+        /// @brief Validates, deduplicates, and owns a target's declarative region descriptions.
         [[nodiscard]] IO::Types::Status copyRegions(
             std::span<const Types::DragDrop::RegionDescription> source,
             std::vector<Detail::DragDropRegion> &destination) noexcept
@@ -319,6 +334,7 @@ namespace GameWIP::Desktop
                 return error(ErrorCode::Unknown);
             }
         }
+        /// @brief Returns the target state only when the current thread owns its lifetime.
         [[nodiscard]] Detail::DragDropState *owned(Detail::DragDropState *state) noexcept
         {
             return state && state->ownerThread == std::this_thread::get_id() ? state : nullptr;
@@ -500,6 +516,7 @@ namespace GameWIP::Desktop
     {
         return state_ && Detail::Platform::hasLiveDragDropTarget(*state_);
     }
+
     Types::LifetimeState DragDropTarget::lifetimeState() const noexcept
     {
         if (!state_)
@@ -512,6 +529,7 @@ namespace GameWIP::Desktop
         }
         return isOpen() ? Types::LifetimeState::Open : Types::LifetimeState::Closed;
     }
+
     IO::Types::Status DragDropTarget::close() noexcept
     {
         if (!state_)
@@ -536,14 +554,17 @@ namespace GameWIP::Desktop
         }
         return result.status;
     }
+
     Types::WindowId DragDropTarget::windowId() const noexcept
     {
         return state_ ? state_->windowId : Types::WindowId{};
     }
+
     bool DragDropTarget::ownedByCurrentThread() const noexcept
     {
         return owned(state_.get()) != nullptr;
     }
+
     IO::Types::Status DragDropTarget::setRegions(std::span<const Types::DragDrop::RegionDescription> regions) noexcept
     {
         if (!isOpen())
@@ -566,6 +587,7 @@ namespace GameWIP::Desktop
         }
         return result;
     }
+
     // ------------------------------------------------------------
     // Target event queue
     // ------------------------------------------------------------
@@ -582,6 +604,7 @@ namespace GameWIP::Desktop
         Detail::removeSlot(*state_, index);
         return true;
     }
+
     std::size_t DragDropTarget::popEvents(std::span<Types::DragDrop::Event> destination) noexcept
     {
         std::size_t count = 0;
@@ -591,6 +614,7 @@ namespace GameWIP::Desktop
         }
         return count;
     }
+
     void DragDropTarget::clearEvents() noexcept
     {
         if (!owned(state_.get()))
@@ -602,6 +626,7 @@ namespace GameWIP::Desktop
             Detail::removeSlot(*state_, state_->eventHead);
         }
     }
+
     Types::Events::QueueInfo DragDropTarget::eventQueueInfo() const noexcept
     {
         if (!state_)
@@ -610,6 +635,7 @@ namespace GameWIP::Desktop
         }
         return {state_->eventStorageKind, state_->eventStorage.size(), state_->eventCount, state_->droppedEvents};
     }
+
     void DragDropTarget::clearDroppedEventCount() noexcept
     {
         if (owned(state_.get()))

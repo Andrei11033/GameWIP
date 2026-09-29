@@ -20,20 +20,21 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Detail
 {
+    /// @brief Stable portable state for one owner-thread progress dialog.
     struct ProgressDialogState
     {
         std::unique_ptr<Platform::ProgressDialogData, Platform::ProgressDialogDataDeleter> platform;
-        ProgressDialogState *deferredCleanupNext = nullptr;
-        ProgressDialogState *pendingOwnerRestoreNext = nullptr;
-        std::uint64_t ownerToken = 0;
+        ProgressDialogState *deferredCleanupNext = nullptr;     ///< Intrusive owner-thread cleanup chain.
+        ProgressDialogState *pendingOwnerRestoreNext = nullptr; ///< Intrusive owner re-enable retry chain.
+        std::uint64_t ownerToken = 0;                           ///< Stable calling-thread identity for cross-thread queries.
         Types::WindowId ownerId;
         Types::Dialogs::Progress::Mode mode = Types::Dialogs::Progress::Mode::Indeterminate;
         double progress = 0.0;
         bool cancelable = false;
         bool blocksOwner = true;
         bool cancelRequested = false;
-        bool nativeDestroyedPendingFinalize = false;
-        bool ownerRestorePending = false;
+        bool nativeDestroyedPendingFinalize = false; ///< HWND is gone and portable close still must run.
+        bool ownerRestorePending = false;            ///< Owner re-enable is queued for dispatcher retry.
     };
 
     struct ProgressDialogAccess

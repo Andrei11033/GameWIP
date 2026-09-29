@@ -25,10 +25,12 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     {
         using ErrorCode = IO::Types::ErrorCode;
         namespace Transfer = Types::DataTransfer;
+        /// @brief Creates a data-transfer status with an optional native error value.
         [[nodiscard]] IO::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept
         {
             return IO::makeStatus(code, native);
         }
+        /// @brief Multiplies sizes while rejecting native allocation overflow.
         [[nodiscard]] bool multiply(std::size_t a, std::size_t b, std::size_t &out) noexcept
         {
             if (GameWIP::Base::wouldMultiplyOverflow(a, b))
@@ -38,6 +40,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             out = a * b;
             return true;
         }
+        /// @brief Adds sizes while rejecting native allocation overflow.
         [[nodiscard]] bool add(std::size_t a, std::size_t b, std::size_t &out) noexcept
         {
             if (GameWIP::Base::wouldAddOverflow(a, b))
@@ -47,6 +50,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             out = a + b;
             return true;
         }
+        /// @brief Views a native byte range without changing its ownership.
         template <class T> [[nodiscard]] std::span<T> span(void *p, std::size_t n) noexcept
         {
 #if defined(__clang__)
@@ -57,6 +61,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
 #pragma clang unsafe_buffer_usage end
 #endif
         }
+        /// @brief Views a const native byte range without changing its ownership.
         template <class T> [[nodiscard]] std::span<const T> span(const void *p, std::size_t n) noexcept
         {
 #if defined(__clang__)
@@ -68,6 +73,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
 #endif
         }
 
+        /// @brief Releases GlobalLock ownership when a native payload leaves scope.
         class GlobalMemoryLock final
         {
         public:
@@ -95,6 +101,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             void *memory_ = nullptr;
         };
 
+        /// @brief Releases one COM interface acquired from a foreign data object.
         template <class Interface> class ComOwner final
         {
         public:
@@ -122,6 +129,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             Interface *value_ = nullptr;
         };
 
+        /// @brief Frees FORMATETC target-device memory returned by COM enumeration.
         class TargetDeviceOwner final
         {
         public:
@@ -141,6 +149,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         private:
             FORMATETC &format_;
         };
+        /// @brief Owns an acquired STGMEDIUM until materialization completes.
         class Medium final
         {
         public:
@@ -168,6 +177,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             STGMEDIUM value_{};
             bool valid_ = false;
         };
+        /// @brief Requests one HGLOBAL representation from a foreign data object.
         [[nodiscard]] IO::Types::Status getGlobal(IDataObject &object, CLIPFORMAT format, Medium &medium) noexcept
         {
             FORMATETC request{format, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
@@ -185,6 +195,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     // Native format identity
     // ------------------------------------------------------------
 
+    /// @brief Resolves a portable format to its Win32 clipboard identifier.
     CLIPFORMAT nativeFormat(const Transfer::Format &format, IO::Types::Status &result) noexcept
     {
         try
@@ -235,6 +246,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         }
     }
 
+    /// @brief Compares portable formats using native identity for custom names.
     bool equivalent(const Transfer::Format &a, const Transfer::Format &b) noexcept
     {
         if (a.kind != b.kind)
@@ -256,6 +268,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     // Source preparation
     // ------------------------------------------------------------
 
+    /// @brief Encodes text, paths, images, or custom bytes into native clipboard storage.
     IO::Types::Status prepare(const Transfer::ItemView &item, PreparedItem &out) noexcept
     {
         try
@@ -266,6 +279,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     using T = std::remove_cvref_t<decltype(value)>;
                     if constexpr (std::is_same_v<T, Transfer::TextView>)
                     {
+                        // Win32 text clipboard payloads are UTF-16 and include a terminating wchar_t.
                         if (value.text.contains('\0'))
                         {
                             return failure(ErrorCode::InvalidArgument);
@@ -288,6 +302,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     }
                     else if constexpr (std::is_same_v<T, Transfer::FileListView>)
                     {
+                        // CF_HDROP stores a DROPFILES header followed by a double-null-terminated UTF-16 path list.
                         if (value.paths.empty())
                         {
                             return failure(ErrorCode::InvalidArgument);
@@ -334,6 +349,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     }
                     else if constexpr (std::is_same_v<T, Transfer::ImageView>)
                     {
+                        // Publish a top-down 32-bit BGRA DIBV5 so the native stride is tightly controlled.
                         std::size_t row = 0, inputBytes = 0;
                         if (!value.size.width || !value.size.height || !multiply(value.size.width, 4, row))
                         {
@@ -411,6 +427,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         }
     }
 
+    /// @brief Allocates movable global memory and copies one prepared payload into it.
     IO::Types::Status copyToGlobal(const PreparedItem &item, HGLOBAL &output) noexcept
     {
         output = GlobalAlloc(GMEM_MOVEABLE, item.bytes.size());
@@ -434,6 +451,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     // Foreign format enumeration
     // ------------------------------------------------------------
 
+    /// @brief Enumerates supported HGLOBAL formats exposed by a foreign object.
     IO::Types::Status formats(IDataObject &object, std::vector<FormatIdentity> &out) noexcept
     {
         try
@@ -532,6 +550,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     // Target materialization
     // ------------------------------------------------------------
 
+    /// @brief Decodes one locked HGLOBAL into a portable data-transfer item.
     IO::Types::Status materializeGlobal(HGLOBAL global, const Transfer::Format &format, Transfer::Item &out) noexcept
     {
         try
@@ -554,6 +573,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             }
             if (format.kind == Transfer::FormatKind::Text)
             {
+                // Reject unterminated or misaligned UTF-16 before converting foreign clipboard memory.
                 if (size < sizeof(wchar_t) || size % sizeof(wchar_t))
                 {
                     return failure(ErrorCode::EncodingFailed);
@@ -713,6 +733,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         }
     }
 
+    /// @brief Requests and decodes one portable item from a foreign data object.
     IO::Types::Status materialize(IDataObject &object, const Transfer::Format &format, Transfer::Item &out) noexcept
     {
         IO::Types::Status result;

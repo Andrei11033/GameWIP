@@ -22,6 +22,10 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
+    // ------------------------------------------------------------
+    // Clipboard ownership and conversion helpers
+    // ------------------------------------------------------------
+
     namespace
     {
         using ErrorCode = IO::Types::ErrorCode;
@@ -33,6 +37,7 @@ namespace GameWIP::Desktop::Detail::Platform
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif
+        /// @brief Views checked native clipboard storage as writable typed bytes.
         template <typename Value> [[nodiscard]] std::span<Value> mutableNativeSpan(void *data, std::size_t count) noexcept
         {
             return {static_cast<Value *>(data), count};
@@ -42,11 +47,13 @@ namespace GameWIP::Desktop::Detail::Platform
 #pragma clang unsafe_buffer_usage end
 #endif
 
+        /// @brief Converts a portable error and optional Win32 code into a Clipboard status.
         [[nodiscard]] IO::Types::Status status(ErrorCode code, DWORD nativeCode = 0) noexcept
         {
             return IO::makeStatus(code, static_cast<std::int64_t>(nativeCode));
         }
 
+        /// @brief Builds a failed result with its payload left at the deterministic default.
         template <typename Result> [[nodiscard]] Result failure(ErrorCode code, DWORD nativeCode = 0) noexcept
         {
             Result result;
@@ -54,11 +61,13 @@ namespace GameWIP::Desktop::Detail::Platform
             return result;
         }
 
+        /// @brief Rejects negative access timeouts before entering retry logic.
         [[nodiscard]] bool validTimeout(std::chrono::milliseconds timeout) noexcept
         {
             return timeout.count() >= 0;
         }
 
+        /// @brief Owns a movable GMEM_MOVEABLE allocation until Clipboard publication succeeds.
         class GlobalMemory final
         {
         public:
@@ -109,6 +118,7 @@ namespace GameWIP::Desktop::Detail::Platform
             HGLOBAL value_ = nullptr;
         };
 
+        /// @brief Releases one temporary lock on a global clipboard allocation.
         class GlobalLock final
         {
         public:
@@ -136,6 +146,7 @@ namespace GameWIP::Desktop::Detail::Platform
             void *value_ = nullptr;
         };
 
+        /// @brief Acquires Clipboard ownership with bounded retry and releases it on scope exit.
         class ClipboardSession final
         {
         public:
@@ -206,6 +217,7 @@ namespace GameWIP::Desktop::Detail::Platform
             bool open_ = false;
         };
 
+        /// @brief Provides a process-local hidden HWND for Clipboard ownership publication.
         class PublicationOwner final
         {
         public:
@@ -243,12 +255,14 @@ namespace GameWIP::Desktop::Detail::Platform
             HWND handle_ = nullptr;
         };
 
+        /// @brief Owns one prepared native format and its publication buffer.
         struct PreparedItem
         {
             UINT format = 0;
             GlobalMemory memory;
         };
 
+        /// @brief Validates portable format identity before native clipboard lookup.
         [[nodiscard]] IO::Types::Status validateFormatView(Transfer::FormatView format) noexcept
         {
             switch (format.kind)
@@ -282,6 +296,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return status(ErrorCode::InvalidArgument);
         }
 
+        /// @brief Reads a registered format name while preserving native enumeration errors.
         [[nodiscard]] bool registeredName(UINT format, std::wstring &name, DWORD &nativeCode)
         {
             if (format < 0xC000U)
@@ -300,6 +315,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return true;
         }
 
+        /// @brief Enumerates registered clipboard formats using ordinal case-insensitive matching.
         [[nodiscard]] UINT findRegisteredFormat(std::wstring_view requested, DWORD &nativeCode)
         {
             nativeCode = ERROR_SUCCESS;
@@ -341,6 +357,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        /// @brief Allocates and copies one prepared payload into transferable global memory.
         [[nodiscard]] IO::Types::Status allocateAndCopy(std::span<const std::byte> bytes, GlobalMemory &memory) noexcept
         {
             // A zero-byte GMEM_MOVEABLE allocation is a discarded handle that SetClipboardData
@@ -364,6 +381,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
 
+        /// @brief Converts one portable item and owns its native clipboard storage.
         [[nodiscard]] IO::Types::Status prepareItem(const Transfer::ItemView &item, PreparedItem &prepared)
         {
             if (Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAllocation))
@@ -380,6 +398,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return allocateAndCopy(shared.bytes, prepared.memory);
         }
 
+        /// @brief Materializes one native clipboard handle through the shared transfer decoder.
         [[nodiscard]] IO::Types::Status materializeClipboardItem(UINT nativeFormat, const Transfer::Format &format, Transfer::Item &item) noexcept
         {
             SetLastError(ERROR_SUCCESS);
@@ -391,23 +410,30 @@ namespace GameWIP::Desktop::Detail::Platform
             return DataTransfer::materializeGlobal(memory, format, item);
         }
 
+        /// @brief Closes Clipboard access without hiding an earlier read/write failure.
         [[nodiscard]] IO::Types::Status closePreservingPrimary(ClipboardSession &session, IO::Types::Status primary) noexcept
         {
             IO::Types::Status cleanup = session.close();
             return primary.ok() ? std::move(cleanup) : std::move(primary);
         }
 
+        /// @brief Returns whether a native format is one of Win32's text encodings.
         [[nodiscard]] bool isTextFormat(UINT format) noexcept
         {
             return format == CF_TEXT || format == CF_OEMTEXT || format == CF_UNICODETEXT;
         }
 
+        /// @brief Returns whether a native format carries a bitmap or DIB image.
         [[nodiscard]] bool isImageFormat(UINT format) noexcept
         {
             return format == CF_BITMAP || format == CF_DIB || format == CF_DIBV5;
         }
 
     } // namespace
+
+    // ------------------------------------------------------------
+    // Clipboard queries and publication
+    // ------------------------------------------------------------
 
     Types::Clipboard::FormatResult clipboardHasFormat(Transfer::FormatView format, std::chrono::milliseconds timeout) noexcept
     {

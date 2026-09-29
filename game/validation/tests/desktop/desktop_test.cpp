@@ -15,6 +15,13 @@
 #include "desktop/internal/cursor_selection.h"
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
+#include "desktop/shell.h"
+#include "desktop/shell_jump_lists.h"
+#include "desktop/shell_notifications.h"
+#include "desktop/shell_registration.h"
+#include "desktop/shell_taskbar.h"
+#include "desktop/shell_tray.h"
+#include "desktop/shell_types.h"
 #include "desktop/window.h"
 #include "unicode/unicode.h"
 
@@ -406,6 +413,7 @@ namespace
 #include "validation/tests/desktop/desktop_child_surface_tests.inl"
 #include "validation/tests/desktop/desktop_clipboard_tests.inl"
 #include "validation/tests/desktop/desktop_drag_drop_tests.inl"
+#include "validation/tests/desktop/desktop_shell_tests.inl"
 } // namespace
 
 namespace GameWIP::Test
@@ -541,6 +549,12 @@ namespace GameWIP::Test
         runner.runSuite("Window hidden native lifecycle", testHiddenNativeWindow);
         runner.runSuite("Window native child surfaces", testChildSurfaces);
         runner.runSuite("Window native event translation", testNativeEventTranslation);
+        runner.runSuite("Desktop shell queue and capabilities", testShellQueueAndCapabilities);
+        runner.runSuite("Desktop shell validation", testShellValidation);
+        runner.runSuite("Desktop shell native lifetimes", testShellNativeLifetimes);
+#if DESKTOP_INTERNAL_TEST_HOOKS
+        runner.runSuite("Desktop shell failure hooks", testShellFailureHooks);
+#endif
         runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
         runner.runSuite("Window display color information", testDisplayColorInformation);
         runner.runSuite(

@@ -24,28 +24,33 @@ namespace GameWIP::Desktop
     {
         using IO::Types::ErrorCode;
 
+        /// @brief Builds a portable status from a single error code.
         [[nodiscard]] IO::Types::Status error(ErrorCode code) noexcept
         {
             return IO::makeStatus(code);
         }
 
+        /// @brief Validates a nonzero logical size against native signed-coordinate limits.
         [[nodiscard]] bool validSize(Types::LogicalSize size) noexcept
         {
             constexpr auto nativeMaximum = static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max());
             return size.width != 0 && size.height != 0 && size.width <= nativeMaximum && size.height <= nativeMaximum;
         }
 
+        /// @brief Validates a nonzero physical size against native signed-coordinate limits.
         [[nodiscard]] bool validPixelSize(Types::PixelSize size) noexcept
         {
             constexpr auto nativeMaximum = static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max());
             return size.width != 0 && size.height != 0 && size.width <= nativeMaximum && size.height <= nativeMaximum;
         }
 
+        /// @brief Validates the size portion of a logical rectangle.
         [[nodiscard]] bool validRect(const Types::LogicalRect &rect) noexcept
         {
             return validSize(rect.size);
         }
 
+        /// @brief Validates optional size limits and their minimum-to-maximum ordering.
         [[nodiscard]] bool validLimits(const Types::SizeLimits &limits) noexcept
         {
             if ((limits.minimum && !validSize(*limits.minimum)) || (limits.maximum && !validSize(*limits.maximum)))
@@ -56,17 +61,20 @@ namespace GameWIP::Desktop
                    (limits.minimum->width <= limits.maximum->width && limits.minimum->height <= limits.maximum->height);
         }
 
+        /// @brief Returns whether a logical size satisfies all configured limits.
         [[nodiscard]] bool sizeWithin(Types::LogicalSize size, const Types::SizeLimits &limits) noexcept
         {
             return (!limits.minimum || (size.width >= limits.minimum->width && size.height >= limits.minimum->height)) &&
                    (!limits.maximum || (size.width <= limits.maximum->width && size.height <= limits.maximum->height));
         }
 
+        /// @brief Validates that an optional aspect ratio has nonzero components.
         [[nodiscard]] bool validRatio(const std::optional<Types::AspectRatio> &ratio) noexcept
         {
             return !ratio || (ratio->numerator != 0 && ratio->denominator != 0);
         }
 
+        /// @brief Validates enum values crossing the portable Window boundary.
         template <typename Enum> [[nodiscard]] bool validEnum(Enum value) noexcept;
 
         template <> bool validEnum(Types::Mode value) noexcept
@@ -120,11 +128,13 @@ namespace GameWIP::Desktop
             return value == Types::DpiResizePolicy::PreserveLogicalClientSize || value == Types::DpiResizePolicy::PreservePhysicalClientSize;
         }
 
+        /// @brief Validates the nonzero display-mode fields required by native fullscreen APIs.
         [[nodiscard]] bool validDisplayMode(const Types::Display::Mode &mode) noexcept
         {
             return validPixelSize(mode.resolution) && mode.refreshRateMillihertz != 0 && mode.bitsPerPixel != 0;
         }
 
+        /// @brief Validates mode-specific monitor and display-mode combinations.
         [[nodiscard]] bool validModeRequest(const Types::ModeRequest &request) noexcept
         {
             if (!validEnum(request.mode))
@@ -142,6 +152,7 @@ namespace GameWIP::Desktop
             return !request.displayMode || validDisplayMode(*request.displayMode);
         }
 
+        /// @brief Validates a complete open description before native state allocation.
         [[nodiscard]] IO::Types::Status validateDescription(const Types::Description &description) noexcept
         {
             // U+0000 is valid Unicode, but native Window title APIs are NUL-terminated and cannot
@@ -165,6 +176,7 @@ namespace GameWIP::Desktop
             return IO::successStatus();
         }
 
+        /// @brief Validates native liveness and owner-thread access for a Window mutation.
         [[nodiscard]] IO::Types::Status requireState(Detail::WindowState *state) noexcept
         {
             if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
@@ -178,12 +190,14 @@ namespace GameWIP::Desktop
             return IO::successStatus();
         }
 
+        /// @brief Returns whether the current thread owns either live or deferred Window state.
         [[nodiscard]] bool owned(const Detail::WindowState *state) noexcept
         {
             return state != nullptr &&
                    (state->platform ? Detail::Platform::ownedByCurrentThread(*state) : state->ownerThread == std::this_thread::get_id());
         }
 
+        /// @brief Copies the portable description into state before native creation begins.
         void initializeCachedState(Detail::WindowState &state, const Types::Description &description)
         {
             state.ownerThread = std::this_thread::get_id();
@@ -212,6 +226,7 @@ namespace GameWIP::Desktop
             state.suppressEvents = true;
         }
 
+        /// @brief Releases retained event payloads and caller-owned queue storage references.
         void releaseEventStorage(Detail::WindowState &state) noexcept
         {
             state.clearRetainedEvents();
@@ -613,114 +628,142 @@ namespace GameWIP::Desktop
     {
         return state_ ? std::string_view(state_->title) : std::string_view{};
     }
+
     Types::LogicalSize Window::clientSize() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->clientSize() : state_ ? state_->clientSize : Types::LogicalSize{};
     }
+
     Types::PixelSize Window::framebufferSize() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->framebufferSize() : state_ ? state_->framebufferSize : Types::PixelSize{};
     }
+
     Types::ScreenPosition Window::clientPosition() const noexcept
     {
         return state_ ? state_->clientPosition : Types::ScreenPosition{};
     }
+
     Types::ScreenRect Window::frameRect() const noexcept
     {
         return state_ ? state_->frameRect : Types::ScreenRect{};
     }
+
     Types::Insets Window::frameInsets() const noexcept
     {
         return state_ ? state_->frameInsets : Types::Insets{};
     }
+
     Types::ContentScale Window::contentScale() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->contentScale() : state_ ? state_->contentScale : Types::ContentScale{};
     }
+
     Types::Dpi Window::effectiveDpi() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->dpi() : state_ ? state_->dpi : Types::Dpi{};
     }
+
     Types::DpiResizePolicy Window::dpiResizePolicy() const noexcept
     {
         return state_ ? state_->dpiResizePolicy : Types::DpiResizePolicy::PreserveLogicalClientSize;
     }
+
     Types::Display::MonitorId Window::currentMonitor() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->monitor() : state_ ? state_->monitor : Types::Display::MonitorId{};
     }
+
     Types::Mode Window::mode() const noexcept
     {
         return state_ ? state_->mode : Types::Mode::Windowed;
     }
+
     Types::FullscreenInfo Window::fullscreenInfo() const noexcept
     {
         return state_ ? state_->fullscreen : Types::FullscreenInfo{};
     }
+
     Types::PresentationState Window::presentationState() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->presentation() : state_ ? state_->presentation : Types::PresentationState::Normal;
     }
+
     Types::DecorationMode Window::decorationMode() const noexcept
     {
         return state_ ? state_->decoration : Types::DecorationMode::System;
     }
+
     Types::Controls Window::controls() const noexcept
     {
         return state_ ? state_->controls : Types::Controls{};
     }
+
     Types::SizeLimits Window::sizeLimits() const noexcept
     {
         return state_ ? state_->sizeLimits : Types::SizeLimits{};
     }
+
     std::optional<Types::AspectRatio> Window::aspectRatio() const noexcept
     {
         return state_ ? state_->aspectRatio : std::nullopt;
     }
+
     Types::CursorMode Window::cursorMode() const noexcept
     {
         return state_ ? state_->cursorMode : Types::CursorMode::Normal;
     }
+
     Types::CursorShape Window::cursorShape() const noexcept
     {
         return state_ ? state_->cursorShape : Types::CursorShape::Arrow;
     }
+
     Types::PointerInputMode Window::pointerInputMode() const noexcept
     {
         return state_ ? state_->pointerInputMode : Types::PointerInputMode::Normal;
     }
+
     std::size_t Window::pointerInputRegionCount() const noexcept
     {
         return state_ ? state_->pointerInputRegions.size() : 0;
     }
+
     Types::BackdropEffect Window::backdropEffect() const noexcept
     {
         return state_ ? state_->backdrop : Types::BackdropEffect::None;
     }
+
     float Window::opacity() const noexcept
     {
         return state_ ? state_->opacity : 1.0F;
     }
+
     bool Window::visible() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->visible() : state_ && state_->visible;
     }
+
     bool Window::focused() const noexcept
     {
         return state_ && state_->focused;
     }
+
     bool Window::interactiveMoveResizeActive() const noexcept
     {
         return presentationPublication_ ? presentationPublication_->interactiveMoveResizeActive() : state_ && state_->interactiveMoveResizeActive;
     }
+
     bool Window::minimized() const noexcept
     {
         return presentationState() == Types::PresentationState::Minimized;
     }
+
     bool Window::maximized() const noexcept
     {
         return presentationState() == Types::PresentationState::Maximized;
     }
+
     bool Window::occluded() const noexcept
     {
         if (presentationPublication_)
@@ -730,30 +773,37 @@ namespace GameWIP::Desktop
         const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(*this);
         return state_ && renderer != nullptr && renderer->occluded;
     }
+
     bool Window::cursorInside() const noexcept
     {
         return state_ && state_->cursorInside;
     }
+
     bool Window::resizable() const noexcept
     {
         return state_ && state_->resizable;
     }
+
     bool Window::focusable() const noexcept
     {
         return state_ && state_->focusable;
     }
+
     bool Window::userInteractionEnabled() const noexcept
     {
         return state_ && state_->interactionEnabled;
     }
+
     bool Window::alwaysOnTop() const noexcept
     {
         return state_ && state_->alwaysOnTop;
     }
+
     bool Window::fileDropEnabled() const noexcept
     {
         return state_ && state_->fileDropEnabled;
     }
+
     bool Window::transparentFramebuffer() const noexcept
     {
         return state_ && state_->transparentFramebuffer;
@@ -947,31 +997,37 @@ namespace GameWIP::Desktop
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::show(*state_) : status;
     }
+
     IO::Types::Status Window::hide() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::hide(*state_) : status;
     }
+
     IO::Types::Status Window::requestFocus() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::requestFocus(*state_) : status;
     }
+
     IO::Types::Status Window::requestAttention() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::requestAttention(*state_) : status;
     }
+
     IO::Types::Status Window::minimize() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::minimize(*state_) : status;
     }
+
     IO::Types::Status Window::maximize() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::maximize(*state_) : status;
     }
+
     IO::Types::Status Window::restore() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -1039,11 +1095,13 @@ namespace GameWIP::Desktop
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::setFocusable(*state_, focusable) : status;
     }
+
     IO::Types::Status Window::setUserInteractionEnabled(bool enabled) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
         return status.ok() ? Detail::Platform::setUserInteractionEnabled(*state_, enabled) : status;
     }
+
     IO::Types::Status Window::setAlwaysOnTop(bool alwaysOnTop) noexcept
     {
         IO::Types::Status status = requireState(state_.get());

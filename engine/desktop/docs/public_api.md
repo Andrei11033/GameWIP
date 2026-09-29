@@ -20,7 +20,7 @@ Desktop exposes one public `GameWIP::Desktop::Types` tree and focused headers by
 - `desktop/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.
 - `desktop/shell.h` owns shell capability queries and the owner-thread-affine shell event queue.
 - `desktop/shell_jump_lists.h` owns stateless complete jump-list and recent-item publication.
-- `desktop/shell_notifications.h` owns the owner-thread-affine notification center and rich notification publication.
+- `desktop/shell_notifications.h` owns the owner-thread-affine notification center and notification publication.
 - `desktop/shell_registration.h` owns stateless current-user file-extension and URI-scheme registration.
 - `desktop/shell_taskbar.h` owns the opt-in per-Window taskbar binding, progress, overlay, and thumbnail-button publication.
 - `desktop/shell_tray.h` owns the opt-in process-local tray-icon binding, recursive menu publication, and tray interaction delivery.
@@ -63,6 +63,9 @@ use the shared shell event queue.
 categories, and target-based recent items. `desktop/shell_registration.h` provides stateless
 current-user file-extension and URI-scheme registration with stable ownership keys, atomic
 same-owner replacement, and explicit conflict reporting.
+
+See @ref desktop_shell for the complete shell lifecycle, capability, ownership, testing, and
+manual-validation contract.
 
 ## Library and Window capabilities
 
