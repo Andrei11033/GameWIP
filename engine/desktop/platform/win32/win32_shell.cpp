@@ -23,6 +23,7 @@
 #include <limits>
 #include <memory>
 #include <new>
+#include <span>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -162,6 +163,16 @@ namespace GameWIP::Desktop::Detail::Platform
             bool ownsInitialization_ = false;
         };
 
+        /// @brief Copies validated packed RGBA8 pixels into a native BGRA8 buffer.
+        void copyRgbaToBgra(std::span<const std::byte> source, std::byte *destination) noexcept
+        {
+            for (std::size_t offset = 0; offset < source.size(); offset += 4)
+            {
+                const std::array<std::byte, 4> pixel{source[offset + 2], source[offset + 1], source[offset], source[offset + 3]};
+                destination = std::copy(pixel.begin(), pixel.end(), destination);
+            }
+        }
+
         /// @brief Converts retained RGBA8 icon pixels into a temporary native HICON.
         [[nodiscard]] HICON createIcon(const OwnedIconImage &image) noexcept
         {
@@ -196,14 +207,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 return nullptr;
             }
-            auto *destination = static_cast<std::byte *>(pixels);
-            for (std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
-            {
-                destination[offset] = image.rgba8[offset + 2];
-                destination[offset + 1] = image.rgba8[offset + 1];
-                destination[offset + 2] = image.rgba8[offset];
-                destination[offset + 3] = image.rgba8[offset + 3];
-            }
+            copyRgbaToBgra(image.rgba8, static_cast<std::byte *>(pixels));
             HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
             if (mask == nullptr)
             {
@@ -472,14 +476,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 return nullptr;
             }
-            auto *destination = static_cast<std::byte *>(pixels);
-            for (std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
-            {
-                destination[offset] = image.rgba8[offset + 2];
-                destination[offset + 1] = image.rgba8[offset + 1];
-                destination[offset + 2] = image.rgba8[offset];
-                destination[offset + 3] = image.rgba8[offset + 3];
-            }
+            copyRgbaToBgra(image.rgba8, static_cast<std::byte *>(pixels));
             return bitmap;
         }
 
@@ -713,7 +710,6 @@ namespace GameWIP::Desktop::Detail::Platform
                     {
                         const std::size_t length = std::min<std::size_t>(tooltip.size(), ARRAYSIZE(data.szTip) - 1);
                         std::copy_n(tooltip.data(), length, data.szTip);
-                        data.szTip[length] = L'\0';
                     }
                     static_cast<void>(Shell_NotifyIconW(NIM_ADD, &data));
                 }
@@ -889,9 +885,7 @@ namespace GameWIP::Desktop::Detail::Platform
             data.uCallbackMessage = kTrayCallbackMessage;
             data.hIcon = LoadIconW(nullptr, MAKEINTRESOURCEW(32512));
             std::copy(title.begin(), title.end(), data.szInfoTitle);
-            data.szInfoTitle[title.size()] = L'\0';
             std::copy(body.begin(), body.end(), data.szInfo);
-            data.szInfo[body.size()] = L'\0';
             data.dwInfoFlags = description.sound == Types::Notifications::Sound::Silent ? NIIF_NOSOUND : NIIF_INFO;
             data.uTimeout = 10000;
             if (add)
@@ -2132,7 +2126,6 @@ namespace GameWIP::Desktop::Detail::Platform
             data.hIcon = newIcon;
             const std::size_t length = std::min<std::size_t>(tooltip.size(), ARRAYSIZE(data.szTip) - 1);
             std::copy_n(tooltip.data(), length, data.szTip);
-            data.szTip[length] = L'\0';
             const DWORD operation = native->icon == nullptr ? NIM_ADD : NIM_MODIFY;
             if (Shell_NotifyIconW(operation, &data) == FALSE)
             {

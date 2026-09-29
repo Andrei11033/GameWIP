@@ -411,12 +411,14 @@ namespace GameWIP::Desktop::Detail
                         }
                         owned.size = image->size;
                         owned.rgba8.resize(static_cast<std::size_t>(image->size.width) * static_cast<std::size_t>(image->size.height) * 4U);
+                        const auto sourceRowBytes = static_cast<std::vector<std::byte>::difference_type>(rowStride);
+                        const auto destinationRowBytes = static_cast<std::vector<std::byte>::difference_type>(packedRowBytes);
                         for (std::uint32_t row = 0; row < image->size.height; ++row)
                         {
                             std::copy_n(
-                                image->rgba8.data() + static_cast<std::size_t>(row) * rowStride,
+                                image->rgba8.begin() + static_cast<std::vector<std::byte>::difference_type>(row) * sourceRowBytes,
                                 packedRowBytes,
-                                owned.rgba8.data() + static_cast<std::size_t>(row) * packedRowBytes);
+                                owned.rgba8.begin() + static_cast<std::vector<std::byte>::difference_type>(row) * destinationRowBytes);
                         }
                     }
                     else

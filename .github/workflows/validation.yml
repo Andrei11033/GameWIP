@@ -198,12 +198,10 @@ jobs:
         shell: msys2 {0}
         run: |
           python_path="$(cygpath -w "$(command -v python)")"
-          clang_format_path="$(cygpath -w "$(command -v clang-format)")"
           helper_path="$(cygpath -w "$PWD/scripts/GameWIP.ps1")"
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$helper_path" \
             unicode verify \
-            -PythonPath "$python_path" \
-            -ClangFormatPath "$clang_format_path"
+            -PythonPath "$python_path"
 
       - name: Test runtime and project contracts
         shell: msys2 {0}
