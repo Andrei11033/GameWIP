@@ -3,65 +3,7 @@
 These focused examples build on the owner-thread lifecycle from
 @ref desktop_quick_start and demonstrate displays, custom cursors, native child
 hosts, Clipboard data exchange, native drag and drop, renderer integration, and
-native dialogs, shell integration, and interop without hiding status handling.
-
-## Select a file
-
-```cpp
-#include "desktop/dialogs.h"
-
-#include <array>
-#include <string_view>
-
-using namespace GameWIP::Desktop;
-
-const std::array imageExtensions{std::string_view{"png"}, std::string_view{"jpg"}};
-const std::array filters{
-    Types::Dialogs::File::Filter{"Images", imageExtensions},
-    Types::Dialogs::File::Filter{"All files", {}}};
-
-Types::Dialogs::File::OpenDescription request;
-request.owner = &window;
-request.title = "Open image";
-request.filters = filters;
-
-const auto selected = Dialogs::openFile(request);
-if (selected.status.ok() &&
-    selected.outcome == Types::Dialogs::Outcome::Accepted)
-{
-    // Consume selected.path.
-}
-```
-
-The call is synchronous and must run on the owner Window's thread. Cancellation
-is a successful domain outcome. See @ref desktop_dialogs.
-
-## Publish operation progress
-
-```cpp
-#include "desktop/dialogs.h"
-
-GameWIP::Desktop::ProgressDialog progress;
-GameWIP::Desktop::Types::Dialogs::Progress::Description request;
-request.owner = &window;
-request.title = "Importing";
-request.heading = "Preparing assets";
-request.mode = GameWIP::Desktop::Types::Dialogs::Progress::Mode::Determinate;
-request.cancelable = true;
-
-if (progress.open(request).ok())
-{
-    static_cast<void>(progress.setProgress(0.5));
-    if (progress.hasCancelRequest())
-    {
-        // Ask the application-owned operation to stop.
-    }
-    static_cast<void>(progress.close());
-}
-```
-
-Progress is modeless and uses the ordinary Desktop event pump. It never creates
-a worker thread; worker code must communicate updates back to the owner thread.
+native dialogs, accessibility snapshots, shell integration, and interop without hiding status handling.
 
 ## Open a normal Window
 
@@ -78,45 +20,6 @@ GameWIP::Desktop::Window window;
 if (auto status = window.open(description); !status.ok())
     return;
 ```
-
-## Publish shell state
-
-```cpp
-#include "desktop/shell.h"
-#include "desktop/shell_taskbar.h"
-
-if (GameWIP::Desktop::Shell::supports(
-        GameWIP::Desktop::Types::Shell::Capability::Taskbar) &&
-    GameWIP::Desktop::Shell::supports(
-        GameWIP::Desktop::Types::Shell::Capability::TaskbarProgress))
-{
-    GameWIP::Desktop::ShellEventQueue shellEvents;
-    if (shellEvents.open().ok())
-    {
-        GameWIP::Desktop::TaskbarItem taskbar;
-        GameWIP::Desktop::Types::Taskbar::Description taskbarDescription;
-        taskbarDescription.progress = GameWIP::Desktop::Types::Shell::Progress{
-            GameWIP::Desktop::Types::Shell::ProgressState::Normal, 0.5};
-
-        if (taskbar.open(window, taskbarDescription, shellEvents).ok())
-        {
-            // Consume shellEvents while the Window and taskbar binding remain open.
-            GameWIP::Desktop::Types::Shell::Event event;
-            while (shellEvents.popEvent(event))
-            {
-                // Handle typed taskbar, tray, or notification payloads here.
-            }
-            static_cast<void>(taskbar.close());
-        }
-        static_cast<void>(shellEvents.close());
-    }
-}
-```
-
-Shell resources are capability-aware, owner-thread-affine, and status-returning.
-Close each resource before its borrowed `ShellEventQueue`, then close the queue
-before the `Window`. See @ref desktop_shell for tray, notification, jump-list,
-registration, and unsupported-capability behavior.
 
 ## Pump and consume typed events
 
@@ -156,6 +59,57 @@ if (monitors.status.ok())
     }
 }
 ```
+
+## Borderless fullscreen
+
+```cpp
+GameWIP::Desktop::Types::Description description;
+description.mode.mode = GameWIP::Desktop::Types::Mode::BorderlessFullscreen;
+description.visible = true;
+```
+
+For exclusive fullscreen, set `description.mode.mode` to `Types::Mode::ExclusiveFullscreen`, choose a `Types::Display::MonitorId`, and optionally
+provide an exact `Types::Display::Mode`.
+
+## Custom cursor
+
+```cpp
+#include "desktop/cursor.h"
+
+if (window.supports(GameWIP::Desktop::Types::Capability::CustomCursor))
+{
+    GameWIP::Desktop::Types::Cursor::ImageView cursorImage{{32, 32}, {4, 3}, 96, 0, cursorRgba8};
+    auto cursor = GameWIP::Desktop::createCursor(cursorImage);
+    if (cursor.status.ok())
+        static_cast<void>(GameWIP::Desktop::setCursor(window, cursor.cursor));
+}
+```
+
+Use @ref desktop_custom_cursors for multiple-DPI variants, sharing, lifetime, cursor-mode interaction, and restoring a system shape.
+
+## Native child host
+
+```cpp
+#include "desktop/child_surface.h"
+#include "desktop/native/win32.h"
+
+GameWIP::Desktop::ChildSurface host;
+GameWIP::Desktop::Types::ChildSurface::Description hostDescription;
+hostDescription.rect = {{40, 40}, {800, 600}};
+hostDescription.visible = true;
+
+if (host.open(window, hostDescription).ok())
+{
+    const auto native = GameWIP::Desktop::Native::Win32::getHandle(host);
+    if (native.status.ok())
+    {
+        // Create externally managed native descendants below native.handle.window.
+    }
+}
+```
+
+Shut external technology down before `host.close()` when its SDK requires explicit teardown. See @ref desktop_child_surfaces for ownership, parent
+loss, event queues, geometry, DPI, and sibling ordering.
 
 ## Copy and paste UTF-8 text
 
@@ -222,56 +176,148 @@ pumping `Desktop::Events`; call `target.close()` before `window.close()` during
 ordinary controlled shutdown. See @ref desktop_drag_drop for regions, source
 dragging, effects, and failure handling.
 
-## Borderless fullscreen
+## Select a file
 
 ```cpp
-GameWIP::Desktop::Types::Description description;
-description.mode.mode = GameWIP::Desktop::Types::Mode::BorderlessFullscreen;
-description.visible = true;
-```
+#include "desktop/dialogs.h"
 
-For exclusive fullscreen, set `description.mode.mode` to `Types::Mode::ExclusiveFullscreen`, choose a `Types::Display::MonitorId`, and optionally
-provide an exact `Types::Display::Mode`.
+#include <array>
+#include <string_view>
 
-## Custom cursor
+using namespace GameWIP::Desktop;
 
-```cpp
-#include "desktop/cursor.h"
+const std::array imageExtensions{std::string_view{"png"}, std::string_view{"jpg"}};
+const std::array filters{
+    Types::Dialogs::File::Filter{"Images", imageExtensions},
+    Types::Dialogs::File::Filter{"All files", {}}};
 
-if (window.supports(GameWIP::Desktop::Types::Capability::CustomCursor))
+Types::Dialogs::File::OpenDescription request;
+request.owner = &window;
+request.title = "Open image";
+request.filters = filters;
+
+const auto selected = Dialogs::openFile(request);
+if (selected.status.ok() &&
+    selected.outcome == Types::Dialogs::Outcome::Accepted)
 {
-    GameWIP::Desktop::Types::Cursor::ImageView cursorImage{{32, 32}, {4, 3}, 96, 0, cursorRgba8};
-    auto cursor = GameWIP::Desktop::createCursor(cursorImage);
-    if (cursor.status.ok())
-        static_cast<void>(GameWIP::Desktop::setCursor(window, cursor.cursor));
+    // Consume selected.path.
 }
 ```
 
-Use @ref desktop_custom_cursors for multiple-DPI variants, sharing, lifetime, cursor-mode interaction, and restoring a system shape.
+The call is synchronous and must run on the owner Window's thread. Cancellation
+is a successful domain outcome. See @ref desktop_dialogs.
 
-## Native child host
+## Publish operation progress
 
 ```cpp
-#include "desktop/child_surface.h"
-#include "desktop/native/win32.h"
+#include "desktop/dialogs.h"
 
-GameWIP::Desktop::ChildSurface host;
-GameWIP::Desktop::Types::ChildSurface::Description hostDescription;
-hostDescription.rect = {{40, 40}, {800, 600}};
-hostDescription.visible = true;
+GameWIP::Desktop::ProgressDialog progress;
+GameWIP::Desktop::Types::Dialogs::Progress::Description request;
+request.owner = &window;
+request.title = "Importing";
+request.heading = "Preparing assets";
+request.mode = GameWIP::Desktop::Types::Dialogs::Progress::Mode::Determinate;
+request.cancelable = true;
 
-if (host.open(window, hostDescription).ok())
+if (progress.open(request).ok())
 {
-    const auto native = GameWIP::Desktop::Native::Win32::getHandle(host);
-    if (native.status.ok())
+    static_cast<void>(progress.setProgress(0.5));
+    if (progress.hasCancelRequest())
     {
-        // Create externally managed native descendants below native.handle.window.
+        // Ask the application-owned operation to stop.
+    }
+    static_cast<void>(progress.close());
+}
+```
+
+Progress is modeless and uses the ordinary Desktop event pump. It never creates
+a worker thread; worker code must communicate updates back to the owner thread.
+
+## Publish shell state
+
+```cpp
+#include "desktop/shell.h"
+#include "desktop/shell_taskbar.h"
+
+if (GameWIP::Desktop::Shell::supports(
+        GameWIP::Desktop::Types::Shell::Capability::Taskbar) &&
+    GameWIP::Desktop::Shell::supports(
+        GameWIP::Desktop::Types::Shell::Capability::TaskbarProgress))
+{
+    GameWIP::Desktop::ShellEventQueue shellEvents;
+    if (shellEvents.open().ok())
+    {
+        GameWIP::Desktop::TaskbarItem taskbar;
+        GameWIP::Desktop::Types::Taskbar::Description taskbarDescription;
+        taskbarDescription.progress = GameWIP::Desktop::Types::Shell::Progress{
+            GameWIP::Desktop::Types::Shell::ProgressState::Normal, 0.5};
+
+        if (taskbar.open(window, taskbarDescription, shellEvents).ok())
+        {
+            // Consume shellEvents while the Window and taskbar binding remain open.
+            GameWIP::Desktop::Types::Shell::Event event;
+            while (shellEvents.popEvent(event))
+            {
+                // Handle typed taskbar, tray, or notification payloads here.
+            }
+            static_cast<void>(taskbar.close());
+        }
+        static_cast<void>(shellEvents.close());
     }
 }
 ```
 
-Shut external technology down before `host.close()` when its SDK requires explicit teardown. See @ref desktop_child_surfaces for ownership, parent
-loss, event queues, geometry, DPI, and sibling ordering.
+Shell resources are capability-aware, owner-thread-affine, and status-returning.
+Close each resource before its borrowed `ShellEventQueue`, then close the queue
+before the `Window`. See @ref desktop_shell for tray, notification, jump-list,
+registration, and unsupported-capability behavior.
+
+## Publish an accessible command
+
+Call this on an open Window's owner thread for initial enablement. Subsequent
+publications may use any thread while that Window remains alive.
+
+```cpp
+#include "desktop/accessibility.h"
+#include <array>
+
+GameWIP::IO::Types::Status publishAccessibleCommand(
+    GameWIP::Desktop::Window &window,
+    GameWIP::Desktop::Types::Accessibility::Generation generation)
+{
+    namespace D = GameWIP::Desktop;
+    namespace A = D::Types::Accessibility;
+    auto bridge = window.accessibility();
+    if (!bridge.enabled())
+    {
+        const auto enabled = bridge.enable();
+        if (!enabled.ok())
+            return enabled;
+    }
+    const std::array<A::NodeId, 1> children{2};
+    std::array<A::Node, 2> nodes{};
+    nodes[0].id = 1;
+    nodes[0].role = A::Role::Window;
+    nodes[0].name = "Editor";
+    nodes[0].children = children;
+    nodes[1].id = 2;
+    nodes[1].parent = 1;
+    nodes[1].role = A::Role::Button;
+    nodes[1].name = "Save document";
+    nodes[1].states.flags = static_cast<std::uint64_t>(A::State::Focusable);
+    nodes[1].actions.flags = (std::uint64_t{1} << static_cast<unsigned>(A::ActionKind::Invoke));
+    nodes[1].geometry = A::Geometry{{20, 20, 160, 40}};
+    return bridge.publish({generation, 1, nodes});
+}
+```
+
+The call copies every view before these arrays expire. Keep pumping
+`Desktop::Events`, drain `window.accessibility().popAction(request)` on the owner
+thread, and execute Save in application code after checking identity and
+observed generation. Native Invoke only queues the request. Publish resulting
+application state with a newer generation. See @ref desktop_accessibility for
+text, virtualized nodes, limits, privacy, and teardown.
 
 ## Renderer integration
 

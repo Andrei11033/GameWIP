@@ -88,6 +88,7 @@ set(expected_gamewip_headers
     test_support/types.h
     unicode/unicode.h
     desktop/child_surface.h
+    desktop/accessibility.h
     desktop/clipboard.h
     desktop/cursor.h
     desktop/data_transfer.h

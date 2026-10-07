@@ -2,7 +2,7 @@
 
 Desktop splits its installed headers by concept while keeping one library and
 one passive `Types` tree. Use this map to find the declaration that owns a
-lifecycle, event, display, renderer, or native-interop operation.
+lifecycle, event, display, dialog, shell, accessibility, renderer, or native-interop operation.
 
 ## Header ownership
 
@@ -15,9 +15,11 @@ Desktop exposes one public `GameWIP::Desktop::Types` tree and focused headers by
 - `desktop/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `desktop/cursor.h` is the opt-in custom native cursor resource and selection surface.
 - `desktop/child_surface.h` is the opt-in managed native child-host resource, passive description, and typed event surface.
+- `desktop/accessibility.h` is the opt-in immutable semantic snapshot, authoring/inspection, native provider, and bounded action bridge.
 - `desktop/data_transfer.h` is the opt-in shared non-owning/owning transfer vocabulary for Clipboard and drag and drop.
 - `desktop/drag_drop.h` is the opt-in native data target/source API, declarative regions, effects, and typed target events.
 - `desktop/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.
+- `desktop/dialogs.h` owns synchronous `Desktop::Dialogs` operations, the modeless `Desktop::ProgressDialog` resource, and `Types::Dialogs` values.
 - `desktop/shell.h` owns shell capability queries and the owner-thread-affine shell event queue.
 - `desktop/shell_jump_lists.h` owns stateless complete jump-list and recent-item publication.
 - `desktop/shell_notifications.h` owns the owner-thread-affine notification center and notification publication.
@@ -26,7 +28,7 @@ Desktop exposes one public `GameWIP::Desktop::Types` tree and focused headers by
 - `desktop/shell_tray.h` owns the opt-in process-local tray-icon binding, recursive menu publication, and tray interaction delivery.
 - `desktop/shell_types.h` contains the opt-in passive shell identities, targets, launch values, progress state, and event payloads.
 - `desktop/window.h` assembles the normal Window object API and includes the fundamental headers above, but not rich display inspection, custom cursor
-  resources, Clipboard/data transfer, native drag and drop, renderer integration, or native interop.
+  resources, accessibility snapshots, Clipboard/data transfer, native drag and drop, dialogs, shell services, renderer integration, or native interop.
 - `desktop/renderer_bridge.h` owns concurrent presentation-read opt-in, renderer feedback, and packed pointer publication.
 - `desktop/native/win32.h` is explicit Win32 interoperability.
 
@@ -66,6 +68,21 @@ same-owner replacement, and explicit conflict reporting.
 
 See @ref desktop_shell for the complete shell lifecycle, capability, ownership, testing, and
 manual-validation contract.
+
+## Accessibility
+
+`Capability::Accessibility` reports backend support. The non-owning
+`Window::accessibility()` façade requires `desktop/accessibility.h` to use its
+definition; enablement is lazy and per-open-lifetime. Values belong under
+`Types::Accessibility` and operations under `Desktop::Accessibility`.
+Per-activation `features()` and per-node native pattern availability are distinct
+from the global capability. See @ref desktop_accessibility for publication,
+threading, ownership, transport, limits, and native mapping.
+
+`Desktop::Accessibility::SnapshotBuilder` owns authoring storage,
+`SnapshotReader` retains immutable published data, and `Facade` borrows a Window.
+`Facade::enabled()` reports activation state; `SnapshotReader::isValid()` reports
+whether a reader retains a snapshot.
 
 ## Library and Window capabilities
 

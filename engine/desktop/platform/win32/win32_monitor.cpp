@@ -518,7 +518,7 @@ namespace GameWIP::Desktop::Detail::Platform
                               capabilityBit(C::AlwaysOnTop) | capabilityBit(C::Opacity) | capabilityBit(C::PointerClickThrough) |
                               capabilityBit(C::CursorConfinement) | capabilityBit(C::RelativeCursor) | capabilityBit(C::CursorWarping) |
                               capabilityBit(C::CustomCursor) | capabilityBit(C::FileDrop) | capabilityBit(C::ExclusiveFullscreen) |
-                              capabilityBit(C::OcclusionReporting) | capabilityBit(C::ChildSurface);
+                              capabilityBit(C::OcclusionReporting) | capabilityBit(C::ChildSurface) | capabilityBit(C::Accessibility);
         if (supportsSystemBackdrop())
         {
             flags |= capabilityBit(C::SystemBackdrop);

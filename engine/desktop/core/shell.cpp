@@ -295,12 +295,13 @@ namespace GameWIP::Desktop::Detail
             state.overlayIcon.reset();
             if (description.overlayIcon.has_value())
             {
-                state.overlayIcon.emplace();
-                status = copyIcon(*description.overlayIcon, *state.overlayIcon);
+                OwnedIconImage overlayIcon{};
+                status = copyIcon(*description.overlayIcon, overlayIcon);
                 if (!status.ok())
                 {
                     return status;
                 }
+                state.overlayIcon.emplace(std::move(overlayIcon));
             }
             return validateThumbnailButtons(description.thumbnailButtons, state.thumbnailButtons);
         }

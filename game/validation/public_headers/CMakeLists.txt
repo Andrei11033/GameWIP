@@ -22,6 +22,7 @@ gamewip_add_public_header_check(TerminalOutput terminal_output_header.cpp GameWI
 gamewip_add_public_header_check(TerminalSession terminal_session_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(DesktopTypes desktop_types_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopAccessibility desktop_accessibility_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopClipboard desktop_clipboard_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopDataTransfer desktop_data_transfer_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopDragDrop desktop_drag_drop_header.cpp GameWIP::Desktop)

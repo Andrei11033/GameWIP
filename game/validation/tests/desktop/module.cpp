@@ -17,6 +17,7 @@ namespace
     bool handlesChildArguments(int argc, char **argv)
     {
         constexpr std::array selectors{
+            std::string_view{"--desktop-test-child=accessibility-client"},
             std::string_view{"--desktop-test-child=standalone-color-shutdown"},
             std::string_view{"--desktop-test-child=window-color-shutdown"},
             std::string_view{"--desktop-test-child=owner-exit-color-shutdown"},

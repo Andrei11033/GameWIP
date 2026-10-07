@@ -41,6 +41,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
         GameWIPIsolatedConsumer
         PRIVATE
             desktop_types.cpp
+            desktop_accessibility.cpp
             desktop_clipboard.cpp
             desktop_data_transfer.cpp
             desktop_child_surface.cpp

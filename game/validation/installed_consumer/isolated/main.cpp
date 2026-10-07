@@ -27,6 +27,7 @@
 #include "desktop/display_info.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
+bool probeInstalledAccessibility();
 #elif defined(GAMEWIP_CONSUMER_Logger)
 #include "logger/logger.h"
 #elif defined(GAMEWIP_CONSUMER_Assert)
@@ -73,9 +74,10 @@ int main()
         GameWIP::Desktop::createCursor(std::span<const GameWIP::Desktop::Types::Cursor::ImageView>{});
     const auto feedback = GameWIP::Desktop::Renderer::attachOcclusionProvider(window);
     const auto displayColor = GameWIP::Desktop::Display::getColorInfo(window);
-    return GameWIP::Desktop::getCapabilities().status.ok() && cursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument &&
-                   !cursor.cursor.isValid() && !GameWIP::Desktop::Renderer::hasOcclusionProvider(window) &&
-                   feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen && displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
+    return probeInstalledAccessibility() && GameWIP::Desktop::getCapabilities().status.ok() &&
+                   cursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !cursor.cursor.isValid() &&
+                   !GameWIP::Desktop::Renderer::hasOcclusionProvider(window) && feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
+                   displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;
 #elif defined(GAMEWIP_CONSUMER_Logger)

@@ -979,6 +979,7 @@ namespace GameWIP::Desktop::Detail::Platform
             state.presentationPublication->publishContentScale(state.contentScale);
         }
         refreshChildSurfaceScreenRectsForParent(state.id);
+        publishAccessibilityGeometry(state);
         return IO::successStatus();
     }
 

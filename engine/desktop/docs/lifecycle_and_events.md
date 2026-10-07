@@ -32,6 +32,13 @@ Windows pay no allocation or publication cost. Call it before starting renderer 
 Each compound result is internally coherent. Separate calls may observe successive valid states. This contract does not make concurrent destruction
 of the C++ `Window` object safe. The application must keep the object alive until the renderer thread has stopped or joined.
 
+The optional accessibility façade has a separate threading contract. Complete
+owner-thread `enable()` before sharing it; publication, snapshot inspection,
+queue telemetry, and announcements may then run on other threads. Activation,
+deactivation, action draining, and native notification pumping remain on the
+owner thread. Join façade users before destroying the borrowed Window. See
+@ref desktop_accessibility for publication and close-race behavior.
+
 Wrong-thread destruction does not destroy owner-thread-affine resources directly. Private state is transferred to the owner dispatcher without
 allocating, the dispatcher is woken, and cleanup is completed on the owner thread. Dispatcher teardown also drains deferred cleanup and finalizes
 registered Windows.

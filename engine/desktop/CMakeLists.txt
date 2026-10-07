@@ -39,6 +39,10 @@ gamewip_generate_export_header(
 target_sources(
     Desktop
     PRIVATE
+        core/accessibility.cpp
+        core/accessibility_snapshot.cpp
+        core/accessibility_validation.cpp
+        internal/accessibility_state.h
         core/clipboard.cpp
         core/child_surface.cpp
         core/child_surface_events.cpp
@@ -71,6 +75,7 @@ target_sources(
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${DESKTOP_GENERATED_INCLUDE_DIR}"
             FILES
+                "${CMAKE_CURRENT_SOURCE_DIR}/accessibility.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/clipboard.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
@@ -136,6 +141,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
         NAME Desktop
         PAGE_ID desktop_library
         PUBLIC_HEADERS
+            "${CMAKE_CURRENT_SOURCE_DIR}/accessibility.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/clipboard.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"

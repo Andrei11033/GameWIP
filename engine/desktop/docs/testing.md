@@ -38,6 +38,24 @@ cmake --build --preset test
 ctest --test-dir build/test -R "validation.tests.desktop|validation.exports.Desktop" --output-on-failure
 ```
 
+Accessibility coverage checks complete-tree validation, recursive owning copies,
+retaining readers, transactional publication, generation/root rules, foreign-thread
+publication, close/publication races, reopen gates, bounded FIFO/coalescing,
+notification collapse, announcement locale support, native provider identity and
+capacity, password redaction, control patterns, grapheme-aware text inspection,
+range-pool pressure, clipped affine geometry, and concurrent provider queries.
+Focused regressions check nested-grid membership independently of node storage
+order, supplied selections without mutation support, absent and explicit carets,
+empty degenerate-range rectangles, consistent Value/Text editability, uniform
+attributes across adjacent annotations, independent overlapping emphasis, and
+unsupported native Link attributes with preserved portable associations.
+Host interaction regressions include a real ProgressDialog owner blocker.
+A process-isolated fixture runs an MTA UIA client thread in the provider process.
+It discovers the real HWND through
+`IUIAutomation::ElementFromHandle`, reads names/text, and invokes a semantic child
+while the owner pumps normally. These checks do not claim Narrator speech or
+mixed-monitor physical observations; those are opt-in manual checks.
+
 ## Public-header isolation
 
 Repository validation compiles each supported Desktop entry header independently:
@@ -49,6 +67,7 @@ Repository validation compiles each supported Desktop entry header independently
 - `desktop/display_info.h`
 - `desktop/cursor.h`
 - `desktop/child_surface.h`
+- `desktop/accessibility.h`
 - `desktop/data_transfer.h`
 - `desktop/drag_drop.h`
 - `desktop/clipboard.h`
@@ -120,7 +139,8 @@ shell-visible state. See @ref desktop_manual_validation for the observable
 scenarios and expected results.
 
 `--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`,
-`files-shell`, `dialogs`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. The `files-shell` suite also covers
+`files-shell`, `dialogs`, `accessibility`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`.
+The `files-shell` suite also covers
 visible taskbar progress and thumbnail buttons, tray activation and recursive menus, notification appearance and dismissal, Explorer file/URI
 activation, and jump-list ordering. `fullscreen` retains the complete workflow;
 `borderless`, `exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and

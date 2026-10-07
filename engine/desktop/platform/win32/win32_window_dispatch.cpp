@@ -2,6 +2,7 @@
 /// @brief Win32 event pumping and wait dispatch.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/internal/accessibility_state.h"
 #include <algorithm>
 #include <utility>
 
@@ -45,7 +46,20 @@ namespace GameWIP::Desktop::Detail::Platform
             current.pumping = false;
             return result;
         }
-        if (wait)
+        bool accessibilityPending = false;
+        for (const WindowState *state : current.windows)
+        {
+            if (state && state->accessibility)
+            {
+                const auto runtime = state->accessibility->runtime.load();
+                if (runtime && runtime->live.load())
+                {
+                    std::scoped_lock lock(runtime->actionMutex, runtime->notificationMutex);
+                    accessibilityPending = accessibilityPending || runtime->actionCount != 0 || runtime->notificationCount != 0;
+                }
+            }
+        }
+        if (wait && !accessibilityPending)
         {
             DWORD milliseconds = INFINITE;
             if (timeout != Events::kWaitForever)
@@ -112,6 +126,11 @@ namespace GameWIP::Desktop::Detail::Platform
 
         for (WindowState *state : current.windows)
         {
+            if (state != nullptr)
+            {
+                publishAccessibilityGeometry(*state);
+                drainAccessibilityNotifications(*state);
+            }
             if (state != nullptr && state->platform && state->cursorMode == Types::CursorMode::Relative && state->focused)
             {
                 IO::Types::Status cursorStatus = applyCursorState(*state);

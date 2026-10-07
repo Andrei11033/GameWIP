@@ -2,9 +2,11 @@
 /// @brief Win32 native message callback and event translation.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/internal/accessibility_state.h"
 #include "desktop/internal/drag_drop_platform.h"
 #include "desktop/internal/dialogs_platform.h"
 #include "desktop/internal/shell_platform.h"
+#include "desktop/platform/win32/internal/win32_accessibility.h"
 #include <commctrl.h>
 #include <algorithm>
 #include <cmath>
@@ -212,6 +214,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
         switch (message)
         {
+        case WM_GETOBJECT:
+        {
+            LRESULT result = 0;
+            if (accessibilityGetObject(*state, window, wParam, lParam, result))
+                return result;
+            break;
+        }
         case WM_NCCALCSIZE:
             if (state->decoration != Types::DecorationMode::System && wParam != FALSE)
             {
@@ -274,6 +283,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if (state->visible != visible)
             {
                 state->visible = visible;
+                publishAccessibilityGeometry(*state);
                 if (state->presentationPublication != nullptr)
                 {
                     state->presentationPublication->publishVisible(visible);
@@ -287,6 +297,17 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             break;
         }
+        case WM_ENABLE:
+            if (state->accessibility)
+            {
+                const auto runtime = state->accessibility->runtime.load();
+                if (runtime && runtime->live.load())
+                {
+                    runtime->hostEnabled.store(wParam != FALSE);
+                    invalidateAccessibilityHost(*state);
+                }
+            }
+            break;
         case WM_ACTIVATEAPP:
         {
             // Focus can move among this process's windows without surrendering the exclusive
@@ -302,6 +323,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if (!state->focused)
             {
                 state->focused = true;
+                publishAccessibilityGeometry(*state);
                 routeEvent(*state, Types::Events::FocusChanged{true});
                 const IO::Types::Status cursorStatus = applyCursorState(*state);
                 if (!cursorStatus.ok())
@@ -314,6 +336,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if (state->focused)
             {
                 state->focused = false;
+                publishAccessibilityGeometry(*state);
                 routeEvent(*state, Types::Events::FocusChanged{false});
                 const IO::Types::Status cursorStatus = applyCursorState(*state);
                 if (!cursorStatus.ok())
@@ -656,6 +679,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             break;
         case WM_DESTROY:
+            accessibilityWindowDestroyed(*state, window);
             state->visible = false;
             state->focused = false;
             state->cursorInside = false;

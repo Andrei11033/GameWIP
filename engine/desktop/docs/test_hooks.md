@@ -51,6 +51,17 @@ The passive `progressOwnerRestoreMessageRegistrationAttempted()` observation
 supports a fresh-process regression that ordinary Window use does not register
 the ProgressDialog owner-restore message.
 
+Accessibility hooks use the real snapshot-backed implementation:
+`submitAccessibilityAction()` enters the same bounded validated transport used
+by native providers; `popAccessibilityNotification()` inspects its pending diff
+descriptors without requiring a listening assistive client. Win32-only
+`accessibilityProvider()` returns an AddRef'ed raw provider pointer for COM
+contract checks; tests release it through `IRawElementProviderSimple::Release()`.
+This opaque test seam is not a portable public API or installed native escape
+hatch. Generic allocation failure exercises transactional publication, and
+presentation hooks exercise cached geometry without changing semantic content.
+The real UIA client child protocol does not require any accessibility hook.
+
 `WindowStyleQuery` is a one-shot native style/ex-style query failure used by
 checked geometry, mode, control, DPI, child-surface, and ProgressDialog paths.
 `WindowUserDataInstallation` is a one-shot top-level `WM_NCCREATE` userdata

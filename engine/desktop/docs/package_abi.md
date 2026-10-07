@@ -17,6 +17,10 @@ shared library.
 Shell resource declarations, shell value aggregates, and exported shell service
 operations are also part of the exact-version C++ package and ABI contract.
 
+Accessibility snapshot values, builders, readers, and the non-owning Window
+façade follow the same exact-version contract. Native providers and COM types
+remain private implementation details.
+
 ## Installed headers
 
 The supported public headers are:
@@ -28,6 +32,7 @@ The supported public headers are:
 - `desktop/display_info.h`
 - `desktop/cursor.h`
 - `desktop/child_surface.h`
+- `desktop/accessibility.h`
 - `desktop/data_transfer.h`
 - `desktop/drag_drop.h`
 - `desktop/clipboard.h`
@@ -50,8 +55,9 @@ Internal headers and test hooks are source-tree-only. Every supported entry head
 is limited to source-tree validation hooks and is never installed.
 
 `desktop/window.h` intentionally includes the normal shared vocabulary, description, fundamental display-mode surface, and events. Rich display
-inspection, custom cursor resources, native child hosts, Clipboard/data transfer, native drag and drop, renderer integration, and native interop remain
-explicit opt-in includes.
+inspection, custom cursor resources, native child hosts, accessibility snapshots,
+Clipboard/data transfer, native drag and drop, dialogs, shell services, renderer
+integration, and native interop remain explicit opt-in includes.
 
 ## Dependencies
 
@@ -70,13 +76,13 @@ for both consumption paths and @ref project_cmake_infrastructure for shared
 manifest requirements and composition.
 
 Native Win32 dependencies remain private implementation details. The Win32 backend
-links `ole32` for OLE/COM functionality and `comctl32` for Common Controls
-functionality; neither is a consumer-facing link requirement, and consumers do not
-need to link `comctl32` manually through the Desktop package contract. Linking
+links `ole32` for OLE/COM functionality, `oleaut32` for Automation values,
+`uiautomationcore` for accessibility providers, and `comctl32` for Common Controls.
+These libraries are not consumer-facing link requirements. Linking
 `comctl32` does not activate Common Controls v6: that remains application/executable
 manifest policy owned by the shared `GameWIPApplication` CMake infrastructure.
 Public and installed headers expose no COM interfaces, HRESULT values, or raw
-drag/drop handles.
+drag/drop or accessibility-provider handles.
 
 ## Internal definitions
 

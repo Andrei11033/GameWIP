@@ -5,6 +5,7 @@
 #pragma once
 
 #include "desktop/child_surface.h"
+#include "desktop/accessibility.h"
 #include "desktop/internal/desktop_test_export.h"
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
@@ -226,6 +227,14 @@ namespace GameWIP::Desktop::TestHooks
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    /// @brief Submits through the real bounded action transport.
+    [[nodiscard]] DESKTOP_TEST_EXPORT Types::Accessibility::ActionResult submitAccessibilityAction(
+        Window &window,
+        Types::Accessibility::ActionRequest request) noexcept;
+    /// @brief Removes one owner-thread pending notification without invoking native clients.
+    [[nodiscard]] DESKTOP_TEST_EXPORT bool popAccessibilityNotification(Window &window, Types::Accessibility::Notification &out) noexcept;
+    /// @brief Returns one AddRef'd IRawElementProviderSimple as void*, or nullptr. Caller must Release it.
+    [[nodiscard]] DESKTOP_TEST_EXPORT void *accessibilityProvider(Window &window, Types::Accessibility::NodeId node) noexcept;
     DESKTOP_TEST_EXPORT void failNext(FailurePoint point) noexcept;
     DESKTOP_TEST_EXPORT void resetFailures() noexcept;
     DESKTOP_TEST_EXPORT void completeNextFileDialog(FileDialogOperation operation, FileDialogResponse response) noexcept;

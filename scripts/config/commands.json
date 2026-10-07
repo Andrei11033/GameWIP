@@ -1026,6 +1026,7 @@
             "child-surface",
             "files-shell",
             "dialogs",
+            "accessibility",
             "drag-drop",
             "fullscreen",
             "borderless",

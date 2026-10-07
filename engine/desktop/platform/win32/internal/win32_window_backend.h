@@ -71,6 +71,7 @@ namespace GameWIP::Desktop::Detail::Platform
         bool cursorTracking = false;
         bool destroying = false;
         NativeWindowLifecycle lifecycle = NativeWindowLifecycle::Constructing;
+        bool accessibilityExposed = false;
 
         DWORD windowedStyle = 0;
         DWORD windowedExtendedStyle = 0;

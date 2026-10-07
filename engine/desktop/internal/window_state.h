@@ -26,6 +26,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Detail
 {
+    void publishAccessibilityGeometry(WindowState &state) noexcept;
     struct TaskbarItemState;
 
     /// @brief Outcome of inserting one Window event into fixed-capacity storage.
@@ -118,6 +119,10 @@ namespace GameWIP::Desktop::Detail
         bool suppressEvents = false;                 ///< Suppresses construction-time native callbacks.
         bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
         TaskbarItemState *taskbarItem = nullptr;
+        AccessibilityState *accessibility = nullptr;
+        // A foreign-thread Window destructor transfers this optional owner with deferred native state.
+        // Keep the callback pointer stable and readable until the owner destroys the HWND.
+        std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> deferredAccessibilityOwner;
     };
 
     /// @brief Returns whether a Window payload may replace a newer payload of the same type.
@@ -145,6 +150,7 @@ namespace GameWIP::Desktop::Detail
     /// @brief Publishes cached presentation values when concurrent reads are enabled.
     inline void publishCachedPresentationState(WindowState &state) noexcept
     {
+        publishAccessibilityGeometry(state);
         if (state.presentationPublication != nullptr)
         {
             publishCachedPresentationState(*state.presentationPublication, state);
@@ -202,6 +208,14 @@ namespace GameWIP::Desktop::Detail
 
     struct WindowAccess
     {
+        [[nodiscard]] static AccessibilityState *accessibilityState(const Window &window) noexcept
+        {
+            return window.accessibilityState_.get();
+        }
+        [[nodiscard]] static std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> &accessibilityStateOwner(Window &window) noexcept
+        {
+            return window.accessibilityState_;
+        }
         [[nodiscard]] static WindowState *state(Window &window) noexcept
         {
             return window.state_.get();

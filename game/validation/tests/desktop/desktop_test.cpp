@@ -2,10 +2,12 @@
 /// @brief Deterministic Desktop checks and opt-in visible manual validation.
 
 #include "validation/tests/desktop/desktop_test.h"
+#include "validation/tests/desktop/accessibility_test.h"
 #include "validation/process_arguments.h"
 
 #include "test_support/test_support.h"
 #include "desktop/child_surface.h"
+#include "desktop/accessibility.h"
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
@@ -366,6 +368,7 @@ namespace
     void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
     {
         constexpr std::array childArguments{
+            std::string_view{"--desktop-test-child=accessibility-client"},
             kStandaloneColorChildArgument,
             kWindowColorChildArgument,
             kOwnerExitColorChildArgument,
@@ -400,6 +403,7 @@ namespace
 
 #include "validation/tests/desktop/desktop_manual_support.inl"
 #include "validation/tests/desktop/desktop_manual_window_tests.inl"
+#include "validation/tests/desktop/desktop_manual_accessibility_tests.inl"
 #include "validation/tests/desktop/desktop_manual_transfer_tests.inl"
 #include "validation/tests/desktop/desktop_manual_display_tests.inl"
 #include "validation/tests/desktop/desktop_dialog_tests.inl"
@@ -420,6 +424,8 @@ namespace GameWIP::Test
 {
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
+        if (hasArgument(argc, argv, "--desktop-test-child=accessibility-client"))
+            return runAccessibilityClientChild();
         if (hasArgument(argc, argv, kStandaloneColorChildArgument))
         {
             return runStandaloneColorShutdownChild();
@@ -473,6 +479,7 @@ namespace GameWIP::Test
         }
         constexpr std::array manualSuiteNames{
             std::string_view{"lifecycle"},
+            std::string_view{"accessibility"},
             std::string_view{"multiple-windows"},
             std::string_view{"custom-chrome"},
             std::string_view{"layered-pointer"},
@@ -511,6 +518,7 @@ namespace GameWIP::Test
                 });
         }
         runner.runSuite("Window passive values and closed state", testPassiveValuesAndClosedState);
+        runAccessibilityTests(runner);
         runner.runSuite("Window Clipboard values and validation", testClipboardValuesAndValidation);
         runner.runSuite("Window Clipboard native round trips", testClipboardRoundTrips);
         runner.runSuite("Window Clipboard multi-format and failure semantics", testClipboardMultiFormatAndFailures);
@@ -601,6 +609,7 @@ namespace GameWIP::Test
                 });
         };
         runManualSuite("Window manual visible lifecycle", "lifecycle", testManualVisibleLifecycle);
+        runManualSuite("Desktop manual accessibility", "accessibility", testManualAccessibility);
         runManualSuite("Window manual multiple windows", "multiple-windows", testManualMultipleWindows);
         runManualSuite("Window manual custom chrome", "custom-chrome", testManualCustomChrome);
         runManualSuite("Window manual layered and pointer behavior", "layered-pointer", testManualLayeredAndPointer);

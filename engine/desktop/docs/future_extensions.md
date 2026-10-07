@@ -15,8 +15,11 @@ additional platform backends; the existing portable ownership and queue contract
 
 ## Accessibility provider bridge
 
-A future UI system owns the semantic accessibility tree. Desktop may expose a focused platform bridge that publishes snapshots from that owner, but it
-must not invent or retain a second semantic model.
+A future UI system owns the semantic accessibility tree. The implemented
+`desktop/accessibility.h` bridge copies immutable snapshots from that owner and
+provides native providers and bounded transport, not a second editable semantic
+model. See @ref desktop_accessibility. Future backends preserve that ownership,
+advertise feature differences, and do not introduce toolkit or renderer dependencies.
 
 ## Native pointer-mask routing
 

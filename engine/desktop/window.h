@@ -19,8 +19,18 @@
 
 namespace GameWIP::Desktop
 {
+    namespace Accessibility
+    {
+        class Facade;
+    } // namespace Accessibility
+
     namespace Detail
     {
+        struct AccessibilityState;
+        struct AccessibilityStateDeleter
+        {
+            void operator()(AccessibilityState *state) const noexcept;
+        };
         struct RendererIntegrationState;
         class PresentationPublicationState;
         struct WindowState;
@@ -92,6 +102,7 @@ namespace GameWIP::Desktop
             ExclusiveFullscreen,       ///< Exclusive display-mode fullscreen is supported.
             OcclusionReporting,        ///< Renderer occlusion-provider feedback is supported.
             ChildSurface,              ///< Managed native child-window hosts are supported.
+            Accessibility,             ///< Optional semantic accessibility/UI Automation bridge is supported.
             Count                      ///< Enumerator count used to bound capability bit indexes.
         };
 
@@ -202,6 +213,11 @@ namespace GameWIP::Desktop
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @brief Reports whether the backend advertises the requested Window capability.
         [[nodiscard]] bool supports(Types::Capability capability) const noexcept;
+        /// @brief Returns a lightweight façade for this Window's optional accessibility bridge.
+        /// @details The façade does not own the Window and is valid only while this Window object
+        /// remains alive. Calling this accessor does not allocate or enable the bridge; enable()
+        /// on the returned façade performs explicit per-open activation.
+        [[nodiscard]] Accessibility::Facade accessibility() noexcept;
         /// @brief Changes or clears the native owner relationship.
         /// @param owner New owner identity, or an invalid ID to remove the relationship.
         /// @return Success, or the validation, ownership, thread, or native failure.
@@ -511,5 +527,7 @@ namespace GameWIP::Desktop
         std::unique_ptr<Detail::PresentationPublicationState> presentationPublication_; ///< Lazy, one-way concurrent-read state.
         std::unique_ptr<Detail::WindowState> state_;
         std::unique_ptr<Detail::RendererIntegrationState> rendererIntegration_;
+        std::unique_ptr<Detail::AccessibilityState, Detail::AccessibilityStateDeleter>
+            accessibilityState_; ///< Lazy state retained across open lifetimes.
     };
 } // namespace GameWIP::Desktop

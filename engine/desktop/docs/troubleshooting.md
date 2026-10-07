@@ -215,6 +215,29 @@ build 22621, transparent framebuffer alpha requires build 26100, and
 rectangular/per-pixel pointer routing is not advertised by the current Win32
 backend.
 
+## Accessibility tree or actions are unavailable
+
+Include `desktop/accessibility.h`, enable after Window open, and publish a valid
+complete snapshot. A bridge without a snapshot does not expose a semantic tree.
+Validation/preparation failure preserves the old generation; inspect its status
+and `Accessibility::validate()` issue. Generations remain strictly increasing
+across reopen and root identity stays fixed within activation. Provider identity
+capacity covers all distinct IDs submitted during an activation, not just the
+current tree; do not churn IDs unnecessarily.
+
+Native patterns require matching metadata/actions and unredacted content. A
+disabled host, including a native owner blocker, rejects actions even if a node
+does not declare Disabled. Drain actions on the opening thread and apply them
+in application code. A full action queue rejects the newest request; a full
+notification queue invalidates the latest tree without undoing publication.
+
+Keep pumping owner events for notifications. Announcement support and listening
+clients are independent; Win32 rejects differing per-message language overrides.
+Ranges become unavailable after any newer generation; reacquire them, release
+obsolete ranges/readers, and supply fragments rather than expecting Desktop to
+infer glyph layout. Retained providers after close/disable cannot revive in a
+new activation. See @ref desktop_accessibility and the manual client workflow.
+
 ## Related pages
 
 - @ref desktop_package_abi

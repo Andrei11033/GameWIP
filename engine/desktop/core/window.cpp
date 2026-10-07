@@ -7,6 +7,7 @@
 #include "desktop/internal/window_platform.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/presentation_publication_state.h"
+#include "desktop/internal/accessibility_state.h"
 
 #include <cmath>
 #include <limits>
@@ -256,6 +257,8 @@ namespace GameWIP::Desktop
         }
         if (state_)
         {
+            Detail::closeAccessibility(*state_);
+            state_->deferredAccessibilityOwner = std::move(accessibilityState_);
             Detail::invalidatePointerHitMask(*state_);
             if (rendererIntegration_)
             {
@@ -449,6 +452,7 @@ namespace GameWIP::Desktop
         {
             if (state_)
             {
+                Detail::closeAccessibility(*state_);
                 releaseEventStorage(*state_);
             }
             if (rendererIntegration_)
@@ -471,6 +475,7 @@ namespace GameWIP::Desktop
         Detail::Platform::CloseResult result = Detail::Platform::close(*state_);
         if (result.resourceClosed)
         {
+            Detail::closeAccessibility(*state_);
             releaseEventStorage(*state_);
             if (rendererIntegration_)
             {
