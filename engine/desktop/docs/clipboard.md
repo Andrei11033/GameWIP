@@ -114,7 +114,7 @@ directly without a GameWIP prefix/header.
 Win32 cannot faithfully publish a zero-byte custom block through this immediate
 `HGLOBAL` path: a zero-sized movable allocation is discarded and rejected by
 `SetClipboardData`; one byte would change the opaque extent, while `nullptr`
-requests delayed rendering that #52 intentionally does not implement.
+requests delayed rendering, which the Clipboard service does not implement.
 `writeCustomData()` therefore returns `Unsupported` before mutation for an
 empty payload. Reading a zero-sized block supplied by another valid owner
 remains supported.

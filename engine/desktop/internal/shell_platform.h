@@ -14,6 +14,10 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Returns shell capabilities available on the current Windows host.
     [[nodiscard]] Types::Shell::CapabilitiesResult getShellCapabilities() noexcept;
 
+    /// @brief Reports whether the calling thread owns native tray or notification message windows.
+    /// @details Keeps the shared event pump active without requiring a top-level Window.
+    [[nodiscard]] bool hasShellMessageWindows() noexcept;
+
     /// @brief Creates the taskbar integration for one Window.
     [[nodiscard]] IO::Types::Status openTaskbar(TaskbarItemState &state) noexcept;
     /// @brief Applies cached taskbar state to the native shell.

@@ -31,7 +31,10 @@ choices as other Desktop resource owners:
 | --- | --- |
 | `open(window, description)` | Internal default-capacity queue. |
 | `open(window, description, capacity)` | Internal queue with nonzero requested capacity. |
-| `open(window, description, eventStorage)` | Nonempty caller-owned storage borrowed until close. |
+| `open(window, description, eventStorage)` | Nonempty caller-owned storage borrowed through finalization. |
+
+External storage must remain alive and unmoved during native-loss finalization
+and deferred owner-thread cleanup. Close on the owner thread before releasing it.
 
 Descriptions, regions, format names, and source data are copied. Caller views
 are never retained. No drag-and-drop allocation, OLE initialization, native

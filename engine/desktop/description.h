@@ -28,6 +28,7 @@ namespace GameWIP::Desktop::Types
     };
 
     /// @brief Initial placement request.
+    /// @details A monitor may be supplied only for Centered placement; position is used only for Explicit placement.
     struct Placement
     {
         PlacementKind kind = PlacementKind::PlatformDefault; ///< Placement strategy.
@@ -36,6 +37,7 @@ namespace GameWIP::Desktop::Types
     };
 
     /// @brief Requested top-level mode and optional exclusive display mode.
+    /// @details Windowed requires an invalid monitor ID. A display mode is valid only for ExclusiveFullscreen.
     struct ModeRequest
     {
         Mode mode = Mode::Windowed;               ///< Requested top-level mode.
@@ -109,6 +111,10 @@ namespace GameWIP::Desktop::Types
     };
 
     /// @brief Complete initial top-level Window description.
+    /// @details Non-resizable Windows must disable controls.maximizable. requestFocus requires
+    /// visible and focusable; hidden Windows must use Normal presentation. Initial clientSize must
+    /// satisfy sizeLimits. Region and HitMask pointer modes require runtime layout/publication and
+    /// cannot be selected at open.
     struct Description
     {
         std::string title = "GameWIP";     ///< UTF-8; embedded U+0000 is rejected by native title operations.

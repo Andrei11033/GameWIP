@@ -133,10 +133,11 @@ namespace GameWIP::Desktop
             Window &parent,
             const Types::ChildSurface::Description &description,
             std::size_t eventQueueCapacity) noexcept;
-        /// @brief Opens while borrowing caller-owned event storage until close.
+        /// @brief Opens while borrowing caller-owned event storage until lifetime finalization.
+        /// @details Storage remains borrowed during native-loss finalization and deferred owner-thread cleanup.
         /// @param parent Open top-level Window whose owner thread and client origin are inherited.
         /// @param description Initial logical geometry, visibility, and interaction state.
-        /// @param eventStorage Non-empty storage that must remain alive and unmoved until close.
+        /// @param eventStorage Non-empty storage that must remain alive and unmoved through finalization.
         /// @return Success, or a status explaining why no native host was opened.
         [[nodiscard]] IO::Types::Status open(
             Window &parent,

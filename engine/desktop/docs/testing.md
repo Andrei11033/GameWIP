@@ -18,6 +18,10 @@ Shell coverage validates the fixed-capacity `ShellEventQueue`, FIFO sequence and
 validation, one-taskbar-binding enforcement, tray and notification queue borrowing, notification identity lifecycle, and deterministic native-open,
 native-apply, and native-close failure/retry paths. Native shell smoke checks are capability-aware and skip when the current environment cannot
 provide the corresponding taskbar, tray, or notification service.
+An isolated owner-thread regression verifies `poll()` and `wait()` dispatch
+native messages with only a tray icon or notification center open, that closing
+one of several resources leaves pumping active, and that closing the last
+resource restores the no-op behavior.
 
 Process-isolated shutdown coverage uses routed child processes so failures after a suite function returns remain observable. It verifies exact zero
 exit codes after a standalone color query, a normal `WM_CLOSE` and final-Window close path, owner-thread exit with retained Window state, and

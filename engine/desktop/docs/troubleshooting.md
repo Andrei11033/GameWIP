@@ -94,11 +94,32 @@ Check for a zero client dimension, invalid UTF-8 or embedded NUL in the title, i
 `[0, 1]`, an unknown enum value, an exclusive display mode attached to a non-exclusive request, an unknown owner/monitor, or region pointer modes
 without a runtime layout. External event storage must be non-empty.
 
+Also check option combinations: a hidden Window cannot request focus or an
+initial minimized/maximized presentation, and a non-resizable Window cannot
+keep the maximize control enabled. The initial client size must satisfy its
+limits. See @ref desktop_public_api for configuration constraints.
+
 ## `ResourceBusy`
 
 Native operations, queue consumption, close, renderer publication, native handles, and event pumping belong to the opening thread. The Window cannot
 be moved to transfer affinity. Post work to the owner thread and use `wakeEventWait()` to interrupt its wait. Recursive event pumping also reports
 `ResourceBusy`.
+
+`wakeEventWait()` may run on another thread only while the open lifetime is
+stable. Synchronize it with close and destruction; it does not make other
+Window operations thread-safe.
+
+## Shell interactions never reach the queue
+
+Opening a shell resource and consuming `ShellEventQueue` are separate from
+native message dispatch. Keep calling `Desktop::Events::poll()` or `wait()` on
+the resource owner thread, including in applications with no top-level Window.
+Check that the resource has a queue and that it is still open. Passive tray
+icons and notification centers discard interactions without a queue.
+
+The pump's queued/dropped counts cover Window and ChildSurface events. Inspect
+the shell queue's `eventQueueInfo()` for shell pressure. Release every bound
+resource before closing its borrowed queue. See @ref desktop_shell.
 
 ## Focus request fails
 

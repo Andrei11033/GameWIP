@@ -182,10 +182,11 @@ namespace GameWIP::Desktop
         /// @param eventQueueCapacity Number of event slots to allocate; must be greater than zero.
         /// @return Success, or a status explaining why no native Window was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::size_t eventQueueCapacity) noexcept;
-        /// @brief Opens while borrowing caller-owned event storage until close.
+        /// @brief Opens while borrowing caller-owned event storage until lifetime finalization.
         /// @details Previously enabled concurrent presentation state remains at closed defaults until open commits successfully.
+        /// Storage remains borrowed during pending native destruction and deferred owner-thread cleanup.
         /// @param description Initial Window properties and policies.
-        /// @param eventStorage Non-empty storage that must remain alive and unmoved until close.
+        /// @param eventStorage Non-empty storage that must remain alive and unmoved through finalization.
         /// @return Success, or a status explaining why no native Window was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::span<Types::Event> eventStorage) noexcept;
 
@@ -203,8 +204,8 @@ namespace GameWIP::Desktop
         /// @name Identity and ownership
         /// @{
 
-        /// @brief Returns the current open-lifetime identity.
-        /// @return The current identity, or an invalid ID while closed.
+        /// @brief Returns the identity retained for the current lifetime.
+        /// @return The current identity, including during pending finalization, or an invalid ID while fully closed.
         [[nodiscard]] Types::WindowId id() const noexcept;
         /// @brief Returns the current owner Window identity.
         /// @return The owner identity, or an invalid ID when this Window has no owner.
@@ -256,6 +257,8 @@ namespace GameWIP::Desktop
         /// @brief Resets the current lifetime's dropped-event counter.
         void clearDroppedEventCount() noexcept;
         /// @brief Wakes a thread blocked in Events::wait without queuing an event.
+        /// @details May run on another thread while the open lifetime remains stable. Synchronize
+        /// with open, close, native destruction, and C++ object destruction.
         /// @return Success, or the open-state or native wake failure.
         [[nodiscard]] IO::Types::Status wakeEventWait() const noexcept;
         /// @}
@@ -454,6 +457,7 @@ namespace GameWIP::Desktop
         /// @return Success, or the validation, monitor, capability, open-state, thread, or native failure.
         [[nodiscard]] IO::Types::Status setMode(const Types::ModeRequest &request) noexcept;
         /// @brief Enables or disables user resizing.
+        /// @details Disable the maximize control with setControls() before disabling resizing.
         /// @param resizable Whether the user may resize the Window.
         /// @return Success, or the open-state, thread, capability, or native failure.
         [[nodiscard]] IO::Types::Status setResizable(bool resizable) noexcept;
@@ -462,6 +466,7 @@ namespace GameWIP::Desktop
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
         [[nodiscard]] IO::Types::Status setDecorationMode(Types::DecorationMode mode) noexcept;
         /// @brief Replaces standard system-control availability.
+        /// @details A maximize control requires resizable() to be true.
         /// @param controls Requested minimize, maximize, and close-control policy.
         /// @return Success, or the validation, open-state, thread, capability, or native failure.
         [[nodiscard]] IO::Types::Status setControls(const Types::Controls &controls) noexcept;

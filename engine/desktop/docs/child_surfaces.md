@@ -54,7 +54,10 @@ contexts can be hosted without permanently changing owner-thread policy.
 
 Each successful open lifetime has its own fixed-capacity queue and sequence beginning at one. The default overload uses
 `Desktop::Events::kDefaultQueueCapacity`; other overloads allocate a requested capacity or borrow caller-owned
-`std::span<Types::ChildSurface::Event>` storage until close.
+`std::span<Types::ChildSurface::Event>` storage through finalization. Native
+destruction and wrong-thread C++ destruction do not release that borrow until
+the retained or deferred lifetime is finalized. Close on the owner thread
+before releasing external storage.
 
 `PositionChanged`, `SizeChanged`, `PixelSizeChanged`, and `ContentScaleChanged` may coalesce across adjacent compatible observations.
 `VisibilityChanged` remains non-coalescible. Full queues prefer evicting an older coalescible event, and preserve terminal `NativeDestroyed` even when

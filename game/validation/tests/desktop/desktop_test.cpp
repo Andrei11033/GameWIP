@@ -425,7 +425,9 @@ namespace GameWIP::Test
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
         if (hasArgument(argc, argv, "--desktop-test-child=accessibility-client"))
+        {
             return runAccessibilityClientChild();
+        }
         if (hasArgument(argc, argv, kStandaloneColorChildArgument))
         {
             return runStandaloneColorShutdownChild();
@@ -558,6 +560,7 @@ namespace GameWIP::Test
         runner.runSuite("Window native child surfaces", testChildSurfaces);
         runner.runSuite("Window native event translation", testNativeEventTranslation);
         runner.runSuite("Desktop shell queue and capabilities", testShellQueueAndCapabilities);
+        runner.runSuite("Desktop shell pumping without Window", testShellPumpingWithoutWindow);
         runner.runSuite("Desktop shell validation", testShellValidation);
         runner.runSuite("Desktop shell native lifetimes", testShellNativeLifetimes);
 #if DESKTOP_INTERNAL_TEST_HOOKS

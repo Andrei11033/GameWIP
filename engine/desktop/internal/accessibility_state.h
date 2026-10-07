@@ -21,6 +21,9 @@ namespace GameWIP::Desktop::Detail
     // Owned and published semantic storage
     // ------------------------------------------------------------
 
+    /// @brief Deep-owned payload storage backing one borrowed Node value.
+    /// @details Deques keep nested string/list views stable while recursive copies append storage.
+    /// Each owned node stays at a stable heap address; its views expire with that owner.
     struct OwnedAccessibilityNode
     {
         A::Node node;
@@ -35,11 +38,16 @@ namespace GameWIP::Desktop::Detail
         std::vector<A::TextRange> textSelection;
         std::vector<A::NodeId> selectedNodes;
 
+        /// @brief Copies the active node payloads after the caller has checked copy budgets.
+        /// @details May throw on allocation; checked builder/publication entry points translate failures.
         explicit OwnedAccessibilityNode(const A::Node &source);
+        /// @brief Retains string bytes and returns a view unaffected by later appends.
         std::string_view copyString(std::string_view source);
+        /// @brief Recursively owns the active extension payload without retaining caller views.
         A::ExtensionValue copyExtension(const A::ExtensionValue &source);
     };
 
+    /// @brief Authoring metadata and stable owners behind the contiguous borrowed node view.
     struct SnapshotBuilderState
     {
         A::Generation generation = 0;
@@ -55,6 +63,7 @@ namespace GameWIP::Desktop::Detail
         }
     };
 
+    /// @brief Publication-time native strings and byte-offset indexes for immutable text queries.
     struct AccessibilityTextCache
     {
         std::u16string name, description, help, value, language, accessKey, shortcut, text, textLanguage;
@@ -76,6 +85,8 @@ namespace GameWIP::Desktop::Detail
         virtual ~AccessibilityNativeState() = default;
     };
 
+    /// @brief Immutable owned tree, ID index, Unicode caches, and prepared native metadata.
+    /// @details Shared retention keeps all node views alive independently of the Window activation.
     struct PublishedSnapshot
     {
         SnapshotBuilderState storage;
@@ -84,7 +95,9 @@ namespace GameWIP::Desktop::Detail
         std::vector<AccessibilityTextCache> textCache;
         std::shared_ptr<AccessibilityNativeSnapshot> native;
 
+        /// @brief Uses the sorted ID index to return a retained node, or nullptr for an unknown ID.
         [[nodiscard]] const A::Node *find(A::NodeId id) const noexcept;
+        /// @brief Returns the node's storage index, or storage.nodes.size() when absent.
         [[nodiscard]] std::size_t findIndex(A::NodeId id) const noexcept;
     };
 
@@ -92,12 +105,14 @@ namespace GameWIP::Desktop::Detail
     // Host state and bounded runtime transport
     // ------------------------------------------------------------
 
+    /// @brief Coherent physical screen origin/client extent and logical-to-pixel scale.
     struct AccessibilityHostGeometry
     {
         double x = 0, y = 0, width = 0, height = 0, scaleX = 1, scaleY = 1;
         bool visible = false, focused = false;
     };
 
+    /// @brief Retains both diff generations and any copied announcement until owner-thread delivery.
     struct AccessibilityPendingNotification
     {
         A::Notification notification;
@@ -106,6 +121,9 @@ namespace GameWIP::Desktop::Detail
         A::AnnouncementPriority priority = A::AnnouncementPriority::Normal;
     };
 
+    /// @brief Shared per-activation provider state with a close gate and bounded transport.
+    /// @details Native readers retain immutable snapshots. Each queue has its own mutex; native
+    /// notification delivery releases the transport lock before entering the platform client.
     struct AccessibilityRuntime
     {
         A::Limits limits;
@@ -141,6 +159,7 @@ namespace GameWIP::Desktop::Detail
         [[nodiscard]] bool readGeometry(AccessibilityHostGeometry &geometry) const noexcept;
     };
 
+    /// @brief Object-lifetime publication serialization and generation history across activations.
     struct AccessibilityState
     {
         std::atomic<std::shared_ptr<AccessibilityRuntime>> runtime;
@@ -152,10 +171,13 @@ namespace GameWIP::Desktop::Detail
     // Window integration and native backend boundary
     // ------------------------------------------------------------
 
+    /// @brief Validates and queues an owning native action; acceptance does not execute application work.
     [[nodiscard]] A::ActionResult submitAccessibilityAction(AccessibilityRuntime &runtime, A::ActionRequest request) noexcept;
+    /// @brief Gates the active bridge, detaches native providers, and clears snapshot/transport retention.
     void closeAccessibility(WindowState &window) noexcept;
-    void publishAccessibilityGeometry(WindowState &window) noexcept;
+    /// @brief Queues a latest-tree invalidation for host changes without advancing semantic generation.
     void invalidateAccessibilityHost(WindowState &window, bool focusGained = false) noexcept;
+    /// @brief Delivers pending notifications on the owner thread without holding transport locks across native calls.
     void drainAccessibilityNotifications(WindowState &window) noexcept;
 
     namespace Platform
@@ -166,6 +188,6 @@ namespace GameWIP::Desktop::Detail
             PublishedSnapshot &snapshot) noexcept;
         void detachAccessibility(AccessibilityRuntime &runtime) noexcept;
         void wakeAccessibility(const AccessibilityRuntime &runtime) noexcept;
-        void deliverAccessibilityNotification(AccessibilityRuntime &runtime, const AccessibilityPendingNotification &notification) noexcept;
+        void deliverAccessibilityNotification(AccessibilityRuntime &runtime, const AccessibilityPendingNotification &event) noexcept;
     } // namespace Platform
 } // namespace GameWIP::Desktop::Detail

@@ -207,9 +207,13 @@ namespace GameWIP::Desktop::Events
     inline constexpr std::chrono::milliseconds kWaitForever{-1}; ///< Unbounded wait sentinel.
 
     /// @brief Pumps pending native events for the calling thread without waiting.
+    /// @details Also dispatches tray and notification messages when no Window is open.
+    /// Shell events remain in their separate ShellEventQueue and are excluded from the returned counts.
     /// @return Pump status and the numbers of events queued and dropped by this call.
     [[nodiscard]] DESKTOP_EXPORT Types::Events::PumpResult poll() noexcept;
     /// @brief Waits for native work, then pumps events for the calling thread.
+    /// @details Remains active for owner-thread tray and notification resources without a Window.
+    /// With no native Desktop resources, returns immediately as a successful no-op.
     /// @param timeout Zero to poll, a positive duration for a bounded wait, or kWaitForever.
     /// @return Pump status, timeout state, and the numbers of events queued and dropped by this call.
     [[nodiscard]] DESKTOP_EXPORT Types::Events::PumpResult wait(std::chrono::milliseconds timeout = kWaitForever) noexcept;

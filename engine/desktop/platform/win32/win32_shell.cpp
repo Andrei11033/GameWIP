@@ -41,6 +41,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         std::atomic_uint64_t nextRegistryBackupIdentity{1};
 
+        // Native creation/destruction keeps this owner-thread count balanced even after failed opens.
+        thread_local std::size_t shellMessageWindowCount = 0;
+
         /// @brief Owns one COM interface pointer and releases it at scope exit.
         template <typename Interface> class ComPtr final
         {
@@ -676,7 +679,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Routes tray recreation, activation, and command messages.
-        LRESULT CALLBACK trayWindowProc(HWND window, UINT message, WPARAM, LPARAM lParam)
+        LRESULT CALLBACK trayWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         {
             auto *native = reinterpret_cast<TrayNative *>(GetWindowLongPtrW(window, GWLP_USERDATA));
             if (message == WM_NCCREATE)
@@ -687,11 +690,19 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (native != nullptr)
                 {
                     native->window = window;
+                    ++shellMessageWindowCount;
                 }
             }
             if (native == nullptr)
             {
-                return DefWindowProcW(window, message, 0, lParam);
+                return DefWindowProcW(window, message, wParam, lParam);
+            }
+            if (message == WM_NCDESTROY)
+            {
+                SetWindowLongPtrW(window, GWLP_USERDATA, 0);
+                native->window = nullptr;
+                --shellMessageWindowCount;
+                return DefWindowProcW(window, message, wParam, lParam);
             }
             if (message == native->taskbarCreatedMessage)
             {
@@ -740,7 +751,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     break;
                 }
             }
-            return DefWindowProcW(window, message, 0, lParam);
+            return DefWindowProcW(window, message, wParam, lParam);
         }
 
         [[nodiscard]] IO::Types::Status ensureTrayWindowClass() noexcept
@@ -810,7 +821,15 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (native != nullptr)
                 {
                     native->window = window;
+                    ++shellMessageWindowCount;
                 }
+            }
+            if (native != nullptr && message == WM_NCDESTROY)
+            {
+                SetWindowLongPtrW(window, GWLP_USERDATA, 0);
+                native->window = nullptr;
+                --shellMessageWindowCount;
+                return DefWindowProcW(window, message, wParam, lParam);
             }
             if (native == nullptr || native->state == nullptr)
             {
@@ -1782,6 +1801,11 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Capability and taskbar integration
     // ------------------------------------------------------------
+
+    bool hasShellMessageWindows() noexcept
+    {
+        return shellMessageWindowCount != 0;
+    }
 
     Types::Shell::CapabilitiesResult getShellCapabilities() noexcept
     {

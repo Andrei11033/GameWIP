@@ -6,6 +6,7 @@
 #include "desktop/internal/accessibility_state.h"
 #include "desktop/platform/win32/internal/win32_accessibility.h"
 #include <uiautomation.h>
+#include <exception>
 #include <map>
 
 namespace GameWIP::Desktop::Detail::Platform
@@ -51,6 +52,16 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] const AccessibilityTextCache &text() const noexcept
         {
             return snapshot->textCache[index];
+        }
+        /// @brief Returns document content after textQuery() or TextRangeProvider::query() has validated text exposure.
+        /// @details Terminates if the validated-query precondition is violated.
+        [[nodiscard]] const A::TextContent &textContent() const noexcept
+        {
+            if (node && node->text)
+            {
+                return *node->text;
+            }
+            std::terminate();
         }
     };
 
@@ -253,7 +264,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE Clone(ITextRangeProvider **out) override;
         HRESULT STDMETHODCALLTYPE Compare(ITextRangeProvider *other, BOOL *out) override;
         HRESULT STDMETHODCALLTYPE
-        CompareEndpoints(TextPatternRangeEndpoint endpoint, ITextRangeProvider *other, TextPatternRangeEndpoint otherEndpoint, int *out) override;
+        CompareEndpoints(TextPatternRangeEndpoint endpoint, ITextRangeProvider *other, TextPatternRangeEndpoint target, int *out) override;
         HRESULT STDMETHODCALLTYPE ExpandToEnclosingUnit(TextUnit unit) override;
         HRESULT STDMETHODCALLTYPE FindAttribute(TEXTATTRIBUTEID id, VARIANT value, BOOL backward, ITextRangeProvider **out) override;
         HRESULT STDMETHODCALLTYPE FindText(BSTR text, BOOL backward, BOOL ignoreCase, ITextRangeProvider **out) override;
@@ -264,7 +275,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE Move(TextUnit unit, int count, int *moved) override;
         HRESULT STDMETHODCALLTYPE MoveEndpointByUnit(TextPatternRangeEndpoint endpoint, TextUnit unit, int count, int *moved) override;
         HRESULT STDMETHODCALLTYPE
-        MoveEndpointByRange(TextPatternRangeEndpoint endpoint, ITextRangeProvider *other, TextPatternRangeEndpoint otherEndpoint) override;
+        MoveEndpointByRange(TextPatternRangeEndpoint endpoint, ITextRangeProvider *other, TextPatternRangeEndpoint target) override;
         HRESULT STDMETHODCALLTYPE Select() override;
         HRESULT STDMETHODCALLTYPE AddToSelection() override;
         HRESULT STDMETHODCALLTYPE RemoveFromSelection() override;

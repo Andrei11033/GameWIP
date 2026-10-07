@@ -9,8 +9,12 @@ lifetime without transferring ownership or invoking application callbacks.
 A default-constructed `Window` is closed and inert. `open()` validates the complete request and event storage before committing a successful native
 lifetime. The opening thread becomes the owner thread and a successful lifetime receives a process-local `Types::WindowId`.
 
-Internal event storage is allocated once at open. The external-storage overload borrows a non-empty caller span until close. Window does not create a
-worker thread.
+Internal event storage is allocated once at open. The external-storage overload
+borrows a non-empty caller span through lifetime finalization, including
+`NativeDestroyedPendingFinalize`. If destruction transfers cleanup to another
+thread's dispatcher, the caller's storage must also survive that deferred
+cleanup. Close on the owner thread before releasing external storage.
+Window does not create a worker thread.
 
 ## Thread ownership
 
@@ -73,9 +77,14 @@ The same `Window` object may be opened again after finalization.
 
 ## Queue behavior
 
-The queue is fixed-capacity. Geometry/DPI events that supersede older adjacent observations may coalesce. When a full queue needs space for a new
-event, an older coalescible entry is preferred for eviction; otherwise the incoming event is dropped, except the exceptional `NativeDestroyed`
-transition is kept observable.
+The queue is fixed-capacity. `ClientPositionChanged`, `ClientSizeChanged`,
+`FramebufferSizeChanged`, and `ContentScaleChanged` may replace an earlier event
+of the same type within the trailing run of geometry/DPI events. A durable
+event ends that run. Replacement keeps the earlier slot and sequence number,
+so a sequence identifies queue insertion rather than the age of every field.
+When full, the queue evicts the oldest coalescible entry; if there is none, it
+drops the incoming event. `NativeDestroyed` instead evicts the oldest entry
+when necessary so native loss remains observable.
 
 `Types::Events::QueueInfo` reports storage kind, capacity, pending count, and cumulative drops. `clearDroppedEventCount()` clears only the drop
 counter.
@@ -84,9 +93,36 @@ counter.
 
 `Desktop::Events::poll()` pumps the calling thread without blocking. `Desktop::Events::wait()` waits for input up to the requested timeout and then
 pumps. Their queued and dropped counts include events routed to top-level Windows and optional ChildSurfaces during the call. Pumping with no open
-Window-subsystem object on the calling thread is a successful no-op; recursive pumping returns `ResourceBusy`.
+Window, ChildSurface, ProgressDialog, tray icon, or notification center on the
+calling thread is a successful no-op; recursive pumping returns `ResourceBusy`.
+Shell interactions use their separate `ShellEventQueue` and are not included
+in the Window-subsystem queued/dropped counts.
 
-`wakeEventWait()` is the intentionally cross-thread-safe escape hatch for interrupting an owner thread blocked in `Events::wait()`.
+`wakeEventWait()` may run on another thread to interrupt the owner's wait while
+the native lifetime remains open. Synchronize wake callers with open, close,
+native destruction, and C++ object destruction. A wake carries no application
+payload; publish work through application-owned synchronization before waking.
+
+This snippet keeps the lifetime stable until the notifying thread has joined:
+
+```cpp
+#include <atomic>
+#include <thread>
+
+std::atomic_bool workReady = false;
+std::thread notifier([&]
+{
+    workReady.store(true, std::memory_order_release);
+    static_cast<void>(window.wakeEventWait());
+});
+const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{100});
+notifier.join();
+if (pump.status.ok() && workReady.load(std::memory_order_acquire))
+{
+    // Consume application-owned work before returning to the event loop.
+}
+// The notifying thread no longer borrows window; close may now proceed.
+```
 
 ## Interactive move and resize
 

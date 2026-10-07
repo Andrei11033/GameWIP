@@ -21,7 +21,7 @@ The native window procedure performs bounded rectangle tests and never calls app
 
 ## Pointer modes
 
-`PointerInputMode` contains `Normal`, whole-window `ClickThrough`, `AcceptRegions`, and `IgnoreRegions`. Region modes require a non-empty logical
+`PointerInputMode` contains `Normal`, whole-window `ClickThrough`, `AcceptRegions`, `IgnoreRegions`, and `HitMask`. Region modes require a non-empty logical
 rectangle span; non-region modes require an empty span. Rectangles use client-local half-open bounds.
 
 Win32 implements whole-window click-through with the documented top-level layered-window hit-testing combination `WS_EX_LAYERED | WS_EX_TRANSPARENT`;
@@ -39,8 +39,12 @@ input. Window-generated generations protect asynchronous publication. Movement p
 destruction, close, and reopen invalidate it. Win32 reports the capability as unavailable because no documented native mechanism provides arbitrary
 cross-application per-pixel pass-through.
 
-Window storage of a mask does not imply that the backend can perform genuine per-pixel desktop routing. The Win32 backend does not advertise per-pixel
-routing; publication remains an integration and storage contract rather than a pass-through guarantee.
+The Win32 backend does not advertise `PointerHitMask`.
+`Renderer::beginPointerHitMaskUpdate()` returns `Unsupported`, and requesting
+`PointerInputMode::HitMask` also fails. The storage path is exercised by
+source-tree validation hooks; it is not a public Win32 routing facility.
+See @ref desktop_renderer_integration for row packing, padding, and publication
+generation rules.
 
 ## Cursor display
 

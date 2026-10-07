@@ -113,30 +113,30 @@ namespace
         tree.nodes[1].name = std::string_view("\xC0\xAF", 2);
         expectIssue(A::ValidationIssue::InvalidText);
         tree.nodes[1].name = "Run";
-        tree.nodes[1].geometry = A::Geometry{};
-        tree.nodes[1].geometry->toWindow.m11 = 0;
+        auto &geometry = tree.nodes[1].geometry.emplace();
+        geometry.toWindow.m11 = 0;
         expectIssue(A::ValidationIssue::InvalidGeometry);
-        tree.nodes[1].geometry->hitTestable = false;
+        geometry.hitTestable = false;
         check(context, "singular decorative geometry allowed", Bridge::validate(tree.view()).ok());
         tree.nodes[1].geometry.reset();
         tree.nodes[1].rangeValue = A::RangeValue{2, 0, 1};
         expectIssue(A::ValidationIssue::InvalidValue);
         tree.nodes[1].rangeValue.reset();
-        tree.nodes[1].scroll = A::ScrollInfo{};
-        tree.nodes[1].scroll->verticalPercent = std::numeric_limits<double>::quiet_NaN();
+        auto &scroll = tree.nodes[1].scroll.emplace();
+        scroll.verticalPercent = std::numeric_limits<double>::quiet_NaN();
         expectIssue(A::ValidationIssue::InvalidValue);
         tree.nodes[1].scroll.reset();
         const std::array<A::TextRange, 1> split{{{0, 1}}};
-        tree.nodes[1].text = A::TextContent{"e\xCC\x81", A::TextDirection::LeftToRight, "en-US", {}, {}, split};
+        auto &text = tree.nodes[1].text.emplace(A::TextContent{"e\xCC\x81", A::TextDirection::LeftToRight, "en-US", {}, {}, split});
         expectIssue(A::ValidationIssue::InvalidTextRange);
         const std::array<A::TextRange, 1> whole{{{0, 3}}};
-        tree.nodes[1].text->selection = whole;
+        text.selection = whole;
         check(context, "whole combining grapheme validates", Bridge::validate(tree.view()).ok());
-        tree.nodes[1].text->caret = 2;
+        text.caret = 2;
         expectIssue(A::ValidationIssue::InvalidTextRange);
-        tree.nodes[1].text->caret.reset();
+        text.caret.reset();
         const std::array<A::TextRange, 2> multiple{{{0, 0}, {3, 3}}};
-        tree.nodes[1].text->selection = multiple;
+        text.selection = multiple;
         expectIssue(A::ValidationIssue::InvalidSelection);
         tree.nodes[1].selection = A::SelectionInfo{.multiSelectable = true};
         check(context, "multiple text selections require explicit policy", Bridge::validate(tree.view()).ok());
@@ -213,7 +213,9 @@ namespace
         check(context, "closed bridge starts disabled", !bridge.enabled());
         equal(context, "closed enable", Error::NotOpen, bridge.enable().code);
         if (!open(context, window))
+        {
             return;
+        }
         check(context, "explicit enable", bridge.enable().ok());
         equal(context, "duplicate enable", Error::AlreadyOpen, bridge.enable().code);
         check(context, "publish complete snapshot", bridge.publish(tree.view()).ok());
@@ -245,7 +247,9 @@ namespace
         check(context, "close clears active tree", !bridge.readSnapshot().isValid());
         check(context, "retained portable reader survives close", retained.find(2) != nullptr);
         if (!open(context, window))
+        {
             return;
+        }
         check(context, "reopen is explicitly disabled", !bridge.enabled());
         check(context, "reenable", bridge.enable().ok());
         equal(context, "reopen cannot reuse old generation", Error::InvalidArgument, bridge.publish(tree.view(3)).code);
@@ -272,7 +276,9 @@ namespace
         ~Com()
         {
             if (value)
+            {
                 value->Release();
+            }
         }
         Com(const Com &) = delete;
         Com &operator=(const Com &) = delete;
@@ -280,7 +286,9 @@ namespace
         T **put()
         {
             if (value)
+            {
                 value->Release();
+            }
             value = nullptr;
             return &value;
         }
@@ -300,7 +308,9 @@ namespace
     {
         Com<IUnknown> unknown;
         if (!context.expectTrue("pattern lookup succeeds", SUCCEEDED(provider->GetPatternProvider(id, unknown.put())) && static_cast<bool>(unknown)))
+        {
             return false;
+        }
         return context.expectTrue(
             "pattern has correct interface",
             SUCCEEDED(unknown->QueryInterface(__uuidof(T), reinterpret_cast<void **>(out.put()))));
@@ -321,7 +331,9 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         A::Options options;
         options.limits.maximumActionQueue = 2;
         options.limits.maximumNotificationQueue = 2;
@@ -383,7 +395,9 @@ namespace
             SendMessageW(handles.handle.window, WM_SETFOCUS, 0, 0);
             bool focusEvent = false;
             while (Desktop::TestHooks::popAccessibilityNotification(window, notification))
+            {
                 focusEvent = focusEvent || (notification.kind == A::NotificationKind::FocusChanged && notification.node == 2);
+            }
             check(context, "host focus regain notifies semantic focused node", focusEvent);
         }
         check(context, "event pump succeeds", Desktop::Events::poll().status.ok());
@@ -394,7 +408,9 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         A::Options options;
         options.limits.maximumNodes = 2;
@@ -406,7 +422,9 @@ namespace
         check(context, "bounded registry initial publication", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
         if (!context.expectTrue("registry retains initial provider", static_cast<bool>(retained)))
+        {
             return;
+        }
         tree.children[0] = 3;
         tree.nodes[1].id = 3;
         equal(context, "new native identity rejects at lifetime bound", Error::SizeLimitExceeded, bridge.publish(tree.view(2)).code);
@@ -438,7 +456,9 @@ namespace
         }
         Com<IInvokeProvider> invoke;
         if (!pattern(context, retained.value, UIA_InvokePatternId, invoke))
+        {
             return;
+        }
         check(context, "explicit host interaction disable", window.setUserInteractionEnabled(false).ok());
         equal(context, "disabled host rejects native action", static_cast<HRESULT>(UIA_E_ELEMENTNOTENABLED), invoke->Invoke());
         VARIANT enabled{};
@@ -466,13 +486,15 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         check(context, "publication race bridge enables", bridge.enable().ok());
         Tree tree;
         check(context, "publication race initial tree", bridge.publish(tree.view()).ok());
         const auto retained = bridge.readSnapshot();
-        const std::string largeText(512 * 1024, 'x');
+        const std::string largeText(std::size_t{512} * 1024, 'x');
         tree.nodes[1].text = A::TextContent{largeText};
         std::atomic<bool> started{false};
         Error result = Error::InvalidArgument;
@@ -483,14 +505,18 @@ namespace
                 result = bridge.publish(tree.view(2)).code;
             });
         while (!started.load())
+        {
             std::this_thread::yield();
+        }
         check(context, "close gates in-flight publication", window.close().ok());
         publisher.join();
         check(context, "concurrent publication either commits before close or observes gate", result == Error::Success || result == Error::NotOpen);
         check(context, "in-flight publication never resurrects active snapshot", !bridge.snapshotInfo().available);
         equal(context, "retained reader survives concurrent close", std::string_view("Run"), retained.find(2)->name);
         if (!open(context, window))
+        {
             return;
+        }
         check(context, "race Window reenable", bridge.enable().ok());
         tree.nodes[1].text.reset();
         check(context, "fresh activation after race publishes", bridge.publish(tree.view(3)).ok());
@@ -504,7 +530,9 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         check(context, "native bridge enables", bridge.enable().ok());
         Tree tree;
@@ -513,7 +541,9 @@ namespace
         Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 1)));
         Com<IRawElementProviderSimple> button(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
         if (!context.expectTrue("stable providers exist", root && button))
+        {
             return;
+        }
         VARIANT value{};
         equal(context, "native name query", S_OK, button->GetPropertyValue(UIA_NamePropertyId, &value));
         check(context, "native name UTF16", value.vt == VT_BSTR && std::wstring_view(value.bstrVal, SysStringLen(value.bstrVal)) == L"Run");
@@ -552,11 +582,15 @@ namespace
             SAFEARRAY *runtimeId = nullptr;
             equal(context, "runtime identity", S_OK, fragment->GetRuntimeId(&runtimeId));
             if (runtimeId)
+            {
                 SafeArrayDestroy(runtimeId);
+            }
         }
         const auto handles = Desktop::Native::Win32::getHandle(window);
         if (handles.status.ok())
+        {
             check(context, "WM_GETOBJECT publishes UIA provider", SendMessageW(handles.handle.window, WM_GETOBJECT, 0, UiaRootObjectId) != 0);
+        }
         tree.nodes[1].states.flags |= state(A::State::Password);
         check(context, "redaction publishes", bridge.publish(tree.view(2)).ok());
         equal(context, "redacted value property", S_OK, button->GetPropertyValue(UIA_ValueValuePropertyId, &value));
@@ -572,7 +606,9 @@ namespace
         check(context, "native close", window.close().ok());
         equal(context, "retained root unavailable after close", kUnavailable, root->GetPropertyValue(UIA_NamePropertyId, &value));
         if (!open(context, window))
+        {
             return;
+        }
         check(context, "native reopen enable", bridge.enable().ok());
         check(context, "fresh native publish", bridge.publish(tree.view(4)).ok());
         equal(context, "old root never revives across reopen", kUnavailable, root->GetPropertyValue(UIA_NamePropertyId, &value));
@@ -587,7 +623,9 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         A::Options options;
         options.limits.maximumNativeTextRanges = 2;
@@ -602,14 +640,20 @@ namespace
         check(context, "rich text publishes", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
         if (!context.expectTrue("text provider exists", static_cast<bool>(provider)))
+        {
             return;
+        }
         Com<ITextProvider2> patternProvider;
         if (!pattern(context, provider.value, UIA_TextPattern2Id, patternProvider))
+        {
             return;
+        }
         Com<ITextRangeProvider> range, clone, overflow;
         equal(context, "document range", S_OK, patternProvider->get_DocumentRange(range.put()));
         if (!range)
+        {
             return;
+        }
         BSTR wide = nullptr;
         equal(context, "text full query", S_OK, range->GetText(-1, &wide));
         check(context, "text preserves combining and nonBMP scalars", std::wstring_view(wide, SysStringLen(wide)) == L"e\u0301 \U0001F642\nlast");
@@ -689,14 +733,16 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         check(context, "text semantics bridge enables", bridge.enable().ok());
         Tree tree;
         const std::array<A::TextFragment, 1> fragments{{{{0, 2}, {0, 0, 100, 20}}}};
         tree.nodes[1].role = A::Role::TextField;
         tree.nodes[1].value = "ab";
-        tree.nodes[1].text = A::TextContent{"ab", A::TextDirection::LeftToRight, "en-US", {}, fragments};
+        auto &content = tree.nodes[1].text.emplace(A::TextContent{"ab", A::TextDirection::LeftToRight, "en-US", {}, fragments});
         tree.nodes[1].actions.flags = action(A::ActionKind::SetTextSelection);
         check(context, "text without selection or caret publishes", bridge.publish(tree.view()).ok());
         Desktop::TestHooks::PresentationPublicationSnapshot host;
@@ -705,26 +751,32 @@ namespace
         Desktop::TestHooks::applyPresentationPublicationSnapshot(window, host);
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
         if (!context.expectTrue("text semantics provider exists", static_cast<bool>(provider)))
+        {
             return;
+        }
         Com<ITextProvider2> text;
         Com<IValueProvider> value;
         if (!pattern(context, provider.value, UIA_TextPattern2Id, text) || !pattern(context, provider.value, UIA_ValuePatternId, value))
+        {
             return;
+        }
 
         SAFEARRAY *selection = nullptr;
         equal(context, "missing selection query", S_OK, text->GetSelection(&selection));
         check(context, "missing selection and caret do not invent an insertion point", selection == nullptr);
         if (selection)
+        {
             SafeArrayDestroy(selection);
+        }
 
-        tree.nodes[1].text->caret = 1;
+        content.caret = 1;
         check(context, "explicit caret publishes", bridge.publish(tree.view(2)).ok());
         equal(context, "explicit caret selection query", S_OK, text->GetSelection(&selection));
         if (context.expectTrue("explicit caret supplies one selection range", selection && selection->rgsabound[0].cElements == 1))
         {
             Com<IUnknown> item;
             LONG index = 0;
-            equal(context, "caret selection element", S_OK, SafeArrayGetElement(selection, &index, item.put()));
+            equal(context, "caret selection element", S_OK, SafeArrayGetElement(selection, &index, static_cast<void *>(item.put())));
             Com<ITextRangeProvider> caret;
             if (item && SUCCEEDED(item->QueryInterface(__uuidof(ITextRangeProvider), reinterpret_cast<void **>(caret.put()))))
             {
@@ -744,30 +796,40 @@ namespace
                 equal(context, "caret rectangle query", S_OK, caret->GetBoundingRectangles(&rectangles));
                 check(context, "degenerate range has no fragment rectangles", rectangles && rectangles->rgsabound[0].cElements == 0);
                 if (rectangles)
+                {
                     SafeArrayDestroy(rectangles);
+                }
                 if (document)
                 {
                     equal(context, "nondegenerate rectangle query", S_OK, document->GetBoundingRectangles(&rectangles));
                     check(context, "document retains its visible fragment rectangle", rectangles && rectangles->rgsabound[0].cElements == 4);
                     if (rectangles)
+                    {
                         SafeArrayDestroy(rectangles);
+                    }
                 }
             }
             else
+            {
                 check(context, "caret selection exposes a text range", false);
+            }
         }
         if (selection)
+        {
             SafeArrayDestroy(selection);
+        }
 
         const std::array<A::TextRange, 1> selected{{{0, 1}}};
-        tree.nodes[1].text->selection = selected;
-        tree.nodes[1].text->caret.reset();
+        content.selection = selected;
+        content.caret.reset();
         tree.nodes[1].actions.flags = 0;
         check(context, "selection without mutation support publishes", bridge.publish(tree.view(3)).ok());
         equal(context, "immutable selection query", S_OK, text->GetSelection(&selection));
         check(context, "submitted selection is readable without a selection action", selection && selection->rgsabound[0].cElements == 1);
         if (selection)
+        {
             SafeArrayDestroy(selection);
+        }
         SupportedTextSelection supported = SupportedTextSelection_None;
         equal(context, "immutable selection policy query", S_OK, text->get_SupportedTextSelection(&supported));
         equal(context, "submitted selection advertises single selection", SupportedTextSelection_Single, supported);
@@ -792,7 +854,9 @@ namespace
             Com<ITextRangeProvider> document;
             equal(context, "editability document range", S_OK, text->get_DocumentRange(document.put()));
             if (!document)
+            {
                 continue;
+            }
             VARIANT attribute{};
             equal(context, "text editability query", S_OK, document->GetAttributeValue(UIA_IsReadOnlyAttributeId, &attribute));
             check(
@@ -814,20 +878,26 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         check(context, "text attribute bridge enables", bridge.enable().ok());
         Tree tree;
         std::array<A::TextAnnotation, 2> annotations{
             {{{0, 1}, A::TextAnnotationKind::Emphasis, "bold"}, {{1, 2}, A::TextAnnotationKind::Emphasis, "bold"}}};
-        tree.nodes[1].text = A::TextContent{"ab", A::TextDirection::LeftToRight, "en-US", annotations};
+        auto &content = tree.nodes[1].text.emplace(A::TextContent{"ab", A::TextDirection::LeftToRight, "en-US", annotations});
         check(context, "adjacent bold annotations publish", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
         if (!context.expectTrue("attribute provider exists", static_cast<bool>(provider)))
+        {
             return;
+        }
         Com<ITextProvider> text;
         if (!pattern(context, provider.value, UIA_TextPatternId, text))
+        {
             return;
+        }
         Com<IUnknown> mixed, unsupported;
         equal(context, "mixed attribute sentinel", S_OK, UiaGetReservedMixedAttributeValue(mixed.put()));
         equal(context, "unsupported attribute sentinel", S_OK, UiaGetReservedNotSupportedValue(unsupported.put()));
@@ -837,7 +907,9 @@ namespace
             Com<ITextRangeProvider> document;
             equal(context, "attribute document range", S_OK, text->get_DocumentRange(document.put()));
             if (!document)
+            {
                 return;
+            }
             VARIANT attribute{};
             equal(context, "effective attribute query", S_OK, document->GetAttributeValue(id, &attribute));
             verify(attribute);
@@ -895,7 +967,7 @@ namespace
                     attribute.vt == VT_I4 && attribute.lVal == static_cast<LONG>(LocaleNameToLCID(L"fr-FR", 0)));
             });
         annotations[0] = {{0, 2}, A::TextAnnotationKind::Link, "target", 1};
-        tree.nodes[1].text->annotations = {annotations.data(), 1};
+        content.annotations = {annotations.data(), 1};
         check(context, "portable link association publishes", bridge.publish(tree.view(6)).ok());
         read(
             UIA_LinkAttributeId,
@@ -906,7 +978,12 @@ namespace
                     "link without a destination text range is unsupported",
                     attribute.vt == VT_UNKNOWN && attribute.punkVal == unsupported.value);
             });
-        check(context, "portable link target remains available", bridge.readSnapshot().find(2)->text->annotations[0].target == 1);
+        const auto reader = bridge.readSnapshot();
+        const auto *link = reader.find(2);
+        check(
+            context,
+            "portable link target remains available",
+            link && link->text && link->text->annotations.size() == 1 && link->text->annotations[0].target == 1);
         check(context, "text attribute close", window.close().ok());
     }
 
@@ -918,7 +995,9 @@ namespace
     {
         auto window = std::make_unique<Desktop::Window>();
         if (!open(context, *window))
+        {
             return;
+        }
         auto bridge = window->accessibility();
         check(context, "retained-object bridge enables", bridge.enable().ok());
         Tree tree;
@@ -927,14 +1006,19 @@ namespace
         const auto reader = bridge.readSnapshot();
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
         if (!context.expectTrue("retained-object provider exists", static_cast<bool>(provider)))
+        {
             return;
+        }
         Com<ITextProvider> text;
         if (!pattern(context, provider.value, UIA_TextPatternId, text))
+        {
             return;
+        }
         Com<ITextRangeProvider> range;
         check(context, "retained native range exists", SUCCEEDED(text->get_DocumentRange(range.put())) && range);
         window.reset();
-        equal(context, "portable reader outlives C++ Window", std::string_view("Retained document"), reader.find(2)->text->utf8);
+        const auto *retained = reader.find(2);
+        check(context, "portable reader outlives C++ Window", retained && retained->text && retained->text->utf8 == "Retained document");
         VARIANT name{};
         equal(
             context,
@@ -956,7 +1040,9 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         check(context, "control bridge enables", bridge.enable().ok());
         std::array<A::Node, 8> nodes{};
@@ -1006,7 +1092,9 @@ namespace
         Com<IRawElementProviderSimple> expand(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 6)));
         Com<IRawElementProviderSimple> annotationNode(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 8)));
         if (!context.expectTrue("all control providers exist", table && cell && slider && toggle && expand && annotationNode))
+        {
             return;
+        }
         Com<IGridProvider> grid;
         if (pattern(context, table.value, UIA_GridPatternId, grid))
         {
@@ -1033,7 +1121,9 @@ namespace
             SAFEARRAY *headers = nullptr;
             equal(context, "table headers", S_OK, tablePattern->GetRowHeaders(&headers));
             if (headers)
+            {
                 SafeArrayDestroy(headers);
+            }
         }
         Com<ITableItemProvider> tableItem;
         check(context, "table-item pattern", pattern(context, cell.value, UIA_TableItemPatternId, tableItem));
@@ -1104,7 +1194,12 @@ namespace
         {
             equal(context, "realization transports only", S_OK, virtualPattern->Realize());
             pop(A::ActionKind::Realize);
-            check(context, "realization does not mutate snapshot", !bridge.readSnapshot().find(3)->virtualization->realized);
+            const auto reader = bridge.readSnapshot();
+            const auto *publishedCell = reader.find(3);
+            check(
+                context,
+                "realization does not mutate snapshot",
+                publishedCell && publishedCell->virtualization && !publishedCell->virtualization->realized);
         }
         Com<IItemContainerProvider> items;
         if (pattern(context, table.value, UIA_ItemContainerPatternId, items))
@@ -1141,14 +1236,18 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         check(context, "grid lookup bridge enables", bridge.enable().ok());
         std::array<A::Node, 6> nodes{};
         const std::array<A::NodeId, 2> rootChildren{2, 4};
         const std::array<A::NodeId, 1> outerCells{3}, innerRows{5}, innerCells{6};
         for (std::size_t i = 0; i < nodes.size(); ++i)
+        {
             nodes[i].id = i + 1;
+        }
         nodes[0].role = A::Role::Table;
         nodes[0].children = rootChildren;
         nodes[0].collection = A::CollectionInfo{.rowCount = 2, .columnCount = 2};
@@ -1176,10 +1275,14 @@ namespace
         Com<IRawElementProviderSimple> inner(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 4)));
         Com<IRawElementProviderSimple> nestedCell(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 6)));
         if (!context.expectTrue("nested grid providers exist", outer && cell && inner && nestedCell))
+        {
             return;
+        }
         Com<IGridProvider> grid, nestedGrid;
         if (!pattern(context, outer.value, UIA_GridPatternId, grid) || !pattern(context, inner.value, UIA_GridPatternId, nestedGrid))
+        {
             return;
+        }
         Com<IRawElementProviderSimple> result;
         equal(context, "outer grid cell lookup", S_OK, grid->GetItem(0, 0, result.put()));
         check(context, "collection metadata on a row does not turn it into a cell", result.value == cell.value);
@@ -1202,7 +1305,9 @@ namespace
     {
         auto window = std::make_unique<Desktop::Window>();
         if (!open(context, *window))
+        {
             return;
+        }
         auto bridge = window->accessibility();
         check(context, "geometry bridge enables", bridge.enable().ok());
         Tree tree;
@@ -1217,7 +1322,9 @@ namespace
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
         Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
         if (!context.expectTrue("geometry providers exist", provider && root))
+        {
             return;
+        }
         Com<IRawElementProviderFragment> fragment;
         check(
             context,
@@ -1243,10 +1350,12 @@ namespace
             equal(context, "inverse affine hit test", S_OK, fragmentRoot->ElementProviderFromPoint(origin.x + 70.0, origin.y + 67.5, hit.put()));
             Com<IRawElementProviderSimple> hitSimple;
             if (hit)
+            {
                 check(
                     context,
                     "hit exposes simple identity",
                     SUCCEEDED(hit->QueryInterface(__uuidof(IRawElementProviderSimple), reinterpret_cast<void **>(hitSimple.put()))));
+            }
             check(context, "hit finds transformed child", hitSimple.value == provider.value);
         }
         check(context, "unexpected native destruction", Desktop::TestHooks::destroyNativeWindow(*window).ok());
@@ -1259,7 +1368,9 @@ namespace
         check(context, "native destruction clears active snapshot", !bridge.snapshotInfo().available);
         check(context, "unexpected destruction finalizes", window->close().ok());
         if (!open(context, *window))
+        {
             return;
+        }
         check(context, "exceptional lifetime reenable", bridge.enable().ok());
         check(context, "exceptional lifetime fresh publish", bridge.publish(tree.view(2)).ok());
         Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
@@ -1277,14 +1388,18 @@ namespace
     {
         Desktop::Window window;
         if (!open(context, window))
+        {
             return;
+        }
         auto bridge = window.accessibility();
         check(context, "concurrent bridge enables", bridge.enable().ok());
         Tree tree;
         check(context, "concurrent initial snapshot", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
         if (!context.expectTrue("concurrent provider exists", static_cast<bool>(provider)))
+        {
             return;
+        }
         std::atomic<bool> failed{false}, stop{false};
         std::thread client(
             [&]
@@ -1294,9 +1409,13 @@ namespace
                     VARIANT value{};
                     const auto hr = provider->GetPropertyValue(UIA_NamePropertyId, &value);
                     if (hr != S_OK && hr != kUnavailable)
+                    {
                         failed = true;
+                    }
                     if (hr == S_OK && (value.vt != VT_BSTR || SysStringLen(value.bstrVal) == 0))
+                    {
                         failed = true;
+                    }
                     VariantClear(&value);
                 }
             });
@@ -1307,7 +1426,9 @@ namespace
                 {
                     tree.nodes[1].name = (generation & 1U) != 0 ? "Odd" : "Even";
                     if (!bridge.publish(tree.view(generation)).ok())
+                    {
                         failed = true;
+                    }
                 }
             });
         publisher.join();
@@ -1331,17 +1452,25 @@ namespace GameWIP::Test
         Desktop::Types::Description description;
         description.visible = false;
         if (!window.open(description).ok())
+        {
             return 1;
+        }
         auto bridge = window.accessibility();
         if (!bridge.enable().ok())
+        {
             return 2;
+        }
         Tree tree;
         tree.nodes[1].text = A::TextContent{"Smoke text"};
         if (!bridge.publish(tree.view()).ok())
+        {
             return 3;
+        }
         const auto handles = Desktop::Native::Win32::getHandle(window);
         if (!handles.status.ok())
+        {
             return 4;
+        }
         std::atomic<bool> done{false};
         std::atomic<int> clientResult{5};
         bool invoked = false;
@@ -1363,41 +1492,59 @@ namespace GameWIP::Test
                             CLSCTX_INPROC_SERVER,
                             __uuidof(IUIAutomation),
                             reinterpret_cast<void **>(automation.put()))))
+                    {
                         return 6;
+                    }
                     Com<IUIAutomationElement> root, child;
                     if (FAILED(automation->ElementFromHandle(handles.handle.window, root.put())) || !root)
+                    {
                         return 7;
+                    }
                     BSTR name = nullptr;
                     const auto named = root->get_CurrentName(&name);
                     const bool correctName = SUCCEEDED(named) && std::wstring_view(name, SysStringLen(name)) == L"Example";
                     SysFreeString(name);
                     if (!correctName)
+                    {
                         return 8;
+                    }
                     VARIANT id{};
                     id.vt = VT_BSTR;
                     id.bstrVal = SysAllocString(L"2");
                     if (!id.bstrVal)
+                    {
                         return 9;
+                    }
                     Com<IUIAutomationCondition> condition;
                     const auto filtered = automation->CreatePropertyCondition(UIA_AutomationIdPropertyId, id, condition.put());
                     VariantClear(&id);
                     if (FAILED(filtered) || !condition || FAILED(root->FindFirst(TreeScope_Children, condition.value, child.put())) || !child)
+                    {
                         return 10;
+                    }
                     Com<IUnknown> unknown;
                     if (FAILED(child->GetCurrentPattern(UIA_InvokePatternId, unknown.put())) || !unknown)
+                    {
                         return 11;
+                    }
                     Com<IUIAutomationInvokePattern> invoke;
                     if (FAILED(unknown->QueryInterface(__uuidof(IUIAutomationInvokePattern), reinterpret_cast<void **>(invoke.put()))) ||
                         FAILED(invoke->Invoke()))
+                    {
                         return 12;
+                    }
                     unknown.put();
                     if (FAILED(child->GetCurrentPattern(UIA_TextPatternId, unknown.put())) || !unknown)
+                    {
                         return 13;
+                    }
                     Com<IUIAutomationTextPattern> text;
                     Com<IUIAutomationTextRange> range;
                     if (FAILED(unknown->QueryInterface(__uuidof(IUIAutomationTextPattern), reinterpret_cast<void **>(text.put()))) ||
                         FAILED(text->get_DocumentRange(range.put())) || !range)
+                    {
                         return 14;
+                    }
                     BSTR content = nullptr;
                     const auto read = range->GetText(-1, &content);
                     const bool correctText = SUCCEEDED(read) && std::wstring_view(content, SysStringLen(content)) == L"Smoke text";
@@ -1413,14 +1560,20 @@ namespace GameWIP::Test
             static_cast<void>(Desktop::Events::wait(std::chrono::milliseconds{10}));
             A::ActionRequest request;
             while (bridge.popAction(request))
+            {
                 invoked = invoked || request.action == A::ActionKind::Invoke;
+            }
         }
         client.join();
         A::ActionRequest request;
         while (bridge.popAction(request))
+        {
             invoked = invoked || request.action == A::ActionKind::Invoke;
+        }
         if (!window.close().ok())
+        {
             return 16;
+        }
         return clientResult.load() != 0 ? clientResult.load() : invoked ? 0 : 17;
     }
 

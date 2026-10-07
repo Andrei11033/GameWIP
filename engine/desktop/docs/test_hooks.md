@@ -1,10 +1,29 @@
 @page desktop_test_hooks Internal test hooks
 
+## Availability and include
+
 Desktop deterministic failure/state hooks are source-tree-only and are enabled with `DESKTOP_ENABLE_TEST_HOOKS`, which defines
 `DESKTOP_INTERNAL_TEST_HOOKS` for repository validation targets.
 
 `desktop/internal/desktop_test_hooks.h` is not installed and is not a supported consumer header. Installed package validation explicitly checks that
 `DESKTOP_INTERNAL_TEST_HOOKS` does not leak through `GameWIP::Desktop`.
+
+## Reset rule
+
+Failure controls and armed dialog completions belong to the calling thread.
+Call `resetFailures()` before each scenario and before cleanup or leaving it.
+`failNext()` arms one failure point; a later call replaces an unconsumed point.
+The point clears when its matching boundary consumes it. Indexed publication,
+enumeration, cursor-creation, and consecutive-revocation controls remain armed
+until consumed or reset. Inspect captured dialog snapshots before resetting:
+reset also clears completions and their last snapshots.
+
+Reset does not undo native mutations or remove live resources. Close the
+resources through their public API after clearing failure controls. Native
+inspection hooks are query-only; state/event injection hooks affect the named
+resource and follow its owner-thread contract.
+
+## Hook groups
 
 The hooks cover allocation/native failures, dispatcher setup, title conversion, region/icon/cursor operations, monitor/display/color queries,
 fullscreen rollback/restoration, close, event pumping, unexpected native destruction, pointer-hit-mask state, display-color conversion/change
@@ -72,3 +91,33 @@ cleared by `resetFailures()`; neither can publish the new Window state.
 
 Hook-facing passive types follow the standardized public domains (`Types::Events`, `Types::Display`, `Types::Renderer`) instead of creating a parallel
 public vocabulary.
+
+## Example
+
+Run this source-tree scenario with hooks enabled. The failure is consumed by
+the first open; reset before retry and before native cleanup:
+
+```cpp
+#include "desktop/internal/desktop_test_hooks.h"
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
+namespace D = GameWIP::Desktop;
+D::TestHooks::resetFailures();
+D::NotificationCenter center;
+D::TestHooks::failNext(D::TestHooks::FailurePoint::ShellNativeOpen);
+const auto failed = center.open();
+// Expect failed.code == GameWIP::IO::Types::ErrorCode::NativeFailure.
+D::TestHooks::resetFailures();
+const auto retried = center.open();
+D::TestHooks::resetFailures();
+if (retried.ok())
+    static_cast<void>(center.close());
+D::TestHooks::resetFailures();
+#endif
+```
+
+## Related pages
+
+- @ref desktop_testing
+- @ref desktop_manual_validation
+- @ref desktop_package_abi

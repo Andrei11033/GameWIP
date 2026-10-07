@@ -218,7 +218,9 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             LRESULT result = 0;
             if (accessibilityGetObject(*state, window, wParam, lParam, result))
+            {
                 return result;
+            }
             break;
         }
         case WM_NCCALCSIZE:

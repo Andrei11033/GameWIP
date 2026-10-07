@@ -58,8 +58,8 @@ ownership.
 
 ## Minimal usage
 
-This complete owner-thread example opens a window, pumps events until a sticky
-close request is observed, and closes the native resource:
+This complete owner-thread example opens a window, pumps events until a close
+request or native destruction, and finalizes the lifetime explicitly:
 
 ```cpp
 #include "desktop/window.h"
@@ -78,7 +78,7 @@ int main()
         return 1;
     }
 
-    while (!window.hasCloseRequest())
+    while (window.isOpen() && !window.hasCloseRequest())
     {
         const auto pump =
             GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
@@ -116,6 +116,9 @@ The close request is sticky even if the corresponding queue event is coalesced
 or dropped. Use `hasCloseRequest()` for lifecycle policy and `popEvent()` for
 individual event payloads.
 
+Keep `isOpen()` in the loop condition: unexpected native destruction does not
+set close intent. `close()` also finalizes that retained exceptional lifetime.
+
 ## Where to go next
 
 - @ref desktop_public_api inventories headers, namespaces, types, and operations.
@@ -126,6 +129,7 @@ individual event payloads.
 - @ref desktop_accessibility explains optional snapshots, native providers, and bounded action delivery.
 - @ref desktop_clipboard explains service calls that work with no Window open.
 - @ref desktop_drag_drop explains native target regions, effects, events, and synchronous source dragging.
+- @ref desktop_dialogs explains native choices, cancellation, progress, and manifest requirements.
 - @ref desktop_shell explains shell capabilities, resources, queue ownership, and manual validation.
 - @ref desktop_examples provides focused display, shell, renderer, and native examples.
 - @ref desktop_troubleshooting maps common failures to their owning contract.

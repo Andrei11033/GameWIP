@@ -1,10 +1,10 @@
 @page desktop_accessibility Accessibility snapshots and native providers
 
-`desktop/accessibility.h` adds an optional snapshot-to-native accessibility bridge
-to the existing `GameWIP::Desktop` shared library. Applications or a future UI
-library own semantics, layout, text, selection, and action execution. Desktop
-owns copied immutable publication, native providers, bounded transport, and
-teardown. It creates no widgets, inferred semantics, callbacks, or worker thread.
+`desktop/accessibility.h` exposes application-supplied semantic snapshots to
+native accessibility clients. Applications or a UI library own semantics,
+layout, text, selection, and action execution. Desktop copies immutable
+snapshots, provides native providers, queues actions and notifications within
+configured limits, and handles teardown.
 
 ## Ownership and activation
 
@@ -55,9 +55,19 @@ extension lists, and rejects duplicate IDs or copy-budget violations. Full
 validation happens in `validate()` / `publish()`, allowing forward references
 while authoring. Builder views expire on mutation/destruction.
 
+Use `setGeneration()` and `setRoot()` to set publication metadata, then add
+nodes in any storage order. `nodeCount()` and `limits()` inspect the builder.
+`clear()` removes nodes and resets generation/root while retaining its limits.
+`publish(builder)` uses the same validation and copy contract as
+`publish(SnapshotView)`.
+
 `readSnapshot()` retains without copying; `SnapshotReader::isValid()` reports
 whether it retains a snapshot. `copySnapshot()` deeply copies and preserves its
 destination on failure.
+`snapshotInfo()` describes the active generation without retaining the tree.
+For a retained reader, `info()` describes its own generation, `view()` exposes
+the complete borrowed tree, and `find(NodeId)` performs allocation-free lookup.
+Keep a reader alive while using any pointers or views obtained from it.
 
 Publication validates, copies, indexes Unicode text,
 computes native metadata, and prepares providers before atomic replacement.

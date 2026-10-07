@@ -26,7 +26,8 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Detail
 {
-    void publishAccessibilityGeometry(WindowState &state) noexcept;
+    /// @brief Mirrors owner-thread cached geometry into an active accessibility bridge.
+    void publishAccessibilityGeometry(WindowState &window) noexcept;
     struct TaskbarItemState;
 
     /// @brief Outcome of inserting one Window event into fixed-capacity storage.

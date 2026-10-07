@@ -92,16 +92,12 @@ void testPresentationPublication(TestSupport::Context &context)
         Desktop::TestHooks::presentationPublicationStorage(window)));
 
     Desktop::TestHooks::applyPresentationPublicationSnapshot(window, first);
-    std::atomic_bool start = false;
     std::atomic_bool stop = false;
     std::atomic_bool invalid = false;
     std::atomic_size_t reads = 0;
     std::thread reader(
         [&]
         {
-            while (!start.load(std::memory_order_acquire))
-            {
-            }
             while (!stop.load(std::memory_order_acquire))
             {
                 const auto client = window.clientSize();
@@ -123,11 +119,15 @@ void testPresentationPublication(TestSupport::Context &context)
                 static_cast<void>(window.visible());
                 static_cast<void>(window.interactiveMoveResizeActive());
                 static_cast<void>(window.occluded());
-                reads.fetch_add(1, std::memory_order_relaxed);
+                if (reads.fetch_add(1, std::memory_order_release) == 0)
+                {
+                    reads.notify_one();
+                }
             }
         });
 
-    start.store(true, std::memory_order_release);
+    // Ensure the reader runs before a short publisher loop can finish its time slice.
+    reads.wait(0, std::memory_order_acquire);
     for (std::size_t iteration = 0; iteration < 200'000; ++iteration)
     {
         Desktop::TestHooks::applyPresentationPublicationSnapshot(window, (iteration & 1U) == 0 ? second : first);

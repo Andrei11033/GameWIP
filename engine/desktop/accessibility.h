@@ -755,8 +755,9 @@ namespace GameWIP::Desktop::Accessibility
         /// @{
 
         SnapshotBuilder() noexcept; ///< Creates an empty, allocation-free builder with default limits.
-        explicit SnapshotBuilder(const Types::Accessibility::Limits &limits) noexcept; ///< Creates an empty builder with borrowed-by-value limits.
-        ~SnapshotBuilder() noexcept;                                                   ///< Releases all owned snapshot data.
+        explicit SnapshotBuilder(
+            const Types::Accessibility::Limits &limits) noexcept; ///< Creates an empty builder with a copy of the supplied limits.
+        ~SnapshotBuilder() noexcept;                              ///< Releases all owned snapshot data.
 
         SnapshotBuilder(const SnapshotBuilder &) = delete; ///< Owning builders cannot be copied; use copySnapshot() for an explicit deep copy.
         SnapshotBuilder &operator=(const SnapshotBuilder &) = delete;

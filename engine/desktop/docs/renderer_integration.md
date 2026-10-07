@@ -5,9 +5,11 @@ renderer-published pointer data. Operating-system display/HDR inspection lives i
 
 ## Concurrent presentation reads
 
-By default, renderer-facing presentation getters are ordinary owner-thread cached getters. Call
-`Renderer::enableConcurrentPresentationReads(window)` on an open Window's owner thread before starting renderer reads. It lazily allocates a stable,
-one-way publication sidecar and immediately publishes the current authoritative state. Repeated calls are idempotent; close/reopen reuses it.
+By default, presentation getters read the owner-thread cache. Call
+`Renderer::enableConcurrentPresentationReads(window)` on an open Window's owner
+thread before starting renderer reads. It lazily allocates stable publication
+storage and immediately publishes the current state. Enablement lasts
+for the C++ object's lifetime; repeated calls succeed and close/reopen reuses it.
 
 The enable operation returns `NotOpen` for a closed Window, `ResourceBusy` on the wrong thread, and `OutOfMemory` when the lazy allocation fails.
 `Renderer::concurrentPresentationReadsEnabled(window)` reports the one-way object state and remains true across close/reopen. Do not race enablement
@@ -51,8 +53,52 @@ Passive mask values are grouped under `Desktop::Types::Renderer`:
 - `PointerHitMaskResult`
 
 `Renderer::requiredPointerHitMaskWords()` computes the packed storage requirement for a framebuffer extent. `beginPointerHitMaskUpdate()` returns the
-current generation/extent target. The renderer publishes a complete packed mask with `publishPointerHitMask()`; stale generation or incorrect storage
-is rejected. `clearPointerHitMask()` removes a published mask and `hasPointerHitMask()` reports publication state.
+current generation/extent target. `publishPointerHitMask()` copies a complete
+mask on the Window owner thread. Renderer workers must send their result back
+to that thread through application-owned synchronization. `clearPointerHitMask()`
+removes a published mask and invalidates pending targets; `hasPointerHitMask()`
+reports publication state.
+
+Rows run top to bottom and each row starts on a new 32-bit word. Pixel `(x, y)`
+uses bit `x % 32`, least-significant bit first, in word
+`y * ceil(width / 32) + x / 32`. Unused high bits in every final row word must
+be zero. For example, a 33-by-2 framebuffer needs four words. Empty extents or
+overflow return zero from `requiredPointerHitMaskWords()`.
+
+Every successful begin supersedes the previous uncommitted target. Publication
+consumes its target on success; zero, stale, and already-consumed generations
+return `Interrupted`. Incorrect word counts or nonzero padding return
+`InvalidArgument`. A failed publication preserves the current mask. Framebuffer
+changes, clear, native destruction, and close invalidate pending targets.
+
+Check `Capability::PointerHitMask` before beginning. The current Win32 backend
+does not advertise this capability, so `beginPointerHitMaskUpdate()` returns
+`Unsupported`. Source-tree validation exercises storage through internal hooks;
+public consumers cannot enable native routing through those hooks.
+
+On a backend that advertises the capability, this owner-thread snippet publishes
+a mask accepting only the central pixel:
+
+```cpp
+#include "desktop/renderer_bridge.h"
+#include <vector>
+
+const auto update = GameWIP::Desktop::Renderer::beginPointerHitMaskUpdate(window);
+if (update.status.ok())
+{
+    using Word = GameWIP::Desktop::Types::Renderer::PointerHitMaskWord;
+    const auto &target = update.target;
+    std::vector<Word> words(target.requiredWordCount, Word{0});
+    const std::size_t width = target.framebufferSize.width;
+    const std::size_t wordsPerRow = width / 32 + (width % 32 != 0);
+    const std::size_t x = width / 2;
+    const std::size_t y = target.framebufferSize.height / 2;
+    words[y * wordsPerRow + x / 32] = Word{1} << (x % 32);
+    const auto published = GameWIP::Desktop::Renderer::publishPointerHitMask(
+        window, target.generation, words);
+    // Inspect published; geometry may have changed since begin.
+}
+```
 
 The bridge retains no renderer object and does not make Renderer depend on Window. It only accepts explicit feedback at the point where the renderer
 already has the information.

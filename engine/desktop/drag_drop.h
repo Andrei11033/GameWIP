@@ -250,10 +250,11 @@ namespace GameWIP::Desktop
             Window &window,
             const Types::DragDrop::TargetDescription &description,
             std::size_t eventQueueCapacity) noexcept;
-        /// @brief Opens while borrowing caller-owned event storage until close.
+        /// @brief Opens while borrowing caller-owned event storage until lifetime finalization.
+        /// @details Storage remains borrowed during native-loss finalization and deferred owner-thread cleanup.
         /// @param window Open Window whose owner thread and client area are inherited.
         /// @param description Initial declarative region snapshot.
-        /// @param eventStorage Non-empty storage that must remain alive and unmoved until close.
+        /// @param eventStorage Non-empty storage that must remain alive and unmoved through finalization.
         /// @return Success, or a status explaining why no target was registered.
         [[nodiscard]] IO::Types::Status open(
             Window &window,

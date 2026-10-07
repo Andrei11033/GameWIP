@@ -1,9 +1,10 @@
 @page desktop_examples Examples
 
 These focused examples build on the owner-thread lifecycle from
-@ref desktop_quick_start and demonstrate displays, custom cursors, native child
-hosts, Clipboard data exchange, native drag and drop, renderer integration, and
-native dialogs, accessibility snapshots, shell integration, and interop without hiding status handling.
+@ref desktop_quick_start. They cover displays, custom cursors, native child
+hosts, Clipboard data exchange, drag and drop, dialogs, accessibility, shell
+integration, renderer integration, and native interop. Snippets use an already
+open owner-thread `window` unless they create one explicitly.
 
 ## Open a normal Window
 
@@ -24,7 +25,7 @@ if (auto status = window.open(description); !status.ok())
 ## Pump and consume typed events
 
 ```cpp
-while (!window.hasCloseRequest())
+while (window.isOpen() && !window.hasCloseRequest())
 {
     const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
     if (!pump.status.ok())
@@ -43,6 +44,10 @@ while (!window.hasCloseRequest())
     }
 }
 ```
+
+After the loop, call `window.close()` and inspect its status. The `isOpen()`
+condition also exits after unexpected native destruction; retained events can
+still be consumed before finalization.
 
 ## Enumerate displays
 
@@ -173,7 +178,9 @@ while (target.popEvent(event))
 
 The Window and target share an owner thread but retain separate queues. Continue
 pumping `Desktop::Events`; call `target.close()` before `window.close()` during
-ordinary controlled shutdown. See @ref desktop_drag_drop for regions, source
+ordinary controlled shutdown. This snippet requires `fileDropEnabled()` to be
+false; the earlier lightweight file-drop example enables a conflicting mode.
+See @ref desktop_drag_drop for regions, source
 dragging, effects, and failure handling.
 
 ## Select a file
@@ -270,13 +277,15 @@ if (GameWIP::Desktop::Shell::supports(
 
 Shell resources are capability-aware, owner-thread-affine, and status-returning.
 Close each resource before its borrowed `ShellEventQueue`, then close the queue
-before the `Window`. See @ref desktop_shell for tray, notification, jump-list,
-registration, and unsupported-capability behavior.
+before the `Window`. Continue pumping `Desktop::Events` for native interaction;
+draining the shell queue alone does not dispatch messages. See @ref desktop_shell
+for tray, notification, jump-list, registration, and unsupported-capability behavior.
 
 ## Publish an accessible command
 
-Call this on an open Window's owner thread for initial enablement. Subsequent
-publications may use any thread while that Window remains alive.
+Enable the bridge on the open Window's owner thread before calling this helper.
+The helper only publishes, so later calls may run on another thread while the
+Window remains alive. Supply a strictly newer nonzero generation each time.
 
 ```cpp
 #include "desktop/accessibility.h"
@@ -289,12 +298,6 @@ GameWIP::IO::Types::Status publishAccessibleCommand(
     namespace D = GameWIP::Desktop;
     namespace A = D::Types::Accessibility;
     auto bridge = window.accessibility();
-    if (!bridge.enabled())
-    {
-        const auto enabled = bridge.enable();
-        if (!enabled.ok())
-            return enabled;
-    }
     const std::array<A::NodeId, 1> children{2};
     std::array<A::Node, 2> nodes{};
     nodes[0].id = 1;
@@ -309,6 +312,17 @@ GameWIP::IO::Types::Status publishAccessibleCommand(
     nodes[1].actions.flags = (std::uint64_t{1} << static_cast<unsigned>(A::ActionKind::Invoke));
     nodes[1].geometry = A::Geometry{{20, 20, 160, 40}};
     return bridge.publish({generation, 1, nodes});
+}
+```
+
+For initial activation on the owner thread:
+
+```cpp
+const auto enabled = window.accessibility().enable();
+if (enabled.ok())
+{
+    const auto published = publishAccessibleCommand(window, 1);
+    // Inspect published before starting native or worker-thread use.
 }
 ```
 

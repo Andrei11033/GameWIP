@@ -3,6 +3,7 @@
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/internal/accessibility_state.h"
+#include "desktop/internal/shell_platform.h"
 #include <algorithm>
 #include <utility>
 
@@ -40,7 +41,8 @@ namespace GameWIP::Desktop::Detail::Platform
             current.pumping = false;
             return result;
         }
-        if (current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()))
+        if (current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
+            !hasShellMessageWindows())
         {
             current.activeResult = nullptr;
             current.pumping = false;

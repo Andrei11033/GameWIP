@@ -3,7 +3,9 @@
 void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Desktop accessibility UI Automation"))
+    {
         return;
+    }
     namespace A = Desktop::Types::Accessibility;
     Desktop::Window window;
     Desktop::Types::Description description;
@@ -12,10 +14,14 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     description.requestFocus = true;
     description.clientSize = {800, 450};
     if (!requireManualStatus(context, "accessibility demo opens", window.open(description)))
+    {
         return;
+    }
     auto bridge = window.accessibility();
     if (!requireManualStatus(context, "accessibility demo enables", bridge.enable()))
+    {
         return;
+    }
     const std::array<A::NodeId, 3> children{2, 3, 4};
     std::array<A::Node, 4> nodes{};
     nodes[0].id = 1;
@@ -47,7 +53,9 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     nodes[3].geometry = A::Geometry{{24, 180, 180, 40}};
     A::Generation generation = 1;
     if (!requireManualStatus(context, "accessibility semantic fixture publishes", bridge.publish({generation, 1, nodes})))
+    {
         return;
+    }
     std::size_t invocations = 0;
     std::string count;
     const auto observe = [&]
@@ -56,21 +64,29 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
         while (bridge.popAction(request))
         {
             if (request.node != 2)
+            {
                 continue;
+            }
             if (request.action == A::ActionKind::Focus)
+            {
                 static_cast<void>(window.requestFocus());
+            }
             if (request.action == A::ActionKind::Invoke)
             {
                 count = std::format("Invoked {} times", ++invocations);
                 nodes[1].description = count;
                 static_cast<void>(bridge.publish({++generation, 1, nodes}));
                 if (bridge.features().supports(A::Feature::Announcements))
+                {
                     static_cast<void>(bridge.announce({2, "Accessibility action received", "en-US"}));
+                }
             }
         }
         if (manualStatusWindow)
+        {
             manualStatusWindow->setObservation(
                 std::format("Semantic-only fixture over the renderer-free host; invoke requests received={}", invocations));
+        }
     };
     context.manual(
         "Use Narrator and a UIA inspector (Accessibility Insights or Inspect). This fixture publishes semantic controls independently of the "
@@ -102,7 +118,9 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
         "to its client area?",
         observe);
     if (!requireManualStatus(context, "accessibility demo disables", bridge.disable()))
+    {
         return;
+    }
     recordManualCheck(
         context,
         window,

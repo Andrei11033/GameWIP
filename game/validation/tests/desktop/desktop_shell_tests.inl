@@ -83,6 +83,70 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("owner closes external shell queue", queue.close().ok()));
 }
 
+void testShellPumpingWithoutWindow(TestSupport::Context &context)
+{
+    // A fresh owner thread has no Window or ProgressDialog that could keep the pump active.
+    std::thread ownerThread(
+        [&]
+        {
+            constexpr UINT markerMessage = WM_APP + 0x377;
+            const auto checkPump = [&](bool wait)
+            {
+                static_cast<void>(context.expectTrue(
+                    "shell-only owner accepts a native message",
+                    PostThreadMessageW(GetCurrentThreadId(), markerMessage, 0, 0) != FALSE));
+                const auto result = wait ? Desktop::Events::wait(std::chrono::milliseconds{10}) : Desktop::Events::poll();
+                static_cast<void>(context.expectTrue("shell-only event pumping succeeds", result.status.ok()));
+                MSG pending{};
+                static_cast<void>(context.expectFalse(
+                    "shell-only pump consumes pending native messages",
+                    PeekMessageW(&pending, nullptr, markerMessage, markerMessage, PM_REMOVE) != FALSE));
+            };
+
+            Desktop::NotificationCenter notifications;
+            if (!notifications.open().ok())
+            {
+                context.fail("shell-only notification center", "the native message window could not be opened");
+                return;
+            }
+            checkPump(false);
+            checkPump(true);
+
+            Desktop::NotificationCenter secondNotifications;
+            static_cast<void>(context.expectTrue("second shell-only center opens", secondNotifications.open().ok()));
+            static_cast<void>(context.expectTrue("first shell-only center closes", notifications.close().ok()));
+            checkPump(false);
+            static_cast<void>(context.expectTrue("last shell-only center closes", secondNotifications.close().ok()));
+
+            const std::array<std::byte, 4> pixel{std::byte{0x11}, std::byte{0x22}, std::byte{0x33}, std::byte{0xFF}};
+            const Desktop::Types::IconImageView icon{{1, 1}, pixel};
+            TrayTypes::Description description;
+            description.icons = std::span{&icon, 1};
+            Desktop::TrayIcon tray;
+            const auto opened = tray.open(description);
+            if (opened.ok())
+            {
+                checkPump(false);
+                checkPump(true);
+                static_cast<void>(context.expectTrue("shell-only tray closes", tray.close().ok()));
+            }
+            else
+            {
+                context.skip("shell-only tray pumping", std::format("native tray publication returned {}", IO::errorCodeName(opened.code)));
+            }
+
+            static_cast<void>(context.expectTrue(
+                "closed shell owner accepts a native marker",
+                PostThreadMessageW(GetCurrentThreadId(), markerMessage, 0, 0) != FALSE));
+            static_cast<void>(context.expectTrue("pump without native resources succeeds", Desktop::Events::poll().status.ok()));
+            MSG pending{};
+            static_cast<void>(context.expectTrue(
+                "closing the last shell resource restores the no-op pump",
+                PeekMessageW(&pending, nullptr, markerMessage, markerMessage, PM_REMOVE) != FALSE));
+        });
+    ownerThread.join();
+}
+
 void testShellValidation(TestSupport::Context &context)
 {
     const std::array<std::byte, 4> pixel{std::byte{0x11}, std::byte{0x22}, std::byte{0x33}, std::byte{0xFF}};

@@ -37,7 +37,7 @@ namespace GameWIP::Desktop::Detail
         }
     } // namespace
 
-    /// @brief Returns whether a Window payload may replace a newer payload of the same type.
+    /// @brief Returns whether a Window payload may be superseded by a later payload of the same type.
     bool isCoalescible(const Types::Events::Payload &data) noexcept
     {
         using namespace Types::Events;

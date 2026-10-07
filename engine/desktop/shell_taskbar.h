@@ -32,7 +32,7 @@ namespace GameWIP::Desktop::Types::Taskbar
     /// operation returns. Its label and optional icon are copied before publication.
     struct ThumbnailButton
     {
-        Shell::CommandId id;               ///< Unique nonzero command identity within one button set.
+        Shell::CommandId id;               ///< Unique nonzero command identity; Win32 requires a 16-bit value.
         std::string_view label;            ///< Nonempty UTF-8 button label.
         std::optional<IconImageView> icon; ///< Optional borrowed RGBA8 icon image.
         bool enabled = true;               ///< Whether the button accepts user activation.
@@ -129,6 +129,7 @@ namespace GameWIP::Desktop
         /// @brief Replaces the complete thumbnail-button set.
         /// @details A non-empty replacement requires a bound event queue; an empty span clears
         /// all buttons. A failed replacement leaves the previously published button set unchanged.
+        /// Win32 accepts at most seven buttons and requires nonzero 16-bit command identities.
         /// @param buttons Complete borrowed button set; an empty span clears all buttons.
         /// @return Success, or a validation, ownership, queue, capability, size, allocation, or native failure.
         [[nodiscard]] IO::Types::Status setThumbnailButtons(std::span<const Types::Taskbar::ThumbnailButton> buttons) noexcept;

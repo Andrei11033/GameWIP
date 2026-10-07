@@ -1,9 +1,8 @@
 @page desktop_library Desktop
 
-`GameWIP::Desktop` provides standalone portable ownership of native top-level
-desktop windows, optional managed child hosts, synchronous Clipboard data
-exchange, native data drag and drop, opt-in native dialogs, accessibility snapshots, and additive shell
-integration. Its API provides checked lifecycle
+`GameWIP::Desktop` owns native top-level windows and provides optional child
+hosts, Clipboard exchange, drag and drop, native dialogs, accessibility
+snapshots, and shell integration. Its API provides checked lifecycle
 and mutation operations, fixed-capacity typed event queues, cached state,
 display discovery and inspection, and an explicit native interoperability
 boundary.
@@ -11,7 +10,7 @@ boundary.
 Desktop is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and invokes no user callbacks
 from a native window procedure. Worker or renderer code that needs an
 owner-thread mutation must use an application-owned transport queue and have
-the owner thread perform the Desktop call; Desktop intentionally provides no
+the owner thread perform the Desktop call; Desktop provides no
 hidden worker or generic `post()` facility.
 
 ## How the library is organized
@@ -21,7 +20,7 @@ fixed-capacity event queue. The thread that opens it also mutates it, pumps its
 events, and consumes that queue. Native callbacks first update cached state and
 then publish typed events, allowing getters to remain current even if the queue
 overflows. Display APIs describe monitors and modes independently of a Window;
-opt-in headers expose renderer integration and deliberate native interoperation.
+focused headers expose renderer integration and native interoperation.
 
 ## Consumer manual
 
@@ -82,7 +81,7 @@ shell values under `Types::Shell`, accessibility values under `Types::Accessibil
 Global event pumping lives under `Desktop::Events`, Clipboard operations under
 `Desktop::Clipboard`, drag sources under `Desktop::DragDrop`, display inspection
 under `Desktop::Display`, and renderer integration under `Desktop::Renderer`.
-Win32 consumers use @ref GameWIP::Desktop::Native::Win32 deliberately.
+Win32 native handles are exposed through @ref GameWIP::Desktop::Native::Win32.
 
 Dialog values live under `Types::Dialogs`, synchronous one-shot operations
 under `Desktop::Dialogs`, and persistent modeless progress under
@@ -106,7 +105,9 @@ best-effort native cleanup.
 Native callbacks update cached state before inserting events, so queue overflow loses notification history without making current state stale. Close
 requests remain sticky even when their `Types::Events::CloseRequested` payload cannot be retained.
 
-The opening thread owns native mutation, queue consumption, and event pumping. `wakeEventWait()` is always cross-thread-safe. Renderer-facing
+The opening thread owns native mutation, queue consumption, and event pumping.
+`wakeEventWait()` may run on another thread while the native lifetime remains
+stable; synchronize it with lifetime transitions. Renderer-facing
 presentation reads and accessibility façade operations have separate explicit
 opt-in threading contracts. A thread-local dispatcher pumps each owner thread's Windows.
 
@@ -152,7 +153,7 @@ notification, jump-list/recent-item, and current-user registration APIs use
 `desktop/shell_jump_lists.h`, and `desktop/shell_registration.h`, respectively.
 Win32 interoperability uses `desktop/native/win32.h`.
 
-Installed consumers link `GameWIP::Desktop`. Desktop is intentionally built as a shared library: process-local Window and monitor identities, native
+Installed consumers link `GameWIP::Desktop`. Desktop is built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked
 modules.
 

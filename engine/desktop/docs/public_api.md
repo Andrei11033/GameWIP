@@ -41,6 +41,10 @@ Passive data stays under `Types`; stateless domain operations live in the matchi
 integration. `Desktop::ShellEventQueue` provides one fixed-capacity typed event queue for shell
 resources; it is non-copyable, non-movable, owner-thread-affine for opening, closing, consumption,
 and queue mutation, and permits shell resources to publish events from other threads.
+Its three `open()` overloads use default internal storage, a requested nonzero
+capacity, or a borrowed nonempty `std::span<Types::Shell::Event>`.
+Pump `Desktop::Events` separately from consuming this queue; tray and
+notification resources keep that pump active without a Window.
 
 `desktop/shell_types.h` remains the passive entry point. Its identities, targets, launch
 values, progress state, and `Types::Shell::Event` payloads can be used without opening a shell
@@ -93,7 +97,10 @@ whether a custom cursor is selected or a renderer provider is attached. Custom c
 ## Window ownership and state
 
 `Window` is default-constructible, non-copyable, and non-movable. `open()` establishes one owner thread and one process-local `Types::WindowId`.
-`WindowId::isValid()` reports whether an ID is nonzero. Mutations, queue operations, and most cached getters require the owner thread.
+`WindowId::isValid()` reports whether an ID is nonzero; it does not prove that
+the corresponding native Window is still alive. `id()` retains the ended
+identity during `NativeDestroyedPendingFinalize`. Mutations, queue operations,
+and most cached getters require the owner thread.
 
 Cached getters do not issue native queries. Expected failures are returned as `IO::Types::Status` or typed result structs. Explicit `close()` is
 synchronous and observable through its return status.
@@ -125,6 +132,18 @@ clears the sticky flag.
 
 Configuration/request types live with `description.h`; shared primitive values remain in `types.h`; live Window state and call-scoped layouts remain
 in `window.h`.
+
+Creation options must agree: `requestFocus` requires both `visible` and
+`focusable`, hidden Windows require `PresentationState::Normal`, and the initial
+client size must satisfy size limits. A non-resizable Window must also set
+`controls.maximizable = false`. At runtime, disable that control with
+`setControls()` before `setResizable(false)`; enable resizing before restoring
+the maximize control. Contradictory options return `InvalidArgument`.
+
+Only centered placement accepts a placement monitor. A windowed `ModeRequest`
+requires an invalid monitor, and only exclusive fullscreen accepts a display
+mode. Initial pointer policy accepts `Normal` or `ClickThrough`; region and mask
+modes require runtime configuration and backend support.
 
 ## Custom cursors
 
