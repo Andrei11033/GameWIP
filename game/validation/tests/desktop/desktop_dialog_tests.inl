@@ -273,57 +273,134 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ownerless file dialog stays on caller thread", Desktop::Dialogs::openFile({}).status.ok()));
 }
 
-void testDialogApartmentContracts(TestSupport::Context &context)
+struct ApartmentObservation
 {
-    HRESULT freshBefore = S_OK;
-    HRESULT freshAfter = S_OK;
-    IO::Types::Status freshStatus;
-    std::thread fresh(
-        [&]
-        {
-            APTTYPE type = APTTYPE_CURRENT;
-            APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
-            freshBefore = CoGetApartmentType(&type, &qualifier);
-            freshStatus = Desktop::TestHooks::testDialogApartment();
-            freshAfter = CoGetApartmentType(&type, &qualifier);
-        });
-    fresh.join();
-    static_cast<void>(context.expectEq("fresh dialog thread starts without COM", CO_E_NOTINITIALIZED, freshBefore));
-    static_cast<void>(context.expectTrue("fresh dialog thread receives compatible STA lease", freshStatus.ok()));
-    static_cast<void>(context.expectEq("Desktop balances only its COM initialization", CO_E_NOTINITIALIZED, freshAfter));
+    HRESULT result = E_FAIL;
+    APTTYPE type = APTTYPE_CURRENT;
+    APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
+};
 
-    IO::Types::Status staStatus;
-    HRESULT staStillInitialized = E_FAIL;
-    std::thread sta(
-        [&]
-        {
-            const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-            if (SUCCEEDED(initialized))
-            {
-                staStatus = Desktop::TestHooks::testDialogApartment();
-                APTTYPE type = APTTYPE_CURRENT;
-                APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
-                staStillInitialized = CoGetApartmentType(&type, &qualifier);
-                CoUninitialize();
-            }
-        });
-    sta.join();
-    static_cast<void>(context.expectTrue("existing STA is reused", staStatus.ok()));
-    static_cast<void>(context.expectTrue("Desktop does not uninitialize caller STA", SUCCEEDED(staStillInitialized)));
+[[nodiscard]] ApartmentObservation observeApartment() noexcept
+{
+    ApartmentObservation observation;
+    observation.result = CoGetApartmentType(&observation.type, &observation.qualifier);
+    return observation;
+}
 
-    IO::Types::Status mtaStatus;
-    std::thread mta(
-        [&]
+/// @brief Keeps the strictly uninitialized case independent of assistive clients in the parent.
+int runColdApartmentChild()
+{
+    if (observeApartment().result != CO_E_NOTINITIALIZED)
+    {
+        return 2;
+    }
+    if (!Desktop::TestHooks::testDialogApartment().ok() || observeApartment().result != CO_E_NOTINITIALIZED)
+    {
+        return 3;
+    }
+    return Desktop::TestHooks::testShellApartment().ok() && observeApartment().result == CO_E_NOTINITIALIZED ? 0 : 4;
+}
+
+void testDialogApartmentContracts(TestSupport::Context &context, const std::filesystem::path &executable)
+{
+    TestSupport::Types::Process::Options cold;
+    cold.executablePath = executable;
+    cold.arguments = {"--desktop-test-child=cold-com-apartment"};
+    cold.timeout = std::chrono::seconds{10};
+    const auto coldResult = TestSupport::runChildProcess(cold);
+    static_cast<void>(context.expectTrue("isolated COM probe starts", coldResult.status.ok()));
+    static_cast<void>(context.expectEq("isolated COM probe exits", TestSupport::Types::Process::Outcome::Exited, coldResult.outcome));
+    static_cast<void>(context.expectEq("uninitialized leases balance in a clean process", std::uint32_t{0}, coldResult.exitCode));
+
+    struct MtaUsage
+    {
+        CO_MTA_USAGE_COOKIE cookie = nullptr;
+        HRESULT result = CoIncrementMTAUsage(&cookie);
+        ~MtaUsage()
         {
-            const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-            if (SUCCEEDED(initialized))
+            if (cookie != nullptr)
             {
-                mtaStatus = Desktop::TestHooks::testDialogApartment();
-                CoUninitialize();
+                static_cast<void>(CoDecrementMTAUsage(cookie));
             }
-        });
-    mta.join();
-    static_cast<void>(context.expectEq("incompatible MTA is ResourceBusy", ErrorCode::ResourceBusy, mtaStatus.code));
+        }
+    } mtaUsage;
+    if (!context.expectTrue("controlled process MTA is available", SUCCEEDED(mtaUsage.result)))
+    {
+        return;
+    }
+
+    using Probe = IO::Types::Status (*)() noexcept;
+    const std::array probes{
+        std::pair<std::string_view, Probe>{"dialogs", &Desktop::TestHooks::testDialogApartment},
+        std::pair<std::string_view, Probe>{"shell", &Desktop::TestHooks::testShellApartment}};
+    for (const auto &[name, probe] : probes)
+    {
+        ApartmentObservation before;
+        ApartmentObservation after;
+        IO::Types::Status leaseStatus;
+        std::thread implicit(
+            [&]
+            {
+                before = observeApartment();
+                leaseStatus = probe();
+                after = observeApartment();
+            });
+        implicit.join();
+        context.info(
+            std::format(
+                "{} implicit COM before: result={} type={} qualifier={}; after: result={} type={} qualifier={}",
+                name,
+                before.result,
+                static_cast<int>(before.type),
+                static_cast<int>(before.qualifier),
+                after.result,
+                static_cast<int>(after.type),
+                static_cast<int>(after.qualifier)));
+        static_cast<void>(context.expectEq(std::format("{} fresh thread sees process MTA", name), S_OK, before.result));
+        static_cast<void>(context.expectEq(std::format("{} MTA is implicit", name), APTTYPEQUALIFIER_IMPLICIT_MTA, before.qualifier));
+        static_cast<void>(context.expectTrue(std::format("{} implicit MTA can acquire STA lease", name), leaseStatus.ok()));
+        static_cast<void>(context.expectEq(std::format("{} balances lease HRESULT", name), before.result, after.result));
+        static_cast<void>(context.expectEq(std::format("{} balances apartment type", name), before.type, after.type));
+        static_cast<void>(context.expectEq(std::format("{} balances apartment qualifier", name), before.qualifier, after.qualifier));
+
+        HRESULT initialized = E_FAIL;
+        std::thread sta(
+            [&]
+            {
+                initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+                if (SUCCEEDED(initialized))
+                {
+                    before = observeApartment();
+                    leaseStatus = probe();
+                    after = observeApartment();
+                    CoUninitialize();
+                }
+            });
+        sta.join();
+        static_cast<void>(context.expectTrue(std::format("{} caller STA initializes", name), SUCCEEDED(initialized)));
+        static_cast<void>(context.expectTrue(std::format("{} existing STA is reused", name), leaseStatus.ok()));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller STA initialization", name), S_OK, after.result));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller STA type", name), before.type, after.type));
+
+        initialized = E_FAIL;
+        std::thread mta(
+            [&]
+            {
+                initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+                if (SUCCEEDED(initialized))
+                {
+                    leaseStatus = probe();
+                    after = observeApartment();
+                    CoUninitialize();
+                }
+            });
+        mta.join();
+        static_cast<void>(context.expectTrue(std::format("{} caller MTA initializes", name), SUCCEEDED(initialized)));
+        static_cast<void>(context.expectEq(std::format("{} explicit MTA is rejected", name), ErrorCode::ResourceBusy, leaseStatus.code));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller MTA initialization", name), S_OK, after.result));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller MTA type", name), APTTYPE_MTA, after.type));
+        static_cast<void>(context.expectEq(std::format("{} preserves explicit MTA qualifier", name), APTTYPEQUALIFIER_NONE, after.qualifier));
+    }
 }
 
 void testMessageDialogs(TestSupport::Context &context)

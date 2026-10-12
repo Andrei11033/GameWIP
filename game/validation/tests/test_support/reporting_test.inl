@@ -232,6 +232,19 @@ void testPromptManualCheck(TestSupport::Context &context)
         promptWithInput("maybe\nYes\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
     static_cast<void>(
         context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
+    const auto promptReason = [&](std::string_view input, std::string_view expected)
+    {
+        ScopedPromptStreams streams(input);
+        std::string reason = "stale reason";
+        const auto answer = TestSupport::promptManualCheck("reason check", reason);
+        return answer == TestSupport::Types::Reporting::ManualAnswer::Skipped && reason == expected;
+    };
+    static_cast<void>(
+        context.expectTrue("manual prompt preserves tool limitation", promptReason("s tool cannot cross windows\n", "tool cannot cross windows")));
+    static_cast<void>(
+        context.expectTrue("manual prompt preserves scope exclusion", promptReason("skip outside requested scope\n", "outside requested scope")));
+    static_cast<void>(context.expectTrue("manual prompt identifies EOF", promptReason("", "input ended before an answer")));
+    static_cast<void>(context.expectTrue("manual prompt identifies unspecified skip", promptReason("s\n", "no skip reason supplied")));
 }
 
 /// @brief Converts one expected manual response into a pass, skip, or failure.

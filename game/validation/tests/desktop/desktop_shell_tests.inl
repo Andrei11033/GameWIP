@@ -6,7 +6,580 @@ namespace TaskbarTypes = Desktop::Types::Taskbar;
 namespace TrayTypes = Desktop::Types::Tray;
 namespace NotificationTypes = Desktop::Types::Notifications;
 namespace JumpListTypes = Desktop::Types::JumpLists;
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
+/// @brief Publishes with an isolated application identity so normal application lists are untouched.
+int runJumpListPublicationChild(const std::filesystem::path &executable)
+{
+    const std::wstring appId = std::format(L"GameWIP.Validation.JumpLists.{}", GetCurrentProcessId());
+    if (FAILED(SetCurrentProcessExplicitAppUserModelID(appId.c_str())))
+    {
+        return 2;
+    }
+    const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
+    const std::array<ShellTypes::LaunchArgumentView, 1> arguments{ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"}};
+    const ShellTypes::LaunchActionView action{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, arguments};
+    const std::array tasks{JumpListTypes::Task{"GameWIP publication regression", "Controlled launch probe", action}};
+    JumpListTypes::Description description;
+    description.tasks = tasks;
+    const auto published = Desktop::JumpLists::publish(description);
+    const auto cleared = Desktop::JumpLists::publish({});
+    return !published.ok() ? 3 : !cleared.ok() ? 4 : 0;
+}
+
+void testJumpListNativePublication(TestSupport::Context &context, const std::filesystem::path &executable)
+{
+    const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (!context.expectTrue("metadata inspection STA initializes", SUCCEEDED(initialized)))
+    {
+        return;
+    }
+    struct ComInitialization
+    {
+        ~ComInitialization()
+        {
+            CoUninitialize();
+        }
+    } initialization;
+    const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
+    const std::array<ShellTypes::LaunchArgumentView, 2> arguments{
+        ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"},
+        ShellTypes::LiteralLaunchArgumentView{"a space and \"quoted\" argument"}};
+    const ShellTypes::LaunchActionView action{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, arguments};
+    const JumpListTypes::Task task{"Native title caf\xC3\xA9 \xF0\x9F\x99\x82", "Distinct task tooltip", action};
+    void *rawLink = nullptr;
+    const auto created = Desktop::TestHooks::createJumpLink(task, rawLink);
+    if (!context.expectTrue("native jump link creates", created.ok() && rawLink != nullptr))
+    {
+        return;
+    }
+    const auto releaseLink = [](IShellLinkW *link)
+    {
+        link->Release();
+    };
+    std::unique_ptr<IShellLinkW, decltype(releaseLink)> link(static_cast<IShellLinkW *>(rawLink), releaseLink);
+    IPropertyStore *rawProperties = nullptr;
+    if (context.expectTrue("jump link exposes property store", SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&rawProperties)))))
+    {
+        const auto releaseProperties = [](IPropertyStore *properties)
+        {
+            properties->Release();
+        };
+        std::unique_ptr<IPropertyStore, decltype(releaseProperties)> properties(rawProperties, releaseProperties);
+        PROPVARIANT title{};
+        const HRESULT titleResult = properties->GetValue(PKEY_Title, &title);
+        static_cast<void>(
+            context.expectTrue("jump title is a string property", SUCCEEDED(titleResult) && title.vt == VT_LPWSTR && title.pwszVal != nullptr));
+        if (title.vt == VT_LPWSTR && title.pwszVal != nullptr)
+        {
+            static_cast<void>(context.expectEq(
+                "Unicode task title survives native property storage",
+                manualDiagnosticWideText(task.title),
+                std::wstring{title.pwszVal}));
+        }
+        static_cast<void>(PropVariantClear(&title));
+    }
+    std::array<wchar_t, 4096> text{};
+    static_cast<void>(context.expectTrue("jump tooltip reads", SUCCEEDED(link->GetDescription(text.data(), static_cast<int>(text.size())))));
+    static_cast<void>(
+        context.expectEq("tooltip uses description independently from title", std::wstring{L"Distinct task tooltip"}, std::wstring{text.data()}));
+    text.fill(L'\0');
+    static_cast<void>(context.expectTrue("jump arguments read", SUCCEEDED(link->GetArguments(text.data(), static_cast<int>(text.size())))));
+    static_cast<void>(context.expectEq(
+        "literal launch arguments preserve spaces and quotes",
+        std::wstring{L"\"--desktop-test-child=shell-launch-probe\" \"a space and \\\"quoted\\\" argument\""},
+        std::wstring{text.data()}));
+    text.fill(L'\0');
+    int iconIndex = -1;
+    static_cast<void>(
+        context.expectTrue("jump icon location reads", SUCCEEDED(link->GetIconLocation(text.data(), static_cast<int>(text.size()), &iconIndex))));
+    static_cast<void>(context.expectEq(
+        "jump icon comes from executable",
+        std::filesystem::path(absoluteExecutable).make_preferred().wstring(),
+        std::wstring{text.data()}));
+    static_cast<void>(context.expectEq("jump icon uses first executable icon", 0, iconIndex));
+
+    const ShellTypes::LaunchActionView noArguments{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, {}};
+    void *invalidLink = nullptr;
+    static_cast<void>(context.expectEq(
+        "Win32 jump links require launch arguments",
+        ErrorCode::InvalidArgument,
+        Desktop::TestHooks::createJumpLink({"Invalid argument-free task", {}, noArguments}, invalidLink).code));
+    static_cast<void>(context.expectTrue("rejected jump link is not exposed", invalidLink == nullptr));
+
+    TestSupport::Types::Process::Options child;
+    child.executablePath = executable;
+    child.arguments = {"--desktop-test-child=jump-list-publication"};
+    child.timeout = std::chrono::seconds{10};
+    const auto result = TestSupport::runChildProcess(child);
+    static_cast<void>(context.expectTrue("isolated jump-list publisher starts", result.status.ok()));
+    static_cast<void>(context.expectEq("isolated jump-list publisher exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));
+    static_cast<void>(context.expectEq("valid jump-list publication and cleanup succeed", std::uint32_t{0}, result.exitCode));
+}
+#endif
 namespace RegistrationTypes = Desktop::Types::Registration;
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
+void testShellRegistrationOwnership(TestSupport::Context &context, const std::filesystem::path &executable)
+{
+    const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
+    const std::array<ShellTypes::LaunchArgumentView, 1> arguments{ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"}};
+    const ShellTypes::LaunchActionView action{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, arguments};
+    const std::string identity = std::format("{}-{}", GetCurrentProcessId(), GetTickCount64());
+    const std::string owner = std::format("GameWIP.NativeRegistration.{}.caf\xC3\xA9", identity);
+    const std::string foreignOwner = owner + ".Foreign";
+    for (const bool file : {true, false})
+    {
+        const std::string target = std::format("{}gamewip-regression-{}", file ? "." : "", identity);
+        const auto unregister = [&](std::string_view key)
+        {
+            return file ? Desktop::Registration::unregisterFileExtension(key, target) : Desktop::Registration::unregisterUriScheme(key, target);
+        };
+        struct Cleanup
+        {
+            std::function<void()> remove;
+            ~Cleanup()
+            {
+                remove();
+            }
+        } cleanup{[&]
+                  {
+                      static_cast<void>(unregister(owner));
+                  }};
+        const RegistrationTypes::Verb malformedVerb{"invalid-label", std::string_view{"\xC3", 1}, action};
+        const auto registerOwner = [&](std::string_view key, RegistrationTypes::ConflictPolicy policy, bool failAfterMutation = false)
+        {
+            if (file)
+            {
+                RegistrationTypes::FileExtensionDescription description;
+                description.ownerKey = key;
+                description.extension = target;
+                description.displayName = failAfterMutation ? "Mutated before rollback" : "GameWIP native registration regression";
+                description.defaultAction = action;
+                if (failAfterMutation)
+                {
+                    description.verbs = std::span{&malformedVerb, 1};
+                }
+                description.conflictPolicy = policy;
+                return Desktop::Registration::registerFileExtension(description);
+            }
+            RegistrationTypes::UriSchemeDescription description;
+            description.ownerKey = key;
+            description.scheme = target;
+            description.displayName = failAfterMutation ? "Mutated before rollback" : "GameWIP native registration regression";
+            description.defaultAction = action;
+            if (failAfterMutation)
+            {
+                description.verbs = std::span{&malformedVerb, 1};
+            }
+            description.conflictPolicy = policy;
+            return Desktop::Registration::registerUriScheme(description);
+        };
+        const std::string kind = file ? "file" : "URI";
+        const auto first = registerOwner(owner, RegistrationTypes::ConflictPolicy::Coexist);
+        if (!context.expectTrue(kind + " registration creates", first.status.ok()))
+        {
+            continue;
+        }
+        if (file)
+        {
+            // The modern Open With surface uses the executable application record as
+            // its discovery metadata. Keep these checks beside the ownership test so
+            // a future registration change cannot silently drop that record again.
+            std::filesystem::path applicationExecutable = absoluteExecutable;
+            applicationExecutable.make_preferred();
+            const std::wstring applicationName = applicationExecutable.filename().wstring();
+            const std::wstring targetRegistrationPath = L"Software\\Classes\\" + manualDiagnosticWideText(target);
+            std::array<wchar_t, 4096> value{};
+            DWORD bytes = static_cast<DWORD>(sizeof(value));
+            const LONG progIdRead =
+                RegGetValueW(HKEY_CURRENT_USER, targetRegistrationPath.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, value.data(), &bytes);
+            if (context.expectEq("file registration exposes a ProgID", LONG{ERROR_SUCCESS}, progIdRead))
+            {
+                const std::wstring programPath = L"Software\\Classes\\" + std::wstring{value.data()};
+                value.fill(L'\0');
+                bytes = static_cast<DWORD>(sizeof(value));
+                static_cast<void>(context.expectEq(
+                    "file ProgID has direct FriendlyAppName",
+                    LONG{ERROR_SUCCESS},
+                    RegGetValueW(HKEY_CURRENT_USER, programPath.c_str(), L"FriendlyAppName", RRF_RT_REG_SZ, nullptr, value.data(), &bytes)));
+                static_cast<void>(context.expectEq(
+                    "file ProgID FriendlyAppName matches display",
+                    std::wstring{L"GameWIP native registration regression"},
+                    std::wstring{value.data()}));
+                value.fill(L'\0');
+                bytes = static_cast<DWORD>(sizeof(value));
+                static_cast<void>(context.expectEq(
+                    "file ProgID records application executable",
+                    LONG{ERROR_SUCCESS},
+                    RegGetValueW(HKEY_CURRENT_USER, programPath.c_str(), L"GameWIP.ApplicationKey", RRF_RT_REG_SZ, nullptr, value.data(), &bytes)));
+                static_cast<void>(context.expectEq("file ProgID application executable is basename", applicationName, std::wstring{value.data()}));
+            }
+            const std::wstring applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
+            value.fill(L'\0');
+            bytes = static_cast<DWORD>(sizeof(value));
+            static_cast<void>(context.expectEq(
+                "file application record has FriendlyAppName",
+                LONG{ERROR_SUCCESS},
+                RegGetValueW(HKEY_CURRENT_USER, applicationPath.c_str(), L"FriendlyAppName", RRF_RT_REG_SZ, nullptr, value.data(), &bytes)));
+            static_cast<void>(context.expectEq(
+                "file application FriendlyAppName matches display",
+                std::wstring{L"GameWIP native registration regression"},
+                std::wstring{value.data()}));
+            const std::wstring supportedTypePath = applicationPath + L"\\SupportedTypes";
+            value.fill(L'\0');
+            bytes = static_cast<DWORD>(sizeof(value));
+            static_cast<void>(context.expectEq(
+                "file application record advertises extension",
+                LONG{ERROR_SUCCESS},
+                RegGetValueW(
+                    HKEY_CURRENT_USER,
+                    supportedTypePath.c_str(),
+                    manualDiagnosticWideText(target).c_str(),
+                    RRF_RT_REG_SZ,
+                    nullptr,
+                    value.data(),
+                    &bytes)));
+            const std::wstring commandPath = applicationPath + L"\\shell\\open\\command";
+            value.fill(L'\0');
+            bytes = static_cast<DWORD>(sizeof(value));
+            const LONG commandRead = RegGetValueW(HKEY_CURRENT_USER, commandPath.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, value.data(), &bytes);
+            static_cast<void>(context.expectTrue(
+                "file application record has a selected-path launch command",
+                commandRead == ERROR_SUCCESS && std::wstring_view{value.data()}.find(applicationExecutable.wstring()) != std::wstring_view::npos &&
+                    std::wstring_view{value.data()}.find(L"%1") != std::wstring_view::npos));
+        }
+        const auto replaced = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned);
+        context.info(
+            std::format(
+                "{} replacement: portable={} native={} {}",
+                kind,
+                static_cast<int>(replaced.status.code),
+                replaced.status.nativeCode,
+                replaced.status.message));
+        static_cast<void>(context.expectTrue(kind + " same-owner replacement succeeds", replaced.status.ok() && replaced.replacedOwned));
+        static_cast<void>(context.expectTrue(kind + " same-owner replacement has no foreign conflicts", replaced.conflicts.empty()));
+        const auto failed = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned, true);
+        static_cast<void>(context.expectEq(kind + " malformed verb fails after mutation", ErrorCode::InvalidArgument, failed.status.code));
+        std::array<wchar_t, 4096> registryText{};
+        DWORD registryBytes = static_cast<DWORD>(sizeof(registryText));
+        const std::wstring targetPath = L"Software\\Classes\\" + manualDiagnosticWideText(target);
+        const LONG targetRead = RegGetValueW(
+            HKEY_CURRENT_USER,
+            targetPath.c_str(),
+            file ? nullptr : L"GameWIP.ProgId",
+            RRF_RT_REG_SZ,
+            nullptr,
+            registryText.data(),
+            &registryBytes);
+        if (context.expectEq(kind + " rollback restores target ProgID", LONG{ERROR_SUCCESS}, targetRead))
+        {
+            const std::wstring programPath = L"Software\\Classes\\" + std::wstring{registryText.data()};
+            registryText.fill(L'\0');
+            registryBytes = static_cast<DWORD>(sizeof(registryText));
+            static_cast<void>(context.expectEq(
+                kind + " restored program reads",
+                LONG{ERROR_SUCCESS},
+                RegGetValueW(HKEY_CURRENT_USER, programPath.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, registryText.data(), &registryBytes)));
+            static_cast<void>(context.expectEq(
+                kind + " failed replacement restores previous display name",
+                std::wstring{L"GameWIP native registration regression"},
+                std::wstring{registryText.data()}));
+        }
+        const auto rejected = registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Report);
+        static_cast<void>(context.expectEq(kind + " foreign replacement is rejected", ErrorCode::AlreadyExists, rejected.status.code));
+        static_cast<void>(context.expectEq(kind + " reports one foreign conflict", std::size_t{1}, rejected.conflicts.size()));
+        if (rejected.conflicts.size() == 1)
+        {
+            static_cast<void>(context.expectEq(kind + " conflict retains exact Unicode owner", owner, rejected.conflicts.front().ownerKey));
+        }
+        const auto foreignCleanup = unregister(foreignOwner);
+        static_cast<void>(
+            context.expectEq(kind + " foreign cleanup cannot remove registration", ErrorCode::AlreadyExists, foreignCleanup.status.code));
+        const auto coexist = registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Coexist);
+        static_cast<void>(context.expectTrue(kind + " foreign handler coexists", coexist.status.ok() && coexist.conflicts.size() == 1));
+        static_cast<void>(context.expectTrue(kind + " coexisting handler cleanup succeeds", unregister(foreignOwner).status.ok()));
+        const auto retained = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned);
+        static_cast<void>(context.expectTrue(kind + " original owner remains after foreign cleanup", retained.status.ok() && retained.replacedOwned));
+        if (file)
+        {
+            static_cast<void>(context.expectTrue(
+                "file alternative republishes",
+                registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Coexist).status.ok()));
+        }
+        static_cast<void>(context.expectTrue(kind + " owner cleanup succeeds", unregister(owner).status.ok()));
+        if (file)
+        {
+            const std::wstring applicationName = std::filesystem::path{absoluteExecutable}.filename().wstring();
+            const std::wstring applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
+            HKEY application = nullptr;
+            const LONG applicationStatus = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, &application);
+            if (application != nullptr)
+            {
+                RegCloseKey(application);
+            }
+            static_cast<void>(
+                context.expectEq("last owned file handler cleanup removes application record", LONG{ERROR_FILE_NOT_FOUND}, applicationStatus));
+            HKEY alternatives = nullptr;
+            const std::wstring alternativesPath = targetPath + L"\\OpenWithProgids";
+            const LONG opened = RegOpenKeyExW(HKEY_CURRENT_USER, alternativesPath.c_str(), 0, KEY_READ, &alternatives);
+            DWORD values = 0;
+            if (opened == ERROR_SUCCESS)
+            {
+                RegQueryInfoKeyW(alternatives, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &values, nullptr, nullptr, nullptr, nullptr);
+                RegCloseKey(alternatives);
+            }
+            static_cast<void>(
+                context.expectTrue("primary-owner cleanup preserves foreign Open with handler", opened == ERROR_SUCCESS && values == 1));
+            static_cast<void>(context.expectTrue("last coexisting file handler cleanup succeeds", unregister(foreignOwner).status.ok()));
+            HKEY remaining = nullptr;
+            const LONG remainingStatus = RegOpenKeyExW(HKEY_CURRENT_USER, targetPath.c_str(), 0, KEY_READ, &remaining);
+            if (remaining != nullptr)
+            {
+                RegCloseKey(remaining);
+            }
+            static_cast<void>(context.expectEq("last handler cleanup removes empty extension key", LONG{ERROR_FILE_NOT_FOUND}, remainingStatus));
+        }
+        static_cast<void>(context.expectEq(kind + " removed registration is absent", ErrorCode::NotFound, unregister(owner).status.code));
+    }
+}
+
+/// @brief Exercises Explorer's handler discovery and native dispatch to a controlled child.
+void testShellRegistrationLaunch(TestSupport::Context &context, const std::filesystem::path &executable)
+{
+    const HRESULT apartment = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    if (!context.expectTrue("association discovery enters STA", SUCCEEDED(apartment)))
+    {
+        return;
+    }
+    struct ApartmentCleanup
+    {
+        ~ApartmentCleanup()
+        {
+            CoUninitialize();
+        }
+    } apartmentCleanup;
+    // Always exercise generic separators, even when the test host was started by PowerShell.
+    const std::filesystem::path absoluteExecutable{std::filesystem::absolute(executable).generic_string()};
+    for (const bool file : {true, false})
+    {
+        const std::string token = std::format("{}-{}-{}", GetCurrentProcessId(), GetTickCount64(), file ? 1 : 2);
+        const std::string target = std::format("{}gamewip-launch-{}", file ? "." : "", token);
+        const std::string owner = "GameWIP.LaunchRegression." + token;
+        const std::string tokenArgument = "--desktop-shell-launch-token=" + token;
+        const std::string kind = file ? "file" : "URI";
+        TestSupport::ScopedTemporaryDirectory fixtures("desktop-association-launch");
+        if (!context.expectTrue(kind + " launch fixture creates", fixtures.status().ok()))
+        {
+            continue;
+        }
+        const auto path = fixtures.path() / ("probe with spaces" + target);
+        const std::wstring targetWide = manualDiagnosticWideText(target);
+        // Use a canonical URI; Windows adds the root slash to a bare authority.
+        const std::wstring launchTarget = file ? path.wstring() : targetWide + L"://probe/";
+        const std::string expectedTargetArgument = "--desktop-shell-launch-expected-target=" + (file ? path.string() : target + "://probe/");
+        const std::array<ShellTypes::LaunchArgumentView, 4> arguments{
+            ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"},
+            ShellTypes::LiteralLaunchArgumentView{tokenArgument},
+            ShellTypes::LiteralLaunchArgumentView{expectedTargetArgument},
+            file ? ShellTypes::LaunchPlaceholder::SelectedPath : ShellTypes::LaunchPlaceholder::SelectedUri};
+        const ShellTypes::LaunchActionView action{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, arguments};
+        const auto receiptPath = shellLaunchReceiptPath(token);
+        struct Cleanup
+        {
+            std::function<void()> remove;
+            ~Cleanup()
+            {
+                remove();
+            }
+        } cleanup{[&]
+                  {
+                      if (file)
+                      {
+                          static_cast<void>(Desktop::Registration::unregisterFileExtension(owner, target));
+                      }
+                      else
+                      {
+                          static_cast<void>(Desktop::Registration::unregisterUriScheme(owner, target));
+                      }
+                      static_cast<void>(TestSupport::removeIfExists(receiptPath));
+                      static_cast<void>(TestSupport::removeIfExists(receiptPath.string() + ".arguments"));
+                  }};
+        RegistrationTypes::Result registration;
+        if (file)
+        {
+            RegistrationTypes::FileExtensionDescription description;
+            description.ownerKey = owner;
+            description.extension = target;
+            description.displayName = "GameWIP association launch regression";
+            description.defaultAction = action;
+            registration = Desktop::Registration::registerFileExtension(description);
+        }
+        else
+        {
+            RegistrationTypes::UriSchemeDescription description;
+            description.ownerKey = owner;
+            description.scheme = target;
+            description.displayName = "GameWIP association launch regression";
+            description.defaultAction = action;
+            registration = Desktop::Registration::registerUriScheme(description);
+        }
+        if (!context.expectTrue(kind + " launch registration succeeds", registration.status.ok()))
+        {
+            continue;
+        }
+        std::wstring progId;
+        if (file)
+        {
+            IEnumAssocHandlers *handlers = nullptr;
+            const HRESULT enumerated = SHAssocEnumHandlers(targetWide.c_str(), ASSOC_FILTER_NONE, &handlers);
+            bool discovered = false;
+            bool named = false;
+            bool recommended = false;
+            if (SUCCEEDED(enumerated) && handlers != nullptr)
+            {
+                IAssocHandler *handler = nullptr;
+                while (handlers->Next(1, &handler, nullptr) == S_OK)
+                {
+                    PWSTR name = nullptr;
+                    if (SUCCEEDED(handler->GetName(&name)) && name != nullptr)
+                    {
+                        if (std::filesystem::path{name} == absoluteExecutable)
+                        {
+                            discovered = true;
+                            PWSTR uiName = nullptr;
+                            const HRESULT nameStatus = handler->GetUIName(&uiName);
+                            named =
+                                SUCCEEDED(nameStatus) && uiName != nullptr && std::wstring_view{uiName} == L"GameWIP association launch regression";
+                            context.info(
+                                std::format(
+                                    "handler display name: HRESULT={} matches={} recommended={}",
+                                    nameStatus,
+                                    named,
+                                    handler->IsRecommended()));
+                            CoTaskMemFree(uiName);
+                            recommended = handler->IsRecommended() == S_OK;
+                        }
+                        CoTaskMemFree(name);
+                    }
+                    handler->Release();
+                }
+                handlers->Release();
+            }
+            static_cast<void>(context.expectTrue("Windows Open with enumerates the registered executable", discovered));
+            static_cast<void>(context.expectTrue("Windows Open with resolves the registration display name", named));
+            static_cast<void>(context.expectTrue("Windows Open with recommends the registered handler", recommended));
+            std::array<wchar_t, 4096> value{};
+            DWORD size = sizeof(value);
+            const auto key = L"Software\\Classes\\" + targetWide;
+            if (!context.expectEq(
+                    "file dispatch ProgID reads",
+                    LONG{ERROR_SUCCESS},
+                    RegGetValueW(HKEY_CURRENT_USER, key.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, value.data(), &size)))
+            {
+                continue;
+            }
+            progId = value.data();
+        }
+        if (file && !context.expectTrue("launch file writes", TestSupport::writeTextFile(path, "controlled launch").ok()))
+        {
+            continue;
+        }
+        SHELLEXECUTEINFOW launch{};
+        launch.cbSize = sizeof(launch);
+        launch.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+        if (file)
+        {
+            launch.fMask |= SEE_MASK_CLASSNAME;
+            launch.lpClass = progId.c_str();
+        }
+        launch.lpVerb = L"open";
+        launch.lpFile = launchTarget.c_str();
+        launch.nShow = SW_HIDE;
+        const bool launched = ShellExecuteExW(&launch) != FALSE;
+        context.info(std::format("{} ShellExecuteEx: success={} native={}", kind, launched, launched ? 0 : GetLastError()));
+        static_cast<void>(context.expectTrue(kind + " Windows dispatch launches the handler", launched));
+        if (launch.hProcess != nullptr)
+        {
+            const DWORD finished = WaitForSingleObject(launch.hProcess, 10000);
+            static_cast<void>(context.expectEq(kind + " controlled handler completes", DWORD{WAIT_OBJECT_0}, finished));
+            DWORD exitCode = 0;
+            static_cast<void>(context.expectTrue(
+                kind + " selected target arrives as one exact argument",
+                GetExitCodeProcess(launch.hProcess, &exitCode) != FALSE && exitCode == 0));
+            CloseHandle(launch.hProcess);
+        }
+        const auto receipt = TestSupport::readTextFile(receiptPath);
+        const auto receivedArguments = TestSupport::readTextFile(receiptPath.string() + ".arguments");
+        if (receivedArguments.status.ok())
+        {
+            context.info(kind + " received arguments:\n" + receivedArguments.text);
+        }
+        static_cast<void>(context.expectTrue(kind + " controlled launch receipt matches", launched && receipt.status.ok() && receipt.text == token));
+    }
+}
+#endif
+
+void testTrayNativeCallbacks(TestSupport::Context &context)
+{
+    const std::array<std::byte, 4> pixel{std::byte{0x11}, std::byte{0x22}, std::byte{0x33}, std::byte{0xFF}};
+    const Desktop::Types::IconImageView icon{{1, 1}, pixel};
+    Desktop::ShellEventQueue queue;
+    if (!context.expectTrue("tray callback queue opens", queue.open(16).ok()))
+    {
+        return;
+    }
+    TrayTypes::Description description;
+    description.icons = std::span{&icon, 1};
+    description.tooltip = "GameWIP callback regression";
+    Desktop::TrayIcon tray;
+    if (!context.expectTrue("tray callback icon opens", tray.open(description, queue).ok()))
+    {
+        return;
+    }
+    const HWND window = FindWindowExW(nullptr, nullptr, L"GameWIP.Shell.TrayMessage", L"GameWIP tray");
+    if (!context.expectTrue("tray owns a broadcast-capable hidden window", window != nullptr))
+    {
+        return;
+    }
+    DWORD process = 0;
+    const DWORD thread = GetWindowThreadProcessId(window, &process);
+    if (!context.expectTrue("tray callback target belongs to this owner", process == GetCurrentProcessId() && thread == GetCurrentThreadId()))
+    {
+        return;
+    }
+    constexpr UINT callback = WM_APP + 0x271;
+    const auto verify = [&](UINT event, ShellTypes::Events::TrayActivationKind kind)
+    {
+        queue.clearEvents();
+        SendMessageW(window, callback, MAKELPARAM(-120, 240), MAKELPARAM(event, 1));
+        ShellTypes::Event received;
+        const bool popped = queue.popEvent(received);
+        const auto *activation = received.getIf<ShellTypes::Events::TrayActivated>();
+        static_cast<void>(context.expectTrue(
+            std::format("packed tray callback {} delivers exact activation and anchor", event),
+            popped && activation != nullptr && activation->iconId == tray.id() && activation->kind == kind &&
+                activation->screenPosition == std::optional{Desktop::Types::ScreenPosition{-120, 240}}));
+        static_cast<void>(context.expectFalse("tray callback does not duplicate activation", queue.popEvent(received)));
+    };
+    verify(NIN_SELECT, ShellTypes::Events::TrayActivationKind::Primary);
+    verify(NIN_KEYSELECT, ShellTypes::Events::TrayActivationKind::Primary);
+    verify(WM_LBUTTONDBLCLK, ShellTypes::Events::TrayActivationKind::DoublePrimary);
+    verify(WM_CONTEXTMENU, ShellTypes::Events::TrayActivationKind::Secondary);
+    NOTIFYICONDATAW deleted{};
+    deleted.cbSize = sizeof(deleted);
+    deleted.hWnd = window;
+    deleted.uID = 1;
+    static_cast<void>(context.expectTrue("recreation fixture removes only its own tray icon", Shell_NotifyIconW(NIM_DELETE, &deleted) != FALSE));
+    SendMessageW(window, RegisterWindowMessageW(L"TaskbarCreated"), 0, 0);
+    verify(NIN_KEYSELECT, ShellTypes::Events::TrayActivationKind::Primary);
+    queue.clearEvents();
+    SendMessageW(window, callback, 0, MAKELPARAM(WM_LBUTTONUP, 1));
+    SendMessageW(window, callback, 0, MAKELPARAM(WM_RBUTTONUP, 1));
+    ShellTypes::Event received;
+    static_cast<void>(context.expectFalse("version 4 button-up does not duplicate select or context-menu", queue.popEvent(received)));
+    static_cast<void>(context.expectFalse("tray message window is invisible", IsWindowVisible(window) != FALSE));
+}
 
 void testShellQueueAndCapabilities(TestSupport::Context &context)
 {

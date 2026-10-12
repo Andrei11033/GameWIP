@@ -291,6 +291,8 @@ namespace GameWIP::TestSupport
     /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @return Selected answer, or Skipped on end-of-input.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question);
+    /// @brief Prompts for a manual answer and preserves an optional "s reason" or end-of-input reason.
+    Types::Reporting::ManualAnswer promptManualCheck(std::string_view question, std::string &skipReason);
 
     // ------------------------------------------------------------
     // Template implementations

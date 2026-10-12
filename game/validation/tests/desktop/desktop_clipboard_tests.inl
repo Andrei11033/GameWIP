@@ -20,11 +20,45 @@ std::span<const std::byte> nativeClipboardBytes(const void *data, std::size_t si
 #pragma clang unsafe_buffer_usage end
 #endif
 
-bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
+// External clipboard owners can briefly hold access while our malformed-format fixtures publish.
+bool openNativeClipboardFixture(
+    HWND owner,
+    TestSupport::Context *context = nullptr,
+    std::chrono::milliseconds timeout = std::chrono::milliseconds{250})
+{
+    const auto deadline = std::chrono::steady_clock::now() + timeout;
+    DWORD error = ERROR_SUCCESS;
+    std::size_t attempts = 0;
+    do
+    {
+        ++attempts;
+        if (OpenClipboard(owner) != FALSE)
+        {
+            return true;
+        }
+        error = GetLastError();
+        if (std::chrono::steady_clock::now() >= deadline)
+        {
+            break;
+        }
+        Sleep(1);
+    } while (true);
+    if (context != nullptr)
+    {
+        context->info(std::format("Clipboard fixture: OpenClipboard failed, native={}, attempts={}, timeout={}ms", error, attempts, timeout.count()));
+    }
+    return false;
+}
+
+bool publishNativeClipboardData(TestSupport::Context &context, UINT format, std::span<const std::byte> bytes)
 {
     HWND owner =
         CreateWindowExW(0, L"STATIC", L"GameWIP Clipboard Test Owner", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-    if (owner == nullptr || OpenClipboard(owner) == FALSE)
+    if (owner == nullptr)
+    {
+        context.info(std::format("Clipboard fixture: CreateWindowExW failed, native={}", GetLastError()));
+    }
+    if (owner == nullptr || !openNativeClipboardFixture(owner, &context))
     {
         if (owner != nullptr)
         {
@@ -32,13 +66,21 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
         }
         return false;
     }
-    bool success = EmptyClipboard() != FALSE;
+    const auto diagnose = [&](const char *call, bool success)
+    {
+        if (!success)
+        {
+            context.info(std::format("Clipboard fixture: {} failed, native={}, format={}", call, GetLastError(), format));
+        }
+        return success;
+    };
+    bool success = diagnose("EmptyClipboard", EmptyClipboard() != FALSE);
     HGLOBAL memory = success ? GlobalAlloc(GMEM_MOVEABLE, bytes.size()) : nullptr;
-    success = success && memory != nullptr;
+    success = success && diagnose("GlobalAlloc", memory != nullptr);
     if (success && !bytes.empty())
     {
         void *destination = GlobalLock(memory);
-        success = destination != nullptr;
+        success = diagnose("GlobalLock", destination != nullptr);
         if (success)
         {
             std::ranges::copy(bytes, nativeClipboardBytes(destination, bytes.size()).begin());
@@ -50,7 +92,7 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
     }
     if (success)
     {
-        success = SetClipboardData(format, memory) != nullptr;
+        success = diagnose("SetClipboardData", SetClipboardData(format, memory) != nullptr);
         if (success)
         {
             memory = nullptr;
@@ -60,18 +102,22 @@ bool publishNativeClipboardData(UINT format, std::span<const std::byte> bytes)
     {
         static_cast<void>(GlobalFree(memory));
     }
-    success = CloseClipboard() != FALSE && success;
+    success = diagnose("CloseClipboard", CloseClipboard() != FALSE) && success;
     static_cast<void>(DestroyWindow(owner));
     return success;
 }
 
-bool readNativeDibV5Header(BITMAPV5HEADER &header)
+bool readNativeDibV5Header(TestSupport::Context &context, BITMAPV5HEADER &header)
 {
-    if (OpenClipboard(nullptr) == FALSE)
+    if (!openNativeClipboardFixture(nullptr, &context))
     {
         return false;
     }
     const HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(CF_DIBV5));
+    if (memory == nullptr)
+    {
+        context.info(std::format("Clipboard fixture: GetClipboardData(CF_DIBV5) failed, native={}", GetLastError()));
+    }
     const bool largeEnough = memory != nullptr && GlobalSize(memory) >= sizeof(header);
     const void *data = largeEnough ? GlobalLock(memory) : nullptr;
     if (data != nullptr)
@@ -82,8 +128,12 @@ bool readNativeDibV5Header(BITMAPV5HEADER &header)
     {
         static_cast<void>(GlobalUnlock(memory));
     }
-    static_cast<void>(CloseClipboard());
-    return data != nullptr;
+    const bool closed = CloseClipboard() != FALSE;
+    if (!closed)
+    {
+        context.info(std::format("Clipboard fixture: CloseClipboard failed, native={}", GetLastError()));
+    }
+    return data != nullptr && closed;
 }
 
 void testClipboardValuesAndValidation(TestSupport::Context &context)
@@ -210,8 +260,10 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     const auto imageWrite = Clipboard::writeImage({{2, 2}, 12, paddedPixels});
     static_cast<void>(context.expectTrue("padded RGBA8 image publishes", imageWrite.status.ok()));
     BITMAPV5HEADER publishedHeader{};
-    static_cast<void>(context.expectTrue("published DIBV5 header is readable", readNativeDibV5Header(publishedHeader)));
-    static_cast<void>(context.expectEq("published DIBV5 uses image rendering intent", DWORD{LCS_GM_IMAGES}, publishedHeader.bV5Intent));
+    if (context.expectTrue("published DIBV5 header is readable", readNativeDibV5Header(context, publishedHeader)))
+    {
+        static_cast<void>(context.expectEq("published DIBV5 uses image rendering intent", DWORD{LCS_GM_IMAGES}, publishedHeader.bV5Intent));
+    }
     const auto imageRead = Clipboard::readImage();
     const std::vector<std::byte> expectedPixels{
         paddedPixels[0],
@@ -259,9 +311,11 @@ void testClipboardRoundTrips(TestSupport::Context &context)
 
     const std::array<wchar_t, 2> malformedWide{static_cast<wchar_t>(0xD800), L'\0'};
     const auto malformedWideBytes = std::as_bytes(std::span{malformedWide});
-    static_cast<void>(
-        context.expectTrue("native malformed Unicode fixture publishes", publishNativeClipboardData(CF_UNICODETEXT, malformedWideBytes)));
-    static_cast<void>(context.expectEq("malformed native Unicode is EncodingFailed", ErrorCode::EncodingFailed, Clipboard::readText().status.code));
+    if (context.expectTrue("native malformed Unicode fixture publishes", publishNativeClipboardData(context, CF_UNICODETEXT, malformedWideBytes)))
+    {
+        static_cast<void>(
+            context.expectEq("malformed native Unicode is EncodingFailed", ErrorCode::EncodingFailed, Clipboard::readText().status.code));
+    }
 
     BITMAPINFOHEADER dibHeader{};
     dibHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -277,13 +331,15 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     rgbDib[sizeof(dibHeader) + 1] = std::byte{0x22};
     rgbDib[sizeof(dibHeader) + 2] = std::byte{0x11};
     rgbDib[sizeof(dibHeader) + 3] = std::byte{0x00};
-    static_cast<void>(context.expectTrue("foreign BI_RGB fixture publishes", publishNativeClipboardData(CF_DIB, rgbDib)));
-    const auto rgbRead = Clipboard::readImage();
-    static_cast<void>(context.expectTrue("foreign BI_RGB image reads", rgbRead.status.ok()));
-    if (rgbRead.image.rgba8.size() == 4)
+    if (context.expectTrue("foreign BI_RGB fixture publishes", publishNativeClipboardData(context, CF_DIB, rgbDib)))
     {
-        static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead.image.rgba8[0]));
-        static_cast<void>(context.expectEq("foreign RGB alpha becomes opaque", std::byte{0xFF}, rgbRead.image.rgba8[3]));
+        const auto rgbRead = Clipboard::readImage();
+        static_cast<void>(context.expectTrue("foreign BI_RGB image reads", rgbRead.status.ok()));
+        if (rgbRead.image.rgba8.size() == 4)
+        {
+            static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead.image.rgba8[0]));
+            static_cast<void>(context.expectEq("foreign RGB alpha becomes opaque", std::byte{0xFF}, rgbRead.image.rgba8[3]));
+        }
     }
 
     BITMAPV5HEADER unsupportedHeader{};
@@ -299,8 +355,75 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     unsupportedHeader.bV5BlueMask = 0x00FF0000U;
     std::vector<std::byte> unsupportedDib(sizeof(unsupportedHeader) + 4);
     std::ranges::copy(std::as_bytes(std::span{&unsupportedHeader, std::size_t{1}}), unsupportedDib.begin());
-    static_cast<void>(context.expectTrue("valid nonstandard-mask DIB fixture publishes", publishNativeClipboardData(CF_DIBV5, unsupportedDib)));
-    static_cast<void>(context.expectEq("valid nonstandard-mask image is Unsupported", ErrorCode::Unsupported, Clipboard::readImage().status.code));
+    if (context.expectTrue("valid nonstandard-mask DIB fixture publishes", publishNativeClipboardData(context, CF_DIBV5, unsupportedDib)))
+    {
+        static_cast<void>(
+            context.expectEq("valid nonstandard-mask image is Unsupported", ErrorCode::Unsupported, Clipboard::readImage().status.code));
+    }
+}
+
+void testClipboardFixtureContention(TestSupport::Context &context)
+{
+    for (const bool releaseSoon : {true, false})
+    {
+        std::atomic<bool> ready = false;
+        std::atomic<bool> release = false;
+        bool locked = false;
+        std::jthread holder(
+            [&]
+            {
+                const HWND owner = CreateWindowExW(
+                    0,
+                    L"STATIC",
+                    L"GameWIP Clipboard Fixture Contention",
+                    WS_POPUP,
+                    0,
+                    0,
+                    0,
+                    0,
+                    nullptr,
+                    nullptr,
+                    GetModuleHandleW(nullptr),
+                    nullptr);
+                locked = owner != nullptr && openNativeClipboardFixture(owner);
+                ready.store(true, std::memory_order_release);
+                ready.notify_one();
+                if (locked)
+                {
+                    if (releaseSoon)
+                    {
+                        Sleep(30);
+                    }
+                    else
+                    {
+                        release.wait(false, std::memory_order_acquire);
+                    }
+                    CloseClipboard();
+                }
+                if (owner != nullptr)
+                {
+                    DestroyWindow(owner);
+                }
+            });
+        ready.wait(false, std::memory_order_acquire);
+        if (context.expectTrue("contention fixture acquires clipboard on separate thread", locked))
+        {
+            const auto started = std::chrono::steady_clock::now();
+            const bool opened = openNativeClipboardFixture(nullptr, &context, std::chrono::milliseconds{80});
+            static_cast<void>(context.expectEq(
+                releaseSoon ? "fixture retries until foreign owner releases" : "fixture reports bounded access failure",
+                releaseSoon,
+                opened));
+            if (opened)
+            {
+                CloseClipboard();
+            }
+            static_cast<void>(
+                context.expectTrue("fixture retry stays bounded", std::chrono::steady_clock::now() - started < std::chrono::seconds{1}));
+        }
+        release.store(true, std::memory_order_release);
+        release.notify_one();
+    }
 }
 
 void testClipboardMultiFormatAndFailures(TestSupport::Context &context)

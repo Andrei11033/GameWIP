@@ -26,10 +26,12 @@
 #include "desktop/shell_types.h"
 #include "desktop/window.h"
 #include "unicode/unicode.h"
+#include "filesystem/file.h"
 
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
+#include <propkey.h>
 
 #ifndef DESKTOP_INTERNAL_TEST_HOOKS
 #define DESKTOP_INTERNAL_TEST_HOOKS 0
@@ -416,6 +418,7 @@ namespace
 #include "validation/tests/desktop/desktop_cursor_tests.inl"
 #include "validation/tests/desktop/desktop_child_surface_tests.inl"
 #include "validation/tests/desktop/desktop_clipboard_tests.inl"
+#include "validation/tests/desktop/desktop_manual_clipboard_tests.inl"
 #include "validation/tests/desktop/desktop_drag_drop_tests.inl"
 #include "validation/tests/desktop/desktop_shell_tests.inl"
 } // namespace
@@ -461,16 +464,32 @@ namespace GameWIP::Test
             return runDeferredPumpFailureWaitChild();
         }
 #if DESKTOP_INTERNAL_TEST_HOOKS
+        if (hasArgument(argc, argv, "--desktop-test-child=cold-com-apartment"))
+        {
+            return runColdApartmentChild();
+        }
+        if (hasArgument(argc, argv, "--desktop-test-child=jump-list-publication"))
+        {
+            return runJumpListPublicationChild(argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+        }
         if (hasArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
         {
             return runProgressRestoreMessageLazinessChild();
         }
 #endif
 
+        if (hasArgument(argc, argv, "--desktop-test-child=shell-launch-probe"))
+        {
+            return runShellLaunchProbeChild(argc, argv);
+        }
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
         std::optional<std::string_view> selectedManualSuite;
+        manualCaseSelection.reset();
+        manualCasesSelected = 0;
+        const bool manualOnly = hasArgument(argc, argv, "--desktop-manual-only");
         constexpr std::string_view manualSuitePrefix = "--desktop-manual-suite=";
+        constexpr std::string_view manualCasePrefix = "--desktop-manual-case=";
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
@@ -478,25 +497,19 @@ namespace GameWIP::Test
             {
                 selectedManualSuite = std::string_view(value).substr(manualSuitePrefix.size());
             }
+            if (value != nullptr && std::string_view(value).starts_with(manualCasePrefix))
+            {
+                manualCaseSelection = std::string_view(value).substr(manualCasePrefix.size());
+            }
         }
         constexpr std::array manualSuiteNames{
-            std::string_view{"lifecycle"},
-            std::string_view{"accessibility"},
-            std::string_view{"multiple-windows"},
-            std::string_view{"custom-chrome"},
-            std::string_view{"layered-pointer"},
-            std::string_view{"dpi"},
-            std::string_view{"cursor"},
-            std::string_view{"child-surface"},
-            std::string_view{"files-shell"},
-            std::string_view{"drag-drop"},
-            std::string_view{"dialogs"},
-            std::string_view{"fullscreen"},
-            std::string_view{"borderless"},
-            std::string_view{"exclusive"},
-            std::string_view{"topology"},
-            std::string_view{"hdr"},
-            std::string_view{"modern"}};
+            std::string_view{"lifecycle"},     std::string_view{"accessibility"},   std::string_view{"multiple-windows"},
+            std::string_view{"custom-chrome"}, std::string_view{"layered-pointer"}, std::string_view{"dpi"},
+            std::string_view{"cursor"},        std::string_view{"child-surface"},   std::string_view{"files-shell"},
+            std::string_view{"shell"},         std::string_view{"files-window"},    std::string_view{"clipboard"},
+            std::string_view{"drag-drop"},     std::string_view{"dialogs"},         std::string_view{"fullscreen"},
+            std::string_view{"borderless"},    std::string_view{"exclusive"},       std::string_view{"topology"},
+            std::string_view{"hdr"},           std::string_view{"modern"}};
 
         TestSupport::Types::Reporting::Options reportOptions;
         reportOptions.writeConsole = true;
@@ -509,6 +522,7 @@ namespace GameWIP::Test
 
         TestSupport::Runner runner(reportOptions);
         ManualStatusWindow statusWindow(options.enableManualTests);
+        manualObservationCounts = {};
         manualStatusWindow = &statusWindow;
         if (options.enableManualTests)
         {
@@ -519,62 +533,99 @@ namespace GameWIP::Test
                     static_cast<void>(context.expectTrue("manual test AppUserModelID applies", SUCCEEDED(manualShellIdentityStatus)));
                 });
         }
-        runner.runSuite("Window passive values and closed state", testPassiveValuesAndClosedState);
-        runAccessibilityTests(runner);
-        runner.runSuite("Window Clipboard values and validation", testClipboardValuesAndValidation);
-        runner.runSuite("Window Clipboard native round trips", testClipboardRoundTrips);
-        runner.runSuite("Window Clipboard multi-format and failure semantics", testClipboardMultiFormatAndFailures);
-        runner.runSuite("Window native data drag and drop", testDragDrop);
-        runner.runSuite("Window description validation", testDescriptionValidation);
-        runner.runSuite("Window native construction lifecycle", testNativeConstructionLifecycle);
-        runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
-        runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
+        if (manualOnly && !options.enableManualTests)
+        {
+            runner.runSuite(
+                "Desktop manual selection",
+                [](TestSupport::Context &context)
+                {
+                    context.fail("manual-only requires --manual-tests", "enable manual tests explicitly before omitting automated checks");
+                });
+        }
+        if (!manualOnly)
+        {
+            runner.runSuite("Window passive values and closed state", testPassiveValuesAndClosedState);
+            runAccessibilityTests(runner);
+            runner.runSuite("Window Clipboard values and validation", testClipboardValuesAndValidation);
+            runner.runSuite("Window Clipboard native round trips", testClipboardRoundTrips);
+            runner.runSuite("Window Clipboard multi-format and failure semantics", testClipboardMultiFormatAndFailures);
+            runner.runSuite("Desktop clipboard fixture contention", testClipboardFixtureContention);
+            runner.runSuite("Window native data drag and drop", testDragDrop);
+            runner.runSuite("Window description validation", testDescriptionValidation);
+            runner.runSuite("Window native construction lifecycle", testNativeConstructionLifecycle);
+            runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
+            runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
 #if DESKTOP_INTERNAL_TEST_HOOKS
-        runner.runSuite("Desktop file and folder dialogs", testFileAndFolderDialogs);
-        runner.runSuite("Desktop dialog COM apartments", testDialogApartmentContracts);
-        runner.runSuite("Desktop fixed-button messages", testMessageDialogs);
-        runner.runSuite("Desktop semantic prompts", testPromptDialogs);
-        runner.runSuite("Desktop ProgressDialog validation", testProgressDialogValidation);
-        runner.runSuite("Desktop ProgressDialog native lifecycle", testProgressDialogNativeLifecycle);
-        runner.runSuite("Desktop ProgressDialog ownership", testProgressDialogOwnership);
-        runner.runSuite("Desktop ProgressDialog exceptional lifetime", testProgressDialogExceptionalLifetime);
-        runner.runSuite("Window custom cursor native resources", testCursorNativeResources);
-        runner.runSuite("Window custom cursor integration", testCursorWindowIntegration);
-        runner.runSuite("Window custom cursor lifecycle", testCursorLifecycle);
-        runner.runSuite("Window fixed event queue", testFixedEventQueue);
-        runner.runSuite("Window sticky close", testStickyClose);
-        runner.runSuite("Window deterministic failure paths", testFailureInjection);
-        runner.runSuite("Window threading contracts", testThreadingContracts);
-        runner.runSuite("Window exceptional lifetime", testExceptionalLifetime);
-        runner.runSuite("Window cross-thread presentation publication", testPresentationPublication);
-        runner.runSuite("Window packed pointer hit mask", testPointerHitMask);
+            runner.runSuite("Desktop file and folder dialogs", testFileAndFolderDialogs);
+            runner.runSuite(
+                "Desktop dialog and shell COM apartments",
+                [&](TestSupport::Context &context)
+                {
+                    testDialogApartmentContracts(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                });
+            runner.runSuite("Desktop fixed-button messages", testMessageDialogs);
+            runner.runSuite("Desktop semantic prompts", testPromptDialogs);
+            runner.runSuite("Desktop ProgressDialog validation", testProgressDialogValidation);
+            runner.runSuite("Desktop ProgressDialog native lifecycle", testProgressDialogNativeLifecycle);
+            runner.runSuite("Desktop ProgressDialog ownership", testProgressDialogOwnership);
+            runner.runSuite("Desktop ProgressDialog exceptional lifetime", testProgressDialogExceptionalLifetime);
+            runner.runSuite("Window custom cursor native resources", testCursorNativeResources);
+            runner.runSuite("Window custom cursor integration", testCursorWindowIntegration);
+            runner.runSuite("Window custom cursor lifecycle", testCursorLifecycle);
+            runner.runSuite("Window fixed event queue", testFixedEventQueue);
+            runner.runSuite("Window sticky close", testStickyClose);
+            runner.runSuite("Window deterministic failure paths", testFailureInjection);
+            runner.runSuite("Window threading contracts", testThreadingContracts);
+            runner.runSuite("Window exceptional lifetime", testExceptionalLifetime);
+            runner.runSuite("Window cross-thread presentation publication", testPresentationPublication);
+            runner.runSuite("Window packed pointer hit mask", testPointerHitMask);
 #else
-        runner.runSuite(
-            "Window fixed event queue",
-            [](TestSupport::Context &context)
-            {
-                context.skip("Desktop queue hooks", "DESKTOP_INTERNAL_TEST_HOOKS is disabled");
-            });
+            runner.runSuite(
+                "Window fixed event queue",
+                [](TestSupport::Context &context)
+                {
+                    context.skip("Desktop queue hooks", "DESKTOP_INTERNAL_TEST_HOOKS is disabled");
+                });
 #endif
-        runner.runSuite("Window hidden native lifecycle", testHiddenNativeWindow);
-        runner.runSuite("Window native child surfaces", testChildSurfaces);
-        runner.runSuite("Window native event translation", testNativeEventTranslation);
-        runner.runSuite("Desktop shell queue and capabilities", testShellQueueAndCapabilities);
-        runner.runSuite("Desktop shell pumping without Window", testShellPumpingWithoutWindow);
-        runner.runSuite("Desktop shell validation", testShellValidation);
-        runner.runSuite("Desktop shell native lifetimes", testShellNativeLifetimes);
+            runner.runSuite("Window hidden native lifecycle", testHiddenNativeWindow);
+            runner.runSuite("Window native child surfaces", testChildSurfaces);
+            runner.runSuite("Window native event translation", testNativeEventTranslation);
+            runner.runSuite("Desktop shell queue and capabilities", testShellQueueAndCapabilities);
+            runner.runSuite("Desktop shell pumping without Window", testShellPumpingWithoutWindow);
+            runner.runSuite("Desktop shell validation", testShellValidation);
+            runner.runSuite("Desktop shell native lifetimes", testShellNativeLifetimes);
+            runner.runSuite("Desktop tray native callbacks", testTrayNativeCallbacks);
 #if DESKTOP_INTERNAL_TEST_HOOKS
-        runner.runSuite("Desktop shell failure hooks", testShellFailureHooks);
+            runner.runSuite("Desktop shell failure hooks", testShellFailureHooks);
+            runner.runSuite(
+                "Desktop jump-list native publication",
+                [&](TestSupport::Context &context)
+                {
+                    testJumpListNativePublication(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                });
+            runner.runSuite(
+                "Desktop shell registration ownership",
+                [&](TestSupport::Context &context)
+                {
+                    testShellRegistrationOwnership(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                });
+            runner.runSuite(
+                "Desktop shell association discovery and launch",
+                [&](TestSupport::Context &context)
+                {
+                    testShellRegistrationLaunch(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                });
 #endif
-        runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
-        runner.runSuite("Window display color information", testDisplayColorInformation);
-        runner.runSuite(
-            "Window process-isolated shutdown",
-            [&](TestSupport::Context &context)
-            {
-                testDesktopProcessShutdown(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
-            });
-        runner.runSuite("Window monitors and display modes", testMonitors);
+            runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
+            runner.runSuite("Window display color information", testDisplayColorInformation);
+            runner.runSuite(
+                "Window process-isolated shutdown",
+                [&](TestSupport::Context &context)
+                {
+                    testDesktopProcessShutdown(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                });
+            runner.runSuite("Window monitors and display modes", testMonitors);
+        }
         const bool validManualSelection = !selectedManualSuite || std::ranges::find(manualSuiteNames, *selectedManualSuite) != manualSuiteNames.end();
         if (!validManualSelection)
         {
@@ -619,7 +670,28 @@ namespace GameWIP::Test
         runManualSuite("Window manual DPI and coordinates", "dpi", testManualDpiAndCoordinates);
         runManualSuite("Window manual cursor behavior", "cursor", testManualCursor);
         runManualSuite("Window manual native child surface", "child-surface", testManualChildSurface);
-        runManualSuite("Window manual files and shell behavior", "files-shell", testManualFilesAndShell);
+        runManualSuite(
+            "Window manual files and shell behavior",
+            "files-shell",
+            [](TestSupport::Context &context, const DesktopTestOptions &manualOptions)
+            {
+                testManualFilesAndShell(context, manualOptions);
+            });
+        runSelectedManualSuite(
+            "Desktop manual shell integration",
+            "shell",
+            [](TestSupport::Context &context, const DesktopTestOptions &manualOptions)
+            {
+                testManualFilesAndShell(context, manualOptions, false, true);
+            });
+        runSelectedManualSuite(
+            "Window manual files and frame behavior",
+            "files-window",
+            [](TestSupport::Context &context, const DesktopTestOptions &manualOptions)
+            {
+                testManualFilesAndShell(context, manualOptions, true, false);
+            });
+        runManualSuite("Desktop manual clipboard interoperability", "clipboard", testManualClipboard);
         runManualSuite("Window manual native data drag and drop", "drag-drop", testManualDragDrop);
         runManualSuite("Desktop manual native dialogs", "dialogs", testManualDialogs);
         runManualSuite(
@@ -662,7 +734,25 @@ namespace GameWIP::Test
         runManualSuite("Window manual HDR and advanced color", "hdr", testManualHdrAndAdvancedColor);
         runManualSuite("Window manual modern Windows capabilities", "modern", testManualModernWindowsCapabilities);
 
+        if (options.enableManualTests && manualCaseSelection && manualCasesSelected == 0)
+        {
+            runner.runSuite(
+                "Desktop manual case selection",
+                [&](TestSupport::Context &context)
+                {
+                    context.fail("manual case selector matched no scenarios", std::string(*manualCaseSelection));
+                });
+        }
         const TestSupport::Types::Reporting::Summary result = runner.result();
+        if (options.enableManualTests)
+        {
+            runner.summary(
+                std::format(
+                    "Desktop manual observations passed={} failed={} skipped={} (excludes setup and contract assertions)",
+                    manualObservationCounts.passed,
+                    manualObservationCounts.failed,
+                    manualObservationCounts.skipped));
+        }
         runner.summary(std::format("Desktop library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         manualStatusWindow = nullptr;
         return runner.exitCode();

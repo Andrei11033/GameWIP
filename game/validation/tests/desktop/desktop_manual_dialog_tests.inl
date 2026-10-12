@@ -3,10 +3,125 @@
 
 namespace ManualProgressTypes = Desktop::Types::Dialogs::Progress;
 
+/// @brief Reproducible counterparts of the guided overwrite and live DPI checks.
+void testManualFocusedDialogs(TestSupport::Context &context)
+{
+    const bool saveSelected = manualCaseSelected("save-overwrite-dpi");
+    const bool progressSelected = manualCaseSelected("progress-dpi");
+    if (!saveSelected && !progressSelected)
+    {
+        return;
+    }
+    Desktop::Window owner;
+    if (!openManualWindow(context, owner, "GameWIP focused dialog validation"))
+    {
+        return;
+    }
+    if (saveSelected)
+    {
+        TestSupport::ScopedTemporaryDirectory fixtures("desktop-save-overwrite");
+        const auto path = fixtures.path() / "overwrite-check.gamewip";
+        constexpr std::string_view marker = "Existing file must remain unchanged by the path picker.\n";
+        if (!context.expectTrue("overwrite fixture creates", fixtures.status().ok() && TestSupport::writeTextFile(path, marker).ok()))
+        {
+            return;
+        }
+        const std::array extensions{std::string_view{"gamewip"}};
+        const std::array filters{FileDialogs::Filter{"GameWIP validation", extensions}};
+        FileDialogs::SaveDescription description;
+        description.owner = &owner;
+        description.title = "GameWIP overwrite and monitor scaling validation";
+        description.filters = filters;
+        description.preferredFilterIndex = 0;
+        description.suggestedDirectory = fixtures.path();
+        description.suggestedFileName = "overwrite-check";
+        description.suggestedExtension = "gamewip";
+        constexpr std::string_view instruction =
+            "Move the Save picker across differently scaled monitors if available. Then Save the existing overwrite-check.gamewip: choose No, verify "
+            "the picker stays open, Save again and choose Yes. The shared Windows picker can pause during DPI relayout.";
+        if (manualStatusWindow != nullptr)
+        {
+            manualStatusWindow->setScenario("save-overwrite-dpi", instruction);
+            manualStatusWindow->refresh(owner);
+        }
+        context.manual(instruction);
+        const auto result = Desktop::Dialogs::saveFile(description);
+        const auto answer = recordManualCheck(
+            context,
+            owner,
+            "save-overwrite-dpi",
+            "Did both overwrite confirmation paths work, and did the picker stay sharp, correctly laid out and responsive after changing monitors? "
+            "Skip if you could not exercise the requested paths.");
+        if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+        {
+            static_cast<void>(context.expectTrue(
+                "overwrite picker accepts exact fixture and filter",
+                result.status.ok() && result.outcome == DialogTypes::Outcome::Accepted && result.path == path &&
+                    result.selectedFilterIndex == std::optional<std::size_t>{0}));
+            const auto unchanged = TestSupport::readTextFile(path);
+            static_cast<void>(
+                context.expectTrue("overwrite path selection preserves existing file bytes", unchanged.status.ok() && unchanged.text == marker));
+        }
+    }
+    if (progressSelected)
+    {
+        Desktop::ProgressDialog progress;
+        ManualProgressTypes::Description description;
+        description.title = "GameWIP live progress scaling validation";
+        description.heading = "Move between differently scaled monitors";
+        description.message = "Progress updates while you drag. Check sharp text and clipping, then press Cancel.";
+        description.mode = ManualProgressTypes::Mode::Determinate;
+        description.cancelable = true;
+        description.blocksOwner = false;
+        if (!requireManualStatus(context, "focused progress opens", progress.open(description)))
+        {
+            return;
+        }
+        const auto started = std::chrono::steady_clock::now();
+        bool updateFailed = false;
+        const auto answer = recordManualCheck(
+            context,
+            owner,
+            "progress-dpi",
+            "Move the progress dialog between differently scaled monitors while progress updates. Does it adjust promptly without clipping or "
+            "freezing? Press Cancel, then confirm.",
+            [&]
+            {
+                const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
+                if (!updateFailed && !progress.hasCancelRequest())
+                {
+                    const auto updated = progress.setProgress(static_cast<double>(elapsed % 5000) / 5000.0);
+                    if (!updated.ok())
+                    {
+                        updateFailed = true;
+                        context.fail("live progress update", updated.message);
+                    }
+                }
+                if (manualStatusWindow != nullptr)
+                {
+                    manualStatusWindow->setObservation(
+                        progress.hasCancelRequest() ? "Cancel request received; waiting for your answer."
+                                                    : "Live progress updates; move the dialog, then press Cancel.");
+                }
+            });
+        if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+        {
+            static_cast<void>(context.expectTrue("focused progress cancellation is sticky", progress.hasCancelRequest()));
+        }
+        static_cast<void>(requireManualStatus(context, "focused progress closes", progress.close()));
+    }
+    static_cast<void>(owner.close());
+}
+
 void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
     if (!beginManualSuite(context, options, "Desktop native dialogs"))
     {
+        return;
+    }
+    if (manualCaseSelection)
+    {
+        testManualFocusedDialogs(context);
         return;
     }
 
@@ -72,11 +187,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     const auto saved = Desktop::Dialogs::saveFile(save);
     static_cast<void>(context.expectTrue("manual save status succeeds", saved.status.ok()));
     static_cast<void>(context.expectEq("manual save accepts a path", DialogTypes::Outcome::Accepted, saved.outcome));
-    recordManualCheck(
-        context,
-        owner,
-        "save one file",
-        "Were the suggested name, extension, selected filter, overwrite behavior, and returned path native and coherent?");
+    recordManualCheck(context, owner, "save one file", "Were the suggested name, extension, selected filter, and returned path native and coherent?");
 
     FileDialogs::FolderDescription folder{.owner = &owner, .title = "Choose one folder for GameWIP validation"};
     prepareDialogManualCheck("select one folder", "Select one existing folder, then choose the confirmation button.");
@@ -274,4 +385,5 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         "relayout without clipping.");
     static_cast<void>(ownerless.close());
     static_cast<void>(owner.close());
+    testManualFocusedDialogs(context);
 }

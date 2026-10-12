@@ -6,6 +6,11 @@ target_include_directories(GameWIPTestModules PUBLIC "${PROJECT_SOURCE_DIR}/game
 if(GAMEWIP_BUILD_TESTS)
     # The standalone executable exposes focused module selection to developers and CTest.
     add_executable(GameWIPTests standalone_main.cpp)
+    if(WIN32)
+        # Give shell discovery the same executable identity as an installed application.
+        configure_file(version.rc.in "${CMAKE_CURRENT_BINARY_DIR}/version.rc" @ONLY)
+        target_sources(GameWIPTests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/version.rc")
+    endif()
     target_compile_features(GameWIPTests PRIVATE cxx_std_23)
     target_link_libraries(GameWIPTests PRIVATE GameWIPTestModules)
     gamewip_attach_application_manifest(TARGET GameWIPTests COMMON_CONTROLS_V6 PER_MONITOR_V2)

@@ -475,12 +475,20 @@ namespace GameWIP::TestSupport
 
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question)
     {
+        std::string skipReason;
+        return promptManualCheck(question, skipReason);
+    }
+
+    Types::Reporting::ManualAnswer promptManualCheck(std::string_view question, std::string &skipReason)
+    {
+        skipReason.clear();
         for (;;)
         {
-            std::cout << "[MANUAL] " << question << " [y/n/s]: ";
+            std::cout << "[MANUAL] " << question << " [y/n/s reason]: ";
             std::string answer;
             if (!std::getline(std::cin, answer))
             {
+                skipReason = "input ended before an answer";
                 return Types::Reporting::ManualAnswer::Skipped;
             }
             if (answer == "y" || answer == "Y" || answer == "yes" || answer == "Yes")
@@ -493,6 +501,15 @@ namespace GameWIP::TestSupport
             }
             if (answer == "s" || answer == "S" || answer == "skip" || answer == "Skip")
             {
+                skipReason = "no skip reason supplied";
+                return Types::Reporting::ManualAnswer::Skipped;
+            }
+            const std::size_t separator = answer.find(' ');
+            const std::string_view command = std::string_view{answer}.substr(0, separator);
+            if (separator != std::string::npos && (command == "s" || command == "S" || command == "skip" || command == "Skip"))
+            {
+                const std::size_t reasonStart = answer.find_first_not_of(" \t", separator);
+                skipReason = reasonStart == std::string::npos ? "no skip reason supplied" : answer.substr(reasonStart);
                 return Types::Reporting::ManualAnswer::Skipped;
             }
         }
