@@ -219,7 +219,9 @@ namespace
     TestSupport::Types::Process::Result runChildProcessResult(
         std::string_view executablePath,
         std::string_view argument,
-        std::chrono::milliseconds timeout = 5000ms)
+        // Crash and assertion startup paths can be delayed by Windows error handling and CTest
+        // process instrumentation; dedicated timeout cases below still use short explicit waits.
+        std::chrono::milliseconds timeout = 30s)
     {
         TestSupport::Types::Process::Options child;
         child.executablePath = std::filesystem::path(std::string(executablePath));

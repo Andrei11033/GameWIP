@@ -388,7 +388,7 @@ namespace
             TestSupport::Types::Process::Options child;
             child.executablePath = executablePath;
             child.arguments = {std::string(argument)};
-            child.timeout = std::chrono::seconds(10);
+            child.timeout = std::chrono::seconds(30);
             child.captureOutput = true;
             const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
             const std::string name = std::format("{} exits cleanly", argument);

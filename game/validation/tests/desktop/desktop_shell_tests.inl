@@ -110,7 +110,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     TestSupport::Types::Process::Options child;
     child.executablePath = executable;
     child.arguments = {"--desktop-test-child=jump-list-publication"};
-    child.timeout = std::chrono::seconds{10};
+    child.timeout = std::chrono::seconds{30};
     const auto result = TestSupport::runChildProcess(child);
     static_cast<void>(context.expectTrue("isolated jump-list publisher starts", result.status.ok()));
     static_cast<void>(context.expectEq("isolated jump-list publisher exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));

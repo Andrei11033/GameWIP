@@ -4,7 +4,8 @@
 [[nodiscard]] TestSupport::Types::Process::Result runChild(
     std::string_view executable,
     std::string_view argument,
-    std::chrono::milliseconds timeout = 5s)
+    // Crash logging may cross the Windows error-reporting boundary before the child exits.
+    std::chrono::milliseconds timeout = 30s)
 {
     TestSupport::Types::Process::Options options;
     options.executablePath = std::filesystem::path(std::string(executable));

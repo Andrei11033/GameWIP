@@ -10,6 +10,10 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         return;
     }
 
+    // CTest and Windows process instrumentation can delay a fresh validation child well beyond
+    // the library default. Explicit short waits below continue to exercise timeout enforcement.
+    constexpr auto normalChildTimeout = 30s;
+
     // Invalid options and ordinary child outcomes establish the process contract.
     const auto expectInvalidOptions = [&](std::string_view name, const TestSupport::Types::Process::Options &childOptions)
     {
@@ -46,7 +50,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         childOptions.environmentOverrides = {
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildSetVariable), std::string("child-value")},
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildUnsetVariable), std::nullopt}};
-        childOptions.timeout = 5s;
+        childOptions.timeout = normalChildTimeout;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
@@ -83,7 +87,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
             TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kHandleInheritanceChildArgument), std::to_string(reinterpret_cast<std::uintptr_t>(unrelatedEvent))};
-            childOptions.timeout = 5s;
+            childOptions.timeout = normalChildTimeout;
 
             const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue(
@@ -106,7 +110,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildSetVariable), std::string("child-value")},
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildUnsetVariable), std::nullopt}};
         childOptions.inheritParentEnvironment = false;
-        childOptions.timeout = 5s;
+        childOptions.timeout = normalChildTimeout;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
@@ -118,7 +122,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {std::string(kExitCodeChildArgument), "7"};
-        childOptions.timeout = 5s;
+        childOptions.timeout = normalChildTimeout;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue("Normal child exit has successful infrastructure", result.status.ok()));
@@ -143,7 +147,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
             TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kExitCodeChildArgument), std::string(boundary.argument)};
-            childOptions.timeout = 5s;
+            childOptions.timeout = normalChildTimeout;
 
             const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue("Boundary child exit has successful infrastructure", result.status.ok()));
@@ -157,7 +161,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath).parent_path() / "missing-gamewip-child.exe";
-        childOptions.timeout = 5s;
+        childOptions.timeout = normalChildTimeout;
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectEq(
             "Missing child reports launch failure",
@@ -184,7 +188,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {std::string(kOutputChildArgument), std::to_string(outputBytes)};
         childOptions.maxCapturedOutputBytes = captureLimit;
-        childOptions.timeout = 5s;
+        childOptions.timeout = normalChildTimeout;
         return TestSupport::runChildProcess(childOptions);
     };
 
