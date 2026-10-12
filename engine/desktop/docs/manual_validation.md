@@ -14,6 +14,42 @@ AppUserModelID so independent validation Windows appear in a dedicated GameWIP t
 terminal. Windows may combine multiple independent validation Windows into that one group according to the user's taskbar settings. The diagnostics
 companion and intentionally owned tool Windows remain excluded from independent taskbar entries.
 
+Use `s reason` to preserve why an observation was skipped, including unavailable hardware, tool
+limitations, and scope exclusions. End-of-input is reported separately. The final manual-observation
+summary counts operator observations separately from setup and contract assertions.
+
+Select a focused workflow with `--desktop-manual-suite=shell`, `clipboard`, `dialogs`,
+`accessibility`, or `drag-drop`. `files-window` selects older lightweight drops and frame behavior;
+`files-shell` retains the combined workflow. A selector narrows manual observations while the
+deterministic Desktop suite still runs first.
+
+After an automated run passes, use `--desktop-manual-only` with `--manual-tests`
+to repeat observations without rerunning unrelated assertions. Add
+`--desktop-manual-case=<text>` to select scenario names containing that text
+(case-sensitive). A selector matching nothing fails explicitly. For example:
+
+```powershell
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=shell --desktop-manual-case=tray
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=clipboard --desktop-manual-case="clipboard image"
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=dialogs --desktop-manual-case=save-overwrite-dpi
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-only --desktop-manual-suite=dialogs --desktop-manual-case=progress-dpi
+```
+
+Focused dialog selection supports `save-overwrite-dpi` and `progress-dpi`.
+The save fixture precreates a disposable file: decline replacement once, then
+accept it. The path picker must leave its contents unchanged. The progress
+fixture updates continuously while moving between monitors and checks sticky
+cancellation. Native Save/Open pickers can pause during Windows DPI relayout;
+compare with another application's native picker before attributing that to Desktop.
+
+Every source drag can be retried with a fresh button press before answering.
+Diagnostics retain the last attempt's named outcome/effect and received payload;
+only that attempt is checked. Controlled file/text fixtures make imported paths,
+order and UTF-8 bytes independently checkable. Imported images are previewed
+against a checkerboard. Clipboard scenarios include Explorer file lists in both
+directions and an opaque four-quadrant Paint image in both directions, with exact
+file contents, paths, dimensions and RGBA comparisons where observable.
+
 The always-on-top `GameWIP Window manual-test diagnostics` companion appears near the upper-right of the primary work area and shows the expected
 outcome and live Window state while the runner keeps native events pumping. Its native section reports the actual HWND frame/client rectangles,
 monitor rectangle, DPI, style bits, fullscreen conformance, and taskbar eligibility independently from the portable cache. File-drop checks show
@@ -133,7 +169,7 @@ keyboard traversal, IME, or application-specific semantics.
 | Tray icon and recursive menu            | The tray icon survives tooltip and icon replacement, primary/secondary activation reaches the queue, nested commands preserve their identities, and check/radio/separator presentation matches the copied menu description.  |
 | Notification lifecycle                  | A basic notification appears with the requested title/body and sound policy, update preserves its identity, dismissal removes it, and a queue-bound interaction is delivered as a typed event where the platform exposes it. |
 | Jump-list publication                   | User tasks and categories appear in the requested order, launch the expected executable/arguments, and recent filesystem paths or URIs appear with their intended spelling.                                                  |
-| Current-user registration               | A unique validation extension and URI scheme open through the registered application, foreign ownership is reported rather than overwritten, and cleanup removes only the validation owner’s entries.                        |
+| Current-user registration               | Open the fixture and click its URI link; if local-file protocols are blocked, paste the URI into the address bar. Verify a fresh receipt and owner-scoped cleanup.                                                           |
 
 These shell-visible checks are intentionally manual because they depend on Explorer state, taskbar
 settings, notification policy, and another application observing the registration. The automated
@@ -161,6 +197,15 @@ Run only the guided dialog workflow with:
 | Progress ownership and DPI               | Overlapping blockers keep the owner disabled until the last closes; ownerless progress remains independent; moving between scales relayouts crisply without clipping.                                |
 
 ## Clipboard interoperability
+
+The `clipboard` workflow covers text, Explorer file lists and Paint images in both
+directions, with independently selectable checks. Controlled Unicode text includes
+combining accents, Japanese, emoji, CRLF and tabs. The inbound text fixture differs
+from the outbound fixture so an unchanged clipboard cannot satisfy that check.
+File observations verify exact paths and copied contents; image observations verify
+dimensions and every RGBA byte. Foreign alpha and custom-format observations require
+a compatible client and remain unverified when one is unavailable. The workflow
+clears its clipboard fixtures and removes its temporary files at completion.
 
 These scenarios use normal desktop applications and do not require an open GameWIP Window:
 

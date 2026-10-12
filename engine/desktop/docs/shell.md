@@ -70,6 +70,11 @@ Use `setIcon()`, `setTooltip()`, and `setMenu()` to replace presentation;
 an empty tooltip or menu clears that part. `bindEventQueue()` performs the
 one-time binding for a previously passive icon.
 
+Win32 uses version-4 notification callbacks and explicitly enables standard
+tooltips. Both keyboard selection and keyboard/mouse context menus deliver
+activation events. A hidden top-level tool HWND receives Explorer's
+`TaskbarCreated` broadcast, republishes the icon and restores its callback version.
+
 Given an application-owned `iconImages` span of valid `Types::IconImageView`
 values, this owner-thread example binds a passive icon before publishing a menu:
 
@@ -211,6 +216,19 @@ application updates and call `unregisterFileExtension(ownerKey, extension)` or
 `unregisterUriScheme(ownerKey, scheme)` during uninstall. URI schemes omit a
 trailing colon; extensions use a spelling such as `.example`.
 
+File registrations advertise their owned ProgID through `OpenWithProgids`,
+including when Coexist retains a foreign default. Cleanup removes only that
+owner's alternative and owned values, preserving other handlers and metadata.
+URI registrations publish native verbs/commands beneath the scheme key itself.
+Coexist never replaces a foreign URI command; its owned secondary ProgID does
+not become the active scheme handler. Successful publication and cleanup notify
+the shell that associations changed.
+Win32 launch commands convert executable paths to native separators before
+passing them to shell links or association command parsing. Portable callers may
+supply generic path separators; the caller's path value remains unchanged.
+Selected path and URI placeholders are quoted as one command-line argument;
+selected-path sets keep the shell's multiple-argument expansion.
+
 This helper registers a URI launch argument. `executable` is an
 application-owned path; the returned result includes any ownership conflicts:
 
@@ -240,7 +258,12 @@ Inspect both `status` and `conflicts`. Registration changes shell metadata;
 the application owns command-line parsing and target validation when launched.
 Stateless jump-list and registration calls need no Window or shell event queue.
 Win32 taskbar and jump-list calls require an STA-compatible COM apartment and
-return `ResourceBusy` for an incompatible existing apartment.
+return `ResourceBusy` for an incompatible explicitly initialized apartment.
+A caller that has not initialized COM may acquire a temporary STA even when
+another thread in the process has established an implicit MTA.
+Win32 jump-list tasks require at least one launch argument. The backend stores
+the title as the shell display-name property, the description as the tooltip,
+and uses the executable's first icon.
 
 ## Testing and manual validation
 
@@ -252,12 +275,15 @@ current environment cannot provide the corresponding shell service.
 Interactive validation remains useful for the visible surface. Run:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=files-shell
+.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests --desktop-manual-suite=shell
 ```
 
 That workflow should verify visible taskbar progress and thumbnail buttons, tray activation and
 recursive menus, notification appearance and dismissal, Explorer file/URI activation, and jump
-list ordering. These observations are intentionally not prerequisites for the deterministic
+list ordering. Progress states remain active until each observation is answered. Controlled
+launches write a receipt shown in the diagnostics and exit without running the test suite again.
+Use `files-window` for lightweight file drops and frame policies, or `files-shell` for both groups.
+An unexpected jump-list publication failure is a failed check. These observations are intentionally not prerequisites for the deterministic
 automated test suite.
 
 See @ref desktop_public_api, @ref desktop_testing, @ref desktop_test_hooks, and

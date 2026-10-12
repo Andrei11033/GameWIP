@@ -24,7 +24,8 @@ same rules except that semicolons are allowed.
 
 On Windows these operations use the modern shell file-dialog interfaces. They
 run in the calling thread's existing STA or initialize an STA for the duration
-when COM is uninitialized. An MTA, neutral, or otherwise incompatible apartment
+when the caller has not initialized COM, including an implicit MTA inherited
+from another thread in the process. An explicitly initialized MTA, neutral, or otherwise incompatible apartment
 returns @c ResourceBusy; Desktop does not move the operation to a hidden thread.
 
 ## Messages and prompts
