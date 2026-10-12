@@ -15,6 +15,7 @@ namespace GameWIP::Desktop::Types::JumpLists
     /// @brief One caller-defined jump-list task.
     /// @details The title, description, and launch action are borrowed until publish returns.
     /// Launch actions must not contain target-substitution placeholders.
+    /// The Win32 backend requires at least one launch argument and uses the executable's first icon.
     struct Task
     {
         std::string_view title;         ///< Nonempty UTF-8 task title.

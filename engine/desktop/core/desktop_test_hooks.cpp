@@ -11,6 +11,7 @@
 #include "desktop/internal/dialogs_platform.h"
 #include "desktop/internal/progress_dialog_state.h"
 #include "desktop/internal/shell_state.h"
+#include "desktop/internal/shell_platform.h"
 #include "desktop/internal/window_platform.h"
 #include "desktop/internal/window_state.h"
 
@@ -225,6 +226,16 @@ namespace GameWIP::Desktop::TestHooks
     IO::Types::Status testDialogApartment() noexcept
     {
         return Detail::Platform::testDialogApartment();
+    }
+
+    IO::Types::Status testShellApartment() noexcept
+    {
+        return Detail::Platform::testShellApartment();
+    }
+
+    IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept
+    {
+        return Detail::Platform::createJumpLinkForTests(task, out);
     }
 
     ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept

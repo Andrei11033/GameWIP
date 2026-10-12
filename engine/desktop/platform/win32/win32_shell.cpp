@@ -8,6 +8,7 @@
 
 #include <commctrl.h>
 #include <objbase.h>
+#include <propkey.h>
 #include <shellapi.h>
 #include <shobjidl.h>
 #include <shlobj.h>
@@ -20,6 +21,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <new>
@@ -126,14 +128,16 @@ namespace GameWIP::Desktop::Detail::Platform
                     if (type == APTTYPE_STA || type == APTTYPE_MAINSTA)
                     {
                         status_ = IO::successStatus();
+                        return;
                     }
-                    else
+                    if (type != APTTYPE_MTA || qualifier != APTTYPEQUALIFIER_IMPLICIT_MTA)
                     {
                         status_ = IO::makeStatus(ErrorCode::ResourceBusy, static_cast<std::int64_t>(RPC_E_CHANGED_MODE));
+                        return;
                     }
-                    return;
+                    // A process-wide MTA does not prevent an uninitialized caller from entering an STA.
                 }
-                if (result != CO_E_NOTINITIALIZED)
+                else if (result != CO_E_NOTINITIALIZED)
                 {
                     status_ = statusFromHResult(result);
                     return;
@@ -440,10 +444,13 @@ namespace GameWIP::Desktop::Detail::Platform
             HWND window = nullptr;
             HICON icon = nullptr;
             UINT taskbarCreatedMessage = 0;
+            bool version4 = false;
         };
 
         inline constexpr wchar_t kTrayWindowClassName[] = L"GameWIP.Shell.TrayMessage";
         inline constexpr UINT kTrayCallbackMessage = WM_APP + 0x271;
+        // Each icon owns its HWND. Version 4 packs the native ID into only 16 bits.
+        inline constexpr UINT kTrayNativeId = 1;
 
         /// @brief Converts retained RGBA8 pixels into a menu-compatible DIB bitmap.
         [[nodiscard]] HBITMAP createMenuBitmap(const OwnedIconImage &image) noexcept
@@ -610,15 +617,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Publishes a tray activation with the best-effort cursor screen position.
-        void publishTrayActivation(TrayNative &native, Types::Shell::Events::TrayActivationKind kind) noexcept
+        void publishTrayActivation(
+            TrayNative &native,
+            Types::Shell::Events::TrayActivationKind kind,
+            std::optional<Types::ScreenPosition> position = std::nullopt) noexcept
         {
             if (native.state == nullptr || native.state->eventQueue == nullptr)
             {
                 return;
             }
             POINT point{};
-            std::optional<Types::ScreenPosition> position;
-            if (GetCursorPos(&point) != FALSE)
+            if (!position && GetCursorPos(&point) != FALSE)
             {
                 position = Types::ScreenPosition{point.x, point.y};
             }
@@ -626,7 +635,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Builds, shows, and tears down the owner-thread tray popup menu.
-        void showTrayMenu(TrayNative &native) noexcept
+        void showTrayMenu(TrayNative &native, std::optional<Types::ScreenPosition> position = std::nullopt) noexcept
         {
             if (native.state == nullptr || native.state->eventQueue == nullptr || native.state->menu.empty())
             {
@@ -648,7 +657,11 @@ namespace GameWIP::Desktop::Detail::Platform
                     return;
                 }
                 POINT point{};
-                if (GetCursorPos(&point) == FALSE)
+                if (position)
+                {
+                    point = {position->x, position->y};
+                }
+                else if (GetCursorPos(&point) == FALSE)
                 {
                     destroyMenuBitmaps(bitmaps);
                     DestroyMenu(menu);
@@ -711,8 +724,8 @@ namespace GameWIP::Desktop::Detail::Platform
                     NOTIFYICONDATAW data{};
                     data.cbSize = sizeof(data);
                     data.hWnd = window;
-                    data.uID = static_cast<UINT>(native->state->id.value);
-                    data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+                    data.uID = kTrayNativeId;
+                    data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
                     data.uCallbackMessage = kTrayCallbackMessage;
                     data.hIcon = native->icon;
                     DWORD nativeCode = ERROR_SUCCESS;
@@ -722,7 +735,12 @@ namespace GameWIP::Desktop::Detail::Platform
                         const std::size_t length = std::min<std::size_t>(tooltip.size(), ARRAYSIZE(data.szTip) - 1);
                         std::copy_n(tooltip.data(), length, data.szTip);
                     }
-                    static_cast<void>(Shell_NotifyIconW(NIM_ADD, &data));
+                    native->version4 = false;
+                    if (Shell_NotifyIconW(NIM_ADD, &data) != FALSE)
+                    {
+                        data.uVersion = NOTIFYICON_VERSION_4;
+                        native->version4 = Shell_NotifyIconW(NIM_SETVERSION, &data) != FALSE;
+                    }
                 }
                 catch (...)
                 {
@@ -732,20 +750,35 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             if (message == kTrayCallbackMessage)
             {
-                switch (static_cast<UINT>(lParam))
+                const UINT event = native->version4 ? LOWORD(lParam) : static_cast<UINT>(lParam);
+                const std::optional<Types::ScreenPosition> position =
+                    native->version4 ? std::optional{Types::ScreenPosition{static_cast<short>(LOWORD(wParam)), static_cast<short>(HIWORD(wParam))}}
+                                     : std::nullopt;
+                switch (event)
                 {
                 case WM_LBUTTONUP:
+                    if (native->version4)
+                    {
+                        return 0; // NIN_SELECT supplies the version-4 primary activation.
+                    }
                     publishTrayActivation(*native, Types::Shell::Events::TrayActivationKind::Primary);
                     return 0;
                 case WM_LBUTTONDBLCLK:
-                    publishTrayActivation(*native, Types::Shell::Events::TrayActivationKind::DoublePrimary);
+                    publishTrayActivation(*native, Types::Shell::Events::TrayActivationKind::DoublePrimary, position);
                     return 0;
                 case WM_RBUTTONUP:
-                    publishTrayActivation(*native, Types::Shell::Events::TrayActivationKind::Secondary);
-                    showTrayMenu(*native);
+                    if (native->version4)
+                    {
+                        return 0; // WM_CONTEXTMENU covers both mouse and keyboard menus.
+                    }
+                    [[fallthrough]];
+                case WM_CONTEXTMENU:
+                    publishTrayActivation(*native, Types::Shell::Events::TrayActivationKind::Secondary, position);
+                    showTrayMenu(*native, position);
                     return 0;
                 case NIN_SELECT:
-                    publishTrayActivation(*native, Types::Shell::Events::TrayActivationKind::Primary);
+                case NIN_KEYSELECT:
+                    publishTrayActivation(*native, Types::Shell::Events::TrayActivationKind::Primary, position);
                     return 0;
                 default:
                     break;
@@ -1002,7 +1035,10 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring &executable,
             std::wstring &arguments)
         {
-            executable = action.executable.path.get().wstring();
+            // Shell association parsing rejects generic separators accepted by CreateProcess.
+            // Convert a copy at the native boundary; retain the caller's portable spelling.
+            auto nativeExecutable = action.executable.path.get();
+            executable = nativeExecutable.make_preferred().wstring();
             if (executable.empty())
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
@@ -1020,7 +1056,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     arguments.push_back(L' ');
                 }
-                if (text == L"%1" || text == L"%*")
+                if (text == L"%*")
                 {
                     arguments += text;
                 }
@@ -1046,6 +1082,10 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+            if (arguments.empty())
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
             result = out->SetPath(executable.c_str());
             if (FAILED(result))
             {
@@ -1062,12 +1102,37 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
             }
-            result = out->SetDescription(title.c_str());
+            ComPtr<IPropertyStore> properties;
+            result = out->QueryInterface(IID_PPV_ARGS(properties.put()));
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
-            return IO::successStatus();
+            PROPVARIANT titleValue{};
+            titleValue.vt = VT_LPWSTR;
+            titleValue.pwszVal = title.data(); // SetValue copies this borrowed string.
+            result = properties->SetValue(PKEY_Title, titleValue);
+            if (FAILED(result))
+            {
+                return statusFromHResult(result);
+            }
+            result = properties->Commit();
+            if (FAILED(result))
+            {
+                return statusFromHResult(result);
+            }
+            std::wstring description;
+            if (!utf8ToUtf16(task.description, description, nativeCode))
+            {
+                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+            }
+            result = out->SetDescription(description.c_str());
+            if (FAILED(result))
+            {
+                return statusFromHResult(result);
+            }
+            result = out->SetIconLocation(executable.c_str(), 0);
+            return FAILED(result) ? statusFromHResult(result) : IO::successStatus();
         }
 
         [[nodiscard]] IO::Types::Status appendJumpTasks(
@@ -1177,6 +1242,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
         [[nodiscard]] IO::Types::Status registryStatus(LONG code, std::string_view operation)
         {
+            if (code == ERROR_SUCCESS)
+            {
+                return IO::successStatus();
+            }
             ErrorCode portable = ErrorCode::NativeFailure;
             if (code == ERROR_FILE_NOT_FOUND)
             {
@@ -1231,6 +1300,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return registryStatus(result, "read registry value");
                 }
+                // The size query may reserve an extra terminator; only the returned bytes are the value.
+                value.resize(size / sizeof(wchar_t));
                 if (!value.empty() && value.back() == L'\0')
                 {
                     value.pop_back();
@@ -1247,13 +1318,50 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        [[nodiscard]] IO::Types::Status removeRegistryValue(HKEY key, std::wstring_view name)
+        {
+            const LONG removed = RegDeleteValueW(key, std::wstring(name).c_str());
+            return removed == ERROR_FILE_NOT_FOUND ? IO::successStatus() : registryStatus(removed, "remove owned registration value");
+        }
+
+        /// @brief Removes an empty key without deleting other handlers or metadata.
+        [[nodiscard]] IO::Types::Status pruneEmptyRegistrationKey(const std::wstring &path)
+        {
+            RegistryKey key;
+            IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, path, KEY_READ, key, false);
+            if (status.code == ErrorCode::NotFound)
+            {
+                return IO::successStatus();
+            }
+            if (!status.ok())
+            {
+                return status;
+            }
+            DWORD values = 0;
+            DWORD children = 0;
+            const LONG queried =
+                RegQueryInfoKeyW(key.get(), nullptr, nullptr, nullptr, &children, nullptr, nullptr, &values, nullptr, nullptr, nullptr, nullptr);
+            if (queried != ERROR_SUCCESS)
+            {
+                return registryStatus(queried, "inspect registration cleanup key");
+            }
+            if (values != 0 || children != 0)
+            {
+                return IO::successStatus();
+            }
+            key.reset();
+            const LONG removed = RegDeleteKeyW(HKEY_CURRENT_USER, path.c_str());
+            return removed == ERROR_FILE_NOT_FOUND ? IO::successStatus() : registryStatus(removed, "remove empty registration key");
+        }
+
         /// @brief Captures owned registry state so failed shell registration can roll back.
         class RegistryTreeBackup final
         {
         public:
-            RegistryTreeBackup(std::wstring targetPath, std::wstring programPath)
+            RegistryTreeBackup(std::wstring targetPath, std::wstring programPath, std::wstring applicationPath = {})
                 : targetPath_(std::move(targetPath))
                 , programPath_(std::move(programPath))
+                , applicationPath_(std::move(applicationPath))
             {
                 const std::uint64_t identity = nextRegistryBackupIdentity.fetch_add(1, std::memory_order_relaxed);
                 backupPath_ = L"Software\\GameWIP\\ShellRollback." + std::to_wstring(GetCurrentProcessId()) + L"." + std::to_wstring(identity);
@@ -1289,6 +1397,14 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return status;
                 }
+                if (!applicationPath_.empty())
+                {
+                    status = captureTree(applicationPath_, L"Application", applicationCaptured_);
+                    if (!status.ok())
+                    {
+                        return status;
+                    }
+                }
                 active_ = true;
                 return IO::successStatus();
             }
@@ -1314,7 +1430,8 @@ namespace GameWIP::Desktop::Detail::Platform
                     return registryStatus(openResult, "open registry backup source");
                 }
                 RegistryKey destination;
-                IO::Types::Status status = openRegistryKey(backupRoot_.get(), slot, KEY_READ | KEY_WRITE, destination, true);
+                // RegCopyTreeW copies the DACL as well as the values and subkeys.
+                IO::Types::Status status = openRegistryKey(backupRoot_.get(), slot, KEY_READ | KEY_WRITE | WRITE_DAC, destination, true);
                 if (!status.ok())
                 {
                     return status;
@@ -1346,7 +1463,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     return status;
                 }
                 RegistryKey destination;
-                status = openRegistryKey(HKEY_CURRENT_USER, destinationPath, KEY_READ | KEY_WRITE, destination, true);
+                status = openRegistryKey(HKEY_CURRENT_USER, destinationPath, KEY_READ | KEY_WRITE | WRITE_DAC, destination, true);
                 if (!status.ok())
                 {
                     return status;
@@ -1361,6 +1478,10 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     static_cast<void>(restoreTree(programPath_, L"Program", programCaptured_));
                     static_cast<void>(restoreTree(targetPath_, L"Target", targetCaptured_));
+                    if (!applicationPath_.empty())
+                    {
+                        static_cast<void>(restoreTree(applicationPath_, L"Application", applicationCaptured_));
+                    }
                 }
                 catch (...)
                 {
@@ -1378,10 +1499,12 @@ namespace GameWIP::Desktop::Detail::Platform
 
             std::wstring targetPath_;
             std::wstring programPath_;
+            std::wstring applicationPath_;
             std::wstring backupPath_;
             RegistryKey backupRoot_;
             bool targetCaptured_ = false;
             bool programCaptured_ = false;
+            bool applicationCaptured_ = false;
             bool active_ = false;
         };
 
@@ -1519,6 +1642,260 @@ namespace GameWIP::Desktop::Detail::Platform
             return writeRegistryString(commandKey, L"", command);
         }
 
+        [[nodiscard]] IO::Types::Status applicationRegistrationIdentity(
+            const Types::Shell::LaunchActionView &action,
+            std::wstring &applicationName,
+            std::wstring &applicationPath)
+        {
+            try
+            {
+                std::filesystem::path executable = action.executable.path.get();
+                executable.make_preferred();
+                applicationName = executable.filename().wstring();
+                if (applicationName.empty() || applicationName == L"." || applicationName == L".." ||
+                    applicationName.find_first_of(L"\\/") != std::wstring::npos)
+                {
+                    return IO::makeStatus(ErrorCode::InvalidArgument);
+                }
+                applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
+                return IO::successStatus();
+            }
+            catch (const std::bad_alloc &)
+            {
+                return IO::makeStatus(ErrorCode::OutOfMemory);
+            }
+            catch (...)
+            {
+                return IO::makeStatus(ErrorCode::Unknown);
+            }
+        }
+
+        [[nodiscard]] IO::Types::Status writeApplicationRegistration(
+            const std::wstring &applicationName,
+            const std::wstring &applicationPath,
+            std::string_view ownerKey,
+            std::string_view displayName,
+            std::string_view extension,
+            const std::optional<Types::Registration::Icon> &icon,
+            const Types::Shell::LaunchActionView &action)
+        {
+            RegistryKey existing;
+            const LONG opened = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, existing.put());
+            if (opened != ERROR_SUCCESS && opened != ERROR_FILE_NOT_FOUND)
+            {
+                return registryStatus(opened, "inspect application registration");
+            }
+            if (opened == ERROR_SUCCESS)
+            {
+                std::string existingOwner;
+                bool hasOwner = false;
+                const IO::Types::Status ownerStatus = readOwner(existing.get(), existingOwner, hasOwner);
+                if (!ownerStatus.ok())
+                {
+                    return ownerStatus;
+                }
+                if (!hasOwner || existingOwner != ownerKey)
+                {
+                    // A foreign application record owns this executable name. Preserve it;
+                    // the ProgID registration remains usable without overwriting that app.
+                    return IO::successStatus();
+                }
+            }
+
+            RegistryKey application;
+            IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, true);
+            if (!status.ok())
+            {
+                return status;
+            }
+            DWORD nativeCode = ERROR_SUCCESS;
+            std::wstring owner;
+            std::wstring display;
+            if (!utf8ToUtf16(ownerKey, owner, nativeCode) || !utf8ToUtf16(displayName, display, nativeCode))
+            {
+                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+            }
+            status = writeRegistryString(application.get(), L"GameWIP.OwnerKey", owner);
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = writeRegistryString(application.get(), L"", display);
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = writeRegistryString(application.get(), L"FriendlyAppName", display);
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = writeRegistryString(application.get(), L"ApplicationName", display);
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = writeRegistryString(application.get(), L"ApplicationDescription", display);
+            if (!status.ok())
+            {
+                return status;
+            }
+
+            static_cast<void>(RegDeleteTreeW(application.get(), L"DefaultIcon"));
+            if (icon.has_value())
+            {
+                RegistryKey iconKey;
+                status = openRegistryKey(application.get(), L"DefaultIcon", KEY_READ | KEY_WRITE, iconKey, true);
+                if (!status.ok())
+                {
+                    return status;
+                }
+                std::wstring path = icon->path.path.get().wstring();
+                std::wstring iconValue = L"\"" + path + L"\"," + std::to_wstring(icon->index);
+                status = writeRegistryString(iconKey.get(), L"", iconValue);
+                if (!status.ok())
+                {
+                    return status;
+                }
+            }
+
+            RegistryKey shell;
+            status = openRegistryKey(application.get(), L"shell", KEY_READ | KEY_WRITE, shell, true);
+            if (!status.ok())
+            {
+                return status;
+            }
+            RegistryKey open;
+            status = openRegistryKey(shell.get(), L"open", KEY_READ | KEY_WRITE, open, true);
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = writeRegistryString(open.get(), L"", L"Open");
+            if (!status.ok())
+            {
+                return status;
+            }
+            RegistryKey command;
+            status = openRegistryKey(open.get(), L"command", KEY_READ | KEY_WRITE, command, true);
+            if (!status.ok())
+            {
+                return status;
+            }
+            const std::array<Types::Shell::LaunchArgumentView, 1> arguments{Types::Shell::LaunchPlaceholder::SelectedPath};
+            const Types::Shell::LaunchActionView genericAction{action.executable, arguments};
+            status = writeLaunchCommand(command.get(), genericAction);
+            if (!status.ok())
+            {
+                return status;
+            }
+
+            if (!extension.empty())
+            {
+                DWORD extensionCode = ERROR_SUCCESS;
+                std::wstring extensionWide;
+                if (!utf8ToUtf16(extension, extensionWide, extensionCode))
+                {
+                    return IO::makeStatus(ErrorCode::EncodingFailed, extensionCode);
+                }
+                RegistryKey supportedTypes;
+                status = openRegistryKey(application.get(), L"SupportedTypes", KEY_READ | KEY_WRITE, supportedTypes, true);
+                if (!status.ok())
+                {
+                    return status;
+                }
+                status = registryStatus(
+                    RegSetValueExW(supportedTypes.get(), extensionWide.c_str(), 0, REG_SZ, reinterpret_cast<const BYTE *>(L""), sizeof(wchar_t)),
+                    "write application supported type");
+                if (!status.ok())
+                {
+                    return status;
+                }
+            }
+            static_cast<void>(applicationName);
+            return IO::successStatus();
+        }
+
+        [[nodiscard]] IO::Types::Status removeApplicationRegistration(
+            std::wstring_view applicationName,
+            std::string_view ownerKey,
+            std::string_view extension)
+        {
+            if (applicationName.empty())
+            {
+                return IO::successStatus();
+            }
+            const std::wstring applicationPath = L"Software\\Classes\\Applications\\" + std::wstring(applicationName);
+            RegistryKey application;
+            IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, false);
+            if (status.code == ErrorCode::NotFound)
+            {
+                return IO::successStatus();
+            }
+            if (!status.ok())
+            {
+                return status;
+            }
+            std::string existingOwner;
+            bool hasOwner = false;
+            status = readOwner(application.get(), existingOwner, hasOwner);
+            if (!status.ok())
+            {
+                return status;
+            }
+            if (!hasOwner || existingOwner != ownerKey)
+            {
+                return IO::successStatus();
+            }
+
+            DWORD nativeCode = ERROR_SUCCESS;
+            std::wstring extensionWide;
+            if (!utf8ToUtf16(extension, extensionWide, nativeCode))
+            {
+                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+            }
+            const std::wstring supportedPath = applicationPath + L"\\SupportedTypes";
+            RegistryKey supportedTypes;
+            status = openRegistryKey(HKEY_CURRENT_USER, supportedPath, KEY_READ | KEY_WRITE, supportedTypes, false);
+            if (status.ok())
+            {
+                status = removeRegistryValue(supportedTypes.get(), extensionWide);
+                if (!status.ok())
+                {
+                    return status;
+                }
+            }
+            else if (status.code != ErrorCode::NotFound)
+            {
+                return status;
+            }
+            status = pruneEmptyRegistrationKey(supportedPath);
+            if (!status.ok())
+            {
+                return status;
+            }
+
+            RegistryKey remainingTypes;
+            status = openRegistryKey(HKEY_CURRENT_USER, supportedPath, KEY_READ, remainingTypes, false);
+            if (status.ok())
+            {
+                return IO::successStatus();
+            }
+            if (status.code != ErrorCode::NotFound)
+            {
+                return status;
+            }
+
+            static_cast<void>(RegDeleteTreeW(application.get(), L"DefaultIcon"));
+            static_cast<void>(RegDeleteTreeW(application.get(), L"shell"));
+            static_cast<void>(RegDeleteValueW(application.get(), L""));
+            static_cast<void>(RegDeleteValueW(application.get(), L"FriendlyAppName"));
+            static_cast<void>(RegDeleteValueW(application.get(), L"ApplicationName"));
+            static_cast<void>(RegDeleteValueW(application.get(), L"ApplicationDescription"));
+            static_cast<void>(RegDeleteValueW(application.get(), L"GameWIP.OwnerKey"));
+            return pruneEmptyRegistrationKey(applicationPath);
+        }
+
         [[nodiscard]] IO::Types::Status writeRegistrationProgram(
             std::wstring_view progId,
             std::string_view ownerKey,
@@ -1526,7 +1903,8 @@ namespace GameWIP::Desktop::Detail::Platform
             std::string_view contentType,
             const std::optional<Types::Registration::Icon> &icon,
             const std::optional<Types::Shell::LaunchActionView> &defaultAction,
-            std::span<const Types::Registration::Verb> verbs)
+            std::span<const Types::Registration::Verb> verbs,
+            std::wstring_view applicationName = {})
         {
             RegistryKey program;
             IO::Types::Status status =
@@ -1549,7 +1927,39 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+            if (!applicationName.empty())
+            {
+                status = writeRegistryString(program.get(), L"GameWIP.ApplicationKey", applicationName);
+            }
+            else
+            {
+                static_cast<void>(RegDeleteValueW(program.get(), L"GameWIP.ApplicationKey"));
+            }
+            if (!status.ok())
+            {
+                return status;
+            }
             status = writeRegistryString(program.get(), L"", display);
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = writeRegistryString(program.get(), L"FriendlyAppName", display);
+            if (!status.ok())
+            {
+                return status;
+            }
+            // Give the shell a display identity even when the executable has no version resource.
+            RegistryKey application;
+            status = openRegistryKey(program.get(), L"Application", KEY_READ | KEY_WRITE, application, true);
+            if (status.ok())
+            {
+                status = writeRegistryString(application.get(), L"ApplicationName", display);
+            }
+            if (status.ok())
+            {
+                status = writeRegistryString(application.get(), L"ApplicationDescription", display);
+            }
             if (!status.ok())
             {
                 return status;
@@ -1739,6 +2149,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 const std::wstring progId = registrationProgId(extension, ownerKey, target);
                 const std::wstring progPath = L"Software\\Classes\\" + progId;
                 bool ownProgram = false;
+                std::wstring applicationName;
                 RegistryKey program;
                 status = openRegistryKey(HKEY_CURRENT_USER, progPath, KEY_READ, program, false);
                 if (status.ok())
@@ -1752,6 +2163,15 @@ namespace GameWIP::Desktop::Detail::Platform
                         return result;
                     }
                     ownProgram = hasOwner && programOwner == ownerKey;
+                    if (ownProgram && extension)
+                    {
+                        const IO::Types::Status applicationStatus = readRegistryString(program.get(), L"GameWIP.ApplicationKey", applicationName);
+                        if (!applicationStatus.ok() && applicationStatus.code != ErrorCode::NotFound)
+                        {
+                            result.status = applicationStatus;
+                            return result;
+                        }
+                    }
                 }
                 else if (status.code != ErrorCode::NotFound)
                 {
@@ -1759,30 +2179,97 @@ namespace GameWIP::Desktop::Detail::Platform
                     return result;
                 }
 
-                if (sameOwner)
-                {
-                    const LONG deleteResult = RegDeleteTreeW(HKEY_CURRENT_USER, targetPath.c_str());
-                    if (deleteResult != ERROR_SUCCESS && deleteResult != ERROR_FILE_NOT_FOUND)
-                    {
-                        result.status = registryStatus(deleteResult, "delete shell registration target");
-                        return result;
-                    }
-                }
-                if (ownProgram)
-                {
-                    const LONG deleteResult = RegDeleteTreeW(HKEY_CURRENT_USER, progPath.c_str());
-                    if (deleteResult != ERROR_SUCCESS && deleteResult != ERROR_FILE_NOT_FOUND)
-                    {
-                        result.status = registryStatus(deleteResult, "delete shell registration program");
-                        return result;
-                    }
-                }
                 if (!sameOwner && !ownProgram)
                 {
                     result.status = exists ? IO::makeStatus(ErrorCode::AlreadyExists) : IO::makeStatus(ErrorCode::NotFound);
                     return result;
                 }
+                if (extension)
+                {
+                    const std::wstring alternativesPath = targetPath + L"\\OpenWithProgids";
+                    {
+                        RegistryKey alternatives;
+                        status = openRegistryKey(HKEY_CURRENT_USER, alternativesPath, KEY_READ | KEY_WRITE, alternatives, false);
+                        if (status.ok())
+                        {
+                            status = removeRegistryValue(alternatives.get(), progId);
+                        }
+                        if (!status.ok() && status.code != ErrorCode::NotFound)
+                        {
+                            result.status = status;
+                            return result;
+                        }
+                    }
+                    status = pruneEmptyRegistrationKey(alternativesPath);
+                    if (!status.ok())
+                    {
+                        result.status = status;
+                        return result;
+                    }
+                    if (sameOwner)
+                    {
+                        RegistryKey targetKey;
+                        status = openRegistryKey(HKEY_CURRENT_USER, targetPath, KEY_READ | KEY_WRITE, targetKey, false);
+                        if (!status.ok())
+                        {
+                            result.status = status;
+                            return result;
+                        }
+                        std::wstring currentProgram;
+                        status = readRegistryString(targetKey.get(), L"", currentProgram);
+                        if (status.ok() && currentProgram == progId)
+                        {
+                            status = removeRegistryValue(targetKey.get(), L"");
+                        }
+                        if (!status.ok() && status.code != ErrorCode::NotFound)
+                        {
+                            result.status = status;
+                            return result;
+                        }
+                        status = removeRegistryValue(targetKey.get(), L"GameWIP.OwnerKey");
+                        if (!status.ok())
+                        {
+                            result.status = status;
+                            return result;
+                        }
+                    }
+                    status = pruneEmptyRegistrationKey(targetPath);
+                    if (!status.ok())
+                    {
+                        result.status = status;
+                        return result;
+                    }
+                }
+                else if (sameOwner)
+                {
+                    const LONG removed = RegDeleteTreeW(HKEY_CURRENT_USER, targetPath.c_str());
+                    if (removed != ERROR_SUCCESS && removed != ERROR_FILE_NOT_FOUND)
+                    {
+                        result.status = registryStatus(removed, "delete shell registration target");
+                        return result;
+                    }
+                }
+                if (ownProgram)
+                {
+                    program.reset();
+                    const LONG removed = RegDeleteTreeW(HKEY_CURRENT_USER, progPath.c_str());
+                    if (removed != ERROR_SUCCESS && removed != ERROR_FILE_NOT_FOUND)
+                    {
+                        result.status = registryStatus(removed, "delete shell registration program");
+                        return result;
+                    }
+                }
+                if (extension && ownProgram && !applicationName.empty())
+                {
+                    status = removeApplicationRegistration(applicationName, ownerKey, target);
+                    if (!status.ok())
+                    {
+                        result.status = status;
+                        return result;
+                    }
+                }
                 result.replacedOwned = true;
+                SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
                 return result;
             }
             catch (const std::bad_alloc &)
@@ -2089,8 +2576,19 @@ namespace GameWIP::Desktop::Detail::Platform
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "RegisterWindowMessageW TaskbarCreated");
             }
             state.platform = native;
-            native->window =
-                CreateWindowExW(0, kTrayWindowClassName, L"GameWIP tray", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr, GetModuleHandleW(nullptr), native);
+            native->window = CreateWindowExW(
+                WS_EX_TOOLWINDOW,
+                kTrayWindowClassName,
+                L"GameWIP tray",
+                WS_POPUP,
+                0,
+                0,
+                0,
+                0,
+                nullptr,
+                nullptr,
+                GetModuleHandleW(nullptr),
+                native);
             if (native->window == nullptr)
             {
                 state.platform = nullptr;
@@ -2144,8 +2642,8 @@ namespace GameWIP::Desktop::Detail::Platform
             NOTIFYICONDATAW data{};
             data.cbSize = sizeof(data);
             data.hWnd = native->window;
-            data.uID = static_cast<UINT>(state.id.value);
-            data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+            data.uID = kTrayNativeId;
+            data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
             data.uCallbackMessage = kTrayCallbackMessage;
             data.hIcon = newIcon;
             const std::size_t length = std::min<std::size_t>(tooltip.size(), ARRAYSIZE(data.szTip) - 1);
@@ -2160,7 +2658,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if (native->icon == nullptr)
             {
                 data.uVersion = NOTIFYICON_VERSION_4;
-                static_cast<void>(Shell_NotifyIconW(NIM_SETVERSION, &data));
+                native->version4 = Shell_NotifyIconW(NIM_SETVERSION, &data) != FALSE;
             }
             if (native->icon != nullptr)
             {
@@ -2196,7 +2694,7 @@ namespace GameWIP::Desktop::Detail::Platform
         NOTIFYICONDATAW data{};
         data.cbSize = sizeof(data);
         data.hWnd = native->window;
-        data.uID = static_cast<UINT>(state.id.value);
+        data.uID = kTrayNativeId;
         static_cast<void>(Shell_NotifyIconW(NIM_DELETE, &data));
         if (native->window != nullptr)
         {
@@ -2384,6 +2882,44 @@ namespace GameWIP::Desktop::Detail::Platform
     // Jump lists and shell registration
     // ------------------------------------------------------------
 
+#if DESKTOP_INTERNAL_TEST_HOOKS
+    IO::Types::Status testShellApartment() noexcept
+    {
+        ApartmentLease apartment;
+        const IO::Types::Status &status = apartment.status();
+        return status.ok() ? IO::successStatus() : IO::makeStatus(status.code, status.nativeCode);
+    }
+
+    IO::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept
+    {
+        out = nullptr;
+        ApartmentLease apartment;
+        if (!apartment.status().ok())
+        {
+            return apartment.status();
+        }
+        try
+        {
+            ComPtr<IShellLinkW> link;
+            const IO::Types::Status status = createJumpLink(task, link);
+            if (status.ok())
+            {
+                link->AddRef();
+                out = link.get();
+            }
+            return status;
+        }
+        catch (const std::bad_alloc &)
+        {
+            return IO::makeStatus(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return IO::makeStatus(ErrorCode::Unknown);
+        }
+    }
+#endif
+
     IO::Types::Status publishJumpLists(const Types::JumpLists::Description &description) noexcept
     {
         ApartmentLease apartment;
@@ -2549,7 +3085,18 @@ namespace GameWIP::Desktop::Detail::Platform
                 return result;
             }
             const std::wstring progPath = L"Software\\Classes\\" + progId;
-            RegistryTreeBackup transaction(targetPath, progPath);
+            std::wstring applicationName;
+            std::wstring applicationPath;
+            if (description.defaultAction.has_value())
+            {
+                status = applicationRegistrationIdentity(*description.defaultAction, applicationName, applicationPath);
+                if (!status.ok())
+                {
+                    result.status = status;
+                    return result;
+                }
+            }
+            RegistryTreeBackup transaction(targetPath, progPath, applicationPath);
             status = transaction.capture();
             if (!status.ok())
             {
@@ -2563,11 +3110,28 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.contentType,
                 description.icon,
                 description.defaultAction,
-                description.verbs);
+                description.verbs,
+                applicationName);
             if (!status.ok())
             {
                 result.status = status;
                 return result;
+            }
+            if (description.defaultAction.has_value())
+            {
+                status = writeApplicationRegistration(
+                    applicationName,
+                    applicationPath,
+                    description.ownerKey,
+                    description.displayName,
+                    target,
+                    description.icon,
+                    *description.defaultAction);
+                if (!status.ok())
+                {
+                    result.status = status;
+                    return result;
+                }
             }
             if (!exists || sameOwner)
             {
@@ -2598,8 +3162,21 @@ namespace GameWIP::Desktop::Detail::Platform
                     return result;
                 }
             }
+            // Advertise this owner's handler even when a foreign default is retained.
+            RegistryKey alternatives;
+            status = openRegistryKey(HKEY_CURRENT_USER, targetPath + L"\\OpenWithProgids", KEY_READ | KEY_WRITE, alternatives, true);
+            if (status.ok())
+            {
+                status = registryStatus(RegSetValueExW(alternatives.get(), progId.c_str(), 0, REG_NONE, nullptr, 0), "write Open with entry");
+            }
+            if (!status.ok())
+            {
+                result.status = status;
+                return result;
+            }
             result.replacedOwned = sameOwner;
             transaction.commit();
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
             return result;
         }
         catch (const std::bad_alloc &)
@@ -2715,9 +3292,27 @@ namespace GameWIP::Desktop::Detail::Platform
                     result.status = status;
                     return result;
                 }
+                status = writeRegistrationProgram(
+                    targetWide,
+                    description.ownerKey,
+                    std::string("URL:") + std::string(description.displayName),
+                    {},
+                    description.icon,
+                    description.defaultAction,
+                    description.verbs);
+                if (status.ok())
+                {
+                    status = writeRegistryString(targetKey.get(), L"GameWIP.ProgId", progId);
+                }
+                if (!status.ok())
+                {
+                    result.status = status;
+                    return result;
+                }
             }
             result.replacedOwned = sameOwner;
             transaction.commit();
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
             return result;
         }
         catch (const std::bad_alloc &)

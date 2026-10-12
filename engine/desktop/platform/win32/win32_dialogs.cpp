@@ -123,14 +123,16 @@ namespace GameWIP::Desktop::Detail::Platform
                     if (type == APTTYPE_STA || type == APTTYPE_MAINSTA)
                     {
                         status_ = IO::successStatus();
+                        return;
                     }
-                    else
+                    if (type != APTTYPE_MTA || qualifier != APTTYPEQUALIFIER_IMPLICIT_MTA)
                     {
                         status_ = IO::makeStatus(ErrorCode::ResourceBusy, static_cast<std::int64_t>(RPC_E_CHANGED_MODE));
+                        return;
                     }
-                    return;
+                    // An implicit MTA has no initialization owned by this thread; it may enter an STA.
                 }
-                if (result != CO_E_NOTINITIALIZED)
+                else if (result != CO_E_NOTINITIALIZED)
                 {
                     status_ = statusFromHResult(result);
                     return;

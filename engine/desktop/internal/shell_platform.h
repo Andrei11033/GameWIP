@@ -61,6 +61,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
     /// @brief Publishes taskbar jump-list entries.
     [[nodiscard]] IO::Types::Status publishJumpLists(const Types::JumpLists::Description &description) noexcept;
+#if DESKTOP_INTERNAL_TEST_HOOKS
+    [[nodiscard]] IO::Types::Status testShellApartment() noexcept;
+    [[nodiscard]] IO::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept;
+#endif
     /// @brief Registers one file extension with the shell.
     [[nodiscard]] Types::Registration::Result registerFileExtension(const Types::Registration::FileExtensionDescription &description) noexcept;
     /// @brief Registers one URI scheme with the shell.

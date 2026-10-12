@@ -16,6 +16,7 @@
 #include "desktop/events.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/shell.h"
+#include "desktop/shell_jump_lists.h"
 #include "desktop/shell_notifications.h"
 #include "desktop/shell_taskbar.h"
 #include "desktop/shell_tray.h"
@@ -244,6 +245,9 @@ namespace GameWIP::Desktop::TestHooks
     DESKTOP_TEST_EXPORT void completeNextPromptDialog(PromptDialogResponse response) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT const PromptDialogSnapshot &lastPromptDialogSnapshot() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDialogApartment() noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testShellApartment() noexcept;
+    /// @brief Returns an owned IShellLinkW as void* for native metadata inspection. Caller must Release it.
+    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept;
