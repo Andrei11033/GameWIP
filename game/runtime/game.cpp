@@ -155,7 +155,7 @@ namespace
     [[nodiscard]] GameWIP::IO::Types::Status openRuntimeWindow(GameWIP::Desktop::Window &window)
     {
 #if GAMEWIP_TRACY_ENABLED
-        ZoneScopedNC("Open borderless-fullscreen window", ProfileZoneColor::Initialization);
+        ZoneScopedNC("Open fullscreen window", ProfileZoneColor::Initialization);
 #endif
         return window.open(runtimeWindowDescription());
     }
@@ -204,7 +204,7 @@ namespace
     [[nodiscard]] GameWIP::IO::Types::Status closeRuntimeWindow(GameWIP::Desktop::Window &window)
     {
 #if GAMEWIP_TRACY_ENABLED
-        ZoneScopedNC("Close borderless-fullscreen window", ProfileZoneColor::Shutdown);
+        ZoneScopedNC("Close fullscreen window", ProfileZoneColor::Shutdown);
 #endif
         return window.close();
     }
@@ -252,7 +252,7 @@ namespace GameWIP::Game
             return finishRuntime(EXIT_FAILURE);
         }
 
-        // Request a borderless fullscreen window without changing the desktop display mode.
+        // Open the fullscreen window using the configured mode request.
         Desktop::Window window;
         const IO::Types::Status openStatus = openRuntimeWindow(window);
         if (!openStatus.ok())
@@ -260,14 +260,14 @@ namespace GameWIP::Game
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(openStatus.message.c_str(), openStatus.message.size());
 #endif
-            Logger::error("Window", "Failed to open borderless-fullscreen window: {}", openStatus.message);
+            Logger::error("Window", "Failed to open fullscreen window: {}", openStatus.message);
             return finishRuntime(EXIT_FAILURE);
         }
 #if GAMEWIP_TRACY_ENABLED
-        TracyMessageL("Borderless-fullscreen window opened");
+        TracyMessageL("Fullscreen window opened");
 #endif
 
-        Logger::info("Startup", "Borderless-fullscreen window is active; desktop resolution is unchanged; press Alt+F4 to exit");
+        Logger::info("Startup", "Fullscreen window is active; press Alt+F4 to exit");
 
         // Keep the process responsive while the native event pump owns timing and delivery.
         if (!pumpRuntimeEvents(window))
@@ -282,12 +282,12 @@ namespace GameWIP::Game
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(closeStatus.message.c_str(), closeStatus.message.size());
 #endif
-            Logger::error("Window", "Failed to close borderless-fullscreen window: {}", closeStatus.message);
+            Logger::error("Window", "Failed to close fullscreen window: {}", closeStatus.message);
             return finishRuntime(EXIT_FAILURE);
         }
-        Logger::info("Window", "Borderless-fullscreen window closed");
+        Logger::info("Window", "Fullscreen window closed");
 #if GAMEWIP_TRACY_ENABLED
-        TracyMessageL("Borderless-fullscreen window closed");
+        TracyMessageL("Fullscreen window closed");
 #endif
 
         static_cast<void>(argc);

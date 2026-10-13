@@ -12,7 +12,7 @@ shared-library symbol policy.
 Individual APIs stay in their library manuals and generated reference pages.
 
 IO, FileSystem, and Terminal install focused public headers alongside their
-existing umbrella headers. The declarations retain the same API, ABI, and
+umbrella headers. The declarations have the same API, ABI, and
 runtime semantics regardless of include style. Logger installs private
 formatting support required by `logger/logger.h`; that detail header is not a
 standalone entry point.

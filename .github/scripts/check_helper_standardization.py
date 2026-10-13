@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reject superseded helper architecture, CLI grammar, scratch artifacts, and bypasses."""
+"""Check helper architecture, execution boundaries, schemas, and path casing."""
 
 from __future__ import annotations
 
@@ -13,30 +13,8 @@ HISTORICAL_PREFIXES = ("docs/releases/",)
 ENGINE_AUDIT_EXCLUSIONS = (
     "engine/input/",
     "engine/action/",
-    "engine/desktop/",
     "engine/window_manager/",
-    "engine/window-manager/",
 )
-FORBIDDEN_PATHS = {
-    "scripts/lib/Native.ps1",
-    "scripts/lib/ToolRuns.ps1",
-    "scripts/lib/Analysis.ps1",
-    ".github/scripts/ProjectHelper.Tests.debug.ps1",
-    ".github/scripts/ProjectHelper.Tests.debug2.ps1",
-    "test-debug.ps1",
-    "test-debug2.ps1",
-}
-RETIRED_SELECTORS = (
-    "-QualityAction",
-    "-ToolsAction",
-    "-WorkflowAction",
-    "-UnicodeAction",
-    "-GitAction",
-    "-FormatAction",
-    "-BenchmarkAction",
-)
-LEGACY_SELECTION = ("-Preset", "-Module", "-ProjectCommand", "-Bundle")
-RETIRED_OPERATION_GLOBALS = ("$Script:OperationTemp", "$Script:OperationRun")
 EXTERNAL_LITERAL = re.compile(
     r"&\s+(git|gh|python3?|npm|winget|cmake|ctest|clang-format|ruff|prettier|eslint|actionlint|yamllint|gersemi|markdownlint-cli2|objdump|pacman|where\.exe|chmod)\b",
     re.I,
@@ -55,10 +33,7 @@ def maintained_worktree_paths() -> list[str]:
 
 def main() -> int:
     paths = maintained_worktree_paths()
-    path_set = set(paths)
     failures: list[str] = []
-    for forbidden in sorted(FORBIDDEN_PATHS & path_set):
-        failures.append(f"forbidden superseded/scratch path is tracked: {forbidden}")
     for path in paths:
         normalized = path.replace("\\", "/")
         if normalized.startswith(HISTORICAL_PREFIXES) or normalized.startswith(ENGINE_AUDIT_EXCLUSIONS):
@@ -74,19 +49,6 @@ def main() -> int:
             continue
         if normalized == ".github/scripts/check_helper_standardization.py":
             continue
-        cli_contract_surface = normalized.startswith(("scripts/", ".github/", ".vscode/", "docs/")) or normalized in {
-            "README.md",
-            "docs/doxygen/command_line_tools.md",
-            "docs/doxygen/environment_setup.md",
-            "scripts/setup/README.md",
-        }
-        if cli_contract_surface:
-            for selector in RETIRED_SELECTORS:
-                if selector in text:
-                    failures.append(f"{normalized}: retired CLI selector remains: {selector}")
-            for selector in LEGACY_SELECTION:
-                if re.search(rf"(?im)\bgamewip(?:\.bat)?\b[^\r\n]*\s{re.escape(selector)}\b", text):
-                    failures.append(f"{normalized}: retired GameWIP selection option remains: {selector}")
         if re.search(r"(?im)^\s*\.\s+[^\r\n]*GameWIP\.ps1\b", text):
             failures.append(f"{normalized}: executable GameWIP.ps1 is dot-sourced as a library")
         if normalized != "scripts/lib/Console.ps1" and "[Console]::ReadKey" in text:
@@ -94,13 +56,8 @@ def main() -> int:
         if normalized.startswith("scripts/"):
             for match in EXTERNAL_LITERAL.finditer(text):
                 failures.append(f"{normalized}: direct external invocation bypasses Process.ps1: {match.group(0)}")
-            for variable in RETIRED_OPERATION_GLOBALS:
-                if variable in text:
-                    failures.append(f"{normalized}: retired operation global remains: {variable}")
             if re.search(r"\b(?:if|elseif|while)\s*\(\s*Test-GameWip[\w-]+\s+-(?:and|or)\b", text):
                 failures.append(f"{normalized}: helper predicate must be parenthesized before a Boolean operator")
-        if re.search(r"(?i)(?:^|[\\/ ])gamewip(?:\.bat)?\s+analysis(?:\s|$)", text):
-            failures.append(f"{normalized}: retired 'analysis' alias remains")
         if normalized.endswith(".json"):
             try:
                 document = json.loads(text)

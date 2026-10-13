@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <iostream>
 #include <latch>
 #include <limits>
 #include <optional>
@@ -275,20 +276,29 @@ namespace
     // Manual test reporting
     // ------------------------------------------------------------
 
-    void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::Reporting::ManualAnswer answer)
+    thread_local TestSupport::Types::Reporting::Summary manualObservations;
+
+    void recordManualAnswer(
+        TestSupport::Context &context,
+        std::string_view name,
+        TestSupport::Types::Reporting::ManualAnswer answer,
+        std::string_view skipReason)
     {
         switch (answer)
         {
         case TestSupport::Types::Reporting::ManualAnswer::Yes:
+            ++manualObservations.passed;
             context.pass(name);
             return;
 
         case TestSupport::Types::Reporting::ManualAnswer::No:
+            ++manualObservations.failed;
             context.fail(name, "manual check rejected by user");
             return;
 
         case TestSupport::Types::Reporting::ManualAnswer::Skipped:
-            context.skip(name, "manual check skipped by user");
+            ++manualObservations.skipped;
+            context.skip(name, skipReason);
             return;
         }
     }
@@ -296,7 +306,9 @@ namespace
     /// @brief Prompts for and records one human-observed Terminal result.
     void recordManualCheck(TestSupport::Context &context, std::string_view name, std::string_view question)
     {
-        recordManualAnswer(context, name, TestSupport::promptManualCheck(question));
+        std::string skipReason;
+        const auto answer = TestSupport::promptManualCheck(question, skipReason);
+        recordManualAnswer(context, name, answer, skipReason);
     }
 
     /// @brief Reports one failed Terminal operation and returns whether it succeeded.
@@ -549,6 +561,7 @@ namespace GameWIP::Test
                 testReentrantFormatting(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
             });
 
+        manualObservations = {};
         runner.runSuite(
             "Terminal manual tests",
             [&options](TestSupport::Context &context)
@@ -580,6 +593,15 @@ namespace GameWIP::Test
 #endif
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
+        if (options.enableManualTests)
+        {
+            runner.summary(
+                std::format(
+                    "Terminal manual observations passed={} failed={} skipped={} (excludes setup assertions)",
+                    manualObservations.passed,
+                    manualObservations.failed,
+                    manualObservations.skipped));
+        }
         runner.summary(std::format("Terminal library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         return runner.exitCode();
     }

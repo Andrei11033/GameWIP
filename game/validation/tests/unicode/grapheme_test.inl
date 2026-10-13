@@ -33,25 +33,25 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
         }));
     expectGraphemeFixture(context, "emoji modifier extend", graphemeFixture({{static_cast<char32_t>(0x1F44D), static_cast<char32_t>(0x1F3FD)}}));
 
-    const Unicode::Types::Utf8BoundaryResult emptyNext = Unicode::Utf8::nextGraphemeBoundary({}, 0);
-    const Unicode::Types::Utf8BoundaryResult emptyPrevious = Unicode::Utf8::previousGraphemeBoundary({}, 0);
+    const Unicode::Types::Utf8::BoundaryResult emptyNext = Unicode::Utf8::nextGraphemeBoundary({}, 0);
+    const Unicode::Types::Utf8::BoundaryResult emptyPrevious = Unicode::Utf8::previousGraphemeBoundary({}, 0);
     static_cast<void>(context.expectEq("empty next grapheme outcome", BoundaryOutcome::AtEnd, emptyNext.outcome));
     static_cast<void>(context.expectEq("empty previous grapheme outcome", BoundaryOutcome::AtBeginning, emptyPrevious.outcome));
 
     const std::string multibyte = bytes({0xC2, 0xA2});
-    const Unicode::Types::Utf8BoundaryResult misalignedNext = Unicode::Utf8::nextGraphemeBoundary(multibyte, 1);
-    const Unicode::Types::Utf8BoundaryResult misalignedPrevious = Unicode::Utf8::previousGraphemeBoundary(multibyte, 1);
+    const Unicode::Types::Utf8::BoundaryResult misalignedNext = Unicode::Utf8::nextGraphemeBoundary(multibyte, 1);
+    const Unicode::Types::Utf8::BoundaryResult misalignedPrevious = Unicode::Utf8::previousGraphemeBoundary(multibyte, 1);
     static_cast<void>(context.expectEq("misaligned next grapheme outcome", BoundaryOutcome::InvalidOffset, misalignedNext.outcome));
     static_cast<void>(context.expectEq("misaligned previous grapheme outcome", BoundaryOutcome::InvalidOffset, misalignedPrevious.outcome));
 
-    const Unicode::Types::Utf8BoundaryResult beyondNext = Unicode::Utf8::nextGraphemeBoundary(multibyte, multibyte.size() + 1);
-    const Unicode::Types::Utf8BoundaryResult beyondPrevious = Unicode::Utf8::previousGraphemeBoundary(multibyte, multibyte.size() + 1);
+    const Unicode::Types::Utf8::BoundaryResult beyondNext = Unicode::Utf8::nextGraphemeBoundary(multibyte, multibyte.size() + 1);
+    const Unicode::Types::Utf8::BoundaryResult beyondPrevious = Unicode::Utf8::previousGraphemeBoundary(multibyte, multibyte.size() + 1);
     static_cast<void>(context.expectEq("beyond-end next grapheme outcome", BoundaryOutcome::InvalidOffset, beyondNext.outcome));
     static_cast<void>(context.expectEq("beyond-end previous grapheme outcome", BoundaryOutcome::InvalidOffset, beyondPrevious.outcome));
 
     const std::string malformed = bytes({0xE2, 0x82});
-    const Unicode::Types::Utf8BoundaryResult malformedNext = Unicode::Utf8::nextGraphemeBoundary(malformed, 0);
-    const Unicode::Types::Utf8BoundaryResult malformedPrevious = Unicode::Utf8::previousGraphemeBoundary(malformed, malformed.size());
+    const Unicode::Types::Utf8::BoundaryResult malformedNext = Unicode::Utf8::nextGraphemeBoundary(malformed, 0);
+    const Unicode::Types::Utf8::BoundaryResult malformedPrevious = Unicode::Utf8::previousGraphemeBoundary(malformed, malformed.size());
     static_cast<void>(context.expectEq("malformed next grapheme outcome", BoundaryOutcome::InvalidEncoding, malformedNext.outcome));
     static_cast<void>(context.expectEq("malformed previous grapheme outcome", BoundaryOutcome::InvalidEncoding, malformedPrevious.outcome));
 
@@ -64,15 +64,15 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
 
     std::array<std::size_t, 3> shortBoundaryStorage{};
     Unicode::Utf8::GraphemeCursor cursor;
-    const Unicode::Types::Utf8GraphemeIndexResult tooSmall = cursor.reset(cursorFixture.text, shortBoundaryStorage);
+    const Unicode::Types::Utf8::GraphemeIndexResult tooSmall = cursor.reset(cursorFixture.text, shortBoundaryStorage);
     static_cast<void>(
-        context.expectEq("grapheme cursor short storage outcome", Unicode::Types::GraphemeIndexOutcome::DestinationTooSmall, tooSmall.outcome));
+        context.expectEq("grapheme cursor short storage outcome", Unicode::Types::Utf8::GraphemeIndexOutcome::DestinationTooSmall, tooSmall.outcome));
     static_cast<void>(context.expectEq("grapheme cursor required boundary count", cursorFixture.boundaries.size(), tooSmall.requiredBoundaryCount));
     static_cast<void>(context.expectFalse("grapheme cursor short storage remains unready", cursor.ready()));
 
     std::array<std::size_t, 8> boundaryStorage{};
-    const Unicode::Types::Utf8GraphemeIndexResult ready = cursor.reset(cursorFixture.text, boundaryStorage);
-    static_cast<void>(context.expectEq("grapheme cursor reset outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, ready.outcome));
+    const Unicode::Types::Utf8::GraphemeIndexResult ready = cursor.reset(cursorFixture.text, boundaryStorage);
+    static_cast<void>(context.expectEq("grapheme cursor reset outcome", Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed, ready.outcome));
     static_cast<void>(context.expectTrue("grapheme cursor becomes ready", cursor.ready()));
     static_cast<void>(context.expectEq("grapheme cursor starts at zero", std::size_t{0}, cursor.byteOffset()));
     static_cast<void>(context.expectEq("grapheme cursor indexed count", cursorFixture.boundaries.size(), cursor.boundaryCount()));
@@ -91,15 +91,15 @@ void testTargetedGraphemeBoundaries(TestSupport::Context &context)
     static_cast<void>(context.expectEq("grapheme cursor discard makes current end", BoundaryOutcome::AtEnd, cursor.next().outcome));
     static_cast<void>(context.expectEq("grapheme cursor can move backward after discard", BoundaryOutcome::Found, cursor.previous().outcome));
 
-    const Unicode::Types::Utf8GraphemeIndexResult invalidCursor = cursor.reset(malformed, boundaryStorage);
+    const Unicode::Types::Utf8::GraphemeIndexResult invalidCursor = cursor.reset(malformed, boundaryStorage);
     static_cast<void>(
-        context.expectEq("grapheme cursor malformed outcome", Unicode::Types::GraphemeIndexOutcome::InvalidEncoding, invalidCursor.outcome));
+        context.expectEq("grapheme cursor malformed outcome", Unicode::Types::Utf8::GraphemeIndexOutcome::InvalidEncoding, invalidCursor.outcome));
     static_cast<void>(context.expectEq("grapheme cursor malformed required count", std::size_t{0}, invalidCursor.requiredBoundaryCount));
     static_cast<void>(context.expectFalse("grapheme cursor malformed reset clears state", cursor.ready()));
 
     std::array<std::size_t, 1> emptyStorage{};
-    const Unicode::Types::Utf8GraphemeIndexResult emptyCursor = cursor.reset({}, emptyStorage);
-    static_cast<void>(context.expectEq("empty grapheme cursor outcome", Unicode::Types::GraphemeIndexOutcome::Indexed, emptyCursor.outcome));
+    const Unicode::Types::Utf8::GraphemeIndexResult emptyCursor = cursor.reset({}, emptyStorage);
+    static_cast<void>(context.expectEq("empty grapheme cursor outcome", Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed, emptyCursor.outcome));
     static_cast<void>(context.expectEq("empty grapheme cursor required count", std::size_t{1}, emptyCursor.requiredBoundaryCount));
     static_cast<void>(context.expectEq("empty grapheme cursor boundary count", std::size_t{1}, cursor.boundaryCount()));
     static_cast<void>(context.expectEq("empty grapheme cursor next outcome", BoundaryOutcome::AtEnd, cursor.next().outcome));

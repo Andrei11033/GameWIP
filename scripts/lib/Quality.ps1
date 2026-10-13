@@ -22,7 +22,7 @@ function Get-GameWipQualityTool
                 -Code 'quality-tool-unavailable' `
                 -Summary "Quality tool '$Id' is missing or incompatible." `
                 -Details ($details -join '; ') `
-                -SuggestedActions @('.\gamewip.bat tools ensure quality -Yes', '.\gamewip.bat tools status'))
+                -SuggestedActions @('.\gamewip.bat tool ensure quality -Yes', '.\gamewip.bat tool status'))
     }
     return [string]$status.Detected.Location
 }
@@ -51,9 +51,16 @@ function Get-GameWipMaintainedWorktreeFile
             Where-Object { $_ -and $_ -notmatch '^(?:external|build|install|docs/releases)/' } |
             Where-Object { Test-Path -LiteralPath (Join-Path $RepositoryRoot $_) -PathType Leaf } |
             Where-Object {
-                $leaf = [IO.Path]::GetFileName($_)
-                $extension = [IO.Path]::GetExtension($_).ToLowerInvariant()
-                $ExactNames -contains $leaf -or $Extensions -contains $extension
+                if (@($ExactNames).Count -eq 0 -and @($Extensions).Count -eq 0)
+                {
+                    $true
+                }
+                else
+                {
+                    $leaf = [IO.Path]::GetFileName($_)
+                    $extension = [IO.Path]::GetExtension($_).ToLowerInvariant()
+                    $ExactNames -contains $leaf -or $Extensions -contains $extension
+                }
             } |
             Sort-Object -Unique)
 }
@@ -434,7 +441,7 @@ function Get-GameWipQualityToolchain
         -ThrowOnFailure `
         -FailureCode quality-toolchain-incomplete `
         -FailureSummary 'The declared quality toolchain is incomplete.' `
-        -SuggestedActions @('.\gamewip.bat tools ensure quality -Yes', '.\gamewip.bat tools status')
+        -SuggestedActions @('.\gamewip.bat tool ensure quality -Yes', '.\gamewip.bat tool status')
     return $check.Tools
 }
 

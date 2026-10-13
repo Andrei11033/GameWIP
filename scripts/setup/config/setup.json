@@ -126,7 +126,6 @@
     },
     {
       "id": "repo",
-      "aliases": ["repository"],
       "name": "Prepare repository",
       "description": "Prepare the Git checkout and configure repository-local development state.",
       "risk": "local",
@@ -136,7 +135,6 @@
     },
     {
       "id": "tool",
-      "aliases": ["tools"],
       "name": "Install project tools",
       "description": "Install or repair declared exact/compatible project tools without advancing pins.",
       "risk": "machine",
@@ -146,7 +144,6 @@
     },
     {
       "id": "deps",
-      "aliases": ["dependencies"],
       "name": "Prepare dependency cache",
       "description": "Fetch or reuse the exact dependency sources required by the checkout.",
       "risk": "local",
@@ -174,7 +171,6 @@
     },
     {
       "id": "doc",
-      "aliases": ["docs"],
       "name": "Build documentation",
       "description": "Build and verify the generated manual.",
       "risk": "local",
@@ -193,7 +189,6 @@
     },
     {
       "id": "vs",
-      "aliases": ["visual-studio"],
       "name": "Install/repair Visual Studio",
       "description": "Apply the repository Visual Studio configuration.",
       "risk": "machine",
@@ -212,7 +207,6 @@
     },
     {
       "id": "list",
-      "aliases": ["ls"],
       "name": "List setup actions",
       "description": "List supported setup actions and their behavior.",
       "risk": "read-only",
@@ -221,7 +215,6 @@
     },
     {
       "id": "help",
-      "aliases": ["h"],
       "name": "Show setup help",
       "description": "Print command-line usage and common options.",
       "risk": "read-only",
@@ -230,7 +223,6 @@
     },
     {
       "id": "menu",
-      "aliases": [],
       "name": "Open the interactive setup menu",
       "description": "Open the persistent setup menu.",
       "risk": "read-only",

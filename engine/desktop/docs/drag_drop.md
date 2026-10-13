@@ -241,10 +241,10 @@ Cancellation is not an IO error: it returns successful status,
 successful status, `Outcome::Dropped`, and the performed effect. Setup,
 conversion, allocation, OLE, and native failures use failed status.
 
-## Lightweight file-drop migration
+## Choosing a file-drop API
 
-The existing `Window::fileDropEnabled` mode and `Types::Events::FilesDropped`
-remain the small path-only API. It uses different native registration and is
+`Types::Description::fileDropEnabled` and `Types::Events::FilesDropped`
+provide the small path-only API. It uses different native registration and is
 mutually exclusive with a full target:
 
 - opening `DragDropTarget` while lightweight mode is enabled returns

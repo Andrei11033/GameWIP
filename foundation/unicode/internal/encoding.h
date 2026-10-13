@@ -4,7 +4,6 @@
 #pragma once
 
 #include "unicode/unicode.h"
-#include "unicode/internal/type_aliases.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -26,7 +25,7 @@ namespace GameWIP::Unicode::Internal
     }
 
     /// @brief Decodes one strict UTF-8 scalar without allocation or external state.
-    [[nodiscard]] inline Types::Utf8DecodeResult decodeUtf8Scalar(std::string_view bytes) noexcept
+    [[nodiscard]] inline Types::Utf8::DecodeResult decodeUtf8Scalar(std::string_view bytes) noexcept
     {
         if (bytes.empty())
         {
@@ -196,7 +195,7 @@ namespace GameWIP::Unicode::Internal
     }
 
     /// @brief Decodes one strict UTF-16 scalar without allocation or external state.
-    [[nodiscard]] inline Types::Utf16DecodeResult decodeUtf16Scalar(std::span<const char16_t> codeUnits) noexcept
+    [[nodiscard]] inline Types::Utf16::DecodeResult decodeUtf16Scalar(std::span<const char16_t> codeUnits) noexcept
     {
         if (codeUnits.empty())
         {
@@ -263,7 +262,7 @@ namespace GameWIP::Unicode::Internal
     /// @brief Result of decoding the complete scalar immediately before a byte offset.
     struct PreviousUtf8ScalarResult
     {
-        Types::Utf8DecodeResult decoded{};
+        Types::Utf8::DecodeResult decoded{};
         std::size_t startOffset = 0;
     };
 
@@ -282,7 +281,7 @@ namespace GameWIP::Unicode::Internal
         }
 
         const std::size_t encodedLength = byteOffset - startOffset;
-        const Types::Utf8DecodeResult decoded = decodeUtf8Scalar(text.substr(startOffset, encodedLength));
+        const Types::Utf8::DecodeResult decoded = decodeUtf8Scalar(text.substr(startOffset, encodedLength));
 
         if (decoded.outcome != Types::DecodeOutcome::Decoded || decoded.bytesConsumed != encodedLength)
         {

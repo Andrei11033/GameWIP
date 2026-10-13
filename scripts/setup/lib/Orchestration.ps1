@@ -132,32 +132,9 @@ function Assert-GameWipSetupActionCatalog
         $canonicalKey = $canonical.ToLowerInvariant()
         if ($actionNames.ContainsKey($canonicalKey))
         {
-            throw "Setup action name '$canonical' is duplicated or collides with an alias."
+            throw "Setup action name '$canonical' is duplicated."
         }
         $actionNames[$canonicalKey] = $canonical
-        $hasAliases = ($action -is [hashtable] -and ($action.ContainsKey('aliases') -or $action.ContainsKey('Aliases'))) -or ($action.PSObject.Properties.Name -contains 'aliases')
-        if (-not $hasAliases -or $null -eq $action.Aliases)
-        {
-            $aliases = @()
-        }
-        else
-        {
-            $aliases = @($action.Aliases)
-        }
-        foreach ($alias in $aliases)
-        {
-            $aliasText = [string]$alias
-            if ($aliasText -notmatch '^[a-z][a-z0-9-]*$')
-            {
-                throw "Setup action '$canonical' has invalid alias '$aliasText'."
-            }
-            $aliasKey = $aliasText.ToLowerInvariant()
-            if ($actionNames.ContainsKey($aliasKey))
-            {
-                throw "Setup action alias '$aliasText' collides with '$($actionNames[$aliasKey])'."
-            }
-            $actionNames[$aliasKey] = $canonical
-        }
     }
     foreach ($toolId in @($SetupActionConfig.BootstrapToolIds))
     {
@@ -177,22 +154,6 @@ function Resolve-GameWipSetupActionName
         if ([string]$action.Id -ieq $Name)
         {
             return [string]$action.Id
-        }
-        $hasAliases = ($action -is [hashtable] -and ($action.ContainsKey('aliases') -or $action.ContainsKey('Aliases'))) -or ($action.PSObject.Properties.Name -contains 'aliases')
-        if (-not $hasAliases -or $null -eq $action.Aliases)
-        {
-            $aliases = @()
-        }
-        else
-        {
-            $aliases = @($action.Aliases)
-        }
-        foreach ($alias in $aliases)
-        {
-            if ([string]$alias -ieq $Name)
-            {
-                return [string]$action.Id
-            }
         }
     }
     return $null
@@ -215,16 +176,7 @@ function Show-GameWipSetupActionCatalog
     Write-GameWipSection 'Setup actions'
     foreach ($actionInfo in @($SetupActionConfig.Actions))
     {
-        $hasAliases = ($actionInfo -is [hashtable] -and ($actionInfo.ContainsKey('aliases') -or $actionInfo.ContainsKey('Aliases'))) -or ($actionInfo.PSObject.Properties.Name -contains 'aliases')
-        if ($hasAliases -and $null -ne $actionInfo.Aliases -and @($actionInfo.Aliases).Count -gt 0)
-        {
-            $aliases = " (aliases: $(@($actionInfo.Aliases) -join ', '))"
-        }
-        else
-        {
-            $aliases = ''
-        }
-        Write-Host ('  {0,-16} [{1,-11}] {2}{3}' -f $actionInfo.Id, $actionInfo.Risk, $actionInfo.Description, $aliases)
+        Write-Host ('  {0,-16} [{1,-11}] {2}' -f $actionInfo.Id, $actionInfo.Risk, $actionInfo.Description)
     }
 }
 

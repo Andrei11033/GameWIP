@@ -138,7 +138,7 @@ A `std::stop_token` is a requested-cancellation channel, not an operational fail
 `Types::Input::ReadOutcome::Cancelled` without consuming input. When a read could block and the selected endpoint cannot observe cancellation, a
 stoppable token is rejected as `Unsupported` rather than silently ignored.
 
-Current Win32 named-pipe input supports non-blocking reads, finite deadlines, and cooperative cancellation. Real Win32 console input now uses waitable
+Win32 named-pipe input supports non-blocking reads, finite deadlines, and cooperative cancellation. Real Win32 console input uses waitable
 console handles plus one lazily-created cancellation event, so event, byte/text, and managed line reads support polling, finite total deadlines, and
 requested cancellation without a permanent worker thread or sleep-based polling loop.
 

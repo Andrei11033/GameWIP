@@ -454,7 +454,7 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("target closes on revocation retry", target.close().ok()));
     static_cast<void>(context.expectTrue("lightweight mode enables after target close", window.setFileDropEnabled(true).ok()));
     static_cast<void>(context.expectEq("full target conflicts with lightweight mode", ErrorCode::ResourceBusy, target.open(window, {}).code));
-    static_cast<void>(context.expectTrue("lightweight mode disables for migration", window.setFileDropEnabled(false).ok()));
+    static_cast<void>(context.expectTrue("lightweight mode disables before full target registration", window.setFileDropEnabled(false).ok()));
     std::array<DD::Event, 2> externalStorage;
     static_cast<void>(
         context.expectTrue("target reopens with external queue", target.open(window, DD::TargetDescription{regions}, externalStorage).ok()));

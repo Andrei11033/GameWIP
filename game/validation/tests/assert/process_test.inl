@@ -91,15 +91,20 @@ int runUnreachableChild()
 }
 
 /// @brief Runs a child process and expects it to exit abnormally.
-void expectAbnormalChildExit(TestContext &context, std::string_view argument, std::string_view testName)
+void expectAbnormalChildExit(TestContext &context, std::string_view argument, std::string_view testName, std::chrono::milliseconds timeout = 30s)
 {
     std::cout.flush();
     std::cerr.flush();
-    const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument);
+    const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument, timeout);
     context.expectTrue(
         testName,
         result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode != 0,
-        "child process did not produce a normal nonzero exit");
+        std::format(
+            "{} outcome={} exit={}\n{}",
+            TestSupport::formatInfrastructureStatus(result.status),
+            static_cast<int>(result.outcome),
+            result.exitCode,
+            result.outputBytes));
 }
 
 /// @brief Verifies a failed ASSERT triggers an abnormal child-process exit when assertions are enabled.
@@ -108,7 +113,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
 #if ASSERT_ENABLED
     if (!options.enableChildCrashTests)
     {
-        context.pass("ASSERT failure child test disabled by AssertTestOptions");
+        context.skip("ASSERT failure child test", "disabled by AssertTestOptions");
         return;
     }
 
@@ -144,7 +149,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
         "child assert message was embedded");
 #endif
 #else
-    context.pass("ASSERT failure child test skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT failure child test", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -154,7 +159,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
 #if ASSERT_ENABLED
     if (!options.enableChildCrashTests)
     {
-        context.pass("ASSERT_INTERACTIVE abort child test disabled by AssertTestOptions");
+        context.skip("ASSERT_INTERACTIVE abort child test", "disabled by AssertTestOptions");
         return;
     }
 
@@ -190,7 +195,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
         "interactive abort child message was embedded");
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE abort child skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE abort child", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -200,7 +205,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
 #if ASSERT_ENABLED
     if (!options.enableChildCrashTests)
     {
-        context.pass("ASSERT_INTERACTIVE break child test disabled by AssertTestOptions");
+        context.skip("ASSERT_INTERACTIVE break child test", "disabled by AssertTestOptions");
         return;
     }
 
@@ -236,7 +241,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
         "interactive break child message was embedded");
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE break child skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE break child", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -257,6 +262,6 @@ void testUnreachableChild(TestContext &context)
     }
     expectAbnormalChildExit(context, kUnreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
 #else
-    context.pass("UNREACHABLE child test skipped because ASSERT_UNREACHABLE_ASSUME=1");
+    context.skip("UNREACHABLE child test", "ASSERT_UNREACHABLE_ASSUME=1");
 #endif
 }

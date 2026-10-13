@@ -52,7 +52,7 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
 {
     if (!options.enableChildCrashTests)
     {
-        context.pass("fatalTerminate child disabled by LoggerTestOptions");
+        context.skip("fatalTerminate child", "disabled by LoggerTestOptions");
         return;
     }
 
@@ -84,14 +84,44 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
 {
     if (!options.enableManualTests)
     {
-        context.pass("manual Logger fatal popup skipped by LoggerTestOptions");
+        context.skip("manual Logger fatal popup", "disabled by LoggerTestOptions");
         return;
     }
 
     ScopedLoggerShutdown shutdown;
     Logger::Types::Config config = makeConsoleConfig();
     config.enableFatalPopup = true;
-    expectStarted(context, "manual fatal popup init", Logger::init(config));
-    static_cast<void>(Logger::reportFatal(kTestSource, "Manual Logger fatal popup test. Close this popup to continue."));
-    context.pass("manual Logger fatal popup completed");
+    const auto initialized = Logger::init(config);
+    expectStarted(context, "manual fatal popup init", initialized);
+    if (!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
+    {
+        return;
+    }
+    const auto report = Logger::reportFatal(kTestSource, "Manual Logger fatal popup test. Close this popup to continue.");
+    context.expectTrue(
+        "manual fatal popup report delivered",
+        reportDelivered(report),
+        std::format("code={} native={} message={}", IO::errorCodeName(report.status.code), report.status.nativeCode, report.status.message));
+    if (!reportDelivered(report))
+    {
+        return;
+    }
+    std::string skipReason;
+    const auto answer =
+        TestSupport::promptManualCheck("Did the fatal popup show the Manual Logger message, and could you close it normally?", skipReason);
+    switch (answer)
+    {
+    case TestSupport::Types::Reporting::ManualAnswer::Yes:
+        ++context.manualObservations.passed;
+        context.pass("manual Logger fatal popup observation");
+        break;
+    case TestSupport::Types::Reporting::ManualAnswer::No:
+        ++context.manualObservations.failed;
+        context.fail("manual Logger fatal popup observation", "manual observation rejected by user");
+        break;
+    case TestSupport::Types::Reporting::ManualAnswer::Skipped:
+        ++context.manualObservations.skipped;
+        context.skip("manual Logger fatal popup observation", skipReason);
+        break;
+    }
 }

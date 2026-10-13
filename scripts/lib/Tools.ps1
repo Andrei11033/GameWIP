@@ -390,7 +390,7 @@ function Test-GameWipToolchain
         [switch]$ThrowOnFailure,
         [string]$FailureCode = 'toolchain-incomplete',
         [string]$FailureSummary = 'The declared project toolchain is incomplete.',
-        [string[]]$SuggestedActions = @('.\gamewip.bat tools ensure all -Yes', '.\gamewip.bat tools status'),
+        [string[]]$SuggestedActions = @('.\gamewip.bat tool ensure all -Yes', '.\gamewip.bat tool status'),
         [int]$Indent = 2
     )
 
@@ -733,7 +733,7 @@ function Confirm-GameWipToolchain
                 -Code 'preset-toolchain-incomplete' `
                 -Summary "The '$PresetName' preset toolchain is incomplete." `
                 -Details ("Missing from '{0}': {1}" -f $prefix, ($missingExecutables -join ', ')) `
-                -SuggestedActions @('Run .\setup.bat repair.', "Verify the managed MSYS2 environment for the '$PresetName' preset.", 'Run .\gamewip.bat tools status.'))
+                -SuggestedActions @('Run .\setup.bat repair.', "Verify the managed MSYS2 environment for the '$PresetName' preset.", 'Run .\gamewip.bat tool status.'))
     }
 }
 

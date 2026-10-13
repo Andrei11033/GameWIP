@@ -50,7 +50,7 @@ are intentionally not serialized into arbitrary escape sequences. Use `Types::In
 
 ## An `OutputBuffer` mutation returned a failure
 
-`OutputBuffer` no longer throws for reserve, append, line-policy, or formatting failures. Inspect the returned status. Failed append/format operations
+`OutputBuffer` returns status for reserve, append, line-policy, and formatting failures. Failed append/format operations
 preserve the previous complete buffer contents; a failed `flushTo()` preserves the buffered text for retry.
 
 ## `flushTo()` did not force an OS flush
@@ -71,8 +71,8 @@ A requested flush can fail after all bytes were accepted. Inspect both `status` 
 `AlreadyOpen` means that same `Session` object is already open. `ResourceBusy` means another persistent session or direct managed input operation owns
 stdin.
 
-Close the existing owner explicitly before opening another one. Do not reintroduce availability-check-then-read logic; ownership is intentionally
-acquired by the operation itself.
+Close the existing owner explicitly before opening another one. The read or open operation acquires ownership atomically; a separate availability
+query cannot reserve it.
 
 ## `Session::close()` failed and `isOpen()` is still true
 

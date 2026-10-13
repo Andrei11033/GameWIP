@@ -13,13 +13,12 @@ contracts, ownership, builds, and validation deliberately strict.
 
 GameWIP supports Windows 11 and is pre-1.0. Active work is tracked
 in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
-and the [roadmap](docs/roadmap.md). The latest published baseline is
-[v0.0.1](docs/releases/v0.0.1.md).
+and the [roadmap](docs/roadmap.md).
 
 ## Development approach
 
-I write the implementation myself. I only use AI for research, review and
-to help me make sure the documentation and comments are correct.
+I write the implementation myself and docs. I use AI to help with research, review,
+tests and maintenance.
 
 ## Start here
 

@@ -291,16 +291,9 @@ namespace
         static_cast<void>(context.expectEq("repeated identical selector invokes alpha once", std::size_t{1}, probeState.alpha.runs));
     }
 
-    void testRemovedAndRetainedOptions(TestSupport::Context &context)
+    void testRetainedOptions(TestSupport::Context &context)
     {
-        ValidationTests::RunOptions enabledOptions = unattendedOptions();
-        enabledOptions.enableManualTests = true;
-        Validation::TestResult result = runProbe({"--no-manual-ui", "--no-logger-popup", "--test-support-manual"}, std::move(enabledOptions));
-        static_cast<void>(context.expectTrue("removed options are ignored", result.ok()));
-        static_cast<void>(context.expectEq("removed TestSupport alias does not select a module", std::size_t{2}, result.modulesRun));
-        static_cast<void>(context.expectTrue("removed manual disable options have no effect", probeState.alpha.manualTests));
-
-        result = runProbe({"--no-test-report", "--no-test-support-child-process"});
+        const Validation::TestResult result = runProbe({"--no-test-report", "--no-test-support-child-process"});
         static_cast<void>(context.expectTrue("retained negative options succeed", result.ok()));
         static_cast<void>(context.expectFalse("no-test-report propagates", probeState.alpha.writeReport));
         static_cast<void>(context.expectFalse("no-test-support-child-process propagates", probeState.alpha.childProcesses));
@@ -483,7 +476,7 @@ namespace GameWIP::Test
         runner.runSuite("Validation runner selection independence", testSelectionIndependence);
         runner.runSuite("Validation runner module skips", testModuleSkipSelection);
         runner.runSuite("Validation runner invalid module selection", testInvalidModuleSelection);
-        runner.runSuite("Validation runner removed and retained options", testRemovedAndRetainedOptions);
+        runner.runSuite("Validation runner retained options", testRetainedOptions);
         runner.runSuite("Validation runner reserved input validation", testReservedChildAndReportValidation);
         runner.runSuite("Validation runner report resolution and aggregation", testReportResolutionAndAggregation);
         runner.runSuite("Validation runner failure isolation", testModuleFailureIsolation);

@@ -27,9 +27,6 @@ param(
     [switch]$AggregatesOnly,
     [string]$BaselinePath,
     [string]$CandidatePath,
-    [Parameter(DontShow = $true)][Alias('Output')][string]$RetiredOutput,
-    [Parameter(DontShow = $true)][Alias('Baseline')][string]$RetiredBaseline,
-    [Parameter(DontShow = $true)][Alias('Candidate')][string]$RetiredCandidate,
     [ValidateRange(1, 100000)][int]$RunCount = 0,
     [ValidateRange(1, 256)][int]$WorkerCount = 0,
     [string[]]$PassThroughArgs = @(),
@@ -58,20 +55,7 @@ if ($Quiet)
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 
-foreach ($retiredOption in @(
-        @{ Name = 'Output'; Bound = $PSBoundParameters.ContainsKey('RetiredOutput') -or $PSBoundParameters.ContainsKey('Output') },
-        @{ Name = 'Baseline'; Bound = $PSBoundParameters.ContainsKey('RetiredBaseline') -or $PSBoundParameters.ContainsKey('Baseline') },
-        @{ Name = 'Candidate'; Bound = $PSBoundParameters.ContainsKey('RetiredCandidate') -or $PSBoundParameters.ContainsKey('Candidate') }
-    ))
-{
-    if ($retiredOption.Bound)
-    {
-        throw "Option '-$($retiredOption.Name)' was renamed and is no longer accepted; use the canonical option shown by '.\gamewip.bat help'."
-    }
-}
-
-# Keep the focused libraries' internal names stable while exposing the clearer
-# public command-line vocabulary above.
+# Map command-line values to the operation helpers' shared context.
 $PythonProviderHostPath = $PythonHostPath
 $UnicodeDataRoot = $UnicodeDataPath
 $WorkflowNumber = $ItemNumber

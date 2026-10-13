@@ -92,8 +92,20 @@ void testContextReporting(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(failing.expectNear("intentional negative tolerance", 1.0, 1.0, -1.0));
     static_cast<void>(failing.expectNear("intentional outside tolerance", 1.0, 2.0, 0.1));
     static_cast<void>(failing.expectFileContains("intentional missing file", root / "missing.txt", "needle"));
+    static_cast<void>(
+        failing.expectEq("intentional enum mismatch", TestSupport::Types::Process::Outcome::Exited, TestSupport::Types::Process::Outcome::TimedOut));
+    enum class SignedDiagnostic : int
+    {
+        Negative = -7,
+        Positive = 42
+    };
+    static_cast<void>(failing.expectEq("intentional signed enum mismatch", SignedDiagnostic::Negative, SignedDiagnostic::Positive));
     const TestSupport::Types::Reporting::Summary failingSummary = failing.result();
-    static_cast<void>(context.expectEq("Context records failures without throwing", std::size_t{4}, failingSummary.failed));
+    static_cast<void>(context.expectEq("Context records failures without throwing", std::size_t{6}, failingSummary.failed));
+    static_cast<void>(
+        context.expectFileContains("enum mismatch shows narrow numeric values", root / "failing_context_report.txt", "expected 1, got 2"));
+    static_cast<void>(
+        context.expectFileContains("enum mismatch preserves negative values", root / "failing_context_report.txt", "expected -7, got 42"));
     static_cast<void>(context.expectFalse("Failing context not ok", failing.ok()));
     context.pass("Context continued after nested failures");
 }

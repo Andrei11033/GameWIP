@@ -215,6 +215,7 @@ void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Ty
     }
 
     TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::Types::Reporting::ManualAnswer::Skipped;
+    std::string skipReason;
     const bool contentReady = requireManualOperation(context, "manual alternate screen", "clear alternate screen", Terminal::clear()) &&
                               requireManualOperation(
                                   context,
@@ -223,13 +224,13 @@ void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Ty
                                   Terminal::writeLine("GameWIP Terminal alternate-screen check"));
     if (contentReady)
     {
-        answer = TestSupport::promptManualCheck("Is this prompt displayed on a clean alternate screen?");
+        answer = TestSupport::promptManualCheck("Is this prompt displayed on a clean alternate screen?", skipReason);
     }
 
     const bool restored = requireManualOperation(context, "manual alternate screen", "leave alternate screen", alternateScreen.leave());
     if (contentReady && restored)
     {
-        recordManualAnswer(context, "manual alternate screen", answer);
+        recordManualAnswer(context, "manual alternate screen", answer, skipReason);
     }
 }
 
@@ -452,12 +453,14 @@ void testManualStateRestoration(
         return;
     }
 
-    const TestSupport::Types::Reporting::ManualAnswer hiddenAnswer = TestSupport::promptManualCheck("Is the terminal cursor currently hidden?");
+    std::string skipReason;
+    const TestSupport::Types::Reporting::ManualAnswer hiddenAnswer =
+        TestSupport::promptManualCheck("Is the terminal cursor currently hidden?", skipReason);
     if (!requireManualOperation(context, "manual cursor-visibility restoration", "restore cursor visibility", hiddenCursor.restore()))
     {
         return;
     }
-    recordManualAnswer(context, "manual cursor hidden state", hiddenAnswer);
+    recordManualAnswer(context, "manual cursor hidden state", hiddenAnswer, skipReason);
     recordManualCheck(
         context,
         "manual cursor-visibility restoration",

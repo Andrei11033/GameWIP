@@ -13,6 +13,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -21,6 +22,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -48,6 +50,7 @@ namespace
     constexpr std::string_view kOutputChildArgument = "--test-support-test-child=output";
     constexpr std::string_view kDescendantChildArgument = "--test-support-test-child=descendant";
     constexpr std::string_view kHandleInheritanceChildArgument = "--test-support-test-child=handle-inheritance";
+    constexpr std::string_view kStartGateChildArgument = "--test-support-test-child=start-gate";
     constexpr std::string_view kChildSetVariable = "INTERNAL_TEST_SUPPORT_CHILD_SET";
     constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
@@ -134,8 +137,14 @@ namespace
     // Child-process routes
     // ------------------------------------------------------------
 
+    int runStartGateChild();
+
     int runTestSupportChild(int argc, char **argv)
     {
+        if (hasArgument(argc, argv, kStartGateChildArgument))
+        {
+            return runStartGateChild();
+        }
         if (hasArgument(argc, argv, kEnvironmentChildArgument))
         {
             const char *setValue = std::getenv(std::string(kChildSetVariable).c_str());
@@ -226,7 +235,7 @@ namespace GameWIP::Test
         if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||
             hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument) ||
             hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument) ||
-            hasArgument(argc, argv, kHandleInheritanceChildArgument))
+            hasArgument(argc, argv, kHandleInheritanceChildArgument) || hasArgument(argc, argv, kStartGateChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }
@@ -305,9 +314,9 @@ namespace GameWIP::Test
             });
         runner.runSuite(
             "TestSupport stress helpers",
-            [&options](TestSupport::Context &context)
+            [&options, &executablePath](TestSupport::Context &context)
             {
-                testStressHelpers(context, options);
+                testStressHelpers(context, executablePath, options);
             });
 
         const TestSupport::Types::Reporting::Summary result = runner.result();

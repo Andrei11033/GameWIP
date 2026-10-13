@@ -5,7 +5,6 @@
 
 #include "test_support/test_support.h"
 #include "unicode/internal/generated/unicode_properties.h"
-#include "unicode/internal/type_aliases.h"
 #include "unicode/internal/unicode_properties.h"
 #include "unicode/unicode.h"
 
@@ -23,6 +22,7 @@
 #include <optional>
 #include <span>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -34,7 +34,7 @@ namespace
     namespace Unicode = GameWIP::Unicode;
     namespace TestSupport = GameWIP::TestSupport;
 
-    using BoundaryOutcome = Unicode::Types::BoundaryOutcome;
+    using BoundaryOutcome = Unicode::Types::Utf8::BoundaryOutcome;
     using ConversionOutcome = Unicode::Types::ConversionOutcome;
     using DecodeOutcome = Unicode::Types::DecodeOutcome;
     using EncodeOutcome = Unicode::Types::EncodeOutcome;
@@ -82,15 +82,23 @@ namespace
         return result;
     }
 
-    /// @brief Returns the valid UTF-8 prefix stored in one scalar-encode result.
-    std::string_view encodedBytes(const Unicode::Types::Utf8EncodeResult &result) noexcept
+    /// @brief Checks a successful encoding's length before exposing its UTF-8 storage.
+    std::string_view encodedBytes(const Unicode::Types::Utf8::EncodeResult &result)
     {
+        if (result.byteCount == 0 || result.byteCount > result.bytes.size())
+        {
+            throw std::runtime_error(std::format("UTF-8 encode length {} is outside 1..{}", result.byteCount, result.bytes.size()));
+        }
         return {result.bytes.data(), result.byteCount};
     }
 
-    /// @brief Returns the valid UTF-16 prefix stored in one scalar-encode result.
-    std::span<const char16_t> encodedCodeUnits(const Unicode::Types::Utf16EncodeResult &result) noexcept
+    /// @brief Checks a successful encoding's length before exposing its UTF-16 storage.
+    std::span<const char16_t> encodedCodeUnits(const Unicode::Types::Utf16::EncodeResult &result)
     {
+        if (result.codeUnitCount == 0 || result.codeUnitCount > result.codeUnits.size())
+        {
+            throw std::runtime_error(std::format("UTF-16 encode length {} is outside 1..{}", result.codeUnitCount, result.codeUnits.size()));
+        }
         return std::span{result.codeUnits}.first(result.codeUnitCount);
     }
 
@@ -103,7 +111,7 @@ namespace
         char32_t expectedScalar = U'\0',
         std::uint8_t expectedBytesConsumed = 0)
     {
-        const Unicode::Types::Utf8DecodeResult result = Unicode::Utf8::decodeScalar(input);
+        const Unicode::Types::Utf8::DecodeResult result = Unicode::Utf8::decodeScalar(input);
         static_cast<void>(context.expectEq(std::format("{} outcome", name), expectedOutcome, result.outcome));
         static_cast<void>(context.expectEq(std::format("{} scalar", name), expectedScalar, result.scalar));
         static_cast<void>(context.expectEq(std::format("{} consumed", name), expectedBytesConsumed, result.bytesConsumed));
@@ -118,7 +126,7 @@ namespace
         char32_t expectedScalar = U'\0',
         std::uint8_t expectedCodeUnitsConsumed = 0)
     {
-        const Unicode::Types::Utf16DecodeResult result = Unicode::Utf16::decodeScalar(input);
+        const Unicode::Types::Utf16::DecodeResult result = Unicode::Utf16::decodeScalar(input);
         static_cast<void>(context.expectEq(std::format("{} outcome", name), expectedOutcome, result.outcome));
         static_cast<void>(context.expectEq(std::format("{} scalar", name), expectedScalar, result.scalar));
         static_cast<void>(context.expectEq(std::format("{} consumed", name), expectedCodeUnitsConsumed, result.codeUnitsConsumed));
@@ -142,8 +150,12 @@ namespace
         {
             for (const char32_t scalar : cluster)
             {
-                const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
-                fixture.text.append(encoded.bytes.data(), encoded.byteCount);
+                const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
+                if (encoded.outcome != EncodeOutcome::Encoded)
+                {
+                    throw std::runtime_error(std::format("grapheme fixture U+{:04X} did not encode", static_cast<std::uint32_t>(scalar)));
+                }
+                fixture.text.append(encodedBytes(encoded));
                 fixture.codePointOffsets.push_back(fixture.text.size());
             }
             fixture.boundaries.push_back(fixture.text.size());
@@ -152,7 +164,7 @@ namespace
     }
 
     /// @brief Returns the expected result of moving forward from one code-point-aligned offset.
-    Unicode::Types::Utf8BoundaryResult expectedNextGrapheme(const GraphemeFixture &fixture, std::size_t offset)
+    Unicode::Types::Utf8::BoundaryResult expectedNextGrapheme(const GraphemeFixture &fixture, std::size_t offset)
     {
         if (offset == fixture.text.size())
         {
@@ -163,7 +175,7 @@ namespace
     }
 
     /// @brief Returns the expected result of moving backward from one code-point-aligned offset.
-    Unicode::Types::Utf8BoundaryResult expectedPreviousGrapheme(const GraphemeFixture &fixture, std::size_t offset)
+    Unicode::Types::Utf8::BoundaryResult expectedPreviousGrapheme(const GraphemeFixture &fixture, std::size_t offset)
     {
         if (offset == 0)
         {
@@ -178,8 +190,8 @@ namespace
     {
         for (const std::size_t offset : fixture.codePointOffsets)
         {
-            const Unicode::Types::Utf8BoundaryResult expectedNext = expectedNextGrapheme(fixture, offset);
-            const Unicode::Types::Utf8BoundaryResult actualNext = Unicode::Utf8::nextGraphemeBoundary(fixture.text, offset);
+            const Unicode::Types::Utf8::BoundaryResult expectedNext = expectedNextGrapheme(fixture, offset);
+            const Unicode::Types::Utf8::BoundaryResult actualNext = Unicode::Utf8::nextGraphemeBoundary(fixture.text, offset);
             if (actualNext.outcome != expectedNext.outcome || actualNext.byteOffset != expectedNext.byteOffset)
             {
                 return std::format(
@@ -191,8 +203,8 @@ namespace
                     actualNext.byteOffset);
             }
 
-            const Unicode::Types::Utf8BoundaryResult expectedPrevious = expectedPreviousGrapheme(fixture, offset);
-            const Unicode::Types::Utf8BoundaryResult actualPrevious = Unicode::Utf8::previousGraphemeBoundary(fixture.text, offset);
+            const Unicode::Types::Utf8::BoundaryResult expectedPrevious = expectedPreviousGrapheme(fixture, offset);
+            const Unicode::Types::Utf8::BoundaryResult actualPrevious = Unicode::Utf8::previousGraphemeBoundary(fixture.text, offset);
             if (actualPrevious.outcome != expectedPrevious.outcome || actualPrevious.byteOffset != expectedPrevious.byteOffset)
             {
                 return std::format(
@@ -207,8 +219,8 @@ namespace
 
         std::vector<std::size_t> boundaryStorage(fixture.codePointOffsets.size());
         Unicode::Utf8::GraphemeCursor cursor;
-        const Unicode::Types::Utf8GraphemeIndexResult indexed = cursor.reset(fixture.text, boundaryStorage);
-        if (indexed.outcome != Unicode::Types::GraphemeIndexOutcome::Indexed || indexed.requiredBoundaryCount != fixture.boundaries.size() ||
+        const Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor.reset(fixture.text, boundaryStorage);
+        if (indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed || indexed.requiredBoundaryCount != fixture.boundaries.size() ||
             cursor.boundaryCount() != fixture.boundaries.size())
         {
             return std::format(
@@ -221,7 +233,7 @@ namespace
 
         for (std::size_t index = 1; index < fixture.boundaries.size(); ++index)
         {
-            const Unicode::Types::Utf8BoundaryResult actual = cursor.next();
+            const Unicode::Types::Utf8::BoundaryResult actual = cursor.next();
             if (actual.outcome != BoundaryOutcome::Found || actual.byteOffset != fixture.boundaries[index])
             {
                 return std::format(
@@ -233,7 +245,7 @@ namespace
             }
         }
 
-        const Unicode::Types::Utf8BoundaryResult atEnd = cursor.next();
+        const Unicode::Types::Utf8::BoundaryResult atEnd = cursor.next();
         if (atEnd.outcome != BoundaryOutcome::AtEnd || atEnd.byteOffset != fixture.text.size())
         {
             return std::format(
@@ -245,7 +257,7 @@ namespace
 
         for (std::size_t index = fixture.boundaries.size() - 1; index > 0; --index)
         {
-            const Unicode::Types::Utf8BoundaryResult actual = cursor.previous();
+            const Unicode::Types::Utf8::BoundaryResult actual = cursor.previous();
             if (actual.outcome != BoundaryOutcome::Found || actual.byteOffset != fixture.boundaries[index - 1])
             {
                 return std::format(
@@ -257,7 +269,7 @@ namespace
             }
         }
 
-        const Unicode::Types::Utf8BoundaryResult atBeginning = cursor.previous();
+        const Unicode::Types::Utf8::BoundaryResult atBeginning = cursor.previous();
         if (atBeginning.outcome != BoundaryOutcome::AtBeginning || atBeginning.byteOffset != 0)
         {
             return std::format(
@@ -365,13 +377,18 @@ namespace
             }
 
             const char32_t scalar = static_cast<char32_t>(scalarValue);
-            const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
+            const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
             if (encoded.outcome != EncodeOutcome::Encoded)
             {
                 error = std::format("non-scalar token '{}'", scalarText);
                 return std::nullopt;
             }
-            fixture.text.append(encoded.bytes.data(), encoded.byteCount);
+            if (encoded.byteCount == 0 || encoded.byteCount > encoded.bytes.size())
+            {
+                error = std::format("token '{}' encoded with invalid byte count {}", scalarText, encoded.byteCount);
+                return std::nullopt;
+            }
+            fixture.text.append(encodedBytes(encoded));
             fixture.codePointOffsets.push_back(fixture.text.size());
 
             if (!(tokens >> marker))

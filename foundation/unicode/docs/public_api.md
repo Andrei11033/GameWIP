@@ -14,7 +14,7 @@ complete CMake usage.
 ## Outcome and result types
 
 The `GameWIP::Unicode::Types` namespace contains shared outcomes and `Version`. Encoding-specific passive values live under `Types::Utf8` and
-`Types::Utf16`; the installed public header provides no flat compatibility aliases.
+`Types::Utf16`.
 
 ### Decode and encode outcomes
 

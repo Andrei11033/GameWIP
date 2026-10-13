@@ -29,8 +29,8 @@ backend work and stays `Unsupported` until a documented stable native API can sa
 ## Data transfer, drag and drop, and dialogs
 
 Clipboard and its shared transfer vocabulary are implemented in the focused `desktop/clipboard.h` and `desktop/data_transfer.h` headers. Native drag
-and drop reuses that contract through `desktop/drag_drop.h` rather than duplicating format, ownership, or lifetime rules. Native dialogs still belong
-in their own focused Desktop headers. Existing file-drop events remain the narrow core path-only capability.
+and drop reuses that contract through `desktop/drag_drop.h` rather than duplicating format, ownership, or lifetime rules. Native dialogs and modeless
+progress resources use `desktop/dialogs.h`; see @ref desktop_dialogs. Lightweight file-drop events remain the narrow core path-only capability.
 
 Renderer attachment already has an explicit non-owning native-handle boundary, and renderer occlusion reporting has an explicit owner-thread
 feedback boundary. Concurrent presentation reads have a separate explicit one-way opt-in and do not transfer mutation or resource ownership.

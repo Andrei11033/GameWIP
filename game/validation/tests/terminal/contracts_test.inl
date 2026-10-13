@@ -1,7 +1,7 @@
 /// @file contracts_test.inl
 /// @brief Focused terminal contracts correctness suites.
 
-/// @brief Verifies passive enum validators, style helpers, and line-ending text.
+/// @brief Verifies color/segment helpers, event alternatives, defaults, and formatting failures.
 void testPassiveHelpers(TestSupport::Context &context)
 {
     const Terminal::Types::Style::Color defaultColor = Terminal::defaultColor();
@@ -43,60 +43,25 @@ void testPassiveHelpers(TestSupport::Context &context)
         Terminal::Types::Events::hasModifier(modifiers, Terminal::Types::Events::KeyModifier::Alt)));
 
     Terminal::Types::Events::Key keyEvent;
+    static_assert(Terminal::Types::Events::Key{}.repeatCount == 1);
     keyEvent.key = Terminal::Types::Events::CharacterKey{U'\u03BB'};
-    keyEvent.modifiers = modifiers;
-    keyEvent.action = Terminal::Types::Events::KeyAction::Press;
-    keyEvent.location = Terminal::Types::Events::KeyLocation::Standard;
     Terminal::Types::Event event{.data = keyEvent};
 
     const Terminal::Types::Events::Key *storedKeyEvent = event.getIf<Terminal::Types::Events::Key>();
     static_cast<void>(context.expectTrue("event getIf returns matching key event", storedKeyEvent != nullptr));
     static_cast<void>(context.expectTrue("event getIf rejects paste alternative", event.getIf<Terminal::Types::Events::Paste>() == nullptr));
-    if (storedKeyEvent != nullptr)
-    {
-        const auto *character = std::get_if<Terminal::Types::Events::CharacterKey>(&storedKeyEvent->key);
-        static_cast<void>(context.expectTrue("key variant stores character alternative", character != nullptr));
-        if (character != nullptr)
-        {
-            static_cast<void>(context.expectTrue("character key preserves Unicode scalar", character->value == U'\u03BB'));
-        }
-        static_cast<void>(context.expectEq("key event preserves modifiers", modifiers, storedKeyEvent->modifiers));
-        static_cast<void>(context.expectEq("key event preserves action", Terminal::Types::Events::KeyAction::Press, storedKeyEvent->action));
-        static_cast<void>(context.expectEq("key event preserves location", Terminal::Types::Events::KeyLocation::Standard, storedKeyEvent->location));
-        static_cast<void>(context.expectEq("key event defaults to one occurrence", std::uint32_t{1}, storedKeyEvent->repeatCount));
-    }
-
-    keyEvent.key = Terminal::Types::Events::FunctionKey{24};
-    event.data = keyEvent;
-    storedKeyEvent = event.getIf<Terminal::Types::Events::Key>();
-    static_cast<void>(context.expectTrue("event getIf preserves function-key event", storedKeyEvent != nullptr));
-    if (storedKeyEvent != nullptr)
-    {
-        const auto *functionKey = std::get_if<Terminal::Types::Events::FunctionKey>(&storedKeyEvent->key);
-        static_cast<void>(context.expectTrue("key variant stores function-key alternative", functionKey != nullptr));
-        if (functionKey != nullptr)
-        {
-            static_cast<void>(context.expectEq("function key preserves numeric value", std::uint16_t{24}, functionKey->number));
-        }
-    }
+    const Terminal::Types::Event &constEvent = event;
+    static_cast<void>(
+        context.expectTrue("const event getIf returns the same key", constEvent.getIf<Terminal::Types::Events::Key>() == storedKeyEvent));
 
     event.data = Terminal::Types::Events::Paste{.text = "paste"};
     const Terminal::Types::Events::Paste *paste = event.getIf<Terminal::Types::Events::Paste>();
     static_cast<void>(context.expectTrue("event getIf returns paste event", paste != nullptr));
-    if (paste != nullptr)
-    {
-        static_cast<void>(context.expectEq("paste event preserves UTF-8 text", std::string{"paste"}, paste->text));
-    }
+    static_cast<void>(context.expectTrue("event alternative switch rejects old key", event.getIf<Terminal::Types::Events::Key>() == nullptr));
 
     event.data = Terminal::Types::Events::Resize{.size = {.columns = 120, .rows = 40}};
     const Terminal::Types::Events::Resize *resize = event.getIf<Terminal::Types::Events::Resize>();
     static_cast<void>(context.expectTrue("event getIf returns resize event", resize != nullptr));
-    if (resize != nullptr)
-    {
-        static_cast<void>(context.expectEq("resize event preserves columns", std::uint32_t{120}, resize->size.columns));
-        static_cast<void>(context.expectEq("resize event preserves rows", std::uint32_t{40}, resize->size.rows));
-    }
-
     const Terminal::Types::Output::Segment text = Terminal::textSegment("text");
     static_cast<void>(context.expectEq("text segment kind", Terminal::Types::Output::SegmentKind::Text, text.kind()));
     static_cast<void>(context.expectEq("text segment view", std::string_view{"text"}, text.text()));

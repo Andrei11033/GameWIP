@@ -6,7 +6,10 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
 {
     const std::string utf8Name = std::string{"unicode_"} + "\xD1\x84\xD0\xB0\xD0\xB9\xD0\xBB.txt";
     const auto namePath = FileSystem::pathFromUtf8(utf8Name);
-    static_cast<void>(context.expectTrue("pathFromUtf8 succeeds for non-ASCII filename", namePath.status.ok()));
+    if (!expectStatus(context, "pathFromUtf8 succeeds for non-ASCII filename", namePath.status))
+    {
+        return;
+    }
 
     const std::filesystem::path path = root / "unicode" / namePath.path;
     static_cast<void>(context.expectTrue("write non-ASCII path succeeds", FileSystem::writeAllText(path, "text").status.ok()));

@@ -175,7 +175,7 @@ function(
     endif()
 
     execute_process(
-        COMMAND "${CMAKE_COMMAND}" --build "${build_dir}" --config "${BUILD_TYPE}"
+        COMMAND "${CMAKE_COMMAND}" --build "${build_dir}" --config "${BUILD_TYPE}" --parallel 2
         RESULT_VARIABLE build_result
         OUTPUT_VARIABLE build_output
         ERROR_VARIABLE build_error

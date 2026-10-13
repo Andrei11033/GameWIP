@@ -364,7 +364,7 @@ std::size_t manualCasesSelected = 0;
 }
 
 inline constexpr std::string_view kManualInteropText =
-    "GameWIP strict Unicode: caf\xC3\xA9 \xE2\x80\x94 \xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E \xE2\x80\x94 \xF0\x9F\x98\x80";
+    "GameWIP strict Unicode: caf\xC3\xA9 | \xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E | \xF0\x9F\x98\x80";
 
 [[nodiscard]] Desktop::Types::DataTransfer::Image manualInteropImage()
 {

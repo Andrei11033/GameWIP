@@ -29,13 +29,6 @@ const AREA_LABELS_BY_VALUE = new Map([
     ['Gameplay', 'area:gameplay'],
 ]);
 
-const HISTORICAL_AREA_LABELS_BY_VALUE = new Map([
-    ['Build and tooling', 'area:cmake'],
-    ['Tools/developer support', 'area:tools'],
-    ['GitHub/repository setup', 'area:github'],
-    ['Gameplay roadmap', 'area:roadmap'],
-]);
-
 function stripHtmlComments(text) {
     let result = text;
     while (true) {
@@ -65,18 +58,14 @@ function readIssueFormField(body, heading) {
     return stripHtmlComments(values.join('\n')).trim();
 }
 
-function targetAreaLabel(body, currentLabels) {
-    const selected = readIssueFormField(body, 'Area');
-    if (selected === 'Engine desktop/input/action') {
-        return ['area:desktop', 'area:input', 'area:action', 'area:window-manager'].find((label) => currentLabels.includes(label)) || 'area:engine';
-    }
-    return AREA_LABELS_BY_VALUE.get(selected) ?? HISTORICAL_AREA_LABELS_BY_VALUE.get(selected);
+function targetAreaLabel(body) {
+    return AREA_LABELS_BY_VALUE.get(readIssueFormField(body, 'Area'));
 }
 
 async function applyIssueAreaLabel({ github, context }) {
     const issue = context.payload.issue;
     const current = issue.labels.map((label) => label.name);
-    const target = targetAreaLabel(issue.body ?? '', current);
+    const target = targetAreaLabel(issue.body ?? '');
     if (target === undefined) {
         return;
     }
@@ -91,4 +80,4 @@ async function applyIssueAreaLabel({ github, context }) {
     }
 }
 
-module.exports = { AREA_LABELS_BY_VALUE, HISTORICAL_AREA_LABELS_BY_VALUE, applyIssueAreaLabel, readIssueFormField, targetAreaLabel };
+module.exports = { AREA_LABELS_BY_VALUE, applyIssueAreaLabel, readIssueFormField, targetAreaLabel };

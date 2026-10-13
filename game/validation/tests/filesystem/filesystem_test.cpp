@@ -108,6 +108,37 @@ namespace
         return std::as_bytes(std::span<const char>(text.data(), text.size()));
     }
 
+    /// @brief Checks native query success before comparing its payload.
+    bool expectStatus(TestSupport::Context &context, std::string_view name, const IO::Types::Status &status)
+    {
+        if (!status.ok())
+        {
+            context.fail(name, std::format("code={} native={} message={}", IO::errorCodeName(status.code), status.nativeCode, status.message));
+            return false;
+        }
+        context.pass(name);
+        return true;
+    }
+
+    /// @brief Checks a whole-file query before inspecting retained content.
+    void expectFileText(TestSupport::Context &context, std::string_view name, const Path &path, std::string_view expected)
+    {
+        const auto result = FileSystem::readAllText(path);
+        if (expectStatus(context, std::string(name) + " query", result.status))
+        {
+            static_cast<void>(context.expectEq(name, expected, result.text));
+        }
+    }
+
+    /// @brief Checks a predicate query before inspecting its boolean value.
+    void expectPredicate(TestSupport::Context &context, std::string_view name, const FileSystem::Types::BoolResult &result, bool expected)
+    {
+        if (expectStatus(context, std::string(name) + " query", result.status))
+        {
+            static_cast<void>(context.expectEq(name, expected, result.value));
+        }
+    }
+
     /// @brief Creates a file or directory symlink and records unavailable host support as a skip.
     bool createSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link, bool directory)
     {
@@ -116,11 +147,13 @@ namespace
         if (CreateSymbolicLinkW(link.wstring().c_str(), target.wstring().c_str(), flags) == FALSE)
         {
             const DWORD error = GetLastError();
-            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr)
+            const bool unavailable =
+                error == ERROR_PRIVILEGE_NOT_HELD || error == ERROR_ACCESS_DENIED || error == ERROR_NOT_SUPPORTED || error == ERROR_INVALID_FUNCTION;
+            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
             {
                 context.fail(
                     directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                    std::format("CI requires symlink creation: {}", std::system_category().message(static_cast<int>(error))));
+                    std::format("symlink creation failed: native={} message={}", error, std::system_category().message(static_cast<int>(error))));
                 return false;
             }
             context.skip(
@@ -141,11 +174,13 @@ namespace
         }
         if (error)
         {
-            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr)
+            const bool unavailable = error == std::errc::permission_denied || error == std::errc::operation_not_permitted ||
+                                     error == std::errc::function_not_supported || error == std::errc::operation_not_supported;
+            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
             {
                 context.fail(
                     directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                    std::format("CI requires symlink creation: {}", error.message()));
+                    std::format("symlink creation failed: native={} message={}", error.value(), error.message()));
                 return false;
             }
             context.skip(

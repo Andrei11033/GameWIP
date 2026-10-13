@@ -31,7 +31,7 @@ expression. `text` and `cmakeMinimum` references are live; `path` references
 only record where a tool is used and are never rewritten.
 
 Repository text reads use strict UTF-8 and reject malformed input. Writes use
-UTF-8 without a byte-order mark. `tools update ... -Preview` still runs
+UTF-8 without a byte-order mark. `tool update ... -Preview` runs
 discovery, planning, staging, and validation, then stops before changing tracked
 files or machine state. When everything is current, the plan stages nothing and
 does not reinstall an identical tool. A provider owns rollback once it starts

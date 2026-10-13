@@ -59,29 +59,98 @@ void testReportsAndHealth(TestContext &context)
 #endif
 }
 
-void testReportDoesNotDrainAsyncBacklog(TestContext &context)
+/// @brief Runs only in a child because the worker-pause hook can wait indefinitely.
+void testReportNoDrainScenario(TestContext &context)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
     ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "report-no-drain");
     config.workerBatchSize = 1;
-    expectStarted(context, "report no-drain init", Logger::init(config.ready()));
+    const auto initialized = Logger::init(config.ready());
+    expectStarted(context, "report no-drain init", initialized);
+    if (!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
+    {
+        return;
+    }
 
+    struct ScopedPauseRelease
+    {
+        ~ScopedPauseRelease()
+        {
+            GameWIP::Logger::TestHooks::releaseWorkerDeliveryPause();
+        }
+    } releasePause;
     GameWIP::Logger::TestHooks::armWorkerDeliveryPause();
     Logger::info(kTestSource, "older queued line deliberately held");
     GameWIP::Logger::TestHooks::waitForWorkerDeliveryPause();
 
-    const auto start = Clock::now();
     const Logger::Types::Report::Result report = Logger::reportError(kTestSource, 250ms, "emergency line bypasses old queue");
-    const auto elapsed = Clock::now() - start;
     context.expectTrue("timed report completes with older queue blocked", reportDelivered(report));
-    context.expectTrue("timed report does not wait for older queue", elapsed < 1s);
 
     GameWIP::Logger::TestHooks::releaseWorkerDeliveryPause();
     context.expectTrue("report no-drain final flush", flushCompleted(Logger::flush(2s)));
+    const std::string contents = readWholeFile(context, loggerLogFilePath(context));
+    context.expectContains("queued record delivered after release", contents, "older queued line deliberately held");
+    context.expectContains("emergency report retained", contents, "emergency line bypasses old queue");
+    context.expectTrue(
+        "emergency report precedes the held record",
+        contents.find("emergency line bypasses old queue") < contents.find("older queued line deliberately held"));
 #else
-    context.pass("report no-drain hook test skipped because LOGGER_INTERNAL_TEST_HOOKS=0");
+    context.skip("report no-drain hook test", "LOGGER_INTERNAL_TEST_HOOKS=0");
 #endif
+}
+
+/// @brief Bounds the pause/report/cleanup scenario with the process harness.
+void testReportDoesNotDrainAsyncBacklog(TestContext &context, const LoggerTestOptions &options)
+{
+#if LOGGER_INTERNAL_TEST_HOOKS
+    if (!options.enableChildCrashTests)
+    {
+        context.skip("report no-drain child", "child tests disabled by LoggerTestOptions");
+        return;
+    }
+    const auto directory = testDirectory(context, "report-no-drain-child");
+    TestSupport::Types::Process::Options childOptions;
+    childOptions.executablePath = std::filesystem::path(context.executablePath);
+    childOptions.arguments = {"--logger-test-child=report-no-drain"};
+    childOptions.environmentOverrides = {{std::string(kChildLogDirectoryEnvironmentVariable), pathText(directory)}};
+    childOptions.timeout = 30s;
+    const auto child = TestSupport::runChildProcess(childOptions);
+    context.expectTrue(
+        "report no-drain child completes",
+        child.status.ok() && child.outcome == TestSupport::Types::Process::Outcome::Exited && child.exitCode == 0,
+        std::format(
+            "{} outcome={} exit={}\n{}",
+            TestSupport::formatInfrastructureStatus(child.status),
+            static_cast<int>(child.outcome),
+            child.exitCode,
+            child.outputBytes));
+#else
+    static_cast<void>(options);
+    context.skip("report no-drain child", "LOGGER_INTERNAL_TEST_HOOKS=0");
+#endif
+}
+
+/// @brief Reports child assertions through captured stdout without touching parent reports.
+int runReportNoDrainChild()
+{
+    const char *directory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str());
+    if (directory == nullptr)
+    {
+        return 2;
+    }
+    TestSupport::Types::Reporting::Options options;
+    options.writeReport = false;
+    TestSupport::Runner runner(options);
+    runner.runSuite(
+        "Logger report no-drain child",
+        [&](TestSupport::Context &testContext)
+        {
+            TestContext context(testContext);
+            context.logRoot = pathFromText(directory);
+            testReportNoDrainScenario(context);
+        });
+    return runner.exitCode();
 }
 
 void testFlushContracts(TestContext &context)
@@ -123,6 +192,6 @@ void testFatalPopupFailure(TestContext &context)
     context.expectEq("fatal popup partial delivery", result.delivery, Logger::Types::Report::Delivery::Partial);
     context.expectEq("fatal popup health source", Logger::getHealth().lastFailureSource, Logger::Types::Health::FailureSource::FatalPopup);
 #else
-    context.pass("fatal popup failure hook test skipped because LOGGER_INTERNAL_TEST_HOOKS=0");
+    context.skip("fatal popup failure hook test", "LOGGER_INTERNAL_TEST_HOOKS=0");
 #endif
 }

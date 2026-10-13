@@ -203,9 +203,14 @@ void testManualFilesAndShell(
 
     if (includeShell)
     {
-        const auto shellCapabilities = Desktop::Shell::getCapabilities().capabilities;
+        const auto shellCapabilityResult = Desktop::Shell::getCapabilities();
+        if (!requireManualStatus(context, "shell capability query", shellCapabilityResult.status))
+        {
+            return;
+        }
+        const auto &shellCapabilities = shellCapabilityResult.capabilities;
         Desktop::ShellEventQueue shellQueue;
-        if (shellQueue.open(64).ok())
+        if (requireManualStatus(context, "shell event queue setup", shellQueue.open(64)))
         {
             bool taskbarCommandSeen = false;
             bool trayCommandSeen = false;
@@ -289,9 +294,7 @@ void testManualFilesAndShell(
                 }
                 else
                 {
-                    context.skip(
-                        "taskbar progress and thumbnail buttons",
-                        std::format("native taskbar publication returned {}", IO::errorCodeName(taskbarStatus.code)));
+                    static_cast<void>(requireManualStatus(context, "taskbar publication", taskbarStatus));
                 }
             }
             else
@@ -319,9 +322,8 @@ void testManualFilesAndShell(
                         context,
                         window,
                         "tray icon and recursive menu",
-                        "Open the notification-area menu, activate Shell manual command, and answer yes only if the tray command event is shown in "
-                        "the "
-                        "diagnostics.",
+                        "Hover the cyan tray icon and verify the GameWIP shell manual validation tooltip. Right-click it, choose Shell manual "
+                        "command, and answer yes only if diagnostics show command=702.",
                         drainShellEvents);
                     if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
                     {
@@ -331,9 +333,7 @@ void testManualFilesAndShell(
                 }
                 else
                 {
-                    context.skip(
-                        "tray icon and recursive menu",
-                        std::format("native tray publication returned {}", IO::errorCodeName(trayStatus.code)));
+                    static_cast<void>(requireManualStatus(context, "tray publication", trayStatus));
                 }
             }
             else
@@ -364,17 +364,13 @@ void testManualFilesAndShell(
                     }
                     else
                     {
-                        context.skip(
-                            "notification appearance and dismissal",
-                            std::format("native notification publication returned {}", IO::errorCodeName(published.status.code)));
+                        static_cast<void>(requireManualStatus(context, "notification publication", published.status));
                     }
                     static_cast<void>(notificationCenter.close());
                 }
                 else
                 {
-                    context.skip(
-                        "notification appearance and dismissal",
-                        std::format("notification center returned {}", IO::errorCodeName(notificationOpenStatus.code)));
+                    static_cast<void>(requireManualStatus(context, "notification center setup", notificationOpenStatus));
                 }
             }
             else
@@ -571,9 +567,7 @@ void testManualFilesAndShell(
                 }
                 else
                 {
-                    context.skip(
-                        "current-user file registration",
-                        std::format("registration returned {}", IO::errorCodeName(registration.status.code)));
+                    static_cast<void>(requireManualStatus(context, "current-user file registration setup", registration.status));
                 }
                 static_cast<void>(requireManualStatus(
                     context,
@@ -620,9 +614,7 @@ void testManualFilesAndShell(
                 }
                 else
                 {
-                    context.skip(
-                        "current-user URI registration",
-                        std::format("registration returned {}", IO::errorCodeName(registration.status.code)));
+                    static_cast<void>(requireManualStatus(context, "current-user URI registration setup", registration.status));
                 }
                 static_cast<void>(
                     requireManualStatus(context, "URI registration cleanup", Desktop::Registration::unregisterUriScheme(ownerKey, scheme).status));
@@ -633,10 +625,6 @@ void testManualFilesAndShell(
             }
 
             static_cast<void>(shellQueue.close());
-        }
-        else
-        {
-            context.skip("Desktop shell manual resources", "shell event queue could not open");
         }
     }
 

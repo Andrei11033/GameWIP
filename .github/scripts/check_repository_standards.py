@@ -110,25 +110,6 @@ SUPPORTED_PROVIDERS = {
     "winget",
     "external",
 }
-OBSOLETE_LIVE_REFERENCES = (
-    "build/tool-runs",
-    "build/gamewip-temp",
-    "build/unicode-data",
-    "build/setup",
-    ".gamewip-install-state.json",
-    ".gamewip-setup.json",
-    "GAMEWIP_ENABLE_TOOLS",
-    "GAMEWIP_OPEN_TOOLS_AT_STARTUP",
-    "check-documentation-standards.py",
-    "check-markdown-links.py",
-    "check-repository-standards.py",
-    "C:\\MSYS2\\gamewip",
-    "C:/MSYS2/gamewip",
-    "scripts/setup/windows.ps1",
-    "scripts\\setup\\windows.ps1",
-    "newer on its release line",
-    "same 4.4 release line",
-)
 
 APACHE_LICENSE_MARKERS = (
     "Apache License\n                           Version 2.0, January 2004",
@@ -295,38 +276,11 @@ def check_issue_area_mapping(failures: list[str]) -> None:
     for label in ("area:github", "type:task", "priority:normal"):
         if dependabot.count(f"      - '{label}'") != ecosystem_count:
             failures.append(f".github/dependabot.yml: every ecosystem must create '{label}'")
-    for forbidden in ("type:tooling", "area:test_support"):
-        if forbidden in dependabot or any(
-            forbidden in (ROOT / ".github/ISSUE_TEMPLATE" / name).read_text(encoding="utf-8") for name in GENERAL_ISSUE_FORMS
-        ):
-            failures.append(f".github issue forms and Dependabot must not create retired label '{forbidden}'")
-
-    for alias in (
-        "Build and tooling",
-        "Gameplay roadmap",
-        "Engine desktop/input/action",
-    ):
-        if alias not in policy_text:
-            failures.append(f".github/scripts/issue-area-labels.js: historical Area alias is missing: {alias}")
 
 
 def check_github_metadata_policy(failures: list[str]) -> None:
     """Prevent current metadata cardinality and ownership rules from drifting."""
     contributing = (ROOT / "docs" / "contributing.md").read_text(encoding="utf-8")
-    automation = (ROOT / "docs" / "doxygen" / "repository_automation.md").read_text(encoding="utf-8")
-    maintenance = (ROOT / "docs" / "doxygen" / "repository_maintenance.md").read_text(encoding="utf-8")
-    current_docs = "\n".join((contributing, automation, maintenance))
-
-    for forbidden in (
-        "Prefer one main `area:*`",
-        "At least one `area:*`",
-        "at least one `area:*`",
-        "type:tooling",
-        "area:test_support",
-    ):
-        if forbidden in current_docs:
-            failures.append(f"current GitHub metadata documentation contains retired policy: {forbidden}")
-
     if (
         re.search(
             r"exactly one `type:\*`, one `area:\*`, and one\s+`priority:\*`",
@@ -526,7 +480,12 @@ def normalize_source_documentation(text: str) -> tuple[str, list[tuple[int, str]
                 or closing.group("indent") != divider.group("indent")
                 or closing.group("marker") != divider.group("marker")
             ):
-                failures.append((index + 1, "section separator must be a matching divider, title, and divider block"))
+                failures.append(
+                    (
+                        index + 1,
+                        "section separator must be a matching divider, title, and divider block",
+                    )
+                )
                 normalized.append(line)
                 index += 1
                 continue
@@ -534,7 +493,12 @@ def normalize_source_documentation(text: str) -> tuple[str, list[tuple[int, str]
             canonical = f"{divider.group('indent')}{divider.group('marker')} {CANONICAL_DIVIDER}"
             canonical_title = f"{divider.group('indent')}{divider.group('marker')} {title.group('title')}"
             if lines[index : index + 3] != [canonical, canonical_title, canonical]:
-                failures.append((index + 1, "section separator must use one space after the comment marker and exactly 60 hyphens"))
+                failures.append(
+                    (
+                        index + 1,
+                        "section separator must use one space after the comment marker and exactly 60 hyphens",
+                    )
+                )
             normalized.extend((canonical, canonical_title, canonical))
             index += 3
             continue
@@ -581,7 +545,10 @@ def fix_source_documentation_layout(requested: list[str]) -> int:
             changed += 1
 
     if unsafe:
-        print("Source-documentation formatting stopped on unsafe structure:", file=sys.stderr)
+        print(
+            "Source-documentation formatting stopped on unsafe structure:",
+            file=sys.stderr,
+        )
         for failure in unsafe:
             print(f"- {failure}", file=sys.stderr)
         return 1
@@ -666,8 +633,6 @@ def check_registry_relationships(failures: list[str]) -> None:
             "scripts/config/project-tools.json: CMake minimum must equal root cmake_minimum_required "
             f"({cmake_tool.get('requiredVersion')!r} != {cmake_match.group(1)!r})"
         )
-    if "gamewip_cmake_version_pattern" in root_cmake or "newer on its release line" in root_cmake:
-        failures.append("CMakeLists.txt: obsolete same-release-line CMake policy remains")
 
     provider_files = {path.stem.lower() for path in (ROOT / "scripts/lib/Providers").glob("*.ps1")}
     validation_text = (WORKFLOW_ROOT / "validation.yml").read_text(encoding="utf-8")
@@ -793,32 +758,8 @@ def check_registry_relationships(failures: list[str]) -> None:
 # ------------------------------------------------------------
 
 
-def check_live_paths_and_editor(failures: list[str]) -> None:
-    """Reject migrated live names and invalid editor helper invocations."""
-    for path in maintained_files():
-        relative = path.relative_to(ROOT)
-        if relative.as_posix() == ".github/scripts/check_repository_standards.py":
-            continue
-        if len(relative.parts) > 1 and relative.parts[:2] == ("docs", "releases"):
-            continue
-        if path.suffix.lower() not in {
-            ".md",
-            ".ps1",
-            ".py",
-            ".js",
-            ".json",
-            ".yml",
-            ".yaml",
-            ".bat",
-            ".cmake",
-            ".txt",
-        }:
-            continue
-        text = path.read_text(encoding="utf-8", errors="replace")
-        for stale in OBSOLETE_LIVE_REFERENCES:
-            if stale in text:
-                failures.append(f"{relative.as_posix()}: obsolete live reference '{stale}'")
-
+def check_editor_integration(failures: list[str]) -> None:
+    """Validate current editor task names and project-helper invocations."""
     tasks = read_json(".vscode/tasks.json", failures)
     labels = {task.get("label") for task in tasks.get("tasks", [])}
     for label in ("GameWIP: Quality Check", "GameWIP: Tools Status"):
@@ -1007,7 +948,10 @@ def main() -> int:
     if len(sys.argv) >= 2 and sys.argv[1] == "--fix-source-documentation":
         return fix_source_documentation_layout(sys.argv[2:])
     if len(sys.argv) != 1:
-        print("usage: check_repository_standards.py [--fix-source-documentation [paths...]]", file=sys.stderr)
+        print(
+            "usage: check_repository_standards.py [--fix-source-documentation [paths...]]",
+            file=sys.stderr,
+        )
         return 2
 
     failures: list[str] = []
@@ -1022,7 +966,7 @@ def main() -> int:
     check_issue_area_mapping(failures)
     check_github_metadata_policy(failures)
     check_registry_relationships(failures)
-    check_live_paths_and_editor(failures)
+    check_editor_integration(failures)
     check_source_documentation_layout(failures)
     check_unicode_conversion_authority(failures)
     check_quality_contract(failures)

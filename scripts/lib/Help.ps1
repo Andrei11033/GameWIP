@@ -19,15 +19,7 @@ function Show-GameWipProjectCatalog
         Write-Host "  $((Get-Culture).TextInfo.ToTitleCase($group)):"
         foreach ($action in $items)
         {
-            if ($null -ne $action.Aliases -and @($action.Aliases).Count -gt 0)
-            {
-                $aliases = " (aliases: $(@($action.Aliases) -join ', '))"
-            }
-            else
-            {
-                $aliases = ''
-            }
-            Write-Host ('    {0,-12} [{1,-11}] {2}{3}' -f $action.Id, $action.Risk, $action.Description, $aliases)
+            Write-Host ('    {0,-12} [{1,-11}] {2}' -f $action.Id, $action.Risk, $action.Description)
         }
     }
 
@@ -221,12 +213,6 @@ function Show-GameWipHelp
     Write-Host '  bench <run|dry-run|list|compare> [options]'
     Write-Host '  history list [all] | history show [latest|run-name] | history clean [run-name|all]'
     Write-Host '  list | help'
-    Write-Host ''
-    Write-Host 'Short and compatibility aliases:'
-    foreach ($action in @($CommandConfig.Actions | Where-Object { $null -ne $_.Aliases -and @($_.Aliases).Count -gt 0 }))
-    {
-        Write-Host "  $($action.Id): $(@($action.Aliases) -join ', ')"
-    }
     Write-Host ''
     Show-GameWipCommonControlHelp -OptionDefinitions $CommandConfig.Options
     Write-Host ''

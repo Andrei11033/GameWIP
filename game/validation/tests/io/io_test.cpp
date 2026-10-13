@@ -465,6 +465,7 @@ namespace
         /// @brief Accepts one bounded chunk and appends it to retained fixture bytes.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
         {
+            ++writeCalls_;
             if (bytes.empty())
             {
                 return {.status = {}, .bytesWritten = 0};
@@ -487,8 +488,15 @@ namespace
             return bytes_;
         }
 
+        /// @brief Counts every write attempt, including empty requests.
+        [[nodiscard]] std::size_t writeCalls() const noexcept
+        {
+            return writeCalls_;
+        }
+
     private:
         std::size_t maxChunkSize_ = 0;
+        std::size_t writeCalls_ = 0;
         std::vector<std::byte> bytes_;
     };
 

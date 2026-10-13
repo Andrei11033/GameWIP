@@ -26,7 +26,7 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
 
     if (!options.enableStressTests)
     {
-        context.pass("filter concurrency skipped by LoggerTestOptions");
+        context.skip("filter concurrency", "disabled by LoggerTestOptions");
         return;
     }
 

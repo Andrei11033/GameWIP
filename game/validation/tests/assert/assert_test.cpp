@@ -67,6 +67,7 @@ namespace
         TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
+        TestSupport::Types::Reporting::Summary manualObservations;
 
         [[nodiscard]] TestSupport::Types::Reporting::Summary result() const noexcept
         {
@@ -112,9 +113,31 @@ namespace
             testContext.info(text);
         }
 
-        void pass(std::string_view name)
+        void skip(std::string_view name, std::string_view reason)
         {
-            testContext.pass(name);
+            testContext.skip(name, reason);
+        }
+
+        /// @brief Records an operator observation separately from setup assertions.
+        void manualCheck(std::string_view name, std::string_view question)
+        {
+            std::string skipReason;
+            const auto answer = TestSupport::promptManualCheck(question, skipReason);
+            switch (answer)
+            {
+            case TestSupport::Types::Reporting::ManualAnswer::Yes:
+                ++manualObservations.passed;
+                testContext.pass(name);
+                break;
+            case TestSupport::Types::Reporting::ManualAnswer::No:
+                ++manualObservations.failed;
+                testContext.fail(name, "manual observation rejected by user");
+                break;
+            case TestSupport::Types::Reporting::ManualAnswer::Skipped:
+                ++manualObservations.skipped;
+                testContext.skip(name, skipReason);
+                break;
+            }
         }
 
         void fail(std::string_view name, std::string_view details)
@@ -509,7 +532,7 @@ namespace GameWIP::Test
                         }
                         else
                         {
-                            context.pass("automated interactive assert tests skipped by AssertTestOptions");
+                            context.skip("automated interactive assert tests", "disabled by AssertTestOptions");
                         }
                     });
                 runCase(
@@ -547,6 +570,15 @@ namespace GameWIP::Test
                     {
                         testManualAssertUi(context, options);
                     });
+                if (options.enableManualTests)
+                {
+                    context.testContext.summary(
+                        std::format(
+                            "Assert manual observations passed={} failed={} skipped={} (excludes setup assertions)",
+                            context.manualObservations.passed,
+                            context.manualObservations.failed,
+                            context.manualObservations.skipped));
+                }
                 Logger::shutdown();
                 printSummary(context);
             });

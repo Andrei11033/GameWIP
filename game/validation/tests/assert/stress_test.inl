@@ -13,7 +13,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
 #if ASSERT_CHECKS_ENABLED
     if (!options.enableStressTests)
     {
-        context.pass("CHECK_ONCE thread stress skipped by AssertTestOptions");
+        context.skip("CHECK_ONCE thread stress", "disabled by AssertTestOptions");
         return;
     }
 
@@ -56,6 +56,6 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
     context.expectEq("CHECK_ONCE thread stress logs generic once", countOccurrences(contents, "[ERROR][Check]: Check failed"), std::size_t{1});
 #endif
 #else
-    context.pass("CHECK_ONCE thread stress skipped because ASSERT_CHECKS_ENABLED=0");
+    context.skip("CHECK_ONCE thread stress", "ASSERT_CHECKS_ENABLED=0");
 #endif
 }

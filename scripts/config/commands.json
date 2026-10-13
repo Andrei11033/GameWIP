@@ -258,7 +258,6 @@
   "actions": [
     {
       "id": "menu",
-      "aliases": [],
       "title": "Interactive menu",
       "description": "Open the hierarchical project UI.",
       "group": "navigation",
@@ -269,7 +268,6 @@
     },
     {
       "id": "ready",
-      "aliases": [],
       "title": "Project readiness",
       "description": "Verify repository and declared tool readiness.",
       "group": "maintenance",
@@ -280,7 +278,6 @@
     },
     {
       "id": "git",
-      "aliases": ["g"],
       "title": "Git workspace",
       "description": "Guarded local Git workspace operations.",
       "group": "repository",
@@ -291,7 +288,6 @@
     },
     {
       "id": "workflow",
-      "aliases": ["wf"],
       "title": "GitHub workflows",
       "description": "List, inspect, and dispatch cataloged workflows.",
       "group": "repository",
@@ -302,7 +298,6 @@
     },
     {
       "id": "unicode",
-      "aliases": ["ucd"],
       "title": "Unicode data",
       "description": "Inspect, verify, or regenerate pinned Unicode data.",
       "group": "maintenance",
@@ -313,7 +308,6 @@
     },
     {
       "id": "format",
-      "aliases": ["fmt"],
       "title": "C/C++ formatting",
       "description": "Check or apply repository C/C++ formatting.",
       "group": "quality",
@@ -324,7 +318,6 @@
     },
     {
       "id": "quality",
-      "aliases": ["q"],
       "title": "Repository quality",
       "description": "Run, fix, or inspect repository quality and optional hygiene audits.",
       "group": "quality",
@@ -335,7 +328,6 @@
     },
     {
       "id": "tool",
-      "aliases": ["tools"],
       "title": "Project tools",
       "description": "Inspect, install/repair, or update declared project tools.",
       "group": "tools",
@@ -346,7 +338,6 @@
     },
     {
       "id": "links",
-      "aliases": [],
       "title": "Markdown links",
       "description": "Validate maintained Markdown links.",
       "group": "quality",
@@ -357,7 +348,6 @@
     },
     {
       "id": "deps",
-      "aliases": ["dependencies"],
       "title": "Dependency cache",
       "description": "Prepare or verify the local Tracy and Google Benchmark cache.",
       "group": "maintenance",
@@ -368,7 +358,6 @@
     },
     {
       "id": "config",
-      "aliases": ["configure", "cfg", "c"],
       "title": "Configure",
       "description": "Configure a CMake preset.",
       "group": "development",
@@ -379,7 +368,6 @@
     },
     {
       "id": "build",
-      "aliases": ["b"],
       "title": "Build",
       "description": "Build a CMake preset and required configure state.",
       "group": "development",
@@ -390,7 +378,6 @@
     },
     {
       "id": "test",
-      "aliases": ["t"],
       "title": "CTest",
       "description": "Ensure prerequisites and run a CTest preset.",
       "group": "validation",
@@ -401,7 +388,6 @@
     },
     {
       "id": "module",
-      "aliases": ["mod"],
       "title": "Validation module",
       "description": "Run one correctness module or all modules.",
       "group": "validation",
@@ -412,7 +398,6 @@
     },
     {
       "id": "wizard",
-      "aliases": [],
       "title": "Validation wizard",
       "description": "Interactively compose common and declared module-specific validation arguments.",
       "group": "validation",
@@ -423,7 +408,6 @@
     },
     {
       "id": "stress",
-      "aliases": [],
       "title": "Stress validation",
       "description": "Repeat correctness validation with bounded workers.",
       "group": "validation",
@@ -434,7 +418,6 @@
     },
     {
       "id": "run",
-      "aliases": ["exec"],
       "title": "Project command",
       "description": "Run a cataloged executable-backed project command.",
       "group": "development",
@@ -445,7 +428,6 @@
     },
     {
       "id": "bundle",
-      "aliases": [],
       "title": "Validation bundle",
       "description": "Run a cataloged multi-step local validation bundle.",
       "group": "validation",
@@ -456,7 +438,6 @@
     },
     {
       "id": "doc",
-      "aliases": ["docs"],
       "title": "Documentation",
       "description": "Build and verify generated documentation.",
       "group": "development",
@@ -467,7 +448,6 @@
     },
     {
       "id": "analyze",
-      "aliases": ["tidy"],
       "title": "Static analysis",
       "description": "Run the analyze preset.",
       "group": "quality",
@@ -478,7 +458,6 @@
     },
     {
       "id": "cov",
-      "aliases": ["coverage"],
       "title": "Coverage",
       "description": "Recreate the coverage tree, then run build/tests/report.",
       "group": "quality",
@@ -489,7 +468,6 @@
     },
     {
       "id": "asan",
-      "aliases": [],
       "title": "AddressSanitizer",
       "description": "Recreate the CLANG64 tree, then run AddressSanitizer validation.",
       "group": "quality",
@@ -500,7 +478,6 @@
     },
     {
       "id": "ubsan",
-      "aliases": [],
       "title": "UndefinedBehaviorSanitizer",
       "description": "Recreate the CLANG64 tree, then run UndefinedBehaviorSanitizer validation.",
       "group": "quality",
@@ -511,7 +488,6 @@
     },
     {
       "id": "bench",
-      "aliases": ["benchmark"],
       "title": "Benchmarks",
       "description": "Run, list, dry-run, or compare benchmarks.",
       "group": "validation",
@@ -522,7 +498,6 @@
     },
     {
       "id": "history",
-      "aliases": ["runs", "hist"],
       "title": "Run history",
       "description": "List, show, or clean retained operation receipts.",
       "group": "maintenance",
@@ -533,7 +508,6 @@
     },
     {
       "id": "list",
-      "aliases": ["ls"],
       "title": "Catalog",
       "description": "Print current project IDs and command catalog.",
       "group": "navigation",
@@ -544,7 +518,6 @@
     },
     {
       "id": "help",
-      "aliases": ["h"],
       "title": "Help",
       "description": "Print canonical command syntax.",
       "group": "navigation",
@@ -1024,6 +997,9 @@
             "dpi",
             "cursor",
             "child-surface",
+            "shell",
+            "clipboard",
+            "files-window",
             "files-shell",
             "dialogs",
             "accessibility",
@@ -1043,9 +1019,6 @@
     },
     {
       "id": "filesystem"
-    },
-    {
-      "id": "input"
     },
     {
       "id": "io"

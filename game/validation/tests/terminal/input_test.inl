@@ -530,9 +530,18 @@ int runCancellationSignalFailureChild()
         reader.join();
         return 3;
     }
+    std::cout << "Native wait reached; requesting cancellation.\n" << std::flush;
+    const auto cancellationStarted = std::chrono::steady_clock::now();
     stopSource.request_stop();
     reader.join();
-    const bool passed = result.status.ok() && result.outcome == Terminal::Types::Input::ReadOutcome::Cancelled;
+    const auto cancellationElapsed = std::chrono::steady_clock::now() - cancellationStarted;
+    const bool passed =
+        result.status.ok() && result.outcome == Terminal::Types::Input::ReadOutcome::Cancelled && cancellationElapsed < std::chrono::seconds{2};
+    std::cout << std::format(
+        "Cancellation code={} outcome={} elapsedMs={}\n",
+        IO::errorCodeName(result.status.code),
+        static_cast<int>(result.outcome),
+        std::chrono::duration_cast<std::chrono::milliseconds>(cancellationElapsed).count());
     Hooks::reset();
     return passed ? 0 : 1;
 }
@@ -544,12 +553,26 @@ void testCancellationSignalFailure(TestSupport::Context &context, std::string_vi
     TestSupport::Types::Process::Options child;
     child.executablePath = std::filesystem::path(executablePath);
     child.arguments = {std::string(kCancellationSignalFailureChildArgument)};
-    child.timeout = std::chrono::milliseconds{1500};
-    child.captureOutput = false;
+    // Startup and profile teardown are separate from the child's post-stop cancellation bound.
+    child.timeout = std::chrono::seconds{30};
+    child.captureOutput = true;
     const TestSupport::Types::Process::Result childResult = TestSupport::runChildProcess(child);
     static_cast<void>(context.expectTrue("infinite cancellation child infrastructure succeeds", childResult.status.ok()));
     static_cast<void>(context.expectEq("infinite cancellation child exits", TestSupport::Types::Process::Outcome::Exited, childResult.outcome));
-    static_cast<void>(context.expectEq("infinite cancellation child returns success", std::uint32_t{0}, childResult.exitCode));
+    if (childResult.outcome == TestSupport::Types::Process::Outcome::Exited)
+    {
+        static_cast<void>(context.expectEq("infinite cancellation child returns success", std::uint32_t{0}, childResult.exitCode));
+    }
+    if (!childResult.status.ok() || childResult.outcome != TestSupport::Types::Process::Outcome::Exited || childResult.exitCode != 0)
+    {
+        context.info(
+            std::format(
+                "{} outcome={} exit={}\n{}",
+                TestSupport::formatInfrastructureStatus(childResult.status),
+                static_cast<int>(childResult.outcome),
+                childResult.exitCode,
+                childResult.outputBytes));
+    }
 
     const auto run = [&context](std::string_view label, bool forceSignalFailure)
     {

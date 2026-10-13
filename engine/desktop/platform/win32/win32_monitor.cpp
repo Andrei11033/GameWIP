@@ -289,7 +289,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 "display topology changed repeatedly during QueryDisplayConfig");
         }
 
-        /// @brief Adds modern or legacy advanced-color metadata to a display snapshot.
+        /// @brief Adds advanced-color metadata using the available native query.
         void addDisplayConfigColorMetadata(const ActiveDisplayPath &active, DisplayColorSnapshot &snapshot) noexcept
         {
             Compat::AdvancedColorInfo2 advanced{
@@ -332,20 +332,20 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             else
             {
-                DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO legacy{
+                DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO fallback{
                     .header = {
                         .type = DISPLAYCONFIG_DEVICE_INFO_GET_ADVANCED_COLOR_INFO,
                         .size = sizeof(DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO),
                         .adapterId = active.path.targetInfo.adapterId,
                         .id = active.path.targetInfo.id}};
-                if (DisplayConfigGetDeviceInfo(&legacy.header) == ERROR_SUCCESS)
+                if (DisplayConfigGetDeviceInfo(&fallback.header) == ERROR_SUCCESS)
                 {
-                    snapshot.wideColorGamutSupported = legacy.advancedColorSupported != 0;
-                    snapshot.hdrSupported = legacy.advancedColorSupported != 0;
-                    snapshot.hdrEnabled = legacy.advancedColorEnabled != 0;
-                    snapshot.bitsPerColorChannel = legacy.bitsPerColorChannel;
+                    snapshot.wideColorGamutSupported = fallback.advancedColorSupported != 0;
+                    snapshot.hdrSupported = fallback.advancedColorSupported != 0;
+                    snapshot.hdrEnabled = fallback.advancedColorEnabled != 0;
+                    snapshot.bitsPerColorChannel = fallback.bitsPerColorChannel;
                     snapshot.activeColorSpace =
-                        legacy.advancedColorEnabled != 0 ? Types::Display::ColorSpace::Unknown : Types::Display::ColorSpace::Srgb;
+                        fallback.advancedColorEnabled != 0 ? Types::Display::ColorSpace::Unknown : Types::Display::ColorSpace::Srgb;
                 }
             }
 

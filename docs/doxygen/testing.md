@@ -56,8 +56,9 @@ startup use.
 
 CTest presets and CI fail when discovery selects zero tests. Project contracts
 have two-minute bounds, ordinary modules have five-minute bounds, and installed
-package consumers have ten-minute bounds for nested configure/build work. These
-limits detect hangs; they are deliberately not performance thresholds.
+package consumers have ten-minute bounds for nested configure/build work. Consumer
+builds use two compile jobs to limit resource spikes. These limits detect hangs;
+they are deliberately not performance thresholds.
 
 Run one module and retain a focused report:
 

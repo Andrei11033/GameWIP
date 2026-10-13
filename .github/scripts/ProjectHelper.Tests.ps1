@@ -15,7 +15,7 @@ $powerShellPath = (Get-Process -Id $PID).Path
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
-foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'ready', 'quality', 'quality hygiene', '-FailOnFindings', 'tool', 'history', 'config: configure, cfg, c', '-Preview', '-NonInteractive', '-Yes', '-SkipBuild', '-CleanBuild', '-NoColor', '-Json', '-OutputPath', '-PassThroughArgs'))
+foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'ready', 'quality', 'quality hygiene', '-FailOnFindings', 'tool', 'history', 'config [preset]', '-Preview', '-NonInteractive', '-Yes', '-SkipBuild', '-CleanBuild', '-NoColor', '-Json', '-OutputPath', '-PassThroughArgs'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -35,19 +35,16 @@ foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumT
     }
 }
 
-$aliasExpectations = @{
-    configure = 'config'; cfg = 'config'; c = 'config'; b = 'build'; t = 'test'; q = 'quality'; fmt = 'format'; dependencies = 'deps'; benchmark = 'bench'; mod = 'module'; wf = 'workflow'; ucd = 'unicode'; g = 'git'; tools = 'tool'; docs = 'doc'; tidy = 'analyze'; coverage = 'cov'; runs = 'history'; hist = 'history'; exec = 'run'; ls = 'list'; h = 'help'
-}
-foreach ($alias in $aliasExpectations.Keys)
+foreach ($action in $CommandConfig.Actions)
 {
-    if ((Resolve-GameWipActionName -Name $alias) -cne $aliasExpectations[$alias])
+    if ((Resolve-GameWipActionName -Name ([string]$action.Id).ToUpperInvariant()) -cne $action.Id)
     {
-        throw "Project alias '$alias' did not resolve to '$($aliasExpectations[$alias])'."
+        throw "Canonical project action '$($action.Id)' did not resolve."
     }
 }
-if ($null -ne (Resolve-GameWipActionName -Name doctor))
+if ($null -ne (Resolve-GameWipActionName -Name 'unknown-action'))
 {
-    throw "Retired project action 'doctor' must not resolve."
+    throw 'An unknown project action must not resolve.'
 }
 
 $validationMenu = @($CommandConfig.Menus | Where-Object Id -eq 'validation')[0]
@@ -356,10 +353,6 @@ foreach ($requiredAdvancedHandler in @('menu-advanced-validation', 'menu-hygiene
         throw "Advanced menu is missing '$requiredAdvancedHandler'."
     }
 }
-if (@($actualMenuIds | Where-Object { $_ -in @('repository', 'repository-quality', 'formatting', 'installed-tools', 'maintenance') }).Count -ne 0)
-{
-    throw 'Retired project menu IDs remain registered.'
-}
 $standardHygiene = Get-GameWipHygieneSelection -Selector standard
 if (@($standardHygiene.Checks).Count -ne 4 -or @($standardHygiene.Checks | Where-Object Availability -ne available).Count -ne 0)
 {
@@ -619,20 +612,12 @@ if ((Get-GameWipToolCompatibility -Tool $jsonSchemaTool -Detected $detectedJsonS
 }
 
 $actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })
-if ($actionIds -contains 'analysis')
-{
-    throw "Retired 'analysis' alias is still public."
-}
 foreach ($requiredAction in @('menu', 'ready', 'quality', 'tool', 'history', 'analyze', 'help'))
 {
     if ($actionIds -notcontains $requiredAction)
     {
         throw "Missing action metadata '$requiredAction'."
     }
-}
-if ($actionIds -contains 'doctor')
-{
-    throw "Retired 'doctor' action is still public."
 }
 $duplicateActions = @($actionIds | Group-Object | Where-Object Count -gt 1)
 if ($duplicateActions.Count -ne 0)
@@ -1442,9 +1427,18 @@ $untrackedPath = Join-Path $repositoryRoot $untrackedRelative
 try
 {
     [IO.File]::WriteAllText($untrackedPath, 'print("quality scope")', [Text.UTF8Encoding]::new($false))
+    $allMaintainedFiles = @(Get-GameWipMaintainedWorktreeFile)
+    if ($allMaintainedFiles -notcontains 'README.md' -or $allMaintainedFiles -notcontains $untrackedRelative.Replace('\', '/'))
+    {
+        throw 'Unfiltered quality discovery must include tracked and untracked maintained files.'
+    }
     if (@(Get-GameWipMaintainedWorktreeFile -Extensions @('.py')) -notcontains $untrackedRelative.Replace('\', '/'))
     {
         throw 'Full quality discovery skipped a first-party untracked Python file.'
+    }
+    if (@(Get-GameWipMaintainedWorktreeFile -Extensions @('.py')) -contains 'README.md')
+    {
+        throw 'Extension-filtered quality discovery included an unrelated Markdown file.'
     }
 }
 finally

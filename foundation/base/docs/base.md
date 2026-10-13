@@ -20,8 +20,8 @@ native procedure lookup are the current examples.
 
 # What does not belong in Base
 
-Unicode conversion, logging, error policy, FileSystem semantics, Window semantics, DPI or cursor selection, and simulation time are explicit no
-examples. Base also does not own generic utilities, scope-exit policy, or native-resource RAII in this version.
+Unicode conversion, logging, error policy, FileSystem semantics, Window semantics, DPI or cursor selection, and simulation time belong in their
+owning libraries. Base also does not own generic utilities, scope-exit policy, or native-resource RAII.
 
 # Portable mechanisms
 
@@ -65,8 +65,15 @@ narrow surface that can be tested directly.
 
 # Testing
 
-Base tests exercise arithmetic identity values, maximum and safe boundaries, overflow boundaries, and representative storage calculations. Native
-procedure lookup is exercised through the Win32 consumers and build warning validation.
+Base tests use a compact arithmetic table covering zero/one, maximum values, safe boundaries and overflow in both operand orders. Compile-time checks
+cover narrow unsigned operands, constant evaluation and `noexcept`. On Windows, direct procedure-lookup tests cover null arguments, missing exports,
+and invoking a known export through its typed function pointer.
+
+Run the unattended Base module from the repository root:
+
+```powershell
+.\build\test\GameWIPTests.exe --test-module=base
+```
 
 # Adding a helper
 

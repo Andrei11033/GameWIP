@@ -53,7 +53,9 @@ file contents, paths, dimensions and RGBA comparisons where observable.
 The always-on-top `GameWIP Window manual-test diagnostics` companion appears near the upper-right of the primary work area and shows the expected
 outcome and live Window state while the runner keeps native events pumping. Its native section reports the actual HWND frame/client rectangles,
 monitor rectangle, DPI, style bits, fullscreen conformance, and taskbar eligibility independently from the portable cache. File-drop checks show
-receipt immediately in that companion and in the validation Window title. A failed setup operation reports portable and native diagnostics and
+receipt immediately in that companion and in the validation Window title. When shell capabilities are advertised, queue, taskbar, tray,
+notification and registration setup failures count as failures. Unsupported capabilities
+remain skips. The tray prompt checks both the tooltip and command 702. A failed setup operation reports portable and native diagnostics and
 suppresses dependent questions.
 
 The validation executable paints a renderer-free blue/cyan GDI surface while each prompt waits. The inset cyan marker makes the current client
@@ -276,7 +278,6 @@ Win32 immediate publication cannot represent an exact zero-byte custom
 | Movement between SDR and HDR monitors | `MonitorChanged` is delivered, and the Window query follows the destination monitor and its state.                                                                                                                                                                   |
 | Luminance metadata                    | Where supported, minimum, peak, and full-frame values agree with the display/driver report; SDR white level uses nits, including 200 nits for native value 2500.                                                                                                     |
 | Display disconnect/reconnect          | The stale `MonitorId` fails safely, and a newly enumerated ID returns current metadata.                                                                                                                                                                              |
-| Windows 10 compatibility              | Without the Windows 11 advanced-color query, the documented legacy query remains functional and unavailable WCG-specific metadata remains unknown rather than fabricated. This is optional compatibility coverage outside the supported Windows 11 development host. |
 
 ## Modern Windows capabilities
 

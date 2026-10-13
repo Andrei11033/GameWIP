@@ -82,13 +82,23 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
 
     FileSystem::DirectoryCursor cursor;
     static_cast<void>(context.expectEq("closed directory cursor reports NotOpen", ErrorCode::NotOpen, cursor.next().status.code));
-    static_cast<void>(context.expectTrue("directory cursor opens", cursor.open(directory).ok()));
+    if (!expectStatus(context, "directory cursor opens", cursor.open(directory)))
+    {
+        return;
+    }
     static_cast<void>(context.expectEq("open directory cursor rejects AlreadyOpen", ErrorCode::AlreadyOpen, cursor.open(directory).code));
     FileSystem::DirectoryCursor movedCursor = std::move(cursor);
+    static_cast<void>(context.expectFalse("moved-from directory cursor is closed", cursor.isOpen()));
     const auto cursorEntry = movedCursor.next();
     static_cast<void>(context.expectTrue("directory cursor returns an entry", cursorEntry.status.ok() && cursorEntry.hasEntry));
+    if (cursorEntry.status.ok() && cursorEntry.hasEntry)
+    {
+        static_cast<void>(context.expectEq("moved directory cursor preserves entry path", file, cursorEntry.entry.path));
+    }
     const auto cursorEnd = movedCursor.next();
     static_cast<void>(context.expectTrue("directory cursor reports successful exhaustion", cursorEnd.status.ok() && !cursorEnd.hasEntry));
+    const auto repeatedEnd = movedCursor.next();
+    static_cast<void>(context.expectTrue("directory cursor exhaustion remains successful", repeatedEnd.status.ok() && !repeatedEnd.hasEntry));
     static_cast<void>(context.expectTrue("directory cursor closes", movedCursor.close().ok()));
     static_cast<void>(context.expectFalse("closed directory cursor is not open", movedCursor.isOpen()));
 

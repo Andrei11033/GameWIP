@@ -49,7 +49,6 @@ namespace
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
     using LoggerTestOptions = GameWIP::Test::LoggerTestOptions;
-    using Clock = std::chrono::steady_clock;
     using namespace std::chrono_literals;
 
     constexpr std::string_view kTestSource = "LoggerTest";
@@ -74,10 +73,15 @@ namespace
         TestSupport::Context &testContext;
         std::filesystem::path logRoot;
         std::string executablePath;
+        TestSupport::Types::Reporting::Summary manualObservations;
 
         void pass(std::string_view name)
         {
             testContext.pass(name);
+        }
+        void skip(std::string_view name, std::string_view reason)
+        {
+            testContext.skip(name, reason);
         }
         void fail(std::string_view name, std::string_view details)
         {
@@ -267,6 +271,10 @@ namespace GameWIP::Test
 
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {
+        if (hasArgument(argc, argv, "--logger-test-child=report-no-drain"))
+        {
+            return runReportNoDrainChild();
+        }
         if (hasArgument(argc, argv, kFatalTerminateChildArgument))
         {
             return runFatalTerminateChild();
@@ -343,7 +351,7 @@ namespace GameWIP::Test
                     "report does not drain async backlog",
                     [&]
                     {
-                        testReportDoesNotDrainAsyncBacklog(context);
+                        testReportDoesNotDrainAsyncBacklog(context, options);
                     });
                 runCase(
                     context,
@@ -387,6 +395,15 @@ namespace GameWIP::Test
                     {
                         testManualFatalPopup(context, options);
                     });
+                if (options.enableManualTests)
+                {
+                    context.testContext.summary(
+                        std::format(
+                            "Logger manual observations passed={} failed={} skipped={} (excludes setup assertions)",
+                            context.manualObservations.passed,
+                            context.manualObservations.failed,
+                            context.manualObservations.skipped));
+                }
                 static_cast<void>(Logger::shutdown());
             });
 

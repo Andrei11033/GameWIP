@@ -11,7 +11,7 @@
 
 namespace
 {
-    /// @brief Detects fatal-termination child invocations owned by Logger tests.
+    /// @brief Detects exact isolated child protocols owned by Logger tests.
     bool handlesChildArguments(int argc, char **argv)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
@@ -23,7 +23,7 @@ namespace
             }
 
             const std::string_view argument(value);
-            if (argument == "--logger-test-child=fatal-terminate")
+            if (argument == "--logger-test-child=fatal-terminate" || argument == "--logger-test-child=report-no-drain")
             {
                 return true;
             }
@@ -39,7 +39,6 @@ namespace
         options.enableChildCrashTests = invocation.options.enableChildCrashTests;
         options.enableManualTests = invocation.options.enableManualTests;
         options.verboseConsole = invocation.options.verboseConsole;
-        options.stressThreadCount = invocation.options.stressThreadCount;
         options.stressIterationsPerThread = invocation.options.loggerStressIterationsPerThread;
         options.writeReport = invocation.options.writeReport;
         options.appendReport = invocation.appendReport;

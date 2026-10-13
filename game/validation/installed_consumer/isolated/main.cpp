@@ -84,8 +84,43 @@ int main()
     static_cast<void>(GameWIP::Logger::defaultConfig());
     return 0;
 #elif defined(GAMEWIP_CONSUMER_Assert)
+#if !ASSERT_ENABLED && !ASSERT_CHECKS_ENABLED
+    int conditionEvaluations = 0;
+    int messageEvaluations = 0;
+    const auto condition = [&]
+    {
+        ++conditionEvaluations;
+        return true;
+    };
+    [[maybe_unused]] const auto message = [&]
+    {
+        ++messageEvaluations;
+        return "must remain lazy";
+    };
+    ASSERT(condition());
+    ASSERT_MSG(condition(), message());
+    ASSERT_INTERACTIVE(condition());
+    ASSERT_INTERACTIVE_MSG(condition(), message());
+    CHECK(condition());
+    CHECK_MSG(condition(), message());
+    CHECK_ONCE(condition());
+    CHECK_ONCE_MSG(condition(), message());
+    if (conditionEvaluations != 0 || messageEvaluations != 0)
+    {
+        return 1;
+    }
+    VERIFY(condition());
+    VERIFY_MSG(condition(), message());
+    VERIFY_INTERACTIVE(condition());
+    VERIFY_INTERACTIVE_MSG(condition(), message());
+    const bool ensured = ENSURE(condition());
+    const bool ensuredWithMessage = ENSURE_MSG(condition(), message());
+    const bool rejected = ENSURE_MSG(false, message());
+    return conditionEvaluations == 6 && messageEvaluations == 0 && ensured && ensuredWithMessage && !rejected ? 0 : 1;
+#else
     CHECK(true);
     return 0;
+#endif
 #elif defined(GAMEWIP_CONSUMER_TestSupport)
     GameWIP::TestSupport::Timer timer;
     const GameWIP::TestSupport::Types::InfrastructureStatus status;

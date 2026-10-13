@@ -79,11 +79,11 @@ Terminal, Logger, Assert, Desktop, or engine dependencies merely for convenience
 The installed package resolves the exact matching Unicode package automatically. Public headers remain standard-library based; the Unicode dependency
 is implementation-only text validation.
 
-## Compatibility
+## Type organization
 
 The installed package exposes the current nested reporting and process
 vocabulary under `TestSupport::Types::Reporting` and
-`TestSupport::Types::Process`. It provides no flat compatibility aliases.
+`TestSupport::Types::Process`.
 
 @ref test_support_reports
 @ref test_support_files_environment

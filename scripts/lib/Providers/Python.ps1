@@ -118,7 +118,7 @@ function Install-GameWipPythonTool
 
     if ((Test-Path -LiteralPath $environmentPythonPath) -and (Test-GameWipPythonEnvironmentIsMsys -PythonPath $environmentPythonPath))
     {
-        Write-Host 'Migrating legacy MSYS2 Python provider environment to native Windows CPython...'
+        Write-Host 'Replacing an unsupported managed Python environment with native Windows CPython...'
         Invoke-GameWipOwnedTreeRemoval -Path $root -OwnedRoot ((Get-GameWipManagedToolRoot))
         New-Item -ItemType Directory -Force -Path $root | Out-Null
     }

@@ -480,21 +480,6 @@ function Resolve-GameWipActionName
         {
             return [string]$action.Id
         }
-        if ($null -eq $action.Aliases)
-        {
-            $aliases = @()
-        }
-        else
-        {
-            $aliases = @($action.Aliases)
-        }
-        foreach ($alias in $aliases)
-        {
-            if ([string]$alias -ieq $normalized)
-            {
-                return [string]$action.Id
-            }
-        }
     }
     return $null
 }
@@ -616,10 +601,6 @@ function Assert-GameWipCommandConfig
     {
         throw "Project action catalog drift. Required: $($requiredActions -join ', '); configured: $($actionIds -join ', ')."
     }
-    if ($actionIds -contains 'analysis' -or $actionIds -contains 'doctor')
-    {
-        throw "Retired action name must not be registered."
-    }
     $actionNames = @{}
     foreach ($action in $actions)
     {
@@ -627,31 +608,9 @@ function Assert-GameWipCommandConfig
         $canonicalKey = $canonical.ToLowerInvariant()
         if ($actionNames.ContainsKey($canonicalKey))
         {
-            throw "Project action name '$canonical' is duplicated or collides with an alias."
+            throw "Project action name '$canonical' is duplicated."
         }
         $actionNames[$canonicalKey] = $canonical
-        if ($null -eq $action.Aliases)
-        {
-            $aliases = @()
-        }
-        else
-        {
-            $aliases = @($action.Aliases)
-        }
-        foreach ($alias in $aliases)
-        {
-            $aliasText = [string]$alias
-            if ($aliasText -notmatch '^[a-z][a-z0-9-]*$')
-            {
-                throw "Project action '$canonical' has invalid alias '$aliasText'."
-            }
-            $aliasKey = $aliasText.ToLowerInvariant()
-            if ($actionNames.ContainsKey($aliasKey))
-            {
-                throw "Project action alias '$aliasText' collides with '$($actionNames[$aliasKey])'."
-            }
-            $actionNames[$aliasKey] = $canonical
-        }
     }
     $requiredMenus = @(
         'root', 'development', 'validation', 'quality', 'hygiene', 'tools', 'tool-updates',

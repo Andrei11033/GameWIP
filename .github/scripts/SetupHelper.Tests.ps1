@@ -43,16 +43,6 @@ foreach ($nonMenuAction in @('list', 'help', 'menu'))
         throw "Setup direct action '$nonMenuAction' must not appear as an operational menu task."
     }
 }
-foreach ($aliasExpectation in @{
-        tools = 'tool'; repository = 'repo'; dependencies = 'deps'; docs = 'doc'; 'visual-studio' = 'vs'; ls = 'list'; h = 'help'
-    }.GetEnumerator())
-{
-    $action = @($actions | Where-Object Id -eq $aliasExpectation.Value)
-    if ($action.Count -ne 1 -or $null -eq $action[0].Aliases -or @($action[0].Aliases) -notcontains $aliasExpectation.Key)
-    {
-        throw "Setup alias '$($aliasExpectation.Key)' is not registered for '$($aliasExpectation.Value)'."
-    }
-}
 foreach ($action in $actions)
 {
     if ($action.risk -notin @('read-only', 'local', 'tracked', 'machine', 'destructive', 'remote'))
@@ -94,13 +84,12 @@ foreach ($file in @('Common.ps1', 'Msys2.ps1', 'Editor.ps1', 'Uninstall.ps1'))
 }
 . (Join-Path $SetupRoot 'lib\Orchestration.ps1')
 Assert-GameWipSetupActionCatalog
-foreach ($aliasExpectation in @{
-        tools = 'tool'; repository = 'repo'; dependencies = 'deps'; docs = 'doc'; 'visual-studio' = 'vs'; ls = 'list'; h = 'help'
-    }.GetEnumerator())
+
+foreach ($action in $SetupActionConfig.Actions)
 {
-    if ((Resolve-GameWipSetupActionName -Name $aliasExpectation.Key) -cne $aliasExpectation.Value)
+    if ((Resolve-GameWipSetupActionName -Name ([string]$action.Id).ToUpperInvariant()) -cne $action.Id)
     {
-        throw "Setup alias '$($aliasExpectation.Key)' did not resolve to '$($aliasExpectation.Value)'."
+        throw "Canonical setup action '$($action.Id)' did not resolve."
     }
 }
 

@@ -7,7 +7,7 @@ Include `filesystem/filesystem.h`. Passive values live in `GameWIP::FileSystem::
 
 The focused public headers are `filesystem/path.h`, `filesystem/entry.h`,
 `filesystem/file.h`, and `filesystem/directory.h`.
-`filesystem/filesystem.h` remains the complete convenience include.
+`filesystem/filesystem.h` is the complete convenience include.
 
 ## How the library is organized
 

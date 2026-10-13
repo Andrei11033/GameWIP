@@ -1,6 +1,6 @@
 @page logger_public_api Public API
 
-Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` remains the normal umbrella.
+Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` is the normal umbrella.
 `logger/types.h` and `logger/config.h` are supported focused entry headers; `logger/logger_macros.h` is opt-in.
 
 ## Types

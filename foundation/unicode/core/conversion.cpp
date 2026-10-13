@@ -47,14 +47,14 @@ namespace GameWIP::Unicode
 
     namespace Utf8
     {
-        Types::Utf8ToUtf16MeasureResult measureToUtf16(std::string_view source) noexcept
+        Types::Utf8::ToUtf16MeasureResult measureToUtf16(std::string_view source) noexcept
         {
             std::size_t sourceBytesProcessed = 0;
             std::size_t requiredCodeUnits = 0;
 
             while (sourceBytesProcessed < source.size())
             {
-                const Types::Utf8DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesProcessed));
+                const Types::Utf8::DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesProcessed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -85,7 +85,7 @@ namespace GameWIP::Unicode
             };
         }
 
-        Types::Utf8ToUtf16Result convertToUtf16(std::string_view source, std::span<char16_t> destination) noexcept
+        Types::Utf8::ToUtf16Result convertToUtf16(std::string_view source, std::span<char16_t> destination) noexcept
         {
             if (memoryRangesOverlap(std::as_bytes(std::span{source}), std::as_bytes(destination)))
             {
@@ -97,7 +97,7 @@ namespace GameWIP::Unicode
 
             while (sourceBytesConsumed < source.size())
             {
-                const Types::Utf8DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesConsumed));
+                const Types::Utf8::DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesConsumed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -132,14 +132,14 @@ namespace GameWIP::Unicode
 
     namespace Utf16
     {
-        Types::Utf16ToUtf8MeasureResult measureToUtf8(std::span<const char16_t> source) noexcept
+        Types::Utf16::ToUtf8MeasureResult measureToUtf8(std::span<const char16_t> source) noexcept
         {
             std::size_t sourceCodeUnitsProcessed = 0;
             std::size_t requiredBytes = 0;
 
             while (sourceCodeUnitsProcessed < source.size())
             {
-                const Types::Utf16DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsProcessed));
+                const Types::Utf16::DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsProcessed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -170,7 +170,7 @@ namespace GameWIP::Unicode
             };
         }
 
-        Types::Utf16ToUtf8Result convertToUtf8(std::span<const char16_t> source, std::span<char> destination) noexcept
+        Types::Utf16::ToUtf8Result convertToUtf8(std::span<const char16_t> source, std::span<char> destination) noexcept
         {
             if (memoryRangesOverlap(std::as_bytes(source), std::as_bytes(std::span{destination})))
             {
@@ -182,7 +182,7 @@ namespace GameWIP::Unicode
 
             while (sourceCodeUnitsConsumed < source.size())
             {
-                const Types::Utf16DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsConsumed));
+                const Types::Utf16::DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsConsumed));
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {

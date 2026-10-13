@@ -14,7 +14,11 @@ Flush validation distinguishes completed, timed-out, invalid-timeout, and sink-f
 sink/popup failure, health degradation, formatting, and the emergency-path invariant that a timed report does not drain an older deliberately blocked
 async record.
 
-Fatal termination remains isolated in a child process; the real popup path remains manual/opt-in. Failure hooks remain one-shot and resettable.
+The paused-worker report regression runs in a child with a 30-second timeout. It checks delivery while the queue is blocked, then verifies
+both records and their order after releasing the worker; elapsed scheduling time is not a correctness assertion. Disabled cases are reported as skips.
+
+Fatal termination remains isolated in a child process; the real popup path remains manual/opt-in and checks both the report result and the
+operator's confirmation of the message and dismissal. Failure hooks remain one-shot and resettable.
 
 Windows thread-exit coverage exercises per-thread formatting scratch. MinGW teardown additionally owns and unregisters the FLS index so its cleanup
 callback cannot remain registered after the Logger module is unloaded.
@@ -32,6 +36,8 @@ exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 
 The hot normal logging/filter path must not gain structured results, UTF-8 whole-message scans, or success-path diagnostic allocation. Benchmarks
 retain output-disabled, filtered formatted, accepted file, registered-source, and multi-producer scenarios.
+
+Manual runs report prompted observations separately from setup and contract assertions.
 
 ## Related pages
 

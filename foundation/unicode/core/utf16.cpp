@@ -9,19 +9,19 @@
 
 namespace GameWIP::Unicode::Utf16
 {
-    Types::Utf16DecodeResult decodeScalar(std::span<const char16_t> codeUnits) noexcept
+    Types::Utf16::DecodeResult decodeScalar(std::span<const char16_t> codeUnits) noexcept
     {
         return Internal::decodeUtf16Scalar(codeUnits);
     }
 
-    Types::Utf16EncodeResult encodeScalar(char32_t scalar) noexcept
+    Types::Utf16::EncodeResult encodeScalar(char32_t scalar) noexcept
     {
         if (!isScalarValue(scalar))
         {
             return {};
         }
 
-        Types::Utf16EncodeResult result{
+        Types::Utf16::EncodeResult result{
             .codeUnitCount = Internal::utf16EncodedLength(scalar),
             .outcome = Types::EncodeOutcome::Encoded,
         };
@@ -29,13 +29,13 @@ namespace GameWIP::Unicode::Utf16
         return result;
     }
 
-    Types::Utf16ValidationResult validate(std::span<const char16_t> text) noexcept
+    Types::Utf16::ValidationResult validate(std::span<const char16_t> text) noexcept
     {
         std::size_t codeUnitOffset = 0;
 
         while (codeUnitOffset < text.size())
         {
-            const Types::Utf16DecodeResult decoded = Internal::decodeUtf16Scalar(text.subspan(codeUnitOffset));
+            const Types::Utf16::DecodeResult decoded = Internal::decodeUtf16Scalar(text.subspan(codeUnitOffset));
             if (decoded.outcome == Types::DecodeOutcome::Incomplete)
             {
                 return {

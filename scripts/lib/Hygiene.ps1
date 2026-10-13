@@ -207,7 +207,7 @@ function Invoke-GameWipHygieneClangTidy
     $python = Resolve-GameWipToolCommand -Command python
     if (-not $runner -or -not $python)
     {
-        throw (New-GameWipDiagnosticException -Code 'hygiene-tool-unavailable' -Summary 'The hygiene audit requires Python and run-clang-tidy.' -Details 'The configured MSYS2 UCRT64 analysis toolchain is incomplete.' -SuggestedActions @('.\gamewip.bat tools status', '.\setup.bat repair'))
+        throw (New-GameWipDiagnosticException -Code 'hygiene-tool-unavailable' -Summary 'The hygiene audit requires Python and run-clang-tidy.' -Details 'The configured MSYS2 UCRT64 analysis toolchain is incomplete.' -SuggestedActions @('.\gamewip.bat tool status', '.\setup.bat repair'))
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset
@@ -268,7 +268,7 @@ function Invoke-GameWipHygieneCompilerWarnings
                 -Code 'hygiene-tool-unavailable' `
                 -Summary 'The compiler-warning hygiene audit requires Python.' `
                 -Details 'The configured Python interpreter could not be resolved.' `
-                -SuggestedActions @('.\gamewip.bat tools status', '.\setup.bat repair'))
+                -SuggestedActions @('.\gamewip.bat tool status', '.\setup.bat repair'))
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset

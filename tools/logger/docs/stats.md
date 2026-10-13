@@ -1,7 +1,7 @@
 @page logger_stats Statistics and health
 
-`getStats()` remains a relaxed snapshot of resettable counters. It is intended for diagnostics/tests rather than transactional state.
-Queue/drop/allocation/format/truncation counters keep their existing meanings, and `resetStats()` does not alter health.
+`getStats()` returns a relaxed snapshot of resettable queue, drop, allocation, formatting and truncation counters. Use it for diagnostics and tests,
+not transactional state. `resetStats()` does not alter health.
 
 All query functions are non-throwing. `getStats()`, `getHealth()`, queue-limit
 queries, and memory snapshots return safe value objects. `getLogFilePath()`
@@ -19,5 +19,4 @@ channel. There is no automatic sink resurrection; a new `shutdown()`/`init()` cy
 A real new init clears the health failure epoch. An `AlreadyOpen` init attempt does not. Shutdown publishes Disabled while retaining the last failure
 metadata for postmortem inspection until the next init.
 
-`getLastResult()` and `getLastPlatformError()` no longer exist; synchronous failures belong to the result returned by the operation that produced
-them.
+Synchronous failures are reported in the result returned by the operation that produced them.

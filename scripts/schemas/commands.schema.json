@@ -145,7 +145,6 @@
       "required": ["id", "title", "description", "group", "visible", "network", "mutation", "risk"],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-        "aliases": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" } },
         "title": { "type": "string", "minLength": 1 },
         "description": { "type": "string", "minLength": 1 },
         "group": { "enum": ["navigation", "development", "validation", "quality", "tools", "repository", "maintenance"] },

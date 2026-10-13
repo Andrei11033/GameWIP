@@ -92,6 +92,11 @@ namespace GameWIP::TestSupport
                 stream << value;
                 return stream.str();
             }
+            else if constexpr (std::is_enum_v<Value>)
+            {
+                // to_string promotes narrow underlying types instead of rendering them as characters.
+                return std::to_string(std::to_underlying(value));
+            }
             else
             {
                 return "<unprintable>";
@@ -106,6 +111,8 @@ namespace GameWIP::TestSupport
 
     /// @brief Monotonic elapsed-time helper for test diagnostics.
     /// @note Timer uses std::chrono::steady_clock and is not benchmark-grade measurement.
+    /// @thread_safety Externally synchronize access when any call resets this timer.
+    /// @endthread_safety
     class Timer
     {
     public:
@@ -126,6 +133,10 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     /// @brief Test context that records outcomes and routes categorized report lines.
+    /// @note Names, messages, and formatted values must be valid UTF-8; reporting does not validate or repair their encoding.
+    /// @thread_safety Recording and count queries are internally synchronized. Count changes and report output are separate operations;
+    /// caller-owned values and formatters require their own synchronization. Destruction requires all calls to have finished.
+    /// @endthread_safety
     class Context
     {
     public:
@@ -232,6 +243,9 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     /// @brief Runs named suites and aggregates one shared report.
+    /// @thread_safety Suite execution, reporting, and count queries may run concurrently. The caller coordinates shared suite state and
+    /// keeps the runner alive until every call and worker has finished.
+    /// @endthread_safety
     class Runner
     {
     public:
@@ -244,6 +258,8 @@ namespace GameWIP::TestSupport
         Runner &operator=(const Runner &) = delete; ///< Runner ownership cannot be copy-assigned.
 
         /// @brief Runs a named suite and converts an uncaught suite exception into one failed check.
+        /// @note Join workers borrowing the suite's Context before the callable returns. Allocation, formatting, and reporting failures
+        /// outside the callable's exception boundary can propagate.
         template <typename SuiteFunction> Types::Reporting::SuiteResult runSuite(std::string_view suiteName, SuiteFunction &&function);
 
         /// @brief Writes a run-level informational line.
@@ -271,6 +287,7 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     /// @brief RAII helper that reports a named section and its elapsed time.
+    /// @note Borrows its Context; the context must outlive this section and its destructor's reporting call.
     class Section
     {
     public:

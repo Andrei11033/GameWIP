@@ -49,7 +49,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
         "interactive message was embedded");
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE ignore_once skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE ignore_once", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -83,7 +83,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
     context.expectEq("ASSERT_INTERACTIVE always_ignore strips message", countOccurrences(contents, "interactive always ignore test"), std::size_t{0});
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE always_ignore skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE always_ignore", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -166,6 +166,6 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
         std::size_t{0});
 #endif
 #else
-    context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because ASSERT_ENABLED=0");
+    context.skip("VERIFY_INTERACTIVE Always Ignore test", "ASSERT_ENABLED=0");
 #endif
 }

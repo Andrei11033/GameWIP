@@ -38,9 +38,8 @@ Examples:
 .\gamewip.bat history show latest
 ```
 
-Selection words are positional. The retired nested selector switches, such as
-`-Preset`, `-Module`, and action-specific `-*Action` options, are no longer
-supported.
+Use positional words to select commands and targets; use switches for execution
+policy.
 
 ## Actions
 
@@ -74,14 +73,7 @@ supported.
 | `list` | Print the current action/catalog values. |
 | `help` | Print helper usage. |
 
-Canonical names are used throughout this manual. Compatibility aliases remain
-accepted for existing scripts: `configure`/`cfg`/`c` for `config`, `b` for
-`build`, `t` for `test`, `q` for `quality`, `fmt` for `format`, `dependencies`
-for `deps`, `benchmark` for `bench`, `mod` for `module`, `wf` for `workflow`,
-`ucd` for `unicode`, `g` for `git`, `tools` for `tool`, `docs` for `doc`,
-`tidy` for `analyze`, `coverage` for `cov`, `runs`/`hist` for `history`,
-`exec` for `run`, `ls` for `list`, and `h` for `help`. The retired `doctor`
-command is not accepted; use `ready`.
+Use the action names above. Conventional help flags are documented separately.
 
 ## Subcommands and targets
 
@@ -164,7 +156,7 @@ module implementation.
 | `-WorkerCount <count>` | Select stress worker count. |
 | `-PassThroughArgs <arguments>` | Forward arguments only where the selected declarative command permits them. |
 | `-SkipBuild` | Do not build prerequisites automatically; require existing usable build state and fail when it is absent. |
-| `-CleanBuild` | Before `configure`, `build`, `test`, or `bundle`, remove each selected preset's complete `build/<preset>` tree and recreate it. Cannot be combined with `-SkipBuild`. |
+| `-CleanBuild` | Before `config`, `build`, `test`, or `bundle`, remove each selected preset's complete `build/<preset>` tree and recreate it. Cannot be combined with `-SkipBuild`. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
 | `-ChangedOnly` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
 | `-FailOnFindings` | Fail an optional hygiene audit when it produces a `PROVEN` finding. Likely, informational, and centrally explained findings remain report-only. |
@@ -180,10 +172,7 @@ module implementation.
 PowerShell common `-Verbose` and `-Debug` behavior remains available. Verbose
 mode is the normal way to expose additional helper or native detail.
 
-Semantic presentation uses cyan for accents and progress, green for success and
-ready states, yellow for warnings and ensure actions, red for failures, and
-dark gray for paths and secondary details. `-NoColor` changes only color; the
-explicit text and status labels remain unchanged.
+Menu presentation and status-color conventions are documented in @ref project_environment_setup.
 
 ## Execution model
 
@@ -208,7 +197,7 @@ higher-level caller has already granted consent. `-Preview` never performs the
 mutation.
 
 Low-level configure, build, test, and ordinary bundle commands remain
-incremental unless `-CleanBuild` is supplied. The high-level `coverage`, `asan`, and
+incremental unless `-CleanBuild` is supplied. The high-level `cov`, `asan`, and
 `ubsan` actions always recreate their preset trees so stale instrumentation or
 runtime artifacts cannot affect the result. The `local-release-check` and
 `sanitizer` bundles declare the same policy in the bundle catalog. `sanitizer`
@@ -240,7 +229,7 @@ and `status` performs read-only configuration and tool discovery.
 
 `gamewip tool ensure <id|category|all>` installs or repairs exactly the
 versions already declared by the checkout and does not advance pins. `gamewip
-tools update <id|all>` is the reviewed pin-advancement workflow and requires a
+tool update <id|all>` is the reviewed pin-advancement workflow and requires a
 clean tracked tree. Its preview performs discovery, source-preserving tracked
 staging, and staged validation, then reports exact registry fields and declared
 live references without applying them. A current selection is a true no-op. See

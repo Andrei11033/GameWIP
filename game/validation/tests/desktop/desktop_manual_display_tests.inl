@@ -402,12 +402,6 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
         "HDR display reconnect",
         "If safe, disconnect and reconnect the queried display. Does the stale ID fail, followed by a successful fresh enumeration/query? Skip "
         "otherwise.");
-    recordManualCheck(
-        context,
-        window,
-        "Windows 10 advanced-color compatibility",
-        "On an available Windows 10 compatibility host, does the legacy query work while unavailable WCG metadata remains unknown? Skip on the "
-        "supported Windows 11 host.");
     static_cast<void>(window.close());
 }
 

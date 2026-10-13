@@ -2032,21 +2032,6 @@ namespace
 
 namespace GameWIP::Input::Platform::Win32
 {
-#if INPUT_INTERNAL_TEST_HOOKS
-    namespace TestHooks
-    {
-        std::string convertDeviceMetadata(std::wstring_view text)
-        {
-            return wideToUtf8(text);
-        }
-
-        float normalizeHidValue(long value, long logicalMinimum, long logicalMaximum, InputDeviceType deviceType, unsigned short usage)
-        {
-            return ::normalizeHidValue(value, logicalMinimum, logicalMaximum, deviceType, usage);
-        }
-    } // namespace TestHooks
-#endif
-
     void updateGamepads(InputState &inputState, InputDeviceRegistry &devices)
     {
         syncRegistryConnections(inputState, devices);

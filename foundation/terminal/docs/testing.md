@@ -54,6 +54,10 @@ Terminal participates in:
 
 GameWIP owns module selection, CTest registration, reports, and sanitizer workflows. See @ref project_testing and @ref project_validation.
 
+The infinite-wait cancellation probe allows 30 seconds for process startup and profile teardown. Inside the child, cancellation must complete within
+two seconds after requesting stop; finite-wait cases keep their short operation deadlines. Child failures retain outcome, exit and captured
+phase diagnostics.
+
 ## Diagnostic benchmarks
 
 The `terminal` benchmark module covers retained-capacity checked `OutputBuffer` append, line batching, and formatting. These benchmarks are intended
@@ -69,7 +73,10 @@ Automated runs leave human interaction disabled. From a real Windows Terminal se
 
 The opt-in suite requests human confirmation for Unicode rendering, colors and styles, cursor save/restore, alternate-screen restoration, managed line
 input, native structured Left-Arrow delivery, managed session restoration, and cursor visibility. It skips with an explicit reason when the required
-streams are not real terminals.
+streams are not real terminals. Use `s reason` to retain an observation's skip reason; end-of-input is recorded separately.
+Event-wrapper checks cover matching, nonmatching and const access, and alternative replacement. Native decoder tests own payload-field coverage.
+
+Manual runs report prompted observations separately from setup and contract assertions.
 
 ## Test hooks
 

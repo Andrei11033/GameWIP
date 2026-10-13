@@ -1,6 +1,5 @@
-# Action consumes Input. Both are deprecated source-tree targets; Desktop is the
-# independently consumable, supported engine boundary.
-set(INPUT_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED} CACHE BOOL "Enable Input internal test hooks" FORCE)
+# Input and Action are retained source-tree reference targets. Desktop is the
+# maintained, independently consumable engine library.
 add_subdirectory(input)
 add_subdirectory(action)
 
@@ -9,5 +8,4 @@ add_subdirectory(action)
 set(DESKTOP_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED} CACHE BOOL "Enable Desktop internal test hooks" FORCE)
 add_subdirectory(desktop)
 
-# WindowManager is deprecated and intentionally not compiled. Its source is
-# preserved for a later coordination-layer migration.
+# WindowManager is retained as reference source and is not compiled.
