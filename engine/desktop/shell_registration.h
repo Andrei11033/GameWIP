@@ -20,15 +20,16 @@ namespace GameWIP::Desktop::Types::Registration
     enum class ConflictPolicy : std::uint8_t
     {
         Report,      ///< Reject any existing target conflict without writing and report it.
-        Coexist,     ///< Install or update this owner without changing foreign ownership and report foreign conflicts.
+        Coexist,     ///< Install or update this owner without changing foreign file/URI ownership and report foreign conflicts; foreign application records still block default-action registration.
         ReplaceOwned ///< Replace a same-owner registration atomically; reject foreign conflicts.
     };
 
     /// @brief Kind of shell registration target reported by a conflict.
     enum class TargetKind : std::uint8_t
     {
-        FileExtension, ///< Filesystem extension target such as .gamewip.
-        UriScheme      ///< URI scheme target such as gamewip.
+        FileExtension,    ///< Filesystem extension target such as .gamewip.
+        UriScheme,        ///< URI scheme target such as gamewip.
+        ApplicationRecord ///< Executable application record such as GameWIPTests.exe; it can block a default-action registration.
     };
 
     /// @brief One reported pre-existing shell registration conflict.
@@ -37,8 +38,8 @@ namespace GameWIP::Desktop::Types::Registration
     struct Conflict
     {
         TargetKind kind = TargetKind::FileExtension; ///< Conflicting target kind.
-        std::string target;                          ///< Owned normalized extension or URI scheme.
-        std::string ownerKey;                        ///< Owned existing owner identity when available.
+        std::string target;                          ///< Owned normalized extension, URI scheme, or executable basename.
+        std::string ownerKey;                        ///< Existing owner identity when available.
     };
 
     /// @brief Result of one registration or unregistration operation.

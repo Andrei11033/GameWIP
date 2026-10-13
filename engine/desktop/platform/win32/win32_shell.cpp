@@ -1318,8 +1318,38 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        [[nodiscard]] IO::Types::Status deleteRegistryTree(HKEY key, std::wstring_view name, std::string_view operation)
+        {
+#if DESKTOP_INTERNAL_TEST_HOOKS
+            if (Detail::consumeFailure(TestHooks::FailurePoint::ShellRegistryDelete))
+            {
+                return registryStatus(ERROR_ACCESS_DENIED, operation);
+            }
+#endif
+            const LONG removed = RegDeleteTreeW(key, std::wstring(name).c_str());
+            return removed == ERROR_FILE_NOT_FOUND ? IO::successStatus() : registryStatus(removed, operation);
+        }
+
+        [[nodiscard]] IO::Types::Status deleteRegistryKey(HKEY root, std::wstring_view path, std::string_view operation)
+        {
+#if DESKTOP_INTERNAL_TEST_HOOKS
+            if (Detail::consumeFailure(TestHooks::FailurePoint::ShellRegistryDelete))
+            {
+                return registryStatus(ERROR_ACCESS_DENIED, operation);
+            }
+#endif
+            const LONG removed = RegDeleteKeyW(root, std::wstring(path).c_str());
+            return removed == ERROR_FILE_NOT_FOUND ? IO::successStatus() : registryStatus(removed, operation);
+        }
+
         [[nodiscard]] IO::Types::Status removeRegistryValue(HKEY key, std::wstring_view name)
         {
+#if DESKTOP_INTERNAL_TEST_HOOKS
+            if (Detail::consumeFailure(TestHooks::FailurePoint::ShellRegistryDelete))
+            {
+                return registryStatus(ERROR_ACCESS_DENIED, "remove owned registration value");
+            }
+#endif
             const LONG removed = RegDeleteValueW(key, std::wstring(name).c_str());
             return removed == ERROR_FILE_NOT_FOUND ? IO::successStatus() : registryStatus(removed, "remove owned registration value");
         }
@@ -1350,8 +1380,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::successStatus();
             }
             key.reset();
-            const LONG removed = RegDeleteKeyW(HKEY_CURRENT_USER, path.c_str());
-            return removed == ERROR_FILE_NOT_FOUND ? IO::successStatus() : registryStatus(removed, "remove empty registration key");
+            return deleteRegistryKey(HKEY_CURRENT_USER, path, "remove empty registration key");
         }
 
         /// @brief Captures owned registry state so failed shell registration can roll back.
@@ -1376,7 +1405,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 else
                 {
-                    cleanup();
+                    cleanupBestEffort();
                 }
             }
 
@@ -1409,10 +1438,10 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::successStatus();
             }
 
-            void commit() noexcept
+            [[nodiscard]] IO::Types::Status commit()
             {
                 active_ = false;
-                cleanup();
+                return cleanup();
             }
 
         private:
@@ -1447,10 +1476,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
             [[nodiscard]] IO::Types::Status restoreTree(std::wstring_view destinationPath, std::wstring_view slot, bool captured)
             {
-                const LONG deleteResult = RegDeleteTreeW(HKEY_CURRENT_USER, std::wstring(destinationPath).c_str());
-                if (deleteResult != ERROR_SUCCESS && deleteResult != ERROR_FILE_NOT_FOUND)
+                const IO::Types::Status deleteStatus = deleteRegistryTree(HKEY_CURRENT_USER, destinationPath, "remove registry replacement");
+                if (!deleteStatus.ok())
                 {
-                    return registryStatus(deleteResult, "remove registry replacement");
+                    return deleteStatus;
                 }
                 if (!captured)
                 {
@@ -1488,13 +1517,24 @@ namespace GameWIP::Desktop::Detail::Platform
                     active_ = false;
                 }
                 active_ = false;
-                cleanup();
+                cleanupBestEffort();
             }
 
-            void cleanup() noexcept
+            [[nodiscard]] IO::Types::Status cleanup()
             {
                 backupRoot_.reset();
-                static_cast<void>(RegDeleteTreeW(HKEY_CURRENT_USER, backupPath_.c_str()));
+                return deleteRegistryTree(HKEY_CURRENT_USER, backupPath_, "remove shell registration rollback backup");
+            }
+
+            void cleanupBestEffort() noexcept
+            {
+                try
+                {
+                    static_cast<void>(cleanup());
+                }
+                catch (...)
+                {
+                }
             }
 
             std::wstring targetPath_;
@@ -1670,6 +1710,37 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        [[nodiscard]] IO::Types::Status inspectApplicationRegistration(
+            std::wstring_view applicationPath,
+            std::string_view ownerKey,
+            bool &exists,
+            bool &sameOwner,
+            std::string &existingOwner)
+        {
+            exists = false;
+            sameOwner = false;
+            existingOwner.clear();
+            RegistryKey existing;
+            const LONG opened = RegOpenKeyExW(HKEY_CURRENT_USER, std::wstring(applicationPath).c_str(), 0, KEY_READ, existing.put());
+            if (opened == ERROR_FILE_NOT_FOUND)
+            {
+                return IO::successStatus();
+            }
+            if (opened != ERROR_SUCCESS)
+            {
+                return registryStatus(opened, "inspect application registration");
+            }
+            bool hasOwner = false;
+            const IO::Types::Status ownerStatus = readOwner(existing.get(), existingOwner, hasOwner);
+            if (!ownerStatus.ok())
+            {
+                return ownerStatus;
+            }
+            exists = true;
+            sameOwner = hasOwner && existingOwner == ownerKey;
+            return IO::successStatus();
+        }
+
         [[nodiscard]] IO::Types::Status writeApplicationRegistration(
             const std::wstring &applicationName,
             const std::wstring &applicationPath,
@@ -1679,31 +1750,21 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::optional<Types::Registration::Icon> &icon,
             const Types::Shell::LaunchActionView &action)
         {
-            RegistryKey existing;
-            const LONG opened = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, existing.put());
-            if (opened != ERROR_SUCCESS && opened != ERROR_FILE_NOT_FOUND)
+            bool exists = false;
+            bool sameOwner = false;
+            std::string existingOwner;
+            IO::Types::Status status = inspectApplicationRegistration(applicationPath, ownerKey, exists, sameOwner, existingOwner);
+            if (!status.ok())
             {
-                return registryStatus(opened, "inspect application registration");
+                return status;
             }
-            if (opened == ERROR_SUCCESS)
+            if (exists && !sameOwner)
             {
-                std::string existingOwner;
-                bool hasOwner = false;
-                const IO::Types::Status ownerStatus = readOwner(existing.get(), existingOwner, hasOwner);
-                if (!ownerStatus.ok())
-                {
-                    return ownerStatus;
-                }
-                if (!hasOwner || existingOwner != ownerKey)
-                {
-                    // A foreign application record owns this executable name. Preserve it;
-                    // the ProgID registration remains usable without overwriting that app.
-                    return IO::successStatus();
-                }
+                return registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
             }
 
             RegistryKey application;
-            IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, true);
+            status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, true);
             if (!status.ok())
             {
                 return status;
@@ -1741,7 +1802,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 return status;
             }
 
-            static_cast<void>(RegDeleteTreeW(application.get(), L"DefaultIcon"));
+            status = deleteRegistryTree(application.get(), L"DefaultIcon", "remove previous application icon");
+            if (!status.ok())
+            {
+                return status;
+            }
             if (icon.has_value())
             {
                 RegistryKey iconKey;
@@ -1826,26 +1891,28 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::successStatus();
             }
             const std::wstring applicationPath = L"Software\\Classes\\Applications\\" + std::wstring(applicationName);
-            RegistryKey application;
-            IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, false);
-            if (status.code == ErrorCode::NotFound)
-            {
-                return IO::successStatus();
-            }
-            if (!status.ok())
-            {
-                return status;
-            }
+            bool exists = false;
+            bool sameOwner = false;
             std::string existingOwner;
-            bool hasOwner = false;
-            status = readOwner(application.get(), existingOwner, hasOwner);
+            IO::Types::Status status = inspectApplicationRegistration(applicationPath, ownerKey, exists, sameOwner, existingOwner);
             if (!status.ok())
             {
                 return status;
             }
-            if (!hasOwner || existingOwner != ownerKey)
+            if (!exists)
             {
                 return IO::successStatus();
+            }
+            if (!sameOwner)
+            {
+                return registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
+            }
+
+            RegistryKey application;
+            status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, false);
+            if (!status.ok())
+            {
+                return status;
             }
 
             DWORD nativeCode = ERROR_SUCCESS;
@@ -1886,13 +1953,41 @@ namespace GameWIP::Desktop::Detail::Platform
                 return status;
             }
 
-            static_cast<void>(RegDeleteTreeW(application.get(), L"DefaultIcon"));
-            static_cast<void>(RegDeleteTreeW(application.get(), L"shell"));
-            static_cast<void>(RegDeleteValueW(application.get(), L""));
-            static_cast<void>(RegDeleteValueW(application.get(), L"FriendlyAppName"));
-            static_cast<void>(RegDeleteValueW(application.get(), L"ApplicationName"));
-            static_cast<void>(RegDeleteValueW(application.get(), L"ApplicationDescription"));
-            static_cast<void>(RegDeleteValueW(application.get(), L"GameWIP.OwnerKey"));
+            status = deleteRegistryTree(application.get(), L"DefaultIcon", "remove owned application icon");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = deleteRegistryTree(application.get(), L"shell", "remove owned application shell commands");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = removeRegistryValue(application.get(), L"");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = removeRegistryValue(application.get(), L"FriendlyAppName");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = removeRegistryValue(application.get(), L"ApplicationName");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = removeRegistryValue(application.get(), L"ApplicationDescription");
+            if (!status.ok())
+            {
+                return status;
+            }
+            status = removeRegistryValue(application.get(), L"GameWIP.OwnerKey");
+            if (!status.ok())
+            {
+                return status;
+            }
             return pruneEmptyRegistrationKey(applicationPath);
         }
 
@@ -1933,7 +2028,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             else
             {
-                static_cast<void>(RegDeleteValueW(program.get(), L"GameWIP.ApplicationKey"));
+                status = removeRegistryValue(program.get(), L"GameWIP.ApplicationKey");
             }
             if (!status.ok())
             {
@@ -1974,10 +2069,18 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             else
             {
-                static_cast<void>(RegDeleteValueW(program.get(), L"Content Type"));
+                status = removeRegistryValue(program.get(), L"Content Type");
+                if (!status.ok())
+                {
+                    return status;
+                }
             }
 
-            static_cast<void>(RegDeleteTreeW(program.get(), L"DefaultIcon"));
+            status = deleteRegistryTree(program.get(), L"DefaultIcon", "remove previous program icon");
+            if (!status.ok())
+            {
+                return status;
+            }
             if (icon.has_value())
             {
                 RegistryKey iconKey;
@@ -1995,7 +2098,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
 
-            static_cast<void>(RegDeleteTreeW(program.get(), L"shell"));
+            status = deleteRegistryTree(program.get(), L"shell", "remove previous program shell commands");
+            if (!status.ok())
+            {
+                return status;
+            }
             if (defaultAction.has_value() || !verbs.empty())
             {
                 RegistryKey shell;
@@ -2113,6 +2220,22 @@ namespace GameWIP::Desktop::Detail::Platform
             return {.kind = kind, .target = std::move(target), .ownerKey = std::move(owner)};
         }
 
+        [[nodiscard]] IO::Types::Status appendApplicationConflict(
+            std::wstring_view applicationName,
+            std::string_view existingOwner,
+            std::vector<Types::Registration::Conflict> &conflicts)
+        {
+            DWORD nativeCode = ERROR_SUCCESS;
+            std::string applicationNameUtf8;
+            if (!utf16ToUtf8(applicationName, applicationNameUtf8, nativeCode))
+            {
+                return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
+            }
+            conflicts.push_back(
+                makeConflict(Types::Registration::TargetKind::ApplicationRecord, std::move(applicationNameUtf8), std::string(existingOwner)));
+            return IO::successStatus();
+        }
+
         [[nodiscard]] Types::Registration::Result unregisterRegistrationTarget(
             std::string_view ownerKey,
             std::string_view input,
@@ -2150,6 +2273,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 const std::wstring progPath = L"Software\\Classes\\" + progId;
                 bool ownProgram = false;
                 std::wstring applicationName;
+                std::wstring applicationPath;
                 RegistryKey program;
                 status = openRegistryKey(HKEY_CURRENT_USER, progPath, KEY_READ, program, false);
                 if (status.ok())
@@ -2179,10 +2303,56 @@ namespace GameWIP::Desktop::Detail::Platform
                     return result;
                 }
 
+                // Do not keep the ProgID open while the transaction removes or restores its
+                // subtree. This keeps rollback independent of registry handle-sharing behavior.
+                program.reset();
+
                 if (!sameOwner && !ownProgram)
                 {
                     result.status = exists ? IO::makeStatus(ErrorCode::AlreadyExists) : IO::makeStatus(ErrorCode::NotFound);
                     return result;
+                }
+                if (extension && ownProgram && !applicationName.empty())
+                {
+                    applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
+                    bool applicationExists = false;
+                    bool applicationSameOwner = false;
+                    std::string applicationOwner;
+                    status = inspectApplicationRegistration(
+                        applicationPath, ownerKey, applicationExists, applicationSameOwner, applicationOwner);
+                    if (!status.ok())
+                    {
+                        result.status = status;
+                        return result;
+                    }
+                    if (applicationExists && !applicationSameOwner)
+                    {
+                        status = appendApplicationConflict(applicationName, applicationOwner, result.conflicts);
+                        if (!status.ok())
+                        {
+                            result.status = status;
+                            return result;
+                        }
+                        result.status = registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
+                        return result;
+                    }
+                }
+
+                RegistryTreeBackup transaction(targetPath, progPath, applicationPath);
+                status = transaction.capture();
+                if (!status.ok())
+                {
+                    result.status = status;
+                    return result;
+                }
+                if (extension && ownProgram && !applicationName.empty())
+                {
+                    status = removeApplicationRegistration(applicationName, ownerKey, target);
+                    if (!status.ok())
+                    {
+                        result.status = status;
+                        return result;
+                    }
                 }
                 if (extension)
                 {
@@ -2242,26 +2412,16 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 else if (sameOwner)
                 {
-                    const LONG removed = RegDeleteTreeW(HKEY_CURRENT_USER, targetPath.c_str());
-                    if (removed != ERROR_SUCCESS && removed != ERROR_FILE_NOT_FOUND)
+                    status = deleteRegistryTree(HKEY_CURRENT_USER, targetPath, "delete shell registration target");
+                    if (!status.ok())
                     {
-                        result.status = registryStatus(removed, "delete shell registration target");
+                        result.status = status;
                         return result;
                     }
                 }
                 if (ownProgram)
                 {
-                    program.reset();
-                    const LONG removed = RegDeleteTreeW(HKEY_CURRENT_USER, progPath.c_str());
-                    if (removed != ERROR_SUCCESS && removed != ERROR_FILE_NOT_FOUND)
-                    {
-                        result.status = registryStatus(removed, "delete shell registration program");
-                        return result;
-                    }
-                }
-                if (extension && ownProgram && !applicationName.empty())
-                {
-                    status = removeApplicationRegistration(applicationName, ownerKey, target);
+                    status = deleteRegistryTree(HKEY_CURRENT_USER, progPath, "delete shell registration program");
                     if (!status.ok())
                     {
                         result.status = status;
@@ -2269,6 +2429,12 @@ namespace GameWIP::Desktop::Detail::Platform
                     }
                 }
                 result.replacedOwned = true;
+                status = transaction.commit();
+                if (!status.ok())
+                {
+                    result.status = status;
+                    return result;
+                }
                 SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
                 return result;
             }
@@ -3095,6 +3261,27 @@ namespace GameWIP::Desktop::Detail::Platform
                     result.status = status;
                     return result;
                 }
+                bool applicationExists = false;
+                bool applicationSameOwner = false;
+                std::string applicationOwner;
+                status = inspectApplicationRegistration(
+                    applicationPath, description.ownerKey, applicationExists, applicationSameOwner, applicationOwner);
+                if (!status.ok())
+                {
+                    result.status = status;
+                    return result;
+                }
+                if (applicationExists && !applicationSameOwner)
+                {
+                    status = appendApplicationConflict(applicationName, applicationOwner, result.conflicts);
+                    if (!status.ok())
+                    {
+                        result.status = status;
+                        return result;
+                    }
+                    result.status = registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
+                    return result;
+                }
             }
             RegistryTreeBackup transaction(targetPath, progPath, applicationPath);
             status = transaction.capture();
@@ -3175,7 +3362,12 @@ namespace GameWIP::Desktop::Detail::Platform
                 return result;
             }
             result.replacedOwned = sameOwner;
-            transaction.commit();
+            status = transaction.commit();
+            if (!status.ok())
+            {
+                result.status = status;
+                return result;
+            }
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
             return result;
         }
@@ -3311,7 +3503,12 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
             result.replacedOwned = sameOwner;
-            transaction.commit();
+            status = transaction.commit();
+            if (!status.ok())
+            {
+                result.status = status;
+                return result;
+            }
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
             return result;
         }

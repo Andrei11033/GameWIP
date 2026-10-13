@@ -224,7 +224,8 @@ namespace GameWIP::Desktop::TestHooks
         WindowCreationCallback,
         ShellNativeOpen,
         ShellNativeApply,
-        ShellNativeClose
+        ShellNativeClose,
+        ShellRegistryDelete
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS

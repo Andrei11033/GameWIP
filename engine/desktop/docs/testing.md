@@ -23,7 +23,10 @@ arguments and icon location, then publish and clear a valid task under an isolat
 application identity. COM coverage isolates the uninitialized process case and separately
 checks controlled implicit MTA, reused STA and rejected explicit MTA for dialogs and shell calls.
 Native registration checks use isolated current-user targets to verify same-owner replacement,
-exact Unicode owner identity, foreign-owner preservation, rollback after a failed write and cleanup.
+exact Unicode owner identity, foreign-owner preservation, foreign and unowned executable-record
+collisions, rollback after a failed write, and cleanup failure propagation with retry. They also
+verify that application records expose `FriendlyAppName` and `SupportedTypes` metadata and that a
+failed cleanup leaves the record available for a subsequent cleanup attempt.
 They also ask Windows to enumerate the file handler for Open with and dispatch
 file/URI commands to a receipt-writing child. File dispatch selects the registered
 ProgID explicitly so the regression never opens a default-app chooser; URI dispatch

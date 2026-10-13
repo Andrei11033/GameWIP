@@ -610,6 +610,12 @@ namespace GameWIP::Test
                     testShellRegistrationOwnership(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
                 });
             runner.runSuite(
+                "Desktop shell registration application ownership",
+                [&](TestSupport::Context &context)
+                {
+                    testShellRegistrationApplicationOwnership(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                });
+            runner.runSuite(
                 "Desktop shell association discovery and launch",
                 [&](TestSupport::Context &context)
                 {

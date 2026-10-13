@@ -116,6 +116,11 @@ D::TestHooks::resetFailures();
 #endif
 ```
 
+`ShellRegistryDelete` injects one access-denied registry deletion failure.
+Desktop shell registration tests use it to verify that owned application-record
+cleanup reports the failure and that the operation can be retried after the
+failure hook is reset.
+
 ## Related pages
 
 - @ref desktop_testing

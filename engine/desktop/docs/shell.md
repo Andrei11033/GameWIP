@@ -206,10 +206,16 @@ never forces the default application. Stable owner keys identify registrations c
 application and allow same-owner replacement or cleanup.
 
 Use `ConflictPolicy::Report` when the application must not write an existing target,
-`ConflictPolicy::Coexist` when a foreign target may remain untouched, and
+`ConflictPolicy::Coexist` when a foreign file or URI target may remain untouched, and
 `ConflictPolicy::ReplaceOwned` when only a same-owner target may be replaced. Always inspect the
 returned conflict list and remove registrations with the same owner key during uninstall or test
-cleanup.
+cleanup. A foreign or unowned executable application record is always a blocking conflict for a
+file registration that supplies a default action: `Coexist` never permits the library to report
+success while omitting the record's required `FriendlyAppName` and `SupportedTypes` metadata.
+If unregistration encounters an application record that is no longer owned by the caller, it
+reports the same `ApplicationRecord` conflict and leaves the association intact. Registry cleanup
+failures are returned to the caller; the operation is transactional and can be retried after the
+underlying access problem is resolved.
 
 Registration persists after the process exits. Keep owner keys stable across
 application updates and call `unregisterFileExtension(ownerKey, extension)` or
@@ -219,6 +225,10 @@ trailing colon; extensions use a spelling such as `.example`.
 File registrations advertise their owned ProgID through `OpenWithProgids`,
 including when Coexist retains a foreign default. Cleanup removes only that
 owner's alternative and owned values, preserving other handlers and metadata.
+The returned conflict kind is `ApplicationRecord` when the executable basename
+under `Applications\\` is already owned by another registration; its target is
+the executable basename and its owner is empty when the existing record has no
+GameWIP ownership marker.
 URI registrations publish native verbs/commands beneath the scheme key itself.
 Coexist never replaces a foreign URI command; its owned secondary ProgID does
 not become the active scheme handler. Successful publication and cleanup notify
