@@ -65,6 +65,7 @@ namespace
         }
 
         TestSupport::Context &testContext;
+        TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
         std::string executablePath;
         TestSupport::Types::Reporting::Summary manualObservations;
@@ -249,7 +250,7 @@ namespace
         TestSupport::Types::Process::Options child;
         child.executablePath = std::filesystem::path(std::string(executablePath));
         child.arguments = {std::string(argument)};
-        child.timeout = timeout;
+        child.waitTimeout = timeout;
         child.captureOutput = true;
         return TestSupport::runChildProcess(child);
     }
@@ -418,6 +419,11 @@ namespace GameWIP::Test
             [&](TestSupport::Context &suiteContext)
             {
                 TestContext context(suiteContext);
+                if (!context.processState.status().ok())
+                {
+                    context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
+                    return;
+                }
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
                 const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
                 if (!requireInfrastructure(context, "create Assert test workspace", workspace.status()))

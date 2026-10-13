@@ -121,6 +121,12 @@ namespace GameWIP::FileSystem
     /// @note Conversion does not make the path absolute, canonical, or normalized.
     [[nodiscard]] Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept;
 
+    /// @brief Converts explicitly typed UTF-8 text to the platform-native Path representation.
+    /// @param utf8Path UTF-8 path text represented with char8_t code units.
+    /// @return Converted path or EncodingFailed/OutOfMemory.
+    /// @note This overload makes UTF-8 intent explicit for u8 string literals and std::u8string values.
+    [[nodiscard]] Types::PathResult pathFromUtf8(std::u8string_view utf8Path) noexcept;
+
     /// @brief Converts a Path's stored spelling to UTF-8 text.
     /// @return UTF-8 path text or EncodingFailed/OutOfMemory.
     /// @note The result does not promise normalized or platform-independent separators.

@@ -10,7 +10,7 @@
     TestSupport::Types::Process::Options options;
     options.executablePath = std::filesystem::path(std::string(executable));
     options.arguments = {std::string(argument)};
-    options.timeout = timeout;
+    options.waitTimeout = timeout;
     options.captureOutput = true;
     return TestSupport::runChildProcess(options);
 }
@@ -57,7 +57,7 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
     }
 
     const std::filesystem::path directory = testDirectory(context, "fatal-terminate-child");
-    const TestSupport::ScopedEnvironmentVariable environment(kChildLogDirectoryEnvironmentVariable, pathText(directory));
+    const TestSupport::ScopedEnvironmentVariable environment(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(directory));
     if (!environment.status().ok())
     {
         context.fail("set fatalTerminate child directory", TestSupport::formatInfrastructureStatus(environment.status()));

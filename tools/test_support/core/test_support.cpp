@@ -57,6 +57,9 @@ namespace GameWIP::TestSupport
         case Types::InfrastructureError::EnvironmentFailed:
             errorName = "EnvironmentFailed";
             break;
+        case Types::InfrastructureError::ProcessStateConflict:
+            errorName = "ProcessStateConflict";
+            break;
         case Types::InfrastructureError::FileOperationFailed:
             errorName = "FileOperationFailed";
             break;

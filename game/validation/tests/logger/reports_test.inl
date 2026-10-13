@@ -114,7 +114,7 @@ void testReportDoesNotDrainAsyncBacklog(TestContext &context, const LoggerTestOp
     childOptions.executablePath = std::filesystem::path(context.executablePath);
     childOptions.arguments = {"--logger-test-child=report-no-drain"};
     childOptions.environmentOverrides = {{std::string(kChildLogDirectoryEnvironmentVariable), pathText(directory)}};
-    childOptions.timeout = 30s;
+    childOptions.waitTimeout = 30s;
     const auto child = TestSupport::runChildProcess(childOptions);
     context.expectTrue(
         "report no-drain child completes",

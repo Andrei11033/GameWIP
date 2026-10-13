@@ -32,8 +32,9 @@ termination, or filesystem errors can leave artifacts.
 
 ## Current directory or environment restored unexpectedly
 
-These states are process-global. TestSupport serializes individual environment mutations, not whole scope lifetimes. Avoid overlapping guards for the
-same state and prevent unrelated code from mutating it.
+These states are process-global. Create one `ScopedProcessState` and keep it alive for the complete guard lifetime. TestSupport detects unrelated
+mutations during restoration and reports `ProcessStateConflict`; it cannot coordinate APIs that bypass TestSupport. Call `restore()` when cleanup
+must be checked before destruction.
 
 On Win32, setting an environment guard to an empty string removes the variable.
 

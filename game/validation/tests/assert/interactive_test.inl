@@ -24,7 +24,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
         return;
     }
 
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "ignore_once");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
     if (!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
     {
         return;
@@ -64,7 +64,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
         return;
     }
 
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "always_ignore");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
     if (!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
     {
         return;
@@ -102,7 +102,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
     context.expectEq("VERIFY_INTERACTIVE passing evaluates once", passingEvaluations, 1);
 
     int failingEvaluations = 0;
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "ignore_once");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
     if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE action", testAction.status()))
     {
         return;
@@ -143,7 +143,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     }
 
     int evaluations = 0;
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "always_ignore");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
     if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE always-ignore action", testAction.status()))
     {
         return;

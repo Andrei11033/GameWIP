@@ -36,8 +36,8 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         return;
     }
 
-    const ScopedClearedEnvironmentVariable clearTestAction(kTestActionEnvironmentVariable);
-    const ScopedClearedEnvironmentVariable clearSuppressPopup(kSuppressPopupEnvironmentVariable);
+    const ScopedClearedEnvironmentVariable clearTestAction(context.processState, kTestActionEnvironmentVariable);
+    const ScopedClearedEnvironmentVariable clearSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
     if (!requireInfrastructure(context, "clear manual test action", clearTestAction.status()) ||
         !requireInfrastructure(context, "clear manual popup suppression", clearSuppressPopup.status()))
     {
@@ -75,9 +75,9 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         {
             return;
         }
-        const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-        const ScopedClearedEnvironmentVariable clearChildTestAction(kTestActionEnvironmentVariable);
-        const ScopedClearedEnvironmentVariable clearChildSuppressPopup(kSuppressPopupEnvironmentVariable);
+        const ScopedEnvironmentVariable childLogDirectoryOverride(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        const ScopedClearedEnvironmentVariable clearChildTestAction(context.processState, kTestActionEnvironmentVariable);
+        const ScopedClearedEnvironmentVariable clearChildSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
         if (!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
             !requireInfrastructure(context, "clear manual Abort child action", clearChildTestAction.status()) ||
             !requireInfrastructure(context, "clear manual Abort child popup suppression", clearChildSuppressPopup.status()))

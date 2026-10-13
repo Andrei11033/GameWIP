@@ -72,30 +72,46 @@ namespace GameWIP::Logger
     /// @cond INTERNAL
     namespace Detail::Core
     {
-        template <typename Enum>
-        inline constexpr bool kIsSourceEnum =
-            std::is_enum_v<std::remove_cvref_t<Enum>> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Level> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::OutputMode> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::FormatPolicy> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Outcome> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Init::Adjustment> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::FlushOutcome> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Report::Outcome> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Report::Delivery> && !std::is_same_v<std::remove_cvref_t<Enum>, Types::Health::State> &&
-            !std::is_same_v<std::remove_cvref_t<Enum>, Types::Health::FailureSource>;
+        template <typename Enum, bool IsEnum = std::is_enum_v<Enum>> struct SourceEnumTraits : std::false_type
+        {
+        };
+
+        template <typename Enum> struct SourceEnumTraits<Enum, true>
+            : std::bool_constant<
+                  std::is_unsigned_v<std::underlying_type_t<Enum>> && sizeof(std::underlying_type_t<Enum>) <= sizeof(Types::SourceId) &&
+                  !std::is_same_v<Enum, Types::Level> && !std::is_same_v<Enum, Types::OutputMode> &&
+                  !std::is_same_v<Enum, Types::FormatPolicy> && !std::is_same_v<Enum, Types::Init::Outcome> &&
+                  !std::is_same_v<Enum, Types::Init::Adjustment> && !std::is_same_v<Enum, Types::FlushOutcome> &&
+                  !std::is_same_v<Enum, Types::Report::Outcome> && !std::is_same_v<Enum, Types::Report::Delivery> &&
+                  !std::is_same_v<Enum, Types::Health::State> && !std::is_same_v<Enum, Types::Health::FailureSource>>
+        {
+        };
 
         template <typename Enum>
-            requires(kIsSourceEnum<Enum>)
+        concept SourceEnum = SourceEnumTraits<std::remove_cvref_t<Enum>>::value;
+
+        template <typename Enum>
+        inline constexpr bool kIsSourceEnum = SourceEnum<Enum>;
+
+        template <typename Enum>
+            requires(SourceEnum<Enum>)
         constexpr Types::SourceId sourceId(Enum value) noexcept
         {
             using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
-            static_assert(std::is_unsigned_v<Underlying>, "Logger source enums must use an unsigned underlying type.");
-            static_assert(sizeof(Underlying) <= sizeof(Types::SourceId), "Logger source enum values must fit in SourceId.");
             return static_cast<Types::SourceId>(static_cast<Underlying>(value));
         }
     } // namespace Detail::Core
     /// @endcond
 
+    /// @brief Concept for source enums accepted by enum-based Logger APIs.
+    /// @details The enum must use an unsigned underlying type no wider than SourceId and must not be a Logger-owned enum.
+    /// Registration of individual values remains a runtime Config concern.
+    template <typename Enum>
+    concept SourceEnum = Detail::Core::SourceEnum<Enum>;
+
     /// @brief Creates a registered-source definition from an unsigned enum value and UTF-8 name.
     template <typename Enum>
-        requires(Detail::Core::kIsSourceEnum<Enum>)
+        requires(SourceEnum<Enum>)
     constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name) noexcept
     {
         return {Detail::Core::sourceId(value), name};

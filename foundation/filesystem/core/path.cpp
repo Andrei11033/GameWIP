@@ -444,6 +444,30 @@ namespace GameWIP::FileSystem
         }
     }
 
+    Types::PathResult pathFromUtf8(std::u8string_view utf8Path) noexcept
+    {
+        try
+        {
+            std::string bytes(utf8Path.size(), '\0');
+            std::ranges::transform(
+                utf8Path,
+                bytes.begin(),
+                [](char8_t byte)
+                {
+                    return static_cast<char>(byte);
+                });
+            return pathFromUtf8(std::string_view(bytes));
+        }
+        catch (const std::bad_alloc &)
+        {
+            return pathFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return pathFailure(ErrorCode::EncodingFailed);
+        }
+    }
+
     Types::Utf8PathResult pathToUtf8(const Types::Path &path) noexcept
     {
         try

@@ -12,7 +12,9 @@ const auto pathResult = GameWIP::FileSystem::pathFromUtf8(utf8Text);
 const auto textResult = GameWIP::FileSystem::pathToUtf8(pathResult.path);
 ```
 
-`pathFromUtf8()` converts UTF-8 text to the native `Path` representation. `pathToUtf8()` converts a path's stored spelling to UTF-8.
+`pathFromUtf8()` converts UTF-8 text to the native `Path` representation. It accepts both `std::string_view` and explicit `std::u8string_view`,
+so callers carrying `char8_t` text do not need an intermediate platform-dependent narrow conversion. `pathToUtf8()` converts a path's stored spelling
+to UTF-8.
 
 Neither helper makes a path absolute, canonical, or normalized. `pathToUtf8()` does not promise portable separators or a portable path grammar; it
 preserves the representation produced by `std::filesystem::path` for the current platform.

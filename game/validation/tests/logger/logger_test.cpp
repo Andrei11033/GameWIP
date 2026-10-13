@@ -85,6 +85,15 @@ namespace
         Unknown = 99
     };
 
+    enum class SignedSource : int
+    {
+        Core = 1
+    };
+
+    static_assert(Logger::SourceEnum<TestSource>);
+    static_assert(!Logger::SourceEnum<SignedSource>);
+    static_assert(!Logger::SourceEnum<Logger::Types::Level>);
+
     struct TestContext
     {
         explicit TestContext(TestSupport::Context &context) noexcept
@@ -93,6 +102,7 @@ namespace
         }
 
         TestSupport::Context &testContext;
+        TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
         std::string executablePath;
         TestSupport::Types::Reporting::Summary manualObservations;
@@ -316,6 +326,11 @@ namespace GameWIP::Test
             [&](TestSupport::Context &suiteContext)
             {
                 TestContext context(suiteContext);
+                if (!context.processState.status().ok())
+                {
+                    context.fail("acquire Logger process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
+                    return;
+                }
                 const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
                 if (!workspace.status().ok())
                 {
@@ -325,7 +340,7 @@ namespace GameWIP::Test
 
                 context.logRoot = workspace.path();
                 context.executablePath = argc > 0 && argv[0] != nullptr ? std::filesystem::absolute(argv[0]).string() : std::string{};
-                const TestSupport::ScopedCurrentPath currentPath(workspace.path());
+                const TestSupport::ScopedCurrentPath currentPath(context.processState, workspace.path());
                 if (!currentPath.status().ok())
                 {
                     context.fail("set Logger test working directory", TestSupport::formatInfrastructureStatus(currentPath.status()));

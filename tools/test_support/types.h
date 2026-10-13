@@ -28,9 +28,10 @@ namespace GameWIP::TestSupport
             CaptureFailed,           ///< Child-output capture setup, reading, or worker execution failed.
             WaitFailed,              ///< Waiting for a child process failed.
             ProcessInspectionFailed, ///< A started child could not be inspected for its exit state.
-            EnvironmentFailed,       ///< A process-environment read or mutation failed.
-            FileOperationFailed,     ///< A filesystem or file operation failed.
-            PlatformFailure          ///< A platform operation failed without a more specific stable category.
+            EnvironmentFailed,        ///< A process-environment read or mutation failed.
+            ProcessStateConflict,     ///< A process-global state guard found an unrelated mutation before restoration.
+            FileOperationFailed,      ///< A filesystem or file operation failed.
+            PlatformFailure           ///< A platform operation failed without a more specific stable category.
         };
 
         /// @brief Compact status returned by expected TestSupport infrastructure operations.

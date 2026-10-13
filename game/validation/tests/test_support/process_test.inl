@@ -4,6 +4,9 @@
 /// @brief Verifies child launch, merged capture, truncation, timeout, environment, and process-tree cleanup.
 void testChildProcesses(TestSupport::Context &context, std::string_view executablePath, const TestSupportTestOptions &options)
 {
+    TestSupport::ScopedProcessState processState;
+    static_cast<void>(context.expectTrue("Process-state scope construction succeeds", processState.status().ok()));
+
     if (!options.enableChildProcessTests)
     {
         context.skip("TestSupport child process tests", "disabled by TestSupportTestOptions");
@@ -41,7 +44,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
     }
 
     {
-        TestSupport::ScopedEnvironmentVariable parentUnset(kChildUnsetVariable, "parent-value");
+        TestSupport::ScopedEnvironmentVariable parentUnset(processState, kChildUnsetVariable, "parent-value");
         static_cast<void>(context.expectTrue("Child environment parent fixture succeeds", parentUnset.status().ok()));
 
         TestSupport::Types::Process::Options childOptions;
@@ -50,7 +53,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         childOptions.environmentOverrides = {
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildSetVariable), std::string("child-value")},
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildUnsetVariable), std::nullopt}};
-        childOptions.timeout = normalChildTimeout;
+        childOptions.waitTimeout = normalChildTimeout;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
@@ -65,7 +68,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {std::string(kExitCodeChildArgument), "0"};
         childOptions.captureOutput = false;
-        childOptions.timeout = 5s;
+        childOptions.waitTimeout = 5s;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
@@ -87,7 +90,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
             TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kHandleInheritanceChildArgument), std::to_string(reinterpret_cast<std::uintptr_t>(unrelatedEvent))};
-            childOptions.timeout = normalChildTimeout;
+            childOptions.waitTimeout = normalChildTimeout;
 
             const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue(
@@ -110,7 +113,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildSetVariable), std::string("child-value")},
             TestSupport::Types::Process::EnvironmentOverride{std::string(kChildUnsetVariable), std::nullopt}};
         childOptions.inheritParentEnvironment = false;
-        childOptions.timeout = normalChildTimeout;
+        childOptions.waitTimeout = normalChildTimeout;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue(
@@ -122,12 +125,41 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {std::string(kExitCodeChildArgument), "7"};
-        childOptions.timeout = normalChildTimeout;
+        childOptions.waitTimeout = normalChildTimeout;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue("Normal child exit has successful infrastructure", result.status.ok()));
         static_cast<void>(context.expectEq("Nonzero child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.outcome));
         static_cast<void>(context.expectEq("Child process reports nonzero exit", std::uint32_t{7}, result.exitCode));
+    }
+
+    {
+        TestSupport::Types::Process::Options childOptions;
+        childOptions.executablePath = std::filesystem::path(executablePath);
+        childOptions.arguments = {std::string(kExitCodeChildArgument), "0"};
+        childOptions.waitTimeout = std::chrono::milliseconds{-1};
+        expectInvalidOptions("Child process rejects negative wait timeout", childOptions);
+
+        childOptions.waitTimeout = std::nullopt;
+        const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
+        static_cast<void>(context.expectTrue(
+            "Nullopt wait timeout waits indefinitely",
+            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+    }
+
+    {
+        TestSupport::Types::Process::Options childOptions;
+        const std::filesystem::path absoluteExecutablePath = std::filesystem::absolute(std::filesystem::path(executablePath));
+        childOptions.executablePath = absoluteExecutablePath;
+        childOptions.arguments = {std::string(kCurrentPathChildArgument)};
+        childOptions.workingDirectory = absoluteExecutablePath.parent_path();
+        childOptions.waitTimeout = normalChildTimeout;
+        const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
+        const std::string expectedDirectory = childOptions.workingDirectory->generic_string();
+        static_cast<void>(context.expectTrue(
+            "Child working directory succeeds",
+            result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
+        static_cast<void>(context.expectContains("Child receives working directory", result.outputBytes, expectedDirectory));
     }
 
 #if defined(_WIN32)
@@ -147,7 +179,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
             TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
             childOptions.arguments = {std::string(kExitCodeChildArgument), std::string(boundary.argument)};
-            childOptions.timeout = normalChildTimeout;
+            childOptions.waitTimeout = normalChildTimeout;
 
             const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
             static_cast<void>(context.expectTrue("Boundary child exit has successful infrastructure", result.status.ok()));
@@ -161,7 +193,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath).parent_path() / "missing-gamewip-child.exe";
-        childOptions.timeout = normalChildTimeout;
+        childOptions.waitTimeout = normalChildTimeout;
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectEq(
             "Missing child reports launch failure",
@@ -175,7 +207,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {std::string(kSleepChildArgument)};
-        childOptions.timeout = 50ms;
+        childOptions.waitTimeout = 50ms;
 
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue("Child process timeout has successful infrastructure", result.status.ok()));
@@ -188,7 +220,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {std::string(kOutputChildArgument), std::to_string(outputBytes)};
         childOptions.maxCapturedOutputBytes = captureLimit;
-        childOptions.timeout = normalChildTimeout;
+        childOptions.waitTimeout = normalChildTimeout;
         return TestSupport::runChildProcess(childOptions);
     };
 
@@ -229,7 +261,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {std::string(kDescendantChildArgument)};
-        childOptions.timeout = 50ms;
+        childOptions.waitTimeout = 50ms;
         const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
         static_cast<void>(context.expectTrue("Descendant process timeout has successful infrastructure", result.status.ok()));
         static_cast<void>(context.expectEq("Descendant process timeout is reported", TestSupport::Types::Process::Outcome::TimedOut, result.outcome));

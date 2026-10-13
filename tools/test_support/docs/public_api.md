@@ -52,20 +52,23 @@ Text-file operations are strict UTF-8. They do not normalize Unicode, add/remove
 UTF-8 in `TextResult::text`; malformed or incomplete content reports `EncodingFailed` and may retain the complete valid prefix. `writeTextFile()`
 validates before creating parent directories or opening/truncating the destination.
 
+`ScopedCurrentPath` requires `ScopedProcessState`, and its `restore()` reports explicit restoration failures or process-state conflicts.
+
 ## Process types
 
 Child-process vocabulary lives under `Types::Process`:
 
 - `EnvironmentOverride`: one child environment set/unset override;
-- `Options`: executable, arguments, `environmentOverrides`, timeout, capture policy, and environment inheritance;
+- `Options`: executable, arguments, `environmentOverrides`, optional `waitTimeout`, child-only `workingDirectory`, capture policy, and environment inheritance;
 - `Outcome`: `NotStarted`, `Exited`, `TimedOut`, `TerminatedDuringCleanup`, or `OutcomeUnavailable`;
 - `Result`: infrastructure status, exact exit code when available, outcome, `outputTruncated`, and retained raw `outputBytes`.
 
 `runChildProcess()` is the active operation. Child stdout/stderr capture is arbitrary bytes, not UTF-8 text. External processes may emit malformed
 data and TestSupport must preserve that data unchanged within the configured retention limit.
 
-`ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable` also live in `test_support/process.h`. Their names and values are text at the
-platform boundary and use the same explicit status/outcome semantics as the other process helpers.
+`ScopedProcessState`, `ScopedEnvironmentVariable`, and `ScopedUnsetEnvironmentVariable` also live in `test_support/process.h`. The process-state scope
+serializes TestSupport's process-global operations. Environment guards require it and expose `restore()` for an explicit result; unrelated native
+mutations are detected as `ProcessStateConflict` rather than silently overwritten.
 
 ## Stress helpers
 

@@ -2,6 +2,7 @@
 /// @brief Filesystem guard and strict UTF-8 text-file implementation for TestSupport.
 
 #include "test_support/files.h"
+#include "test_support/process.h"
 #include "unicode/unicode.h"
 
 #include <atomic>
@@ -144,10 +145,16 @@ namespace GameWIP::TestSupport
         return status_;
     }
 
-    ScopedCurrentPath::ScopedCurrentPath(const std::filesystem::path &path) noexcept
+    ScopedCurrentPath::ScopedCurrentPath(ScopedProcessState &processState, const std::filesystem::path &path) noexcept
     {
         try
         {
+            if (!processState.status().ok())
+            {
+                status_ = processState.status();
+                return;
+            }
+
             std::error_code error;
             previousPath_ = std::filesystem::current_path(error);
             if (error)
@@ -157,11 +164,21 @@ namespace GameWIP::TestSupport
                 return;
             }
 
-            std::filesystem::current_path(path, error);
+            const std::filesystem::path targetPath = std::filesystem::absolute(path, error);
             if (error)
             {
                 status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 previousPath_.clear();
+                return;
+            }
+
+            expectedPath_ = targetPath;
+            std::filesystem::current_path(targetPath, error);
+            if (error)
+            {
+                status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+                previousPath_.clear();
+                return;
             }
         }
         catch (const std::bad_alloc &)
@@ -178,17 +195,51 @@ namespace GameWIP::TestSupport
 
     ScopedCurrentPath::~ScopedCurrentPath() noexcept
     {
-        if (status_.ok())
+        static_cast<void>(restore());
+    }
+
+    Types::InfrastructureStatus ScopedCurrentPath::restore() noexcept
+    {
+        if (!status_.ok())
         {
-            try
-            {
-                std::error_code error;
-                std::filesystem::current_path(previousPath_, error);
-            }
-            catch (...) // NOLINT(bugprone-empty-catch) -- Best-effort restoration cannot propagate.
-            {
-            }
+            return status_;
         }
+        if (restored_)
+        {
+            return restorationStatus_;
+        }
+
+        try
+        {
+            std::error_code error;
+            const std::filesystem::path currentPath = std::filesystem::current_path(error);
+            if (error)
+            {
+                restorationStatus_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+                return restorationStatus_;
+            }
+
+            if (currentPath != expectedPath_)
+            {
+                restorationStatus_ = failureStatus(Types::InfrastructureError::ProcessStateConflict);
+                return restorationStatus_;
+            }
+
+            std::filesystem::current_path(previousPath_, error);
+            restorationStatus_ = error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error))
+                                       : Types::InfrastructureStatus{};
+        }
+        catch (const std::bad_alloc &)
+        {
+            restorationStatus_ = failureStatus(Types::InfrastructureError::OutOfMemory);
+        }
+        catch (...) // NOLINT(bugprone-empty-catch) -- Restoration failures are returned through the explicit method.
+        {
+            restorationStatus_ = failureStatus(Types::InfrastructureError::FileOperationFailed);
+        }
+
+        restored_ = restorationStatus_.ok();
+        return restorationStatus_;
     }
 
     const std::filesystem::path &ScopedCurrentPath::previousPath() const noexcept

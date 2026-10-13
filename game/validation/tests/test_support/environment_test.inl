@@ -4,31 +4,34 @@
 /// @brief Verifies scoped environment set/unset and exact restoration behavior.
 void testEnvironmentHelpers(TestSupport::Context &context)
 {
-    const TestSupport::ScopedEnvironmentVariable emptyName("", "value");
+    TestSupport::ScopedProcessState processState;
+    static_cast<void>(context.expectTrue("Process-state scope construction succeeds", processState.status().ok()));
+
+    const TestSupport::ScopedEnvironmentVariable emptyName(processState, "", "value");
     static_cast<void>(context.expectEq(
         "ScopedEnvironmentVariable rejects an empty name",
         TestSupport::Types::InfrastructureError::InvalidArgument,
         emptyName.status().error));
 
-    const TestSupport::ScopedUnsetEnvironmentVariable equalsName("INVALID=NAME");
+    const TestSupport::ScopedUnsetEnvironmentVariable equalsName(processState, "INVALID=NAME");
     static_cast<void>(context.expectEq(
         "ScopedUnsetEnvironmentVariable rejects '=' in a name",
         TestSupport::Types::InfrastructureError::InvalidArgument,
         equalsName.status().error));
 
-    const TestSupport::ScopedEnvironmentVariable invalidUtf8("\xFF", "value");
+    const TestSupport::ScopedEnvironmentVariable invalidUtf8(processState, "\xFF", "value");
     static_cast<void>(context.expectEq(
         "ScopedEnvironmentVariable rejects invalid UTF-8",
         TestSupport::Types::InfrastructureError::InvalidArgument,
         invalidUtf8.status().error));
 
     {
-        TestSupport::ScopedUnsetEnvironmentVariable clean(kScopedVariable);
+        TestSupport::ScopedUnsetEnvironmentVariable clean(processState, kScopedVariable);
         static_cast<void>(context.expectTrue("Initial scoped unset succeeds", clean.status().ok()));
         static_cast<void>(context.expectTrue("Scoped unset clears missing variable", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
 
         {
-            TestSupport::ScopedEnvironmentVariable scoped(kScopedVariable, "temporary");
+            TestSupport::ScopedEnvironmentVariable scoped(processState, kScopedVariable, "temporary");
             static_cast<void>(context.expectTrue("Scoped environment set succeeds", scoped.status().ok()));
             const char *value = std::getenv(std::string(kScopedVariable).c_str());
             static_cast<void>(context.expectTrue("ScopedEnvironmentVariable sets value", value != nullptr && std::string_view(value) == "temporary"));
@@ -39,10 +42,40 @@ void testEnvironmentHelpers(TestSupport::Context &context)
     }
 
     {
-        TestSupport::ScopedEnvironmentVariable existing(kScopedVariable, "old");
+        TestSupport::ScopedEnvironmentVariable explicitRestore(processState, kScopedVariable, "explicit");
+        static_cast<void>(context.expectTrue("Explicit environment restoration setup succeeds", explicitRestore.status().ok()));
+        const TestSupport::Types::InfrastructureStatus restoreStatus = explicitRestore.restore();
+        static_cast<void>(context.expectTrue("Explicit environment restoration succeeds", restoreStatus.ok()));
+        static_cast<void>(context.expectTrue("Explicit environment restoration clears the value", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
+        static_cast<void>(context.expectTrue("Environment restoration is idempotent", explicitRestore.restore().ok()));
+    }
+
+    {
+        TestSupport::ScopedEnvironmentVariable conflicted(processState, kScopedVariable, "guarded");
+        static_cast<void>(context.expectTrue("Environment conflict setup succeeds", conflicted.status().ok()));
+#if defined(_WIN32)
+        static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), "external"));
+#else
+        static_cast<void>(setenv(std::string(kScopedVariable).c_str(), "external", 1));
+#endif
+        static_cast<void>(context.expectEq(
+            "Environment restore reports unrelated mutation",
+            TestSupport::Types::InfrastructureError::ProcessStateConflict,
+            conflicted.restore().error));
+        const char *external = std::getenv(std::string(kScopedVariable).c_str());
+        static_cast<void>(context.expectTrue("Environment conflict preserves the newer value", external != nullptr && std::string_view(external) == "external"));
+#if defined(_WIN32)
+        static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), ""));
+#else
+        static_cast<void>(unsetenv(std::string(kScopedVariable).c_str()));
+#endif
+    }
+
+    {
+        TestSupport::ScopedEnvironmentVariable existing(processState, kScopedVariable, "old");
         static_cast<void>(context.expectTrue("Existing environment setup succeeds", existing.status().ok()));
         {
-            TestSupport::ScopedEnvironmentVariable nested(kScopedVariable, "new");
+            TestSupport::ScopedEnvironmentVariable nested(processState, kScopedVariable, "new");
             static_cast<void>(context.expectTrue("Nested environment override succeeds", nested.status().ok()));
             const char *value = std::getenv(std::string(kScopedVariable).c_str());
             static_cast<void>(
@@ -54,7 +87,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
             context.expectTrue("ScopedEnvironmentVariable restores old value", restored != nullptr && std::string_view(restored) == "old"));
 
         {
-            TestSupport::ScopedUnsetEnvironmentVariable unset(kScopedVariable);
+            TestSupport::ScopedUnsetEnvironmentVariable unset(processState, kScopedVariable);
             static_cast<void>(context.expectTrue("Nested scoped unset succeeds", unset.status().ok()));
             static_cast<void>(context.expectTrue(
                 "ScopedUnsetEnvironmentVariable clears existing value",

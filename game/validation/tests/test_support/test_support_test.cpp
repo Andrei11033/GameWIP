@@ -44,6 +44,7 @@ namespace
     using namespace std::chrono_literals;
 
     constexpr std::string_view kEnvironmentChildArgument = "--test-support-test-child=environment";
+    constexpr std::string_view kCurrentPathChildArgument = "--test-support-test-child=current-path";
     constexpr std::string_view kEchoChildArgument = "--test-support-test-child=echo";
     constexpr std::string_view kSleepChildArgument = "--test-support-test-child=sleep";
     constexpr std::string_view kExitCodeChildArgument = "--test-support-test-child=exit-code";
@@ -154,6 +155,11 @@ namespace
             std::cout << "child-unset=" << (unsetValue != nullptr ? unsetValue : "<unset>") << '\n';
             return setValue != nullptr && std::string_view(setValue) == "child-value" && unsetValue == nullptr ? 0 : 9;
         }
+        if (hasArgument(argc, argv, kCurrentPathChildArgument))
+        {
+            std::cout << std::filesystem::current_path().generic_string() << '\n';
+            return 0;
+        }
 
         if (hasArgument(argc, argv, kEchoChildArgument))
         {
@@ -232,7 +238,8 @@ namespace GameWIP::Test
 
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
-        if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||
+        if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kCurrentPathChildArgument) ||
+            hasArgument(argc, argv, kEchoChildArgument) ||
             hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument) ||
             hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument) ||
             hasArgument(argc, argv, kHandleInheritanceChildArgument) || hasArgument(argc, argv, kStartGateChildArgument))

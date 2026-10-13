@@ -16,6 +16,7 @@ namespace
     {
         constexpr std::string_view selectors[] = {
             "--test-support-test-child=environment",
+            "--test-support-test-child=current-path",
             "--test-support-test-child=echo",
             "--test-support-test-child=sleep",
             "--test-support-test-child=exit-code",

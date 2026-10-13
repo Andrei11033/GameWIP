@@ -40,9 +40,10 @@ Interpret infrastructure status and process outcome independently:
 | Capture fails but exit inspection succeeds | `CaptureFailed` | `Exited` | Exact native code |
 
 `runChildProcess()` remains `noexcept`; expected implementation allocation, setup, launch, capture, wait, inspection, and cleanup failures are
-returned through `status`. Timeout continues to be a successful domain outcome when enforcement succeeds. A negative timeout waits indefinitely, zero
-performs an immediate wait, and durations above the largest finite Win32 wait are clamped. Timeout determines when termination begins; job cleanup and
-capture-reader shutdown may extend total call duration.
+returned through `status`. Timeout continues to be a successful domain outcome when enforcement succeeds. `waitTimeout == std::nullopt` waits
+indefinitely, zero performs an immediate wait, positive durations establish the initial wait, and negative durations return `InvalidArgument` before
+launch. Durations above the largest finite Win32 wait are clamped. `workingDirectory` changes only the child process's current directory; it never
+mutates the caller's directory. Timeout determines when termination begins; job cleanup and capture-reader shutdown may extend total call duration.
 
 The child is assigned to a Win32 job before it is resumed. Failure recovery and timeout enforcement terminate the job, and descendants are cleaned up
 so they cannot keep capture handles alive indefinitely. The Win32 backend owns the job, pipe, and handle implementation and preserves bounded capture

@@ -10,7 +10,7 @@ void testReentrantFormatting(TestSupport::Context &context, std::string_view exe
     TestSupport::Types::Process::Options child;
     child.executablePath = std::filesystem::path(executablePath);
     child.arguments = {std::string(kReentrantFormatChildArgument)};
-    child.timeout = normalChildTimeout;
+    child.waitTimeout = normalChildTimeout;
     child.captureOutput = true;
 
     const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);

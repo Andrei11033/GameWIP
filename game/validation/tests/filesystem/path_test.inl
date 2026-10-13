@@ -17,6 +17,16 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
     static_cast<void>(context.expectTrue("pathToUtf8 succeeds for non-ASCII filename", roundTrip.status.ok()));
     static_cast<void>(context.expectEq("UTF-8 path round-trips", utf8Name, roundTrip.utf8));
 
+    const std::u8string utf8Name8 = u8"unicode_файл8.txt";
+    const auto namePath8 = FileSystem::pathFromUtf8(std::u8string_view(utf8Name8));
+    static_cast<void>(context.expectTrue("pathFromUtf8 accepts explicit char8_t text", namePath8.status.ok()));
+    if (namePath8.status.ok())
+    {
+        const auto roundTrip8 = FileSystem::pathToUtf8(namePath8.path);
+        static_cast<void>(context.expectTrue("char8_t path conversion round-trips", roundTrip8.status.ok()));
+        static_cast<void>(context.expectEq("char8_t path preserves UTF-8", std::string(utf8Name8.begin(), utf8Name8.end()), roundTrip8.utf8));
+    }
+
     std::string malformedPath{"bad_"};
     malformedPath.push_back(static_cast<char>(0xC0));
     malformedPath.push_back(static_cast<char>(0xAF));

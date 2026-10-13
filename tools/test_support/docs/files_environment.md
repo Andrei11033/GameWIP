@@ -42,7 +42,8 @@ parent-directory creation and before a truncating destination open. Existing des
 ## Scoped filesystem state
 
 `ScopedTemporaryDirectory` and `ScopedCurrentPath` remain non-copyable/non-movable inert-on-failure guards. Their constructors are `noexcept`; inspect
-`status()` before using the requested state. Destructors perform best-effort non-throwing cleanup/restoration.
+`status()` before using the requested state. `ScopedCurrentPath` requires a live `ScopedProcessState` and holds that coordination scope for the
+complete guard lifetime. Destructors perform best-effort non-throwing cleanup/restoration; callers that need the result can call `restore()` explicitly.
 
 `ScopedTemporaryDirectory` creates a unique child below the process temporary directory using a sanitized readable purpose plus bounded collision
 retries. GameWIP validation scopes that process directory to the active `build/<preset>/temp` tree; standalone library consumers use the host default.
@@ -50,21 +51,24 @@ Its destructor attempts recursive removal and then removes empty TestSupport par
 filesystem activity can still leave artifacts.
 
 `ScopedCurrentPath` captures and changes process-global current-directory state. Safe use requires strict LIFO ownership and no unrelated
-relative-path resolution or direct current-directory mutation during the scope.
+relative-path resolution or direct current-directory mutation during the scope. A direct mutation is detected during restoration and reported as
+`ProcessStateConflict` instead of overwriting the newer directory.
 
 ## Environment guards
 
-`ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable` are process-global state guards. They remain in the process surface because
-environment state is shared with child-process launch.
+`ScopedEnvironmentVariable` and `ScopedUnsetEnvironmentVariable` are process-global state guards. They require a live `ScopedProcessState`, which
+serializes the complete guard lifetime with other TestSupport users and child launches that snapshot parent state. They remain in the process surface
+because environment state is shared with child-process launch.
 
 Names must be non-empty and contain no `=`. On Win32, malformed UTF-8, embedded nulls, and oversized conversion input are rejected as
 `InvalidArgument`; native environment failures use `EnvironmentFailed`, and implementation-owned allocation failure uses `OutOfMemory`. Setting a
 scoped value to an empty string follows `_wputenv_s` removal semantics, while child-process environment overrides can represent an explicitly empty
 child value.
 
-TestSupport serializes individual read/mutate/restore operations, not a guard's complete lifetime. Overlapping scopes still require caller
-coordination. Other environment APIs do not participate in the mutex, and mutation can invalidate pointers previously returned by `std::getenv()`. On
-Win32, strict UTF-8/native conversion remains performed at the platform boundary without adding a redundant whole-string validation pass beforehand.
+Call `restore()` when an explicit restoration result is needed; it is idempotent after success. If another API mutates the guarded variable, restore
+returns `ProcessStateConflict` and leaves the newer value in place. Other environment APIs do not participate in the mutex, and mutation can
+invalidate pointers previously returned by `std::getenv()`. On Win32, strict UTF-8/native conversion remains performed at the platform boundary
+without adding a redundant whole-string validation pass beforehand.
 
 @ref test_support_public_api
 @ref test_support_child_processes

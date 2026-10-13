@@ -386,18 +386,18 @@ namespace GameWIP::TestSupport
         // Timeout conversion
         // ------------------------------------------------------------
 
-        [[nodiscard]] DWORD timeoutMilliseconds(std::chrono::milliseconds timeout)
+        [[nodiscard]] DWORD timeoutMilliseconds(const std::optional<std::chrono::milliseconds> &timeout)
         {
-            if (timeout.count() < 0)
+            if (!timeout)
             {
                 return INFINITE;
             }
             constexpr auto maxWait = static_cast<long long>((std::numeric_limits<DWORD>::max)() - 1);
-            if (timeout.count() > maxWait)
+            if (timeout->count() > maxWait)
             {
                 return (std::numeric_limits<DWORD>::max)() - 1;
             }
-            return static_cast<DWORD>(timeout.count());
+            return static_cast<DWORD>(timeout->count());
         }
 
         // ------------------------------------------------------------
@@ -548,8 +548,20 @@ namespace GameWIP::TestSupport
         try
         {
             constexpr DWORD kTestTerminationCode = 0x54455354u;
+            if (options.waitTimeout && options.waitTimeout->count() < 0)
+            {
+                setFailure(Types::InfrastructureError::InvalidArgument);
+                return result;
+            }
+            if (options.workingDirectory && options.workingDirectory->empty())
+            {
+                setFailure(Types::InfrastructureError::InvalidArgument);
+                return result;
+            }
+
             std::wstring commandLine = buildCommandLine(options);
-            std::wstring environmentBlock = buildEnvironmentBlock(options);
+            std::wstring environmentBlock;
+            std::wstring workingDirectory;
 
             // A job object gives timeout and setup-failure cleanup one owner for the
             // whole child process tree, not just the first process handle.
@@ -643,17 +655,29 @@ namespace GameWIP::TestSupport
             startupInfo.lpAttributeList = attributeList.get();
 
             PROCESS_INFORMATION processInfo{};
-            const BOOL created = CreateProcessW(
-                nullptr,
-                commandLine.data(),
-                nullptr,
-                nullptr,
-                TRUE,
-                CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
-                environmentBlock.data(),
-                nullptr,
-                &startupInfo.StartupInfo,
-                &processInfo);
+            LPCWSTR currentDirectory = nullptr;
+            if (options.workingDirectory)
+            {
+                workingDirectory = pathToWide(*options.workingDirectory);
+                currentDirectory = workingDirectory.c_str();
+            }
+
+            BOOL created = FALSE;
+            {
+                std::lock_guard stateLock(Detail::processStateMutex());
+                environmentBlock = buildEnvironmentBlock(options);
+                created = CreateProcessW(
+                    nullptr,
+                    commandLine.data(),
+                    nullptr,
+                    nullptr,
+                    TRUE,
+                    CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
+                    environmentBlock.data(),
+                    currentDirectory,
+                    &startupInfo.StartupInfo,
+                    &processInfo);
+            }
             const DWORD launchError = created == FALSE ? GetLastError() : ERROR_SUCCESS;
 
             // Close parent-owned duplicate write handles immediately so the capture
@@ -758,7 +782,7 @@ namespace GameWIP::TestSupport
             else
             {
                 {
-                    const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.timeout));
+                    const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.waitTimeout));
                     if (waitResult == WAIT_TIMEOUT)
                     {
                         result.outcome = Types::Process::Outcome::TimedOut;

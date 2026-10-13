@@ -122,8 +122,8 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable suppressPopupOverride(kSuppressPopupEnvironmentVariable, "1");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+    const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
     if (!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
     {
@@ -168,8 +168,8 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "abort");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "abort");
     if (!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
     {
@@ -214,8 +214,8 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "break");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "break");
     if (!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Break action", testAction.status()))
     {
@@ -255,7 +255,7 @@ void testDebugBreakChild(TestContext &context)
 void testUnreachableChild(TestContext &context)
 {
 #if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
-    const ScopedEnvironmentVariable suppressPopupOverride(kSuppressPopupEnvironmentVariable, "1");
+    const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
     if (!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
     {
         return;

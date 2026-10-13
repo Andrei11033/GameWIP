@@ -312,9 +312,15 @@ namespace GameWIP::Validation::Tests
             return {.modulesFailed = 1, .exitCode = 1};
         }
         const std::string temporaryRootText = temporaryRoot.string();
-        TestSupport::ScopedEnvironmentVariable temporaryDirectory("TEMP", temporaryRootText);
-        TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias("TMP", temporaryRootText);
-        TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory("TMPDIR", temporaryRootText);
+        TestSupport::ScopedProcessState processState;
+        if (!processState.status().ok())
+        {
+            std::cerr << "Validation process-state setup failed.\n";
+            return {.modulesFailed = 1, .exitCode = 1};
+        }
+        TestSupport::ScopedEnvironmentVariable temporaryDirectory(processState, "TEMP", temporaryRootText);
+        TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias(processState, "TMP", temporaryRootText);
+        TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory(processState, "TMPDIR", temporaryRootText);
         if (!temporaryDirectory.status().ok() || !temporaryDirectoryAlias.status().ok() || !posixTemporaryDirectory.status().ok())
         {
             std::cerr << "Validation temporary environment setup failed.\n";

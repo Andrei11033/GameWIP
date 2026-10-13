@@ -111,7 +111,7 @@ void testStressHelpers(TestSupport::Context &context, std::string_view executabl
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
         childOptions.arguments = {"--test-support-test-child=start-gate"};
-        childOptions.timeout = 30s;
+        childOptions.waitTimeout = 30s;
         const auto child = TestSupport::runChildProcess(childOptions);
         if (!child.status.ok() || child.outcome != TestSupport::Types::Process::Outcome::Exited || child.exitCode != 0)
         {

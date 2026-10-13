@@ -307,7 +307,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
     TestSupport::Types::Process::Options cold;
     cold.executablePath = executable;
     cold.arguments = {"--desktop-test-child=cold-com-apartment"};
-    cold.timeout = std::chrono::seconds{30};
+    cold.waitTimeout = std::chrono::seconds{30};
     const auto coldResult = TestSupport::runChildProcess(cold);
     static_cast<void>(context.expectTrue("isolated COM probe starts", coldResult.status.ok()));
     static_cast<void>(context.expectEq("isolated COM probe exits", TestSupport::Types::Process::Outcome::Exited, coldResult.outcome));

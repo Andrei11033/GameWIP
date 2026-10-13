@@ -554,7 +554,7 @@ void testCancellationSignalFailure(TestSupport::Context &context, std::string_vi
     child.executablePath = std::filesystem::path(executablePath);
     child.arguments = {std::string(kCancellationSignalFailureChildArgument)};
     // Startup and profile teardown are separate from the child's post-stop cancellation bound.
-    child.timeout = std::chrono::seconds{30};
+    child.waitTimeout = std::chrono::seconds{30};
     child.captureOutput = true;
     const TestSupport::Types::Process::Result childResult = TestSupport::runChildProcess(child);
     static_cast<void>(context.expectTrue("infinite cancellation child infrastructure succeeds", childResult.status.ok()));

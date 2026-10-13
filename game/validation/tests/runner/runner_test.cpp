@@ -338,8 +338,9 @@ namespace
 
         const std::filesystem::path relativeReport = "logs/validation/aggregate.txt";
         const std::filesystem::path expectedReport = (workspace.path() / relativeReport).lexically_normal();
+        TestSupport::ScopedProcessState processState;
         {
-            const TestSupport::ScopedCurrentPath currentPath(workspace.path());
+            const TestSupport::ScopedCurrentPath currentPath(processState, workspace.path());
             if (!context.expectTrue("report workspace becomes current", currentPath.status().ok()))
             {
                 return;
