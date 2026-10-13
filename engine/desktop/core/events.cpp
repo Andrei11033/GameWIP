@@ -24,8 +24,8 @@ namespace GameWIP::Desktop::Detail
             return left.index() == right.index() && isCoalescible(left);
         }
 
-        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
-        void discardAt(WindowState &state, std::size_t index) noexcept
+        /// @brief Removes one queued event while preserving FIFO order.
+        void removeAt(WindowState &state, std::size_t index) noexcept
         {
             for (std::size_t current = index; current + 1 < state.eventCount; ++current)
             {
@@ -33,7 +33,24 @@ namespace GameWIP::Desktop::Detail
             }
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
+        }
+
+        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
+        void discardAt(WindowState &state, std::size_t index) noexcept
+        {
+            removeAt(state, index);
             ++state.droppedEvents;
+        }
+
+        /// @brief Extends a queued scale transition to the latest state.
+        /// @return True when the aggregate transition returns to its starting scale and can be removed.
+        bool mergeContentScaleChanged(Types::Events::ContentScaleChanged &queued, const Types::Events::ContentScaleChanged &latest) noexcept
+        {
+            const bool noNetScaleChange = queued.previousScale == latest.scale && queued.previousDpi == latest.dpi;
+            queued.scale = latest.scale;
+            queued.dpi = latest.dpi;
+            queued.framebufferSize = latest.framebufferSize;
+            return noNetScaleChange;
         }
     } // namespace
 
@@ -70,6 +87,15 @@ namespace GameWIP::Desktop::Detail
                 }
                 if (sameCoalescibleType(queued.data, data))
                 {
+                    if (auto *queuedScale = std::get_if<Types::Events::ContentScaleChanged>(&queued.data))
+                    {
+                        const auto &latestScale = std::get<Types::Events::ContentScaleChanged>(data);
+                        if (mergeContentScaleChanged(*queuedScale, latestScale))
+                        {
+                            removeAt(state, offset - 1);
+                        }
+                        return EnqueueResult::Coalesced;
+                    }
                     queued.data = std::move(data);
                     return EnqueueResult::Coalesced;
                 }

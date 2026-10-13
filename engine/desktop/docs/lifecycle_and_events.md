@@ -80,8 +80,11 @@ The same `Window` object may be opened again after finalization.
 The queue is fixed-capacity. `ClientPositionChanged`, `ClientSizeChanged`,
 `FramebufferSizeChanged`, and `ContentScaleChanged` may replace an earlier event
 of the same type within the trailing run of geometry/DPI events. A durable
-event ends that run. Replacement keeps the earlier slot and sequence number,
-so a sequence identifies queue insertion rather than the age of every field.
+event ends that run. Scale changes retain the earliest previous scale/DPI and
+the latest scale/DPI/framebuffer size; a scale change that returns to its
+starting scale and DPI is removed. Replacement keeps the earlier slot and
+sequence number, so a sequence identifies queue insertion rather than the age
+of every field.
 When full, the queue evicts the oldest coalescible entry; if there is none, it
 drops the incoming event. `NativeDestroyed` instead evicts the oldest entry
 when necessary so native loss remains observable.

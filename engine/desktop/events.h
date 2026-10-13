@@ -74,6 +74,8 @@ namespace GameWIP::Desktop::Types::Events
         PresentationState state = PresentationState::Normal; ///< New presentation state.
     };
     /// @brief Reports content-scale, DPI, and framebuffer changes as one transition.
+    /// @details When adjacent transitions coalesce, previousScale/previousDpi come from the earliest
+    /// transition and scale/dpi/framebufferSize come from the latest. A net-zero aggregate is omitted.
     struct ContentScaleChanged
     {
         ContentScale previousScale; ///< Scale before the transition.

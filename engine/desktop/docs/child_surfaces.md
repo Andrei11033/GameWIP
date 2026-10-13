@@ -59,7 +59,10 @@ destruction and wrong-thread C++ destruction do not release that borrow until
 the retained or deferred lifetime is finalized. Close on the owner thread
 before releasing external storage.
 
-`PositionChanged`, `SizeChanged`, `PixelSizeChanged`, and `ContentScaleChanged` may coalesce across adjacent compatible observations.
+`PositionChanged`, `SizeChanged`, `PixelSizeChanged`, and `ContentScaleChanged` may coalesce across adjacent compatible observations. A coalesced
+`ContentScaleChanged` retains the earliest previous scale/DPI and the latest scale/DPI/pixel size, so a sequence such as `96 → 120 → 144`
+is delivered as one `96 → 144` transition. If the aggregate returns to its starting scale and DPI, such as `96 → 120 → 96`, the event is
+removed without incrementing the dropped-event count.
 `VisibilityChanged` remains non-coalescible. Full queues prefer evicting an older coalescible event, and preserve terminal `NativeDestroyed` even when
 that requires evicting the oldest retained entry. `Types::Events::QueueInfo` and `StorageKind` are shared with top-level Window queues.
 

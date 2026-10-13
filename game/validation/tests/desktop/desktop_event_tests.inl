@@ -15,6 +15,38 @@ void testFixedEventQueue(TestSupport::Context &context)
     static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{3, 4}}));
     static_cast<void>(context.expectEq("compatible movement coalesces", std::size_t{1}, window.eventQueueInfo().pendingEvents));
 
+    window.clearEvents();
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        window,
+        Desktop::Types::Events::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        window,
+        Desktop::Types::Events::ContentScaleChanged{{1.25F, 1.25F}, {1.5F, 1.5F}, {120.0F, 120.0F}, {144.0F, 144.0F}, {1200, 900}}));
+    static_cast<void>(context.expectEq("scale transitions coalesce", std::size_t{1}, window.eventQueueInfo().pendingEvents));
+    Desktop::Types::Event scaleEvent;
+    static_cast<void>(context.expectTrue("coalesced scale event pops", window.popEvent(scaleEvent)));
+    const auto *scale = scaleEvent.getIf<Desktop::Types::Events::ContentScaleChanged>();
+    static_cast<void>(context.expectTrue("coalesced scale event has scale payload", scale != nullptr));
+    if (scale != nullptr)
+    {
+        static_cast<void>(
+            context.expectEq("coalesced scale keeps earliest predecessor", Desktop::Types::ContentScale{1.0F, 1.0F}, scale->previousScale));
+        static_cast<void>(context.expectEq("coalesced scale keeps latest result", Desktop::Types::ContentScale{1.5F, 1.5F}, scale->scale));
+        static_cast<void>(context.expectEq("coalesced DPI keeps earliest predecessor", Desktop::Types::Dpi{96.0F, 96.0F}, scale->previousDpi));
+        static_cast<void>(context.expectEq("coalesced DPI keeps latest result", Desktop::Types::Dpi{144.0F, 144.0F}, scale->dpi));
+        static_cast<void>(context.expectEq("coalesced scale keeps latest pixels", Desktop::Types::PixelSize{1200, 900}, scale->framebufferSize));
+    }
+
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        window,
+        Desktop::Types::Events::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        window,
+        Desktop::Types::Events::ContentScaleChanged{{1.25F, 1.25F}, {1.0F, 1.0F}, {120.0F, 120.0F}, {96.0F, 96.0F}, {800, 600}}));
+    static_cast<void>(context.expectEq("net-zero scale transition is removed", std::size_t{0}, window.eventQueueInfo().pendingEvents));
+    static_cast<void>(context.expectEq("net-zero scale transition is not dropped", std::uint64_t{0}, window.eventQueueInfo().droppedEvents));
+    static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{1, 2}}));
+
     static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::FocusChanged{true}));
     static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{5, 6}}));
     static_cast<void>(context.expectEq("noncoalescible event is a barrier", std::size_t{3}, window.eventQueueInfo().pendingEvents));

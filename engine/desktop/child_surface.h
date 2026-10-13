@@ -52,6 +52,8 @@ namespace GameWIP::Desktop::Types::ChildSurface
             bool visible = false; ///< New visibility state.
         };
         /// @brief Reports an effective-DPI transition while preserving logical geometry.
+        /// @details When adjacent transitions coalesce, previousScale/previousDpi come from the earliest
+        /// transition and scale/dpi/pixelSize come from the latest. A net-zero aggregate is omitted.
         struct ContentScaleChanged
         {
             ContentScale previousScale; ///< Scale before the transition.

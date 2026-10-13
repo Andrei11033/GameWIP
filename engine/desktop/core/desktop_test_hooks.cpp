@@ -1,9 +1,10 @@
 /// @file desktop_test_hooks.cpp
-/// @brief Source-tree-only deterministic Window hooks.
+/// @brief Source-tree-only deterministic Desktop hooks.
 
 #include "desktop/internal/desktop_test_hooks.h"
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+#include "desktop/internal/child_surface_state.h"
 #include "desktop/internal/cursor_platform.h"
 #include "desktop/internal/cursor_state.h"
 #include "desktop/internal/drag_drop_state.h"
@@ -532,6 +533,17 @@ namespace GameWIP::Desktop::TestHooks
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
         static_cast<void>(Detail::enqueueEvent(*state, std::move(data)));
+        return IO::successStatus();
+    }
+
+    IO::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept
+    {
+        Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
+        if (state == nullptr)
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
+        static_cast<void>(Detail::enqueueChildSurfaceEvent(*state, std::move(data)));
         return IO::successStatus();
     }
 

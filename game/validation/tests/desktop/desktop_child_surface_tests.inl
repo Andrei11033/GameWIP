@@ -242,6 +242,37 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectEq("ChildSurface DPI conversion has no cumulative drift", dpi144.pixelSize, dpi144Again.pixelSize));
 
     surface.clearEvents();
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.25F, 1.25F}, {1.5F, 1.5F}, {120.0F, 120.0F}, {144.0F, 144.0F}, {1200, 900}}));
+    static_cast<void>(context.expectEq("ChildSurface scale transitions coalesce", std::size_t{1}, surface.eventQueueInfo().pendingEvents));
+    ChildEvent scaleEvent;
+    static_cast<void>(context.expectTrue("coalesced ChildSurface scale event pops", surface.popEvent(scaleEvent)));
+    const auto *scale = scaleEvent.getIf<ChildEvents::ContentScaleChanged>();
+    static_cast<void>(context.expectTrue("coalesced ChildSurface scale has payload", scale != nullptr));
+    if (scale != nullptr)
+    {
+        static_cast<void>(
+            context.expectEq("ChildSurface scale keeps earliest predecessor", Desktop::Types::ContentScale{1.0F, 1.0F}, scale->previousScale));
+        static_cast<void>(context.expectEq("ChildSurface scale keeps latest result", Desktop::Types::ContentScale{1.5F, 1.5F}, scale->scale));
+        static_cast<void>(context.expectEq("ChildSurface DPI keeps earliest predecessor", Desktop::Types::Dpi{96.0F, 96.0F}, scale->previousDpi));
+        static_cast<void>(context.expectEq("ChildSurface DPI keeps latest result", Desktop::Types::Dpi{144.0F, 144.0F}, scale->dpi));
+        static_cast<void>(context.expectEq("ChildSurface scale keeps latest pixels", Desktop::Types::PixelSize{1200, 900}, scale->pixelSize));
+    }
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
+    static_cast<void>(Desktop::TestHooks::enqueue(
+        surface,
+        ChildEvents::ContentScaleChanged{{1.25F, 1.25F}, {1.0F, 1.0F}, {120.0F, 120.0F}, {96.0F, 96.0F}, {800, 600}}));
+    static_cast<void>(context.expectEq("net-zero ChildSurface scale transition is removed", std::size_t{0}, surface.eventQueueInfo().pendingEvents));
+    static_cast<void>(
+        context.expectEq("net-zero ChildSurface scale transition is not dropped", std::uint64_t{0}, surface.eventQueueInfo().droppedEvents));
+
+    surface.clearEvents();
     static_cast<void>(surface.setPosition({2, 2}));
     static_cast<void>(surface.show());
     static_cast<void>(context.expectEq("two-slot queue fills", std::size_t{2}, surface.eventQueueInfo().pendingEvents));

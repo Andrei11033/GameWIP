@@ -1,5 +1,5 @@
 /// @file desktop_test_hooks.h
-/// @brief Source-tree-only deterministic hooks for Window validation.
+/// @brief Source-tree-only deterministic hooks for Desktop validation.
 /// @warning This header is not installed and must not be used by production consumers.
 
 #pragma once
@@ -264,6 +264,7 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::Events::PumpResult pumpReentrantly() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
     /// @brief Applies renderer-facing test state and mirrors it when concurrent reads are enabled.
     DESKTOP_TEST_EXPORT void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept;
