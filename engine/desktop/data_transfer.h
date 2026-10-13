@@ -63,7 +63,7 @@ namespace GameWIP::Desktop::Types::DataTransfer
     struct CustomView
     {
         std::string_view formatName;      ///< Nonempty strict UTF-8 native format name.
-        std::span<const std::byte> bytes; ///< Opaque native-format payload, including an empty payload.
+        std::span<const std::byte> bytes; ///< Opaque native-format payload; empty is representable when supported by the backend.
     };
 
     /// @brief One non-owning transfer item.

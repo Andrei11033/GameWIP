@@ -308,6 +308,12 @@ void testClipboardRoundTrips(TestSupport::Context &context)
         context.expectEq("zero-byte custom publication reports Win32 limitation", ErrorCode::Unsupported, emptyCustomWrite.status.code));
     static_cast<void>(
         context.expectEq("zero-byte custom failure does not mutate", ClipboardTypes::CommitState::NotStarted, emptyCustomWrite.commitState));
+    const std::array<Transfer::ItemView, 1> emptyCustomItems{{Transfer::CustomView{"GameWIP.Validation.Empty.Generic", {}}}};
+    const auto emptyGenericWrite = Clipboard::write(emptyCustomItems);
+    static_cast<void>(
+        context.expectEq("zero-byte generic custom publication is unsupported", ErrorCode::Unsupported, emptyGenericWrite.status.code));
+    static_cast<void>(context.expectEq(
+        "zero-byte generic custom failure does not mutate", ClipboardTypes::CommitState::NotStarted, emptyGenericWrite.commitState));
 
     const std::array<wchar_t, 2> malformedWide{static_cast<wchar_t>(0xD800), L'\0'};
     const auto malformedWideBytes = std::as_bytes(std::span{malformedWide});

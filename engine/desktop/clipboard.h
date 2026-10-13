@@ -176,22 +176,26 @@ namespace GameWIP::Desktop::Clipboard
         const Types::DataTransfer::ImageView &image,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Replaces Clipboard contents with one named block using the default timeout.
-    /// @param data Valid custom name and opaque payload.
+    /// @param data Valid custom name and opaque payload; Win32 requires non-empty bytes and
+    /// returns Unsupported before mutation for an empty payload.
     /// @return Status and exact publication progress.
     [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeCustomData(const Types::DataTransfer::CustomView &data) noexcept;
     /// @brief Replaces Clipboard contents with one named block using an explicit timeout.
-    /// @param data Valid custom name and opaque payload.
+    /// @param data Valid custom name and opaque payload; Win32 requires non-empty bytes and
+    /// returns Unsupported before mutation for an empty payload.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status and exact publication progress.
     [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult writeCustomData(
         const Types::DataTransfer::CustomView &data,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Transactionally prepares and publishes ordered formats using the default timeout.
-    /// @param items Nonempty item views with no duplicate native identities.
+    /// @param items Nonempty item views with no duplicate native identities; Win32 custom items
+    /// require non-empty bytes and return Unsupported before mutation otherwise.
     /// @return Status, committed state, and successfully published caller-order prefix length.
     [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult write(std::span<const Types::DataTransfer::ItemView> items) noexcept;
     /// @brief Transactionally prepares and publishes ordered formats using an explicit timeout.
-    /// @param items Nonempty item views with no duplicate native identities.
+    /// @param items Nonempty item views with no duplicate native identities; Win32 custom items
+    /// require non-empty bytes and return Unsupported before mutation otherwise.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Status, committed state, and successfully published caller-order prefix length.
     [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult write(
