@@ -267,15 +267,15 @@ namespace GameWIP::Desktop
         [[nodiscard]] bool validFormat(Types::DataTransfer::FormatView format) noexcept
         {
             using Kind = Types::DataTransfer::FormatKind;
-            switch (format.kind)
+            switch (format.kind())
             {
             case Kind::Text:
             case Kind::FileList:
             case Kind::Image:
-                return format.customName.empty();
+                return format.customName().empty();
             case Kind::Custom:
-                return !format.customName.empty() && !format.customName.contains('\0') &&
-                       Unicode::Utf8::validate(format.customName).outcome == Unicode::Types::ValidationOutcome::Valid;
+                return !format.customName().empty() && !format.customName().contains('\0') &&
+                       Unicode::Utf8::validate(format.customName()).outcome == Unicode::Types::ValidationOutcome::Valid;
             }
             return false;
         }
@@ -296,12 +296,12 @@ namespace GameWIP::Desktop
                 for (const auto &region : source)
                 {
                     if (!region.id.isValid() || !ids.insert(region.id.value).second || (region.rect && !validRect(*region.rect)) ||
-                        !validAllowed(region.allowedEffects) || !singleEffect(region.preferredEffect) ||
-                        (region.allowedEffects & region.preferredEffect) != region.preferredEffect || region.formats.empty())
+                        !validAllowed(region.effects.allowed) || !singleEffect(region.effects.preferred) ||
+                        (region.effects.allowed & region.effects.preferred) != region.effects.preferred || region.formats.empty())
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
-                    Detail::DragDropRegion copy{region.id, region.rect, {}, {}, region.allowedEffects, region.preferredEffect};
+                    Detail::DragDropRegion copy{region.id, region.rect, {}, {}, region.effects};
                     std::unordered_set<std::string> identities;
                     copy.formats.reserve(region.formats.size());
                     for (const auto format : region.formats)
@@ -310,16 +310,16 @@ namespace GameWIP::Desktop
                         {
                             return error(ErrorCode::InvalidArgument);
                         }
-                        std::string identity = std::to_string(static_cast<int>(format.kind));
-                        if (format.kind == Types::DataTransfer::FormatKind::Custom)
+                        std::string identity = std::to_string(static_cast<int>(format.kind()));
+                        if (format.kind() == Types::DataTransfer::FormatKind::Custom)
                         {
-                            identity += ':' + std::string(format.customName);
+                            identity += ':' + std::string(format.customName());
                         }
                         if (!identities.insert(identity).second)
                         {
                             return error(ErrorCode::InvalidArgument);
                         }
-                        copy.formats.push_back({format.kind, std::string(format.customName)});
+                        copy.formats.push_back({format.kind(), std::string(format.customName())});
                     }
                     destination.push_back(std::move(copy));
                 }
@@ -382,16 +382,21 @@ namespace GameWIP::Desktop
 
     IO::Types::Status DragDropTarget::open(Window &window, const Types::DragDrop::TargetDescription &description) noexcept
     {
-        return open(window, description, Events::kDefaultQueueCapacity);
+        return open(window, description, Types::DragDrop::QueueConfiguration::owned());
     }
 
-    IO::Types::Status DragDropTarget::open(Window &window, const Types::DragDrop::TargetDescription &description, std::size_t capacity) noexcept
+    IO::Types::Status DragDropTarget::open(
+        Window &window,
+        const Types::DragDrop::TargetDescription &description,
+        Types::DragDrop::QueueConfiguration queue) noexcept
     {
         if (state_)
         {
             return error(ErrorCode::AlreadyOpen);
         }
-        if (capacity == 0)
+        const auto *ownedQueue = std::get_if<Types::DragDrop::QueueConfiguration::Owned>(&queue.storage);
+        const auto *borrowedQueue = std::get_if<Types::DragDrop::QueueConfiguration::Borrowed>(&queue.storage);
+        if ((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
         {
             return error(ErrorCode::InvalidArgument);
         }
@@ -411,10 +416,6 @@ namespace GameWIP::Desktop
         try
         {
             auto candidate = std::make_unique<Detail::DragDropState>();
-            if (capacity > candidate->internalEvents.max_size())
-            {
-                return error(ErrorCode::InvalidArgument);
-            }
             candidate->ownerThread = std::this_thread::get_id();
             candidate->windowId = windowState->id;
             candidate->window = windowState;
@@ -428,71 +429,21 @@ namespace GameWIP::Desktop
             {
                 return result;
             }
-            candidate->internalEvents.resize(capacity);
-            candidate->eventStorage = candidate->internalEvents;
+            if (ownedQueue != nullptr)
+            {
+                if (ownedQueue->capacity > candidate->internalEvents.max_size())
+                {
+                    return error(ErrorCode::InvalidArgument);
+                }
+                candidate->internalEvents.resize(ownedQueue->capacity);
+                candidate->eventStorage = candidate->internalEvents;
+            }
+            else
+            {
+                candidate->eventStorage = borrowedQueue->storage;
+            }
             Detail::initializeDragDropEventQueue(*candidate);
-            candidate->eventStorageKind = Types::Events::StorageKind::Internal;
-            result = Detail::Platform::openDragDropTarget(*candidate, *windowState);
-            if (!result.ok())
-            {
-                static_cast<void>(Detail::Platform::closeDragDropTargetBestEffort(*candidate));
-                return result;
-            }
-            state_ = std::move(candidate);
-            return IO::successStatus();
-        }
-        catch (const std::bad_alloc &)
-        {
-            return error(ErrorCode::OutOfMemory);
-        }
-        catch (...)
-        {
-            return error(ErrorCode::Unknown);
-        }
-    }
-
-    IO::Types::Status DragDropTarget::open(
-        Window &window,
-        const Types::DragDrop::TargetDescription &description,
-        std::span<Types::DragDrop::Event> storage) noexcept
-    {
-        if (state_)
-        {
-            return error(ErrorCode::AlreadyOpen);
-        }
-        if (storage.empty())
-        {
-            return error(ErrorCode::InvalidArgument);
-        }
-        Detail::WindowState *windowState = Detail::WindowAccess::state(window);
-        if (!windowState || !Detail::Platform::hasLiveNativeWindow(*windowState))
-        {
-            return error(ErrorCode::NotOpen);
-        }
-        if (!Detail::Platform::ownedByCurrentThread(*windowState) || windowState->fileDropEnabled ||
-            Detail::Platform::hasDragDropTarget(*windowState))
-        {
-            return error(ErrorCode::ResourceBusy);
-        }
-        try
-        {
-            auto candidate = std::make_unique<Detail::DragDropState>();
-            candidate->ownerThread = std::this_thread::get_id();
-            candidate->windowId = windowState->id;
-            candidate->window = windowState;
-            IO::Types::Status result = copyRegions(description.regions, candidate->regions);
-            if (!result.ok())
-            {
-                return result;
-            }
-            result = Detail::Platform::prepareDragDropRegions(candidate->regions);
-            if (!result.ok())
-            {
-                return result;
-            }
-            candidate->eventStorage = storage;
-            Detail::initializeDragDropEventQueue(*candidate);
-            candidate->eventStorageKind = Types::Events::StorageKind::External;
+            candidate->eventStorageKind = ownedQueue != nullptr ? Types::Events::StorageKind::Internal : Types::Events::StorageKind::External;
             result = Detail::Platform::openDragDropTarget(*candidate, *windowState);
             if (!result.ok())
             {

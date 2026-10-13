@@ -99,6 +99,7 @@ Repository validation compiles each supported Desktop entry header independently
 - `desktop/dialogs.h`
 - `desktop/window.h`
 - `desktop/renderer_bridge.h`
+- `desktop/result.h`
 - `desktop/shell.h`
 - `desktop/shell_types.h`
 - `desktop/shell_taskbar.h`

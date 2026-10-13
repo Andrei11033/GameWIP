@@ -200,6 +200,7 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
         {
             return value != 0;
         }
+        [[nodiscard]] static constexpr ButtonId invalid() noexcept { return {}; }
         friend constexpr bool operator==(ButtonId left, ButtonId right) noexcept = default;
     };
 
@@ -213,6 +214,7 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
         {
             return value != 0;
         }
+        [[nodiscard]] static constexpr OptionId invalid() noexcept { return {}; }
         friend constexpr bool operator==(OptionId left, OptionId right) noexcept = default;
     };
 
@@ -247,10 +249,10 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
         std::string_view message;           ///< UTF-8 primary message.
         Severity severity = Severity::None; ///< Semantic severity used for native presentation.
         std::span<const Button> buttons;    ///< Non-empty, call-scoped actions with unique valid IDs.
-        ButtonId defaultButton;             ///< Optional default action; zero or an ID in @c buttons.
-        ButtonId cancelButton;              ///< Optional cancellation action; zero or an ID in @c buttons.
+        std::optional<ButtonId> defaultButton; ///< Optional default action; when present, must be in @c buttons.
+        std::optional<ButtonId> cancelButton;  ///< Optional cancellation action; when present, must be in @c buttons.
         std::span<const Option> options;    ///< Call-scoped mutually exclusive options with unique valid IDs.
-        OptionId defaultOption;             ///< Optional initial option; zero or an ID in @c options.
+        std::optional<OptionId> defaultOption; ///< Optional initial option; when present, must be in @c options.
         std::string_view details;           ///< Optional UTF-8 expandable details.
         std::string_view supplementalText;  ///< Optional UTF-8 supplemental text.
         std::optional<CheckBox> checkBox;   ///< Optional checkbox description and initial state.
@@ -261,8 +263,8 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
     {
         IO::Types::Status status;             ///< Operation status; cancellation is reported separately.
         Outcome outcome = Outcome::Cancelled; ///< User outcome when @c status is successful.
-        ButtonId button;                      ///< Selected action identity, or zero after dismissal without one.
-        OptionId option;                      ///< Final selected option identity, or zero when none is selected.
+        std::optional<ButtonId> button;       ///< Selected action identity, or nullopt after dismissal without one.
+        std::optional<OptionId> option;       ///< Final selected option identity, or nullopt when none is selected.
         std::optional<bool> checkBoxChecked;  ///< Final checkbox state when a checkbox was presented.
     };
 } // namespace GameWIP::Desktop::Types::Dialogs::Prompt
@@ -291,7 +293,7 @@ namespace GameWIP::Desktop::Types::Dialogs::Progress
         std::string_view title;          ///< UTF-8 window title, borrowed only during open().
         std::string_view heading;        ///< UTF-8 prominent heading, borrowed only during open().
         std::string_view message;        ///< UTF-8 operation message, borrowed only during open().
-        Mode mode = Mode::Indeterminate; ///< Initial visual progress mode.
+        Mode presentationMode = Mode::Indeterminate; ///< Initial visual progress mode.
         double progress = 0.0;           ///< Initial normalized value in [0, 1].
         bool cancelable = false;         ///< Whether user cancellation requests are exposed.
         bool blocksOwner = true;         ///< Whether a supplied owner is interaction-blocked while open.

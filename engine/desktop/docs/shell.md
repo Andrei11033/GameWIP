@@ -20,10 +20,10 @@ Queue overflow drops the newest event and increments the cumulative dropped-even
 sequence numbers start at one for each open lifetime. `clearEvents()` removes retained payloads,
 and `clearDroppedEventCount()` resets only the diagnostic counter.
 
-The default `open()` overload allocates `Events::kDefaultQueueCapacity` slots;
-the capacity overload accepts a positive slot count, and the span overload
-borrows nonempty `Types::Shell::Event` storage until close. External storage
-must remain alive and unmoved while the queue is open.
+The default `open()` overload allocates `Events::kDefaultQueueCapacity` slots.
+For explicit ownership, pass `Types::Shell::QueueConfiguration::owned(capacity)`
+or `Types::Shell::QueueConfiguration::borrowed(eventStorage)`. Borrowed storage
+must be nonempty and remain alive and unmoved while the queue is open.
 
 Keep pumping `Desktop::Events::poll()` or `wait()` on the resource owner thread,
 then consume its shell queue. This works with only a tray icon or notification
@@ -96,9 +96,8 @@ if (!tray.open(description).ok())
 if (!tray.bindEventQueue(queue).ok())
     return;
 
-std::array<D::Types::Tray::MenuItem, 1> items{};
-items[0].commandId = {1};
-items[0].label = "Quit";
+const std::array<D::Types::Tray::MenuItem, 1> items{
+    D::Types::Tray::MenuItems::command(D::Types::Shell::CommandId{1}, "Quit")};
 if (!tray.setMenu({items}).ok())
     return;
 
@@ -130,8 +129,9 @@ notification identities. Basic notifications may be published without a queue. A
 inputs, and user-dismissal events require the queue overload so interaction has an explicit
 destination. Update preserves the notification identity; dismiss removes it from the center.
 
-`publish()` returns a new `NotificationId`; `update(id, description)` preserves
-it and `dismiss(id)` removes it. IDs are accepted only by the owning open
+`publish()` returns `Types::Result<NotificationId>`; inspect `ok()` before using
+the optional identity. `update(id, description)` preserves it and
+`dismiss(id)` removes it. IDs are accepted only by the owning open
 center. Retaining an ID across center close/reopen does not revive it. A failed
 update preserves the previously retained description. Successful publication
 does not guarantee that OS notification policy displays the notification.
@@ -141,6 +141,10 @@ media, scheduling, grouping, urgency, badge, and progress fields return `Unsuppo
 backend can represent them without silently changing their meaning. Applications should branch on
 the capability snapshot before presenting those fields.
 
+Use `Types::Notifications::Media::image()` or `Media::uri()` for media alternatives and
+`Types::Notifications::Schedule::once()` or `Schedule::recurring()` for scheduling; these
+factories keep the valid variant and recurrence combinations visible at the call site.
+
 Basic publication uses a Win32 balloon notification. Activation and expiry
 events require the queue overload and owner-thread pumping. This helper assumes
 the center was opened on the calling thread; keep it open for the publication's
@@ -149,7 +153,7 @@ lifetime, then dismiss the returned ID and close explicitly:
 ```cpp
 #include "desktop/shell_notifications.h"
 
-GameWIP::Desktop::Types::Notifications::PublishResult publishExportComplete(
+GameWIP::Desktop::Types::Result<GameWIP::Desktop::Types::Shell::NotificationId> publishExportComplete(
     GameWIP::Desktop::NotificationCenter &center)
 {
     GameWIP::Desktop::Types::Notifications::Description description;
@@ -189,9 +193,9 @@ GameWIP::IO::Types::Status publishEditorTasks(
 {
     namespace D = GameWIP::Desktop;
     const std::array<D::Types::Shell::LaunchArgumentView, 1> arguments{
-        D::Types::Shell::LiteralLaunchArgumentView{"--new-document"}};
+        D::Types::Shell::LaunchArguments::literal("--new-document")};
     const D::Types::Shell::LaunchActionView action{
-        D::Types::Shell::PathTargetView{std::cref(executable)}, arguments};
+        D::Types::Shell::Targets::path(executable), arguments};
     const std::array tasks{D::Types::JumpLists::Task{"New document", {}, action}};
     D::Types::JumpLists::Description description;
     description.tasks = tasks;
@@ -258,7 +262,7 @@ GameWIP::Desktop::Types::Registration::Result registerExampleUri(
     description.scheme = "example-editor";
     description.displayName = "Example editor link";
     description.defaultAction = D::Types::Shell::LaunchActionView{
-        D::Types::Shell::PathTargetView{std::cref(executable)}, arguments};
+        D::Types::Shell::Targets::path(executable), arguments};
     description.conflictPolicy = D::Types::Registration::ConflictPolicy::ReplaceOwned;
     return D::Registration::registerUriScheme(description);
 }

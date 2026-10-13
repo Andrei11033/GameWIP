@@ -68,7 +68,7 @@ namespace GameWIP::Desktop
                 }
 
                 const std::size_t packedRowBytes = width * channels;
-                const std::size_t resolvedStride = variant.rowStrideBytes == 0 ? packedRowBytes : variant.rowStrideBytes;
+                const std::size_t resolvedStride = variant.rowStrideBytes.value_or(packedRowBytes);
 
                 if (resolvedStride < packedRowBytes)
                 {
@@ -161,12 +161,12 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Cursor creation and Window binding
     // ------------------------------------------------------------
-    Types::Cursor::CreateResult createCursor(const Types::Cursor::ImageView &image) noexcept
+    Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept
     {
         return createCursor(std::span{&image, std::size_t{1}});
     }
 
-    Types::Cursor::CreateResult createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept
+    Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept
     {
         IO::Types::Status status = validateVariants(variants);
         if (!status.ok())
@@ -194,7 +194,7 @@ namespace GameWIP::Desktop
                 throw std::bad_alloc{};
             }
             auto state = std::make_shared<Detail::CursorState>(std::move(nativeVariants));
-            return {.status = IO::successStatus(), .cursor = Detail::CursorAccess::make(std::move(state))};
+            return {.status = IO::successStatus(), .value = Detail::CursorAccess::make(std::move(state))};
         }
         catch (const std::bad_alloc &)
         {

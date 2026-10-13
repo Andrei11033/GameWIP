@@ -12,7 +12,7 @@
 namespace GameWIP::Desktop::Detail::Platform
 {
     /// @brief Returns shell capabilities available on the current Windows host.
-    [[nodiscard]] Types::Shell::CapabilitiesResult getShellCapabilities() noexcept;
+    [[nodiscard]] Types::Result<Types::Shell::Capabilities> getShellCapabilities() noexcept;
 
     /// @brief Reports whether the calling thread owns native tray or notification message windows.
     /// @details Keeps the shared event pump active without requiring a top-level Window.

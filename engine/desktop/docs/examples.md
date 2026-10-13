@@ -13,8 +13,8 @@ open owner-thread `window` unless they create one explicitly.
 
 GameWIP::Desktop::Types::Description description;
 description.title = "Example";
-description.clientSize = {1280, 720};
-description.visible = true;
+description.windowed.clientSize = {1280, 720};
+description.activation.visible = true;
 description.fileDropEnabled = true;
 
 GameWIP::Desktop::Window window;
@@ -55,9 +55,9 @@ still be consumed before finalization.
 #include "desktop/display_info.h"
 
 const auto monitors = GameWIP::Desktop::Display::getMonitors();
-if (monitors.status.ok())
+if (monitors.ok())
 {
-    for (const auto &monitor : monitors.monitors)
+    for (const auto &monitor : *monitors)
     {
         const auto current = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
         const auto color = GameWIP::Desktop::Display::getColorInfo(monitor.id);
@@ -69,12 +69,15 @@ if (monitors.status.ok())
 
 ```cpp
 GameWIP::Desktop::Types::Description description;
-description.mode.mode = GameWIP::Desktop::Types::Mode::BorderlessFullscreen;
-description.visible = true;
+description.initialWindowMode = GameWIP::Desktop::Types::WindowModes::borderlessFullscreen();
+description.activation.visible = true;
 ```
 
-For exclusive fullscreen, set `description.mode.mode` to `Types::Mode::ExclusiveFullscreen`, choose a `Types::Display::MonitorId`, and optionally
-provide an exact `Types::Display::Mode`.
+For exclusive fullscreen, use
+`Types::WindowModes::exclusiveFullscreen()` to keep the selected monitor's
+current physical mode, or pass a `Types::Display::Mode` (and optionally a
+`MonitorId`) to request a physical mode. The initial/restored logical windowed
+size remains in `description.windowed.clientSize`.
 
 ## Custom cursor
 
@@ -83,10 +86,10 @@ provide an exact `Types::Display::Mode`.
 
 if (window.supports(GameWIP::Desktop::Types::Capability::CustomCursor))
 {
-    GameWIP::Desktop::Types::Cursor::ImageView cursorImage{{32, 32}, {4, 3}, 96, 0, cursorRgba8};
+    auto cursorImage = GameWIP::Desktop::Types::Cursor::ImageView::packed({32, 32}, {4, 3}, cursorRgba8);
     auto cursor = GameWIP::Desktop::createCursor(cursorImage);
-    if (cursor.status.ok())
-        static_cast<void>(GameWIP::Desktop::setCursor(window, cursor.cursor));
+    if (cursor.ok())
+        static_cast<void>(GameWIP::Desktop::setCursor(window, *cursor));
 }
 ```
 
@@ -106,9 +109,9 @@ hostDescription.visible = true;
 if (host.open(window, hostDescription).ok())
 {
     const auto native = GameWIP::Desktop::Native::Win32::getHandle(host);
-    if (native.status.ok())
+    if (native.ok())
     {
-        // Create externally managed native descendants below native.handle.window.
+        // Create externally managed native descendants below native->window.
     }
 }
 ```
@@ -129,9 +132,9 @@ if (!copied.status.ok())
 
 const auto pasted = GameWIP::Desktop::Clipboard::readText(
     std::chrono::milliseconds{50});
-if (pasted.status.ok())
+if (pasted.ok())
 {
-    // Insert pasted.text into the application-owned selection.
+    // Insert *pasted into the application-owned selection.
 }
 ```
 
@@ -153,8 +156,8 @@ namespace DD = GameWIP::Desktop::Types::DragDrop;
 namespace Transfer = GameWIP::Desktop::Types::DataTransfer;
 
 std::array formats{
-    Transfer::FormatView{Transfer::FormatKind::Text, {}},
-    Transfer::FormatView{Transfer::FormatKind::FileList, {}}};
+    Transfer::FormatView::text(),
+    Transfer::FormatView::files()};
 std::array regions{DD::RegionDescription{
     DD::RegionId{1}, std::nullopt, formats,
     DD::Effect::Copy, DD::Effect::Copy}};
@@ -224,7 +227,7 @@ GameWIP::Desktop::Types::Dialogs::Progress::Description request;
 request.owner = &window;
 request.title = "Importing";
 request.heading = "Preparing assets";
-request.mode = GameWIP::Desktop::Types::Dialogs::Progress::Mode::Determinate;
+request.presentationMode = GameWIP::Desktop::Types::Dialogs::Progress::Mode::Determinate;
 request.cancelable = true;
 
 if (progress.open(request).ok())
@@ -363,8 +366,8 @@ Concurrent presentation reads and occlusion feedback are independent opt-ins. St
 #include "desktop/native/win32.h"
 
 const auto native = GameWIP::Desktop::Native::Win32::getHandle(window);
-if (native.status.ok())
+if (native.ok())
 {
-    HWND hwnd = native.handle.window;
+    HWND hwnd = native->window;
 }
 ```

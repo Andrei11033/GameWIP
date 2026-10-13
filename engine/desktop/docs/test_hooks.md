@@ -55,7 +55,9 @@ point.
 
 Clipboard hooks provide one-shot failures for allocation, text/path/image preparation, helper owner creation, access, native clear/read/enumeration,
 registered-format creation, and close. `failClipboardPublicationAt()` selects a zero-based caller item, while
-`failClipboardEnumerationAfter()` preserves a requested materialized prefix before failure. `resetFailures()` clears these thread-local controls.
+`failClipboardEnumerationAfter()` forces enumeration to fail after internal
+materialization; the public `Types::Result` deliberately exposes no partial
+format value on failure. `resetFailures()` clears these thread-local controls.
 Hooks preserve the real public cleanup and mutation semantics and never appear in installed headers.
 
 Dialog hooks arm one deterministic completion for each file/folder, Message, or Prompt operation. Their snapshots expose the converted native text,

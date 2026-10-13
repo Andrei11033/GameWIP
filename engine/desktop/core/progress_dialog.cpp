@@ -108,7 +108,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
-        if (!validMode(description.mode) || !std::isfinite(description.progress) || description.progress < 0.0 || description.progress > 1.0)
+        if (!validMode(description.presentationMode) || !std::isfinite(description.progress) || description.progress < 0.0 || description.progress > 1.0)
         {
             return error(ErrorCode::InvalidArgument);
         }
@@ -145,7 +145,7 @@ namespace GameWIP::Desktop
             auto candidate = std::make_unique<Detail::ProgressDialogState>();
             candidate->ownerToken = currentThreadToken();
             candidate->ownerId = ownerState != nullptr ? ownerState->id : Types::WindowId{};
-            candidate->mode = description.mode;
+            candidate->mode = description.presentationMode;
             candidate->progress = description.progress;
             candidate->cancelable = description.cancelable;
             candidate->blocksOwner = description.blocksOwner;

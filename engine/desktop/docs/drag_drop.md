@@ -29,9 +29,9 @@ choices as other Desktop resource owners:
 
 | Overload | Storage |
 | --- | --- |
-| `open(window, description)` | Internal default-capacity queue. |
-| `open(window, description, capacity)` | Internal queue with nonzero requested capacity. |
-| `open(window, description, eventStorage)` | Nonempty caller-owned storage borrowed through finalization. |
+| `open(window, description)` | Internally owned default-capacity queue. |
+| `open(window, description, QueueConfiguration::owned(capacity))` | Internally owned queue with the requested capacity. |
+| `open(window, description, QueueConfiguration::borrowed(eventStorage))` | Nonempty caller-owned storage borrowed through finalization. |
 
 External storage must remain alive and unmoved during native-loss finalization
 and deferred owner-thread cleanup. Close on the owner thread before releasing it.
@@ -75,13 +75,13 @@ Every region has:
 - a nonzero unique `RegionId`;
 - an optional logical client rectangle;
 - an ordered list of accepted `DataTransfer::FormatView` values;
-- a nonempty `allowedEffects` bitmask;
-- one `preferredEffect` contained in that mask.
+- an `EffectPolicy` whose `allowed` mask is nonempty;
+- a `preferred` effect contained in that mask.
 
 An absent rectangle means the whole client and follows Window resize
 automatically. Explicit rectangles use logical Window-client coordinates.
 Regions may overlap; the last supplied matching region wins. A position outside
-all accepting regions has invalid `RegionId{}` and `Effect::None`.
+all accepting regions has `std::nullopt` for its region and `Effect::None`.
 
 Standard formats require an empty custom name. Custom formats require a
 nonempty strict UTF-8 native name without embedded U+0000. Duplicate accepted
@@ -95,14 +95,14 @@ Portable negotiation is deterministic and ignores Ctrl, Shift, Alt, and native
 key-state fields:
 
 ```text
-candidates = source allowedEffects & target allowedEffects
+candidates = source.effects.allowed & target.effects.allowed
 ```
 
 | Candidates | Selected effect |
 | --- | --- |
 | None | `Effect::None`; the target rejects. |
 | Exactly one | That candidate. |
-| Several and preferred is present | The target's `preferredEffect`. |
+| Several and preferred is present | The target's `effects.preferred`. |
 | Several without preferred | First available in Copy, Move, Link order. |
 
 A source can force an operation by advertising one effect. GameWIP never
@@ -163,8 +163,8 @@ namespace DD = GameWIP::Desktop::Types::DragDrop;
 namespace Transfer = GameWIP::Desktop::Types::DataTransfer;
 
 std::array accepted{
-    Transfer::FormatView{Transfer::FormatKind::Text, {}},
-    Transfer::FormatView{Transfer::FormatKind::FileList, {}}};
+    Transfer::FormatView::text(),
+    Transfer::FormatView::files()};
 
 std::array regions{
     DD::RegionDescription{
@@ -199,8 +199,8 @@ queue; no separate DragDrop pump exists.
 
 `DragDrop::beginDrag(source, description)` requires an open source Window owned
 by the calling thread. `Description` supplies a nonempty ordered item list,
-nonempty valid allowed-effects mask, and explicit `TriggerButton::{Left, Right,
-Middle}`.
+an `EffectPolicy` with a nonempty allowed mask, and explicit
+`TriggerButton::{Left, Right, Middle}`.
 
 The configured button must already be down when the function begins; Desktop
 does not infer it. Before entering native ownership, the function validates all
@@ -226,7 +226,7 @@ std::array<Transfer::ItemView, 1> items{text};
 
 DD::Description description{
     items,
-    DD::Effect::Copy,
+    DD::EffectPolicy::source(DD::Effect::Copy),
     DD::TriggerButton::Left};
 
 const DD::Result result = Desktop::DragDrop::beginDrag(window, description);

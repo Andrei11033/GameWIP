@@ -10,12 +10,15 @@ Monitor identity and physical modes are grouped under `Desktop::Types::Display`:
 
 - `MonitorId` is a process-local identity for a known monitor and uses `isValid()`.
 - `Mode` describes physical resolution, millihertz refresh, color depth, and interlace state.
-- `ModesResult` and `ModeResult` are checked mode-query results.
+- Display queries return `Types::Result<T>`; their optional `value` is present
+  only when `status.ok()` is true.
 
 Rich monitor snapshots and OS color state are opt-in through `desktop/display_info.h`:
 
-- `Info`, `MonitorsResult`, and `InfoResult` describe monitor geometry, work area, DPI/scale, physical size, name, and primary state.
-- `ColorSpace`, `ColorInfo`, and `ColorInfoResult` report OS HDR/WCG/color information.
+- `Info` describes monitor geometry, work area, DPI/scale, physical size, name, and primary state.
+- Monitor and color queries return `Types::Result<T>`.
+- `ColorSpace` and `ColorInfo` report OS HDR/WCG/color information; physical
+  measurements are optional when the operating system does not provide them.
 
 ## Display operations
 
@@ -30,22 +33,35 @@ native display is platform behavior; equivalent overloads are not added to unrel
 
 ## Window modes
 
-Top-level Window mode is `Types::Mode`:
+Top-level Window presentation is cached as `Types::WindowMode`:
 
 - `Windowed` keeps ordinary desktop placement.
 - `BorderlessFullscreen` fills the selected monitor without changing its physical display mode.
 - `ExclusiveFullscreen` may switch to an exact requested `Types::Display::Mode`.
 
-`Types::ModeRequest` combines the top-level mode, target monitor, and optional exact exclusive mode. An invalid monitor ID means the documented
-current/primary fallback; an unknown nonzero ID is rejected.
+Callers construct a `Types::WindowModeRequest` with named factories. The
+request owns only presentation concerns: `windowed()` restores ordinary
+windowing, `borderlessFullscreen(monitor)` fills a monitor without changing
+physical mode, and `exclusiveFullscreen(monitor, mode)` requests a physical
+mode. The no-argument `exclusiveFullscreen()` keeps the selected monitor's
+current physical mode. A missing target monitor means current/nearest, then
+primary; an unknown nonzero ID is rejected.
 
-`Types::FullscreenInfo` caches the active monitor, optional exclusive mode, exact-mode state, and suspension state. Windowed geometry mutations remain
-invalid while a fullscreen mode is active.
+`Types::FullscreenState` reports the active state. `requestedDisplayMode` is
+what the caller asked for, while `activeDisplayMode` is what the monitor is
+using. `displayModeMatchedExactly` distinguishes an exact match from a
+fallback. `monitor` and both display modes are optional because the state is
+empty in windowed mode or when the platform cannot report a value.
+
+`windowed.clientSize` is logical geometry and remains the restored windowed
+size. It is not the same thing as `Display::Mode::resolution`, which is physical
+monitor geometry. Windowed geometry mutations remain invalid while fullscreen
+is active.
 
 ## Display changes
 
 The Win32 backend recovers fullscreen state when display topology changes and queues `Types::Events::DisplayConfigurationChanged` / `MonitorChanged` /
-`ModeChanged` as appropriate. Color configuration changes are also surfaced through display-configuration events; callers re-query
+`WindowModeChanged` as appropriate. Color configuration changes are also surfaced through display-configuration events; callers re-query
 `Display::getColorInfo()` for current facts.
 
 The Win32 color query uses a current-thread DXGI factory to observe configuration currency while the calling thread owns a Window. Standalone monitor

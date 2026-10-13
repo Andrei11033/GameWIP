@@ -49,7 +49,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Maps a screen point near a resizable frame to a Win32 resize hit code.
         [[nodiscard]] LRESULT resizeHitTest(WindowState &state, POINT screenPoint) noexcept
         {
-            if (!state.resizable || state.presentation != Types::PresentationState::Normal || state.mode != Types::Mode::Windowed)
+            if (!state.resizable || state.presentation != Types::PresentationState::Normal || state.mode != Types::WindowMode::Windowed)
             {
                 return HTNOWHERE;
             }
@@ -420,7 +420,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const bool transitionActive = state->platform->modeTransitionDepth != 0;
             // A synchronous WM_DPICHANGED can arrive inside SetWindowPos. While a mode
             // transition is active, its outer placement remains the sole geometry owner.
-            if (!transitionActive && state->mode == Types::Mode::Windowed)
+            if (!transitionActive && state->mode == Types::WindowMode::Windowed)
             {
                 Types::PixelSize desiredClient = previousFramebuffer;
                 if (state->dpiResizePolicy == Types::DpiResizePolicy::PreserveLogicalClientSize)
@@ -474,7 +474,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             else if (!transitionActive && !state->fullscreen.suspended)
             {
-                HMONITOR monitor = nativeMonitor(state->fullscreen.monitor);
+                HMONITOR monitor = state->fullscreen.monitor ? nativeMonitor(*state->fullscreen.monitor) : nullptr;
                 if (monitor == nullptr)
                 {
                     monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
@@ -506,7 +506,7 @@ namespace GameWIP::Desktop::Detail::Platform
         case WM_GETMINMAXINFO:
         {
             auto *info = reinterpret_cast<MINMAXINFO *>(lParam);
-            if (info == nullptr || state->mode != Types::Mode::Windowed)
+            if (info == nullptr || state->mode != Types::WindowMode::Windowed)
             {
                 return 0;
             }
@@ -533,7 +533,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         case WM_SIZING:
         {
-            if (!state->aspectRatio || state->mode != Types::Mode::Windowed)
+            if (!state->aspectRatio || state->mode != Types::WindowMode::Windowed)
             {
                 break;
             }

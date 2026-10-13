@@ -74,7 +74,7 @@ namespace
     bool open(Context &context, Desktop::Window &window)
     {
         Desktop::Types::Description description;
-        description.visible = false;
+        description.activation.visible = false;
         const auto status = window.open(description);
         return context.expectTrue("hidden accessibility Window opens", status.ok());
     }
@@ -152,8 +152,7 @@ namespace
         tree.nodes[1].relations = relations;
         expectIssue(A::ValidationIssue::MissingNode);
         tree.nodes[1].relations = {};
-        A::ExtensionValue value;
-        value.kind = A::ExtensionValueKind::List;
+        A::ExtensionValue value = A::ExtensionValue::list({});
         value.listValue = {&value, 1};
         const A::Extension extension{"example.vendor", "recursive", value};
         tree.nodes[1].extensions = {&extension, 1};
@@ -174,11 +173,9 @@ namespace
         std::string name = "Original";
         std::array<A::NodeId, 1> children{2};
         std::string extensionText = "owned";
-        A::ExtensionValue item;
-        item.utf8Value = extensionText;
-        A::ExtensionValue list;
-        list.kind = A::ExtensionValueKind::List;
-        list.listValue = {&item, 1};
+        const A::ExtensionValue item = A::ExtensionValue::utf8(extensionText);
+        const std::array<A::ExtensionValue, 1> items{item};
+        const A::ExtensionValue list = A::ExtensionValue::list(items);
         const A::Extension extension{"example.vendor", "property", list};
         A::Node root;
         root.id = 1;
@@ -390,9 +387,9 @@ namespace
         if (handles.status.ok())
         {
             // Deterministic native message boundary, independent of desktop activation policy.
-            SendMessageW(handles.handle.window, WM_KILLFOCUS, 0, 0);
+            SendMessageW(handles->window, WM_KILLFOCUS, 0, 0);
             drain(window);
-            SendMessageW(handles.handle.window, WM_SETFOCUS, 0, 0);
+            SendMessageW(handles->window, WM_SETFOCUS, 0, 0);
             bool focusEvent = false;
             while (Desktop::TestHooks::popAccessibilityNotification(window, notification))
             {
@@ -589,7 +586,7 @@ namespace
         const auto handles = Desktop::Native::Win32::getHandle(window);
         if (handles.status.ok())
         {
-            check(context, "WM_GETOBJECT publishes UIA provider", SendMessageW(handles.handle.window, WM_GETOBJECT, 0, UiaRootObjectId) != 0);
+            check(context, "WM_GETOBJECT publishes UIA provider", SendMessageW(handles->window, WM_GETOBJECT, 0, UiaRootObjectId) != 0);
         }
         tree.nodes[1].states.flags |= state(A::State::Password);
         check(context, "redaction publishes", bridge.publish(tree.view(2)).ok());
@@ -1450,7 +1447,7 @@ namespace GameWIP::Test
     {
         Desktop::Window window;
         Desktop::Types::Description description;
-        description.visible = false;
+        description.activation.visible = false;
         if (!window.open(description).ok())
         {
             return 1;
@@ -1496,7 +1493,7 @@ namespace GameWIP::Test
                         return 6;
                     }
                     Com<IUIAutomationElement> root, child;
-                    if (FAILED(automation->ElementFromHandle(handles.handle.window, root.put())) || !root)
+                    if (FAILED(automation->ElementFromHandle(handles->window, root.put())) || !root)
                     {
                         return 7;
                     }

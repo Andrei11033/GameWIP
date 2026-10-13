@@ -767,7 +767,7 @@ void testTrayNativeCallbacks(TestSupport::Context &context)
     const std::array<std::byte, 4> pixel{std::byte{0x11}, std::byte{0x22}, std::byte{0x33}, std::byte{0xFF}};
     const Desktop::Types::IconImageView icon{{1, 1}, pixel};
     Desktop::ShellEventQueue queue;
-    if (!context.expectTrue("tray callback queue opens", queue.open(16).ok()))
+    if (!context.expectTrue("tray callback queue opens", queue.open(ShellTypes::QueueConfiguration::owned(16)).ok()))
     {
         return;
     }
@@ -825,26 +825,26 @@ void testTrayNativeCallbacks(TestSupport::Context &context)
 
 void testShellQueueAndCapabilities(TestSupport::Context &context)
 {
-    const ShellTypes::CapabilitiesResult capabilities = Desktop::Shell::getCapabilities();
+    const auto capabilities = Desktop::Shell::getCapabilities();
     static_cast<void>(context.expectTrue("shell capability query succeeds", capabilities.status.ok()));
     for (std::uint8_t index = 0; index < static_cast<std::uint8_t>(ShellTypes::Capability::Count); ++index)
     {
         const auto capability = static_cast<ShellTypes::Capability>(index);
         static_cast<void>(context.expectEq(
             "Shell::supports agrees with capability snapshot",
-            capabilities.capabilities.supports(capability),
+            capabilities->supports(capability),
             Desktop::Shell::supports(capability)));
     }
     static_cast<void>(
-        context.expectFalse("capability sentinel is never advertised", capabilities.capabilities.supports(ShellTypes::Capability::Count)));
+        context.expectFalse("capability sentinel is never advertised", capabilities->supports(ShellTypes::Capability::Count)));
 
     Desktop::ShellEventQueue queue;
-    static_cast<void>(context.expectEq("zero-capacity shell queue is rejected", ErrorCode::InvalidArgument, queue.open(0).code));
-    static_cast<void>(context.expectTrue("internal shell queue opens", queue.open(2).ok()));
+    static_cast<void>(context.expectEq("zero-capacity shell queue is rejected", ErrorCode::InvalidArgument, queue.open(ShellTypes::QueueConfiguration::owned(0)).code));
+    static_cast<void>(context.expectTrue("internal shell queue opens", queue.open(ShellTypes::QueueConfiguration::owned(2)).ok()));
     static_cast<void>(context.expectTrue("internal shell queue reports open", queue.isOpen()));
     static_cast<void>(context.expectTrue("internal shell queue binds to the opening thread", queue.ownedByCurrentThread()));
     static_cast<void>(context.expectEq("internal shell queue reports capacity", std::size_t{2}, queue.eventQueueInfo().capacity));
-    static_cast<void>(context.expectEq("reopening an open shell queue is rejected", ErrorCode::AlreadyOpen, queue.open(2).code));
+    static_cast<void>(context.expectEq("reopening an open shell queue is rejected", ErrorCode::AlreadyOpen, queue.open(ShellTypes::QueueConfiguration::owned(2)).code));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     Desktop::TestHooks::enqueueShellEvent(
@@ -884,7 +884,7 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("closed shell queue reports closed", queue.isOpen()));
 
     std::array<ShellTypes::Event, 2> externalStorage;
-    static_cast<void>(context.expectTrue("external shell queue opens", queue.open(std::span{externalStorage}).ok()));
+    static_cast<void>(context.expectTrue("external shell queue opens", queue.open(ShellTypes::QueueConfiguration::borrowed(std::span{externalStorage})).ok()));
     static_cast<void>(context.expectEq(
         "external shell queue reports borrowed storage",
         Desktop::Types::Events::StorageKind::External,
@@ -976,10 +976,10 @@ void testShellValidation(TestSupport::Context &context)
 
     Desktop::Types::Description windowDescription;
     windowDescription.title = "Shell validation Window";
-    windowDescription.clientSize = {160, 100};
-    windowDescription.visible = false;
+    windowDescription.windowed.clientSize = {160, 100};
+    windowDescription.activation.visible = false;
     Desktop::Window window;
-    if (!window.open(windowDescription, 8).ok())
+    if (!window.open(windowDescription, Desktop::Events::owned(8)).ok())
     {
         context.fail("shell validation Window", "the hidden native validation Window could not be opened");
         return;
@@ -1009,7 +1009,7 @@ void testShellValidation(TestSupport::Context &context)
         context.expectEq("tray rejects embedded NUL tooltip text", ErrorCode::InvalidArgument, tray.open(malformedTrayDescription).code));
 
     Desktop::ShellEventQueue queue;
-    static_cast<void>(queue.open(8));
+    static_cast<void>(queue.open(ShellTypes::QueueConfiguration::owned(8)));
     TaskbarTypes::ThumbnailButton oversizedTaskbarButton{{0x10000U}, "Too-large taskbar command"};
     TaskbarTypes::Description oversizedTaskbarDescription;
     oversizedTaskbarDescription.thumbnailButtons = std::span{&oversizedTaskbarButton, 1};
@@ -1082,10 +1082,10 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     Desktop::Types::Description windowDescription;
     windowDescription.title = "Shell native lifetime Window";
-    windowDescription.clientSize = {160, 100};
-    windowDescription.visible = false;
+    windowDescription.windowed.clientSize = {160, 100};
+    windowDescription.activation.visible = false;
     Desktop::Window window;
-    if (!window.open(windowDescription, 8).ok())
+    if (!window.open(windowDescription, Desktop::Events::owned(8)).ok())
     {
         context.skip("shell native lifetimes", "the hidden native validation Window could not be opened");
         return;
@@ -1117,7 +1117,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     }
 
     Desktop::ShellEventQueue taskbarQueue;
-    static_cast<void>(taskbarQueue.open(8));
+            static_cast<void>(taskbarQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     Desktop::TaskbarItem queuedTaskbar;
     const IO::Types::Status queuedTaskbarStatus = queuedTaskbar.open(window, {}, taskbarQueue);
     if (!queuedTaskbarStatus.ok())
@@ -1139,7 +1139,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     static_cast<void>(taskbarQueue.close());
 
     Desktop::ShellEventQueue trayQueue;
-    static_cast<void>(trayQueue.open(8));
+            static_cast<void>(trayQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     TrayTypes::Description trayDescription;
     trayDescription.icons = std::span{&icon, 1};
     TrayTypes::MenuItem trayMenuItem;
@@ -1163,7 +1163,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     }
     static_cast<void>(trayQueue.close());
 
-    static_cast<void>(trayQueue.open(8));
+    static_cast<void>(trayQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     TrayTypes::Description queuedEmptyTrayDescription;
     queuedEmptyTrayDescription.icons = std::span{&icon, 1};
     queuedEmptyTrayDescription.tooltip = "Queued empty tray menu";
@@ -1186,7 +1186,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     Desktop::NotificationCenter notifications;
     Desktop::ShellEventQueue notificationQueue;
-    static_cast<void>(notificationQueue.open(8));
+            static_cast<void>(notificationQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     const IO::Types::Status notificationStatus = notifications.open(notificationQueue);
     if (!notificationStatus.ok())
     {
@@ -1208,13 +1208,13 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         }
         else
         {
-            static_cast<void>(context.expectTrue("basic notification generates an identity", published.id.isValid()));
-            static_cast<void>(context.expectTrue("basic notification update succeeds", notifications.update(published.id, basicDescription).ok()));
-            static_cast<void>(context.expectTrue("basic notification dismissal succeeds", notifications.dismiss(published.id).ok()));
+            static_cast<void>(context.expectTrue("basic notification generates an identity", published->isValid()));
+            static_cast<void>(context.expectTrue("basic notification update succeeds", notifications.update(*published, basicDescription).ok()));
+            static_cast<void>(context.expectTrue("basic notification dismissal succeeds", notifications.dismiss(*published).ok()));
             static_cast<void>(context.expectEq(
                 "dismissed notification identity is no longer accepted",
                 ErrorCode::NotFound,
-                notifications.dismiss(published.id).code));
+                notifications.dismiss(*published).code));
         }
         static_cast<void>(context.expectTrue("notification center closes", notifications.close().ok()));
     }

@@ -138,10 +138,10 @@ bool readNativeDibV5Header(TestSupport::Context &context, BITMAPV5HEADER &header
 
 void testClipboardValuesAndValidation(TestSupport::Context &context)
 {
-    static_assert(std::is_same_v<decltype(Transfer::FormatView{}.customName), std::string_view>);
+    static_assert(std::is_same_v<decltype(Transfer::FormatView::text().customName()), std::string_view>);
     static_assert(std::is_same_v<decltype(Transfer::Format{}.customName), std::string>);
-    static_assert(noexcept(Clipboard::hasFormat(Transfer::FormatView{})));
-    static_assert(noexcept(Clipboard::hasFormat(Transfer::FormatView{}, Clipboard::kNoWait)));
+    static_assert(noexcept(Clipboard::hasFormat(Transfer::FormatView::text())));
+    static_assert(noexcept(Clipboard::hasFormat(Transfer::FormatView::text(), Clipboard::kNoWait)));
     static_assert(noexcept(Clipboard::getFormats()));
     static_assert(noexcept(Clipboard::readText()));
     static_assert(noexcept(Clipboard::readFiles()));
@@ -151,31 +151,32 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
 
     const auto negative = std::chrono::milliseconds{-1};
     static_cast<void>(
-        context.expectEq("negative hasFormat timeout is invalid", ErrorCode::InvalidArgument, Clipboard::hasFormat({}, negative).status.code));
+        context.expectEq(
+            "negative hasFormat timeout is invalid", ErrorCode::InvalidArgument, Clipboard::hasFormat(Transfer::FormatView::text(), negative).status.code));
     static_cast<void>(
         context.expectEq("negative getFormats timeout is invalid", ErrorCode::InvalidArgument, Clipboard::getFormats(negative).status.code));
     static_cast<void>(context.expectEq("negative read timeout is invalid", ErrorCode::InvalidArgument, Clipboard::readText(negative).status.code));
     static_cast<void>(context.expectEq("negative clear timeout is invalid", ErrorCode::InvalidArgument, Clipboard::clear(negative).status.code));
     static_cast<void>(context.expectEq(
-        "unknown format kind is invalid",
-        ErrorCode::InvalidArgument,
-        Clipboard::hasFormat({static_cast<Transfer::FormatKind>(999), {}}, Clipboard::kNoWait).status.code));
+        "named text format is valid",
+        ErrorCode::Success,
+        Clipboard::hasFormat(Transfer::FormatView::text(), Clipboard::kNoWait).status.code));
     static_cast<void>(context.expectEq(
-        "standard format rejects custom name",
-        ErrorCode::InvalidArgument,
-        Clipboard::hasFormat({Transfer::FormatKind::Text, "wrong"}, Clipboard::kNoWait).status.code));
+        "named custom format is valid",
+        ErrorCode::Success,
+        Clipboard::hasFormat(Transfer::FormatView::custom("wrong"), Clipboard::kNoWait).status.code));
     static_cast<void>(context.expectEq(
         "custom format requires name",
         ErrorCode::InvalidArgument,
-        Clipboard::hasFormat({Transfer::FormatKind::Custom, {}}, Clipboard::kNoWait).status.code));
+        Clipboard::hasFormat(Transfer::FormatView::custom(std::string_view{}), Clipboard::kNoWait).status.code));
     static_cast<void>(context.expectEq(
         "custom format rejects malformed UTF-8",
         ErrorCode::InvalidArgument,
-        Clipboard::hasFormat({Transfer::FormatKind::Custom, std::string_view{"\xC3", 1}}, Clipboard::kNoWait).status.code));
+        Clipboard::hasFormat(Transfer::FormatView::custom(std::string_view{"\xC3", 1}), Clipboard::kNoWait).status.code));
     static_cast<void>(context.expectEq(
         "custom format rejects embedded null",
         ErrorCode::InvalidArgument,
-        Clipboard::hasFormat({Transfer::FormatKind::Custom, std::string_view{"a\0b", 3}}, Clipboard::kNoWait).status.code));
+        Clipboard::hasFormat(Transfer::FormatView::custom(std::string_view{"a\0b", 3}), Clipboard::kNoWait).status.code));
 
     std::span<const Transfer::ItemView> emptyItems;
     const auto emptyWrite = Clipboard::write(emptyItems, Clipboard::kNoWait);
@@ -225,8 +226,8 @@ void testClipboardRoundTrips(TestSupport::Context &context)
 {
     const auto initialClear = Clipboard::clear();
     static_cast<void>(context.expectTrue("Clipboard clears without a GameWIP Window", initialClear.status.ok() && initialClear.cleared));
-    const auto absentText = Clipboard::hasFormat({Transfer::FormatKind::Text, {}});
-    static_cast<void>(context.expectTrue("absent predicate is successful false", absentText.status.ok() && !absentText.available));
+    const auto absentText = Clipboard::hasFormat(Transfer::FormatView::text());
+    static_cast<void>(context.expectTrue("absent predicate is successful false", absentText.ok() && !*absentText));
 
     constexpr std::string_view text = "Clipboard UTF-8: caf\xC3\xA9 \xF0\x9F\x98\x80";
     const auto textWrite = Clipboard::writeText(text);
@@ -234,15 +235,16 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     static_cast<void>(context.expectEq("single text write publishes all", ClipboardTypes::CommitState::Published, textWrite.commitState));
     static_cast<void>(context.expectEq("single text count is one", std::size_t{1}, textWrite.formatsPublished));
     const auto textRead = Clipboard::readText();
-    static_cast<void>(context.expectTrue("UTF-8 text reads", textRead.status.ok()));
-    static_cast<void>(context.expectEq("UTF-8 and non-BMP text round trip", std::string{text}, textRead.text));
-    static_cast<void>(context.expectTrue("text predicate is available", Clipboard::hasFormat({Transfer::FormatKind::Text, {}}).available));
+    static_cast<void>(context.expectTrue("UTF-8 text reads", textRead.ok()));
+    static_cast<void>(context.expectEq("UTF-8 and non-BMP text round trip", std::string{text}, *textRead));
+    const auto textAvailable = Clipboard::hasFormat(Transfer::FormatView::text());
+    static_cast<void>(context.expectTrue("text predicate is available", textAvailable.ok() && *textAvailable));
 
     const auto emptyTextWrite = Clipboard::writeText("");
     static_cast<void>(context.expectTrue("empty text publishes", emptyTextWrite.status.ok()));
     const auto emptyTextRead = Clipboard::readText();
-    static_cast<void>(context.expectTrue("empty text reads", emptyTextRead.status.ok()));
-    static_cast<void>(context.expectTrue("empty text remains empty", emptyTextRead.text.empty()));
+    static_cast<void>(context.expectTrue("empty text reads", emptyTextRead.ok()));
+    static_cast<void>(context.expectTrue("empty text remains empty", emptyTextRead->empty()));
 
     const std::array paths{
         GameWIP::FileSystem::Types::Path{L"C:\\GameWIP Clipboard Nonexistent.txt"},
@@ -250,8 +252,8 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     const auto filesWrite = Clipboard::writeFiles(paths);
     static_cast<void>(context.expectTrue("absolute nonexistent Unicode paths publish without IO", filesWrite.status.ok()));
     const auto filesRead = Clipboard::readFiles();
-    static_cast<void>(context.expectTrue("file list reads", filesRead.status.ok()));
-    static_cast<void>(context.expectEq("file list preserves order and spelling", std::vector(paths.begin(), paths.end()), filesRead.paths));
+    static_cast<void>(context.expectTrue("file list reads", filesRead.ok()));
+    static_cast<void>(context.expectEq("file list preserves order and spelling", std::vector(paths.begin(), paths.end()), *filesRead));
 
     const std::array<std::byte, 24> paddedPixels{
         std::byte{0x10}, std::byte{0x20}, std::byte{0x30}, std::byte{0x40}, std::byte{0x50}, std::byte{0x60}, std::byte{0x70}, std::byte{0x80},
@@ -282,22 +284,22 @@ void testClipboardRoundTrips(TestSupport::Context &context)
         paddedPixels[17],
         paddedPixels[18],
         paddedPixels[19]};
-    static_cast<void>(context.expectTrue("DIBV5 image reads", imageRead.status.ok()));
-    static_cast<void>(context.expectEq("image dimensions round trip", Desktop::Types::PixelSize{2, 2}, imageRead.image.size));
-    static_cast<void>(context.expectEq("image read is tightly packed with alpha", expectedPixels, imageRead.image.rgba8));
+    static_cast<void>(context.expectTrue("DIBV5 image reads", imageRead.ok()));
+    static_cast<void>(context.expectEq("image dimensions round trip", Desktop::Types::PixelSize{2, 2}, imageRead->size));
+    static_cast<void>(context.expectEq("image read is tightly packed with alpha", expectedPixels, imageRead->rgba8));
 
     const std::array customBytes{std::byte{0x00}, std::byte{0x11}, std::byte{0xFE}, std::byte{0x7F}};
     const auto customWrite = Clipboard::writeCustomData({"MyCompany.Material", customBytes});
     static_cast<void>(context.expectTrue("arbitrary named binary format publishes", customWrite.status.ok()));
     const auto customRead = Clipboard::readCustomData("mycompany.material");
-    static_cast<void>(context.expectTrue("custom names use case-insensitive Win32 identity", customRead.status.ok()));
+    static_cast<void>(context.expectTrue("custom names use case-insensitive Win32 identity", customRead.ok()));
     static_cast<void>(
-        context.expectEq("opaque bytes including null round trip exactly", std::vector(customBytes.begin(), customBytes.end()), customRead.bytes));
+        context.expectEq("opaque bytes including null round trip exactly", std::vector(customBytes.begin(), customBytes.end()), *customRead));
     const auto formats = Clipboard::getFormats();
-    static_cast<void>(context.expectTrue("custom format enumeration succeeds", formats.status.ok()));
+    static_cast<void>(context.expectTrue("custom format enumeration succeeds", formats.ok()));
     static_cast<void>(context.expectTrue(
         "enumeration owns the native custom name",
-        std::ranges::find(formats.formats, Transfer::Format{Transfer::FormatKind::Custom, "MyCompany.Material"}) != formats.formats.end()));
+        formats.ok() && std::ranges::find(*formats, Transfer::Format{Transfer::FormatKind::Custom, "MyCompany.Material"}) != formats->end()));
     static_cast<void>(context.expectEq(
         "missing custom read is NotFound",
         ErrorCode::NotFound,
@@ -340,11 +342,11 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     if (context.expectTrue("foreign BI_RGB fixture publishes", publishNativeClipboardData(context, CF_DIB, rgbDib)))
     {
         const auto rgbRead = Clipboard::readImage();
-        static_cast<void>(context.expectTrue("foreign BI_RGB image reads", rgbRead.status.ok()));
-        if (rgbRead.image.rgba8.size() == 4)
+        static_cast<void>(context.expectTrue("foreign BI_RGB image reads", rgbRead.ok()));
+        if (rgbRead->rgba8.size() == 4)
         {
-            static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead.image.rgba8[0]));
-            static_cast<void>(context.expectEq("foreign RGB alpha becomes opaque", std::byte{0xFF}, rgbRead.image.rgba8[3]));
+            static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead->rgba8[0]));
+            static_cast<void>(context.expectEq("foreign RGB alpha becomes opaque", std::byte{0xFF}, rgbRead->rgba8[3]));
         }
     }
 
@@ -444,19 +446,19 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("several custom formats plus text publish", write.status.ok()));
     static_cast<void>(context.expectEq("all multi-format items publish", items.size(), write.formatsPublished));
     const auto formats = Clipboard::getFormats();
-    static_cast<void>(context.expectTrue("multi-format enumeration succeeds", formats.status.ok()));
-    static_cast<void>(context.expectTrue("multi-format enumeration contains three portable entries", formats.formats.size() >= items.size()));
-    if (formats.formats.size() >= items.size())
+    static_cast<void>(context.expectTrue("multi-format enumeration succeeds", formats.ok()));
+    static_cast<void>(context.expectTrue("multi-format enumeration contains three portable entries", formats.ok() && formats->size() >= items.size()));
+    if (formats.ok() && formats->size() >= items.size())
     {
         static_cast<void>(context.expectEq(
             "first caller format keeps priority",
             Transfer::Format{Transfer::FormatKind::Custom, "GameWIP.Validation.First"},
-            formats.formats[0]));
-        static_cast<void>(context.expectEq("text keeps caller priority", Transfer::Format{Transfer::FormatKind::Text, {}}, formats.formats[1]));
+            (*formats)[0]));
+        static_cast<void>(context.expectEq("text keeps caller priority", Transfer::Format{Transfer::FormatKind::Text, {}}, (*formats)[1]));
         static_cast<void>(context.expectEq(
             "second custom keeps caller priority",
             Transfer::Format{Transfer::FormatKind::Custom, "GameWIP.Validation.Second"},
-            formats.formats[2]));
+            (*formats)[2]));
     }
 
     const std::array<Transfer::ItemView, 2> duplicateText{Transfer::TextView{"one"}, Transfer::TextView{"two"}};
@@ -469,12 +471,12 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
         context.expectEq("duplicate native custom identity is rejected", ErrorCode::InvalidArgument, Clipboard::write(duplicateCustom).status.code));
 
     static_cast<void>(Clipboard::writeText("preserve me"));
-    const auto invalidImage = Transfer::ImageView{{2, 2}, 0, firstBytes};
+    const auto invalidImage = Transfer::ImageView::packed({2, 2}, firstBytes);
     const std::array<Transfer::ItemView, 2> invalidItems{Transfer::TextView{"replacement"}, invalidImage};
     const auto invalidWrite = Clipboard::write(invalidItems);
     static_cast<void>(context.expectEq("late preparation validation fails", ErrorCode::InvalidArgument, invalidWrite.status.code));
     static_cast<void>(context.expectEq("preparation failure remains NotStarted", ClipboardTypes::CommitState::NotStarted, invalidWrite.commitState));
-    static_cast<void>(context.expectEq("preparation failure preserves old clipboard", std::string{"preserve me"}, Clipboard::readText().text));
+    static_cast<void>(context.expectEq("preparation failure preserves old clipboard", std::string{"preserve me"}, *Clipboard::readText()));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     Desktop::TestHooks::resetFailures();
@@ -495,7 +497,7 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     Desktop::TestHooks::failClipboardEnumerationAfter(1);
     const auto partialEnumeration = Clipboard::getFormats();
     static_cast<void>(context.expectEq("partial enumeration reports read failure", ErrorCode::ReadFailed, partialEnumeration.status.code));
-    static_cast<void>(context.expectEq("partial enumeration preserves materialized prefix", std::size_t{1}, partialEnumeration.formats.size()));
+    static_cast<void>(context.expectFalse("partial enumeration does not expose a failed payload", partialEnumeration.value.has_value()));
 
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardRead);
     static_cast<void>(context.expectEq("native read failure translates", ErrorCode::ReadFailed, Clipboard::readText().status.code));
@@ -522,7 +524,7 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     static_cast<void>(context.expectEq("close failure preserves Published", ClipboardTypes::CommitState::Published, closeAfterWrite.commitState));
     static_cast<void>(context.expectEq("close failure preserves publication count", std::size_t{1}, closeAfterWrite.formatsPublished));
     static_cast<void>(
-        context.expectEq("published side effect survives close failure", std::string{"committed despite close failure"}, Clipboard::readText().text));
+        context.expectEq("published side effect survives close failure", std::string{"committed despite close failure"}, *Clipboard::readText()));
 
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardClose);
     const auto closeAfterClear = Clipboard::clear();

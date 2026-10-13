@@ -3,4 +3,4 @@
 
 #include "desktop/types.h"
 
-static_assert(GameWIP::Desktop::Types::Mode::Windowed != GameWIP::Desktop::Types::Mode::ExclusiveFullscreen);
+static_assert(GameWIP::Desktop::Types::WindowMode::Windowed != GameWIP::Desktop::Types::WindowMode::ExclusiveFullscreen);

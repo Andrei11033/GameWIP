@@ -10,9 +10,9 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     Desktop::Window window;
     Desktop::Types::Description description;
     description.title = "GameWIP accessibility semantic demo";
-    description.visible = true;
-    description.requestFocus = true;
-    description.clientSize = {800, 450};
+    description.activation.visible = true;
+    description.activation.requestFocus = true;
+    description.windowed.clientSize = {800, 450};
     if (!requireManualStatus(context, "accessibility demo opens", window.open(description)))
     {
         return;

@@ -100,6 +100,7 @@ set(expected_gamewip_headers
     desktop/events.h
     desktop/native/win32.h
     desktop/renderer_bridge.h
+    desktop/result.h
     desktop/shell.h
     desktop/shell_jump_lists.h
     desktop/shell_notifications.h

@@ -126,24 +126,33 @@ clears the sticky flag.
 
 ## Configuration vocabulary
 
-`Types::Mode` is the top-level Window mode. `Types::Controls` describes standard close/minimize/maximize availability.
+`Types::WindowMode` is the cached top-level Window presentation. Creation and
+runtime changes use the type-safe `Types::WindowModeRequest` factories:
+`WindowModes::windowed()`, `borderlessFullscreen()` (optionally with a
+`MonitorId`), and `exclusiveFullscreen()` (optionally with a physical
+`Display::Mode`, and optionally a monitor).
 `Types::Description::fileDropEnabled` configures initial file-drop delivery; runtime state is queried by `Window::fileDropEnabled()` and changed by
 `setFileDropEnabled()`.
 
 Configuration/request types live with `description.h`; shared primitive values remain in `types.h`; live Window state and call-scoped layouts remain
 in `window.h`.
 
-Creation options must agree: `requestFocus` requires both `visible` and
-`focusable`, hidden Windows require `PresentationState::Normal`, and the initial
-client size must satisfy size limits. A non-resizable Window must also set
-`controls.maximizable = false`. At runtime, disable that control with
+Creation options must agree: `activation.requestFocus` requires both
+`activation.visible` and `activation.focusable`, hidden Windows require
+`PresentationState::Normal`, and `windowed.clientSize` must satisfy
+`resizing.limits`. A non-resizable Window must also set
+`resizing.controls.maximizable = false`. At runtime, disable that control with
 `setControls()` before `setResizable(false)`; enable resizing before restoring
 the maximize control. Contradictory options return `InvalidArgument`.
 
-Only centered placement accepts a placement monitor. A windowed `ModeRequest`
-requires an invalid monitor, and only exclusive fullscreen accepts a display
-mode. Initial pointer policy accepts `Normal` or `ClickThrough`; region and mask
-modes require runtime configuration and backend support.
+The concepts are intentionally separate: `windowed` is the logical initial and
+restored client geometry; `initialWindowMode` is the presentation request; and
+an exclusive request's `displayMode` is a physical monitor-mode request. Only
+centered placement accepts `windowed.placement.monitor`; borderless and
+exclusive requests may target a monitor independently. A missing target monitor
+selects the current/nearest monitor, then the primary monitor. Initial pointer
+policy accepts `Normal` or `ClickThrough`; region and mask modes require runtime
+configuration and backend support.
 
 ## Custom cursors
 
@@ -160,9 +169,9 @@ opt-in resource surface. See @ref desktop_custom_cursors for image validation, D
 ## Clipboard and data transfer
 
 `desktop/data_transfer.h` owns `Types::DataTransfer` views and owning values for UTF-8 text, ordered paths, sRGB straight-alpha RGBA8 images, and
-arbitrary named opaque bytes. `desktop/clipboard.h` owns `Types::Clipboard` results and the stateless `Desktop::Clipboard` operations. It adds no
-`Window` capability because operations require no Window object or event pump. See @ref desktop_clipboard for timeout, transaction, native ownership,
-and custom-format semantics.
+arbitrary named opaque bytes. `desktop/clipboard.h` owns the stateless `Desktop::Clipboard` operations: query/read calls return `Types::Result<T>`
+with an optional value, while writes and clear use progress-specific result types. Clipboard adds no `Window` capability because operations require no
+Window object or event pump. See @ref desktop_clipboard for timeout, transaction, native ownership, and custom-format semantics.
 
 `desktop/drag_drop.h` owns the non-movable `DragDropTarget`, passive `Types::DragDrop` contract, and synchronous `DragDrop::beginDrag()`. See
 @ref desktop_drag_drop for lifecycle, queue, region, effect, and OLE rules.
@@ -172,14 +181,18 @@ and custom-format semantics.
 Event payloads live under `Types::Events` and do not repeat the `Event` suffix. Examples are `CloseRequested`, `ClientPositionChanged`,
 `InteractiveMoveResizeStarted`, `InteractiveMoveResizeEnded`, `FilesDropped`, and `NativeDestroyed`.
 
-`Types::Events::Payload` is the payload variant. `Types::Event` remains the queued envelope and carries a monotonic sequence plus typed `getIf<T>()`
-access. Queue metadata lives in `Types::Events::StorageKind` and `QueueInfo`; pump results use `Types::Events::PumpResult`.
+`Types::Events::Payload` is the payload variant. Every queued envelope—Window,
+ChildSurface, DragDrop, and Shell—carries a monotonic sequence plus `kind()`,
+`is<T>()`, and typed `getIf<T>()` access. Queue metadata lives in
+`Types::Events::StorageKind` and `QueueInfo`; pump results use
+`Types::Events::PumpResult`.
 
 Calling-thread pumping is grouped under `Desktop::Events`:
 
 - `Events::poll()` is non-blocking.
 - `Events::wait(timeout)` accepts zero, a finite non-negative timeout, or `Events::kWaitForever`.
 - `Events::kDefaultQueueCapacity` is used by the default `Window::open()` overload.
+- `Events::owned(capacity)` and `Events::borrowed(storage)` make Window queue ownership explicit for the configured `open()` overload.
 
 Explicit `close()` emits no destruction event. Unexpected native destruction queues `Types::Events::NativeDestroyed`, changes `lifetimeState()` to
 `NativeDestroyedPendingFinalize`, and keeps owner-thread cached state and queued events available until controlled finalization. When concurrent
@@ -192,6 +205,10 @@ Fundamental display mode operations are under `Desktop::Display`:
 - `getModes()`
 - `getCurrentMode()`
 - `getPreferredMode()`
+
+All display and rich monitor/color queries return `Types::Result<T>`. Test
+`ok()` (or `status.ok()` plus `value`) before dereferencing the optional value;
+failed queries do not expose a default-looking monitor or mode payload.
 
 Rich inspection from `desktop/display_info.h` adds:
 

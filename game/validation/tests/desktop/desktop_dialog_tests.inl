@@ -256,8 +256,9 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     FileDialogs::OpenDescription owned{.owner = &owner};
     static_cast<void>(context.expectEq("closed file-dialog owner is NotOpen", ErrorCode::NotOpen, Desktop::Dialogs::openFile(owned).status.code));
     Desktop::Types::Description ownerDescription;
-    ownerDescription.visible = false;
-    static_cast<void>(context.expectTrue("file-dialog owner opens", owner.open(ownerDescription, 4).ok()));
+    ownerDescription.activation.visible = false;
+    static_cast<void>(context.expectTrue(
+        "file-dialog owner opens", owner.open(ownerDescription, Desktop::Events::owned(4)).ok()));
     armFileDialog(FileOperation::OpenFile);
     static_cast<void>(context.expectTrue("current-thread owner is accepted", Desktop::Dialogs::openFile(owned).status.ok()));
     ErrorCode foreignOwnerCode = ErrorCode::Unknown;
@@ -715,8 +716,8 @@ void testPromptDialogs(TestSupport::Context &context)
     description.checkBox.reset();
     Desktop::TestHooks::completeNextPromptDialog({.dismissed = true});
     const auto noSemanticCancel = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectFalse("Prompt dismissal without cancel has invalid ID", noSemanticCancel.button.isValid()));
-    static_cast<void>(context.expectFalse("Prompt with no option selection has invalid option", noSemanticCancel.option.isValid()));
+    static_cast<void>(context.expectFalse("Prompt dismissal without cancel has no ID", noSemanticCancel.button.has_value()));
+    static_cast<void>(context.expectFalse("Prompt with no option selection has no option", noSemanticCancel.option.has_value()));
     static_cast<void>(context.expectFalse("Prompt without checkbox returns nullopt", noSemanticCancel.checkBoxChecked.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = description.options.size() + 1, .dismissed = false});
@@ -725,14 +726,14 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "malformed Prompt option leaves every result field defaulted",
         malformedOption.status.code == ErrorCode::NativeFailure && malformedOption.outcome == DialogTypes::Outcome::Cancelled &&
-            !malformedOption.button.isValid() && !malformedOption.option.isValid() && !malformedOption.checkBoxChecked.has_value()));
+            !malformedOption.button.has_value() && !malformedOption.option.has_value() && !malformedOption.checkBoxChecked.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = (std::numeric_limits<std::size_t>::max)(), .dismissed = false});
     const auto maximumMalformedOption = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectTrue(
         "maximum malformed Prompt option leaves every result field defaulted",
         maximumMalformedOption.status.code == ErrorCode::NativeFailure && maximumMalformedOption.outcome == DialogTypes::Outcome::Cancelled &&
-            !maximumMalformedOption.button.isValid() && !maximumMalformedOption.option.isValid() &&
+            !maximumMalformedOption.button.has_value() && !maximumMalformedOption.option.has_value() &&
             !maximumMalformedOption.checkBoxChecked.has_value()));
 
     description.options = options;
@@ -747,14 +748,14 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("Prompt allocation failure maps", ErrorCode::OutOfMemory, failed.status.code));
     static_cast<void>(context.expectTrue(
         "failed Prompt domain fields remain defaulted",
-        failed.outcome == DialogTypes::Outcome::Cancelled && !failed.button.isValid() && !failed.option.isValid() &&
+        failed.outcome == DialogTypes::Outcome::Cancelled && !failed.button.has_value() && !failed.option.has_value() &&
             !failed.checkBoxChecked.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogNativeOperation);
     failed = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("Prompt native failure maps", ErrorCode::NativeFailure, failed.status.code));
-    static_cast<void>(context.expectFalse("native-failed Prompt button remains invalid", failed.button.isValid()));
+    static_cast<void>(context.expectFalse("native-failed Prompt button remains absent", failed.button.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogResult);

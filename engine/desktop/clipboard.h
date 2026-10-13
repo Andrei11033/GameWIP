@@ -6,6 +6,7 @@
 #include "io/status.h"
 #include "desktop/data_transfer.h"
 #include "desktop/desktop_export.h"
+#include "desktop/result.h"
 
 #include <chrono>
 #include <cstddef>
@@ -23,48 +24,6 @@ namespace GameWIP::Desktop::Types::Clipboard
         Cleared,            ///< The Clipboard was cleared but no requested item was published.
         PartiallyPublished, ///< A proper prefix of requested items was published.
         Published           ///< Every requested item was published.
-    };
-
-    /// @brief Status and format-availability predicate result.
-    struct FormatResult
-    {
-        IO::Types::Status status; ///< Query status; absence itself is successful.
-        bool available = false;   ///< Whether the valid requested format is available.
-    };
-
-    /// @brief Status and owning ordered format enumeration.
-    struct FormatsResult
-    {
-        IO::Types::Status status;                  ///< Enumeration status.
-        std::vector<DataTransfer::Format> formats; ///< Meaningful formats materialized before completion/failure.
-    };
-
-    /// @brief Status and UTF-8 Clipboard text.
-    struct TextResult
-    {
-        IO::Types::Status status; ///< Read status.
-        std::string text;         ///< UTF-8 text on success.
-    };
-
-    /// @brief Status and ordered Clipboard file list.
-    struct FileListResult
-    {
-        IO::Types::Status status;                   ///< Read status.
-        std::vector<FileSystem::Types::Path> paths; ///< Materialized native paths on success.
-    };
-
-    /// @brief Status and tightly packed Clipboard image.
-    struct ImageResult
-    {
-        IO::Types::Status status;  ///< Read status.
-        DataTransfer::Image image; ///< Materialized RGBA8 image on success.
-    };
-
-    /// @brief Status and opaque native custom-format block.
-    struct CustomDataResult
-    {
-        IO::Types::Status status;     ///< Read status; absence is NotFound.
-        std::vector<std::byte> bytes; ///< Complete native allocation extent on success.
     };
 
     /// @brief Status and exact external mutation progress for a write.
@@ -96,52 +55,53 @@ namespace GameWIP::Desktop::Clipboard
 
     /// @brief Tests a format using the default access timeout.
     /// @param format Valid format description; standard categories require an empty customName.
-    /// @return Successful false for ordinary absence, or an operational failure status.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatResult hasFormat(Types::DataTransfer::FormatView format) noexcept;
+    /// @return `Result<bool>`; value is present on success and false means ordinary absence.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<bool> hasFormat(Types::DataTransfer::FormatView format) noexcept;
     /// @brief Tests a format using an explicit bounded access timeout.
     /// @param format Valid format description; custom names are strict nonempty UTF-8.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
-    /// @return Successful false for ordinary absence, or an operational failure status.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatResult hasFormat(
+    /// @return `Result<bool>`; value is present on success and false means ordinary absence.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<bool> hasFormat(
         Types::DataTransfer::FormatView format,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Enumerates formats using the default timeout.
-    /// @return Status plus owning descriptions in meaningful native priority order.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatsResult getFormats() noexcept;
+    /// @return `Result<vector<Format>>`; value is present only when enumeration succeeds.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<Types::DataTransfer::Format>> getFormats() noexcept;
     /// @brief Enumerates formats using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
-    /// @return Status plus any meaningful owning prefix materialized before failure.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FormatsResult getFormats(std::chrono::milliseconds timeout) noexcept;
+    /// @return `Result<vector<Format>>`; failed enumeration does not expose a partial value.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<Types::DataTransfer::Format>> getFormats(
+        std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads strict UTF-8 text using the default timeout.
-    /// @return Text and status; absence reports NotFound.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::TextResult readText() noexcept;
+    /// @return `Result<string>`; absence reports NotFound.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::string> readText() noexcept;
     /// @brief Reads strict UTF-8 text using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Text and status; malformed native Unicode reports EncodingFailed.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::TextResult readText(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::string> readText(std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads an ordered native path list using the default timeout.
-    /// @return Paths and status; absence reports NotFound.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FileListResult readFiles() noexcept;
+    /// @return `Result<vector<Path>>`; absence reports NotFound.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<FileSystem::Types::Path>> readFiles() noexcept;
     /// @brief Reads an ordered native path list using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return Paths and status without performing file-system IO.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::FileListResult readFiles(std::chrono::milliseconds timeout) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<FileSystem::Types::Path>> readFiles(std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads a tightly packed RGBA8 image using the default timeout.
-    /// @return Image and status; an available unconvertible native image reports Unsupported.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::ImageResult readImage() noexcept;
+    /// @return `Result<Image>`; an available unconvertible native image reports Unsupported.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::DataTransfer::Image> readImage() noexcept;
     /// @brief Reads a tightly packed RGBA8 image using an explicit timeout.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
-    /// @return Image and status; absence reports NotFound.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::ImageResult readImage(std::chrono::milliseconds timeout) noexcept;
+    /// @return `Result<Image>`; absence reports NotFound.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::DataTransfer::Image> readImage(std::chrono::milliseconds timeout) noexcept;
     /// @brief Reads an opaque named native block using the default timeout.
     /// @param formatName Nonempty strict UTF-8 native format name without embedded U+0000.
-    /// @return Native allocation extent and status; absence reports NotFound.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::CustomDataResult readCustomData(std::string_view formatName) noexcept;
+    /// @return `Result<vector<byte>>`; absence reports NotFound.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<std::byte>> readCustomData(std::string_view formatName) noexcept;
     /// @brief Reads an opaque named native block using an explicit timeout.
     /// @param formatName Nonempty strict UTF-8 native format name without embedded U+0000.
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
-    /// @return Native allocation extent and status; logical framing remains format-defined.
-    [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::CustomDataResult readCustomData(
+    /// @return `Result<vector<byte>>`; logical framing remains format-defined.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<std::byte>> readCustomData(
         std::string_view formatName,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Replaces Clipboard contents with UTF-8 text using the default timeout.

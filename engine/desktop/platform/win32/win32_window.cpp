@@ -119,7 +119,7 @@ namespace GameWIP::Desktop::Detail::Platform
         const Types::WindowId removed = state.id;
         windowRegistry.erase(state.id.value);
         state.id = {};
-        state.owner = {};
+        state.owner = Types::WindowId::invalid();
         if (!removed.isValid())
         {
             return;
@@ -129,7 +129,7 @@ namespace GameWIP::Desktop::Detail::Platform
             static_cast<void>(id);
             if (candidate != nullptr && candidate->owner == removed)
             {
-                candidate->owner = {};
+                candidate->owner = Types::WindowId::invalid();
                 if (candidate->platform && candidate->platform->handle != nullptr)
                 {
                     SetLastError(ERROR_SUCCESS);
@@ -144,7 +144,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         recordPumpFailure(std::move(styleStatus));
                     }
                 }
-                routeEvent(*candidate, Types::Events::OwnerChanged{removed, {}});
+                routeEvent(*candidate, Types::Events::OwnerChanged{removed, std::nullopt});
             }
         }
     }
@@ -153,7 +153,7 @@ namespace GameWIP::Desktop::Detail::Platform
     DWORD styleFor(const WindowState &state) noexcept
     {
         DWORD style = WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-        if (state.mode != Types::Mode::Windowed)
+        if (state.mode != Types::WindowMode::Windowed)
         {
             return style | WS_POPUP;
         }
@@ -991,16 +991,16 @@ namespace GameWIP::Desktop::Detail::Platform
             return;
         }
         HMONITOR native = MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
-        Types::Display::InfoResult info = monitorFromNative(native);
+        Types::Result<Types::Display::Info> info = monitorFromNative(native);
         if (!info.status.ok())
         {
             recordPumpFailure(std::move(info.status));
             return;
         }
-        if (info.monitor.id != state.monitor)
+        if (info->id != state.monitor)
         {
             const Types::Display::MonitorId previous = state.monitor;
-            state.monitor = info.monitor.id;
+            state.monitor = info->id;
             if (state.presentationPublication != nullptr)
             {
                 state.presentationPublication->publishMonitor(state.monitor);
@@ -1125,7 +1125,7 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Leaves exclusive mode and restores the saved desktop display mode.
     IO::Types::Status leaveExclusive(WindowState &state) noexcept
     {
-        if (state.platform && state.mode != Types::Mode::Windowed && Detail::consumeFailure(TestHooks::FailurePoint::DisplayRestoration))
+        if (state.platform && state.mode != Types::WindowMode::Windowed && Detail::consumeFailure(TestHooks::FailurePoint::DisplayRestoration))
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
         }

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "desktop/types.h"
+#include "desktop/events.h"
 #include "filesystem/path.h"
 
 #include <cstdint>
@@ -14,6 +15,7 @@
 #include <string_view>
 #include <variant>
 #include <vector>
+#include <utility>
 
 /// @brief Portable shell identities, targets, launch values, progress, and event payloads.
 namespace GameWIP::Desktop::Types::Shell
@@ -29,6 +31,8 @@ namespace GameWIP::Desktop::Types::Shell
             return value != 0;
         }
 
+        [[nodiscard]] static constexpr TrayIconId invalid() noexcept { return {}; }
+
         friend constexpr bool operator==(TrayIconId, TrayIconId) noexcept = default;
     };
 
@@ -43,6 +47,8 @@ namespace GameWIP::Desktop::Types::Shell
             return value != 0;
         }
 
+        [[nodiscard]] static constexpr NotificationId invalid() noexcept { return {}; }
+
         friend constexpr bool operator==(NotificationId, NotificationId) noexcept = default;
     };
 
@@ -56,6 +62,8 @@ namespace GameWIP::Desktop::Types::Shell
         {
             return value != 0;
         }
+
+        [[nodiscard]] static constexpr CommandId invalid() noexcept { return {}; }
 
         friend constexpr bool operator==(CommandId, CommandId) noexcept = default;
     };
@@ -79,6 +87,14 @@ namespace GameWIP::Desktop::Types::Shell
     /// filesystem-path semantics, and @c UriTargetView for URI semantics.
     using TargetView = std::variant<std::monostate, PathTargetView, UriTargetView>;
 
+    /// @brief Named constructors for non-owning shell targets.
+    namespace Targets
+    {
+        [[nodiscard]] inline TargetView none() noexcept { return std::monostate{}; }
+        [[nodiscard]] inline TargetView path(const FileSystem::Types::Path &value) noexcept { return PathTargetView{std::cref(value)}; }
+        [[nodiscard]] inline TargetView uri(std::string_view value) noexcept { return UriTargetView{value}; }
+    } // namespace Targets
+
     /// @brief Owning filesystem-path target.
     struct PathTarget
     {
@@ -99,6 +115,13 @@ namespace GameWIP::Desktop::Types::Shell
     /// @details The alternatives are @c std::monostate for no target, @c PathTarget for
     /// filesystem-path semantics, and @c UriTarget for URI semantics.
     using Target = std::variant<std::monostate, PathTarget, UriTarget>;
+
+    /// @brief Named constructors for owning shell targets.
+    namespace Targets
+    {
+        [[nodiscard]] inline Target ownedPath(FileSystem::Types::Path value) { return PathTarget{std::move(value)}; }
+        [[nodiscard]] inline Target ownedUri(std::string value) { return UriTarget{std::move(value)}; }
+    } // namespace Targets
 
     /// @brief Placeholder for target substitution in a launch argument.
     /// @details Registration commands expand these placeholders when their shell event supplies
@@ -129,6 +152,14 @@ namespace GameWIP::Desktop::Types::Shell
     /// @brief Tagged non-owning launch argument.
     using LaunchArgumentView = std::variant<LiteralLaunchArgumentView, TargetLaunchArgumentView, LaunchPlaceholder>;
 
+    /// @brief Named constructors for non-owning launch arguments.
+    namespace LaunchArguments
+    {
+        [[nodiscard]] inline LaunchArgumentView literal(std::string_view value) noexcept { return LiteralLaunchArgumentView{value}; }
+        [[nodiscard]] inline LaunchArgumentView target(TargetView value) noexcept { return TargetLaunchArgumentView{std::move(value)}; }
+        [[nodiscard]] inline LaunchArgumentView placeholder(LaunchPlaceholder value) noexcept { return value; }
+    } // namespace LaunchArguments
+
     /// @brief Owning literal launch argument.
     struct LiteralLaunchArgument
     {
@@ -147,6 +178,14 @@ namespace GameWIP::Desktop::Types::Shell
 
     /// @brief Tagged owning launch argument.
     using LaunchArgument = std::variant<LiteralLaunchArgument, TargetLaunchArgument, LaunchPlaceholder>;
+
+    /// @brief Named constructors for owning launch arguments.
+    namespace LaunchArguments
+    {
+        [[nodiscard]] inline LaunchArgument ownedLiteral(std::string value) { return LiteralLaunchArgument{std::move(value)}; }
+        [[nodiscard]] inline LaunchArgument ownedTarget(Target value) { return TargetLaunchArgument{std::move(value)}; }
+        [[nodiscard]] inline LaunchArgument ownedPlaceholder(LaunchPlaceholder value) noexcept { return value; }
+    } // namespace LaunchArguments
 
     /// @brief Non-owning executable and arguments for a call-scoped launch action.
     /// @details The executable and argument storage must remain alive until the receiving operation returns.
@@ -193,6 +232,8 @@ namespace GameWIP::Desktop::Types::Shell
         {
             return value != 0;
         }
+
+        [[nodiscard]] static constexpr NotificationInputId invalid() noexcept { return {}; }
 
         friend constexpr bool operator==(NotificationInputId, NotificationInputId) noexcept = default;
     };
@@ -298,6 +339,23 @@ namespace GameWIP::Desktop::Types::Shell
         std::uint64_t sequence = 0; ///< Monotonic sequence within the current open lifetime.
         Events::Payload data;       ///< Tagged shell event payload.
 
+        enum class Kind : std::uint8_t
+        {
+            TrayActivated,
+            TrayCommandInvoked,
+            TaskbarThumbnailButtonInvoked,
+            NotificationActivated,
+            NotificationDismissed,
+            TrayIconStateLost
+        };
+
+        [[nodiscard]] constexpr Kind kind() const noexcept { return static_cast<Kind>(data.index()); }
+
+        template <typename PayloadType> [[nodiscard]] bool is() const noexcept
+        {
+            return std::holds_alternative<PayloadType>(data);
+        }
+
         /// @brief Queries the mutable event payload by type.
         /// @tparam PayloadType Payload alternative to query.
         /// @return Pointer to the stored payload, or nullptr if the type does not match.
@@ -314,5 +372,8 @@ namespace GameWIP::Desktop::Types::Shell
             return std::get_if<PayloadType>(&data);
         }
     };
+
+    /// @brief Explicit owned-or-borrowed storage policy for Shell events.
+    using QueueConfiguration = ::GameWIP::Desktop::Types::Events::EventQueueConfiguration<Event>;
 
 } // namespace GameWIP::Desktop::Types::Shell

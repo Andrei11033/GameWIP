@@ -115,75 +115,21 @@ namespace GameWIP::Desktop
 
     IO::Types::Status ChildSurface::open(Window &parent, const Types::ChildSurface::Description &description) noexcept
     {
-        return open(parent, description, Events::kDefaultQueueCapacity);
-    }
-
-    IO::Types::Status ChildSurface::open(Window &parent, const Types::ChildSurface::Description &description, std::size_t eventQueueCapacity) noexcept
-    {
-        if (state_)
-        {
-            return error(ErrorCode::AlreadyOpen);
-        }
-        if (eventQueueCapacity == 0)
-        {
-            return error(ErrorCode::InvalidArgument);
-        }
-        Detail::WindowState *parentState = Detail::WindowAccess::state(parent);
-        if (parentState == nullptr || !Detail::Platform::hasLiveNativeWindow(*parentState))
-        {
-            return error(ErrorCode::NotOpen);
-        }
-        if (!Detail::Platform::ownedByCurrentThread(*parentState))
-        {
-            return error(ErrorCode::ResourceBusy);
-        }
-        if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
-        {
-            return error(ErrorCode::OutOfMemory);
-        }
-
-        try
-        {
-            auto candidate = std::make_unique<Detail::ChildSurfaceState>();
-            initializeCachedState(*candidate, description);
-            if (eventQueueCapacity > candidate->internalEvents.max_size())
-            {
-                return error(ErrorCode::InvalidArgument);
-            }
-            candidate->internalEvents.resize(eventQueueCapacity);
-            candidate->eventStorage = candidate->internalEvents;
-            candidate->eventStorageKind = Types::Events::StorageKind::Internal;
-            candidate->parentId = parentState->id;
-            IO::Types::Status status = Detail::Platform::openChildSurface(*candidate, *parentState);
-            if (!status.ok())
-            {
-                Detail::Platform::closeChildSurfaceBestEffort(*candidate);
-                return status;
-            }
-            candidate->suppressEvents = false;
-            state_ = std::move(candidate);
-            return IO::successStatus();
-        }
-        catch (const std::bad_alloc &)
-        {
-            return error(ErrorCode::OutOfMemory);
-        }
-        catch (...)
-        {
-            return error(ErrorCode::Unknown);
-        }
+        return open(parent, description, Types::ChildSurface::QueueConfiguration::owned());
     }
 
     IO::Types::Status ChildSurface::open(
         Window &parent,
         const Types::ChildSurface::Description &description,
-        std::span<Types::ChildSurface::Event> eventStorage) noexcept
+        Types::ChildSurface::QueueConfiguration queue) noexcept
     {
         if (state_)
         {
             return error(ErrorCode::AlreadyOpen);
         }
-        if (eventStorage.empty())
+        const auto *ownedQueue = std::get_if<Types::ChildSurface::QueueConfiguration::Owned>(&queue.storage);
+        const auto *borrowedQueue = std::get_if<Types::ChildSurface::QueueConfiguration::Borrowed>(&queue.storage);
+        if ((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
         {
             return error(ErrorCode::InvalidArgument);
         }
@@ -205,8 +151,21 @@ namespace GameWIP::Desktop
         {
             auto candidate = std::make_unique<Detail::ChildSurfaceState>();
             initializeCachedState(*candidate, description);
-            candidate->eventStorage = eventStorage;
-            candidate->eventStorageKind = Types::Events::StorageKind::External;
+            if (ownedQueue != nullptr)
+            {
+                if (ownedQueue->capacity > candidate->internalEvents.max_size())
+                {
+                    return error(ErrorCode::InvalidArgument);
+                }
+                candidate->internalEvents.resize(ownedQueue->capacity);
+                candidate->eventStorage = candidate->internalEvents;
+                candidate->eventStorageKind = Types::Events::StorageKind::Internal;
+            }
+            else
+            {
+                candidate->eventStorage = borrowedQueue->storage;
+                candidate->eventStorageKind = Types::Events::StorageKind::External;
+            }
             candidate->parentId = parentState->id;
             IO::Types::Status status = Detail::Platform::openChildSurface(*candidate, *parentState);
             if (!status.ok())
@@ -426,7 +385,7 @@ namespace GameWIP::Desktop
         return setRect(newRect);
     }
 
-    Types::ScreenPositionResult ChildSurface::clientToScreen(Types::LogicalPosition position) const noexcept
+    Types::Result<Types::ScreenPosition> ChildSurface::clientToScreen(Types::LogicalPosition position) const noexcept
     {
         IO::Types::Status status = requireOpen(state_.get());
         if (!status.ok())
@@ -436,7 +395,7 @@ namespace GameWIP::Desktop
         return Detail::Platform::childSurfaceClientToScreen(*state_, position);
     }
 
-    Types::LogicalPositionResult ChildSurface::screenToClient(Types::ScreenPosition position) const noexcept
+    Types::Result<Types::LogicalPosition> ChildSurface::screenToClient(Types::ScreenPosition position) const noexcept
     {
         IO::Types::Status status = requireOpen(state_.get());
         if (!status.ok())

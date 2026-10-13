@@ -355,7 +355,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         {
                             return failure(ErrorCode::InvalidArgument);
                         }
-                        const std::size_t stride = value.rowStrideBytes ? value.rowStrideBytes : row;
+                        const std::size_t stride = value.rowStrideBytes.value_or(row);
                         if (stride < row || !multiply(stride, value.size.height, inputBytes) || inputBytes != value.rgba8.size())
                         {
                             return failure(ErrorCode::InvalidArgument);

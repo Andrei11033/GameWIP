@@ -35,6 +35,7 @@ gamewip_add_public_header_check(DesktopDisplay desktop_display_header.cpp GameWI
 gamewip_add_public_header_check(DesktopDisplayInfo desktop_display_info_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopWindow desktop_window_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopRenderer desktop_renderer_header.cpp GameWIP::Desktop)
+gamewip_add_public_header_check(DesktopResult desktop_result_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShell desktop_shell_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellTypes desktop_shell_types_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellTaskbar desktop_shell_taskbar_header.cpp GameWIP::Desktop)

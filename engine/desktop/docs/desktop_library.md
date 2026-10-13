@@ -133,8 +133,10 @@ its physical client pixels.
 ## Public header boundary
 
 The normal portable surface is assembled by `desktop/window.h` from focused
-`desktop/types.h`, `desktop/description.h`, `desktop/events.h`, and
-`desktop/display.h`. Rich monitor/color inspection is opt-in through
+`desktop/types.h`, `desktop/description.h`, `desktop/events.h`,
+`desktop/result.h`, and `desktop/display.h`. `Types::Result<T>` is the common
+status-plus-optional-value contract for all-or-nothing Desktop queries. Rich
+monitor/color inspection is opt-in through
 `desktop/display_info.h`.
 
 Custom native cursors use `desktop/cursor.h`, native child hosts use

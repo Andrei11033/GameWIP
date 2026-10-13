@@ -362,7 +362,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Queries one current or preferred mode from the monitor device.
-        [[nodiscard]] Types::Display::ModeResult queryDisplayMode(Types::Display::MonitorId monitor, DWORD selector) noexcept
+        [[nodiscard]] Types::Result<Types::Display::Mode> queryDisplayMode(Types::Display::MonitorId monitor, DWORD selector) noexcept
         {
             if (!monitor.isValid())
             {
@@ -391,7 +391,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         mode.interlaced = interlaced(active.path.targetInfo.scanLineOrdering);
                     }
                 }
-                return {.status = IO::successStatus(), .mode = mode};
+                return {.status = IO::successStatus(), .value = mode};
             }
             catch (const std::bad_alloc &)
             {
@@ -414,7 +414,7 @@ namespace GameWIP::Desktop::Detail::Platform
         BOOL CALLBACK enumerateMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM userData)
         {
             auto &context = *reinterpret_cast<EnumerationContext *>(userData);
-            Types::Display::InfoResult result = monitorFromNative(monitor);
+            Types::Result<Types::Display::Info> result = monitorFromNative(monitor);
             if (!result.status.ok())
             {
                 context.status = std::move(result.status);
@@ -422,7 +422,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             try
             {
-                context.monitors->push_back(std::move(result.monitor));
+                context.monitors->push_back(std::move(*result.value));
                 return TRUE;
             }
             catch (const std::bad_alloc &)
@@ -508,7 +508,7 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Computes all Window capabilities from the current Windows build.
-    Types::CapabilitiesResult getCapabilities() noexcept
+    Types::Result<Types::Capabilities> getCapabilities() noexcept
     {
         using C = Types::Capability;
         std::uint64_t flags = capabilityBit(C::MultipleWindows) | capabilityBit(C::MultipleWindowThreads) | capabilityBit(C::OwnedWindows) |
@@ -529,14 +529,14 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         return {
             .status = IO::successStatus(),
-            .capabilities = {.flags = flags, .maximumCustomChromeRegions = kMaximumChromeRegions, .maximumPointerInputRegions = 0}};
+            .value = Types::Capabilities{.flags = flags, .maximumCustomChromeRegions = kMaximumChromeRegions, .maximumPointerInputRegions = 0}};
     }
 
     // ------------------------------------------------------------
     // Monitor queries
     // ------------------------------------------------------------
     /// @brief Converts a native monitor handle into portable geometry and color information.
-    Types::Display::InfoResult monitorFromNative(HMONITOR monitor) noexcept
+    Types::Result<Types::Display::Info> monitorFromNative(HMONITOR monitor) noexcept
     {
         if (monitor == nullptr)
         {
@@ -613,7 +613,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return {
                 .status = IO::successStatus(),
-                .monitor = {
+                .value = Types::Display::Info{
                     .id = idForDevice(native.szDevice),
                     .name = std::move(name),
                     .bounds = makeRect(native.rcMonitor),
@@ -636,9 +636,9 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Enumerates current native monitors in stable portable form.
-    Types::Display::MonitorsResult getMonitors() noexcept
+    Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
     {
-        Types::Display::MonitorsResult result;
+        Types::Result<std::vector<Types::Display::Info>> result;
         if (Detail::consumeFailure(TestHooks::FailurePoint::DisplayEnumeration))
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed);
@@ -646,7 +646,8 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         try
         {
-            EnumerationContext context{&result.monitors, IO::successStatus()};
+            result.value.emplace();
+            EnumerationContext context{&*result.value, IO::successStatus()};
             if (EnumDisplayMonitors(nullptr, nullptr, enumerateMonitor, reinterpret_cast<LPARAM>(&context)) == FALSE)
             {
                 if (!context.status.ok())
@@ -657,7 +658,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     result.status = statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "EnumDisplayMonitors");
                 }
-                result.monitors.clear();
+                result.value.reset();
                 return result;
             }
             result.status = IO::successStatus();
@@ -674,14 +675,14 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Returns the primary native monitor in portable form.
-    Types::Display::InfoResult getPrimaryMonitor() noexcept
+    Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept
     {
         const POINT origin{};
         return monitorFromNative(MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY));
     }
 
     /// @brief Resolves a stable portable monitor identity to current native information.
-    Types::Display::InfoResult getMonitor(Types::Display::MonitorId monitor) noexcept
+    Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
         {
@@ -731,7 +732,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // Display modes
     // ------------------------------------------------------------
     /// @brief Enumerates supported native display modes for one monitor.
-    Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept
+    Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
         {
@@ -748,7 +749,9 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return {.status = IO::makeStatus(IO::Types::ErrorCode::NotFound)};
             }
-            Types::Display::ModesResult result;
+            Types::Result<std::vector<Types::Display::Mode>> result;
+            result.value.emplace();
+            auto &modes = *result.value;
             for (DWORD index = 0;; ++index)
             {
                 DEVMODEW native{};
@@ -768,14 +771,14 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     continue;
                 }
-                if (std::find(result.modes.begin(), result.modes.end(), mode) == result.modes.end())
+                if (std::find(modes.begin(), modes.end(), mode) == modes.end())
                 {
-                    result.modes.push_back(mode);
+                    modes.push_back(mode);
                 }
             }
             std::sort(
-                result.modes.begin(),
-                result.modes.end(),
+                modes.begin(),
+                modes.end(),
                 [](const Types::Display::Mode &left, const Types::Display::Mode &right)
                 {
                     if (left.resolution.width != right.resolution.width)
@@ -810,13 +813,13 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Returns the currently active display mode for one monitor.
-    Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept
+    Types::Result<Types::Display::Mode> getCurrentMode(Types::Display::MonitorId monitor) noexcept
     {
         return queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
     }
 
     /// @brief Returns the preferred display mode for one monitor.
-    Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept
+    Types::Result<Types::Display::Mode> getPreferredMode(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
         {
@@ -853,14 +856,14 @@ namespace GameWIP::Desktop::Detail::Platform
                         "DisplayConfigGetDeviceInfo preferred mode")};
             }
 
-            const Types::Display::ModeResult current = queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
+            const Types::Result<Types::Display::Mode> current = queryDisplayMode(monitor, ENUM_CURRENT_SETTINGS);
             const DISPLAYCONFIG_VIDEO_SIGNAL_INFO &signal = preferred.targetMode.targetVideoSignalInfo;
             return {
                 .status = IO::successStatus(),
-                .mode = {
+                .value = Types::Display::Mode{
                     .resolution = {preferred.width, preferred.height},
                     .refreshRateMillihertz = rationalMillihertz(signal.vSyncFreq),
-                    .bitsPerPixel = current.status.ok() ? current.mode.bitsPerPixel : std::uint16_t{0},
+                    .bitsPerPixel = current.ok() ? current->bitsPerPixel : std::uint16_t{0},
                     .interlaced = interlaced(signal.scanLineOrdering)}};
         }
         catch (const std::bad_alloc &)
@@ -877,7 +880,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // Display color state
     // ------------------------------------------------------------
     /// @brief Returns HDR, gamut, luminance, and SDR reference-white metadata.
-    Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept
+    Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
     {
         if (!monitor.isValid())
         {
@@ -918,7 +921,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     releaseDisplayColorResources();
                 }
-                return {.status = IO::successStatus(), .info = makeDisplayColorInfo(monitor, snapshot)};
+                return {.status = IO::successStatus(), .value = makeDisplayColorInfo(monitor, snapshot)};
             }
 #endif
             addDisplayConfigColorMetadata(active, snapshot);
@@ -927,7 +930,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 releaseDisplayColorResources();
             }
-            return {.status = IO::successStatus(), .info = makeDisplayColorInfo(monitor, snapshot)};
+            return {.status = IO::successStatus(), .value = makeDisplayColorInfo(monitor, snapshot)};
         }
         catch (const std::bad_alloc &)
         {

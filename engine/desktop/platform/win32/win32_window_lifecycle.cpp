@@ -33,7 +33,8 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "Window requires a Per-Monitor-V2-aware executable manifest");
             }
-            const Types::Capabilities capabilities = getCapabilities().capabilities;
+            const auto capabilitiesResult = getCapabilities();
+            const Types::Capabilities capabilities = capabilitiesResult.value_or({});
             if (description.transparentFramebuffer && !capabilities.supports(Types::Capability::TransparentFramebuffer))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "transparentFramebuffer requires Windows 11 build 26100 or newer");
@@ -61,8 +62,21 @@ namespace GameWIP::Desktop::Detail::Platform
             data->classReferenceHeld = true;
             state.platform = std::move(data);
 
-            if ((description.placement.monitor.isValid() && nativeMonitor(description.placement.monitor) == nullptr) ||
-                (description.mode.monitor.isValid() && nativeMonitor(description.mode.monitor) == nullptr))
+            const std::optional<Types::Display::MonitorId> requestedModeMonitor = std::visit(
+                [](const auto &request) -> std::optional<Types::Display::MonitorId>
+                {
+                    if constexpr (requires { request.targetMonitor; })
+                    {
+                        return request.targetMonitor;
+                    }
+                    else
+                    {
+                        return std::nullopt;
+                    }
+                },
+                description.initialWindowMode);
+            if ((description.windowed.placement.monitor && nativeMonitor(*description.windowed.placement.monitor) == nullptr) ||
+                (requestedModeMonitor && nativeMonitor(*requestedModeMonitor) == nullptr))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
@@ -93,9 +107,9 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             HWND ownerHandle = nullptr;
-            if (description.owner.isValid())
+            if (description.owner)
             {
-                WindowState *owner = resolveWindowId(description.owner);
+                WindowState *owner = resolveWindowId(*description.owner);
                 if (owner == nullptr || !owner->platform || owner->platform->ownerThreadId != state.platform->ownerThreadId)
                 {
                     return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
@@ -104,7 +118,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             const UINT dpi = dpiForWindow(nullptr);
-            const Types::PixelSize physicalClient = logicalToPhysicalSize(description.clientSize, dpi);
+            const Types::PixelSize physicalClient = logicalToPhysicalSize(description.windowed.clientSize, dpi);
             if (physicalClient.width == 0 || physicalClient.height == 0 ||
                 physicalClient.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
                 physicalClient.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
@@ -133,10 +147,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
             int x = CW_USEDEFAULT;
             int y = CW_USEDEFAULT;
-            if (description.placement.kind == Types::PlacementKind::Explicit)
+            if (description.windowed.placement.kind == Types::PlacementKind::Explicit)
             {
-                const std::int64_t wideX = static_cast<std::int64_t>(description.placement.position.x) + outer.left;
-                const std::int64_t wideY = static_cast<std::int64_t>(description.placement.position.y) + outer.top;
+                const std::int64_t wideX = static_cast<std::int64_t>(description.windowed.placement.position.x) + outer.left;
+                const std::int64_t wideY = static_cast<std::int64_t>(description.windowed.placement.position.y) + outer.top;
                 if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() || wideY < std::numeric_limits<int>::min() ||
                     wideY > std::numeric_limits<int>::max())
                 {
@@ -148,9 +162,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 x = static_cast<int>(wideX);
                 y = static_cast<int>(wideY);
             }
-            else if (description.placement.kind == Types::PlacementKind::Centered)
+            else if (description.windowed.placement.kind == Types::PlacementKind::Centered)
             {
-                HMONITOR monitor = description.placement.monitor.isValid() ? nativeMonitor(description.placement.monitor)
+                HMONITOR monitor = description.windowed.placement.monitor ? nativeMonitor(*description.windowed.placement.monitor)
                                                                            : MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
                 MONITORINFO info{};
                 info.cbSize = sizeof(info);
@@ -243,9 +257,9 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             // Portable state is initialized from Description before native creation. The native
             // window itself starts windowed, so make that transition origin explicit.
-            state.mode = Types::Mode::Windowed;
+            state.mode = Types::WindowMode::Windowed;
             state.fullscreen = {};
-            status = setMode(state, description.mode);
+            status = setWindowMode(state, description.initialWindowMode);
             if (!status.ok())
             {
                 return status;
@@ -257,11 +271,11 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             int showCommand = SW_HIDE;
-            if (description.visible)
+            if (description.activation.visible)
             {
                 showCommand = description.presentation == Types::PresentationState::Minimized   ? SW_SHOWMINIMIZED
                               : description.presentation == Types::PresentationState::Maximized ? SW_SHOWMAXIMIZED
-                              : description.requestFocus && description.focusable               ? SW_SHOW
+                              : description.activation.requestFocus && description.activation.focusable ? SW_SHOW
                                                                                                 : SW_SHOWNOACTIVATE;
             }
             ShowWindow(state.platform->handle, showCommand);
@@ -274,7 +288,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 state.presentationPublication->publishVisible(state.visible);
                 state.presentationPublication->publishPresentationState(state.presentation);
             }
-            if (description.requestFocus && description.focusable && description.visible)
+            if (description.activation.requestFocus && description.activation.focusable && description.activation.visible)
             {
                 static_cast<void>(requestFocus(state));
             }
@@ -496,7 +510,7 @@ namespace GameWIP::Desktop::Native::Win32
     // ------------------------------------------------------------
     // Native interop
     // ------------------------------------------------------------
-    HandleResult getHandle(const GameWIP::Desktop::Window &window) noexcept
+    Types::Result<HandleView> getHandle(const GameWIP::Desktop::Window &window) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
         if (state == nullptr || !state->platform)
@@ -512,7 +526,7 @@ namespace GameWIP::Desktop::Native::Win32
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
         }
-        return {.status = IO::successStatus(), .handle = {static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
+        return {.status = IO::successStatus(), .value = HandleView{static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
     }
 } // namespace GameWIP::Desktop::Native::Win32
 
@@ -561,7 +575,7 @@ namespace GameWIP::Desktop::TestHooks
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
-        if (state->mode == Types::Mode::Windowed)
+        if (state->mode == Types::WindowMode::Windowed)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }

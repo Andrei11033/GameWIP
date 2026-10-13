@@ -3,7 +3,7 @@
 Portable Window code should use `desktop/window.h`. Platform-native access is explicit and isolated under `desktop/native/`.
 
 On Win32, include `desktop/native/win32.h` and call `GameWIP::Desktop::Native::Win32::getHandle(window)` or its overload for an open `ChildSurface`.
-One `HandleResult` contains one coherent `HandleView` with both the module instance and HWND required for native interoperability. The API remains
+One `Types::Result<HandleView>` contains one coherent `HandleView` with both the module instance and HWND required for native interoperability. The API remains
 singular because the result represents the Window's native handle view as one value.
 
 `getHandle()` is checked, owner-thread-affine, and returns `NotOpen` for a closed/pending Window. Callers must not destroy, reparent, subclass, or

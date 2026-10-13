@@ -412,7 +412,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    Types::LogicalPositionResult cursorPosition(const WindowState &state) noexcept
+    Types::Result<Types::LogicalPosition> cursorPosition(const WindowState &state) noexcept
     {
         POINT point{};
         if (GetCursorPos(&point) == FALSE)
@@ -424,6 +424,6 @@ namespace GameWIP::Desktop::Detail::Platform
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ScreenToClient cursor")};
         }
         const UINT dpi = dpiForWindow(state.platform->handle);
-        return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
+        return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
 } // namespace GameWIP::Desktop::Detail::Platform

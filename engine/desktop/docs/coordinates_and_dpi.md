@@ -22,7 +22,7 @@ rectangles remain comparable in one physical desktop space.
 
 ## Conversion
 
-`clientToScreen(LogicalPosition)` returns a `ScreenPositionResult`. `screenToClient(ScreenPosition)` returns a `LogicalPositionResult`. Win32 performs
+`clientToScreen(LogicalPosition)` returns a `Types::Result<ScreenPosition>`. `screenToClient(ScreenPosition)` returns a `Types::Result<LogicalPosition>`. Win32 performs
 the native client/screen conversion and Window applies DPI rounding at the boundary. Round trips near fractional scale boundaries may differ by one
 logical unit because physical pixels are integral.
 

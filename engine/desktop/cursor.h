@@ -4,12 +4,14 @@
 #pragma once
 
 #include "io/status.h"
+#include "desktop/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
 
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <span>
 
 namespace GameWIP::Desktop
@@ -76,15 +78,29 @@ namespace GameWIP::Desktop::Types::Cursor
         PixelSize size;                   ///< Physical width and height in pixels.
         PixelPosition hotspot;            ///< In-bounds physical-pixel hotspot.
         std::uint32_t intendedDpi = 96;   ///< Nonzero DPI at which this variant is intended for use.
-        std::size_t rowStrideBytes = 0;   ///< Bytes per source row, or zero for tightly packed RGBA8.
+        std::optional<std::size_t> rowStrideBytes; ///< Bytes per source row; nullopt means tightly packed RGBA8.
         std::span<const std::byte> rgba8; ///< Exact top-to-bottom straight-alpha RGBA8 payload.
-    };
 
-    /// @brief Result of validating and materializing custom cursor variants.
-    struct CreateResult
-    {
-        IO::Types::Status status;        ///< Success or the validation/native creation failure.
-        GameWIP::Desktop::Cursor cursor; ///< Valid shared cursor only when status reports success.
+        /// @brief Creates a tightly packed RGBA8 cursor image view.
+        [[nodiscard]] static ImageView packed(
+            PixelSize size,
+            PixelPosition hotspot,
+            std::span<const std::byte> rgba8,
+            std::uint32_t intendedDpi = 96) noexcept
+        {
+            return {size, hotspot, intendedDpi, std::nullopt, rgba8};
+        }
+
+        /// @brief Creates a cursor image view with an explicit source row stride.
+        [[nodiscard]] static ImageView strided(
+            PixelSize size,
+            PixelPosition hotspot,
+            std::size_t rowStrideBytes,
+            std::span<const std::byte> rgba8,
+            std::uint32_t intendedDpi = 96) noexcept
+        {
+            return {size, hotspot, intendedDpi, rowStrideBytes, rgba8};
+        }
     };
 } // namespace GameWIP::Desktop::Types::Cursor
 
@@ -96,12 +112,12 @@ namespace GameWIP::Desktop
     /// @brief Validates and eagerly materializes one application-provided cursor image.
     /// @param image RGBA8 image and physical-pixel hotspot to materialize.
     /// @return A valid shared Cursor on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Cursor::CreateResult createCursor(const Types::Cursor::ImageView &image) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept;
 
     /// @brief Validates and eagerly materializes application-provided cursor variants.
     /// @param variants Non-empty set containing one RGBA8 image per unique intended DPI.
     /// @return A valid shared Cursor on success; no partial resource is published on failure.
-    [[nodiscard]] DESKTOP_EXPORT Types::Cursor::CreateResult createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept;
 
     /// @brief Selects a custom cursor for an open Window on its owner thread.
     /// @param window Target Window whose standard CursorShape remains the cached fallback.

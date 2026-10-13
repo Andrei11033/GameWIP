@@ -12,9 +12,10 @@ void testManualFullscreenAndTopology(
         return;
     }
 
-    const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
-    const Desktop::Types::Display::MonitorsResult monitors = Desktop::Display::getMonitors();
-    if (!monitors.status.ok() || monitors.monitors.empty())
+    const auto capabilitiesResult = Desktop::getCapabilities();
+    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+    const auto monitors = Desktop::Display::getMonitors();
+    if (!monitors.ok() || monitors->empty())
     {
         context.fail("fullscreen monitor enumeration", monitors.status.message);
         return;
@@ -29,28 +30,26 @@ void testManualFullscreenAndTopology(
     const Desktop::Types::LogicalSize savedSize = window.clientSize();
     const auto disconnectableMonitor = []() -> std::optional<Desktop::Types::Display::MonitorId>
     {
-        const Desktop::Types::Display::MonitorsResult connected = Desktop::Display::getMonitors();
-        if (!connected.status.ok())
+        const auto connected = Desktop::Display::getMonitors();
+        if (!connected.ok())
         {
             return std::nullopt;
         }
         const auto secondary = std::ranges::find_if(
-            connected.monitors,
+            *connected,
             [](const Desktop::Types::Display::Info &monitor)
             {
                 return !monitor.primary;
             });
-        return secondary == connected.monitors.end() ? std::nullopt : std::optional{secondary->id};
+        return secondary == connected->end() ? std::nullopt : std::optional{secondary->id};
     };
 
     if (sections.borderless)
     {
-        for (std::size_t index = 0; index < monitors.monitors.size(); ++index)
+        for (std::size_t index = 0; index < monitors->size(); ++index)
         {
-            const Desktop::Types::Display::Info &monitor = monitors.monitors[index];
-            Desktop::Types::ModeRequest borderless;
-            borderless.mode = Desktop::Types::Mode::BorderlessFullscreen;
-            borderless.monitor = monitor.id;
+            const Desktop::Types::Display::Info &monitor = (*monitors)[index];
+            const Desktop::Types::WindowModeRequest borderless = Desktop::Types::WindowModes::borderlessFullscreen(monitor.id);
             const IO::Types::Status enterStatus = setManualModeWithDiagnostics(context, window, "borderless-enter", borderless);
             if (requireManualStatus(context, "borderless fullscreen enters", enterStatus))
             {
@@ -69,7 +68,7 @@ void testManualFullscreenAndTopology(
                         "present, or use Alt+Tab to verify the Window is listed. On monitor {}/{} ({}), does it exactly cover the display and "
                         "remain switchable without changing its display mode?",
                         index + 1,
-                        monitors.monitors.size(),
+                        monitors->size(),
                         monitor.name));
                 const IO::Types::Status leaveStatus = setManualModeWithDiagnostics(context, window, "borderless-leave", {});
                 static_cast<void>(requireManualStatus(context, "borderless fullscreen leaves", leaveStatus));
@@ -103,27 +102,24 @@ void testManualFullscreenAndTopology(
         {
             const std::optional<Desktop::Types::Display::MonitorId> topologyMonitor = sections.topology ? disconnectableMonitor() : std::nullopt;
             const Desktop::Types::Display::MonitorId monitor = topologyMonitor.value_or(window.currentMonitor());
-            const Desktop::Types::Display::ModeResult currentMode = Desktop::Display::getCurrentMode(monitor);
-            const Desktop::Types::Display::ModesResult availableModes = Desktop::Display::getModes(monitor);
-            if (currentMode.status.ok() && availableModes.status.ok() && !availableModes.modes.empty())
+            const auto currentMode = Desktop::Display::getCurrentMode(monitor);
+            const auto availableModes = Desktop::Display::getModes(monitor);
+            if (currentMode.ok() && availableModes.ok() && !availableModes->empty())
             {
                 const auto selected = std::ranges::min_element(
-                    availableModes.modes,
+                    *availableModes,
                     {},
                     [&](const Desktop::Types::Display::Mode &mode)
                     {
-                        const std::uint64_t resolutionPenalty = mode.resolution == currentMode.mode.resolution ? 0 : std::uint64_t{1} << 48;
-                        const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode.mode.bitsPerPixel ? 0 : std::uint64_t{1} << 40;
-                        const std::uint64_t interlacePenalty = mode.interlaced == currentMode.mode.interlaced ? 0 : std::uint64_t{1} << 39;
-                        const std::uint64_t refreshDifference = mode.refreshRateMillihertz > currentMode.mode.refreshRateMillihertz
-                                                                    ? mode.refreshRateMillihertz - currentMode.mode.refreshRateMillihertz
-                                                                    : currentMode.mode.refreshRateMillihertz - mode.refreshRateMillihertz;
+                        const std::uint64_t resolutionPenalty = mode.resolution == currentMode->resolution ? 0 : std::uint64_t{1} << 48;
+                        const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode->bitsPerPixel ? 0 : std::uint64_t{1} << 40;
+                        const std::uint64_t interlacePenalty = mode.interlaced == currentMode->interlaced ? 0 : std::uint64_t{1} << 39;
+                        const std::uint64_t refreshDifference = mode.refreshRateMillihertz > currentMode->refreshRateMillihertz
+                                                                    ? mode.refreshRateMillihertz - currentMode->refreshRateMillihertz
+                                                                    : currentMode->refreshRateMillihertz - mode.refreshRateMillihertz;
                         return resolutionPenalty + depthPenalty + interlacePenalty + refreshDifference;
                     });
-                Desktop::Types::ModeRequest exclusive;
-                exclusive.mode = Desktop::Types::Mode::ExclusiveFullscreen;
-                exclusive.monitor = monitor;
-                exclusive.displayMode = *selected;
+                const Desktop::Types::WindowModeRequest exclusive = Desktop::Types::WindowModes::exclusiveFullscreen(monitor, *selected);
                 if (manualStatusWindow != nullptr)
                 {
                     manualStatusWindow->setObservation(
@@ -146,8 +142,8 @@ void testManualFullscreenAndTopology(
                         static_cast<void>(context.expectTrue("exclusive native popup style applies", native.popupStyle));
                         static_cast<void>(context.expectTrue("exclusive native bounds match active monitor", native.fullscreenBounds));
                         static_cast<void>(context.expectTrue("exclusive Window remains taskbar eligible", native.taskbarEligible));
-                        bool sawExclusiveActive = window.focused() && !window.fullscreenInfo().suspended;
-                        bool sawExclusiveSuspended = window.fullscreenInfo().suspended;
+                        bool sawExclusiveActive = window.focused() && !window.fullscreenState().suspended;
+                        bool sawExclusiveSuspended = window.fullscreenState().suspended;
                         recordManualCheck(
                             context,
                             window,
@@ -158,7 +154,7 @@ void testManualFullscreenAndTopology(
                             "behave correctly?",
                             [&]
                             {
-                                const Desktop::Types::FullscreenInfo liveFullscreen = window.fullscreenInfo();
+                                const Desktop::Types::FullscreenState liveFullscreen = window.fullscreenState();
                                 sawExclusiveActive = sawExclusiveActive || (window.focused() && !liveFullscreen.suspended);
                                 sawExclusiveSuspended = sawExclusiveSuspended || liveFullscreen.suspended;
                                 if (manualStatusWindow != nullptr)
@@ -189,12 +185,12 @@ void testManualFullscreenAndTopology(
                         context.skip("exclusive display restoration", "exclusive-mode setup failed; no display transition occurred");
                     }
 
-                    Desktop::Types::ModeRequest unsupported = exclusive;
-                    unsupported.displayMode->resolution = {1, 1};
-                    const Desktop::Types::Mode previousMode = window.mode();
+                    Desktop::Types::WindowModeRequest unsupported = exclusive;
+                    std::get<Desktop::Types::ExclusiveFullscreenRequest>(unsupported).displayMode->resolution = {1, 1};
+                    const Desktop::Types::WindowMode previousMode = window.windowMode();
                     const IO::Types::Status unsupportedStatus = setManualModeWithDiagnostics(context, window, "exclusive-unsupported", unsupported);
                     static_cast<void>(context.expectTrue("unsupported exact mode is rejected", !unsupportedStatus.ok()));
-                    static_cast<void>(context.expectEq("unsupported exact mode preserves Window mode", previousMode, window.mode()));
+                    static_cast<void>(context.expectEq("unsupported exact mode preserves Window mode", previousMode, window.windowMode()));
                 }
 
                 if (sections.topology)
@@ -218,14 +214,14 @@ void testManualFullscreenAndTopology(
                             if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
                             {
                                 static_cast<void>(
-                                    context.expectEq("exclusive disconnect recovers windowed mode", Desktop::Types::Mode::Windowed, window.mode()));
+                                    context.expectEq("exclusive disconnect recovers windowed mode", Desktop::Types::WindowMode::Windowed, window.windowMode()));
                                 static_cast<void>(
-                                    context.expectFalse("exclusive disconnect clears fullscreen monitor", window.fullscreenInfo().monitor.isValid()));
+                                    context.expectFalse("exclusive disconnect clears fullscreen monitor", window.fullscreenState().monitor.has_value()));
                             }
-                            if (window.mode() != Desktop::Types::Mode::Windowed)
+                            if (window.windowMode() != Desktop::Types::WindowMode::Windowed)
                             {
                                 static_cast<void>(
-                                    setManualModeWithDiagnostics(context, window, "exclusive-disconnect-cleanup", Desktop::Types::ModeRequest{}));
+                                    setManualModeWithDiagnostics(context, window, "exclusive-disconnect-cleanup", Desktop::Types::WindowModes::windowed()));
                             }
                         }
                         else
@@ -282,9 +278,7 @@ void testManualFullscreenAndTopology(
         }
         else
         {
-            Desktop::Types::ModeRequest activeBorderless;
-            activeBorderless.mode = Desktop::Types::Mode::BorderlessFullscreen;
-            activeBorderless.monitor = *topologyMonitor;
+            const Desktop::Types::WindowModeRequest activeBorderless = Desktop::Types::WindowModes::borderlessFullscreen(*topologyMonitor);
             const IO::Types::Status borderlessEnter = setManualModeWithDiagnostics(context, window, "borderless-disconnect-enter", activeBorderless);
             if (borderlessEnter.ok())
             {
@@ -297,13 +291,13 @@ void testManualFullscreenAndTopology(
                 if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
                 {
                     static_cast<void>(
-                        context.expectEq("borderless disconnect recovers windowed mode", Desktop::Types::Mode::Windowed, window.mode()));
+                        context.expectEq("borderless disconnect recovers windowed mode", Desktop::Types::WindowMode::Windowed, window.windowMode()));
                     static_cast<void>(
-                        context.expectFalse("borderless disconnect clears fullscreen monitor", window.fullscreenInfo().monitor.isValid()));
+                        context.expectFalse("borderless disconnect clears fullscreen monitor", window.fullscreenState().monitor.has_value()));
                 }
-                if (window.mode() != Desktop::Types::Mode::Windowed)
+                if (window.windowMode() != Desktop::Types::WindowMode::Windowed)
                 {
-                    static_cast<void>(setManualModeWithDiagnostics(context, window, "borderless-disconnect-cleanup", Desktop::Types::ModeRequest{}));
+                    static_cast<void>(setManualModeWithDiagnostics(context, window, "borderless-disconnect-cleanup", Desktop::Types::WindowModes::windowed()));
                 }
             }
         }
@@ -321,8 +315,8 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
         return;
     }
 
-    const Desktop::Types::Display::MonitorsResult monitors = Desktop::Display::getMonitors();
-    if (!monitors.status.ok() || monitors.monitors.empty())
+    const auto monitors = Desktop::Display::getMonitors();
+    if (!monitors.ok() || monitors->empty())
     {
         context.fail("HDR monitor enumeration", monitors.status.message);
         return;
@@ -334,15 +328,15 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
         return;
     }
 
-    for (const Desktop::Types::Display::Info &monitor : monitors.monitors)
+    for (const Desktop::Types::Display::Info &monitor : *monitors)
     {
-        const Desktop::Types::Display::ColorInfoResult direct = Desktop::Display::getColorInfo(monitor.id);
-        static_cast<void>(context.expectTrue("monitor display-color query succeeds", direct.status.ok()));
-        if (!direct.status.ok())
+        const auto direct = Desktop::Display::getColorInfo(monitor.id);
+        static_cast<void>(context.expectTrue("monitor display-color query succeeds", direct.ok()));
+        if (!direct.ok())
         {
             continue;
         }
-        const auto &info = direct.info;
+        const auto &info = *direct;
         static_cast<void>(context.expectEq("display-color query retains monitor identity", monitor.id, info.monitor));
         static_cast<void>(context.expectTrue("HDR enabled implies HDR supported", !info.hdrEnabled || info.hdrSupported));
         static_cast<void>(context.expectTrue("SDR-only display is not marked HDR enabled", info.hdrSupported || !info.hdrEnabled));
@@ -363,18 +357,18 @@ void testManualHdrAndAdvancedColor(TestSupport::Context &context, const GameWIP:
                 monitor.name,
                 info.hdrSupported,
                 info.hdrEnabled,
-                info.bitsPerColorChannel,
-                info.minimumLuminanceNits,
-                info.maximumLuminanceNits,
-                info.maximumFullFrameLuminanceNits,
-                info.sdrWhiteLevelNits));
+                info.bitsPerColorChannel.value_or(0),
+                info.minimumLuminanceNits.value_or(0.0F),
+                info.maximumLuminanceNits.value_or(0.0F),
+                info.maximumFullFrameLuminanceNits.value_or(0.0F),
+                info.sdrWhiteLevelNits.value_or(0.0F)));
     }
 
-    const Desktop::Types::Display::ColorInfoResult windowInfo = Desktop::Display::getColorInfo(window);
-    static_cast<void>(context.expectTrue("Window display-color query succeeds", windowInfo.status.ok()));
-    if (windowInfo.status.ok())
+    const auto windowInfo = Desktop::Display::getColorInfo(window);
+    static_cast<void>(context.expectTrue("Window display-color query succeeds", windowInfo.ok()));
+    if (windowInfo.ok())
     {
-        static_cast<void>(context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo.info.monitor));
+        static_cast<void>(context.expectEq("Window display-color monitor matches current monitor", window.currentMonitor(), windowInfo->monitor));
     }
 
     const TestSupport::Types::Reporting::ManualAnswer toggle = recordManualCheck(
@@ -413,7 +407,8 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
         return;
     }
 
-    const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
+    const auto capabilitiesResult = Desktop::getCapabilities();
+    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP modern capability validation"))
     {

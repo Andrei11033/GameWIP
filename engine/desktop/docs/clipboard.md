@@ -49,17 +49,21 @@ does not create a worker thread to pretend otherwise.
 
 ## Queries and reads
 
-`hasFormat()` returns successful `available=false` when a valid format is
-absent. Standard categories require an empty `customName`; Custom requires a
-nonempty strict UTF-8 name without embedded U+0000. A custom query enumerates
-existing registered formats and does not register a new native identity.
+Clipboard query and read operations return `Types::Result<T>`. The optional
+`value` is present only when the operation succeeds; a successful
+`hasFormat()` therefore returns `Result<bool>` with `*value == false` for an
+absent valid format. Standard categories require an empty `customName`; Custom
+requires a nonempty strict UTF-8 name without embedded U+0000. A custom query
+enumerates existing registered formats and does not register a new native
+identity.
 
 `getFormats()` preserves meaningful native priority and returns owning names.
 Portable text and image categories are deduplicated across native or synthesized
 representations. Registered third-party names such as `HTML Format` or
 `Rich Text Format` remain Custom values; unsupported unnamed standard native
-formats are skipped. A failure after materialization preserves the useful
-format prefix with the failure status.
+formats are skipped. If enumeration fails, `value` is disengaged even when the
+backend had already materialized an internal prefix; failed payloads are never
+exposed as if they were complete results.
 
 The typed reads report `NotFound` for absence. Text conversion is strict and
 does not normalize, repair, or change BOMs. File order is native order and no
@@ -98,9 +102,10 @@ Win32 NUL-terminated text boundary. Win32 uses `CF_UNICODETEXT`.
 File-list writes require at least one absolute path. Paths need not exist and
 are not canonicalized or queried. Win32 uses normal Unicode `CF_HDROP`.
 
-An image requires positive dimensions, `width * 4` packed row bytes, a zero
+An image requires positive dimensions, `width * 4` packed row bytes, a nullopt
 stride or a stride at least that large, and exactly `resolvedStride * height`
-input bytes. Every multiplication and addition is overflow checked. Win32
+input bytes. Use `ImageView::packed()` for tightly packed rows or
+`ImageView::strided()` when padding is present. Every multiplication and addition is overflow checked. Win32
 publishes a top-down `CF_DIBV5` with sRGB color space, image rendering intent,
 and explicit RGBA masks;
 reads support common 24-bit RGB and standard-mask 32-bit DIB forms. RGB sources
@@ -138,8 +143,8 @@ void copySelection(std::string_view selectedUtf8)
 
 std::string pasteText()
 {
-    const Types::Clipboard::TextResult result = Clipboard::readText();
-    return result.status.ok() ? result.text : std::string{};
+    const auto result = Clipboard::readText();
+    return result.ok() ? *result : std::string{};
 }
 ```
 

@@ -50,7 +50,7 @@ Passive mask values are grouped under `Desktop::Types::Renderer`:
 
 - `PointerHitMaskWord`
 - `PointerHitMaskTarget`
-- `PointerHitMaskResult`
+- `Types::Result<PointerHitMaskTarget>`
 
 `Renderer::requiredPointerHitMaskWords()` computes the packed storage requirement for a framebuffer extent. `beginPointerHitMaskUpdate()` returns the
 current generation/extent target. `publishPointerHitMask()` copies a complete
@@ -84,10 +84,10 @@ a mask accepting only the central pixel:
 #include <vector>
 
 const auto update = GameWIP::Desktop::Renderer::beginPointerHitMaskUpdate(window);
-if (update.status.ok())
+if (update.ok())
 {
     using Word = GameWIP::Desktop::Types::Renderer::PointerHitMaskWord;
-    const auto &target = update.target;
+    const auto &target = *update;
     std::vector<Word> words(target.requiredWordCount, Word{0});
     const std::size_t width = target.framebufferSize.width;
     const std::size_t wordsPerRow = width / 32 + (width % 32 != 0);

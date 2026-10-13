@@ -37,8 +37,9 @@ returns.
 ## DragDrop source reports `InvalidArgument`
 
 The source Window must be open on the calling thread, `items` must be nonempty,
-allowed effects may contain only `Copy`, `Move`, and `Link` and cannot be
-`None`, formats must be unique, and every transfer item must satisfy
+`effects.allowed` may contain only `Copy`, `Move`, and `Link` and cannot be
+`None`, `effects.preferred` must be one of the allowed effects, formats must be
+unique, and every transfer item must satisfy
 @ref desktop_clipboard format validation. The explicit `Left`, `Right`, or
 `Middle` trigger button must already be down when `beginDrag()` starts; Desktop
 deliberately does not infer it.
@@ -47,12 +48,13 @@ deliberately does not infer it.
 
 Confirm the ID is nonzero and unique, the custom name is exact strict UTF-8,
 the region accepts at least one offered portable format, and source/target
-allowed effects intersect. Explicit rectangles use logical client coordinates;
+effect policies intersect. Explicit rectangles use logical client coordinates;
 an absent rectangle means the complete current client. In overlap, the last
 matching supplied region wins.
 
-Modifier keys do not change the negotiated portable effect. Configure
-`preferredEffect` and allowed masks instead.
+Modifier keys do not change the negotiated portable effect. Configure the
+drag source/region `EffectPolicy` instead; its `allowed` mask controls what is
+permitted and its `preferred` value controls deterministic selection.
 
 ## DragDrop events or payloads appear missing
 
@@ -186,8 +188,10 @@ rendering.
 ## Clipboard text, file, or image input is rejected
 
 Text must be strict UTF-8 and Win32 text cannot preserve embedded U+0000. File lists must be nonempty absolute paths, but paths need not exist and no
-file-system query occurs. Image dimensions must be positive, stride must hold `width * 4` bytes, and the byte span must equal the resolved stride
-times height exactly. See @ref desktop_clipboard.
+file-system query occurs. Image dimensions must be positive, a packed image
+uses `ImageView::packed()` and a padded image uses `ImageView::strided()`, the
+stride must hold `width * 4` bytes, and the byte span must equal the resolved
+stride times height exactly. See @ref desktop_clipboard.
 
 ## Custom cursor selection fails
 

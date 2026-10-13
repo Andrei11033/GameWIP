@@ -73,6 +73,26 @@ namespace GameWIP::Desktop::Types::ChildSurface
         std::uint64_t sequence = 0; ///< Monotonic sequence within the current open lifetime.
         Events::Payload data;       ///< Tagged event payload.
 
+        enum class Kind : std::uint8_t
+        {
+            NativeDestroyed,
+            PositionChanged,
+            SizeChanged,
+            PixelSizeChanged,
+            VisibilityChanged,
+            ContentScaleChanged
+        };
+
+        [[nodiscard]] constexpr Kind kind() const noexcept
+        {
+            return static_cast<Kind>(data.index());
+        }
+
+        template <typename PayloadType> [[nodiscard]] bool is() const noexcept
+        {
+            return std::holds_alternative<PayloadType>(data);
+        }
+
         /// @brief Returns the mutable payload when it has the requested type.
         /// @tparam PayloadType One alternative in Events::Payload.
         /// @return Pointer to the stored payload, or nullptr when the type does not match.
@@ -89,6 +109,9 @@ namespace GameWIP::Desktop::Types::ChildSurface
             return std::get_if<PayloadType>(&data);
         }
     };
+
+    /// @brief Explicit owned-or-borrowed storage policy for ChildSurface events.
+    using QueueConfiguration = ::GameWIP::Desktop::Types::Events::EventQueueConfiguration<Event>;
 } // namespace GameWIP::Desktop::Types::ChildSurface
 
 namespace GameWIP::Desktop
@@ -126,25 +149,18 @@ namespace GameWIP::Desktop
         /// @param description Initial logical geometry, visibility, and interaction state.
         /// @return Success, or a status explaining why no native host was opened.
         [[nodiscard]] IO::Types::Status open(Window &parent, const Types::ChildSurface::Description &description = {}) noexcept;
-        /// @brief Opens with a requested number of internally owned event slots.
+        /// @brief Opens with an explicit owned-or-borrowed event-queue policy.
         /// @param parent Open top-level Window whose owner thread and client origin are inherited.
         /// @param description Initial logical geometry, visibility, and interaction state.
-        /// @param eventQueueCapacity Number of event slots to allocate; must be greater than zero.
+        /// @details Borrowed storage remains retained during native-loss finalization and deferred owner-thread cleanup.
+        /// @param parent Open top-level Window whose owner thread and client origin are inherited.
+        /// @param description Initial logical geometry, visibility, and interaction state.
+        /// @param queue Explicit storage ownership and capacity policy.
         /// @return Success, or a status explaining why no native host was opened.
         [[nodiscard]] IO::Types::Status open(
             Window &parent,
             const Types::ChildSurface::Description &description,
-            std::size_t eventQueueCapacity) noexcept;
-        /// @brief Opens while borrowing caller-owned event storage until lifetime finalization.
-        /// @details Storage remains borrowed during native-loss finalization and deferred owner-thread cleanup.
-        /// @param parent Open top-level Window whose owner thread and client origin are inherited.
-        /// @param description Initial logical geometry, visibility, and interaction state.
-        /// @param eventStorage Non-empty storage that must remain alive and unmoved through finalization.
-        /// @return Success, or a status explaining why no native host was opened.
-        [[nodiscard]] IO::Types::Status open(
-            Window &parent,
-            const Types::ChildSurface::Description &description,
-            std::span<Types::ChildSurface::Event> eventStorage) noexcept;
+            Types::ChildSurface::QueueConfiguration queue) noexcept;
         /// @brief Reports whether native operations are available for the host.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the complete portable native-resource lifecycle state.
@@ -257,11 +273,11 @@ namespace GameWIP::Desktop
         /// @brief Converts a ChildSurface-local logical position to physical virtual-screen coordinates.
         /// @param position Logical position relative to the ChildSurface client origin.
         /// @return Conversion status and physical screen position.
-        [[nodiscard]] Types::ScreenPositionResult clientToScreen(Types::LogicalPosition position) const noexcept;
+        [[nodiscard]] Types::Result<Types::ScreenPosition> clientToScreen(Types::LogicalPosition position) const noexcept;
         /// @brief Converts a physical virtual-screen position to ChildSurface-local logical coordinates.
         /// @param position Physical virtual-screen position.
         /// @return Conversion status and logical client-local position.
-        [[nodiscard]] Types::LogicalPositionResult screenToClient(Types::ScreenPosition position) const noexcept;
+        [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
         /// @}
 
         // ------------------------------------------------------------

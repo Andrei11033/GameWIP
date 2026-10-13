@@ -188,10 +188,10 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status leaveExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status suspendExclusive(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status resumeExclusive(WindowState &state) noexcept;
-    [[nodiscard]] IO::Types::Status applyMode(WindowState &state, const Types::ModeRequest &request) noexcept;
+    [[nodiscard]] IO::Types::Status applyWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept;
     [[nodiscard]] IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor = false) noexcept;
 
-    [[nodiscard]] Types::Display::InfoResult monitorFromNative(HMONITOR monitor) noexcept;
+    [[nodiscard]] Types::Result<Types::Display::Info> monitorFromNative(HMONITOR monitor) noexcept;
     [[nodiscard]] HMONITOR nativeMonitor(Types::Display::MonitorId id) noexcept;
     [[nodiscard]] std::wstring monitorDeviceName(Types::Display::MonitorId id) noexcept;
     [[nodiscard]] std::uint32_t runtimeWindowsBuild() noexcept;

@@ -60,8 +60,8 @@ struct ManualFullscreenSections
     {
         return result;
     }
-    const Desktop::Native::Win32::HandleResult native = Desktop::Native::Win32::getHandle(window);
-    if (!native.status.ok() || native.handle.window == nullptr)
+    const auto native = Desktop::Native::Win32::getHandle(window);
+    if (!native.status.ok() || native->window == nullptr)
     {
         return result;
     }
@@ -69,30 +69,30 @@ struct ManualFullscreenSections
     RECT client{};
     POINT clientTopLeft{};
     POINT clientBottomRight{};
-    const HMONITOR monitor = MonitorFromWindow(native.handle.window, MONITOR_DEFAULTTONEAREST);
+    const HMONITOR monitor = MonitorFromWindow(native->window, MONITOR_DEFAULTTONEAREST);
     MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(monitorInfo);
-    if (GetWindowRect(native.handle.window, &result.frame) == FALSE || GetClientRect(native.handle.window, &client) == FALSE ||
-        ClientToScreen(native.handle.window, &clientTopLeft) == FALSE)
+    if (GetWindowRect(native->window, &result.frame) == FALSE || GetClientRect(native->window, &client) == FALSE ||
+        ClientToScreen(native->window, &clientTopLeft) == FALSE)
     {
         return result;
     }
     clientBottomRight = {client.right, client.bottom};
-    if (ClientToScreen(native.handle.window, &clientBottomRight) == FALSE || monitor == nullptr || GetMonitorInfoW(monitor, &monitorInfo) == FALSE)
+    if (ClientToScreen(native->window, &clientBottomRight) == FALSE || monitor == nullptr || GetMonitorInfoW(monitor, &monitorInfo) == FALSE)
     {
         return result;
     }
 
     result.client = {clientTopLeft.x, clientTopLeft.y, clientBottomRight.x, clientBottomRight.y};
     result.monitor = monitorInfo.rcMonitor;
-    result.style = static_cast<DWORD>(GetWindowLongPtrW(native.handle.window, GWL_STYLE));
-    result.extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(native.handle.window, GWL_EXSTYLE));
-    result.dpi = GetDpiForWindow(native.handle.window);
+    result.style = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_STYLE));
+    result.extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_EXSTYLE));
+    result.dpi = GetDpiForWindow(native->window);
     result.popupStyle = (result.style & WS_POPUP) != 0 && (result.style & (WS_CAPTION | WS_THICKFRAME)) == 0;
     result.visibleStyle = (result.style & WS_VISIBLE) != 0;
     result.fullscreenBounds = EqualRect(&result.frame, &result.monitor) != FALSE && EqualRect(&result.client, &result.monitor) != FALSE;
     result.taskbarEligible = (result.extendedStyle & WS_EX_APPWINDOW) != 0 && (result.extendedStyle & WS_EX_TOOLWINDOW) == 0 && result.visibleStyle &&
-                             IsWindowVisible(native.handle.window) != FALSE && GetWindow(native.handle.window, GW_OWNER) == nullptr;
+                             IsWindowVisible(native->window) != FALSE && GetWindow(native->window, GW_OWNER) == nullptr;
     result.valid = true;
     return result;
 }
@@ -102,7 +102,7 @@ void recordManualModeTransition(
     TestSupport::Context &context,
     const Desktop::Window &window,
     std::string_view phase,
-    const Desktop::Types::ModeRequest &request,
+    const Desktop::Types::WindowModeRequest &request,
     const IO::Types::Status *status = nullptr)
 {
     const Desktop::Types::LogicalSize logical = window.clientSize();
@@ -110,16 +110,37 @@ void recordManualModeTransition(
     const Desktop::Types::ScreenPosition position = window.clientPosition();
     const Desktop::Types::ContentScale scale = window.contentScale();
     const Desktop::Types::Dpi dpi = window.effectiveDpi();
-    const Desktop::Types::FullscreenInfo fullscreen = window.fullscreenInfo();
+    const Desktop::Types::FullscreenState fullscreen = window.fullscreenState();
     const ManualNativeWindowState native = manualNativeWindowState(window);
-    const std::string requestedDisplayMode = request.displayMode ? std::format(
+    const std::optional<Desktop::Types::Display::Mode> requestedMode = std::visit(
+        [](const auto &value) -> std::optional<Desktop::Types::Display::Mode>
+        {
+            if constexpr (requires { value.displayMode; })
+                return value.displayMode;
+            else
+                return std::nullopt;
+        },
+        request);
+    const std::string requestedDisplayMode = requestedMode ? std::format(
                                                                        "{}x{}@{}mHz/{}bpp/interlaced={}",
-                                                                       request.displayMode->resolution.width,
-                                                                       request.displayMode->resolution.height,
-                                                                       request.displayMode->refreshRateMillihertz,
-                                                                       request.displayMode->bitsPerPixel,
-                                                                       request.displayMode->interlaced)
+                                                                       requestedMode->resolution.width,
+                                                                       requestedMode->resolution.height,
+                                                                       requestedMode->refreshRateMillihertz,
+                                                                       requestedMode->bitsPerPixel,
+                                                                       requestedMode->interlaced)
                                                                  : std::string{"desktop"};
+    const int requestMode = std::visit(
+        [](const auto &value) noexcept
+        {
+            using Request = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<Request, Desktop::Types::WindowedModeRequest>)
+                return 0;
+            else if constexpr (std::is_same_v<Request, Desktop::Types::BorderlessFullscreenRequest>)
+                return 1;
+            else
+                return 2;
+        },
+        request);
     const std::string result = status == nullptr ? std::string{"pending"}
                                                  : std::format(
                                                        "portableCode={} nativeCode={} message={}",
@@ -135,13 +156,21 @@ void recordManualModeTransition(
             "monitor=({}, {}) {}x{} popupStyle={} fullscreenBounds={}",
             phase,
             GetTickCount64(),
-            static_cast<int>(request.mode),
-            request.monitor.value,
+            requestMode,
+            std::visit(
+                [](const auto &value) noexcept
+                {
+                    if constexpr (requires { value.targetMonitor; })
+                        return value.targetMonitor ? value.targetMonitor->value : std::uint64_t{0};
+                    else
+                        return std::uint64_t{0};
+                },
+                request),
             requestedDisplayMode,
             result,
-            static_cast<int>(window.mode()),
+            static_cast<int>(window.windowMode()),
             window.currentMonitor().value,
-            fullscreen.monitor.value,
+            fullscreen.monitor ? fullscreen.monitor->value : std::uint64_t{0},
             fullscreen.suspended,
             window.focused(),
             position.x,
@@ -177,10 +206,10 @@ void recordManualModeTransition(
     TestSupport::Context &context,
     Desktop::Window &window,
     std::string_view label,
-    const Desktop::Types::ModeRequest &request)
+    const Desktop::Types::WindowModeRequest &request)
 {
     recordManualModeTransition(context, window, std::format("{}:before", label), request);
-    IO::Types::Status status = window.setMode(request);
+    IO::Types::Status status = window.setWindowMode(request);
     recordManualModeTransition(context, window, std::format("{}:after", label), request, &status);
     return status;
 }
@@ -261,7 +290,7 @@ public:
         const Desktop::Types::ContentScale scale = window.contentScale();
         const Desktop::Types::Dpi dpi = window.effectiveDpi();
         const Desktop::Types::Controls controls = window.controls();
-        const Desktop::Types::FullscreenInfo fullscreen = window.fullscreenInfo();
+        const Desktop::Types::FullscreenState fullscreen = window.fullscreenState();
         const ManualNativeWindowState native = manualNativeWindowState(window);
         const std::string text = std::format(
             "SCENARIO\r\n{}\r\n\r\nEXPECTED\r\n{}\r\n\r\nLATEST OBSERVATION\r\n{}\r\n\r\nLIVE WINDOW STATE\r\n"
@@ -299,12 +328,12 @@ public:
             dpi.x,
             dpi.y,
             window.currentMonitor().value,
-            static_cast<int>(window.mode()),
+            static_cast<int>(window.windowMode()),
             static_cast<int>(window.presentationState()),
             static_cast<int>(window.decorationMode()),
             window.opacity(),
-            fullscreen.monitor.value,
-            fullscreen.exactDisplayMode,
+            fullscreen.monitor ? fullscreen.monitor->value : std::uint64_t{0},
+            fullscreen.displayModeMatchedExactly,
             fullscreen.suspended,
             static_cast<int>(window.cursorMode()),
             static_cast<int>(window.cursorShape()),
@@ -313,7 +342,7 @@ public:
             controls.minimizable,
             controls.maximizable,
             window.resizable(),
-            window.ownerId().value,
+            window.ownerId() ? window.ownerId()->value : std::uint64_t{0},
             window.fileDropEnabled(),
             window.alwaysOnTop(),
             window.userInteractionEnabled(),
@@ -450,13 +479,13 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     bitmap.bmiHeader.biHeight = -128;
     bitmap.bmiHeader.biPlanes = 1;
     bitmap.bmiHeader.biBitCount = 32;
-    const HDC dc = GetDC(native.handle.window);
+    const HDC dc = GetDC(native->window);
     if (dc == nullptr)
     {
         return;
     }
     StretchDIBits(dc, 18, 170, 128, 128, 0, 0, 128, 128, preview.data(), &bitmap, DIB_RGB_COLORS, SRCCOPY);
-    ReleaseDC(native.handle.window, dc);
+    ReleaseDC(native->window, dc);
 }
 
 /// @brief Selects renderer-free artwork for a visible manual scenario.
@@ -478,24 +507,24 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     {
         return;
     }
-    const Desktop::Native::Win32::HandleResult native = Desktop::Native::Win32::getHandle(window);
-    if (!native.status.ok() || native.handle.window == nullptr)
+    const auto native = Desktop::Native::Win32::getHandle(window);
+    if (!native.status.ok() || native->window == nullptr)
     {
         return;
     }
 
     RECT client{};
-    if (GetClientRect(native.handle.window, &client) == FALSE)
+    if (GetClientRect(native->window, &client) == FALSE)
     {
         return;
     }
-    HDC device = GetDC(native.handle.window);
+    HDC device = GetDC(native->window);
     if (device == nullptr)
     {
         return;
     }
 
-    const UINT dpi = GetDpiForWindow(native.handle.window);
+    const UINT dpi = GetDpiForWindow(native->window);
     const auto logical = [dpi](int value)
     {
         return MulDiv(value, static_cast<int>(dpi), 96);
@@ -634,7 +663,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         DeleteObject(edgePen);
     }
 
-    ReleaseDC(native.handle.window, device);
+    ReleaseDC(native->window, device);
 }
 
 template <typename Payload> [[nodiscard]] bool consumeEventOfType(Desktop::Window &window)
@@ -803,9 +832,9 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
     Desktop::Types::Description description = {})
 {
     description.title = title;
-    description.clientSize = {960, 540};
-    description.visible = true;
-    description.requestFocus = true;
+    description.windowed.clientSize = {960, 540};
+    description.activation.visible = true;
+    description.activation.requestFocus = true;
     if (!requireManualStatus(context, "manual Window setup", window.open(description)))
     {
         return false;

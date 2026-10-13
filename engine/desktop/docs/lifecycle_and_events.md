@@ -9,12 +9,24 @@ lifetime without transferring ownership or invoking application callbacks.
 A default-constructed `Window` is closed and inert. `open()` validates the complete request and event storage before committing a successful native
 lifetime. The opening thread becomes the owner thread and a successful lifetime receives a process-local `Types::WindowId`.
 
-Internal event storage is allocated once at open. The external-storage overload
-borrows a non-empty caller span through lifetime finalization, including
-`NativeDestroyedPendingFinalize`. If destruction transfers cleanup to another
-thread's dispatcher, the caller's storage must also survive that deferred
-cleanup. Close on the owner thread before releasing external storage.
+Internal event storage is allocated once at open. Use
+`Types::Events::QueueConfiguration::owned(capacity)` (or
+`Desktop::Events::owned(capacity)`) for Window-owned slots, or
+`Types::Events::QueueConfiguration::borrowed(storage)` (or
+`Desktop::Events::borrowed(storage)`) to borrow a non-empty caller span
+through lifetime finalization, including `NativeDestroyedPendingFinalize`. If
+destruction transfers cleanup to another thread's dispatcher, the caller's
+storage must also survive that deferred cleanup. Close on the owner thread
+before releasing external storage. The named configuration makes the ownership
+choice explicit at the call site.
 Window does not create a worker thread.
+
+ChildSurface, DragDrop, and Shell queues use the same explicit policy vocabulary:
+`Types::ChildSurface::QueueConfiguration::owned/borrowed`,
+`Types::DragDrop::QueueConfiguration::owned/borrowed`, and
+`Types::Shell::QueueConfiguration::owned/borrowed`. Their event envelopes also
+provide `kind()`, `is<T>()`, and `getIf<T>()`, so consumers do not need to probe
+the variant manually just to identify an event.
 
 ## Thread ownership
 

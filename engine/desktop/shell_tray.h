@@ -57,6 +57,60 @@ namespace GameWIP::Desktop::Types::Tray
         bool checked = false;                      ///< Check or radio state; false for other entry kinds.
     };
 
+    /// @brief Named constructors for valid tray-menu entry kinds.
+    namespace MenuItems
+    {
+        [[nodiscard]] inline MenuItem command(
+            Shell::CommandId id,
+            std::string_view label,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view accelerator = {},
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Command, id, label, icon, accelerator, badge, {}, enabled, false};
+        }
+
+        [[nodiscard]] inline MenuItem check(
+            Shell::CommandId id,
+            std::string_view label,
+            bool checked,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view accelerator = {},
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Check, id, label, icon, accelerator, badge, {}, enabled, checked};
+        }
+
+        [[nodiscard]] inline MenuItem radio(
+            Shell::CommandId id,
+            std::string_view label,
+            bool checked,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view accelerator = {},
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Radio, id, label, icon, accelerator, badge, {}, enabled, checked};
+        }
+
+        [[nodiscard]] inline MenuItem separator() noexcept
+        {
+            return {MenuItemKind::Separator, Shell::CommandId::invalid(), {}, std::nullopt, {}, {}, {}, true, false};
+        }
+
+        [[nodiscard]] inline MenuItem submenu(
+            std::string_view label,
+            std::span<const MenuItem> children,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Submenu, Shell::CommandId::invalid(), label, icon, {}, badge, children, enabled, false};
+        }
+    } // namespace MenuItems
+
     /// @brief Borrowed complete tray-menu tree.
     /// @details An empty item span clears the menu. Nonempty menus require a bound
     /// ShellEventQueue so command invocations have a delivery destination. Command identities

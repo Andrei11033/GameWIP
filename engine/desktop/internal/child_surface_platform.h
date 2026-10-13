@@ -27,9 +27,9 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Applies a logical child rectangle and refreshes cached screen geometry.
     [[nodiscard]] IO::Types::Status setChildSurfaceRect(ChildSurfaceState &state, Types::LogicalRect rect) noexcept;
     /// @brief Converts a child-client logical point into screen pixels.
-    [[nodiscard]] Types::ScreenPositionResult childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept;
+    [[nodiscard]] Types::Result<Types::ScreenPosition> childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept;
     /// @brief Converts a screen-pixel point into child-client logical units.
-    [[nodiscard]] Types::LogicalPositionResult childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept;
+    [[nodiscard]] Types::Result<Types::LogicalPosition> childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept;
     /// @brief Shows or hides the native child surface.
     [[nodiscard]] IO::Types::Status showChildSurface(ChildSurfaceState &state, bool visible) noexcept;
     /// @brief Enables or disables native input delivery to the child surface.

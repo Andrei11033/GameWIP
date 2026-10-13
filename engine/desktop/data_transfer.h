@@ -7,6 +7,7 @@
 #include "desktop/types.h"
 
 #include <cstddef>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -25,10 +26,45 @@ namespace GameWIP::Desktop::Types::DataTransfer
     };
 
     /// @brief Non-owning format description used as caller input.
-    struct FormatView
+    /// @details The named factories make standard and custom formats distinct at the call site;
+    /// a custom name cannot accidentally accompany a standard category.
+    class FormatView
     {
-        FormatKind kind = FormatKind::Text; ///< Portable format category.
-        std::string_view customName;        ///< Nonempty UTF-8 name only for Custom.
+    public:
+        [[nodiscard]] static constexpr FormatView text() noexcept
+        {
+            return FormatView{FormatKind::Text, {}};
+        }
+        [[nodiscard]] static constexpr FormatView files() noexcept
+        {
+            return FormatView{FormatKind::FileList, {}};
+        }
+        [[nodiscard]] static constexpr FormatView image() noexcept
+        {
+            return FormatView{FormatKind::Image, {}};
+        }
+        [[nodiscard]] static constexpr FormatView custom(std::string_view name) noexcept
+        {
+            return FormatView{FormatKind::Custom, name};
+        }
+
+        [[nodiscard]] constexpr FormatKind kind() const noexcept
+        {
+            return kind_;
+        }
+
+        [[nodiscard]] constexpr std::string_view customName() const noexcept
+        {
+            return customName_;
+        }
+
+    private:
+        constexpr FormatView(FormatKind kind, std::string_view customName) noexcept : kind_(kind), customName_(customName)
+        {
+        }
+
+        FormatKind kind_;
+        std::string_view customName_;
     };
 
     /// @brief Owning format description returned by enumeration.
@@ -54,9 +90,22 @@ namespace GameWIP::Desktop::Types::DataTransfer
     /// @brief Non-owning sRGB, top-to-bottom, straight-alpha RGBA8 image.
     struct ImageView
     {
-        PixelSize size;                   ///< Positive physical dimensions.
-        std::size_t rowStrideBytes = 0;   ///< Zero for packed rows, otherwise at least width * 4.
-        std::span<const std::byte> rgba8; ///< Exactly resolved stride times height bytes.
+        PixelSize size;                         ///< Positive physical dimensions.
+        std::optional<std::size_t> rowStrideBytes; ///< Nullopt for packed rows; otherwise at least width * 4.
+        std::span<const std::byte> rgba8;       ///< Exactly resolved stride times height bytes.
+
+        [[nodiscard]] static constexpr ImageView packed(PixelSize size, std::span<const std::byte> rgba8) noexcept
+        {
+            return {size, std::nullopt, rgba8};
+        }
+
+        [[nodiscard]] static constexpr ImageView strided(
+            PixelSize size,
+            std::size_t rowStrideBytes,
+            std::span<const std::byte> rgba8) noexcept
+        {
+            return {size, rowStrideBytes, rgba8};
+        }
     };
 
     /// @brief Non-owning named opaque binary item.
@@ -68,6 +117,27 @@ namespace GameWIP::Desktop::Types::DataTransfer
 
     /// @brief One non-owning transfer item.
     using ItemView = std::variant<TextView, FileListView, ImageView, CustomView>;
+
+    /// @brief Named constructors for transfer items, keeping the variant hidden at call sites.
+    namespace Items
+    {
+        [[nodiscard]] inline ItemView text(std::string_view value) noexcept
+        {
+            return TextView{value};
+        }
+        [[nodiscard]] inline ItemView files(std::span<const FileSystem::Types::Path> value) noexcept
+        {
+            return FileListView{value};
+        }
+        [[nodiscard]] inline ItemView image(ImageView value) noexcept
+        {
+            return value;
+        }
+        [[nodiscard]] inline ItemView custom(CustomView value) noexcept
+        {
+            return value;
+        }
+    } // namespace Items
 
     /// @brief Owned UTF-8 text item.
     struct Text

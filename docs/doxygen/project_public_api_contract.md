@@ -27,7 +27,7 @@ project-wide rule; silence is not an exception.
   semantics.
 - Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence. The
   accepted Win32 adapter is the one deliberate exception to the general plural-collection rule: `Desktop::Native::Win32::HandleView`,
-  `HandleResult`, and `getHandle(...)` describe one coherent native-handle view/result even though the view contains both `HINSTANCE` and `HWND`.
+  `Types::Result<HandleView>`, and `getHandle(...)` describe one coherent native-handle view/result even though the view contains both `HINSTANCE` and `HWND`.
 
 ## Text and bytes
 

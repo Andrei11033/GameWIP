@@ -61,18 +61,18 @@ namespace
         return GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
     }
 
-    [[nodiscard]] GameWIP::Desktop::Types::Display::MonitorsResult inspectDisplays()
+    [[nodiscard]] GameWIP::Desktop::Types::Result<std::vector<GameWIP::Desktop::Types::Display::Info>> inspectDisplays()
     {
-        GameWIP::Desktop::Types::Display::MonitorsResult monitors;
+        GameWIP::Desktop::Types::Result<std::vector<GameWIP::Desktop::Types::Display::Info>> monitors;
         {
 #if GAMEWIP_TRACY_ENABLED
             ZoneScopedNC("Enumerate displays, display modes, and HDR state", ProfileZoneColor::Initialization);
 #endif
             monitors = GameWIP::Desktop::Display::getMonitors();
-            if (monitors.status.ok())
+            if (monitors.ok())
             {
-                GameWIP::Logger::info("Startup", "Enumerated {} connected display(s)", monitors.monitors.size());
-                for (const GameWIP::Desktop::Types::Display::Info &monitor : monitors.monitors)
+                GameWIP::Logger::info("Startup", "Enumerated {} connected display(s)", monitors->size());
+                for (const GameWIP::Desktop::Types::Display::Info &monitor : *monitors)
                 {
                     const auto activeMode = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
                     const auto supportedModes = GameWIP::Desktop::Display::getModes(monitor.id);
@@ -86,43 +86,43 @@ namespace
                         monitor.primary ? " [primary]" : "",
                         monitor.bounds.position.x,
                         monitor.bounds.position.y,
-                        supportedModes.modes.size());
+                        supportedModes.ok() ? supportedModes->size() : std::size_t{0});
 
-                    if (activeMode.status.ok())
+                    if (activeMode.ok())
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
                             "\n  active: {}x{} @ {}.{:03} Hz, {} bpp{}",
-                            activeMode.mode.resolution.width,
-                            activeMode.mode.resolution.height,
-                            activeMode.mode.refreshRateMillihertz / 1000,
-                            activeMode.mode.refreshRateMillihertz % 1000,
-                            activeMode.mode.bitsPerPixel,
-                            activeMode.mode.interlaced ? ", interlaced" : "");
+                            activeMode->resolution.width,
+                            activeMode->resolution.height,
+                            activeMode->refreshRateMillihertz / 1000,
+                            activeMode->refreshRateMillihertz % 1000,
+                            activeMode->bitsPerPixel,
+                            activeMode->interlaced ? ", interlaced" : "");
                     }
 
-                    if (colorInfo.status.ok())
+                    if (colorInfo.ok())
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
                             "\n  color: {}, HDR supported={}, HDR enabled={}, WCG supported={}, {} bits/channel, "
                             "luminance min/peak/full-frame={:.3f}/{:.1f}/{:.1f} nits, SDR white={:.1f} nits",
-                            colorSpaceName(colorInfo.info.activeColorSpace),
-                            colorInfo.info.hdrSupported,
-                            colorInfo.info.hdrEnabled,
-                            colorInfo.info.wideColorGamutSupported,
-                            colorInfo.info.bitsPerColorChannel,
-                            colorInfo.info.minimumLuminanceNits,
-                            colorInfo.info.maximumLuminanceNits,
-                            colorInfo.info.maximumFullFrameLuminanceNits,
-                            colorInfo.info.sdrWhiteLevelNits);
+                            colorSpaceName(colorInfo->activeColorSpace),
+                            colorInfo->hdrSupported,
+                            colorInfo->hdrEnabled,
+                            colorInfo->wideColorGamutSupported,
+                            colorInfo->bitsPerColorChannel.value_or(0),
+                            colorInfo->minimumLuminanceNits.value_or(0.0F),
+                            colorInfo->maximumLuminanceNits.value_or(0.0F),
+                            colorInfo->maximumFullFrameLuminanceNits.value_or(0.0F),
+                            colorInfo->sdrWhiteLevelNits.value_or(0.0F));
                     }
                     else
                     {
                         std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
 
-                    for (const auto &mode : supportedModes.modes)
+                    for (const auto &mode : *supportedModes)
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
@@ -146,9 +146,9 @@ namespace
     {
         GameWIP::Desktop::Types::Description description;
         description.title = "GameWIP borderless fullscreen (Alt+F4 to exit)";
-        description.mode.mode = GameWIP::Desktop::Types::Mode::BorderlessFullscreen;
-        description.visible = true;
-        description.requestFocus = true;
+        description.initialWindowMode = GameWIP::Desktop::Types::WindowModes::borderlessFullscreen();
+        description.activation.visible = true;
+        description.activation.requestFocus = true;
         return description;
     }
 
@@ -242,8 +242,8 @@ namespace GameWIP::Game
         Logger::info("Startup", "Logger initialized");
 
         // Capture display topology and color capabilities before creating the fullscreen window.
-        const Desktop::Types::Display::MonitorsResult monitors = inspectDisplays();
-        if (!monitors.status.ok())
+        const auto monitors = inspectDisplays();
+        if (!monitors.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(monitors.status.message.c_str(), monitors.status.message.size());

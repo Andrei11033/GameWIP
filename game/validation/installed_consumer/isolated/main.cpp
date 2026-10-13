@@ -70,12 +70,13 @@ int main()
     return 0;
 #elif defined(GAMEWIP_CONSUMER_Desktop)
     GameWIP::Desktop::Window window;
-    const GameWIP::Desktop::Types::Cursor::CreateResult cursor =
+    const auto capabilities = GameWIP::Desktop::getCapabilities();
+    const GameWIP::Desktop::Types::Result<GameWIP::Desktop::Cursor> cursor =
         GameWIP::Desktop::createCursor(std::span<const GameWIP::Desktop::Types::Cursor::ImageView>{});
     const auto feedback = GameWIP::Desktop::Renderer::attachOcclusionProvider(window);
     const auto displayColor = GameWIP::Desktop::Display::getColorInfo(window);
-    return probeInstalledAccessibility() && GameWIP::Desktop::getCapabilities().status.ok() &&
-                   cursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !cursor.cursor.isValid() &&
+    return probeInstalledAccessibility() && capabilities.ok() &&
+                   cursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !cursor.value.has_value() &&
                    !GameWIP::Desktop::Renderer::hasOcclusionProvider(window) && feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
                    displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0

@@ -117,20 +117,21 @@ void testNativeEventTranslation(TestSupport::Context &context)
 {
     Desktop::Types::Description description;
     description.title = "Window native event validation";
-    description.clientSize = {260, 170};
-    description.visible = false;
+    description.windowed.clientSize = {260, 170};
+    description.activation.visible = false;
     description.fileDropEnabled = true;
 
     Desktop::Window window;
-    static_cast<void>(context.expectTrue("native event fixture opens", window.open(description, 64).ok()));
+    static_cast<void>(context.expectTrue(
+        "native event fixture opens", window.open(description, Desktop::Events::owned(64)).ok()));
     if (!window.isOpen())
     {
         return;
     }
 
-    const Desktop::Native::Win32::HandleResult handle = Desktop::Native::Win32::getHandle(window);
-    static_cast<void>(context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle.handle.window != nullptr));
-    if (!handle.status.ok() || handle.handle.window == nullptr)
+    const auto handle = Desktop::Native::Win32::getHandle(window);
+    static_cast<void>(context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle->window != nullptr));
+    if (!handle.status.ok() || handle->window == nullptr)
     {
         static_cast<void>(window.close());
         return;
@@ -143,15 +144,15 @@ void testNativeEventTranslation(TestSupport::Context &context)
         consumeEventOfType<Desktop::Types::Events::ClientSizeChanged>(window)));
 
     window.clearEvents();
-    static_cast<void>(window.setMode({.mode = Desktop::Types::Mode::BorderlessFullscreen, .monitor = window.currentMonitor()}));
+    static_cast<void>(window.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(window.currentMonitor())));
     static_cast<void>(
-        context.expectTrue("fullscreen transition translates to ModeChangedEvent", consumeEventOfType<Desktop::Types::Events::ModeChanged>(window)));
+        context.expectTrue("fullscreen transition translates to WindowModeChangedEvent", consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
 #if DESKTOP_INTERNAL_TEST_HOOKS
     window.clearEvents();
     static_cast<void>(
         context.expectTrue("synthetic monitor removal recovery succeeds", Desktop::TestHooks::simulateFullscreenMonitorRemoval(window).ok()));
-    static_cast<void>(context.expectEq("monitor removal recovers Windowed mode", Desktop::Types::Mode::Windowed, window.mode()));
-    static_cast<void>(context.expectFalse("monitor removal clears fullscreen monitor", window.fullscreenInfo().monitor.isValid()));
+    static_cast<void>(context.expectEq("monitor removal recovers Windowed mode", Desktop::Types::WindowMode::Windowed, window.windowMode()));
+    static_cast<void>(context.expectFalse("monitor removal clears fullscreen monitor", window.fullscreenState().monitor.has_value()));
     Desktop::Types::Event recoveryEvent;
     static_cast<void>(context.expectTrue("recovery queues display event first", window.popEvent(recoveryEvent)));
     static_cast<void>(context.expectTrue(
@@ -159,65 +160,65 @@ void testNativeEventTranslation(TestSupport::Context &context)
         recoveryEvent.getIf<Desktop::Types::Events::DisplayConfigurationChanged>() != nullptr));
     static_cast<void>(context.expectTrue("recovery queues mode event second", window.popEvent(recoveryEvent)));
     static_cast<void>(
-        context.expectTrue("second recovery event is mode change", recoveryEvent.getIf<Desktop::Types::Events::ModeChanged>() != nullptr));
+        context.expectTrue("second recovery event is mode change", recoveryEvent.getIf<Desktop::Types::Events::WindowModeChanged>() != nullptr));
     window.clearEvents();
-    static_cast<void>(window.setMode({.mode = Desktop::Types::Mode::BorderlessFullscreen, .monitor = window.currentMonitor()}));
+    static_cast<void>(window.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(window.currentMonitor())));
 #endif
     window.clearEvents();
-    static_cast<void>(window.setMode({}));
+    static_cast<void>(window.setWindowMode(Desktop::Types::WindowModes::windowed()));
     static_cast<void>(
-        context.expectTrue("windowed restoration translates to ModeChangedEvent", consumeEventOfType<Desktop::Types::Events::ModeChanged>(window)));
+        context.expectTrue("windowed restoration translates to WindowModeChangedEvent", consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
 
-    static_cast<void>(SendMessageW(handle.handle.window, WM_SHOWWINDOW, FALSE, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_SHOWWINDOW, FALSE, 0));
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_SHOWWINDOW, TRUE, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_SHOWWINDOW, TRUE, 0));
     static_cast<void>(context.expectTrue("WM_SHOWWINDOW updates visibility cache", window.visible()));
     static_cast<void>(context.expectTrue(
         "WM_SHOWWINDOW translates to VisibilityChangedEvent",
         consumeEventOfType<Desktop::Types::Events::VisibilityChanged>(window)));
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_SHOWWINDOW, FALSE, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_SHOWWINDOW, FALSE, 0));
     static_cast<void>(context.expectFalse("synthetic hide restores visibility cache", window.visible()));
     static_cast<void>(consumeEventOfType<Desktop::Types::Events::VisibilityChanged>(window));
 
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_SIZE, SIZE_MINIMIZED, MAKELPARAM(300, 210)));
+    static_cast<void>(SendMessageW(handle->window, WM_SIZE, SIZE_MINIMIZED, MAKELPARAM(300, 210)));
     static_cast<void>(context.expectTrue("WM_SIZE minimize updates presentation cache", window.minimized()));
     static_cast<void>(context.expectTrue(
         "WM_SIZE translates to PresentationStateChangedEvent",
         consumeEventOfType<Desktop::Types::Events::PresentationStateChanged>(window)));
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_SIZE, SIZE_RESTORED, MAKELPARAM(300, 210)));
+    static_cast<void>(SendMessageW(handle->window, WM_SIZE, SIZE_RESTORED, MAKELPARAM(300, 210)));
     static_cast<void>(context.expectFalse("synthetic restore resets minimized cache", window.minimized()));
     static_cast<void>(consumeEventOfType<Desktop::Types::Events::PresentationStateChanged>(window));
 
-    static_cast<void>(SendMessageW(handle.handle.window, WM_KILLFOCUS, 0, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_KILLFOCUS, 0, 0));
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_SETFOCUS, 0, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_SETFOCUS, 0, 0));
     static_cast<void>(context.expectTrue("WM_SETFOCUS updates cache", window.focused()));
     static_cast<void>(
         context.expectTrue("WM_SETFOCUS translates to FocusChangedEvent", consumeEventOfType<Desktop::Types::Events::FocusChanged>(window)));
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_KILLFOCUS, 0, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_KILLFOCUS, 0, 0));
     static_cast<void>(context.expectFalse("WM_KILLFOCUS updates cache", window.focused()));
     static_cast<void>(
         context.expectTrue("WM_KILLFOCUS translates to FocusChangedEvent", consumeEventOfType<Desktop::Types::Events::FocusChanged>(window)));
 
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_MOUSEMOVE, 0, MAKELPARAM(2, 2)));
+    static_cast<void>(SendMessageW(handle->window, WM_MOUSEMOVE, 0, MAKELPARAM(2, 2)));
     static_cast<void>(context.expectTrue("WM_MOUSEMOVE updates cursor-presence cache", window.cursorInside()));
     static_cast<void>(context.expectTrue(
         "WM_MOUSEMOVE translates to CursorPresenceChangedEvent",
         consumeEventOfType<Desktop::Types::Events::CursorPresenceChanged>(window)));
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_MOUSELEAVE, 0, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_MOUSELEAVE, 0, 0));
     static_cast<void>(context.expectFalse("WM_MOUSELEAVE updates cursor-presence cache", window.cursorInside()));
     static_cast<void>(context.expectTrue(
         "WM_MOUSELEAVE translates to CursorPresenceChangedEvent",
         consumeEventOfType<Desktop::Types::Events::CursorPresenceChanged>(window)));
 
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_DISPLAYCHANGE, 32, MAKELPARAM(1920, 1080)));
+    static_cast<void>(SendMessageW(handle->window, WM_DISPLAYCHANGE, 32, MAKELPARAM(1920, 1080)));
     static_cast<void>(context.expectTrue(
         "WM_DISPLAYCHANGE translates to DisplayConfigurationChangedEvent",
         consumeEventOfType<Desktop::Types::Events::DisplayConfigurationChanged>(window)));
@@ -249,7 +250,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
 #pragma clang unsafe_buffer_usage end
 #endif
             static_cast<void>(GlobalUnlock(dropMemory));
-            static_cast<void>(SendMessageW(handle.handle.window, WM_DROPFILES, reinterpret_cast<WPARAM>(dropMemory), 0));
+            static_cast<void>(SendMessageW(handle->window, WM_DROPFILES, reinterpret_cast<WPARAM>(dropMemory), 0));
             dropMemory = nullptr;
             static_cast<void>(
                 context.expectTrue("WM_DROPFILES translates to FilesDroppedEvent", consumeEventOfType<Desktop::Types::Events::FilesDropped>(window)));
@@ -261,12 +262,12 @@ void testNativeEventTranslation(TestSupport::Context &context)
     }
 
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_PAINT, 0, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_PAINT, 0, 0));
     static_cast<void>(
         context.expectTrue("WM_PAINT translates to RedrawRequestedEvent", consumeEventOfType<Desktop::Types::Events::RedrawRequested>(window)));
 
     window.clearEvents();
-    static_cast<void>(SendMessageW(handle.handle.window, WM_CLOSE, 0, 0));
+    static_cast<void>(SendMessageW(handle->window, WM_CLOSE, 0, 0));
     static_cast<void>(context.expectTrue("WM_CLOSE sets sticky close intent", window.hasCloseRequest()));
     static_cast<void>(
         context.expectTrue("WM_CLOSE translates to CloseRequestedEvent", consumeEventOfType<Desktop::Types::Events::CloseRequested>(window)));

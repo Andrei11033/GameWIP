@@ -1407,7 +1407,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 taskFlags |= TDF_USE_COMMAND_LINKS;
             }
-            if (!description.defaultOption.isValid())
+            if (!description.defaultOption)
             {
                 taskFlags |= TDF_NO_DEFAULT_RADIO_BUTTON;
             }
@@ -1430,14 +1430,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
             for (std::size_t index = 0; index < description.buttons.size(); ++index)
             {
-                if (description.buttons[index].id == description.defaultButton)
+                if (description.defaultButton && description.buttons[index].id == *description.defaultButton)
                 {
                     config.nDefaultButton = nativeBase + static_cast<int>(index);
                 }
             }
             for (std::size_t index = 0; index < description.options.size(); ++index)
             {
-                if (description.options[index].id == description.defaultOption)
+                if (description.defaultOption && description.options[index].id == *description.defaultOption)
                 {
                     config.nDefaultRadioButton = optionBase + static_cast<int>(index);
                 }
@@ -1539,8 +1539,8 @@ namespace GameWIP::Desktop::Detail::Platform
             if (selectedButton >= nativeBase && selectedButton < nativeBase + static_cast<int>(description.buttons.size()))
             {
                 output.button = description.buttons[static_cast<std::size_t>(selectedButton - nativeBase)].id;
-                output.outcome = output.button == description.cancelButton && description.cancelButton.isValid() ? Types::Dialogs::Outcome::Cancelled
-                                                                                                                 : Types::Dialogs::Outcome::Accepted;
+                output.outcome = description.cancelButton && output.button == description.cancelButton ? Types::Dialogs::Outcome::Cancelled
+                                                                                                         : Types::Dialogs::Outcome::Accepted;
                 return output;
             }
 

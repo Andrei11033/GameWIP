@@ -4,6 +4,7 @@
 #pragma once
 
 #include "io/status.h"
+#include "desktop/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
 
@@ -29,12 +30,6 @@ namespace GameWIP::Desktop::Types::Renderer
         std::size_t requiredWordCount = 0; ///< Exact packed-word count required for publication.
     };
 
-    /// @brief Status and publication target for beginning a pointer hit-mask update.
-    struct PointerHitMaskResult
-    {
-        IO::Types::Status status;    ///< Begin-update status.
-        PointerHitMaskTarget target; ///< Publication target on success.
-    };
 } // namespace GameWIP::Desktop::Types::Renderer
 
 /// @brief Optional Window and renderer presentation integration.
@@ -96,7 +91,7 @@ namespace GameWIP::Desktop::Renderer
     /// @param window Open Window to inspect on its owner thread.
     /// @return Status plus the generation, framebuffer size, and exact required word count;
     /// Unsupported when the backend does not advertise pointer-mask routing.
-    [[nodiscard]] DESKTOP_EXPORT Types::Renderer::PointerHitMaskResult beginPointerHitMaskUpdate(Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(Window &window) noexcept;
     /// @brief Publishes an exact-size packed mask for a previously returned generation.
     /// @details Owner-thread operation; copies words before return. Rows run from top to bottom.
     /// Pixel (x, y) uses bit x % 32 in word y * ceil(width / 32) + x / 32, least-significant bit first.

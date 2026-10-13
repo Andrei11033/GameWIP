@@ -84,7 +84,8 @@ void testManualFilesAndShell(
         return;
     }
 
-    const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
+    const auto capabilitiesResult = Desktop::getCapabilities();
+    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Types::Description description;
     description.fileDropEnabled = includeWindow && capabilities.supports(Desktop::Types::Capability::FileDrop);
     Desktop::Window window;
@@ -208,9 +209,9 @@ void testManualFilesAndShell(
         {
             return;
         }
-        const auto &shellCapabilities = shellCapabilityResult.capabilities;
+        const auto &shellCapabilities = *shellCapabilityResult;
         Desktop::ShellEventQueue shellQueue;
-        if (requireManualStatus(context, "shell event queue setup", shellQueue.open(64)))
+        if (requireManualStatus(context, "shell event queue setup", shellQueue.open(Desktop::Types::Shell::QueueConfiguration::owned(64))))
         {
             bool taskbarCommandSeen = false;
             bool trayCommandSeen = false;
@@ -360,7 +361,7 @@ void testManualFilesAndShell(
                             "Verify the title/body and sound policy, then dismiss the notification. Answer yes only if the notification appeared and "
                             "disappeared normally.",
                             drainShellEvents);
-                        static_cast<void>(notificationCenter.dismiss(published.id));
+                        static_cast<void>(notificationCenter.dismiss(*published));
                     }
                     else
                     {
@@ -706,7 +707,7 @@ void testManualFilesAndShell(
             owned,
             "owned taskbar default",
             "The diagnostics must show a nonzero ownerId. Does the owned Window have no independent taskbar entry?");
-        static_cast<void>(owned.setOwner({}));
+        static_cast<void>(owned.setOwner(std::nullopt));
         recordManualCheck(
             context,
             owned,
@@ -830,15 +831,15 @@ struct ManualDragDropCapture
 
 [[nodiscard]] bool manualPointerInside(const Desktop::Window &window) noexcept
 {
-    const Desktop::Native::Win32::HandleResult native = Desktop::Native::Win32::getHandle(window);
-    if (!native.status.ok() || native.handle.window == nullptr)
+    const auto native = Desktop::Native::Win32::getHandle(window);
+    if (!native.status.ok() || native->window == nullptr)
     {
         return false;
     }
     POINT pointer{};
     RECT client{};
-    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native.handle.window, &pointer) != FALSE &&
-           GetClientRect(native.handle.window, &client) != FALSE && PtInRect(&client, pointer) != FALSE;
+    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native->window, &pointer) != FALSE &&
+           GetClientRect(native->window, &client) != FALSE && PtInRect(&client, pointer) != FALSE;
 }
 
 struct ManualDragDropRun
@@ -956,15 +957,17 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
     Desktop::Types::Description sourceDescription;
     sourceDescription.title = "GameWIP native drag source";
-    sourceDescription.clientSize = {560, 360};
-    sourceDescription.visible = true;
-    sourceDescription.requestFocus = true;
+    sourceDescription.windowed.clientSize = {560, 360};
+    sourceDescription.activation.visible = true;
+    sourceDescription.activation.requestFocus = true;
     Desktop::Types::Description targetDescription = sourceDescription;
     targetDescription.title = "GameWIP native drop target";
     Desktop::Window sourceWindow;
     Desktop::Window targetWindow;
-    if (!requireManualStatus(context, "drag source Window setup", sourceWindow.open(sourceDescription, 64)) ||
-        !requireManualStatus(context, "drop target Window setup", targetWindow.open(targetDescription, 128)))
+    if (!requireManualStatus(
+            context, "drag source Window setup", sourceWindow.open(sourceDescription, Desktop::Events::owned(64))) ||
+        !requireManualStatus(
+            context, "drop target Window setup", targetWindow.open(targetDescription, Desktop::Events::owned(128))))
     {
         return;
     }
@@ -974,15 +977,12 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     constexpr DD::Effect allEffects = DD::Effect::Copy | DD::Effect::Move | DD::Effect::Link;
     constexpr std::string_view customName = "GameWIP.Validation.NativeDragDrop";
     std::array<Transfer::FormatView, 4> allFormats{
-        {{Transfer::FormatKind::Text, {}},
-         {Transfer::FormatKind::FileList, {}},
-         {Transfer::FormatKind::Image, {}},
-         {Transfer::FormatKind::Custom, customName}}};
+        {Transfer::FormatView::text(), Transfer::FormatView::files(), Transfer::FormatView::image(), Transfer::FormatView::custom(customName)}};
     std::array<DD::RegionDescription, 2> regions{
-        {{DD::RegionId{1}, std::nullopt, allFormats, allEffects, DD::Effect::Copy},
-         {DD::RegionId{2}, Desktop::Types::LogicalRect{{120, 90}, {360, 180}}, allFormats, allEffects, DD::Effect::Move}}};
+        {{DD::RegionId{1}, std::nullopt, allFormats, DD::EffectPolicy::allow(allEffects, DD::Effect::Copy)},
+         {DD::RegionId{2}, Desktop::Types::LogicalRect{{120, 90}, {360, 180}}, allFormats, DD::EffectPolicy::allow(allEffects, DD::Effect::Move)}}};
     Desktop::DragDropTarget target;
-    if (!requireManualStatus(context, "native DragDrop target setup", target.open(targetWindow, DD::TargetDescription{regions}, 128)))
+    if (!requireManualStatus(context, "native DragDrop target setup", target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(128))))
     {
         static_cast<void>(targetWindow.close());
         static_cast<void>(sourceWindow.close());
@@ -1043,13 +1043,13 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     const std::array<Transfer::ItemView, 4> allItems{
         {Transfer::TextView{unicodeText},
          Transfer::FileListView{files},
-         Transfer::ImageView{{2, 2}, 0, pixels},
+         Transfer::ImageView::packed({2, 2}, pixels),
          Transfer::CustomView{customName, customBytes}}};
     const std::array<Transfer::ItemView, 1> textItem{{Transfer::TextView{unicodeText}}};
 
     for (const DD::TriggerButton button : {DD::TriggerButton::Left, DD::TriggerButton::Right, DD::TriggerButton::Middle})
     {
-        const DD::Result result = Desktop::DragDrop::beginDrag(sourceWindow, DD::Description{textItem, allEffects, button});
+        const DD::Result result = Desktop::DragDrop::beginDrag(sourceWindow, DD::Description{textItem, DD::EffectPolicy::source(allEffects), button});
         static_cast<void>(context.expectEq("unheld configured trigger is InvalidArgument", ErrorCode::InvalidArgument, result.status.code));
     }
 
@@ -1064,7 +1064,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "same-process all-format drop",
         "Hold LEFT in the green source, drag into the green Region 2, move across its boundary at least once, then release. "
         "Answer yes only if the Windows stayed responsive and the diagnostics report a drop.",
-        DD::Description{allItems, allEffects, DD::TriggerButton::Left});
+        DD::Description{allItems, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
     if (sameProcess.answer == ManualAnswer::Yes && sameProcess.attempted)
     {
         static_cast<void>(context.expectEq("same-process source reports Dropped", DD::Outcome::Dropped, sameProcess.result.outcome));
@@ -1116,8 +1116,8 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         EffectCase{DD::Effect::Copy, DD::Effect::Move, DD::Effect::Move, DD::Effect::None, "no intersection"}};
     for (const EffectCase &effectCase : effectCases)
     {
-        std::array<Transfer::FormatView, 1> formats{{{Transfer::FormatKind::Text, {}}}};
-        std::array<DD::RegionDescription, 1> effectRegion{{{DD::RegionId{1}, std::nullopt, formats, effectCase.target, effectCase.preferred}}};
+        std::array<Transfer::FormatView, 1> formats{{Transfer::FormatView::text()}};
+        std::array<DD::RegionDescription, 1> effectRegion{{{DD::RegionId{1}, std::nullopt, formats, DD::EffectPolicy::allow(effectCase.target, effectCase.preferred)}}};
         static_cast<void>(context.expectTrue(std::format("{} target policy applies", effectCase.label), target.setRegions(effectRegion).ok()));
         capture.clear(target);
         const ManualDragDropRun run = runManualDragDropSource(
@@ -1128,7 +1128,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             &capture,
             std::format("effect matrix {}", effectCase.label),
             std::format("Hold LEFT in the source, drag to the blue target, and release. Expected effect: {}.", effectCase.label),
-            DD::Description{textItem, effectCase.source, DD::TriggerButton::Left});
+            DD::Description{textItem, DD::EffectPolicy::source(effectCase.source), DD::TriggerButton::Left});
         if (run.answer == ManualAnswer::Yes && run.attempted)
         {
             const DD::Outcome expectedOutcome = effectCase.expected == DD::Effect::None ? DD::Outcome::Cancelled : DD::Outcome::Dropped;
@@ -1150,7 +1150,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             &capture,
             std::format("{} trigger", buttonName),
             std::format("Hold {} in the source, drag to either target region, then release that same button.", buttonName),
-            DD::Description{textItem, allEffects, button});
+            DD::Description{textItem, DD::EffectPolicy::source(allEffects), button});
         if (run.answer == ManualAnswer::Yes && run.attempted)
         {
             static_cast<void>(context.expectEq(std::format("{} trigger drops", buttonName), DD::Outcome::Dropped, run.result.outcome));
@@ -1167,7 +1167,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "Escape and leave cancellation",
         "Hold LEFT in the source, enter and leave the target, press and release an unrelated mouse button, then press Escape while LEFT remains "
         "held.",
-        DD::Description{textItem, allEffects, DD::TriggerButton::Left});
+        DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
     if (cancellation.answer == ManualAnswer::Yes && cancellation.attempted)
     {
         static_cast<void>(context.expectEq("Escape reports Cancelled", DD::Outcome::Cancelled, cancellation.result.outcome));
@@ -1188,7 +1188,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             &capture,
             std::format("{} modifier independence", modifier),
             std::format("Hold LEFT in the source, keep {} held, drop in green Region 2, then release {}.", modifier, modifier),
-            DD::Description{textItem, allEffects, DD::TriggerButton::Left});
+            DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
         if (run.answer == ManualAnswer::Yes && run.attempted)
         {
             static_cast<void>(context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.effect));
@@ -1271,7 +1271,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     }
 
     const auto outbound =
-        [&](std::string_view name, std::string_view instruction, std::span<const Transfer::ItemView> items, DD::Effect allowedEffects)
+        [&](std::string_view name, std::string_view instruction, std::span<const Transfer::ItemView> items, DD::EffectPolicy effects)
     {
         const ManualDragDropRun run = runManualDragDropSource(
             context,
@@ -1281,7 +1281,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             nullptr,
             name,
             instruction,
-            DD::Description{items, allowedEffects, DD::TriggerButton::Left});
+            DD::Description{items, effects, DD::TriggerButton::Left});
         if (run.answer == ManualAnswer::Yes && run.attempted)
         {
             static_cast<void>(context.expectEq(std::format("{} reports Dropped", name), DD::Outcome::Dropped, run.result.outcome));
@@ -1299,7 +1299,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         }
     };
     const std::array<Transfer::ItemView, 1> fileItem{{Transfer::FileListView{files}}};
-    const std::array<Transfer::ItemView, 1> imageItem{{Transfer::ImageView{{2, 2}, 0, pixels}}};
+    const std::array<Transfer::ItemView, 1> imageItem{{Transfer::ImageView::packed({2, 2}, pixels)}};
     const std::array<Transfer::ItemView, 1> customItem{{Transfer::CustomView{customName, customBytes}}};
     outbound(
         "GameWIP files to Explorer",
@@ -1307,22 +1307,22 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             "Hold LEFT in the source and drag to {} in Explorer. Verify Copy is reported and README.md/CMakeLists.txt arrive.",
             copyDirectory.string()),
         fileItem,
-        DD::Effect::Copy);
+        DD::EffectPolicy::source(DD::Effect::Copy));
     outbound(
         "GameWIP Unicode text to editor",
         "Hold LEFT in the source and drag into a compatible text editor. Verify the exact accented, Japanese, punctuation, and emoji text.",
         textItem,
-        allEffects);
+        DD::EffectPolicy::source(allEffects));
     outbound(
         "GameWIP image to foreign target",
         "Hold LEFT in the source and drag to a DIB-capable image target. Verify orientation, R/G/B order, and supported alpha.",
         imageItem,
-        allEffects);
+        DD::EffectPolicy::source(allEffects));
     outbound(
         "GameWIP custom data to diagnostic consumer",
         "Hold LEFT in the source and drag to a controlled consumer that requests the custom format repeatedly. Answer skip if unavailable.",
         customItem,
-        allEffects);
+        DD::EffectPolicy::source(allEffects));
 
     capture.clear(target);
     const ManualDragDropRun modalGeometry = runManualDragDropSource(
@@ -1334,7 +1334,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "modal presentation and interactive geometry",
         "Hold LEFT in the source and keep the drag active. Move or resize the target with Windows keyboard/shell controls where practical, "
         "cross both target regions, then drop. Answer yes only if geometry/presentation stayed coherent with no deadlock.",
-        DD::Description{textItem, allEffects, DD::TriggerButton::Left});
+        DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
     if (modalGeometry.answer == ManualAnswer::Yes && modalGeometry.attempted)
     {
         static_cast<void>(context.expectEq("modal geometry scenario drops", DD::Outcome::Dropped, modalGeometry.result.outcome));
@@ -1345,10 +1345,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     static_cast<void>(context.expectEq(
         "full target conflicts with lightweight mode",
         ErrorCode::ResourceBusy,
-        target.open(targetWindow, DD::TargetDescription{regions}, 8).code));
+        target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(8)).code));
     static_cast<void>(context.expectTrue("lightweight file drop disables", targetWindow.setFileDropEnabled(false).ok()));
     static_cast<void>(
-        context.expectTrue("full target reopens after lightweight mode", target.open(targetWindow, DD::TargetDescription{regions}, 8).ok()));
+        context.expectTrue("full target reopens after lightweight mode", target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(8)).ok()));
     static_cast<void>(target.close());
     static_cast<void>(targetWindow.close());
     static_cast<void>(sourceWindow.close());

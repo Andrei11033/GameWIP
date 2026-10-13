@@ -213,7 +213,7 @@ namespace GameWIP::Desktop::Renderer
     }
 
     /// @brief Reserves a generation and exact target size for a two-phase hit-mask publication.
-    Types::Renderer::PointerHitMaskResult beginPointerHitMaskUpdate(Window &window) noexcept
+    Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(Window &window) noexcept
     {
         Detail::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
@@ -258,7 +258,7 @@ namespace GameWIP::Desktop::Renderer
         renderer->pointerHitMaskTargetWordCount = required;
         return {
             .status = IO::successStatus(),
-            .target = {.generation = generation, .framebufferSize = state->framebufferSize, .requiredWordCount = required}};
+            .value = Types::Renderer::PointerHitMaskTarget{.generation = generation, .framebufferSize = state->framebufferSize, .requiredWordCount = required}};
     }
 
     /// @brief Validates and publishes the reserved hit-mask generation atomically from the owner thread.

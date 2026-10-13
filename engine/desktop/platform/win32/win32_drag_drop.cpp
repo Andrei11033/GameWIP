@@ -103,7 +103,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Materializes and validates every source item before entering OLE.
         [[nodiscard]] IO::Types::Status prepareSource(const DD::Description &description, std::vector<DataTransfer::PreparedItem> &prepared) noexcept
         {
-            if (description.items.empty() || !validEffects(description.allowedEffects) ||
+            if (description.items.empty() || !validEffects(description.effects.allowed) ||
                 static_cast<unsigned>(description.triggerButton) > static_cast<unsigned>(DD::TriggerButton::Middle))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
@@ -308,9 +308,9 @@ namespace GameWIP::Desktop::Detail::Platform
                     const auto pos = clientPosition(*state_, point);
                     active_ = regionAt(*state_, pos, nativeFormats_);
                     const auto selected =
-                        active_ ? negotiateDragDropEffect(sourceEffects_, active_->allowedEffects, active_->preferredEffect) : DD::Effect::None;
+                        active_ ? negotiateDragDropEffect(sourceEffects_, active_->effects.allowed, active_->effects.preferred) : DD::Effect::None;
                     currentRegion_ = active_ ? active_->id : DD::RegionId{};
-                    routeDragDropEvent(*state_, DD::Events::Entered{session_, pos, currentRegion_, selected, formats_});
+                    routeDragDropEvent(*state_, DD::Events::Entered{session_, pos, active_ ? std::optional<DD::RegionId>{active_->id} : std::nullopt, selected, formats_});
                     *effect = nativeEffects(selected);
                     return S_OK;
                 }
@@ -334,8 +334,16 @@ namespace GameWIP::Desktop::Detail::Platform
                 const auto pos = clientPosition(*state_, point);
                 const auto *next = regionAt(*state_, pos, nativeFormats_);
                 const auto region = next ? next->id : DD::RegionId{};
-                const auto selected = next ? negotiateDragDropEffect(sourceEffects_, next->allowedEffects, next->preferredEffect) : DD::Effect::None;
-                routeDragDropEvent(*state_, DD::Events::Moved{session_, pos, currentRegion_, region, selected, formats_});
+                const auto selected = next ? negotiateDragDropEffect(sourceEffects_, next->effects.allowed, next->effects.preferred) : DD::Effect::None;
+                routeDragDropEvent(
+                    *state_,
+                    DD::Events::Moved{
+                        session_,
+                        pos,
+                        currentRegion_.isValid() ? std::optional<DD::RegionId>{currentRegion_} : std::nullopt,
+                        next ? std::optional<DD::RegionId>{region} : std::nullopt,
+                        selected,
+                        formats_});
                 active_ = next;
                 currentRegion_ = region;
                 *effect = nativeEffects(selected);
@@ -369,7 +377,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 const auto pos = clientPosition(*state_, point);
                 const auto *region = regionAt(*state_, pos, nativeFormats_);
                 const auto selected =
-                    region ? negotiateDragDropEffect(sourceEffects_, region->allowedEffects, region->preferredEffect) : DD::Effect::None;
+                    region ? negotiateDragDropEffect(sourceEffects_, region->effects.allowed, region->effects.preferred) : DD::Effect::None;
                 if (selected == DD::Effect::None)
                 {
                     *effect = DROPEFFECT_NONE;
@@ -1117,7 +1125,7 @@ namespace GameWIP::Desktop::Detail::Platform
             result.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
             return result;
         }
-        if (description.items.empty() || !validEffects(description.allowedEffects) ||
+        if (description.items.empty() || !validEffects(description.effects.allowed) ||
             static_cast<unsigned>(description.triggerButton) > static_cast<unsigned>(DD::TriggerButton::Middle))
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
@@ -1158,7 +1166,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             sourceDragActive = true;
             DWORD performed = DROPEFFECT_NONE;
-            const HRESULT hr = DoDragDrop(object, source, nativeEffects(description.allowedEffects), &performed);
+            const HRESULT hr = DoDragDrop(object, source, nativeEffects(description.effects.allowed), &performed);
             sourceDragActive = false;
             source->Release();
             object->Release();
@@ -1175,7 +1183,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             else if (hr == DRAGDROP_S_DROP)
             {
-                result = droppedSourceResult(performed, description.allowedEffects);
+                result = droppedSourceResult(performed, description.effects.allowed);
             }
             else
             {
@@ -1291,7 +1299,7 @@ namespace GameWIP::Desktop::Detail::Platform
             native.reserve(offered.size());
             for (const auto &view : offered)
             {
-                Transfer::Format format{view.kind, std::string(view.customName)};
+                Transfer::Format format{view.kind(), std::string(view.customName())};
                 IO::Types::Status status;
                 const CLIPFORMAT identity = DataTransfer::nativeFormat(format, status);
                 if (!status.ok())

@@ -85,8 +85,8 @@ namespace GameWIP::Desktop::Detail
         Types::Dpi dpi;
         Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
         Types::Display::MonitorId monitor;
-        Types::Mode mode = Types::Mode::Windowed;
-        Types::FullscreenInfo fullscreen;
+        Types::WindowMode mode = Types::WindowMode::Windowed;
+        Types::FullscreenState fullscreen;
         Types::PresentationState presentation = Types::PresentationState::Normal;
         Types::DecorationMode decoration = Types::DecorationMode::System;
         Types::Controls controls;

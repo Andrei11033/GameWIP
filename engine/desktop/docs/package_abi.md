@@ -39,6 +39,7 @@ The supported public headers are:
 - `desktop/window.h`
 - `desktop/dialogs.h`
 - `desktop/renderer_bridge.h`
+- `desktop/result.h`
 - `desktop/shell.h`
 - `desktop/shell_types.h`
 - `desktop/shell_taskbar.h`

@@ -2460,7 +2460,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return shellMessageWindowCount != 0;
     }
 
-    Types::Shell::CapabilitiesResult getShellCapabilities() noexcept
+    Types::Result<Types::Shell::Capabilities> getShellCapabilities() noexcept
     {
         static const Types::Shell::Capabilities capabilities = []
         {
@@ -2484,7 +2484,7 @@ namespace GameWIP::Desktop::Detail::Platform
             value.flags |= std::uint64_t{1} << static_cast<unsigned int>(Types::Shell::Capability::RegistrationExtendedMetadata);
             return value;
         }();
-        return {.status = IO::successStatus(), .capabilities = capabilities};
+        return {.status = IO::successStatus(), .value = capabilities};
     }
 
     IO::Types::Status openTaskbar(TaskbarItemState &state) noexcept

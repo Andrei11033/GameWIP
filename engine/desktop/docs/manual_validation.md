@@ -266,7 +266,7 @@ Win32 immediate publication cannot represent an exact zero-byte custom
 | Movement between different DPI values | Logical client geometry, physical framebuffer extent, scale/DPI events, and current monitor remain coherent.                                                                                                                                            |
 | Display topology change               | Re-enumeration follows the display event, and stale monitor IDs fail cleanly.                                                                                                                                                                           |
 | Active target disconnection           | Exclusive display state is restored and the Window visibly recovers to windowed mode on the surviving primary monitor.                                                                                                                                  |
-| Recovery event sequence               | Recovery clears `FullscreenInfo` and orders display configuration, mode, optional monitor, optional geometry/framebuffer, then optional DPI/content-scale events; restoration or repositioning failure reaches the pump without stale fullscreen state. |
+| Recovery event sequence               | Recovery clears `FullscreenState` and orders display configuration, mode, optional monitor, optional geometry/framebuffer, then optional DPI/content-scale events; restoration or repositioning failure reaches the pump without stale fullscreen state. |
 
 ## HDR and advanced color
 

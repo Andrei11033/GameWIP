@@ -70,7 +70,7 @@ int main()
 {
     GameWIP::Desktop::Types::Description description;
     description.title = "GameWIP";
-    description.visible = true;
+    description.activation.visible = true;
 
     GameWIP::Desktop::Window window;
     if (!window.open(description).ok())
@@ -106,9 +106,10 @@ are not flattened into text.
 
 ## Failure handling
 
-Window operations return direct `IO::Types::Status` values or result structures
-containing a `status`. Inspect the status before consuming the associated
-payload. A failed event wait or pump does not close an open window
+Window operations return direct `IO::Types::Status` values or typed
+`Types::Result<T>`/operation-result structures. For query results, inspect
+`status` (or `ok()`) before consuming the optional `value`; operation-specific
+results document their own progress fields. A failed event wait or pump does not close an open window
 automatically. Call `close()` and handle its status; destruction performs only
 best-effort cleanup.
 

@@ -403,7 +403,7 @@ namespace GameWIP::Desktop::Detail
                     if (const auto *image = std::get_if<Types::DataTransfer::ImageView>(&media))
                     {
                         const std::size_t packedRowBytes = static_cast<std::size_t>(image->size.width) * 4U;
-                        const std::size_t rowStride = image->rowStrideBytes == 0 ? packedRowBytes : image->rowStrideBytes;
+                        const std::size_t rowStride = image->rowStrideBytes.value_or(packedRowBytes);
                         if (image->size.width == 0 || image->size.height == 0 || rowStride < packedRowBytes ||
                             static_cast<std::size_t>(image->size.height) > std::numeric_limits<std::size_t>::max() / rowStride ||
                             image->rgba8.size() != static_cast<std::size_t>(image->size.height) * rowStride)
@@ -1257,9 +1257,9 @@ namespace GameWIP::Desktop
         return IO::successStatus();
     }
 
-    Types::Notifications::PublishResult NotificationCenter::publish(const Types::Notifications::Description &description) noexcept
+    Types::Result<Types::Shell::NotificationId> NotificationCenter::publish(const Types::Notifications::Description &description) noexcept
     {
-        Types::Notifications::PublishResult result{error(ErrorCode::NotOpen), {}};
+        Types::Result<Types::Shell::NotificationId> result{error(ErrorCode::NotOpen), std::nullopt};
         IO::Types::Status status = requireOwnedNotification(Detail::NotificationCenterAccess::state(*this), ownedByCurrentThread());
         if (!status.ok())
         {
@@ -1305,7 +1305,7 @@ namespace GameWIP::Desktop
             nativePublished = true;
             state_->notifications.emplace(id, std::move(owned));
             result.status = IO::successStatus();
-            result.id = Types::Shell::NotificationId{id};
+            result.value = Types::Shell::NotificationId{id};
             return result;
         }
         catch (const std::bad_alloc &)
@@ -1604,12 +1604,14 @@ namespace GameWIP::Desktop
 
     IO::Types::Status ShellEventQueue::open() noexcept
     {
-        return open(Events::kDefaultQueueCapacity);
+        return open(Types::Shell::QueueConfiguration::owned());
     }
 
-    IO::Types::Status ShellEventQueue::open(std::size_t capacity) noexcept
+    IO::Types::Status ShellEventQueue::open(Types::Shell::QueueConfiguration queue) noexcept
     {
-        if (capacity == 0)
+        const auto *ownedQueue = std::get_if<Types::Shell::QueueConfiguration::Owned>(&queue.storage);
+        const auto *borrowedQueue = std::get_if<Types::Shell::QueueConfiguration::Borrowed>(&queue.storage);
+        if ((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
@@ -1621,40 +1623,21 @@ namespace GameWIP::Desktop
         try
         {
             auto candidate = std::make_unique<Detail::ShellEventQueueState>();
-            candidate->internalEvents.resize(capacity);
-            candidate->eventStorage = candidate->internalEvents;
-            candidate->storageKind = Types::Events::StorageKind::Internal;
-            candidate->ownerThread = std::this_thread::get_id();
-            candidate->open = true;
-            state_ = std::move(candidate);
-            return IO::successStatus();
-        }
-        catch (const std::bad_alloc &)
-        {
-            return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
-        }
-        catch (...)
-        {
-            return IO::makeStatus(IO::Types::ErrorCode::Unknown);
-        }
-    }
-
-    IO::Types::Status ShellEventQueue::open(std::span<Types::Shell::Event> eventStorage) noexcept
-    {
-        if (eventStorage.empty())
-        {
-            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
-        }
-        if (state_ != nullptr)
-        {
-            return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
-        }
-
-        try
-        {
-            auto candidate = std::make_unique<Detail::ShellEventQueueState>();
-            candidate->eventStorage = eventStorage;
-            candidate->storageKind = Types::Events::StorageKind::External;
+            if (ownedQueue != nullptr)
+            {
+                if (ownedQueue->capacity > candidate->internalEvents.max_size())
+                {
+                    return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+                }
+                candidate->internalEvents.resize(ownedQueue->capacity);
+                candidate->eventStorage = candidate->internalEvents;
+                candidate->storageKind = Types::Events::StorageKind::Internal;
+            }
+            else
+            {
+                candidate->eventStorage = borrowedQueue->storage;
+                candidate->storageKind = Types::Events::StorageKind::External;
+            }
             candidate->ownerThread = std::this_thread::get_id();
             candidate->open = true;
             state_ = std::move(candidate);
@@ -1806,13 +1789,14 @@ namespace GameWIP::Desktop::Shell
     // Capability queries
     // ------------------------------------------------------------
 
-    Types::Shell::CapabilitiesResult getCapabilities() noexcept
+    Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept
     {
         return Detail::Platform::getShellCapabilities();
     }
 
     bool supports(Types::Shell::Capability capability) noexcept
     {
-        return getCapabilities().capabilities.supports(capability);
+        const auto result = getCapabilities();
+        return result.ok() && result->supports(capability);
     }
 } // namespace GameWIP::Desktop::Shell

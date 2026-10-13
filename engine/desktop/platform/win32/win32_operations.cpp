@@ -216,7 +216,10 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         if (state.owner != previous)
         {
-            routeEvent(state, Types::Events::OwnerChanged{previous, state.owner});
+            routeEvent(
+                state,
+                Types::Events::OwnerChanged{previous.isValid() ? std::optional<Types::WindowId>{previous} : std::nullopt,
+                                            state.owner.isValid() ? std::optional<Types::WindowId>{state.owner} : std::nullopt});
         }
         return IO::successStatus();
     }
@@ -393,7 +396,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    Types::ScreenPositionResult clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept
+    Types::Result<Types::ScreenPosition> clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
         POINT point{};
@@ -409,10 +412,10 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen")};
         }
-        return {.status = IO::successStatus(), .position = {point.x, point.y}};
+        return {.status = IO::successStatus(), .value = Types::ScreenPosition{point.x, point.y}};
     }
 
-    Types::LogicalPositionResult screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept
+    Types::Result<Types::LogicalPosition> screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
         POINT point{position.x, position.y};
@@ -420,6 +423,6 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ScreenToClient")};
         }
-        return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
+        return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
 } // namespace GameWIP::Desktop::Detail::Platform

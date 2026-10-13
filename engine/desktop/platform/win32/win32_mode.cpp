@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <new>
+#include <optional>
+#include <type_traits>
 
 namespace GameWIP::Desktop::Detail::Platform
 {
@@ -47,6 +49,35 @@ namespace GameWIP::Desktop::Detail::Platform
                 return MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
             }
             return MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY);
+        }
+
+        struct ResolvedWindowModeRequest
+        {
+            Types::WindowMode mode = Types::WindowMode::Windowed;
+            std::optional<Types::Display::MonitorId> targetMonitor;
+            std::optional<Types::Display::Mode> displayMode;
+        };
+
+        [[nodiscard]] ResolvedWindowModeRequest resolveWindowModeRequest(const Types::WindowModeRequest &request) noexcept
+        {
+            return std::visit(
+                [](const auto &value) noexcept
+                {
+                    using Request = std::decay_t<decltype(value)>;
+                    if constexpr (std::is_same_v<Request, Types::WindowedModeRequest>)
+                    {
+                        return ResolvedWindowModeRequest{};
+                    }
+                    else if constexpr (std::is_same_v<Request, Types::BorderlessFullscreenRequest>)
+                    {
+                        return ResolvedWindowModeRequest{Types::WindowMode::BorderlessFullscreen, value.targetMonitor, std::nullopt};
+                    }
+                    else
+                    {
+                        return ResolvedWindowModeRequest{Types::WindowMode::ExclusiveFullscreen, value.targetMonitor, value.displayMode};
+                    }
+                },
+                request);
         }
 
         /// @brief Saves windowed placement and styles before entering fullscreen.
@@ -110,19 +141,19 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         /// @brief Publishes a mode transition and refreshes the current monitor identity.
-        void reportModeChange(WindowState &state, Types::Mode previous) noexcept
+        void reportModeChange(WindowState &state, Types::WindowMode previous) noexcept
         {
             if (previous != state.mode)
             {
-                routeEvent(state, Types::Events::ModeChanged{previous, state.mode});
+                routeEvent(state, Types::Events::WindowModeChanged{previous, state.mode});
             }
             updateCurrentMonitor(state);
         }
 
         struct ModeSnapshot
         {
-            Types::Mode mode = Types::Mode::Windowed;
-            Types::FullscreenInfo fullscreen;
+            Types::WindowMode mode = Types::WindowMode::Windowed;
+            Types::FullscreenState fullscreen;
             DWORD style = 0;
             DWORD extendedStyle = 0;
             RECT rect{};
@@ -276,7 +307,7 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    IO::Types::Status applyMode(WindowState &state, const Types::ModeRequest &request) noexcept
+    IO::Types::Status applyWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept
     {
         if (!state.platform || state.platform->handle == nullptr)
         {
@@ -289,33 +320,34 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy, ERROR_BUSY, "a native window mode transition is already active");
             }
-            const Types::Mode previousMode = state.mode;
-            if (previousMode == Types::Mode::Windowed && request.mode == Types::Mode::Windowed)
+            const ResolvedWindowModeRequest resolved = resolveWindowModeRequest(request);
+            const Types::WindowMode previousMode = state.mode;
+            if (previousMode == Types::WindowMode::Windowed && resolved.mode == Types::WindowMode::Windowed)
             {
                 return IO::successStatus();
             }
 
             HMONITOR monitor = nullptr;
-            Types::Display::InfoResult monitorInfo;
+            Types::Result<Types::Display::Info> monitorInfo;
             std::wstring requestedDevice;
             DEVMODEW requestedNativeMode{};
             bool hasRequestedNativeMode = false;
-            if (request.mode != Types::Mode::Windowed)
+            if (resolved.mode != Types::WindowMode::Windowed)
             {
-                monitor = targetMonitor(state, request.monitor);
+                monitor = targetMonitor(state, resolved.targetMonitor.value_or(Types::Display::MonitorId::invalid()));
                 monitorInfo = monitorFromNative(monitor);
                 if (!monitorInfo.status.ok())
                 {
                     return monitorInfo.status;
                 }
-                requestedDevice = monitorDeviceName(monitorInfo.monitor.id);
+                requestedDevice = monitorDeviceName(monitorInfo->id);
                 if (requestedDevice.empty())
                 {
                     return IO::makeStatus(IO::Types::ErrorCode::NotFound);
                 }
-                if (request.mode == Types::Mode::ExclusiveFullscreen && request.displayMode)
+                if (resolved.mode == Types::WindowMode::ExclusiveFullscreen && resolved.displayMode)
                 {
-                    IO::Types::Status validation = findNativeMode(requestedDevice, *request.displayMode, requestedNativeMode);
+                    IO::Types::Status validation = findNativeMode(requestedDevice, *resolved.displayMode, requestedNativeMode);
                     if (!validation.ok())
                     {
                         return validation;
@@ -323,11 +355,11 @@ namespace GameWIP::Desktop::Detail::Platform
                     hasRequestedNativeMode = true;
                 }
 
-                if (previousMode == request.mode && state.fullscreen.monitor == monitorInfo.monitor.id && !state.fullscreen.suspended)
+                if (previousMode == resolved.mode && state.fullscreen.monitor == monitorInfo->id && !state.fullscreen.suspended)
                 {
-                    if (request.mode == Types::Mode::ExclusiveFullscreen &&
-                        ((request.displayMode && state.fullscreen.exactDisplayMode && state.fullscreen.displayMode == request.displayMode) ||
-                         (!request.displayMode && !state.fullscreen.exactDisplayMode)))
+                    if (resolved.mode == Types::WindowMode::ExclusiveFullscreen &&
+                        ((resolved.displayMode && state.fullscreen.displayModeMatchedExactly && state.fullscreen.requestedDisplayMode == resolved.displayMode) ||
+                         (!resolved.displayMode && !state.fullscreen.displayModeMatchedExactly)))
                     {
                         return IO::successStatus();
                     }
@@ -340,7 +372,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "snapshot window mode");
             }
 
-            if (previousMode == Types::Mode::Windowed && request.mode != Types::Mode::Windowed)
+            if (previousMode == Types::WindowMode::Windowed && resolved.mode != Types::WindowMode::Windowed)
             {
                 IO::Types::Status placementStatus = saveWindowedPlacement(state);
                 if (!placementStatus.ok())
@@ -356,14 +388,14 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ModeTransitionScope transition(data);
 
-            if (request.mode == Types::Mode::Windowed)
+            if (resolved.mode == Types::WindowMode::Windowed)
             {
                 IO::Types::Status status = leaveExclusive(state);
                 if (!status.ok())
                 {
                     return status;
                 }
-                state.mode = Types::Mode::Windowed;
+                state.mode = Types::WindowMode::Windowed;
                 state.fullscreen = {};
                 status = applyStyle(state);
                 if (!status.ok())
@@ -387,7 +419,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return status;
             }
 
-            if (request.mode == Types::Mode::ExclusiveFullscreen)
+            if (resolved.mode == Types::WindowMode::ExclusiveFullscreen)
             {
                 DEVMODEW current{};
                 current.dmSize = sizeof(current);
@@ -405,7 +437,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (hasRequestedNativeMode)
                 {
                     desired = requestedNativeMode;
-                    active = *request.displayMode;
+                    active = *resolved.displayMode;
                 }
                 else
                 {
@@ -434,13 +466,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 data.exclusiveSuspended = false;
                 data.activeDisplayMode = active;
                 data.exactDisplayMode = exact;
-                state.mode = request.mode;
-                state.fullscreen = {monitorInfo.monitor.id, active, exact, false};
+                state.mode = resolved.mode;
+                state.fullscreen = {monitorInfo->id, resolved.displayMode, active, exact, false};
             }
             else
             {
-                state.mode = Types::Mode::BorderlessFullscreen;
-                state.fullscreen = {monitorInfo.monitor.id, std::nullopt, false, false};
+                state.mode = Types::WindowMode::BorderlessFullscreen;
+                state.fullscreen = {monitorInfo->id, std::nullopt, std::nullopt, false, false};
             }
 
             status = applyStyle(state);
@@ -469,9 +501,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
-    IO::Types::Status setMode(WindowState &state, const Types::ModeRequest &request) noexcept
+    IO::Types::Status setWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept
     {
-        IO::Types::Status transition = applyMode(state, request);
+        IO::Types::Status transition = applyWindowMode(state, request);
 
         DWORD foregroundProcessId = 0;
         const HWND foreground = GetForegroundWindow();
@@ -494,7 +526,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        const Types::Mode previousMode = state.mode;
+        const Types::WindowMode previousMode = state.mode;
         const Types::Display::MonitorId previousMonitor = state.monitor;
         const Types::ScreenPosition previousPosition = state.clientPosition;
         const Types::LogicalSize previousClient = state.clientSize;
@@ -502,8 +534,8 @@ namespace GameWIP::Desktop::Detail::Platform
         const Types::ContentScale previousScale = state.contentScale;
         const Types::Dpi previousDpi = state.dpi;
 
-        const bool fullscreenMonitorConnected = nativeMonitor(state.fullscreen.monitor) != nullptr;
-        if (state.mode == Types::Mode::Windowed || (!forceRemovedMonitor && fullscreenMonitorConnected))
+        const bool fullscreenMonitorConnected = state.fullscreen.monitor && nativeMonitor(*state.fullscreen.monitor) != nullptr;
+        if (state.mode == Types::WindowMode::Windowed || (!forceRemovedMonitor && fullscreenMonitorConnected))
         {
             routeEvent(state, Types::Events::DisplayConfigurationChanged{});
             updateCurrentMonitor(state);
@@ -513,7 +545,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HMONITOR primary = MonitorFromPoint(POINT{}, MONITOR_DEFAULTTOPRIMARY);
         MONITORINFO primaryInfo{};
         primaryInfo.cbSize = sizeof(primaryInfo);
-        Types::Display::InfoResult portablePrimary = monitorFromNative(primary);
+        Types::Result<Types::Display::Info> portablePrimary = monitorFromNative(primary);
         IO::Types::Status monitorFailure = IO::successStatus();
         if (!portablePrimary.status.ok())
         {
@@ -531,9 +563,9 @@ namespace GameWIP::Desktop::Detail::Platform
         if (!monitorFailure.ok())
         {
             state.fullscreen = {};
-            state.mode = Types::Mode::Windowed;
+            state.mode = Types::WindowMode::Windowed;
             routeEvent(state, Types::Events::DisplayConfigurationChanged{});
-            routeEvent(state, Types::Events::ModeChanged{previousMode, state.mode});
+            routeEvent(state, Types::Events::WindowModeChanged{previousMode, state.mode});
             return monitorFailure;
         }
 
@@ -573,7 +605,7 @@ namespace GameWIP::Desktop::Detail::Platform
         data.activeNativeDisplayMode = {};
         data.activeDisplayMode = {};
         data.exactDisplayMode = false;
-        state.mode = Types::Mode::Windowed;
+        state.mode = Types::WindowMode::Windowed;
         state.fullscreen = {};
         state.presentation = Types::PresentationState::Normal;
         if (state.presentationPublication != nullptr)
@@ -599,7 +631,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             firstFailure = status;
         }
-        state.monitor = portablePrimary.monitor.id;
+        state.monitor = portablePrimary->id;
         if (state.presentationPublication != nullptr)
         {
             state.presentationPublication->publishMonitor(state.monitor);
@@ -607,7 +639,7 @@ namespace GameWIP::Desktop::Detail::Platform
         state.suppressEvents = previousSuppression;
 
         routeEvent(state, Types::Events::DisplayConfigurationChanged{});
-        routeEvent(state, Types::Events::ModeChanged{previousMode, state.mode});
+        routeEvent(state, Types::Events::WindowModeChanged{previousMode, state.mode});
         if (previousMonitor != state.monitor)
         {
             routeEvent(state, Types::Events::MonitorChanged{previousMonitor, state.monitor});

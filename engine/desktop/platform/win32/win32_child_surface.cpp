@@ -499,7 +499,7 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
     /// @brief Converts child-local logical coordinates to virtual-screen pixels.
-    Types::ScreenPositionResult childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept
+    Types::Result<Types::ScreenPosition> childSurfaceClientToScreen(const ChildSurfaceState &state, Types::LogicalPosition position) noexcept
     {
         LONG x = 0;
         LONG y = 0;
@@ -513,11 +513,11 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ChildSurface client to screen")};
         }
-        return {.status = IO::successStatus(), .position = {point.x, point.y}};
+        return {.status = IO::successStatus(), .value = Types::ScreenPosition{point.x, point.y}};
     }
 
     /// @brief Converts virtual-screen pixels to child-local logical coordinates.
-    Types::LogicalPositionResult childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept
+    Types::Result<Types::LogicalPosition> childSurfaceScreenToClient(const ChildSurfaceState &state, Types::ScreenPosition position) noexcept
     {
         POINT point{position.x, position.y};
         if (ScreenToClient(state.platform->handle, &point) == FALSE)
@@ -525,7 +525,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ChildSurface screen to client")};
         }
         const UINT dpi = dpiForWindow(state.platform->handle);
-        return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
+        return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
 
     /// @brief Changes native child visibility and verifies the resulting style bit.
@@ -592,7 +592,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Native::Win32
 {
-    HandleResult getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept
+    Types::Result<HandleView> getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept
     {
         const Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
         if (state == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*state))
@@ -604,7 +604,7 @@ namespace GameWIP::Desktop::Native::Win32
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
         }
         const Detail::Platform::NativeHandleView handles = Detail::Platform::childSurfaceNativeHandle(*state);
-        return {.status = IO::successStatus(), .handle = {static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
+        return {.status = IO::successStatus(), .value = HandleView{static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
     }
 } // namespace GameWIP::Desktop::Native::Win32
 

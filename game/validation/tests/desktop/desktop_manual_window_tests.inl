@@ -15,9 +15,9 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
 
     Desktop::Types::Description description;
     description.title = "GameWIP Window manual validation";
-    description.clientSize = {960, 540};
-    description.visible = true;
-    description.requestFocus = true;
+    description.windowed.clientSize = {960, 540};
+    description.activation.visible = true;
+    description.activation.requestFocus = true;
 
     Desktop::Window window;
     const IO::Types::Status openStatus = window.open(description);
@@ -69,8 +69,8 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
     static_cast<void>(context.expectFalse("manual Window is closed", window.isOpen()));
 
     Desktop::Window reopened;
-    description.visible = false;
-    description.requestFocus = false;
+    description.activation.visible = false;
+    description.activation.requestFocus = false;
     static_cast<void>(context.expectTrue("manual Window reopens after explicit close", reopened.open(description).ok()));
     static_cast<void>(context.expectTrue("reopened manual Window closes cleanly", reopened.close().ok()));
 }
@@ -114,7 +114,7 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
         "Activate, minimize, and restore the owner and owned Window. Is their native z-order/minimization relationship stable?",
         paintOwnedWindow);
 
-    static_cast<void>(context.expectTrue("owned Window owner removal succeeds", child.setOwner({}).ok()));
+    static_cast<void>(context.expectTrue("owned Window owner removal succeeds", child.setOwner(std::nullopt).ok()));
     recordManualCheck(
         context,
         owner,
@@ -163,7 +163,8 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
         return;
     }
 
-    const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
+    const auto capabilitiesResult = Desktop::getCapabilities();
+    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     if (!capabilities.supports(Desktop::Types::Capability::CustomChrome))
     {
         context.skip("Window custom chrome", "backend does not advertise CustomChrome");
@@ -234,7 +235,8 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
         return;
     }
 
-    const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
+    const auto capabilitiesResult = Desktop::getCapabilities();
+    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP opacity and pointer validation"))
     {
@@ -376,14 +378,14 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
     bool conversionsRoundTrip = true;
     for (const Desktop::Types::LogicalPosition point : points)
     {
-        const Desktop::Types::ScreenPositionResult screen = window.clientToScreen(point);
+        const auto screen = window.clientToScreen(point);
         if (!screen.status.ok())
         {
             conversionsRoundTrip = false;
             break;
         }
-        const Desktop::Types::LogicalPositionResult logical = window.screenToClient(screen.position);
-        conversionsRoundTrip = conversionsRoundTrip && logical.status.ok() && logical.position == point;
+        const auto logical = window.screenToClient(*screen);
+        conversionsRoundTrip = conversionsRoundTrip && logical.status.ok() && *logical == point;
     }
     static_cast<void>(context.expectTrue("client/screen edge conversions round-trip", conversionsRoundTrip));
     recordManualCheck(
@@ -392,9 +394,9 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
         "mixed-DPI coordinate rounding",
         "At each available DPI scale, do client/screen edge coordinates follow the expected integral-pixel rounding without visible drift?");
 
-    const Desktop::Types::Display::MonitorsResult monitors = Desktop::Display::getMonitors();
-    bool monitorRectsValid = monitors.status.ok() && !monitors.monitors.empty();
-    for (const Desktop::Types::Display::Info &monitor : monitors.monitors)
+    const auto monitors = Desktop::Display::getMonitors();
+    bool monitorRectsValid = monitors.ok() && !monitors->empty();
+    for (const Desktop::Types::Display::Info &monitor : *monitors)
     {
         monitorRectsValid = monitorRectsValid && monitor.bounds.size.width > 0 && monitor.bounds.size.height > 0 && monitor.workArea.size.width > 0 &&
                             monitor.workArea.size.height > 0;
@@ -417,7 +419,8 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
         return;
     }
 
-    const Desktop::Types::Capabilities capabilities = Desktop::getCapabilities().capabilities;
+    const auto capabilitiesResult = Desktop::getCapabilities();
+    const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
     if (!openManualWindow(context, window, "GameWIP cursor validation"))
     {
@@ -505,11 +508,11 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
               Desktop::Types::LogicalPosition{static_cast<std::int32_t>(size.width - 1), static_cast<std::int32_t>(size.height - 1)}})
         {
             static_cast<void>(context.expectTrue("cursor warp succeeds", window.setCursorPosition(point).ok()));
-            const Desktop::Types::LogicalPositionResult actual = window.cursorPosition();
+            const auto actual = window.cursorPosition();
             static_cast<void>(context.expectTrue("cursor warp query succeeds", actual.status.ok()));
             if (actual.status.ok())
             {
-                static_cast<void>(context.expectEq("cursor warp reaches requested logical point", point, actual.position));
+                static_cast<void>(context.expectEq("cursor warp reaches requested logical point", point, *actual));
             }
         }
         recordManualCheck(

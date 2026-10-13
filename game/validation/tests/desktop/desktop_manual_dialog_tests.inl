@@ -70,7 +70,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
         description.title = "GameWIP live progress scaling validation";
         description.heading = "Move between differently scaled monitors";
         description.message = "Progress updates while you drag. Check sharp text and clipping, then press Cancel.";
-        description.mode = ManualProgressTypes::Mode::Determinate;
+        description.presentationMode = ManualProgressTypes::Mode::Determinate;
         description.cancelable = true;
         description.blocksOwner = false;
         if (!requireManualStatus(context, "focused progress opens", progress.open(description)))
@@ -259,10 +259,10 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         .message = "Validate custom semantic choices and portable secondary content.",
         .severity = DialogTypes::Severity::Information,
         .buttons = promptButtons,
-        .defaultButton = {1},
-        .cancelButton = {3},
+        .defaultButton = PromptDialogs::ButtonId{1},
+        .cancelButton = PromptDialogs::ButtonId{3},
         .options = promptOptions,
-        .defaultOption = {1},
+        .defaultOption = PromptDialogs::OptionId{1},
         .details = "Expanded details must remain readable and must not replace the primary message.",
         .supplementalText = "Supplemental text is lower-priority information.",
         .checkBox = PromptDialogs::CheckBox{"Remember this choice", true}};
@@ -284,7 +284,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         .title = "GameWIP progress validation",
         .heading = "Determinate operation",
         .message = "Watch title, heading, message, mode, and value update.",
-        .mode = ManualProgressTypes::Mode::Determinate,
+        .presentationMode = ManualProgressTypes::Mode::Determinate,
         .progress = 0.1,
         .cancelable = true,
         .blocksOwner = true};

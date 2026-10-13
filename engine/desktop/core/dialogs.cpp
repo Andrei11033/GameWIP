@@ -212,9 +212,9 @@ namespace GameWIP::Desktop::Dialogs
                 }
             }
 
-            if ((description.defaultButton.isValid() && !containsButton(description.buttons, description.defaultButton)) ||
-                (description.cancelButton.isValid() && !containsButton(description.buttons, description.cancelButton)) ||
-                (description.defaultOption.isValid() && !containsOption(description.options, description.defaultOption)))
+            if ((description.defaultButton && !containsButton(description.buttons, *description.defaultButton)) ||
+                (description.cancelButton && !containsButton(description.buttons, *description.cancelButton)) ||
+                (description.defaultOption && !containsOption(description.options, *description.defaultOption)))
             {
                 return error(ErrorCode::InvalidArgument);
             }

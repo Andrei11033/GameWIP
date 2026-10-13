@@ -7,6 +7,7 @@
 #include "desktop/description.h"
 #include "desktop/display.h"
 #include "desktop/events.h"
+#include "desktop/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
 
@@ -39,13 +40,14 @@ namespace GameWIP::Desktop
 
     namespace Types
     {
-        /// @brief Cached details for a non-windowed mode.
-        struct FullscreenInfo
+        /// @brief Cached state for a non-windowed mode.
+        struct FullscreenState
         {
-            Display::MonitorId monitor;               ///< Active fullscreen monitor.
-            std::optional<Display::Mode> displayMode; ///< Requested exclusive physical mode.
-            bool exactDisplayMode = false;            ///< Whether the requested physical mode was matched exactly.
-            bool suspended = false;                   ///< Whether fullscreen is temporarily suspended.
+            std::optional<Display::MonitorId> monitor;        ///< Active fullscreen monitor, or nullopt when windowed/unavailable.
+            std::optional<Display::Mode> requestedDisplayMode; ///< Physical mode requested by the caller, if any.
+            std::optional<Display::Mode> activeDisplayMode;   ///< Physical mode currently active, including when no mode was requested.
+            bool displayModeMatchedExactly = false;           ///< Whether requestedDisplayMode is active exactly.
+            bool suspended = false;                           ///< Whether fullscreen is temporarily suspended.
         };
 
         /// @brief Call-scoped declarative custom-chrome hit-test layout.
@@ -121,31 +123,11 @@ namespace GameWIP::Desktop
             }
         };
 
-        /// @brief Status and cached backend capability snapshot.
-        struct CapabilitiesResult
-        {
-            IO::Types::Status status;  ///< Capability-query status.
-            Capabilities capabilities; ///< Cached capability values on success.
-        };
-
-        /// @brief Status and virtual-screen coordinate conversion result.
-        struct ScreenPositionResult
-        {
-            IO::Types::Status status; ///< Conversion status.
-            ScreenPosition position;  ///< Converted position on success.
-        };
-
-        /// @brief Status and client-local coordinate conversion result.
-        struct LogicalPositionResult
-        {
-            IO::Types::Status status; ///< Conversion status.
-            LogicalPosition position; ///< Converted position on success.
-        };
     } // namespace Types
 
     /// @brief Returns cached backend/environment capabilities.
     /// @return The query status and capability flags available in the current process environment.
-    [[nodiscard]] DESKTOP_EXPORT Types::CapabilitiesResult getCapabilities() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Capabilities> getCapabilities() noexcept;
     /// @brief Reports whether the backend advertises the requested Window capability.
     [[nodiscard]] DESKTOP_EXPORT bool supports(Types::Capability capability) noexcept;
 
@@ -176,19 +158,13 @@ namespace GameWIP::Desktop
         /// @param description Initial Window properties and policies.
         /// @return Success, or a status explaining why no native Window was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Description &description = {}) noexcept;
-        /// @brief Opens with a requested number of internally owned event slots.
-        /// @details Previously enabled concurrent presentation state remains at closed defaults until open commits successfully.
+        /// @brief Opens with an explicit event-queue ownership policy.
+        /// @details Use Events::owned() for Window-owned storage or Events::borrowed() when the
+        /// caller must retain and not move its storage through deferred finalization.
         /// @param description Initial Window properties and policies.
-        /// @param eventQueueCapacity Number of event slots to allocate; must be greater than zero.
+        /// @param queue Explicit queue storage and ownership policy.
         /// @return Success, or a status explaining why no native Window was opened.
-        [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::size_t eventQueueCapacity) noexcept;
-        /// @brief Opens while borrowing caller-owned event storage until lifetime finalization.
-        /// @details Previously enabled concurrent presentation state remains at closed defaults until open commits successfully.
-        /// Storage remains borrowed during pending native destruction and deferred owner-thread cleanup.
-        /// @param description Initial Window properties and policies.
-        /// @param eventStorage Non-empty storage that must remain alive and unmoved through finalization.
-        /// @return Success, or a status explaining why no native Window was opened.
-        [[nodiscard]] IO::Types::Status open(const Types::Description &description, std::span<Types::Event> eventStorage) noexcept;
+        [[nodiscard]] IO::Types::Status open(const Types::Description &description, Types::Events::QueueConfiguration queue) noexcept;
 
         /// @brief Reports whether native Window operations are available.
         [[nodiscard]] bool isOpen() const noexcept;
@@ -208,8 +184,8 @@ namespace GameWIP::Desktop
         /// @return The current identity, including during pending finalization, or an invalid ID while fully closed.
         [[nodiscard]] Types::WindowId id() const noexcept;
         /// @brief Returns the current owner Window identity.
-        /// @return The owner identity, or an invalid ID when this Window has no owner.
-        [[nodiscard]] Types::WindowId ownerId() const noexcept;
+        /// @return The owner identity, or std::nullopt when this Window has no owner.
+        [[nodiscard]] std::optional<Types::WindowId> ownerId() const noexcept;
         /// @brief Reports whether the caller is the current open lifetime's owner thread.
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @brief Reports whether the backend advertises the requested Window capability.
@@ -220,9 +196,9 @@ namespace GameWIP::Desktop
         /// on the returned façade performs explicit per-open activation.
         [[nodiscard]] Accessibility::Facade accessibility() noexcept;
         /// @brief Changes or clears the native owner relationship.
-        /// @param owner New owner identity, or an invalid ID to remove the relationship.
+        /// @param owner New owner identity, or std::nullopt to remove the relationship.
         /// @return Success, or the validation, ownership, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setOwner(Types::WindowId owner) noexcept;
+        [[nodiscard]] IO::Types::Status setOwner(std::optional<Types::WindowId> owner) noexcept;
         /// @}
 
         /// @name Close requests
@@ -303,10 +279,10 @@ namespace GameWIP::Desktop
         [[nodiscard]] Types::Display::MonitorId currentMonitor() const noexcept;
         /// @brief Returns the cached top-level mode.
         /// @return Current windowed, borderless-fullscreen, or exclusive-fullscreen mode.
-        [[nodiscard]] Types::Mode mode() const noexcept;
-        /// @brief Returns cached fullscreen details.
-        /// @return Current monitor and display-mode selection for the fullscreen state.
-        [[nodiscard]] Types::FullscreenInfo fullscreenInfo() const noexcept;
+        [[nodiscard]] Types::WindowMode windowMode() const noexcept;
+        /// @brief Returns cached fullscreen state.
+        /// @return Active monitor, requested physical mode, active physical mode, and suspension state.
+        [[nodiscard]] Types::FullscreenState fullscreenState() const noexcept;
         /// @brief Returns the cached presentation state.
         /// @details Owner-thread-only until Renderer::enableConcurrentPresentationReads() succeeds; then safe for concurrent reads.
         /// @return Current normal, minimized, or maximized presentation state.
@@ -403,9 +379,9 @@ namespace GameWIP::Desktop
         /// @return Success, or the validation, open-state, thread, or native failure.
         [[nodiscard]] IO::Types::Status setClientRect(Types::ScreenPosition position, Types::LogicalSize size) noexcept;
         /// @brief Centers the Window on a requested or current monitor.
-        /// @param monitor Target monitor, or an invalid ID to use the current/nearest monitor.
-        /// @return Success, or the monitor, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status centerOn(Types::Display::MonitorId monitor = {}) noexcept;
+        /// @param monitor Target monitor, or std::nullopt to use the current/nearest monitor.
+        /// @return Success, ResourceBusy while not windowed, or the monitor, open-state, thread, or native failure.
+        [[nodiscard]] IO::Types::Status centerOn(std::optional<Types::Display::MonitorId> monitor = std::nullopt) noexcept;
         /// @brief Replaces logical client-size constraints.
         /// @param limits Minimum and optional maximum client size in logical units.
         /// @return Success, or the validation, open-state, thread, or native failure.
@@ -417,11 +393,11 @@ namespace GameWIP::Desktop
         /// @brief Converts a client-local logical position to virtual-screen pixels.
         /// @param position Position relative to the logical client origin.
         /// @return Status and converted physical virtual-screen position.
-        [[nodiscard]] Types::ScreenPositionResult clientToScreen(Types::LogicalPosition position) const noexcept;
+        [[nodiscard]] Types::Result<Types::ScreenPosition> clientToScreen(Types::LogicalPosition position) const noexcept;
         /// @brief Converts a virtual-screen pixel position to client-local logical units.
         /// @param position Position in physical virtual-screen coordinates.
         /// @return Status and converted logical client position.
-        [[nodiscard]] Types::LogicalPositionResult screenToClient(Types::ScreenPosition position) const noexcept;
+        [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
         /// @brief Changes how logical and physical client size respond to DPI transitions.
         /// @param policy Logical-size or physical-pixel preservation policy.
         /// @return Success, or the validation, open-state, thread, or native failure.
@@ -453,9 +429,9 @@ namespace GameWIP::Desktop
         /// @return Success, or the open-state, thread, capability, or native failure.
         [[nodiscard]] IO::Types::Status restore() noexcept;
         /// @brief Applies a validated top-level and optional exclusive display-mode request.
-        /// @param request Target mode, monitor, and optional exclusive display mode.
+        /// @param request Use WindowModes::windowed(), borderlessFullscreen(), or exclusiveFullscreen().
         /// @return Success, or the validation, monitor, capability, open-state, thread, or native failure.
-        [[nodiscard]] IO::Types::Status setMode(const Types::ModeRequest &request) noexcept;
+        [[nodiscard]] IO::Types::Status setWindowMode(const Types::WindowModeRequest &request) noexcept;
         /// @brief Enables or disables user resizing.
         /// @details Disable the maximize control with setControls() before disabling resizing.
         /// @param resizable Whether the user may resize the Window.
@@ -524,7 +500,7 @@ namespace GameWIP::Desktop
         [[nodiscard]] IO::Types::Status setCursorPosition(Types::LogicalPosition clientPosition) noexcept;
         /// @brief Queries the current cursor position in client-local logical units.
         /// @return Status and current logical client position.
-        [[nodiscard]] Types::LogicalPositionResult cursorPosition() const noexcept;
+        [[nodiscard]] Types::Result<Types::LogicalPosition> cursorPosition() const noexcept;
         /// @}
 
     private:

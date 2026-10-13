@@ -53,8 +53,10 @@ contexts can be hosted without permanently changing owner-thread policy.
 ## Events and pumping
 
 Each successful open lifetime has its own fixed-capacity queue and sequence beginning at one. The default overload uses
-`Desktop::Events::kDefaultQueueCapacity`; other overloads allocate a requested capacity or borrow caller-owned
-`std::span<Types::ChildSurface::Event>` storage through finalization. Native
+`Desktop::Events::kDefaultQueueCapacity`; pass
+`Types::ChildSurface::QueueConfiguration::owned(capacity)` to choose an explicit
+owned capacity, or `Types::ChildSurface::QueueConfiguration::borrowed(storage)`
+to borrow caller-owned `std::span<Types::ChildSurface::Event>` storage through finalization. Native
 destruction and wrong-thread C++ destruction do not release that borrow until
 the retained or deferred lifetime is finalized. Close on the owner thread
 before releasing external storage.

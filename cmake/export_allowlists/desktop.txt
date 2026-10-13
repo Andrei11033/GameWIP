@@ -165,7 +165,7 @@ GameWIP::Desktop::Window::eventQueueInfo
 GameWIP::Desktop::Window::framebufferSize
 GameWIP::Desktop::Window::frameInsets
 GameWIP::Desktop::Window::frameRect
-GameWIP::Desktop::Window::fullscreenInfo
+GameWIP::Desktop::Window::fullscreenState
 GameWIP::Desktop::Window::hasCloseRequest
 GameWIP::Desktop::Window::transparentFramebuffer
 GameWIP::Desktop::Window::hide
@@ -187,7 +187,7 @@ GameWIP::Desktop::Window::visible
 GameWIP::Desktop::Window::lifetimeState
 GameWIP::Desktop::Window::maximize
 GameWIP::Desktop::Window::minimize
-GameWIP::Desktop::Window::mode
+GameWIP::Desktop::Window::windowMode
 GameWIP::Desktop::Window::opacity
 GameWIP::Desktop::Window::open
 GameWIP::Desktop::Window::ownerId
@@ -217,7 +217,7 @@ GameWIP::Desktop::Window::setDpiResizePolicy
 GameWIP::Desktop::Window::setFileDropEnabled
 GameWIP::Desktop::Window::setFocusable
 GameWIP::Desktop::Window::setIcon
-GameWIP::Desktop::Window::setMode
+GameWIP::Desktop::Window::setWindowMode
 GameWIP::Desktop::Window::setOpacity
 GameWIP::Desktop::Window::setOwner
 GameWIP::Desktop::Window::setPointerInputLayout

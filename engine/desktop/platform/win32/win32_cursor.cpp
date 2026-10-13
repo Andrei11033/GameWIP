@@ -89,7 +89,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             const std::size_t packedRowBytes = static_cast<std::size_t>(image.size.width) * 4;
-            const std::size_t sourceStride = image.rowStrideBytes == 0 ? packedRowBytes : image.rowStrideBytes;
+            const std::size_t sourceStride = image.rowStrideBytes.value_or(packedRowBytes);
             const std::size_t destinationSize = packedRowBytes * static_cast<std::size_t>(image.size.height);
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin

@@ -14,16 +14,17 @@ Window.
 
 `Types::Cursor::ImageView` describes one physical-pixel image and hotspot. Rows
 run from top to bottom and pixels use straight-alpha RGBA8 channel order.
-`rowStrideBytes == 0` means tightly packed `width * 4` rows; a nonzero stride
-may include trailing row padding. `createCursor()` copies the complete payload
+Use `ImageView::packed()` for tightly packed `width * 4` rows and
+`ImageView::strided()` when rows may include trailing padding.
+`createCursor()` copies the complete payload
 and never retains the caller's span.
 
 Width and height must be nonzero and representable by the native backend. The
 hotspot must be inside the image, `intendedDpi` must be nonzero, the resolved
 stride must hold one complete row, and the payload size must equal
 `resolvedStride * height`. A variant set must be non-empty and contain at most
-one image for each intended DPI. Invalid input returns `InvalidArgument` and an
-invalid `Cursor`.
+one image for each intended DPI. Invalid input returns a failed
+`Types::Result<Cursor>` with no cursor value.
 
 The single-image overload accepts one `ImageView`. The span overload eagerly
 materializes every variant before publishing a valid resource. If any native
@@ -85,43 +86,40 @@ the previous selection unchanged.
 #include <cstddef>
 
 std::array<std::byte, 32 * 32 * 4> rgba8{};
-GameWIP::Desktop::Types::Cursor::ImageView image{
-    .size = {32, 32},
-    .hotspot = {4, 3},
-    .intendedDpi = 96,
-    .rgba8 = rgba8};
+auto image = GameWIP::Desktop::Types::Cursor::ImageView::packed(
+    {32, 32}, {4, 3}, rgba8, 96);
 
 auto created = GameWIP::Desktop::createCursor(image);
-if (created.status.ok())
-    static_cast<void>(GameWIP::Desktop::setCursor(window, created.cursor));
+if (created.ok())
+    static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
 ```
 
 ## Multiple DPI variants
 
 ```cpp
 std::array<GameWIP::Desktop::Types::Cursor::ImageView, 3> variants{
-    GameWIP::Desktop::Types::Cursor::ImageView{{32, 32}, {4, 3}, 96, 0, rgba96},
-    GameWIP::Desktop::Types::Cursor::ImageView{{48, 48}, {6, 5}, 144, 0, rgba144},
-    GameWIP::Desktop::Types::Cursor::ImageView{{64, 64}, {8, 6}, 192, 0, rgba192}};
+    GameWIP::Desktop::Types::Cursor::ImageView::packed({32, 32}, {4, 3}, rgba96, 96),
+    GameWIP::Desktop::Types::Cursor::ImageView::packed({48, 48}, {6, 5}, rgba144, 144),
+    GameWIP::Desktop::Types::Cursor::ImageView::packed({64, 64}, {8, 6}, rgba192, 192)};
 
 auto created = GameWIP::Desktop::createCursor(variants);
-if (created.status.ok())
-    static_cast<void>(GameWIP::Desktop::setCursor(window, created.cursor));
+if (created.ok())
+    static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
 ```
 
 ## Restore and share
 
 ```cpp
-if (created.status.ok())
+if (created.ok())
 {
-    static_cast<void>(GameWIP::Desktop::setCursor(primary, created.cursor));
-    static_cast<void>(GameWIP::Desktop::setCursor(tools, created.cursor));
+    static_cast<void>(GameWIP::Desktop::setCursor(primary, *created));
+    static_cast<void>(GameWIP::Desktop::setCursor(tools, *created));
 
     // A system shape clears only primary's custom binding.
     static_cast<void>(primary.setCursorShape(GameWIP::Desktop::Types::CursorShape::Arrow));
 
     // Select the same shared resource again when the override is needed.
-    static_cast<void>(GameWIP::Desktop::setCursor(primary, created.cursor));
+    static_cast<void>(GameWIP::Desktop::setCursor(primary, *created));
 }
 ```
 

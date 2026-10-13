@@ -93,7 +93,7 @@ namespace
     static_assert(noexcept(Desktop::Events::poll()));
     static_assert(noexcept(Desktop::Events::wait()));
     static_assert(noexcept(std::declval<Desktop::Window &>().close()));
-    static_assert(noexcept(Desktop::Display::getColorInfo(Desktop::Types::Display::MonitorId{})));
+    static_assert(noexcept(Desktop::Display::getColorInfo(Desktop::Types::Display::MonitorId::invalid())));
     static_assert(noexcept(Desktop::Display::getColorInfo(std::declval<const Desktop::Window &>())));
     static_assert(std::is_same_v<decltype(Desktop::Types::Events::FilesDropped{}.paths)::value_type, GameWIP::FileSystem::Types::Path>);
 
@@ -110,38 +110,38 @@ namespace
 
     [[nodiscard]] int runStandaloneColorShutdownChild() noexcept
     {
-        const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
-        if (!primary.status.ok())
+        const auto primary = Desktop::Display::getPrimaryMonitor();
+        if (!primary.ok())
         {
             return 2;
         }
-        return Desktop::Display::getColorInfo(primary.monitor.id).status.ok() ? 0 : 3;
+        return Desktop::Display::getColorInfo(primary->id).ok() ? 0 : 3;
     }
 
     [[nodiscard]] int runWindowColorShutdownChild() noexcept
     {
-        const Desktop::Types::Display::InfoResult primary = Desktop::Display::getPrimaryMonitor();
-        if (!primary.status.ok() || !Desktop::Display::getColorInfo(primary.monitor.id).status.ok())
+        const auto primary = Desktop::Display::getPrimaryMonitor();
+        if (!primary.ok() || !Desktop::Display::getColorInfo(primary->id).ok())
         {
             return 2;
         }
 
         Desktop::Types::Description description;
         description.title = "Desktop color shutdown child";
-        description.clientSize = {160, 100};
-        description.visible = false;
+        description.windowed.clientSize = {160, 100};
+        description.activation.visible = false;
         Desktop::Window window;
-        if (!window.open(description, 4).ok())
+        if (!window.open(description, Desktop::Events::owned(4)).ok())
         {
             return 3;
         }
-        if (!Desktop::Display::getColorInfo(window).status.ok())
+        if (!Desktop::Display::getColorInfo(window).ok())
         {
             return 4;
         }
 
         const auto handle = Desktop::Native::Win32::getHandle(window);
-        if (!handle.status.ok() || handle.handle.window == nullptr || PostMessageW(static_cast<HWND>(handle.handle.window), WM_CLOSE, 0, 0) == FALSE)
+        if (!handle.status.ok() || handle->window == nullptr || PostMessageW(static_cast<HWND>(handle->window), WM_CLOSE, 0, 0) == FALSE)
         {
             return 5;
         }
@@ -162,9 +162,9 @@ namespace
                 auto window = std::make_unique<Desktop::Window>();
                 Desktop::Types::Description description;
                 description.title = "Desktop owner-exit color shutdown child";
-                description.clientSize = {160, 100};
-                description.visible = false;
-                if (!window->open(description, 4).ok())
+                description.windowed.clientSize = {160, 100};
+                description.activation.visible = false;
+                if (!window->open(description, Desktop::Events::owned(4)).ok())
                 {
                     workerResult = 2;
                     return;
@@ -202,18 +202,18 @@ namespace
                 auto target = std::make_unique<Desktop::DragDropTarget>();
                 Desktop::Types::Description description;
                 description.title = "Desktop owner-exit DragDrop shutdown child";
-                description.clientSize = {160, 100};
-                description.visible = false;
-                if (!window->open(description, 4).ok())
+                description.windowed.clientSize = {160, 100};
+                description.activation.visible = false;
+                if (!window->open(description, Desktop::Events::owned(4)).ok())
                 {
                     workerResult = 2;
                     return;
                 }
                 namespace DD = Desktop::Types::DragDrop;
                 namespace Transfer = Desktop::Types::DataTransfer;
-                std::array formats{Transfer::FormatView{Transfer::FormatKind::Text, {}}};
-                std::array regions{DD::RegionDescription{DD::RegionId{1}, std::nullopt, formats, DD::Effect::Copy, DD::Effect::Copy}};
-                if (!target->open(*window, DD::TargetDescription{regions}, 2).ok())
+                std::array formats{Transfer::FormatView::text()};
+                std::array regions{DD::RegionDescription{DD::RegionId{1}, std::nullopt, formats, DD::EffectPolicy::copy()}};
+                if (!target->open(*window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok())
                 {
                     workerResult = 3;
                     return;
@@ -304,9 +304,9 @@ namespace
         Desktop::Window owner;
         Desktop::Types::Description windowDescription;
         windowDescription.title = "Deferred pump failure owner";
-        windowDescription.clientSize = {160, 100};
-        windowDescription.visible = false;
-        if (!owner.open(windowDescription, 4).ok())
+        windowDescription.windowed.clientSize = {160, 100};
+        windowDescription.activation.visible = false;
+        if (!owner.open(windowDescription, Desktop::Events::owned(4)).ok())
         {
             return 2;
         }
@@ -349,9 +349,9 @@ namespace
         Desktop::Window window;
         Desktop::Types::Description description;
         description.title = "Progress restore registration laziness";
-        description.clientSize = {160, 100};
-        description.visible = false;
-        if (!window.open(description, 4).ok())
+        description.windowed.clientSize = {160, 100};
+        description.activation.visible = false;
+        if (!window.open(description, Desktop::Events::owned(4)).ok())
         {
             return 3;
         }

@@ -435,6 +435,48 @@ namespace GameWIP::Desktop::Types::Accessibility
         NodeId nodeValue = kInvalidNodeId;                  ///< Existing nonzero semantic node-reference payload.
         std::string_view utf8Value;                         ///< Borrowed strict UTF-8 payload.
         std::span<const ExtensionValue> listValue;          ///< Borrowed bounded recursively typed list payload.
+
+        /// @brief Constructs a boolean extension value.
+        [[nodiscard]] static constexpr ExtensionValue boolean(bool value) noexcept
+        {
+            return {ExtensionValueKind::Boolean, value, {}, {}, {}, kInvalidNodeId, {}, {}};
+        }
+
+        /// @brief Constructs a signed-integer extension value.
+        [[nodiscard]] static constexpr ExtensionValue signedInteger(std::int64_t value) noexcept
+        {
+            return {ExtensionValueKind::SignedInteger, {}, value, {}, {}, kInvalidNodeId, {}, {}};
+        }
+
+        /// @brief Constructs an unsigned-integer extension value.
+        [[nodiscard]] static constexpr ExtensionValue unsignedInteger(std::uint64_t value) noexcept
+        {
+            return {ExtensionValueKind::UnsignedInteger, {}, {}, value, {}, kInvalidNodeId, {}, {}};
+        }
+
+        /// @brief Constructs a finite floating-point extension value.
+        [[nodiscard]] static constexpr ExtensionValue real(double value) noexcept
+        {
+            return {ExtensionValueKind::Double, {}, {}, {}, value, kInvalidNodeId, {}, {}};
+        }
+
+        /// @brief Constructs a borrowed UTF-8 extension value.
+        [[nodiscard]] static constexpr ExtensionValue utf8(std::string_view value) noexcept
+        {
+            return {ExtensionValueKind::Utf8, {}, {}, {}, {}, kInvalidNodeId, value, {}};
+        }
+
+        /// @brief Constructs a node-reference extension value.
+        [[nodiscard]] static constexpr ExtensionValue nodeReference(NodeId value) noexcept
+        {
+            return {ExtensionValueKind::NodeReference, {}, {}, {}, {}, value, {}, {}};
+        }
+
+        /// @brief Constructs a borrowed recursive extension list.
+        [[nodiscard]] static constexpr ExtensionValue list(std::span<const ExtensionValue> value) noexcept
+        {
+            return {ExtensionValueKind::List, {}, {}, {}, {}, kInvalidNodeId, {}, value};
+        }
     };
 
     /// @brief One namespaced, bounded extension property.
