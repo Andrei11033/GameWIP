@@ -129,20 +129,30 @@ if (answer == TS::Types::Reporting::ManualAnswer::No)
 ## Stress coordination
 
 ```cpp
+std::atomic_size_t visits{0};
 TS::StartGate gate;
-TS::StopFlag stop;
+
+std::jthread coordinator([&gate]
+{
+    gate.open();
+});
+
 TS::runWorkers(
     4,
     [&](std::size_t)
     {
         gate.wait();
-        while (!stop.stopRequested())
-            std::this_thread::yield();
+        visits.fetch_add(1, std::memory_order_relaxed);
     });
 ```
 
-`runWorkers()` gives every worker its own callable copy, joins every successfully started thread, and rethrows one captured worker exception only
-after all workers have joined. Shared references captured by those callable copies still require their own synchronization.
+This finite example uses a coordinator to open the gate while `runWorkers()` is
+starting and joining its workers. `runWorkers()` gives every worker its own
+callable copy,
+joins every successfully started thread, and rethrows one captured worker
+exception only after all workers have joined. Shared references captured by
+those callable copies still require their own synchronization. See
+@ref test_support_timing_stress for `StopFlag` and more advanced coordination.
 
 ```cpp
 try
