@@ -10,6 +10,7 @@ Normal logging is designed for concurrent producer threads. Formatting and messa
 - Queue entry allocation/copy failure publishes an internal skip marker so later producer tickets remain drainable in order.
 - `LOGGER_*` or explicit `shouldLog()` guards can avoid expensive message argument evaluation.
 - Direct formatted calls cannot avoid C++ argument evaluation that occurs before the function call.
+- Formatted calls apply the severity gate before formatting; registered `SourceId`/enum calls also apply the source gate before formatting and recheck it before queue acceptance.
 
 Registered enum/`SourceId` sources reduce per-entry source storage and support source filtering. String sources are appropriate when dynamic source
 labels are needed.

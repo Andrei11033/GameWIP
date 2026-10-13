@@ -103,6 +103,67 @@ namespace GameWIP::Logger
         return shouldLog(level, Detail::Core::sourceId(source));
     }
 
+    /// @cond INTERNAL
+    namespace Detail::Core
+    {
+        /// @brief Applies the string-source normal-log gate before compile-time formatting.
+        template <typename... Args>
+        void formatAndLogIfEnabled(
+            Types::Level level,
+            std::string_view source,
+            std::format_string<Args...> format,
+            Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level))
+            {
+                formatAndLog(level, source, format, std::forward<Args>(args)...);
+            }
+        }
+
+        /// @brief Applies the registered-source normal-log gate before compile-time formatting.
+        template <typename... Args>
+        void formatAndLogIfEnabled(
+            Types::Level level,
+            Types::SourceId source,
+            std::format_string<Args...> format,
+            Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level, source))
+            {
+                formatAndLog(level, source, format, std::forward<Args>(args)...);
+            }
+        }
+
+        /// @brief Applies the string-source normal-log gate before runtime formatting.
+        template <typename... Args>
+        void runtimeFormatAndLogIfEnabled(
+            Types::Level level,
+            std::string_view source,
+            Types::RuntimeFormat format,
+            Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level))
+            {
+                runtimeFormatAndLog(level, source, format, args...);
+            }
+        }
+
+        /// @brief Applies the registered-source normal-log gate before runtime formatting.
+        template <typename... Args>
+        void runtimeFormatAndLogIfEnabled(
+            Types::Level level,
+            Types::SourceId source,
+            Types::RuntimeFormat format,
+            Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level, source))
+            {
+                runtimeFormatAndLog(level, source, format, args...);
+            }
+        }
+    } // namespace Detail::Core
+    /// @endcond
+
     /// @brief Sets one registered source filter and returns direct operation status.
     LOGGER_EXPORT IO::Types::Status setSourceFilter(Types::SourceId source, bool enabled) noexcept;
     /// @brief Resets one registered source filter to the default enabled state.
@@ -159,10 +220,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        if (shouldLog(level))
-        {
-            Detail::Core::formatAndLog(level, source, format, std::forward<Args>(args)...);
-        }
+        Detail::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and queues a normal record with a registered source.
@@ -170,10 +228,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        if (shouldLog(level, source))
-        {
-            Detail::Core::formatAndLog(level, source, format, std::forward<Args>(args)...);
-        }
+        Detail::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and queues a normal record with an enum source.
@@ -189,10 +244,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        if (shouldLog(level))
-        {
-            Detail::Core::runtimeFormatAndLog(level, source, format, args...);
-        }
+        Detail::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and queues a normal record with a registered source.
@@ -200,10 +252,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        if (shouldLog(level, source))
-        {
-            Detail::Core::runtimeFormatAndLog(level, source, format, args...);
-        }
+        Detail::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and queues a normal record with an enum source.

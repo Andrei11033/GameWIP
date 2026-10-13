@@ -43,6 +43,28 @@
 #include <windows.h>
 #endif
 
+struct LoggerFormatProbe
+{
+    int value = 0;
+    std::atomic<std::size_t> *formatCount = nullptr;
+};
+
+namespace std
+{
+    template <> struct formatter<LoggerFormatProbe, char> : formatter<int, char>
+    {
+        template <typename FormatContext>
+        auto format(const LoggerFormatProbe &probe, FormatContext &context) const
+        {
+            if (probe.formatCount != nullptr)
+            {
+                probe.formatCount->fetch_add(1, memory_order_relaxed);
+            }
+            return formatter<int, char>::format(probe.value, context);
+        }
+    };
+} // namespace std
+
 namespace
 {
     namespace Logger = GameWIP::Logger;
@@ -331,6 +353,13 @@ namespace GameWIP::Test
                     [&]
                     {
                         testFileLoggingAndUtf8Truncation(context);
+                    });
+                runCase(
+                    context,
+                    "filtered formatted registered source",
+                    [&]
+                    {
+                        testFilteredFormattedRegisteredSource(context);
                     });
                 runCase(
                     context,

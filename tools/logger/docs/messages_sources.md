@@ -28,6 +28,10 @@ Preformatted text, compile-time checked `std::format_string`, and explicit `runt
 thread. Invalid runtime formatting is contained; normal logging records a format-failure statistic and skips the record, while synchronous report
 formatting returns a direct failed `Types::Report::Result`.
 
+Formatted normal-log calls apply their filter before caller-thread formatting. Calls using a registered `SourceId` or source enum apply both the
+severity and source filters; calls using a string source apply the severity filter only. The enqueue path rechecks registered-source filters to
+handle concurrent filter changes before a record is accepted.
+
 Use `LOGGER_*` or `shouldLog()` around expensive arguments because C++ evaluates direct function arguments before Logger can filter them.
 
 ## Message limits

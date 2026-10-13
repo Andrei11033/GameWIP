@@ -39,7 +39,8 @@ result instead of an exception or an ambiguous empty path.
 ## Runtime filters
 
 `setSourceFilter`, `resetSourceFilter`, `resetSourceFilters`, `setLevelFilter`, `resetLevelFilter`, and `resetLevelFilters` return
-`IO::Types::Status`. `shouldLog()` is a lightweight boolean query.
+`IO::Types::Status`. `shouldLog()` is a lightweight boolean query. String-source queries apply severity filtering only; `SourceId` and enum-source
+queries additionally apply the registered-source filter.
 
 ## Normal logging
 
