@@ -48,7 +48,7 @@ validation/publication. Nodes may have arbitrary storage order; ordered children
 define semantic traversal. IDs are unique and nonzero, the root has no parent,
 every other node has exactly its declared parent, and every node is reachable.
 Relations, selection, annotations, and extension references must target nodes
-in the same snapshot. Relations have distinct kinds and distinct nonempty targets.
+in the same snapshot. Relations have distinct kinds and distinct non-empty targets.
 
 `SnapshotBuilder::addNode()` deeply copies active payloads, including nested
 extension lists, and rejects duplicate IDs or copy-budget violations. Full

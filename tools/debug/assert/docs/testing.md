@@ -29,7 +29,7 @@ tests use deterministic environment paths and do not open real dialogs.
 Disabled or unavailable scenarios count as skips; compiled-out macro evaluation remains an actual behavioral test.
 
 Real Win32 UI is manual and runtime opt-in. It asks for operator confirmation of Ignore Once, suppression after Always Ignore, Break with a debugger,
-and Abort in a child. Returning from a call alone does not count as a successful UI observation. Use `s reason` for a skip; end-of-input
+and Abort in a child. Returning from a call alone does not count as a successful UI observation. Use `s <reason>` for a skip; end-of-input
 keeps its own reason. The manual Abort child allows five minutes for an operator response; automated child probes retain their 30-second budget.
 Environment controls provide deterministic interactive action paths, while the retained source-tree seam above exercises the noexcept
 diagnostic-preparation emergency path

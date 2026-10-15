@@ -58,7 +58,8 @@ int main()
         return 2;
     }
 
-    return GameWIP::Logger::shutdown().ok() ? 0 : 3;
+    const auto shutdown = GameWIP::Logger::shutdown();
+    return shutdown.ok() ? 0 : 3;
 }
 ```
 

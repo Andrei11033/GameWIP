@@ -35,7 +35,7 @@ namespace GameWIP::Desktop::Types::Notifications
     struct Action
     {
         Shell::CommandId id;    ///< Unique nonzero action identity within one notification.
-        std::string_view label; ///< Nonempty UTF-8 action label.
+        std::string_view label; ///< Non-empty UTF-8 action label.
     };
 
     /// @brief One caller-defined notification text-input field.
@@ -62,8 +62,16 @@ namespace GameWIP::Desktop::Types::Notifications
     /// @brief Named constructors for notification media alternatives.
     namespace Media
     {
-        [[nodiscard]] inline MediaView image(DataTransfer::ImageView value) noexcept { return value; }
-        [[nodiscard]] inline MediaView uri(std::string_view value) noexcept { return UriMediaView{value}; }
+        /// @brief Image media; borrows the pixel data.
+        [[nodiscard]] inline MediaView image(DataTransfer::ImageView value) noexcept
+        {
+            return value;
+        }
+        /// @brief URI media; borrows `value`.
+        [[nodiscard]] inline MediaView uri(std::string_view value) noexcept
+        {
+            return UriMediaView{value};
+        }
     } // namespace Media
 
     /// @brief Notification sound policy.
@@ -92,11 +100,13 @@ namespace GameWIP::Desktop::Types::Notifications
         std::chrono::milliseconds repeatInterval{};                       ///< Positive interval for recurrence, or zero for one-time delivery.
         std::uint32_t occurrenceCount = 1;                                ///< Total finite occurrence count, including the first display.
 
+        /// @brief One-time delivery at `first`.
         [[nodiscard]] static Schedule once(std::chrono::sys_time<std::chrono::milliseconds> first) noexcept
         {
             return {first, {}, 1};
         }
 
+        /// @brief `count` deliveries (including the first) every `interval`.
         [[nodiscard]] static Schedule recurring(
             std::chrono::sys_time<std::chrono::milliseconds> first,
             std::chrono::milliseconds interval,
@@ -111,7 +121,7 @@ namespace GameWIP::Desktop::Types::Notifications
     /// publish or update returns. Action and input identities must be unique within this snapshot.
     struct Description
     {
-        std::string_view title;                  ///< Nonempty UTF-8 notification title.
+        std::string_view title;                  ///< Non-empty UTF-8 notification title.
         std::string_view body;                   ///< Optional UTF-8 notification body.
         std::span<const Action> actions;         ///< Optional caller-defined actions.
         std::span<const Input> inputs;           ///< Optional text-input fields.

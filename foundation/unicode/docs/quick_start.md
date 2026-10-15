@@ -1,8 +1,6 @@
 @page unicode_quick_start Quick start
 
-This example installs Unicode, validates one UTF-8 string, and performs a
-checked UTF-8/UTF-16 conversion. It gives a consuming project a small end-to-end
-check of the package and the library's strict error model.
+This example validates one UTF-8 string and shows the strict error model.
 
 ## Include
 
@@ -56,21 +54,11 @@ logging, and rejection policy.
 
 ## Failure handling
 
-Inspect the result outcome before consuming success-only fields:
+Inspect the result outcome before consuming success-only fields. Failures preserve completed progress and never write a partial scalar; see @ref
+unicode_public_api for the full result model and @ref unicode_troubleshooting for each outcome.
 
-- Decode failure consumes zero input and returns scalar `U+0000`.
-- Invalid scalar encoding reports `InvalidScalar` and a zero encoded length.
-- Validation reports the complete valid prefix before incomplete or malformed input.
-- Measurement reports source and required-destination progress through the last complete valid scalar.
-- Conversion may preserve completed progress before source failure or destination exhaustion.
-- `DestinationTooSmall` never writes part of the next encoded scalar.
-- `OverlappingRanges` is rejected before any output is written.
-- Boundary failures preserve the caller-provided byte offset.
-- Grapheme traversal reports malformed or incomplete UTF-8 as `InvalidEncoding`; it does not apply replacement-character recovery.
-- Repeated grapheme traversal should use `Utf8::GraphemeCursor`, which stores boundary offsets in caller-provided storage and performs no
-  implementation-owned allocation.
-- A sizing `GraphemeCursor::reset()` may return `DestinationTooSmall` together with the complete `requiredBoundaryCount`; resize caller storage and
-  retry.
+For repeated grapheme traversal, use `Utf8::GraphemeCursor` with caller-provided boundary storage. If `reset()` returns `DestinationTooSmall`, resize
+to the reported `requiredBoundaryCount` and retry.
 
 All public operations are `noexcept` and perform no implementation-owned dynamic allocation.
 

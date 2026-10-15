@@ -33,8 +33,7 @@ Atomicity applies to replacement of one path. It does not create a transaction a
 
 ## Temporary files
 
-`temporaryNamePrefix` is an owning `std::string`. It must be non-empty, contain no path separator or embedded NUL, and not be the complete name `.` or
-`..`.
+`temporaryNamePrefix` is an owned `std::string` (rules under Text below).
 
 Temporary-name collision retries are bounded. Exhaustion returns the final creation failure. Cleanup after failure is best effort, so an orphan
 temporary file can remain after unusual cleanup or process failures.
@@ -64,14 +63,13 @@ resolved target cannot be implemented without weakening the selected race-safety
 
 ## Text
 
-`writeAllTextAtomic()` validates the complete payload as strict UTF-8 before parent creation, destination inspection, temporary-file creation, or
-replacement. Malformed or incomplete text returns `EncodingFailed` without changing the filesystem. The validated payload is then forwarded through
-the existing atomic byte-write machinery without a redundant UTF-8 scan.
+`writeAllTextAtomic()` validates the payload (@ref io_utf8_policy) before parent creation, destination inspection, temporary-file creation, or
+replacement; failure changes nothing. The validated payload is forwarded without a redundant scan.
 
 `temporaryNamePrefix` is UTF-8 filename text. Malformed UTF-8 returns `EncodingFailed`; an empty prefix, `.`, `..`, path separators, or embedded
 U+0000 remain `InvalidArgument`.
 
-No BOM handling, normalization, encoding conversion, or line-ending translation occurs.
+No line-ending translation occurs.
 
 ## Related pages
 

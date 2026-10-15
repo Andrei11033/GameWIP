@@ -57,8 +57,7 @@ GameWIP::IO::Types::Status saveAndLoadSettings()
 }
 ```
 
-Text helpers enforce strict UTF-8. They do not normalize text, add or remove a BOM, or translate line endings. Use the byte helpers for arbitrary
-content.
+Text helpers enforce strict UTF-8 (@ref io_utf8_policy). Use the byte helpers for arbitrary content.
 
 ## Explicit handle
 

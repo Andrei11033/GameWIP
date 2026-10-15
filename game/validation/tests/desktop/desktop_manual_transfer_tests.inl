@@ -838,8 +838,8 @@ struct ManualDragDropCapture
     }
     POINT pointer{};
     RECT client{};
-    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native->window, &pointer) != FALSE &&
-           GetClientRect(native->window, &client) != FALSE && PtInRect(&client, pointer) != FALSE;
+    return GetCursorPos(&pointer) != FALSE && ScreenToClient(native->window, &pointer) != FALSE && GetClientRect(native->window, &client) != FALSE &&
+           PtInRect(&client, pointer) != FALSE;
 }
 
 struct ManualDragDropRun
@@ -964,10 +964,8 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     targetDescription.title = "GameWIP native drop target";
     Desktop::Window sourceWindow;
     Desktop::Window targetWindow;
-    if (!requireManualStatus(
-            context, "drag source Window setup", sourceWindow.open(sourceDescription, Desktop::Events::owned(64))) ||
-        !requireManualStatus(
-            context, "drop target Window setup", targetWindow.open(targetDescription, Desktop::Events::owned(128))))
+    if (!requireManualStatus(context, "drag source Window setup", sourceWindow.open(sourceDescription, Desktop::Events::owned(64))) ||
+        !requireManualStatus(context, "drop target Window setup", targetWindow.open(targetDescription, Desktop::Events::owned(128))))
     {
         return;
     }
@@ -982,7 +980,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         {{DD::RegionId{1}, std::nullopt, allFormats, DD::EffectPolicy::allow(allEffects, DD::Effect::Copy)},
          {DD::RegionId{2}, Desktop::Types::LogicalRect{{120, 90}, {360, 180}}, allFormats, DD::EffectPolicy::allow(allEffects, DD::Effect::Move)}}};
     Desktop::DragDropTarget target;
-    if (!requireManualStatus(context, "native DragDrop target setup", target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(128))))
+    if (!requireManualStatus(
+            context,
+            "native DragDrop target setup",
+            target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(128))))
     {
         static_cast<void>(targetWindow.close());
         static_cast<void>(sourceWindow.close());
@@ -1117,7 +1118,8 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     for (const EffectCase &effectCase : effectCases)
     {
         std::array<Transfer::FormatView, 1> formats{{Transfer::FormatView::text()}};
-        std::array<DD::RegionDescription, 1> effectRegion{{{DD::RegionId{1}, std::nullopt, formats, DD::EffectPolicy::allow(effectCase.target, effectCase.preferred)}}};
+        std::array<DD::RegionDescription, 1> effectRegion{
+            {{DD::RegionId{1}, std::nullopt, formats, DD::EffectPolicy::allow(effectCase.target, effectCase.preferred)}}};
         static_cast<void>(context.expectTrue(std::format("{} target policy applies", effectCase.label), target.setRegions(effectRegion).ok()));
         capture.clear(target);
         const ManualDragDropRun run = runManualDragDropSource(
@@ -1347,8 +1349,9 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         ErrorCode::ResourceBusy,
         target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(8)).code));
     static_cast<void>(context.expectTrue("lightweight file drop disables", targetWindow.setFileDropEnabled(false).ok()));
-    static_cast<void>(
-        context.expectTrue("full target reopens after lightweight mode", target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(8)).ok()));
+    static_cast<void>(context.expectTrue(
+        "full target reopens after lightweight mode",
+        target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(8)).ok()));
     static_cast<void>(target.close());
     static_cast<void>(targetWindow.close());
     static_cast<void>(sourceWindow.close());

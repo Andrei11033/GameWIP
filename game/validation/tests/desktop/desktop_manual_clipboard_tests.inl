@@ -60,8 +60,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     {
         const auto copied = Desktop::Clipboard::readText();
         static_cast<void>(context.expectTrue("foreign clipboard text reads", copied.ok()));
-        static_cast<void>(
-            context.expectTrue("foreign Unicode text and line endings match exact fixture", copied.ok() && *copied == inbound));
+        static_cast<void>(context.expectTrue("foreign Unicode text and line endings match exact fixture", copied.ok() && *copied == inbound));
     }
     const auto unicodeFile = fixtures.path() / L"caf\u00e9-\u65e5\u672c\u8a9e-\U0001f600.txt";
     const auto secondFile = fixtures.path() / "second-file.txt";

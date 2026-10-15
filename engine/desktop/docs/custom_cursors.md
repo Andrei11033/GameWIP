@@ -1,81 +1,58 @@
 @page desktop_custom_cursors Custom native cursors
 
 Custom cursors are immutable shared resources created from application-provided
-RGBA8 pixels. Include `desktop/cursor.h` only in consumers that create, retain,
-or select them. The Win32 backend advertises
-`Types::Capability::CustomCursor`.
-
-Portable consumers may query that capability before creating a resource. A
-successful capability query describes backend support; use
-`hasCustomCursor()` to inspect the owner-thread selection state of one open
-Window.
+RGBA8 pixels. Include `desktop/cursor.h` only where you create, retain, or select them.
+Win32 advertises `Types::Capability::CustomCursor`; that describes backend support, while
+`hasCustomCursor()` reports the owner-thread selection state of one open Window.
 
 ## Images and validation
 
-`Types::Cursor::ImageView` describes one physical-pixel image and hotspot. Rows
-run from top to bottom and pixels use straight-alpha RGBA8 channel order.
-Use `ImageView::packed()` for tightly packed `width * 4` rows and
-`ImageView::strided()` when rows may include trailing padding.
-`createCursor()` copies the complete payload
-and never retains the caller's span.
+`Types::Cursor::ImageView` describes one physical-pixel, top-to-bottom, straight-alpha RGBA8 image and hotspot.
+Use `ImageView::packed()` for `width * 4` rows and `ImageView::strided()` for padded rows.
+`createCursor()` copies the whole payload and never retains the caller's span.
 
-Width and height must be nonzero and representable by the native backend. The
-hotspot must be inside the image, `intendedDpi` must be nonzero, the resolved
-stride must hold one complete row, and the payload size must equal
-`resolvedStride * height`. A variant set must be non-empty and contain at most
-one image for each intended DPI. Invalid input returns a failed
-`Types::Result<Cursor>` with no cursor value.
+Width and height must be nonzero and native-representable, the
+hotspot inside the image, `intendedDpi` nonzero, the resolved
+stride at least one row, and the payload size exactly `resolvedStride * height`. A variant set must be non-empty with at most
+one image per intended DPI. Invalid input returns a failed
+`Types::Result<Cursor>` with no value.
 
-The single-image overload accepts one `ImageView`. The span overload eagerly
-materializes every variant before publishing a valid resource. If any native
-creation or allocation fails, already-created native variants are released and
-the result contains no partial `Cursor`.
+The span overload eagerly creates every variant before publishing; if any native
+creation or allocation fails, created variants are released and no partial `Cursor` results.
 
 ## DPI variants
 
-Supply images at the physical sizes appropriate for the DPI values used by the
-application. Selection uses the variant whose `intendedDpi` is nearest to the
-Window's effective DPI; an equal-distance tie chooses the higher-DPI variant.
-Input order does not affect that rule.
-
-A `WM_DPICHANGED` transition reselects an already-created variant without
-rebuilding native resources. The hotspot belongs to each variant and remains a
-physical-pixel coordinate; it is not scaled independently. See
-@ref desktop_coordinates_and_dpi for the other Window coordinate spaces.
+Selection uses the variant whose `intendedDpi` is nearest the
+Window's effective DPI; a tie chooses the higher DPI, regardless of input order.
+`WM_DPICHANGED` reselects an already-created variant without
+rebuilding. The hotspot belongs to each variant and stays in physical pixels (not scaled independently). See
+@ref desktop_coordinates_and_dpi.
 
 ## Selection and lifetime
 
-`Cursor` is default-constructible, copyable, movable, and cheaply shared. A
-default-constructed handle is invalid. Copies share the same immutable native
-variants, and those variants remain alive until the final `Cursor` handle and
-Window binding release them.
+`Cursor` is default-constructible (invalid), copyable, movable, and cheaply shared; copies share the same immutable native
+variants, which live until the last `Cursor` handle and Window binding release them.
 
 `setCursor(window, cursor)` requires a valid cursor and an open Window on its
-owner thread. The Window retains its own shared reference, so the caller may
-release the handle after a successful selection. The same `Cursor` may be
-selected by several Windows without duplicating native variants.
+owner thread. The Window keeps its own shared reference, so the caller may
+release the handle afterward; several Windows may select the same `Cursor`.
 
-`hasCustomCursor(window)` returns true only for an open Window queried on its
-owner thread while a custom binding is active. It returns false for a closed
-Window or a wrong-thread query.
+`hasCustomCursor(window)` is true only for an open Window queried on its
+owner thread with an active custom binding.
 
 Close, unexpected native destruction, deferred owner-thread cleanup, and a
-successful system-shape replacement release the Window binding. Reopening a
-Window does not restore the previous custom cursor.
+successful system-shape replacement release the binding. Reopening does not restore it.
 
 ## Cursor mode and system shape
 
 A custom binding overrides the effective system `Types::CursorShape` without
 changing the cached fallback shape. `CursorMode::Hidden`,
-`CursorMode::HiddenConfined`, and `CursorMode::Relative` suppress cursor
-display while retaining that binding. Returning to `CursorMode::Normal`
-restores the custom cursor. Confinement changes pointer movement bounds
-independently and does not clear the custom binding.
+`HiddenConfined`, and `Relative` suppress display while keeping the binding; `Normal`
+restores it. Confinement changes movement bounds independently and does not clear it.
 
-Calling `Window::setCursorShape()` successfully replaces the custom binding
-and makes the requested system shape effective. Select the custom `Cursor`
-again to restore it. A failed system-shape or custom-cursor replacement leaves
-the previous selection unchanged.
+A successful `Window::setCursorShape()` replaces the custom binding;
+select the `Cursor` again to restore it. A failed shape or cursor replacement keeps
+the previous selection.
 
 ## Single image
 

@@ -1,23 +1,16 @@
 @page unicode Unicode
 
-`GameWIP::Unicode` is the platform-neutral Unicode text-processing library shared by low-level GameWIP components.
+`GameWIP::Unicode` is the platform-neutral Unicode text-processing library and GameWIP's sole maintained encoding-conversion authority. Use its
+caller-backed measure/convert APIs; platform backends bridge the resulting code units to native representations at their boundary.
 
-It is GameWIP's sole maintained first-party encoding-conversion authority.
-Consumers should use its caller-backed measure/convert APIs; platform backends
-may bridge the resulting code units to native representations at their boundary.
-
-It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion, UTF-8 code-point traversal, Unicode 17.0.0 default extended
-grapheme-cluster traversal, and caller-backed indexed grapheme traversal for repeated movement. GameWIP uses UTF-8 as its canonical public text
-representation; UTF-16 exists as an explicit bridge for boundaries that require it.
+It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion, UTF-8 code-point traversal, and Unicode 17.0.0 default extended
+grapheme-cluster traversal, including caller-backed indexed traversal for repeated movement. UTF-8 is the canonical public text representation;
+UTF-16 is an explicit bridge for boundaries that require it.
 
 ## How the library is organized
 
-Unicode separates encoding from text boundaries. `Utf8` and `Utf16` validate,
-decode, encode, and convert Unicode scalar values. The grapheme APIs operate on
-already valid UTF-8 when code points must be grouped into user-perceived text
-elements. Result values report both the outcome and completed progress, so a
-caller can distinguish malformed input from a valid truncated prefix without
-guessing how much data was consumed.
+`Utf8` and `Utf16` validate, decode, encode, and convert scalar values. The grapheme APIs group already valid UTF-8 into user-perceived text
+elements. Results report both outcome and completed progress, so a caller can tell malformed input from a valid truncated prefix.
 
 ## Consumer manual
 

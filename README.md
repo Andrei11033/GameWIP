@@ -28,39 +28,30 @@ From a fresh checkout or extracted ZIP, run the repository bootstrap utility:
 .\setup.bat
 ```
 
-Setup prepares the selected development environment, pinned dependencies, and
-profiler tools. It is also the supported update, repair, and ownership-aware
-uninstall entry point. See the [development environment guide](docs/doxygen/environment_setup.md)
-for the setup actions and their boundaries.
+Setup prepares the development environment, pinned dependencies, and profiler
+tools, and handles updates, repair, and uninstall. See the
+[development environment guide](docs/doxygen/environment_setup.md).
 
-Open `GameWIP.code-workspace`, then configure, build, and run the development
-preset:
+Open `GameWIP.code-workspace`, then from an MSYS2 UCRT64 shell build and run the
+`dev` preset:
 
 ```powershell
 cmake --preset dev
 cmake --build --preset dev
-.\build\dev\GameWIP.exe --version
 .\build\dev\GameWIP.exe
 ```
 
-The [getting started guide](docs/doxygen/getting_started.md) explains the
-first-checkout path. Use the [command-line tools reference](docs/doxygen/command_line_tools.md)
-for setup, project-helper, game, test, and benchmark commands.
+See the [getting started guide](docs/doxygen/getting_started.md), the
+[build guide](docs/doxygen/build.md) (all presets, including `docs`), and the
+[command-line tools reference](docs/doxygen/command_line_tools.md).
 
 ## Documentation
 
-Generated API documentation and the developer manual are published at the
-[GameWIP documentation site](https://andrei11033.github.io/GameWIP/). Start
-with the [manual index](docs/doxygen/index.md) for architecture,
-subsystem workflows, API contracts, and engineering decisions.
-
-Public headers keep important contracts discoverable through IntelliSense;
-manual pages explain how the surrounding subsystem fits together. The
-[documentation system guide](docs/doxygen/documentation.md) defines that
-division of responsibility.
-
-To build the manual locally, use the `docs` preset described in the
-[build guide](docs/doxygen/build.md).
+The API reference and developer manual are on the
+[documentation site](https://andrei11033.github.io/GameWIP/); the
+[manual index](docs/doxygen/index.md) is the entry point. Public headers carry
+short contracts for IntelliSense; manual pages cover the surrounding design (see
+the [documentation guide](docs/doxygen/documentation.md)).
 
 ## Project links
 
@@ -75,7 +66,7 @@ To build the manual locally, use the `docs` preset described in the
 
 ```text
 foundation/   Reusable low-level libraries.
-engine/       Supported, maintained Desktop plus retained Input, Action, and WindowManager reference code.
+engine/       Desktop (supported). Input, Action, WindowManager are legacy reference code; do not use.
 tools/        Diagnostics, logging, assertions, and test support.
 game/         Game executable and source-tree validation.
 cmake/        Project build and validation infrastructure.

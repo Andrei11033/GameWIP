@@ -257,8 +257,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("closed file-dialog owner is NotOpen", ErrorCode::NotOpen, Desktop::Dialogs::openFile(owned).status.code));
     Desktop::Types::Description ownerDescription;
     ownerDescription.activation.visible = false;
-    static_cast<void>(context.expectTrue(
-        "file-dialog owner opens", owner.open(ownerDescription, Desktop::Events::owned(4)).ok()));
+    static_cast<void>(context.expectTrue("file-dialog owner opens", owner.open(ownerDescription, Desktop::Events::owned(4)).ok()));
     armFileDialog(FileOperation::OpenFile);
     static_cast<void>(context.expectTrue("current-thread owner is accepted", Desktop::Dialogs::openFile(owned).status.ok()));
     ErrorCode foreignOwnerCode = ErrorCode::Unknown;

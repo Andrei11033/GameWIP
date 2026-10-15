@@ -24,17 +24,14 @@ owner holds stable heap state used by the native target registration. At most
 one full target may be open for each open top-level `Window`; child surfaces are
 not supported.
 
-`open()` inherits the Window owner thread and offers the same queue-storage
-choices as other Desktop resource owners:
+`open()` runs on the Window owner thread and takes the queue storage choices
+from @ref desktop_lifecycle_events.
 
 | Overload | Storage |
 | --- | --- |
-| `open(window, description)` | Internally owned default-capacity queue. |
-| `open(window, description, QueueConfiguration::owned(capacity))` | Internally owned queue with the requested capacity. |
-| `open(window, description, QueueConfiguration::borrowed(eventStorage))` | Nonempty caller-owned storage borrowed through finalization. |
-
-External storage must remain alive and unmoved during native-loss finalization
-and deferred owner-thread cleanup. Close on the owner thread before releasing it.
+| `open(window, description)` | Owned, default capacity. |
+| `open(window, description, QueueConfiguration::owned(capacity))` | Owned, requested capacity. |
+| `open(window, description, QueueConfiguration::borrowed(eventStorage))` | Caller storage, borrowed through finalization. |
 
 Descriptions, regions, format names, and source data are copied. Caller views
 are never retained. No drag-and-drop allocation, OLE initialization, native
@@ -75,7 +72,7 @@ Every region has:
 - a nonzero unique `RegionId`;
 - an optional logical client rectangle;
 - an ordered list of accepted `DataTransfer::FormatView` values;
-- an `EffectPolicy` whose `allowed` mask is nonempty;
+- an `EffectPolicy` whose `allowed` mask is non-empty;
 - a `preferred` effect contained in that mask.
 
 An absent rectangle means the whole client and follows Window resize
@@ -84,7 +81,7 @@ Regions may overlap; the last supplied matching region wins. A position outside
 all accepting regions has `std::nullopt` for its region and `Effect::None`.
 
 Standard formats require an empty custom name. Custom formats require a
-nonempty strict UTF-8 native name without embedded U+0000. Duplicate accepted
+non-empty strict UTF-8 native name without embedded U+0000. Duplicate accepted
 formats within one region are invalid. A region may accept several formats; a
 successful drop materializes every accepted format that the source offers, in
 the region's declared order.
@@ -198,8 +195,8 @@ queue; no separate DragDrop pump exists.
 ## Source operation
 
 `DragDrop::beginDrag(source, description)` requires an open source Window owned
-by the calling thread. `Description` supplies a nonempty ordered item list,
-an `EffectPolicy` with a nonempty allowed mask, and explicit
+by the calling thread. `Description` supplies a non-empty ordered item list,
+an `EffectPolicy` with a non-empty allowed mask, and explicit
 `TriggerButton::{Left, Right, Middle}`.
 
 The configured button must already be down when the function begins; Desktop
@@ -253,7 +250,7 @@ mutually exclusive with a full target:
 - neither operation silently disables the other.
 
 Applications needing effects, regions, text, images, custom formats, or source
-dragging should disable lightweight mode explicitly, open `DragDropTarget`, and
+dragging should call `window.setFileDropEnabled(false)`, open `DragDropTarget`, and
 consume its typed queue.
 
 ## Win32 OLE and format mapping

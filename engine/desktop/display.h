@@ -52,15 +52,15 @@ namespace GameWIP::Desktop::Display
     /// @{
 
     /// @brief Enumerates materialized physical modes for a currently known monitor.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and the monitor's available physical modes on success.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns the monitor's active physical mode.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and active physical mode on success.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Mode> getCurrentMode(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns the operating system's preferred physical mode for the monitor.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and preferred physical mode on success.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Mode> getPreferredMode(Types::Display::MonitorId monitor) noexcept;
     /// @}

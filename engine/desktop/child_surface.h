@@ -73,6 +73,7 @@ namespace GameWIP::Desktop::Types::ChildSurface
         std::uint64_t sequence = 0; ///< Monotonic sequence within the current open lifetime.
         Events::Payload data;       ///< Tagged event payload.
 
+        /// @brief Payload alternatives, in `Events::Payload` order.
         enum class Kind : std::uint8_t
         {
             NativeDestroyed,
@@ -83,11 +84,13 @@ namespace GameWIP::Desktop::Types::ChildSurface
             ContentScaleChanged
         };
 
+        /// @brief Active payload alternative.
         [[nodiscard]] constexpr Kind kind() const noexcept
         {
             return static_cast<Kind>(data.index());
         }
 
+        /// @brief Reports whether the payload holds `PayloadType`.
         template <typename PayloadType> [[nodiscard]] bool is() const noexcept
         {
             return std::holds_alternative<PayloadType>(data);
@@ -152,10 +155,8 @@ namespace GameWIP::Desktop
         /// @brief Opens with an explicit owned-or-borrowed event-queue policy.
         /// @param parent Open top-level Window whose owner thread and client origin are inherited.
         /// @param description Initial logical geometry, visibility, and interaction state.
-        /// @details Borrowed storage remains retained during native-loss finalization and deferred owner-thread cleanup.
-        /// @param parent Open top-level Window whose owner thread and client origin are inherited.
-        /// @param description Initial logical geometry, visibility, and interaction state.
         /// @param queue Explicit storage ownership and capacity policy.
+        /// @details Borrowed storage remains retained during native-loss finalization and deferred owner-thread cleanup.
         /// @return Success, or a status explaining why no native host was opened.
         [[nodiscard]] IO::Types::Status open(
             Window &parent,

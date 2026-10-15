@@ -20,7 +20,7 @@ if(GAMEWIP_BUILD_TESTS)
 
     # Help output is a cheap smoke test that also protects the public command-line contract.
     add_test(NAME validation.tests.help COMMAND "$<TARGET_FILE:GameWIPTests>" --help)
-    set_tests_properties(validation.tests.help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;--test-module=<name>;Registered modules:" TIMEOUT 60)
+    set_tests_properties(validation.tests.help PROPERTIES LABELS "validation" PASS_REGULAR_EXPRESSION "Usage:;--test-module=<name>;Registered modules:" TIMEOUT 60)
 
     add_test(
         NAME validation.packages.installed_consumer

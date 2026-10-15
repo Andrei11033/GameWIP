@@ -4,6 +4,7 @@ function(gamewip_add_public_header_check name source dependency)
     target_link_libraries("GameWIPPublicHeaderCheck${name}" PRIVATE "${dependency}")
 endfunction()
 
+gamewip_add_public_header_check(BaseCheckedArithmetic base_checked_arithmetic_header.cpp GameWIP::Base)
 gamewip_add_public_header_check(Unicode unicode_header.cpp GameWIP::Unicode)
 gamewip_add_public_header_check(IO io_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOStatus io_status_header.cpp GameWIP::IO)

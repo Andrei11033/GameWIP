@@ -47,16 +47,16 @@ namespace GameWIP::Desktop::Types::Display
     /// space describes the current output classification, not a promise that every measurement is available.
     struct ColorInfo
     {
-        MonitorId monitor;                                 ///< Monitor described by this snapshot.
-        ColorSpace activeColorSpace = ColorSpace::Unknown; ///< Current operating-system color space.
-        bool wideColorGamutSupported = false;              ///< Whether wide-gamut output is supported.
-        bool hdrSupported = false;                         ///< Whether HDR output is supported.
-        bool hdrEnabled = false;                           ///< Whether HDR output is enabled.
-        std::optional<std::uint16_t> bitsPerColorChannel; ///< Active per-channel bit depth when reported.
-        std::optional<float> minimumLuminanceNits;         ///< Minimum reported luminance when reported.
-        std::optional<float> maximumLuminanceNits;         ///< Maximum reported luminance when reported.
+        MonitorId monitor;                                  ///< Monitor described by this snapshot.
+        ColorSpace activeColorSpace = ColorSpace::Unknown;  ///< Current operating-system color space.
+        bool wideColorGamutSupported = false;               ///< Whether wide-gamut output is supported.
+        bool hdrSupported = false;                          ///< Whether HDR output is supported.
+        bool hdrEnabled = false;                            ///< Whether HDR output is enabled.
+        std::optional<std::uint16_t> bitsPerColorChannel;   ///< Active per-channel bit depth when reported.
+        std::optional<float> minimumLuminanceNits;          ///< Minimum reported luminance when reported.
+        std::optional<float> maximumLuminanceNits;          ///< Maximum reported luminance when reported.
         std::optional<float> maximumFullFrameLuminanceNits; ///< Maximum full-frame luminance when reported.
-        std::optional<float> sdrWhiteLevelNits;            ///< Operating-system SDR white level when reported.
+        std::optional<float> sdrWhiteLevelNits;             ///< Operating-system SDR white level when reported.
     };
 
 } // namespace GameWIP::Desktop::Types::Display
@@ -73,11 +73,11 @@ namespace GameWIP::Desktop::Display
     /// @return Query status and primary-monitor snapshot on success.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept;
     /// @brief Returns a snapshot for a currently known monitor identity.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and matching monitor snapshot on success.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns current color information for a currently known monitor.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and current operating-system color facts on success.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns current color information for an open Window's monitor.

@@ -33,7 +33,7 @@ namespace GameWIP::Desktop::Types::Taskbar
     struct ThumbnailButton
     {
         Shell::CommandId id;               ///< Unique nonzero command identity; Win32 requires a 16-bit value.
-        std::string_view label;            ///< Nonempty UTF-8 button label.
+        std::string_view label;            ///< Non-empty UTF-8 button label.
         std::optional<IconImageView> icon; ///< Optional borrowed RGBA8 icon image.
         bool enabled = true;               ///< Whether the button accepts user activation.
     };

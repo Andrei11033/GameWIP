@@ -112,6 +112,8 @@ int main()
 
 ## Segmented output with stable payload storage
 
+Segments borrow their strings, which must stay alive until `writeSegments()` returns.
+
 ```cpp
 #include "terminal/terminal.h"
 
@@ -139,8 +141,6 @@ int main()
     return writeSegments(segments, options).ok() ? 0 : 1;
 }
 ```
-
-The strings remain alive until `writeSegments()` returns.
 
 ## Reusable OutputBuffer with retry
 

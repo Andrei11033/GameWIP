@@ -13,9 +13,7 @@ void testFilteredFormattedRegisteredSource(TestContext &context)
         "disable formatted test source",
         Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Render), false).ok());
     context.expectFalse("formatted test source is filtered", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Render));
-    context.expectTrue(
-        "string source remains severity-only",
-        Logger::shouldLog(Logger::Types::Level::Info, std::string_view{"Render"}));
+    context.expectTrue("string source remains severity-only", Logger::shouldLog(Logger::Types::Level::Info, std::string_view{"Render"}));
 
     Logger::resetStats();
     std::atomic<std::size_t> formatCount{0};

@@ -497,6 +497,7 @@ namespace GameWIP::Terminal
     [[nodiscard]] TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities() noexcept;
 
     /// @brief Returns capabilities for an input stream.
+    /// @param stream Input stream to inspect.
     [[nodiscard]] TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities(Types::Input::Stream stream) noexcept;
 
     /// @name Input

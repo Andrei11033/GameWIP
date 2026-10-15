@@ -773,8 +773,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DWORD nativeCode = 0;
             if (!utf8ToUtf16(formatName, wide, nativeCode))
             {
-                return failure<Types::Result<std::vector<std::byte>>>(
-                    unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
+                return failure<Types::Result<std::vector<std::byte>>>(unicodeConversionError(nativeCode, ErrorCode::InvalidArgument), nativeCode);
             }
             ClipboardSession session;
             result.status = session.open(nullptr, timeout);

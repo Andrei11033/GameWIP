@@ -16,7 +16,8 @@ project_command_line_tools.
 
 ## Requirements
 
-The supported Windows development environment is MSYS2 UCRT64 with CMake 4.4.2
+Run every command in this page from an MSYS2 UCRT64 shell (except the
+CLANG64 sanitizer presets below). The supported environment is MSYS2 UCRT64 with CMake 4.4.2
 or newer, Ninja, GCC or Clang as selected by the preset, and C++23 support. The
 root `cmake_minimum_required()` declaration is the authoritative CMake version;
 standalone validation entry points receive that value from the root
@@ -110,14 +111,11 @@ restore CMake build trees across runs.
 | `ubsan` | `Debug` | `GameWIPTests` | CLANG64 UndefinedBehaviorSanitizer validation build. |
 | `analyze` | `RelWithDebInfo` | `static-analysis` target | clang-tidy and clang-format checks for maintained C++ sources. |
 | `docs` | `Release` | `docs` target | Doxygen documentation only. |
-| `ci-validation` | `RelWithDebInfo` | `GameWIP`, `GameWIPTests`, `GameWIPBenchmarks` | Warnings-as-errors, offline, single-config CI validation. |
-| `ci-package` | `RelWithDebInfo` | `GameWIPTests` | Warnings-as-errors, offline, single-config package validation. |
-| `ci-package-multi` | Multi-config | `GameWIPTests` | Warnings-as-errors, offline, multi-config package validation. |
-| `ci-coverage` | `Debug` | `GameWIPTests` | Warnings-as-errors, offline coverage validation. |
-| `ci-asan` | `Debug` | `GameWIPTests` | Warnings-as-errors, offline AddressSanitizer validation. |
-| `ci-ubsan` | `Debug` | `GameWIPTests` | Warnings-as-errors, offline UndefinedBehaviorSanitizer validation. |
-| `ci-analyze` | `RelWithDebInfo` | `static-analysis` target | Warnings-as-errors, offline static analysis. |
-| `ci-docs` | `Release` | `docs` target | Warnings-as-errors, offline documentation generation. |
+
+`ci-*` presets (`ci-validation`, `ci-package`, `ci-package-multi`,
+`ci-coverage`, `ci-asan`, `ci-ubsan`, `ci-analyze`, `ci-docs`) mirror the
+workflow presets above with warnings-as-errors and offline dependencies. They
+are for CI; see `CMakePresets.json`.
 
 ## Commands
 

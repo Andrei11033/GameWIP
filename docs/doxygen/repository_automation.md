@@ -1,16 +1,22 @@
 @page project_repository_automation Repository and project automation
 
-GameWIP uses local scripts and GitHub workflows for the updates that are easy to
-make repeatable: tool declarations, project metadata, and project status. The
-scripts handle deterministic state. Priority, scope, security disclosures,
-milestone intent, and product decisions still belong to a maintainer.
+GameWIP uses local scripts and GitHub workflows to automate tool declarations,
+project metadata, and project status. The scripts handle deterministic state;
+priority, scope, security disclosures, milestone intent, and product decisions
+stay with a maintainer.
 
-This page covers the project-tool updater, project reconciliation, event
-handling, required configuration, and dry-run behavior. The important boundary
-is that the automation can apply a plan, but it does not decide what the
-project should build or how a security report should be handled.
+Contributor-facing workflow rules are in `docs/contributing.md`.
 
-Contributor-facing GitHub workflow rules are documented in `docs/contributing.md`.
+## Workflows
+
+| Workflow file | Purpose |
+| --- | --- |
+| `validation.yml` | Build and test validation. |
+| `docs.yml` | Builds Doxygen docs and deploys them to GitHub Pages. |
+| `pr-standards.yml` | Pull-request standards checks. |
+| `issue-area-labels.yml` | Area labels on issues. |
+| `project-automation.yml` | Project status and metadata reconciliation (below). |
+| `release-preparation.yml` | Manual, approval-gated release preparation. |
 
 ## Project-tool update automation
 

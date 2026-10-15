@@ -602,36 +602,25 @@ namespace GameWIP::FileSystem
     /// @{
 
     /// @brief Reads an entire file as bytes.
-    /// @param path File path to read.
-    /// @param options Open behavior, hard byte limit, and transfer buffer size.
-    /// @return Collected bytes and final status. Partial data may be present after transfer or close failure.
-    /// @note SizeLimitExceeded is a failed hard-limit result, not successful truncation.
+    /// @return Collected bytes and final status; partial data may accompany a failure.
+    /// @see @ref filesystem_whole_file_io
     [[nodiscard]] IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
 
-    /// @brief Reads an entire file as strict UTF-8 text without BOM or line-ending transformation.
-    /// @param path File path to read.
-    /// @param options Open behavior, hard byte limit, and transfer buffer size.
-    /// @return Valid UTF-8 text and final status. A failed read may preserve the complete valid UTF-8 prefix.
+    /// @brief Reads an entire file as strict UTF-8 text.
+    /// @return Validated text and final status; a failed read may keep the valid prefix.
+    /// @see @ref io_utf8_policy
     [[nodiscard]] IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::File::ReadOptions &options = {}) noexcept;
 
-    /// @brief Writes exact file contents through a non-atomic writer and reports accepted payload bytes.
-    /// @details Empty input still performs the requested create/truncate, flush, and close sequence. A flush or close failure preserves the payload
-    /// byte count accepted before that failure.
-    /// @param path Destination file path.
-    /// @param bytes Exact payload bytes.
-    /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return Final status and total payload bytes accepted.
+    /// @brief Writes exact contents non-atomically.
+    /// @details Empty input still performs create/truncate, flush, and close.
+    /// @return Final status and payload bytes accepted, preserved across a later flush or close failure.
     [[nodiscard]] IO::Types::WriteResult writeAllBytes(
         const Types::Path &path,
         std::span<const std::byte> bytes,
         const Types::File::WriteOptions &options = {}) noexcept;
 
-    /// @brief Writes exact vector contents and reports accepted payload bytes.
+    /// @brief Writes exact vector contents; forwards to the span overload.
     /// @tparam Allocator Byte-vector allocator type.
-    /// @param path Destination file path.
-    /// @param bytes Exact payload bytes.
-    /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return Final status and total payload bytes accepted.
     template <typename Allocator>
     [[nodiscard]] IO::Types::WriteResult writeAllBytes(
         const Types::Path &path,
@@ -641,35 +630,23 @@ namespace GameWIP::FileSystem
         return writeAllBytes(path, std::span<const std::byte>(bytes.data(), bytes.size()), options);
     }
 
-    /// @brief Writes exact strict UTF-8 text without BOM or line-ending transformation.
-    /// @details UTF-8 is validated before parent creation, file creation, or truncation. Empty valid text still performs
-    /// the requested create/truncate, flush, and close sequence.
-    /// @param path Destination file path.
-    /// @param utf8Text Exact UTF-8 text.
-    /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return EncodingFailed with zero payload progress for malformed text, otherwise final status and accepted bytes.
+    /// @brief Writes exact UTF-8 text without BOM or line-ending transformation.
+    /// @return EncodingFailed with zero progress and no side effect for invalid text; otherwise as writeAllBytes().
+    /// @see @ref io_utf8_policy
     [[nodiscard]] IO::Types::WriteResult writeAllText(
         const Types::Path &path,
         std::string_view utf8Text,
         const Types::File::WriteOptions &options = {}) noexcept;
 
-    /// @brief Appends bytes through an append-mode handle and reports accepted payload bytes.
-    /// @details A flush or close failure preserves the payload byte count accepted before that failure.
-    /// @param path Destination file path.
-    /// @param bytes Payload bytes to append.
-    /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return Final status and total payload bytes accepted.
+    /// @brief Appends bytes through an append-mode handle.
+    /// @return Final status and payload bytes accepted, preserved across a later flush or close failure.
     [[nodiscard]] IO::Types::WriteResult appendBytes(
         const Types::Path &path,
         std::span<const std::byte> bytes,
         const Types::File::AppendOptions &options = {}) noexcept;
 
-    /// @brief Appends vector contents and reports accepted payload bytes.
+    /// @brief Appends vector contents; forwards to the span overload.
     /// @tparam Allocator Byte-vector allocator type.
-    /// @param path Destination file path.
-    /// @param bytes Payload bytes to append.
-    /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return Final status and total payload bytes accepted.
     template <typename Allocator>
     [[nodiscard]] IO::Types::WriteResult appendBytes(
         const Types::Path &path,
@@ -679,35 +656,24 @@ namespace GameWIP::FileSystem
         return appendBytes(path, std::span<const std::byte>(bytes.data(), bytes.size()), options);
     }
 
-    /// @brief Appends strict UTF-8 text without adding a line ending.
-    /// @details UTF-8 is validated before parent or file creation. A flush or close failure preserves accepted payload progress.
-    /// @param path Destination file path.
-    /// @param utf8Text UTF-8 text to append.
-    /// @param options Creation, sharing, symlink, parent, and flush behavior.
-    /// @return EncodingFailed with zero payload progress for malformed text, otherwise final status and accepted bytes.
+    /// @brief Appends UTF-8 text without adding a line ending.
+    /// @return EncodingFailed with zero progress and no side effect for invalid text; otherwise as appendBytes().
+    /// @see @ref io_utf8_policy
     [[nodiscard]] IO::Types::WriteResult appendText(
         const Types::Path &path,
         std::string_view utf8Text,
         const Types::File::AppendOptions &options = {}) noexcept;
 
-    /// @brief Atomically replaces exact file contents through a same-directory temporary file.
-    /// @details No non-atomic fallback is used. Before commit, failure leaves an existing destination unchanged.
-    /// Temporary files use restrictive access, and security metadata failures are not silently ignored.
-    /// @param path Destination file path.
-    /// @param bytes Exact replacement payload.
-    /// @param options Parent creation, replacement, symlink, flush, and temporary-name behavior.
+    /// @brief Atomically replaces file contents through a same-directory temporary file.
     /// @return Success or the validation, temporary-file, write, flush, or replacement failure.
+    /// @see @ref filesystem_atomic_write
     [[nodiscard]] IO::Types::Status writeAllBytesAtomic(
         const Types::Path &path,
         std::span<const std::byte> bytes,
         const Types::File::AtomicWriteOptions &options = {}) noexcept;
 
-    /// @brief Atomically replaces exact file contents from vector storage.
+    /// @brief Atomically replaces contents from vector storage; forwards to the span overload.
     /// @tparam Allocator Byte-vector allocator type.
-    /// @param path Destination file path.
-    /// @param bytes Exact replacement payload.
-    /// @param options Parent creation, replacement, symlink, flush, and temporary-name behavior.
-    /// @return Success or the validation, temporary-file, write, flush, or replacement failure.
     template <typename Allocator>
     [[nodiscard]] IO::Types::Status writeAllBytesAtomic(
         const Types::Path &path,
@@ -717,11 +683,9 @@ namespace GameWIP::FileSystem
         return writeAllBytesAtomic(path, std::span<const std::byte>(bytes.data(), bytes.size()), options);
     }
 
-    /// @brief Atomically replaces exact strict UTF-8 contents.
-    /// @param path Destination file path.
-    /// @param utf8Text Exact replacement UTF-8 text.
-    /// @param options Parent creation, replacement, symlink, flush, and temporary-name behavior.
-    /// @return EncodingFailed before filesystem side effects for malformed text, otherwise the atomic-write status.
+    /// @brief Atomically replaces contents with UTF-8 text.
+    /// @return EncodingFailed before any side effect for invalid text; otherwise the atomic-write status.
+    /// @see @ref io_utf8_policy
     [[nodiscard]] IO::Types::Status writeAllTextAtomic(
         const Types::Path &path,
         std::string_view utf8Text,

@@ -13,8 +13,7 @@
 `Status::ok()` returns true only when `code == ErrorCode::Success`.
 
 A successful status should normally use `nativeCode == 0` and an empty message. Backends may attach diagnostic detail to failures when the additional
-allocation and text are useful. A non-empty message supplied by a caller must already be valid UTF-8; `makeStatus()` does not rescan trusted
-diagnostic text.
+allocation and text are useful. Message encoding: @ref io_utf8_policy.
 
 ## Error-code categories
 
@@ -72,7 +71,7 @@ Use `DirectoryNotEmpty` when removal fails specifically because a directory stil
 
 | Code | Use when |
 | --- | --- |
-| `EncodingFailed` | Strict text validation or encoding conversion failed, including malformed or incomplete UTF-8 observed by IO text helpers. |
+| `EncodingFailed` | Strict text validation or encoding conversion failed. See @ref io_utf8_policy. |
 | `NativeFailure` | A backend-native failure has no useful portable category. |
 | `Unknown` | The failure category cannot be determined. Prefer a more specific code whenever possible. |
 
@@ -96,19 +95,30 @@ Transfer count and status are independent:
 
 - A reader or writer may report nonzero progress with a failure status.
 - Whole-stream helpers preserve valid progress produced by the final failing call.
-- `ReadAllTextResult::text` always contains valid UTF-8; malformed or incomplete suffix bytes are removed before return.
 - Callers decide whether partial output is useful, retryable, or must be discarded.
 - A backend must never report a byte count larger than the span.
-
-For text reads, definitively malformed bytes produce `EncodingFailed` even when the same read also reports a backend failure. An incomplete suffix
-produces `EncodingFailed` only when IO has reached a definitive end of input; if a separate backend/limit failure stopped the stream first, IO
-preserves that failure after trimming the incomplete suffix.
 
 A successful short write is not itself a failure. `writeAllBytes()` retries it. A successful zero-byte write while input remains is invalid progress
 and becomes `WriteFailed`.
 
 For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-size reads, a successful zero-byte read without end-of-stream becomes
 `ReadFailed` because the helper cannot make progress.
+
+@anchor io_utf8_policy
+## UTF-8 text policy
+
+This is the single source for UTF-8 rules across IO, FileSystem, and Terminal text APIs; other pages link here.
+
+- Text is strict UTF-8: no normalization, BOM transformation, replacement, or repair. Embedded NUL is preserved.
+- Strict validation failure, including an incomplete trailing sequence, returns `EncodingFailed`.
+- Text returned by a failing read (`ReadAllTextResult::text`, `CopyTextResult::text`) is valid UTF-8: only the complete valid prefix is kept.
+- Malformed bytes produce `EncodingFailed` even when the same read also reports a backend failure.
+- An incomplete suffix produces `EncodingFailed` only at a definitive end of input. If a backend or limit failure stopped the stream first, that
+  failure stays primary and the suffix is trimmed, because continuation bytes may exist beyond the failed boundary.
+- A known-size reader that ends early with an incomplete sequence reports `EncodingFailed`, not `PartialRead`.
+- Text writers validate the whole input before the first write; failure returns `EncodingFailed` with zero bytes written.
+- `MemoryReader`'s `std::string_view` constructor is byte-oriented and performs no validation.
+- Caller-supplied `Status::message` text must already be valid UTF-8; `makeStatus()` does not rescan it.
 
 ## End-of-stream
 
@@ -121,8 +131,7 @@ For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-siz
 ## Status helpers and allocation
 
 `makeStatus()` accepts a portable code, optional native code, and optional owning UTF-8 message. The function is `noexcept`; however, construction of
-the message argument happens before function entry and may allocate. Callers that supply a non-empty message are responsible for providing valid
-UTF-8.
+the message argument happens before function entry and may allocate.
 
 `successStatus()` creates a default successful status. Code-only statuses avoid diagnostic-string allocation.
 

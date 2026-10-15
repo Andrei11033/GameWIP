@@ -33,7 +33,11 @@ namespace GameWIP::Desktop::Types::DragDrop
         {
             return value != 0;
         }
-        [[nodiscard]] static constexpr SessionId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr SessionId invalid() noexcept
+        {
+            return {};
+        }
         friend constexpr bool operator==(SessionId, SessionId) noexcept = default;
     };
 
@@ -47,7 +51,11 @@ namespace GameWIP::Desktop::Types::DragDrop
         {
             return value != 0;
         }
-        [[nodiscard]] static constexpr RegionId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr RegionId invalid() noexcept
+        {
+            return {};
+        }
         friend constexpr bool operator==(RegionId, RegionId) noexcept = default;
     };
 
@@ -82,18 +90,27 @@ namespace GameWIP::Desktop::Types::DragDrop
     /// at call sites. The fields are retained for backend inspection and diagnostics.
     struct EffectPolicy
     {
+        /// @brief Effects the source or target permits.
         Effect allowed = Effect::Copy;
+        /// @brief Single effect chosen when several are allowed.
         Effect preferred = Effect::Copy;
 
-        [[nodiscard]] static constexpr EffectPolicy copy() noexcept { return {Effect::Copy, Effect::Copy}; }
+        /// @brief Copy only.
+        [[nodiscard]] static constexpr EffectPolicy copy() noexcept
+        {
+            return {Effect::Copy, Effect::Copy};
+        }
+        /// @brief Copy or move.
         [[nodiscard]] static constexpr EffectPolicy copyMove(Effect preferred = Effect::Copy) noexcept
         {
             return {Effect::Copy | Effect::Move, preferred};
         }
+        /// @brief Copy, move, or link.
         [[nodiscard]] static constexpr EffectPolicy all(Effect preferred = Effect::Copy) noexcept
         {
             return {Effect::Copy | Effect::Move | Effect::Link, preferred};
         }
+        /// @brief Arbitrary mask and preference.
         [[nodiscard]] static constexpr EffectPolicy allow(Effect allowed, Effect preferred) noexcept
         {
             return {allowed, preferred};
@@ -102,9 +119,8 @@ namespace GameWIP::Desktop::Types::DragDrop
         /// @brief Creates a source policy when no target preference is needed.
         [[nodiscard]] static constexpr EffectPolicy source(Effect allowed) noexcept
         {
-            const Effect preferred = (allowed & Effect::Copy) != Effect::None
-                                         ? Effect::Copy
-                                         : ((allowed & Effect::Move) != Effect::None ? Effect::Move : Effect::Link);
+            const Effect preferred =
+                (allowed & Effect::Copy) != Effect::None ? Effect::Copy : ((allowed & Effect::Move) != Effect::None ? Effect::Move : Effect::Link);
             return {allowed, preferred};
         }
     };
@@ -135,7 +151,7 @@ namespace GameWIP::Desktop::Types::DragDrop
         RegionId id;                                       ///< Required unique, non-zero region identity.
         std::optional<LogicalRect> rect;                   ///< Client-relative logical bounds, or the whole client.
         std::span<const DataTransfer::FormatView> formats; ///< Accepted formats in application preference order.
-        EffectPolicy effects = EffectPolicy::copy();      ///< Accepted effects and preferred negotiation choice.
+        EffectPolicy effects = EffectPolicy::copy();       ///< Accepted effects and preferred negotiation choice.
     };
 
     /// @brief Initial immutable region snapshot for a native target.
@@ -148,7 +164,7 @@ namespace GameWIP::Desktop::Types::DragDrop
     struct Description
     {
         std::span<const DataTransfer::ItemView> items;     ///< Items snapshotted before native modal dispatch begins.
-        EffectPolicy effects = EffectPolicy::copy();      ///< Source-allowed effects and preferred negotiation choice.
+        EffectPolicy effects = EffectPolicy::copy();       ///< Source-allowed effects and preferred negotiation choice.
         TriggerButton triggerButton = TriggerButton::Left; ///< Button whose release completes the drag.
     };
 
@@ -172,22 +188,22 @@ namespace GameWIP::Desktop::Types::DragDrop
         /// @brief Reports a native drag session entering the top-level target.
         struct Entered
         {
-            SessionId sessionId;          ///< Identity shared by all events in this native session.
-            LogicalPosition position;     ///< Current client-relative logical pointer position.
+            SessionId sessionId;            ///< Identity shared by all events in this native session.
+            LogicalPosition position;       ///< Current client-relative logical pointer position.
             std::optional<RegionId> region; ///< Matching accepted region, or nullopt when no region matches.
-            Effect effect = Effect::None; ///< Effect negotiated for this position.
-            FormatSnapshot formats;       ///< Immutable offered-format metadata for the session.
+            Effect effect = Effect::None;   ///< Effect negotiated for this position.
+            FormatSnapshot formats;         ///< Immutable offered-format metadata for the session.
         };
 
         /// @brief Reports movement within or between accepted regions.
         struct Moved
         {
-            SessionId sessionId;          ///< Identity shared by all events in this native session.
-            LogicalPosition position;     ///< Current client-relative logical pointer position.
+            SessionId sessionId;                    ///< Identity shared by all events in this native session.
+            LogicalPosition position;               ///< Current client-relative logical pointer position.
             std::optional<RegionId> previousRegion; ///< Previous matching region, or nullopt when none matched.
             std::optional<RegionId> region;         ///< Current matching region, or nullopt when none matches.
-            Effect effect = Effect::None; ///< Effect negotiated for this position.
-            FormatSnapshot formats;       ///< Immutable offered-format metadata for the session.
+            Effect effect = Effect::None;           ///< Effect negotiated for this position.
+            FormatSnapshot formats;                 ///< Immutable offered-format metadata for the session.
         };
 
         /// @brief Reports a native drag session leaving the top-level target without dropping.
@@ -216,10 +232,22 @@ namespace GameWIP::Desktop::Types::DragDrop
         std::uint64_t sequence = 0; ///< Monotonic sequence within the current open lifetime.
         Events::Payload data;       ///< Tagged event payload.
 
-        enum class Kind : std::uint8_t { Entered, Moved, Left, Dropped };
+        /// @brief Payload alternatives, in `Events::Payload` order.
+        enum class Kind : std::uint8_t
+        {
+            Entered,
+            Moved,
+            Left,
+            Dropped
+        };
 
-        [[nodiscard]] constexpr Kind kind() const noexcept { return static_cast<Kind>(data.index()); }
+        /// @brief Active payload alternative.
+        [[nodiscard]] constexpr Kind kind() const noexcept
+        {
+            return static_cast<Kind>(data.index());
+        }
 
+        /// @brief Reports whether the payload holds `PayloadType`.
         template <typename PayloadType> [[nodiscard]] bool is() const noexcept
         {
             return std::holds_alternative<PayloadType>(data);

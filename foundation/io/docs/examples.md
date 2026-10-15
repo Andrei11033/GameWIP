@@ -4,6 +4,8 @@ The examples use only installed public APIs.
 
 ## Read bounded text from stable memory
 
+The reader borrows `source`, which must outlive it.
+
 ```cpp
 #include "io/io.h"
 
@@ -28,8 +30,7 @@ bool loadSmallConfig(std::string& output)
 }
 ```
 
-The source string outlives the reader. `readAllText()` requires strict UTF-8 and returns only a complete valid UTF-8 prefix on failure. The limit
-rejects oversized input rather than truncating it.
+`readAllText()` requires strict UTF-8 (@ref io_utf8_policy). The limit rejects oversized input rather than truncating it.
 
 ## Seek and read one byte
 
@@ -69,6 +70,8 @@ bool readThirdByte(std::byte& output)
 
 ## Reuse scratch storage for unknown-size readers
 
+The scratch buffer is borrowed for the call, used only when size or position is unavailable, and may be overwritten.
+
 ```cpp
 #include "io/io.h"
 
@@ -86,8 +89,6 @@ GameWIP::IO::Types::ReadAllBytesResult readBoundedStream(
         8 * 1024 * 1024);
 }
 ```
-
-The scratch storage is used only when size or position is unavailable. It may be overwritten and is not retained after the call.
 
 ## Reuse writer capacity
 
@@ -127,8 +128,8 @@ bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
 }
 ```
 
-`clear()` preserves capacity. `writeAllText()` validates before writing and `copyText()` validates the collected bytes before copying. A view returned
-by `bytes()` must not be retained across either clear or a later write.
+`clear()` preserves capacity. `copyText()` validates before copying. A view returned by `bytes()` is borrowed and must not be retained across `clear()`
+or a later write.
 
 ## Transfer ownership from MemoryWriter
 
@@ -246,7 +247,7 @@ private:
 };
 ```
 
-The adapter does not retain any input span. It reports accepted progress with the capacity failure, allowing `writeAllBytes()` to return the exact
+The adapter does not retain the input span. It reports accepted progress with the capacity failure, allowing `writeAllBytes()` to return the exact
 total.
 
 ## Related pages

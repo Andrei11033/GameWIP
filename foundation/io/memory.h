@@ -18,12 +18,12 @@ namespace GameWIP::IO
     namespace Types
     {
 
-        /// @brief Result returned when memory-writer bytes are copied as valid UTF-8 text.
+        /// @brief Result of copying collected bytes as validated text.
         struct CopyTextResult
         {
             /// @brief Operation status.
             Status status;
-            /// @brief Owning UTF-8 copy when status is successful; empty on EncodingFailed.
+            /// @brief Owned copy; empty on failure.
             std::string text;
         };
     } // namespace Types
@@ -31,23 +31,20 @@ namespace GameWIP::IO
     /// @name Memory streams
     /// @{
 
-    /// @brief Non-owning, seekable Reader over existing contiguous byte storage.
-    /// @details The source must remain alive and at a stable address while this reader is used.
-    /// Direct temporary std::string and std::vector construction is rejected, but caller-created
-    /// dangling spans and string views cannot be detected. Closing the reader never modifies the
-    /// source and cannot be reversed.
-    /// @note Reads are overlap-safe. MemoryReader allocates nothing, performs no operating-system
-    /// calls, and is not internally synchronized.
+    /// @brief Seekable Reader that borrows existing contiguous byte storage.
+    /// @details The source must outlive the reader and stay at a stable address. Temporary std::string and
+    /// std::vector construction is deleted; caller-created dangling views are not detected.
+    /// @see io_reader_writer_contract
     class MemoryReader final : public Reader
     {
     public:
-        /// @brief Creates a reader over caller-owned bytes.
-        /// @param bytes Bytes to read. The caller must keep this memory alive while the reader is used.
+        /// @brief Creates a reader over borrowed bytes.
+        /// @param bytes Bytes to read.
         explicit MemoryReader(std::span<const std::byte> bytes) noexcept;
 
-        /// @brief Creates a byte reader over caller-owned character storage.
-        /// @param bytes Character-backed bytes to read. The caller must keep this string view storage alive while the reader is used.
-        /// @note The constructor does not interpret or validate the byte encoding.
+        /// @brief Creates a byte reader over borrowed character storage.
+        /// @param bytes Character-backed bytes to read.
+        /// @note Byte-oriented; no encoding validation.
         explicit MemoryReader(std::string_view bytes) noexcept;
 
         /// @brief Rejects temporary std::string storage that would leave the reader dangling.
@@ -57,9 +54,9 @@ namespace GameWIP::IO
             requires(std::same_as<std::remove_cvref_t<String>, std::string> && std::is_rvalue_reference_v<String &&>)
         explicit MemoryReader(String &&bytes) = delete;
 
-        /// @brief Creates a reader over caller-owned vector storage.
+        /// @brief Creates a reader over borrowed vector storage.
         /// @tparam Allocator Vector allocator type.
-        /// @param bytes Bytes to read. The caller must keep this vector alive while the reader is used.
+        /// @param bytes Vector to read; must outlive the reader.
         template <typename Allocator>
         explicit MemoryReader(const std::vector<std::byte, Allocator> &bytes) noexcept
             : MemoryReader(std::span<const std::byte>(bytes.data(), bytes.size()))
@@ -84,14 +81,13 @@ namespace GameWIP::IO
         /// @return The same value as isOpen().
         [[nodiscard]] bool canSeek() const noexcept override;
 
-        /// @brief Reads from the current position into caller-owned memory.
-        /// @param destination Destination memory valid for the duration of the call.
+        /// @brief Reads from the current position.
+        /// @param destination Destination valid for the call; may overlap the source.
         /// @return NotOpen when closed; otherwise success, copied-byte count, and end-of-stream state.
-        /// @note Destination may overlap the source memory. An empty destination reports whether the
-        /// current position is already at end-of-stream.
+        /// @note An empty destination reports whether the position is already at end-of-stream.
         [[nodiscard]] Types::ReadResult read(std::span<std::byte> destination) noexcept override;
 
-        /// @brief Closes this reader without affecting caller-owned source storage.
+        /// @brief Closes this reader; the source is untouched.
         /// @return Success. Repeated close calls also succeed.
         [[nodiscard]] Types::Status close() noexcept override;
 
@@ -115,12 +111,10 @@ namespace GameWIP::IO
         bool open_ = true;
     };
 
-    /// @brief Owning, append-only Writer backed by std::vector<std::byte>.
-    /// @details Collected output remains inspectable, clearable, reservable, and extractable after
-    /// close(), while write(), flush(), and position() require open state. Writes from a valid
-    /// subspan of the writer's current bytes() view are supported even when appending reallocates.
-    /// @note MemoryWriter is non-seekable, not internally synchronized, and performs no
-    /// operating-system calls.
+    /// @brief Append-only Writer that owns std::vector<std::byte> storage.
+    /// @details Collected output stays available after close(); write(), flush(), and position() require
+    /// open state. Non-seekable.
+    /// @see io_reader_writer_contract
     class MemoryWriter final : public Writer
     {
     public:
@@ -170,20 +164,18 @@ namespace GameWIP::IO
         [[nodiscard]] Types::Status reserve(std::size_t capacity) noexcept;
 
         /// @brief Returns a read-only view of the bytes written so far.
-        /// @return Non-owning view into this writer's current storage.
-        /// @warning Do not retain the view across write(), reserve(), clear(), takeBytes(), move,
-        /// destruction, or any operation that may change storage or ownership.
+        /// @return Borrowed view into this writer's storage.
+        /// @warning Invalidated by write(), reserve(), clear(), takeBytes(), move, and destruction.
         [[nodiscard]] std::span<const std::byte> bytes() const noexcept;
 
-        /// @brief Copies collected bytes into an owning UTF-8 string after strict validation.
+        /// @brief Copies collected bytes into an owned string after strict validation.
         /// @return Copied text and success, or EncodingFailed, SizeLimitExceeded, OutOfMemory, or Unknown.
-        /// @note EncodingFailed returns empty text. The operation is available after close() and preserves embedded NUL bytes.
+        /// @see @ref io_utf8_policy
         [[nodiscard]] Types::CopyTextResult copyText() const noexcept;
 
         /// @brief Moves collected bytes out and replaces writer storage with an empty vector.
         /// @return Collected byte vector.
-        /// @note The writer preserves its open or closed state. The operation invalidates prior
-        /// bytes() views and may discard previously reserved capacity.
+        /// @note Prior bytes() views are invalidated; reserved capacity may be discarded.
         [[nodiscard]] std::vector<std::byte> takeBytes() noexcept;
 
         /// @brief Returns the number of bytes written so far.

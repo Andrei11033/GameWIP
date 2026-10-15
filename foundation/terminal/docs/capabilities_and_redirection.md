@@ -53,7 +53,7 @@ unsupported terminal behavior before first use.
 
 Redirected endpoints are byte-oriented:
 
-- text output accepts only complete valid UTF-8 and preserves those UTF-8 bytes;
+- text output accepts only valid UTF-8 (@ref terminal_unicode_io) and preserves those bytes;
 - byte output preserves arbitrary bytes where supported;
 - text and line input interpret redirected bytes as UTF-8;
 - byte input performs no text interpretation.
@@ -64,7 +64,7 @@ returns `Unsupported` without normal text emission when the style cannot be hono
 ## Current Win32 behavior
 
 Real-console output converts already-validated UTF-8 to UTF-16 and uses the native Unicode console path. Redirected text output writes the
-already-validated UTF-8 bytes unchanged; byte output remains arbitrary binary. The reported style set is conservative; enabling virtual-terminal
+same bytes unchanged; byte output remains arbitrary binary. The reported style set is conservative; enabling virtual-terminal
 processing does not by itself promise RGB, dim, italic, or strikethrough support.
 
 Named-pipe input reports byte/text/line input plus non-blocking reads, finite deadlines, and cooperative cancellation. Regular redirected files report

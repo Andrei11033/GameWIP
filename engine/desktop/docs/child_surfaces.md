@@ -13,9 +13,8 @@ A default `ChildSurface` is closed. It is non-copyable and non-movable, so its a
 top-level parent and runs on that parent's owner thread. A successful lifetime inherits that thread and caches the parent's `Types::WindowId`; `parentId()`
 continues to report that identity during exceptional finalization even if the parent lifetime has ended.
 
-Explicit `close()` synchronously destroys the host on the owner thread and does not report `NativeDestroyed`. A wrong-thread explicit close returns
-`ResourceBusy`; wrong-thread destruction transfers complete cleanup to the existing owner-thread dispatcher, which retains ownership until it can
-release the native resources.
+Explicit `close()` destroys the host synchronously and emits no `NativeDestroyed`. Wrong-thread close and destruction follow
+@ref desktop_lifecycle_events.
 
 Win32 naturally destroys child HWNDs when their parent is destroyed. If the parent closes first, or the host is unexpectedly destroyed,
 `isOpen()` becomes false, native handle access returns `NotOpen`, and `lifetimeState()` becomes `NativeDestroyedPendingFinalize`. One

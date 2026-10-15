@@ -73,7 +73,7 @@ policy.
 | `list` | Print the current action/catalog values. |
 | `help` | Print helper usage. |
 
-Use the action names above. Conventional help flags are documented separately.
+Use the action names above; help flags are covered separately.
 
 ## Subcommands and targets
 

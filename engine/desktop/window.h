@@ -43,11 +43,11 @@ namespace GameWIP::Desktop
         /// @brief Cached state for a non-windowed mode.
         struct FullscreenState
         {
-            std::optional<Display::MonitorId> monitor;        ///< Active fullscreen monitor, or nullopt when windowed/unavailable.
+            std::optional<Display::MonitorId> monitor;         ///< Active fullscreen monitor, or nullopt when windowed/unavailable.
             std::optional<Display::Mode> requestedDisplayMode; ///< Physical mode requested by the caller, if any.
-            std::optional<Display::Mode> activeDisplayMode;   ///< Physical mode currently active, including when no mode was requested.
-            bool displayModeMatchedExactly = false;           ///< Whether requestedDisplayMode is active exactly.
-            bool suspended = false;                           ///< Whether fullscreen is temporarily suspended.
+            std::optional<Display::Mode> activeDisplayMode;    ///< Physical mode currently active, including when no mode was requested.
+            bool displayModeMatchedExactly = false;            ///< Whether requestedDisplayMode is active exactly.
+            bool suspended = false;                            ///< Whether fullscreen is temporarily suspended.
         };
 
         /// @brief Call-scoped declarative custom-chrome hit-test layout.
@@ -108,6 +108,8 @@ namespace GameWIP::Desktop
             Count                      ///< Enumerator count used to bound capability bit indexes.
         };
 
+        static_assert(static_cast<std::size_t>(Capability::Count) <= 64, "Capabilities::flags holds at most 64 capabilities");
+
         /// @brief Backend capability flags and declarative-region limits.
         struct Capabilities
         {
@@ -115,7 +117,8 @@ namespace GameWIP::Desktop
             std::uint32_t maximumCustomChromeRegions = 0; ///< Maximum draggable custom-chrome regions.
             std::uint32_t maximumPointerInputRegions = 0; ///< Maximum pointer-input regions.
 
-            /// @brief Reports whether the requested capability flag is present.
+            /// @brief Reports whether the backend advertises @p capability.
+            /// @return False for Capability::Count or any out-of-range value.
             [[nodiscard]] constexpr bool supports(Capability capability) const noexcept
             {
                 const auto index = static_cast<std::uint8_t>(capability);

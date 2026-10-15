@@ -20,8 +20,8 @@ Installed consumers link `GameWIP::TestSupport`; source-tree consumers link `Tes
 - `InfrastructureStatus`: `error` plus optional numeric `nativeCode`; `ok()` is true only for `None`.
 - `TextResult`, `BoolResult`, and `CountResult`: shared status plus one value.
 
-`formatInfrastructureStatus()` formats a status only when human-readable diagnostics are requested; status construction and inspection do not allocate
-diagnostic text.
+`formatInfrastructureStatus()` (`types.h`) formats a status only when human-readable diagnostics are requested and may allocate; status
+construction and inspection never allocate diagnostic text.
 
 ## Reporting types
 
@@ -32,11 +32,17 @@ Reporting vocabulary lives under `Types::Reporting`:
 - `Summary`: passed/failed/skipped counts.
 - `SuiteResult`: suite name, summary, and elapsed milliseconds.
 - `ManualAnswer`: `Yes`, `No`, or `Skipped`.
+- `SinkState`: `Disabled`, `Active`, `Failed`, or `Finalized`.
+- `SinkStatus`: `state`, requested `reportPath`, and first `failureStatus`.
 
 `Context`, `Runner`, `Section`, `Timer`, and `promptManualCheck()` are active helpers directly under `GameWIP::TestSupport`.
 
 A failed expectation records a failure and returns `false`; it does not abort the suite. `Runner::runSuite()` converts an exception escaping the suite
 callable into one recorded failure and continues normal result aggregation.
+
+`Runner::reportStatus()` and `Context::reportStatus()` inspect the report sink. `Runner::finalize()` flushes and closes it, is idempotent, and
+never changes assertion counts or `exitCode()`; check the returned `SinkStatus` to detect report-file failures. `Context::finalize()` applies only
+to standalone contexts; runner-owned contexts leave the shared sink to the `Runner`.
 
 ## File helpers
 
@@ -63,32 +69,24 @@ Child-process vocabulary lives under `Types::Process`:
 - `Outcome`: `NotStarted`, `Exited`, `TimedOut`, `TerminatedDuringCleanup`, or `OutcomeUnavailable`;
 - `Result`: infrastructure status, exact exit code when available, outcome, `outputTruncated`, and retained raw `outputBytes`.
 
-`runChildProcess()` is the active operation. Child stdout/stderr capture is arbitrary bytes, not UTF-8 text. External processes may emit malformed
-data and TestSupport must preserve that data unchanged within the configured retention limit.
+`runChildProcess()` is the active operation. `kDefaultMaxCapturedOutputBytes` (4 MiB) is the default `Options` capture limit. Child stdout/stderr
+capture is arbitrary bytes, not UTF-8 text. External processes may emit malformed data and TestSupport must preserve that data unchanged within the
+configured retention limit.
 
 `ScopedProcessState`, `ScopedEnvironmentVariable`, and `ScopedUnsetEnvironmentVariable` also live in `test_support/process.h`. The process-state scope
-serializes TestSupport's process-global operations. Environment guards require it and expose `restore()` for an explicit result; unrelated native
-mutations are detected as `ProcessStateConflict` rather than silently overwritten.
+serializes TestSupport's process-global operations only: environment or current-directory changes made directly through native or standard-library
+calls bypass the lock and the caller must coordinate them. Environment guards require the scope and expose `restore()` for an explicit result;
+unrelated native mutations are detected as `ProcessStateConflict` rather than silently overwritten.
 
 ## Stress helpers
 
-`test_support/stress.h` owns `StartGate`, `StopFlag`, and `runWorkers()`.
-
-## Dependencies and package boundary
-
-TestSupport is a static library. It may depend on foundational `GameWIP::Unicode` for actual UTF-8 text semantics. It must not acquire IO, FileSystem,
-Terminal, Logger, Assert, Desktop, or engine dependencies merely for convenience.
-
-The installed package resolves the exact matching Unicode package automatically. Public headers remain standard-library based; the Unicode dependency
-is implementation-only text validation.
+`test_support/stress.h` owns `StartGate`, `StopFlag`, and `runWorkers()`. A `runWorkers()` callable invocable with both `std::size_t` and no
+arguments receives the worker index. Worker exceptions do not stop peers; every started worker is joined, then one scheduling-dependent exception is
+rethrown.
 
 ## Type organization
 
-The installed package exposes the current nested reporting and process
-vocabulary under `TestSupport::Types::Reporting` and
-`TestSupport::Types::Process`.
-
-@ref test_support_reports
-@ref test_support_files_environment
-@ref test_support_child_processes
-@ref test_support_timing_stress
+Types live under `TestSupport::Types::Reporting` and `TestSupport::Types::Process`.
+Details: @ref test_support_reports, @ref test_support_files_environment,
+@ref test_support_child_processes, @ref test_support_timing_stress.
+Dependencies: @ref test_support.

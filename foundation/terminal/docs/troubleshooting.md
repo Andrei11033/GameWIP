@@ -24,7 +24,7 @@ Terminal assembles a logical styled record, but platform writes are not transact
 
 ## Text reads fail with `EncodingFailed`
 
-Text and line reads require complete valid UTF-8. Use `readBytes()` for arbitrary redirected input. Incomplete UTF-8 at end-of-stream also fails.
+Text and line reads require valid UTF-8 (@ref io_utf8_policy). Use `readBytes()` for arbitrary redirected input.
 
 ## A small read limit returns `SizeLimitExceeded`
 
@@ -111,10 +111,9 @@ responsibility so state ownership is not silently lost.
 Terminal serializes only calls made through Terminal. Use one output abstraction for records that must not interleave, and flush foreign buffers
 through their owning APIs before switching.
 
-## Redirected text accepted invalid UTF-8
+## Redirected text is rejected for invalid UTF-8
 
-Redirected output is byte-oriented and may preserve supplied bytes without validation. Real-console conversion is stricter. Validate independently
-when endpoint-invariant UTF-8 rejection is required.
+Text output validates UTF-8 on every endpoint, including redirected ones, before emission. Use `writeBytes()` for arbitrary data.
 
 ## A capability result no longer matches behavior
 

@@ -2318,8 +2318,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     bool applicationExists = false;
                     bool applicationSameOwner = false;
                     std::string applicationOwner;
-                    status = inspectApplicationRegistration(
-                        applicationPath, ownerKey, applicationExists, applicationSameOwner, applicationOwner);
+                    status = inspectApplicationRegistration(applicationPath, ownerKey, applicationExists, applicationSameOwner, applicationOwner);
                     if (!status.ok())
                     {
                         result.status = status;
@@ -3264,8 +3263,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 bool applicationExists = false;
                 bool applicationSameOwner = false;
                 std::string applicationOwner;
-                status = inspectApplicationRegistration(
-                    applicationPath, description.ownerKey, applicationExists, applicationSameOwner, applicationOwner);
+                status =
+                    inspectApplicationRegistration(applicationPath, description.ownerKey, applicationExists, applicationSameOwner, applicationOwner);
                 if (!status.ok())
                 {
                     result.status = status;

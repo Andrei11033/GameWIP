@@ -41,8 +41,7 @@ void testPresentationPublication(TestSupport::Context &context)
     description.windowed.clientSize = {320, 200};
     description.activation.visible = false;
     Desktop::Window window;
-    static_cast<void>(context.expectTrue(
-        "publication fixture opens", window.open(description, Desktop::Events::owned(4)).ok()));
+    static_cast<void>(context.expectTrue("publication fixture opens", window.open(description, Desktop::Events::owned(4)).ok()));
     if (!window.isOpen())
     {
         return;
@@ -163,8 +162,7 @@ void testPresentationPublication(TestSupport::Context &context)
         context.expectEq("close retains presentation allocation", publicationStorage, Desktop::TestHooks::presentationPublicationStorage(window)));
 
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::NativeCreation);
-    static_cast<void>(context.expectEq(
-        "failed reopen is reported", ErrorCode::OpenFailed, window.open(description, Desktop::Events::owned(4)).code));
+    static_cast<void>(context.expectEq("failed reopen is reported", ErrorCode::OpenFailed, window.open(description, Desktop::Events::owned(4)).code));
     static_cast<void>(context.expectEq("failed reopen exposes closed client size", Desktop::Types::LogicalSize{}, window.clientSize()));
     static_cast<void>(context.expectFalse("failed reopen exposes no candidate monitor", window.currentMonitor().isValid()));
     static_cast<void>(context.expectEq(
@@ -172,8 +170,7 @@ void testPresentationPublication(TestSupport::Context &context)
         publicationStorage,
         Desktop::TestHooks::presentationPublicationStorage(window)));
 
-    static_cast<void>(context.expectTrue(
-        "publication fixture reopens", window.open(description, Desktop::Events::owned(4)).ok()));
+    static_cast<void>(context.expectTrue("publication fixture reopens", window.open(description, Desktop::Events::owned(4)).ok()));
     static_cast<void>(
         context.expectTrue("reopen automatically retains concurrent reads", Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
     static_cast<void>(
@@ -196,8 +193,7 @@ void testPointerHitMask(TestSupport::Context &context)
     description.activation.visible = false;
 
     Desktop::Window window;
-    static_cast<void>(context.expectTrue(
-        "pointer-mask fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("pointer-mask fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
     if (!window.isOpen())
     {
         return;
@@ -253,8 +249,7 @@ void testPointerHitMask(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("failed first publication keeps no mask", std::size_t{0}, Desktop::TestHooks::pointerHitMaskWordCount(window)));
 
-    static_cast<void>(
-        context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, first->generation, words).ok()));
+    static_cast<void>(context.expectTrue("first mask publication succeeds", Feedback::publishPointerHitMask(window, first->generation, words).ok()));
     static_cast<void>(context.expectTrue("active mask is reported", Feedback::hasPointerHitMask(window)));
     static_cast<void>(context.expectEq("mask stores exact word count", wordCount, Desktop::TestHooks::pointerHitMaskWordCount(window)));
     static_cast<void>(
@@ -281,8 +276,7 @@ void testPointerHitMask(TestSupport::Context &context)
         "superseded outstanding update is interrupted",
         ErrorCode::Interrupted,
         Feedback::publishPointerHitMask(window, stale->generation, words).code));
-    static_cast<void>(
-        context.expectTrue("newer same-size mask succeeds", Feedback::publishPointerHitMask(window, newer->generation, words).ok()));
+    static_cast<void>(context.expectTrue("newer same-size mask succeeds", Feedback::publishPointerHitMask(window, newer->generation, words).ok()));
     static_cast<void>(context.expectEq("same-size publication reuses storage", storage, Desktop::TestHooks::pointerHitMaskStorage(window)));
     static_cast<void>(
         context.expectEq("newer publication updates revision", newer->generation, Desktop::TestHooks::pointerHitMaskGeneration(window)));
@@ -297,15 +291,13 @@ void testPointerHitMask(TestSupport::Context &context)
     {
         std::vector<MaskWord> invalidPadding = words;
         invalidPadding[wordsPerRow - 1U] |= MaskWord{1} << validBitsInLastWord;
-    const auto padding = Feedback::beginPointerHitMaskUpdate(window);
+        const auto padding = Feedback::beginPointerHitMaskUpdate(window);
         static_cast<void>(context.expectEq(
             "set row-padding bits are rejected",
             ErrorCode::InvalidArgument,
-        Feedback::publishPointerHitMask(window, padding->generation, invalidPadding).code));
-        static_cast<void>(context.expectEq(
-            "invalid row-padding bits preserve revision",
-        newer->generation,
-            Desktop::TestHooks::pointerHitMaskGeneration(window)));
+            Feedback::publishPointerHitMask(window, padding->generation, invalidPadding).code));
+        static_cast<void>(
+            context.expectEq("invalid row-padding bits preserve revision", newer->generation, Desktop::TestHooks::pointerHitMaskGeneration(window)));
     }
 
     const Desktop::Types::ScreenPosition originalPosition = window.clientPosition();
@@ -325,17 +317,16 @@ void testPointerHitMask(TestSupport::Context &context)
 
     const auto beforeClose = Feedback::beginPointerHitMaskUpdate(window);
     static_cast<void>(context.expectTrue("pointer-mask fixture closes", window.close().ok()));
-    static_cast<void>(context.expectTrue(
-        "pointer-mask fixture reopens", window.open(description, Desktop::Events::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("pointer-mask fixture reopens", window.open(description, Desktop::Events::owned(8)).ok()));
     if (window.isOpen())
     {
         Desktop::TestHooks::enablePointerHitMaskBridge(window);
         static_cast<void>(context.expectEq(
             "pre-close generation stays stale after reopen",
             ErrorCode::Interrupted,
-        Feedback::publishPointerHitMask(window, beforeClose->generation, words).code));
+            Feedback::publishPointerHitMask(window, beforeClose->generation, words).code));
         Desktop::TestHooks::setPointerHitMaskGeneration(window, std::numeric_limits<std::uint64_t>::max() - 1U);
-    const auto lastGeneration = Feedback::beginPointerHitMaskUpdate(window);
+        const auto lastGeneration = Feedback::beginPointerHitMaskUpdate(window);
         static_cast<void>(context.expectEq(
             "last representable generation is deterministic",
             std::numeric_limits<std::uint64_t>::max(),
@@ -364,8 +355,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     description.activation.visible = false;
 
     Desktop::Window window;
-    static_cast<void>(context.expectTrue(
-        "renderer feedback fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("renderer feedback fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
     if (!window.isOpen())
     {
         return;
@@ -436,8 +426,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("feedback fixture closes with provider attached", window.close().ok()));
 
     Desktop::Window overflow;
-    static_cast<void>(context.expectTrue(
-        "occlusion overflow fixture opens", overflow.open(description, Desktop::Events::owned(1)).ok()));
+    static_cast<void>(context.expectTrue("occlusion overflow fixture opens", overflow.open(description, Desktop::Events::owned(1)).ok()));
     if (overflow.isOpen())
     {
         static_cast<void>(Feedback::attachOcclusionProvider(overflow));

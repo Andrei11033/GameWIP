@@ -165,7 +165,7 @@ namespace GameWIP::Desktop::Detail::Platform
             else if (description.windowed.placement.kind == Types::PlacementKind::Centered)
             {
                 HMONITOR monitor = description.windowed.placement.monitor ? nativeMonitor(*description.windowed.placement.monitor)
-                                                                           : MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
+                                                                          : MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
                 MONITORINFO info{};
                 info.cbSize = sizeof(info);
                 if (monitor == nullptr)
@@ -273,10 +273,10 @@ namespace GameWIP::Desktop::Detail::Platform
             int showCommand = SW_HIDE;
             if (description.activation.visible)
             {
-                showCommand = description.presentation == Types::PresentationState::Minimized   ? SW_SHOWMINIMIZED
-                              : description.presentation == Types::PresentationState::Maximized ? SW_SHOWMAXIMIZED
+                showCommand = description.presentation == Types::PresentationState::Minimized           ? SW_SHOWMINIMIZED
+                              : description.presentation == Types::PresentationState::Maximized         ? SW_SHOWMAXIMIZED
                               : description.activation.requestFocus && description.activation.focusable ? SW_SHOW
-                                                                                                : SW_SHOWNOACTIVATE;
+                                                                                                        : SW_SHOWNOACTIVATE;
             }
             ShowWindow(state.platform->handle, showCommand);
             state.visible = IsWindowVisible(state.platform->handle) != FALSE;

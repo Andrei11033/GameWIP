@@ -258,7 +258,10 @@ namespace GameWIP::Desktop::Renderer
         renderer->pointerHitMaskTargetWordCount = required;
         return {
             .status = IO::successStatus(),
-            .value = Types::Renderer::PointerHitMaskTarget{.generation = generation, .framebufferSize = state->framebufferSize, .requiredWordCount = required}};
+            .value = Types::Renderer::PointerHitMaskTarget{
+                .generation = generation,
+                .framebufferSize = state->framebufferSize,
+                .requiredWordCount = required}};
     }
 
     /// @brief Validates and publishes the reserved hit-mask generation atomically from the owner thread.

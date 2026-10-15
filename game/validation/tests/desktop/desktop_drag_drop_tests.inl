@@ -224,7 +224,8 @@ void testDragDrop(TestSupport::Context &context)
         "duplicate region IDs are rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{duplicateRegions}).code));
-    std::array<DD::RegionDescription, 1> invalidPreferred{{{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::allow(DD::Effect::Copy, DD::Effect::Move)}}};
+    std::array<DD::RegionDescription, 1> invalidPreferred{
+        {{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::allow(DD::Effect::Copy, DD::Effect::Move)}}};
     static_cast<void>(context.expectEq(
         "preferred effect must be allowed",
         ErrorCode::InvalidArgument,
@@ -242,16 +243,13 @@ void testDragDrop(TestSupport::Context &context)
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{nulFormatRegion}).code));
     std::array<Transfer::FormatView, 2> duplicateStandard{{Transfer::FormatView::text(), Transfer::FormatView::text()}};
-    std::array<DD::RegionDescription, 1> duplicateStandardRegion{
-        {{DD::RegionId{1}, std::nullopt, duplicateStandard, DD::EffectPolicy::copy()}}};
+    std::array<DD::RegionDescription, 1> duplicateStandardRegion{{{DD::RegionId{1}, std::nullopt, duplicateStandard, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "duplicate standard target formats are rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{duplicateStandardRegion}).code));
-    std::array<Transfer::FormatView, 2> duplicateCustom{
-        {Transfer::FormatView::custom("GameWIP.Same"), Transfer::FormatView::custom("GameWIP.Same")}};
-    std::array<DD::RegionDescription, 1> duplicateCustomRegion{
-        {{DD::RegionId{1}, std::nullopt, duplicateCustom, DD::EffectPolicy::copy()}}};
+    std::array<Transfer::FormatView, 2> duplicateCustom{{Transfer::FormatView::custom("GameWIP.Same"), Transfer::FormatView::custom("GameWIP.Same")}};
+    std::array<DD::RegionDescription, 1> duplicateCustomRegion{{{DD::RegionId{1}, std::nullopt, duplicateCustom, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "duplicate custom target formats are rejected",
         ErrorCode::InvalidArgument,
@@ -291,7 +289,10 @@ void testDragDrop(TestSupport::Context &context)
         "empty target rectangle is rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{emptyRectRegion}).code));
-    static_cast<void>(context.expectEq("zero event capacity is invalid", ErrorCode::InvalidArgument, target.open(window, {}, DD::QueueConfiguration::owned(0)).code));
+    static_cast<void>(context.expectEq(
+        "zero event capacity is invalid",
+        ErrorCode::InvalidArgument,
+        target.open(window, {}, DD::QueueConfiguration::owned(0)).code));
 
     std::array<DD::RegionDescription, 2> regions{
         {{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::allow(all, DD::Effect::Move)},
@@ -356,8 +357,10 @@ void testDragDrop(TestSupport::Context &context)
 
     const auto formats = std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Text, {}}});
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{1}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {1, 1}, DD::RegionId{1}, DD::RegionId{1}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {2, 2}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {1, 1}, DD::RegionId{1}, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {2, 2}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("compatible movement coalesces", std::size_t{2}, target.eventQueueInfo().pendingEvents));
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Left{{1}}));
     static_cast<void>(context.expectEq("queue is full before terminal insertion", std::size_t{3}, target.eventQueueInfo().pendingEvents));
@@ -390,7 +393,8 @@ void testDragDrop(TestSupport::Context &context)
     target.clearDroppedEventCount();
     static_cast<void>(context.expectEq("dropped counter clears", std::uint64_t{0}, target.eventQueueInfo().droppedEvents));
 
-    const auto pumpQueued = Desktop::TestHooks::routeDragDropDuringPump(target, DDEvents::Entered{{2}, {}, DD::RegionId{1}, DD::Effect::Copy, formats});
+    const auto pumpQueued =
+        Desktop::TestHooks::routeDragDropDuringPump(target, DDEvents::Entered{{2}, {}, DD::RegionId{1}, DD::Effect::Copy, formats});
     static_cast<void>(context.expectEq("pump counts queued DragDrop event", std::uint64_t{1}, pumpQueued.eventsQueued));
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Left{{2}}));
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{3}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
@@ -399,8 +403,10 @@ void testDragDrop(TestSupport::Context &context)
     target.clearEvents();
     static_cast<void>(context.expectEq("clear releases all retained queue entries", std::size_t{0}, target.eventQueueInfo().pendingEvents));
 
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{2}, DD::RegionId{3}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{2}, DD::RegionId{3}, DD::Effect::Copy, formats}));
     DD::Event coalescedMove;
     static_cast<void>(context.expectTrue("coalesced movement pops", target.popEvent(coalescedMove)));
     const auto *coalesced = coalescedMove.getIf<DDEvents::Moved>();
@@ -408,10 +414,14 @@ void testDragDrop(TestSupport::Context &context)
     if (coalesced != nullptr)
     {
         static_cast<void>(context.expectEq(
-            "coalescing preserves earliest previous region", std::optional<DD::RegionId>{DD::RegionId{1}}, coalesced->previousRegion));
+            "coalescing preserves earliest previous region",
+            std::optional<DD::RegionId>{DD::RegionId{1}},
+            coalesced->previousRegion));
     }
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("unrelated session moves do not coalesce", std::size_t{2}, target.eventQueueInfo().pendingEvents));
     target.clearEvents();
 
@@ -456,8 +466,9 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq("full target conflicts with lightweight mode", ErrorCode::ResourceBusy, target.open(window, {}).code));
     static_cast<void>(context.expectTrue("lightweight mode disables before full target registration", window.setFileDropEnabled(false).ok()));
     std::array<DD::Event, 2> externalStorage;
-    static_cast<void>(
-        context.expectTrue("target reopens with external queue", target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::borrowed(externalStorage)).ok()));
+    static_cast<void>(context.expectTrue(
+        "target reopens with external queue",
+        target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::borrowed(externalStorage)).ok()));
     static_cast<void>(
         context.expectEq("external queue ownership is reported", Desktop::Types::Events::StorageKind::External, target.eventQueueInfo().storage));
     ErrorCode wrongThreadClose = ErrorCode::Unknown;
@@ -492,10 +503,8 @@ void testDragDrop(TestSupport::Context &context)
 
     Desktop::Window deferredWindowA;
     Desktop::Window deferredWindowB;
-    if (context.expectTrue(
-            "first deferred-cleanup Window opens", deferredWindowA.open(windowDescription, Desktop::Events::owned(4)).ok()) &&
-        context.expectTrue(
-            "second deferred-cleanup Window opens", deferredWindowB.open(windowDescription, Desktop::Events::owned(4)).ok()))
+    if (context.expectTrue("first deferred-cleanup Window opens", deferredWindowA.open(windowDescription, Desktop::Events::owned(4)).ok()) &&
+        context.expectTrue("second deferred-cleanup Window opens", deferredWindowB.open(windowDescription, Desktop::Events::owned(4)).ok()))
     {
         auto deferredTargetA = std::make_unique<Desktop::DragDropTarget>();
         auto deferredTargetB = std::make_unique<Desktop::DragDropTarget>();

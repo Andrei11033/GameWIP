@@ -14,8 +14,7 @@ applicable license and attribution.
 Start with the [complete contributor workflow](docs/contributing.md). It covers
 issues, branches, pull requests, validation evidence, automation, and merges.
 
-Maintainers should also use the [repository maintenance policy](docs/doxygen/repository_maintenance.md)
-for branch settings, required checks, release gates, and repository upkeep.
+Maintainers: see the [repository maintenance policy](docs/doxygen/repository_maintenance.md).
 
 Use these references when a change reaches their area:
 

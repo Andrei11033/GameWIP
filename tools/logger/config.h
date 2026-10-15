@@ -76,22 +76,22 @@ namespace GameWIP::Logger
         {
         };
 
-        template <typename Enum> struct SourceEnumTraits<Enum, true>
+        template <typename Enum>
+        struct SourceEnumTraits<Enum, true>
             : std::bool_constant<
                   std::is_unsigned_v<std::underlying_type_t<Enum>> && sizeof(std::underlying_type_t<Enum>) <= sizeof(Types::SourceId) &&
-                  !std::is_same_v<Enum, Types::Level> && !std::is_same_v<Enum, Types::OutputMode> &&
-                  !std::is_same_v<Enum, Types::FormatPolicy> && !std::is_same_v<Enum, Types::Init::Outcome> &&
-                  !std::is_same_v<Enum, Types::Init::Adjustment> && !std::is_same_v<Enum, Types::FlushOutcome> &&
-                  !std::is_same_v<Enum, Types::Report::Outcome> && !std::is_same_v<Enum, Types::Report::Delivery> &&
-                  !std::is_same_v<Enum, Types::Health::State> && !std::is_same_v<Enum, Types::Health::FailureSource>>
+                  !std::is_same_v<Enum, Types::Level> && !std::is_same_v<Enum, Types::OutputMode> && !std::is_same_v<Enum, Types::FormatPolicy> &&
+                  !std::is_same_v<Enum, Types::Init::Outcome> && !std::is_same_v<Enum, Types::Init::Adjustment> &&
+                  !std::is_same_v<Enum, Types::FlushOutcome> && !std::is_same_v<Enum, Types::Report::Outcome> &&
+                  !std::is_same_v<Enum, Types::Report::Delivery> && !std::is_same_v<Enum, Types::Health::State> &&
+                  !std::is_same_v<Enum, Types::Health::FailureSource>>
         {
         };
 
         template <typename Enum>
         concept SourceEnum = SourceEnumTraits<std::remove_cvref_t<Enum>>::value;
 
-        template <typename Enum>
-        inline constexpr bool kIsSourceEnum = SourceEnum<Enum>;
+        template <typename Enum> inline constexpr bool kIsSourceEnum = SourceEnum<Enum>;
 
         template <typename Enum>
             requires(SourceEnum<Enum>)

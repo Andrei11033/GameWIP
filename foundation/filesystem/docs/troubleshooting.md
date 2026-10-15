@@ -32,11 +32,10 @@ Lexical path helpers accept empty paths; path-accessing operations generally do 
 
 ## A text operation returns `EncodingFailed`
 
-`readAllText()` encountered malformed or incomplete UTF-8; any returned `text` is the complete valid prefix. `writeAllText()`, `appendText()`, and
-`writeAllTextAtomic()` reject malformed input before creating parents, opening/truncating a file, appending, or creating an atomic temporary file.
+`readAllText()` and the text write/append helpers failed UTF-8 validation (@ref io_utf8_policy). Writes reject invalid input before any filesystem
+side effect.
 
-`pathFromUtf8()` and `pathToUtf8()` use the same strict UTF-8 contract at path-text boundaries. An atomic `temporaryNamePrefix` must also be valid
-UTF-8 filename text.
+`pathFromUtf8()`, `pathToUtf8()`, and an atomic `temporaryNamePrefix` follow the same strict contract.
 
 Use the corresponding byte operation when the payload is intentionally encoding agnostic.
 

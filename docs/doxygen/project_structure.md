@@ -21,7 +21,7 @@ and workflow pages describe the behavior inside each area.
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `external/` | CMake integration for optional FetchContent dependencies. |
 | `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |
-| `docs/doxygen/` | Generated project manual pages. |
+| `docs/doxygen/` | Doxygen sources for the project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `.github/` | Pull-request policy, CI, documentation publishing, and repository automation. |
 | `build/gamewip/cache/dependencies/` | Setup-managed locked third-party dependency sources. |

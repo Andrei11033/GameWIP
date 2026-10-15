@@ -31,21 +31,17 @@ not preallocate the final unknown-size result.
 
 ## Text validation
 
-`readAllText()` performs one strict UTF-8 validation pass over the collected string before returning it. Malformed or incomplete suffix bytes are
-removed so every returned `text` field remains valid UTF-8. Byte-oriented reads perform no Unicode validation.
+`readAllText()` performs one strict validation pass over the collected string (@ref io_utf8_policy). Byte-oriented reads perform no Unicode work.
 
-`writeAllText()` validates its complete input once before making the first writer call. Invalid input therefore returns `EncodingFailed` with zero
-accepted bytes and cannot partially mutate the destination. `writeAllBytes()` performs no Unicode work.
+`writeAllText()` validates its input once before the first writer call, so invalid input cannot partially mutate the destination.
 
 The text helpers intentionally do not cache validation state or introduce a validated-string wrapper. Whole-text operations are trust boundaries;
 ordinary byte transfers remain unchanged.
 
 ## Hard limits and probing
 
-`maxBytes` is a hard accepted-size limit.
-
-Known-size readers are rejected before output allocation when the remaining count exceeds the limit. Unknown-size readers may consume one additional
-probe byte after collecting exactly the limit. The probe distinguishes exact end-of-stream from over-limit input; the extra byte is never stored.
+`maxBytes` is a hard accepted-size limit; probe and rejection rules: @ref io_reader_writer_contract. Known-size readers are rejected before output
+allocation.
 
 `kNoByteLimit` removes only the caller-imposed limit. Container `max_size()`, address-space, and allocation limits still apply and may produce
 `SizeLimitExceeded` or `OutOfMemory`.
@@ -64,9 +60,8 @@ Its performance depends on keeping the source alive and stable; it never copies 
 - Call checked `reserve()` before writing when output size is predictable.
 - Use `clear()` to reuse capacity between operations.
 - Use `takeBytes()` when ownership should move to the caller; the writer may lose its reserved capacity.
-- `bytes()` is zero-copy but returns a temporary view into writer-owned storage.
-- `copyText()` first validates the complete byte sequence as strict UTF-8, then allocates and copies it; malformed/incomplete input returns
-  `EncodingFailed` without allocating the result string.
+- `bytes()` is zero-copy but returns a borrowed view into writer-owned storage.
+- `copyText()` validates first, then allocates and copies; invalid input allocates no result string.
 - Appending a valid subspan of current writer storage is handled without a separate temporary copy.
 
 ## Status cost

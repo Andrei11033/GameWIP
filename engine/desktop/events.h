@@ -243,23 +243,28 @@ namespace GameWIP::Desktop::Types::Events
     /// @tparam EventType Event envelope stored by the queue.
     template <typename EventType> struct EventQueueConfiguration
     {
+        /// @brief Window-owned slots.
         struct Owned
         {
             std::size_t capacity = 256;
         };
 
+        /// @brief Caller-owned slots; must be non-empty and outlive finalization.
         struct Borrowed
         {
             std::span<EventType> storage;
         };
 
+        /// @brief Active storage policy.
         std::variant<Owned, Borrowed> storage = Owned{};
 
+        /// @brief Window-owned queue of `capacity` slots.
         [[nodiscard]] static EventQueueConfiguration owned(std::size_t capacity = 256) noexcept
         {
             return EventQueueConfiguration{Owned{capacity}};
         }
 
+        /// @brief Queue backed by caller storage.
         [[nodiscard]] static EventQueueConfiguration borrowed(std::span<EventType> eventStorage) noexcept
         {
             return EventQueueConfiguration{Borrowed{eventStorage}};
@@ -272,11 +277,13 @@ namespace GameWIP::Desktop::Types::Events
 
 namespace GameWIP::Desktop::Events
 {
+    /// @brief Shorthand for `Types::Events::QueueConfiguration::owned()`.
     [[nodiscard]] inline Types::Events::QueueConfiguration owned(std::size_t capacity = 256) noexcept
     {
         return Types::Events::QueueConfiguration::owned(capacity);
     }
 
+    /// @brief Shorthand for `Types::Events::QueueConfiguration::borrowed()`.
     [[nodiscard]] inline Types::Events::QueueConfiguration borrowed(std::span<Types::Event> storage) noexcept
     {
         return Types::Events::QueueConfiguration::borrowed(storage);

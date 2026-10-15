@@ -1,48 +1,33 @@
 @page desktop_troubleshooting Troubleshooting
 
-Most Window failures identify a lifecycle, owner-thread, capability, or native
-state boundary. Start with the returned status and `lifetimeState()`, then use
-the matching case below.
+Most failures identify a lifecycle, owner-thread, capability, or native-state boundary. Start with the returned status and `lifetimeState()`, then find the case below.
 
 ## A dialog returns ResourceBusy, NotOpen, or Unsupported
 
-A non-null dialog owner must retain a live native Window and the call must run
-on that Window's owner thread. A lost or closed owner produces @c NotOpen; a
-foreign owner produces @c ResourceBusy.
-
-Windows shell file and folder dialogs also require an STA-compatible COM
-apartment. An existing MTA or neutral apartment produces @c ResourceBusy;
-Desktop does not create a hidden dialog thread. @c Unsupported means the
-backend cannot preserve the requested exact native semantics and does not
-silently substitute a weaker presentation.
+A non-null owner must be a live native Window and the call must run on its owner thread: a lost or closed owner gives @c NotOpen, a
+foreign one @c ResourceBusy. Shell file/folder dialogs also need an STA-compatible COM
+apartment; an existing MTA or neutral apartment gives @c ResourceBusy (no hidden dialog thread). @c Unsupported means the
+backend cannot preserve the exact native semantics and does not substitute a weaker one.
 
 Progress mutation and close are owner-thread operations. Keep pumping
-@c Desktop::Events, transfer worker results to that thread through
-application-owned synchronization, and interpret @c hasCancelRequest() as
-sticky intent rather than proof that work has stopped. See
-@ref desktop_dialogs.
+@c Desktop::Events, hand worker results to that thread, and treat @c hasCancelRequest() as
+sticky intent, not proof that work stopped. See @ref desktop_dialogs.
 
 ## DragDrop target or source is busy
 
 For target open, check `Window::fileDropEnabled()`, owner-thread affinity, and
-whether another `DragDropTarget` owns the Window. Disable lightweight file
-drops explicitly before opening a full target; neither mode silently replaces
-the other.
+whether another `DragDropTarget` owns the Window. File drop and `DragDropTarget`
+are mutually exclusive; see @ref desktop_drag_drop.
 
-An incompatible COM apartment also fails instead of creating a hidden STA
-thread. Source `beginDrag()` reports `ResourceBusy` for a nested source drag on
-the owner thread. Post later work to that thread after the synchronous call
-returns.
+An incompatible COM apartment also fails (no hidden STA thread). `beginDrag()` reports `ResourceBusy` for a nested source drag on
+the owner thread; post later work after the synchronous call returns.
 
 ## DragDrop source reports `InvalidArgument`
 
-The source Window must be open on the calling thread, `items` must be nonempty,
-`effects.allowed` may contain only `Copy`, `Move`, and `Link` and cannot be
-`None`, `effects.preferred` must be one of the allowed effects, formats must be
-unique, and every transfer item must satisfy
+The source Window must be open on the calling thread; `items` non-empty; `effects.allowed` only `Copy`, `Move`, `Link` and not
+`None`; `effects.preferred` one of the allowed effects; formats unique; every item valid per
 @ref desktop_clipboard format validation. The explicit `Left`, `Right`, or
-`Middle` trigger button must already be down when `beginDrag()` starts; Desktop
-deliberately does not infer it.
+`Middle` trigger button must already be down when `beginDrag()` starts; Desktop does not infer it.
 
 ## A target region never accepts
 
@@ -60,67 +45,60 @@ permitted and its `preferred` value controls deterministic selection.
 
 Inspect the target's own `eventQueueInfo()`, not the Window queue. Compatible
 movement events can coalesce, and overflow increments `droppedEvents`. A final
-accepted `Dropped` event has priority over retained movement noise.
+accepted `Dropped` has priority over retained movement noise.
 
-No `Dropped` event is queued when any selected native format is malformed,
-unavailable, unsupported, or fails conversion/allocation. This all-or-nothing
-behavior prevents a partial payload from looking successful. Final retrieval
-can also block on a foreign synchronous provider; there is no worker thread or
-portable cancellation after native retrieval begins.
+No `Dropped` is queued when any selected native format is malformed,
+unavailable, unsupported, or fails conversion/allocation (all-or-nothing, so no partial payload looks successful). Final retrieval
+can block on a foreign synchronous provider; there is no worker thread or
+portable cancellation once retrieval begins.
 
 ## DragDrop target lost its Window
 
 When the Window or registration is destroyed, target `isOpen()` becomes false
 and `lifetimeState()` reports `NativeDestroyedPendingFinalize`. Stop consuming
-native session state and call target `close()` on the inherited owner thread.
-The retained `windowId()` describes the ended Window lifetime until
-finalization. Reopen only after `close()` succeeds.
+native session state and call target `close()` on the owner thread; reopen only after it succeeds.
+`windowId()` keeps describing the ended Window lifetime until finalization.
 
-If the owner thread itself has already exited, its dispatcher finalized native
-DragDrop resources before terminating. A surviving public owner may be closed or
-destroyed from its current thread because only portable pending state remains.
-See @ref desktop_drag_drop for the authoritative lifetime distinctions.
+If the owner thread already exited, its dispatcher finalized native
+DragDrop resources, so a surviving public owner may be closed or
+destroyed from its current thread. See @ref desktop_drag_drop.
 
 ## DragDrop custom data or image is rejected
 
-Custom producer names use Win32 registered-format identity and require an
-agreed schema. An exact zero-byte custom source block is `Unsupported` through
-the immediate movable-`HGLOBAL` path. Images must have positive dimensions,
-valid checked stride/extent, top-to-bottom RGBA8 input, and a native DIB layout
+Custom producer names use Win32 registered-format identity and need an
+agreed schema. An exact zero-byte custom source block is `Unsupported` (immediate movable-`HGLOBAL` path). Images need positive dimensions,
+valid checked stride/extent, top-to-bottom RGBA8 input, and a DIB layout
 the receiver can represent. Malformed foreign DIB masks or extents reject the
-entire selected Drop.
+whole Drop.
 
 ## `InvalidArgument` during open
 
 Check for a zero client dimension, invalid UTF-8 or embedded NUL in the title, inverted size limits, a zero aspect-ratio component, opacity outside
-`[0, 1]`, an unknown enum value, an exclusive display mode attached to a non-exclusive request, an unknown owner/monitor, or region pointer modes
-without a runtime layout. External event storage must be non-empty.
+`[0, 1]`, an unknown enum value, an exclusive display mode on a non-exclusive request, an unknown owner/monitor, region pointer modes
+without a runtime layout, or empty external event storage.
 
 Also check option combinations: a hidden Window cannot request focus or an
-initial minimized/maximized presentation, and a non-resizable Window cannot
-keep the maximize control enabled. The initial client size must satisfy its
-limits. See @ref desktop_public_api for configuration constraints.
+initial minimized/maximized presentation, a non-resizable Window cannot
+keep the maximize control enabled, and the initial client size must satisfy its
+limits. See @ref desktop_public_api.
 
 ## `ResourceBusy`
 
-Native operations, queue consumption, close, renderer publication, native handles, and event pumping belong to the opening thread. The Window cannot
-be moved to transfer affinity. Post work to the owner thread and use `wakeEventWait()` to interrupt its wait. Recursive event pumping also reports
-`ResourceBusy`.
-
-`wakeEventWait()` may run on another thread only while the open lifetime is
-stable. Synchronize it with close and destruction; it does not make other
-Window operations thread-safe.
+Native operations, queue consumption, close, renderer publication, native handles, and event pumping belong to the opening thread, and a Window
+cannot be moved to transfer affinity. Post work to the owner thread and interrupt its wait with `wakeEventWait()` (only while the open lifetime is
+stable; synchronize with close and destruction; it makes no other operation thread-safe). Recursive event pumping also reports
+`ResourceBusy`. See @ref desktop_lifecycle_events.
 
 ## Shell interactions never reach the queue
 
-Opening a shell resource and consuming `ShellEventQueue` are separate from
-native message dispatch. Keep calling `Desktop::Events::poll()` or `wait()` on
-the resource owner thread, including in applications with no top-level Window.
-Check that the resource has a queue and that it is still open. Passive tray
-icons and notification centers discard interactions without a queue.
+Opening a shell resource and consuming `ShellEventQueue` do not dispatch
+native messages. Keep calling `Desktop::Events::poll()` or `wait()` on
+the resource owner thread, even with no top-level Window.
+Check that the resource has a queue and it is still open; passive tray
+icons and notification centers discard interactions without one.
 
-The pump's queued/dropped counts cover Window and ChildSurface events. Inspect
-the shell queue's `eventQueueInfo()` for shell pressure. Release every bound
+Pump counts cover Window and ChildSurface events only; inspect the
+shell queue's `eventQueueInfo()` for shell pressure. Release every bound
 resource before closing its borrowed queue. See @ref desktop_shell.
 
 ## Focus request fails
@@ -154,17 +132,15 @@ limit, and `Unsupported`; it does not use same-thread `HTTRANSPARENT`.
 
 ## Native destruction was unexpected
 
-`isOpen()` becomes false while `lifetimeState()` reports `NativeDestroyedPendingFinalize`. Consume the retained `Types::Events::NativeDestroyed`
-payload, stop native/renderer use, then call `close()` on the owner thread. Reopening is intentionally rejected until that controlled finalization
-releases IDs, event storage, and backend bookkeeping.
+`isOpen()` is false and `lifetimeState()` reports `NativeDestroyedPendingFinalize`. Consume the retained `Types::Events::NativeDestroyed`
+payload, stop native/renderer use, then call `close()` on the owner thread; reopen is rejected until then. See @ref desktop_lifecycle_events.
 
 ## Native handle is unavailable
 
 Include `desktop/native/win32.h` only in a Win32 translation unit and query after successful open on the owner thread. `getHandle()` returns
 `ResourceBusy` on another thread and `NotOpen` without a live HWND. Never destroy the returned HWND.
 
-For ChildSurface native hosting, include both `desktop/child_surface.h` and `desktop/native/win32.h`. The external technology may own descendants but
-must not destroy, reparent, or subclass the GameWIP host. Shut the external technology down before closing the ChildSurface when its SDK requires it.
+For ChildSurface hosting, include `desktop/child_surface.h` and `desktop/native/win32.h`; the external technology must not destroy, reparent, or subclass the host. See @ref desktop_child_surfaces.
 
 ## Clipboard reports ResourceBusy
 
@@ -187,7 +163,7 @@ rendering.
 
 ## Clipboard text, file, or image input is rejected
 
-Text must be strict UTF-8 and Win32 text cannot preserve embedded U+0000. File lists must be nonempty absolute paths, but paths need not exist and no
+Text must be strict UTF-8 and Win32 text cannot preserve embedded U+0000. File lists must be non-empty absolute paths, but paths need not exist and no
 file-system query occurs. Image dimensions must be positive, a packed image
 uses `ImageView::packed()` and a padded image uses `ImageView::strided()`, the
 stride must hold `width * 4` bytes, and the byte span must equal the resolved
@@ -202,22 +178,17 @@ contract.
 
 ## Occlusion reporting is unavailable
 
-`supports(Types::Capability::OcclusionReporting)` describes the stable backend capability; it does not report whether a renderer provider is currently
-attached. Include `desktop/renderer_bridge.h`, check `Renderer::hasOcclusionProvider(window)` for attachment state, and call
-`Renderer::attachOcclusionProvider(window)` after the renderer has an authoritative presentation source.
+`supports(Types::Capability::OcclusionReporting)` is the stable backend capability, not provider attachment. Include `desktop/renderer_bridge.h`, check `Renderer::hasOcclusionProvider(window)`, and call
+`Renderer::attachOcclusionProvider(window)` once the renderer has an authoritative presentation source.
 
-Attachment, reporting, and detachment must run on the Window owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after
-detachment. Forward only an authoritative Renderer presentation result; minimization, visibility, or focus alone are not equivalent to renderer
-occlusion.
+All three occlusion calls run on the owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after
+detachment. Forward only an authoritative Renderer result; minimization, visibility, or focus are not occlusion.
 
 ## Concurrent presentation reads are unavailable
 
-Include `desktop/renderer_bridge.h` and call `Renderer::enableConcurrentPresentationReads(window)` on the open Window's owner thread before starting
-the renderer thread. `NotOpen` means no native lifetime is committed, `ResourceBusy` means the caller is not the owner thread, and `OutOfMemory`
-means the lazy publication allocation was not installed. A failed call leaves ordinary owner-thread getters unchanged and the feature disabled.
-
-Do not retry enablement from a renderer getter or race enablement with reads. After success, enablement is idempotent, remains active across
-close/reopen, and has no disable operation. Stop or join renderer reads before destroying the C++ `Window` object.
+Call `Renderer::enableConcurrentPresentationReads(window)` on the open Window's owner thread before starting
+the renderer thread. `NotOpen`: no native lifetime committed; `ResourceBusy`: not the owner thread; `OutOfMemory`:
+publication allocation not installed. A failed call leaves owner-thread getters unchanged and the feature disabled. Do not retry from a renderer getter. See @ref desktop_renderer_integration.
 
 ## Display color is unknown or stale
 

@@ -18,8 +18,8 @@
 
 /// @brief Process-wide asynchronous logging module for runtime diagnostics.
 /// @details Normal logs are filtered, queue-backed, and optimized for the runtime hot path. Reports are
-/// synchronous emergency diagnostics: they bypass filters and queue pressure, try every enabled emergency
-/// channel, flush active normal sinks, and do not drain older asynchronous work.
+/// synchronous emergency diagnostics: they bypass filters and queue pressure, try every eligible sink, enabled
+/// debug output and the fatal popup, flush active normal sinks, and do not drain older asynchronous work.
 namespace GameWIP::Logger
 {
     /// @brief Marks a format string as runtime-provided for Logger formatting overloads.
@@ -108,11 +108,7 @@ namespace GameWIP::Logger
     {
         /// @brief Applies the string-source normal-log gate before compile-time formatting.
         template <typename... Args>
-        void formatAndLogIfEnabled(
-            Types::Level level,
-            std::string_view source,
-            std::format_string<Args...> format,
-            Args &&...args) noexcept
+        void formatAndLogIfEnabled(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args) noexcept
         {
             if (::GameWIP::Logger::shouldLog(level))
             {
@@ -122,11 +118,7 @@ namespace GameWIP::Logger
 
         /// @brief Applies the registered-source normal-log gate before compile-time formatting.
         template <typename... Args>
-        void formatAndLogIfEnabled(
-            Types::Level level,
-            Types::SourceId source,
-            std::format_string<Args...> format,
-            Args &&...args) noexcept
+        void formatAndLogIfEnabled(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args) noexcept
         {
             if (::GameWIP::Logger::shouldLog(level, source))
             {
@@ -136,11 +128,7 @@ namespace GameWIP::Logger
 
         /// @brief Applies the string-source normal-log gate before runtime formatting.
         template <typename... Args>
-        void runtimeFormatAndLogIfEnabled(
-            Types::Level level,
-            std::string_view source,
-            Types::RuntimeFormat format,
-            Args &&...args) noexcept
+        void runtimeFormatAndLogIfEnabled(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args) noexcept
         {
             if (::GameWIP::Logger::shouldLog(level))
             {
@@ -150,11 +138,7 @@ namespace GameWIP::Logger
 
         /// @brief Applies the registered-source normal-log gate before runtime formatting.
         template <typename... Args>
-        void runtimeFormatAndLogIfEnabled(
-            Types::Level level,
-            Types::SourceId source,
-            Types::RuntimeFormat format,
-            Args &&...args) noexcept
+        void runtimeFormatAndLogIfEnabled(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args) noexcept
         {
             if (::GameWIP::Logger::shouldLog(level, source))
             {
@@ -303,7 +287,7 @@ namespace GameWIP::Logger
     /// @name Synchronous reporting
     /// @{
 
-    /// @brief Synchronously reports a preformatted diagnostic through eligible emergency channels.
+    /// @brief Synchronously reports a preformatted diagnostic through eligible sinks and emergency channels.
     LOGGER_EXPORT Types::Report::Result report(Types::Level level, std::string_view source, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted diagnostic under a bounded deadline.
     LOGGER_EXPORT Types::Report::Result report(

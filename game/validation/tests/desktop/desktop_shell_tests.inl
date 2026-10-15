@@ -479,10 +479,8 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
             "foreign application conflict names the executable",
             applicationExecutable.filename().string(),
             foreignCollision.conflicts.front().target));
-        static_cast<void>(context.expectEq(
-            "foreign application conflict reports its owner",
-            foreignOwner,
-            foreignCollision.conflicts.front().ownerKey));
+        static_cast<void>(
+            context.expectEq("foreign application conflict reports its owner", foreignOwner, foreignCollision.conflicts.front().ownerKey));
     }
     HKEY targetKey = nullptr;
     const LONG targetStatus = RegOpenKeyExW(HKEY_CURRENT_USER, targetPath.c_str(), 0, KEY_READ, &targetKey);
@@ -835,16 +833,21 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
             capabilities->supports(capability),
             Desktop::Shell::supports(capability)));
     }
-    static_cast<void>(
-        context.expectFalse("capability sentinel is never advertised", capabilities->supports(ShellTypes::Capability::Count)));
+    static_cast<void>(context.expectFalse("capability sentinel is never advertised", capabilities->supports(ShellTypes::Capability::Count)));
 
     Desktop::ShellEventQueue queue;
-    static_cast<void>(context.expectEq("zero-capacity shell queue is rejected", ErrorCode::InvalidArgument, queue.open(ShellTypes::QueueConfiguration::owned(0)).code));
+    static_cast<void>(context.expectEq(
+        "zero-capacity shell queue is rejected",
+        ErrorCode::InvalidArgument,
+        queue.open(ShellTypes::QueueConfiguration::owned(0)).code));
     static_cast<void>(context.expectTrue("internal shell queue opens", queue.open(ShellTypes::QueueConfiguration::owned(2)).ok()));
     static_cast<void>(context.expectTrue("internal shell queue reports open", queue.isOpen()));
     static_cast<void>(context.expectTrue("internal shell queue binds to the opening thread", queue.ownedByCurrentThread()));
     static_cast<void>(context.expectEq("internal shell queue reports capacity", std::size_t{2}, queue.eventQueueInfo().capacity));
-    static_cast<void>(context.expectEq("reopening an open shell queue is rejected", ErrorCode::AlreadyOpen, queue.open(ShellTypes::QueueConfiguration::owned(2)).code));
+    static_cast<void>(context.expectEq(
+        "reopening an open shell queue is rejected",
+        ErrorCode::AlreadyOpen,
+        queue.open(ShellTypes::QueueConfiguration::owned(2)).code));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     Desktop::TestHooks::enqueueShellEvent(
@@ -884,7 +887,8 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("closed shell queue reports closed", queue.isOpen()));
 
     std::array<ShellTypes::Event, 2> externalStorage;
-    static_cast<void>(context.expectTrue("external shell queue opens", queue.open(ShellTypes::QueueConfiguration::borrowed(std::span{externalStorage})).ok()));
+    static_cast<void>(
+        context.expectTrue("external shell queue opens", queue.open(ShellTypes::QueueConfiguration::borrowed(std::span{externalStorage})).ok()));
     static_cast<void>(context.expectEq(
         "external shell queue reports borrowed storage",
         Desktop::Types::Events::StorageKind::External,
@@ -1117,7 +1121,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     }
 
     Desktop::ShellEventQueue taskbarQueue;
-            static_cast<void>(taskbarQueue.open(ShellTypes::QueueConfiguration::owned(8)));
+    static_cast<void>(taskbarQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     Desktop::TaskbarItem queuedTaskbar;
     const IO::Types::Status queuedTaskbarStatus = queuedTaskbar.open(window, {}, taskbarQueue);
     if (!queuedTaskbarStatus.ok())
@@ -1139,7 +1143,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     static_cast<void>(taskbarQueue.close());
 
     Desktop::ShellEventQueue trayQueue;
-            static_cast<void>(trayQueue.open(ShellTypes::QueueConfiguration::owned(8)));
+    static_cast<void>(trayQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     TrayTypes::Description trayDescription;
     trayDescription.icons = std::span{&icon, 1};
     TrayTypes::MenuItem trayMenuItem;
@@ -1186,7 +1190,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     Desktop::NotificationCenter notifications;
     Desktop::ShellEventQueue notificationQueue;
-            static_cast<void>(notificationQueue.open(ShellTypes::QueueConfiguration::owned(8)));
+    static_cast<void>(notificationQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     const IO::Types::Status notificationStatus = notifications.open(notificationQueue);
     if (!notificationStatus.ok())
     {

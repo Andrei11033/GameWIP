@@ -1,7 +1,7 @@
 @page project_platform_backend_contract Platform backend contract
 
 GameWIP reusable libraries keep platform-specific behavior behind internal
-backend contracts. The public API stays portable unless the platform concept is
+backend contracts; the public API stays portable unless the platform concept is
 itself part of the public contract.
 
 FileSystem, Terminal, Logger, Assert, TestSupport, Desktop, and future platform-dependent components

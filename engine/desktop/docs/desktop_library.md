@@ -93,42 +93,14 @@ focused resource classes remain under `Desktop`.
 
 ## Key behavior
 
-Every successful `open()` creates one process-local `Types::WindowId` and one fixed event queue. `Window` is non-copyable and non-movable, keeping its
-address and thread affinity stable. Cached getters are allocation-free and never query the operating system. By default they remain owner-thread-only.
-The optional renderer bridge can lazily enable atomic publication for the documented presentation subset.
-
-Shell resources follow the same explicit ownership model without becoming Window members. The
-owner thread owns resource mutation and queue consumption; shell resources borrow an
-application-owned queue for typed interaction events, and their destructors perform only
-best-effort native cleanup.
-
-Native callbacks update cached state before inserting events, so queue overflow loses notification history without making current state stale. Close
-requests remain sticky even when their `Types::Events::CloseRequested` payload cannot be retained.
-
-The opening thread owns native mutation, queue consumption, and event pumping.
-`wakeEventWait()` may run on another thread while the native lifetime remains
-stable; synchronize it with lifetime transitions. Renderer-facing
-presentation reads and accessibility façade operations have separate explicit
-opt-in threading contracts. A thread-local dispatcher pumps each owner thread's Windows.
-
-Applications must ensure the `Window` object outlives every renderer read and
-accessibility façade operation. See @ref desktop_accessibility for its threading
-and immutable-reader lifetime contract.
-
-Destruction on another thread transfers complete state ownership to that dispatcher without allocation. Dispatcher or thread shutdown closes remaining
-native windows and restores exclusive-mode, cursor, class, and identity resources. Unexpected native destruction retains portable state and a typed
-`Types::Events::NativeDestroyed` payload until controlled owner-thread finalization. Explicit `close()` does not emit that payload.
-
-Public text is valid UTF-8. Desktop uses the foundational Unicode library for
-strict native-boundary conversion instead of maintaining another decoder.
-Embedded U+0000 is invalid in a native Window title because the Win32 title APIs
-are NUL-terminated.
-
-Client-local positions and sizes use logical units. Desktop placement and
-monitor rectangles use physical virtual-screen coordinates, where positions may
-be negative. Framebuffer and display-mode extents use physical pixels. Each
-Window chooses whether a DPI transition preserves its logical client size or
-its physical client pixels.
+- Threads, close, destruction, and queues: see @ref desktop_lifecycle_events.
+- `Window` is non-copyable and non-movable. Cached getters never query the OS
+  or allocate. The renderer bridge is the only opt-in for cross-thread reads
+  (@ref desktop_renderer_integration).
+- Shell resources are not Window members. They borrow an application-owned
+  queue, and the owner thread mutates them.
+- Public text is UTF-8; a Window title may not contain U+0000.
+- Units: see @ref desktop_coordinates_and_dpi.
 
 ## Public header boundary
 

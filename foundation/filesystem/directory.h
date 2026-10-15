@@ -68,10 +68,8 @@ namespace GameWIP::FileSystem
             };
 
             /// @brief Result returned by listDirectory().
-            /// @details Filtering occurs before the limit is counted. With maxEntries=N, exactly N accepted entries may
-            /// succeed; discovery of an additional matching child returns SizeLimitExceeded and preserves those N entries.
-            /// A zero limit returns no entries and reports SizeLimitExceeded when a matching child exists. The result owns
-            /// all accepted entries, so retained storage is proportional to their count and path sizes.
+            /// @details Owns all accepted entries. On SizeLimitExceeded the entries within the limit are preserved; see
+            /// ListOptions::maxEntries.
             struct ListResult
             {
                 /// @brief Operation status.
@@ -81,10 +79,8 @@ namespace GameWIP::FileSystem
             };
 
             /// @brief Result returned by one DirectoryCursor step.
-            /// @details Successful exhaustion is represented by hasEntry=false. After the Nth accepted entry from a
-            /// limited cursor, the next call probes for one more matching child: it returns SizeLimitExceeded if found,
-            /// otherwise normal successful exhaustion. Once SizeLimitExceeded is returned, later calls repeat it.
-            /// A failed result does not contain an entry.
+            /// @details Exhaustion is hasEntry=false with a successful status. The limit is probed one entry past N;
+            /// SizeLimitExceeded is sticky (see ListOptions::maxEntries). A failed result has no entry.
             struct CursorNextResult
             {
                 /// @brief Operation status.
@@ -112,9 +108,8 @@ namespace GameWIP::FileSystem
             };
 
             /// @brief Result returned by removeDirectoryTree().
-            /// @details The count includes the root directory. Removal is incremental: an exact limit can succeed,
-            /// while an additional entry returns SizeLimitExceeded and preserves the number already removed. A zero
-            /// limit leaves an existing target unchanged and returns SizeLimitExceeded.
+            /// @details Includes the root. Removal is incremental: SizeLimitExceeded preserves the count already removed
+            /// (see RemoveTreeOptions::maxEntries).
             struct RemoveTreeResult
             {
                 /// @brief Operation status.
@@ -129,9 +124,8 @@ namespace GameWIP::FileSystem
     /// @{
 
     /// @brief Move-only, bounded-memory cursor over direct directory children.
-    /// @details The cursor owns backend enumeration state and applies the same filters, symlink policy, native ordering,
-    /// and accepted-entry limit contract as listDirectory(). Retained memory is independent of the number of sibling entries.
-    /// A cursor object is not safe for concurrent calls.
+    /// @details Same filters, symlink policy, order and limit as listDirectory(), with memory independent of sibling
+    /// count. Not safe for concurrent calls.
     class DirectoryCursor final
     {
     public:

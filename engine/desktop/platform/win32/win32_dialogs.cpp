@@ -1540,7 +1540,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 output.button = description.buttons[static_cast<std::size_t>(selectedButton - nativeBase)].id;
                 output.outcome = description.cancelButton && output.button == description.cancelButton ? Types::Dialogs::Outcome::Cancelled
-                                                                                                         : Types::Dialogs::Outcome::Accepted;
+                                                                                                       : Types::Dialogs::Outcome::Accepted;
                 return output;
             }
 

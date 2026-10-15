@@ -108,7 +108,8 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
-        if (!validMode(description.presentationMode) || !std::isfinite(description.progress) || description.progress < 0.0 || description.progress > 1.0)
+        if (!validMode(description.presentationMode) || !std::isfinite(description.progress) || description.progress < 0.0 ||
+            description.progress > 1.0)
         {
             return error(ErrorCode::InvalidArgument);
         }

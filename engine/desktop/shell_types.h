@@ -31,7 +31,11 @@ namespace GameWIP::Desktop::Types::Shell
             return value != 0;
         }
 
-        [[nodiscard]] static constexpr TrayIconId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr TrayIconId invalid() noexcept
+        {
+            return {};
+        }
 
         friend constexpr bool operator==(TrayIconId, TrayIconId) noexcept = default;
     };
@@ -47,7 +51,11 @@ namespace GameWIP::Desktop::Types::Shell
             return value != 0;
         }
 
-        [[nodiscard]] static constexpr NotificationId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr NotificationId invalid() noexcept
+        {
+            return {};
+        }
 
         friend constexpr bool operator==(NotificationId, NotificationId) noexcept = default;
     };
@@ -63,7 +71,11 @@ namespace GameWIP::Desktop::Types::Shell
             return value != 0;
         }
 
-        [[nodiscard]] static constexpr CommandId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr CommandId invalid() noexcept
+        {
+            return {};
+        }
 
         friend constexpr bool operator==(CommandId, CommandId) noexcept = default;
     };
@@ -90,9 +102,21 @@ namespace GameWIP::Desktop::Types::Shell
     /// @brief Named constructors for non-owning shell targets.
     namespace Targets
     {
-        [[nodiscard]] inline TargetView none() noexcept { return std::monostate{}; }
-        [[nodiscard]] inline TargetView path(const FileSystem::Types::Path &value) noexcept { return PathTargetView{std::cref(value)}; }
-        [[nodiscard]] inline TargetView uri(std::string_view value) noexcept { return UriTargetView{value}; }
+        /// @brief No target.
+        [[nodiscard]] inline TargetView none() noexcept
+        {
+            return std::monostate{};
+        }
+        /// @brief Path target; `value` is borrowed.
+        [[nodiscard]] inline TargetView path(const FileSystem::Types::Path &value) noexcept
+        {
+            return PathTargetView{std::cref(value)};
+        }
+        /// @brief URI target; `value` is borrowed.
+        [[nodiscard]] inline TargetView uri(std::string_view value) noexcept
+        {
+            return UriTargetView{value};
+        }
     } // namespace Targets
 
     /// @brief Owning filesystem-path target.
@@ -119,8 +143,16 @@ namespace GameWIP::Desktop::Types::Shell
     /// @brief Named constructors for owning shell targets.
     namespace Targets
     {
-        [[nodiscard]] inline Target ownedPath(FileSystem::Types::Path value) { return PathTarget{std::move(value)}; }
-        [[nodiscard]] inline Target ownedUri(std::string value) { return UriTarget{std::move(value)}; }
+        /// @brief Owned path target.
+        [[nodiscard]] inline Target ownedPath(FileSystem::Types::Path value)
+        {
+            return PathTarget{std::move(value)};
+        }
+        /// @brief Owned URI target.
+        [[nodiscard]] inline Target ownedUri(std::string value)
+        {
+            return UriTarget{std::move(value)};
+        }
     } // namespace Targets
 
     /// @brief Placeholder for target substitution in a launch argument.
@@ -155,9 +187,21 @@ namespace GameWIP::Desktop::Types::Shell
     /// @brief Named constructors for non-owning launch arguments.
     namespace LaunchArguments
     {
-        [[nodiscard]] inline LaunchArgumentView literal(std::string_view value) noexcept { return LiteralLaunchArgumentView{value}; }
-        [[nodiscard]] inline LaunchArgumentView target(TargetView value) noexcept { return TargetLaunchArgumentView{std::move(value)}; }
-        [[nodiscard]] inline LaunchArgumentView placeholder(LaunchPlaceholder value) noexcept { return value; }
+        /// @brief Literal argument; `value` is borrowed.
+        [[nodiscard]] inline LaunchArgumentView literal(std::string_view value) noexcept
+        {
+            return LiteralLaunchArgumentView{value};
+        }
+        /// @brief Target argument; the target's storage is borrowed.
+        [[nodiscard]] inline LaunchArgumentView target(TargetView value) noexcept
+        {
+            return TargetLaunchArgumentView{std::move(value)};
+        }
+        /// @brief Placeholder expanded from the selected target set.
+        [[nodiscard]] inline LaunchArgumentView placeholder(LaunchPlaceholder value) noexcept
+        {
+            return value;
+        }
     } // namespace LaunchArguments
 
     /// @brief Owning literal launch argument.
@@ -182,9 +226,21 @@ namespace GameWIP::Desktop::Types::Shell
     /// @brief Named constructors for owning launch arguments.
     namespace LaunchArguments
     {
-        [[nodiscard]] inline LaunchArgument ownedLiteral(std::string value) { return LiteralLaunchArgument{std::move(value)}; }
-        [[nodiscard]] inline LaunchArgument ownedTarget(Target value) { return TargetLaunchArgument{std::move(value)}; }
-        [[nodiscard]] inline LaunchArgument ownedPlaceholder(LaunchPlaceholder value) noexcept { return value; }
+        /// @brief Owned literal argument.
+        [[nodiscard]] inline LaunchArgument ownedLiteral(std::string value)
+        {
+            return LiteralLaunchArgument{std::move(value)};
+        }
+        /// @brief Owned target argument.
+        [[nodiscard]] inline LaunchArgument ownedTarget(Target value)
+        {
+            return TargetLaunchArgument{std::move(value)};
+        }
+        /// @brief Placeholder expanded from the selected target set.
+        [[nodiscard]] inline LaunchArgument ownedPlaceholder(LaunchPlaceholder value) noexcept
+        {
+            return value;
+        }
     } // namespace LaunchArguments
 
     /// @brief Non-owning executable and arguments for a call-scoped launch action.
@@ -233,7 +289,11 @@ namespace GameWIP::Desktop::Types::Shell
             return value != 0;
         }
 
-        [[nodiscard]] static constexpr NotificationInputId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr NotificationInputId invalid() noexcept
+        {
+            return {};
+        }
 
         friend constexpr bool operator==(NotificationInputId, NotificationInputId) noexcept = default;
     };
@@ -339,6 +399,7 @@ namespace GameWIP::Desktop::Types::Shell
         std::uint64_t sequence = 0; ///< Monotonic sequence within the current open lifetime.
         Events::Payload data;       ///< Tagged shell event payload.
 
+        /// @brief Payload alternatives, in `Events::Payload` order.
         enum class Kind : std::uint8_t
         {
             TrayActivated,
@@ -349,8 +410,13 @@ namespace GameWIP::Desktop::Types::Shell
             TrayIconStateLost
         };
 
-        [[nodiscard]] constexpr Kind kind() const noexcept { return static_cast<Kind>(data.index()); }
+        /// @brief Active payload alternative.
+        [[nodiscard]] constexpr Kind kind() const noexcept
+        {
+            return static_cast<Kind>(data.index());
+        }
 
+        /// @brief Reports whether the payload holds `PayloadType`.
         template <typename PayloadType> [[nodiscard]] bool is() const noexcept
         {
             return std::holds_alternative<PayloadType>(data);

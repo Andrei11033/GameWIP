@@ -39,8 +39,8 @@ namespace GameWIP::IO
         {
             /// @brief Operation status.
             Status status;
-            /// @brief Valid UTF-8 text collected before end-of-stream or failure.
-            /// @note On encoding failure or an incomplete suffix, this contains only the complete valid UTF-8 prefix.
+            /// @brief Validated text collected before end-of-stream or failure.
+            /// @see @ref io_utf8_policy
             std::string text;
         };
     } // namespace Types
@@ -78,10 +78,8 @@ namespace GameWIP::IO
     /// @param reader Reader starting at the current position.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
     /// @param bufferSize Temporary transfer-buffer size for unknown-size readers. Must be nonzero.
-    /// @return Valid UTF-8 text and final status, preserving only the complete valid UTF-8 prefix on failure.
-    /// @note Malformed input returns EncodingFailed. An incomplete suffix returns EncodingFailed when the
-    /// input reaches a definitive end; otherwise it is trimmed while an existing I/O or size-limit failure
-    /// remains primary. No normalization, BOM transformation, or parsing is performed.
+    /// @return Validated text and final status; on failure, only the complete valid prefix.
+    /// @see @ref io_utf8_policy
     [[nodiscard]] Types::ReadAllTextResult readAllText(
         Reader &reader,
         std::uint64_t maxBytes = kNoByteLimit,
@@ -91,9 +89,9 @@ namespace GameWIP::IO
     /// @param reader Reader to drain from its current position.
     /// @param scratchBuffer Non-empty temporary storage that may be overwritten during the call.
     /// @param maxBytes Hard maximum accepted output size, or kNoByteLimit for no caller limit.
-    /// @return Valid UTF-8 text and final status, preserving only the complete valid UTF-8 prefix on failure.
-    /// @note The scratch buffer is ignored for known-size readers and is never retained. A finite-limit
-    /// probe may consume one additional unstored byte. No normalization, BOM transformation, or parsing occurs.
+    /// @return Validated text and final status; on failure, only the complete valid prefix.
+    /// @note The scratch buffer is ignored for known-size readers and is never retained.
+    /// @see @ref io_utf8_policy
     [[nodiscard]] Types::ReadAllTextResult readAllText(
         Reader &reader,
         std::span<std::byte> scratchBuffer,
@@ -117,12 +115,11 @@ namespace GameWIP::IO
     }
 
     /// @brief Writes complete strict UTF-8 text through writeAllBytes().
-    /// @param writer Writer receiving the UTF-8 bytes.
-    /// @param utf8Text UTF-8 text view; embedded NUL bytes are preserved.
-    /// @return EncodingFailed with zero bytes written for malformed or incomplete input; otherwise
-    /// the writeAllBytes() status and total accepted-byte progress.
-    /// @note Validation happens before writer.write() is called. No normalization, BOM transformation,
-    /// parsing, flush, or close operation is performed.
+    /// @param writer Writer receiving the bytes.
+    /// @param utf8Text Text to validate and write.
+    /// @return EncodingFailed with zero bytes written for invalid input; otherwise the writeAllBytes() result.
+    /// @note Validation happens before writer.write() is called. No flush or close is performed.
+    /// @see @ref io_utf8_policy
     [[nodiscard]] Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text) noexcept;
 
     /// @}

@@ -122,8 +122,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
     description.fileDropEnabled = true;
 
     Desktop::Window window;
-    static_cast<void>(context.expectTrue(
-        "native event fixture opens", window.open(description, Desktop::Events::owned(64)).ok()));
+    static_cast<void>(context.expectTrue("native event fixture opens", window.open(description, Desktop::Events::owned(64)).ok()));
     if (!window.isOpen())
     {
         return;
@@ -145,8 +144,9 @@ void testNativeEventTranslation(TestSupport::Context &context)
 
     window.clearEvents();
     static_cast<void>(window.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(window.currentMonitor())));
-    static_cast<void>(
-        context.expectTrue("fullscreen transition translates to WindowModeChangedEvent", consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
+    static_cast<void>(context.expectTrue(
+        "fullscreen transition translates to WindowModeChangedEvent",
+        consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
 #if DESKTOP_INTERNAL_TEST_HOOKS
     window.clearEvents();
     static_cast<void>(
@@ -166,8 +166,9 @@ void testNativeEventTranslation(TestSupport::Context &context)
 #endif
     window.clearEvents();
     static_cast<void>(window.setWindowMode(Desktop::Types::WindowModes::windowed()));
-    static_cast<void>(
-        context.expectTrue("windowed restoration translates to WindowModeChangedEvent", consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
+    static_cast<void>(context.expectTrue(
+        "windowed restoration translates to WindowModeChangedEvent",
+        consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
 
     static_cast<void>(SendMessageW(handle->window, WM_SHOWWINDOW, FALSE, 0));
     window.clearEvents();

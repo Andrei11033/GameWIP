@@ -310,7 +310,9 @@ namespace GameWIP::Desktop::Detail::Platform
                     const auto selected =
                         active_ ? negotiateDragDropEffect(sourceEffects_, active_->effects.allowed, active_->effects.preferred) : DD::Effect::None;
                     currentRegion_ = active_ ? active_->id : DD::RegionId{};
-                    routeDragDropEvent(*state_, DD::Events::Entered{session_, pos, active_ ? std::optional<DD::RegionId>{active_->id} : std::nullopt, selected, formats_});
+                    routeDragDropEvent(
+                        *state_,
+                        DD::Events::Entered{session_, pos, active_ ? std::optional<DD::RegionId>{active_->id} : std::nullopt, selected, formats_});
                     *effect = nativeEffects(selected);
                     return S_OK;
                 }
@@ -334,7 +336,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 const auto pos = clientPosition(*state_, point);
                 const auto *next = regionAt(*state_, pos, nativeFormats_);
                 const auto region = next ? next->id : DD::RegionId{};
-                const auto selected = next ? negotiateDragDropEffect(sourceEffects_, next->effects.allowed, next->effects.preferred) : DD::Effect::None;
+                const auto selected =
+                    next ? negotiateDragDropEffect(sourceEffects_, next->effects.allowed, next->effects.preferred) : DD::Effect::None;
                 routeDragDropEvent(
                     *state_,
                     DD::Events::Moved{

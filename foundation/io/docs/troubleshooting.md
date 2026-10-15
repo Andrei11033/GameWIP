@@ -78,16 +78,8 @@ For repeated unknown-size reads, reuse a scratch buffer. For repeated writes, re
 
 ## A text helper returns `EncodingFailed`
 
-IO text helpers use strict UTF-8. `readAllText()` trims malformed or incomplete suffix bytes so `ReadAllTextResult::text` remains valid UTF-8; when
-useful progress exists, that field contains the complete valid prefix.
-
-`writeAllText()` validates the complete input before calling the writer, so malformed or incomplete input returns `EncodingFailed` with `bytesWritten
-== 0`.
-
-`MemoryWriter::copyText()` returns `EncodingFailed` and an empty text result when the collected bytes are not valid UTF-8. Use `bytes()` or
-`takeBytes()` when arbitrary binary data is intended.
-
-IO does not normalize text, insert or remove a BOM, or silently repair malformed input.
+IO text helpers use strict UTF-8; see @ref io_utf8_policy for trimming and `EncodingFailed` rules. Use `bytes()` or `takeBytes()` when arbitrary
+binary data is intended.
 
 ## Related pages
 

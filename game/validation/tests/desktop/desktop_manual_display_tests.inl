@@ -213,15 +213,21 @@ void testManualFullscreenAndTopology(
                                 "Window recovers visibly on the surviving primary, then reconnect it before answering. Otherwise skip.");
                             if (recovery == TestSupport::Types::Reporting::ManualAnswer::Yes)
                             {
-                                static_cast<void>(
-                                    context.expectEq("exclusive disconnect recovers windowed mode", Desktop::Types::WindowMode::Windowed, window.windowMode()));
-                                static_cast<void>(
-                                    context.expectFalse("exclusive disconnect clears fullscreen monitor", window.fullscreenState().monitor.has_value()));
+                                static_cast<void>(context.expectEq(
+                                    "exclusive disconnect recovers windowed mode",
+                                    Desktop::Types::WindowMode::Windowed,
+                                    window.windowMode()));
+                                static_cast<void>(context.expectFalse(
+                                    "exclusive disconnect clears fullscreen monitor",
+                                    window.fullscreenState().monitor.has_value()));
                             }
                             if (window.windowMode() != Desktop::Types::WindowMode::Windowed)
                             {
-                                static_cast<void>(
-                                    setManualModeWithDiagnostics(context, window, "exclusive-disconnect-cleanup", Desktop::Types::WindowModes::windowed()));
+                                static_cast<void>(setManualModeWithDiagnostics(
+                                    context,
+                                    window,
+                                    "exclusive-disconnect-cleanup",
+                                    Desktop::Types::WindowModes::windowed()));
                             }
                         }
                         else
@@ -297,7 +303,8 @@ void testManualFullscreenAndTopology(
                 }
                 if (window.windowMode() != Desktop::Types::WindowMode::Windowed)
                 {
-                    static_cast<void>(setManualModeWithDiagnostics(context, window, "borderless-disconnect-cleanup", Desktop::Types::WindowModes::windowed()));
+                    static_cast<void>(
+                        setManualModeWithDiagnostics(context, window, "borderless-disconnect-cleanup", Desktop::Types::WindowModes::windowed()));
                 }
             }
         }

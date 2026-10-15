@@ -1,10 +1,5 @@
 @page filesystem_directory_operations Directories, copy, move, and removal
 
-Directory operations range from creating one path component to moving or
-removing a complete tree. The sections below call out where an operation
-follows links, preserves partial progress, or can commit before reporting a
-later cleanup failure.
-
 ## Directory creation
 
 `createDirectory()` creates one level. `createDirectories()` creates missing parents.
@@ -37,14 +32,10 @@ For example, a directory containing exactly one accepted file succeeds with
 
 `Types::Directory::ListResult` owns every accepted entry, so peak result storage
 is proportional to the number and path length of returned children.
-`DirectoryCursor` provides the same filters, ordering, symlink policy, and
-accepted-entry limit without retaining siblings. After it returns the Nth
-accepted entry, its next call probes for one more matching child. It returns
-`SizeLimitExceeded` if one exists, otherwise normal successful exhaustion. The
-terminal limit status is sticky for later calls. With a zero limit, the first
-call returns `SizeLimitExceeded` when a matching child exists. On Win32, child
-metadata is queried relative to the retained directory handle, avoiding a
-complete ancestry traversal for every entry.
+`DirectoryCursor` applies the same filters, ordering, symlink policy, and
+limit without retaining siblings. After the Nth accepted entry, the next call
+probes for one more match: `SizeLimitExceeded` if one exists, otherwise normal
+exhaustion. The limit status is sticky.
 
 ```cpp
 GameWIP::FileSystem::DirectoryCursor cursor;
@@ -81,9 +72,6 @@ The API intentionally exposes no public recursive iterator. Recursive traversal 
 
 Copying is not atomic and is not a source snapshot. Concurrent source changes can produce `CopyFailed`. Once the destination is created or truncated,
 a later read, write, flush, close, size-consistency, or metadata failure can leave partial or complete destination content.
-
-The implementation compares copied byte progress with source metadata captured for the operation; a mismatch can report `CopyFailed` rather than
-silently accepting a changing source.
 
 ## Moving or renaming
 

@@ -1,12 +1,8 @@
 @page desktop_coordinates_and_dpi Coordinate spaces and DPI
 
-Window keeps logical layout coordinates separate from physical framebuffer
-pixels and reports the scale connecting them. Use the named types rather than
-assuming that one integer space can represent both.
+Window keeps logical layout coordinates separate from physical framebuffer pixels and reports the scale connecting them.
 
 ## Coordinate types
-
-Window keeps incompatible spaces distinct:
 
 | Type | Unit and origin | Typical use |
 | --- | --- | --- |
@@ -22,38 +18,32 @@ rectangles remain comparable in one physical desktop space.
 
 ## Conversion
 
-`clientToScreen(LogicalPosition)` returns a `Types::Result<ScreenPosition>`. `screenToClient(ScreenPosition)` returns a `Types::Result<LogicalPosition>`. Win32 performs
-the native client/screen conversion and Window applies DPI rounding at the boundary. Round trips near fractional scale boundaries may differ by one
-logical unit because physical pixels are integral.
+`clientToScreen(LogicalPosition)` returns `Types::Result<ScreenPosition>`; `screenToClient(ScreenPosition)` returns `Types::Result<LogicalPosition>`. Win32 does the native conversion and Window applies DPI rounding at the boundary, so round trips near fractional scales may differ by one
+logical unit.
 
-Conversion rejects a closed Window with `NotOpen` and wrong-thread native access with `ResourceBusy`. Logical scaling and client-to-frame placement
-use widened arithmetic. A value that cannot be represented by Win32's signed physical coordinates returns `InvalidArgument` with an
-arithmetic-overflow diagnostic instead of wrapping. Positive extents receive the same validation after DPI scaling and frame adjustment. Returned
-positions describe confirmed native geometry rather than an unverified request.
+A closed Window returns `NotOpen`; wrong-thread access returns `ResourceBusy`. Scaling and client-to-frame placement
+use widened arithmetic; a value unrepresentable in Win32's signed physical coordinates (including positive extents after DPI scaling and frame adjustment) returns `InvalidArgument` with an
+arithmetic-overflow diagnostic instead of wrapping. Returned
+positions are confirmed native geometry, not an unverified request.
 
 ## Framebuffer and scale
 
-`clientSize()` is logical. `framebufferSize()` is the actual physical drawable extent. `contentScale()` reports physical pixels per baseline logical
-unit and `effectiveDpi()` reports the effective DPI snapshot. Applications should resize renderer-owned attachments from
+`clientSize()` is logical; `framebufferSize()` is the physical drawable extent; `contentScale()` is physical pixels per baseline logical
+unit; `effectiveDpi()` is the DPI snapshot. Resize renderer attachments from
 `Types::Events::FramebufferSizeChanged` or the cached framebuffer getter.
 
-After `Renderer::enableConcurrentPresentationReads()` succeeds, these four getters use coherent atomic publication and may be read from a renderer
-thread while the owner processes native geometry and DPI messages. A returned pair never mixes components from different publications. Separate
-getter calls are not a transactional Window snapshot. Before opt-in they are ordinary owner-thread cached getters.
-
-Once enabled, `currentMonitor()` uses the same cross-thread publication contract. Renderers may use it to select output-dependent color, HDR, or
-presentation policy, then re-query detailed display information through the owner-thread APIs where required.
+After `Renderer::enableConcurrentPresentationReads()` succeeds (@ref desktop_renderer_integration), these four getters and `currentMonitor()` use atomic publication and may be read from a renderer
+thread; a returned pair never mixes publications, but separate calls are not a transactional snapshot. Before opt-in they are owner-thread cached getters.
+Renderers may use `currentMonitor()` to select output-dependent color, HDR, or presentation policy, then re-query display details through owner-thread APIs.
 
 ## DPI resize policy
 
-`DpiResizePolicy::PreserveLogicalClientSize` is the default. A DPI transition keeps the logical client extent and changes its physical pixel extent,
-preserving approximate apparent size.
+`DpiResizePolicy::PreserveLogicalClientSize` (default) keeps the logical client extent across a DPI transition, changing the physical extent to preserve apparent size.
 
-`DpiResizePolicy::PreservePhysicalClientSize` keeps the physical client pixel extent and recalculates the logical extent. It is intended for capture,
-deterministic rendering tests, and fixed-resolution workflows.
+`DpiResizePolicy::PreservePhysicalClientSize` keeps the physical extent and recalculates the logical one, for capture, deterministic rendering tests, and fixed-resolution workflows.
 
-`setDpiResizePolicy()` affects future DPI transitions only; it does not resize immediately. A framebuffer-size change invalidates an active packed
-pointer mask. Moving the Window without changing the framebuffer extent does not.
+`setDpiResizePolicy()` affects future transitions only. A framebuffer-size change invalidates an active packed
+pointer mask; moving the Window without changing the extent does not.
 
 Custom cursor images, sizes, and hotspots use physical pixels. A DPI transition selects the nearest eagerly created `intendedDpi` variant, choosing
 the higher-DPI variant on an equal-distance tie; it does not rescale or rebuild an image. See @ref desktop_custom_cursors.

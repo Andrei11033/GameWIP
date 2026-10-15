@@ -1,44 +1,35 @@
 @page desktop_future_extensions Future extension boundaries
 
-The core `desktop/window.h` contract intentionally models only native top-level windows. Additive platform capabilities must preserve that focused
-ownership model: they belong in opt-in headers within the existing `GameWIP::Desktop` target and `Desktop` package, not in new top-level engine
-libraries or an expanded umbrella header. Active implementation work remains tracked in GitHub issues rather than on this page.
+`desktop/window.h` models only native top-level windows. Additive platform capabilities belong in opt-in headers within the existing `GameWIP::Desktop` target and package, not new top-level engine
+libraries or a larger umbrella header. Active work is tracked in GitHub issues, not here.
 
 ## Platform shell boundary
 
-Taskbar features, notifications, tray icons and their operating-system menus, jump lists, file
-associations, recent files, and application shell policy are implemented in the focused
-`desktop/shell*.h` headers and remain part of the existing `GameWIP::Desktop` target. They do not
-introduce a separate platform-services library or place shell-specific state in every core
-`Window` instance. Future work is limited to explicitly advertised optional capabilities and
-additional platform backends; the existing portable ownership and queue contracts are stable.
+Taskbar, notifications, tray icons and menus, jump lists, file
+associations, and recent files live in the focused `desktop/shell*.h` headers within `GameWIP::Desktop`, with no
+separate library and no shell state in `Window`. Future work is limited to advertised optional capabilities and
+more backends; the ownership and queue contracts are stable.
 
 ## Accessibility provider bridge
 
-A future UI system owns the semantic accessibility tree. The implemented
-`desktop/accessibility.h` bridge copies immutable snapshots from that owner and
-provides native providers and bounded transport, not a second editable semantic
-model. See @ref desktop_accessibility. Future backends preserve that ownership,
-advertise feature differences, and do not introduce toolkit or renderer dependencies.
+A future UI system owns the semantic tree. `desktop/accessibility.h` copies immutable snapshots from it and
+provides native providers and bounded transport, not a second editable model (@ref desktop_accessibility). Future backends keep that ownership,
+advertise feature differences, and add no toolkit or renderer dependencies.
 
 ## Native pointer-mask routing
 
-The packed Renderer-to-Window mask bridge exists in `desktop/renderer_bridge.h`. Genuine cross-application rectangular and per-pixel routing remains
-backend work and stays `Unsupported` until a documented stable native API can satisfy the contract.
+The packed mask bridge exists in `desktop/renderer_bridge.h`. Cross-application rectangular and per-pixel routing remains
+backend work and stays `Unsupported` until a documented stable native API can satisfy it.
 
 ## Data transfer, drag and drop, and dialogs
 
-Clipboard and its shared transfer vocabulary are implemented in the focused `desktop/clipboard.h` and `desktop/data_transfer.h` headers. Native drag
-and drop reuses that contract through `desktop/drag_drop.h` rather than duplicating format, ownership, or lifetime rules. Native dialogs and modeless
-progress resources use `desktop/dialogs.h`; see @ref desktop_dialogs. Lightweight file-drop events remain the narrow core path-only capability.
+Clipboard and the shared transfer vocabulary live in `desktop/clipboard.h` and `desktop/data_transfer.h`; `desktop/drag_drop.h` reuses that contract. Dialogs and modeless
+progress use `desktop/dialogs.h` (@ref desktop_dialogs). Lightweight file-drop events remain the core path-only capability.
 
-Renderer attachment already has an explicit non-owning native-handle boundary, and renderer occlusion reporting has an explicit owner-thread
-feedback boundary. Concurrent presentation reads have a separate explicit one-way opt-in and do not transfer mutation or resource ownership.
-Renderer surface lifetime, swapchains, and synchronization remain Renderer responsibilities.
+Renderer surface lifetime, swapchains, and synchronization remain Renderer responsibilities; the bridge's boundaries are in @ref desktop_renderer_integration.
 
-Text input and IME belong to the future Input public API with an internal native Window/Input bridge. Application and editor menus belong to the
-future UI system; only tray-icon operating-system menus belong to Desktop shell integration. Desktop does not freeze either owning library's policy in
-advance.
+Text input and IME belong to the future Input API with an internal native Window/Input bridge. Application and editor menus belong to the
+future UI system; only tray-icon menus belong to Desktop shell integration.
 
 ## Related pages
 

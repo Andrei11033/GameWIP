@@ -1,15 +1,14 @@
 @page desktop_examples Examples
 
-These focused examples build on the owner-thread lifecycle from
-@ref desktop_quick_start. They cover displays, custom cursors, native child
-hosts, Clipboard data exchange, drag and drop, dialogs, accessibility, shell
-integration, renderer integration, and native interop. Snippets use an already
-open owner-thread `window` unless they create one explicitly.
+Examples build on the lifecycle in @ref desktop_quick_start. Snippets use an already
+open owner-thread `window` unless they create one.
 
 ## Open a normal Window
 
 ```cpp
 #include "desktop/window.h"
+
+#include <chrono>
 
 GameWIP::Desktop::Types::Description description;
 description.title = "Example";
@@ -45,9 +44,8 @@ while (window.isOpen() && !window.hasCloseRequest())
 }
 ```
 
-After the loop, call `window.close()` and inspect its status. The `isOpen()`
-condition also exits after unexpected native destruction; retained events can
-still be consumed before finalization.
+After the loop, call `window.close()` and check its status. `isOpen()` also ends the loop after
+unexpected native destruction; retained events can still be consumed before finalization.
 
 ## Enumerate displays
 
@@ -73,11 +71,9 @@ description.initialWindowMode = GameWIP::Desktop::Types::WindowModes::borderless
 description.activation.visible = true;
 ```
 
-For exclusive fullscreen, use
-`Types::WindowModes::exclusiveFullscreen()` to keep the selected monitor's
-current physical mode, or pass a `Types::Display::Mode` (and optionally a
-`MonitorId`) to request a physical mode. The initial/restored logical windowed
-size remains in `description.windowed.clientSize`.
+For exclusive fullscreen use `Types::WindowModes::exclusiveFullscreen()` (current monitor mode) or
+pass a `Types::Display::Mode` (and optionally a `MonitorId`). The restored logical size stays in
+`description.windowed.clientSize`.
 
 ## Custom cursor
 
@@ -116,8 +112,7 @@ if (host.open(window, hostDescription).ok())
 }
 ```
 
-Shut external technology down before `host.close()` when its SDK requires explicit teardown. See @ref desktop_child_surfaces for ownership, parent
-loss, event queues, geometry, DPI, and sibling ordering.
+Shut external technology down before `host.close()` if its SDK needs explicit teardown. See @ref desktop_child_surfaces.
 
 ## Copy and paste UTF-8 text
 
@@ -138,10 +133,8 @@ if (pasted.ok())
 }
 ```
 
-The UI decides when a shortcut or menu command calls these operations. For
-multi-format publication, construct ordered `Types::DataTransfer::ItemView`
-values and call `Clipboard::write()`; inspect both `commitState` and
-`formatsPublished` on failure. See @ref desktop_clipboard.
+For multi-format publication, build ordered `Types::DataTransfer::ItemView` values and call
+`Clipboard::write()`; on failure inspect `commitState` and `formatsPublished`. See @ref desktop_clipboard.
 
 ## Accept native text and file drops
 
@@ -179,12 +172,8 @@ while (target.popEvent(event))
 }
 ```
 
-The Window and target share an owner thread but retain separate queues. Continue
-pumping `Desktop::Events`; call `target.close()` before `window.close()` during
-ordinary controlled shutdown. This snippet requires `fileDropEnabled()` to be
-false; the earlier lightweight file-drop example enables a conflicting mode.
-See @ref desktop_drag_drop for regions, source
-dragging, effects, and failure handling.
+Close the target before the window (@ref desktop_lifecycle_events). File drop and `DragDropTarget`
+are exclusive: see @ref desktop_drag_drop.
 
 ## Select a file
 
@@ -214,8 +203,7 @@ if (selected.status.ok() &&
 }
 ```
 
-The call is synchronous and must run on the owner Window's thread. Cancellation
-is a successful domain outcome. See @ref desktop_dialogs.
+Runs synchronously on the owner Window's thread. Cancellation is a successful outcome. See @ref desktop_dialogs.
 
 ## Publish operation progress
 
@@ -241,8 +229,7 @@ if (progress.open(request).ok())
 }
 ```
 
-Progress is modeless and uses the ordinary Desktop event pump. It never creates
-a worker thread; worker code must communicate updates back to the owner thread.
+Progress is modeless, uses the ordinary event pump, and creates no worker thread; workers must report back to the owner thread.
 
 ## Publish shell state
 
@@ -278,11 +265,8 @@ if (GameWIP::Desktop::Shell::supports(
 }
 ```
 
-Shell resources are capability-aware, owner-thread-affine, and status-returning.
-Close each resource before its borrowed `ShellEventQueue`, then close the queue
-before the `Window`. Continue pumping `Desktop::Events` for native interaction;
-draining the shell queue alone does not dispatch messages. See @ref desktop_shell
-for tray, notification, jump-list, registration, and unsupported-capability behavior.
+Close each resource, then its `ShellEventQueue`, then the `Window`. Keep pumping `Desktop::Events`;
+draining the queue alone dispatches nothing. See @ref desktop_shell.
 
 ## Publish an accessible command
 
@@ -329,12 +313,9 @@ if (enabled.ok())
 }
 ```
 
-The call copies every view before these arrays expire. Keep pumping
-`Desktop::Events`, drain `window.accessibility().popAction(request)` on the owner
-thread, and execute Save in application code after checking identity and
-observed generation. Native Invoke only queues the request. Publish resulting
-application state with a newer generation. See @ref desktop_accessibility for
-text, virtualized nodes, limits, privacy, and teardown.
+The call copies every view. Keep pumping `Desktop::Events`, drain `window.accessibility().popAction(request)` on the owner
+thread, and run Save in application code after checking identity and observed generation (native Invoke only queues the request).
+Publish resulting state with a newer generation. See @ref desktop_accessibility.
 
 ## Renderer integration
 
@@ -357,8 +338,7 @@ if (window.supports(GameWIP::Desktop::Types::Capability::OcclusionReporting))
 }
 ```
 
-Concurrent presentation reads and occlusion feedback are independent opt-ins. Stop or join every renderer reader before destroying the C++
-`Window` object. See @ref desktop_renderer_integration for the exact getter set and close/reopen behavior.
+Concurrent reads and occlusion feedback are independent opt-ins. See @ref desktop_renderer_integration.
 
 ## Native Win32 view
 

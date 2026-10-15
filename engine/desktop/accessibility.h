@@ -409,7 +409,7 @@ namespace GameWIP::Desktop::Types::Accessibility
     struct Relation
     {
         RelationKind kind = RelationKind::LabelledBy; ///< At most one relation of each kind per node.
-        std::span<const NodeId> targets;              ///< Borrowed nonempty distinct existing-node targets, preserving application order.
+        std::span<const NodeId> targets;              ///< Borrowed non-empty distinct existing-node targets, preserving application order.
     };
 
     /// @brief Bounded typed value for a namespaced extension property.
@@ -482,8 +482,8 @@ namespace GameWIP::Desktop::Types::Accessibility
     /// @brief One namespaced, bounded extension property.
     struct Extension
     {
-        std::string_view namespaceName; ///< Nonempty strict UTF-8 namespace owned by the application/vendor.
-        std::string_view name;          ///< Nonempty strict UTF-8 key; namespace/key pairs are unique per node.
+        std::string_view namespaceName; ///< Non-empty strict UTF-8 namespace owned by the application/vendor.
+        std::string_view name;          ///< Non-empty strict UTF-8 key; namespace/key pairs are unique per node.
         ExtensionValue value;           ///< Bounded typed portable payload; native backends need not register custom properties.
     };
 

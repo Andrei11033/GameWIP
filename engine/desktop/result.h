@@ -15,34 +15,40 @@ namespace GameWIP::Desktop::Types
     /// then access value, or use value_or() when a fallback is explicitly intended.
     template <typename Value> struct Result
     {
-        IO::Types::Status status;
-        std::optional<Value> value;
+        IO::Types::Status status;   ///< Success or the failure reason.
+        std::optional<Value> value; ///< Engaged only on success.
 
+        /// @brief Whether the query succeeded and value is engaged.
         [[nodiscard]] constexpr bool ok() const noexcept
         {
             return status.ok() && value.has_value();
         }
 
+        /// @pre ok() is true; otherwise behavior is undefined.
         [[nodiscard]] const Value &operator*() const & noexcept
         {
             return *value;
         }
 
+        /// @pre ok() is true; otherwise behavior is undefined.
         [[nodiscard]] Value &operator*() & noexcept
         {
             return *value;
         }
 
+        /// @pre ok() is true; otherwise behavior is undefined.
         [[nodiscard]] const Value *operator->() const noexcept
         {
             return &*value;
         }
 
+        /// @pre ok() is true; otherwise behavior is undefined.
         [[nodiscard]] Value *operator->() noexcept
         {
             return &*value;
         }
 
+        /// @brief Returns the value on success, otherwise @p fallback.
         [[nodiscard]] Value value_or(Value fallback) const
         {
             return value ? *value : std::move(fallback);

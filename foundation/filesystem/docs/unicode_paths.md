@@ -31,10 +31,8 @@ boundaries.
 
 ## File contents
 
-`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` are strict UTF-8 content operations. Malformed or incomplete text
-returns `EncodingFailed`. Text writes and appends validate before filesystem mutation; byte overloads remain available for arbitrary content.
-
-Content helpers do not normalize text, add or remove a BOM, or convert line endings or encodings.
+`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` are strict UTF-8 content operations; see @ref io_utf8_policy. Byte
+overloads remain available for arbitrary content. Content helpers do not convert line endings or encodings.
 
 ## Related pages
 

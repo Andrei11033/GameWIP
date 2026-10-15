@@ -75,11 +75,11 @@ namespace GameWIP::Desktop::Types::Cursor
     /// during createCursor() and is never retained.
     struct ImageView
     {
-        PixelSize size;                   ///< Physical width and height in pixels.
-        PixelPosition hotspot;            ///< In-bounds physical-pixel hotspot.
-        std::uint32_t intendedDpi = 96;   ///< Nonzero DPI at which this variant is intended for use.
+        PixelSize size;                            ///< Physical width and height in pixels.
+        PixelPosition hotspot;                     ///< In-bounds physical-pixel hotspot.
+        std::uint32_t intendedDpi = 96;            ///< Nonzero DPI at which this variant is intended for use.
         std::optional<std::size_t> rowStrideBytes; ///< Bytes per source row; nullopt means tightly packed RGBA8.
-        std::span<const std::byte> rgba8; ///< Exact top-to-bottom straight-alpha RGBA8 payload.
+        std::span<const std::byte> rgba8;          ///< Exact top-to-bottom straight-alpha RGBA8 payload.
 
         /// @brief Creates a tightly packed RGBA8 cursor image view.
         [[nodiscard]] static ImageView packed(

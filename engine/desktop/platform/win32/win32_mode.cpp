@@ -358,7 +358,8 @@ namespace GameWIP::Desktop::Detail::Platform
                 if (previousMode == resolved.mode && state.fullscreen.monitor == monitorInfo->id && !state.fullscreen.suspended)
                 {
                     if (resolved.mode == Types::WindowMode::ExclusiveFullscreen &&
-                        ((resolved.displayMode && state.fullscreen.displayModeMatchedExactly && state.fullscreen.requestedDisplayMode == resolved.displayMode) ||
+                        ((resolved.displayMode && state.fullscreen.displayModeMatchedExactly &&
+                          state.fullscreen.requestedDisplayMode == resolved.displayMode) ||
                          (!resolved.displayMode && !state.fullscreen.displayModeMatchedExactly)))
                     {
                         return IO::successStatus();

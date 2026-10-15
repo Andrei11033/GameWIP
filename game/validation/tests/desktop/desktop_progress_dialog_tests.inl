@@ -99,8 +99,8 @@ void testProgressDialogValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq("ProgressDialog closed owner is NotOpen", ErrorCode::NotOpen, progress.open(description).code));
     Desktop::Types::Description ownerDescription;
     ownerDescription.activation.visible = false;
-    static_cast<void>(context.expectTrue(
-        "ProgressDialog validation owner opens", closedOwner.open(ownerDescription, Desktop::Events::owned(4)).ok()));
+    static_cast<void>(
+        context.expectTrue("ProgressDialog validation owner opens", closedOwner.open(ownerDescription, Desktop::Events::owned(4)).ok()));
     ErrorCode foreignOwnerCode = ErrorCode::Unknown;
     std::thread foreign(
         [&]
@@ -261,8 +261,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     Desktop::Types::Description windowDescription;
     windowDescription.activation.visible = false;
     Desktop::Window owner;
-    static_cast<void>(context.expectTrue(
-        "ProgressDialog owner Window opens", owner.open(windowDescription, Desktop::Events::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("ProgressDialog owner Window opens", owner.open(windowDescription, Desktop::Events::owned(8)).ok()));
     static_cast<void>(context.expectTrue("ProgressDialog owner starts interaction-enabled", nativeInteractionEnabled(owner)));
 
     auto description = progressDescription();
@@ -357,8 +356,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ProgressDialog close remains safe after owner close", first.close().ok()));
 
     Desktop::Window unexpectedOwner;
-    static_cast<void>(context.expectTrue(
-        "unexpected-loss owner opens", unexpectedOwner.open(windowDescription, Desktop::Events::owned(4)).ok()));
+    static_cast<void>(context.expectTrue("unexpected-loss owner opens", unexpectedOwner.open(windowDescription, Desktop::Events::owned(4)).ok()));
     description.owner = &unexpectedOwner;
     static_cast<void>(context.expectTrue("ProgressDialog opens for unexpected owner loss", first.open(description).ok()));
     static_cast<void>(

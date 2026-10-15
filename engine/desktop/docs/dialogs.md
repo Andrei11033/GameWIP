@@ -1,53 +1,41 @@
 @page desktop_dialogs Native dialogs and operation progress
 
 Include @c desktop/dialogs.h to opt into native file, folder, message, prompt,
-and progress presentations. The header remains separate from
-@c desktop/window.h; applications that do not use dialogs acquire no dialog
-state, registration, or runtime activity.
+and progress presentations. It is separate from @c desktop/window.h; non-users acquire no dialog state or runtime activity.
 
 ## File and folder selection
 
 @c Dialogs::openFile(), @c openFiles(), @c saveFile(), @c selectFolder(), and
-@c selectFolders() synchronously enter the platform dialog and return after the
-user accepts or dismisses it. @c status describes whether the operation itself
-ran successfully. A successful dismissal is represented separately by
-@c Types::Dialogs::Outcome::Cancelled and is not a native failure.
+@c selectFolders() enter the platform dialog synchronously and return after the
+user accepts or dismisses it. @c status says whether the operation ran; a dismissal is a successful
+@c Types::Dialogs::Outcome::Cancelled, not a native failure.
 
-File filters preserve caller order. Each extension is a literal portable token
-such as @c png or @c tar.gz, without a leading period, wildcard, semicolon,
-path separator, or embedded NUL; extensions are not native pattern lists.
-An empty extension span means all files. Filter indices are zero-based in the
-portable API. Suggested directories are native paths and are passed as
-suggestions without normalization; a save dialog does not rewrite the returned
-path using @c suggestedExtension. A nonempty suggested extension follows the
-same rules except that semicolons are allowed.
+Filters keep caller order. Each extension is a literal token such as @c png or @c tar.gz, with no leading period, wildcard, semicolon,
+path separator, or NUL (not a native pattern list); an empty span means all files. Filter indices are zero-based.
+Suggested directories are native paths passed unnormalized; a save dialog does not rewrite the returned
+path using @c suggestedExtension, which follows the same rules but allows semicolons.
 
-On Windows these operations use the modern shell file-dialog interfaces. They
-run in the calling thread's existing STA or initialize an STA for the duration
-when the caller has not initialized COM, including an implicit MTA inherited
-from another thread in the process. An explicitly initialized MTA, neutral, or otherwise incompatible apartment
-returns @c ResourceBusy; Desktop does not move the operation to a hidden thread.
+On Windows these use the modern shell file-dialog interfaces in the calling thread's existing STA, or a temporary STA when
+COM is uninitialized (including an implicit MTA inherited from another thread). An explicitly initialized MTA, neutral, or otherwise incompatible apartment
+returns @c ResourceBusy; there is no hidden thread.
 
 ## Messages and prompts
 
-@c Dialogs::showMessage() presents one of the fixed portable button sets and
-maps the selected native button back to @c Types::Dialogs::Message::Button.
-Escape, the native close affordance, and a semantic Cancel button produce a
+@c Dialogs::showMessage() presents a fixed portable button set and
+maps the native button back to @c Types::Dialogs::Message::Button.
+Escape, the native close affordance, and a semantic Cancel button yield a
 successful @c Cancelled outcome.
 
 @c Dialogs::showPrompt() supports caller-defined buttons with optional
-explanatory secondary text, mutually exclusive options, expanded details,
-supplemental text, and an optional checkbox. Portable button and option IDs are
-opaque and may overlap ordinary platform IDs; the backend remaps them for the
-native presentation. The current Windows backend may present secondary button
-text using TaskDialog command links, but that widget choice is not part of the
-portable contract. The final option and checkbox state are returned for both
+secondary text, mutually exclusive options, expanded details,
+supplemental text, and an optional checkbox. Button and option IDs are
+opaque, may overlap platform IDs, and are remapped by the backend. Windows may show secondary button
+text as TaskDialog command links; that is not part of the contract. Final option and checkbox state is returned for both
 accepted and cancelled outcomes.
 
-The Windows backend uses @c TaskDialogIndirect. The final application executable
-must therefore opt into Common Controls v6 through the existing application
-manifest helper. Applications that also create @c Window objects normally attach
-both executable requirements in one call:
+The Windows backend uses @c TaskDialogIndirect, so the final executable
+must opt into Common Controls v6 through the manifest helper; applications that also create @c Window objects normally attach
+both requirements in one call:
 
 ```cmake
 gamewip_attach_application_manifest(
@@ -57,59 +45,46 @@ gamewip_attach_application_manifest(
 )
 ```
 
-Manifest ownership remains with the executable; Desktop does not attach or
-propagate a library manifest. Exact layout, wording treatment, and other
-presentation details remain backend-controlled.
+The executable owns the manifest; Desktop does not attach or
+propagate one. Layout, wording, and other presentation are backend-controlled.
 
 ## Owners and text
 
-Every one-shot dialog may be ownerless. A non-null owner must be a live
-@c Window owned by the calling thread. A closed or natively lost owner produces
-@c NotOpen; a foreign owner produces @c ResourceBusy. Ownership is retained only
-for the duration of the synchronous call.
+Dialogs may be ownerless. A non-null owner must be a live
+@c Window owned by the calling thread: a closed or natively lost owner gives
+@c NotOpen, a foreign one @c ResourceBusy. Ownership lasts only for the call.
 
-All public text is strict UTF-8. Malformed input returns @c EncodingFailed, and
-embedded U+0000 returns @c InvalidArgument at a NUL-terminated native boundary.
-Desktop neither normalizes nor repairs text.
+All text is strict UTF-8. Malformed input returns @c EncodingFailed; embedded U+0000 returns
+@c InvalidArgument at a NUL-terminated native boundary. Text is never normalized or repaired.
 
 ## Persistent progress
 
 @c ProgressDialog is a non-copyable, non-movable, modeless native presentation.
-Open, mutation, cancellation inspection, and close belong to the thread that
-successfully opened it. @c ownedByCurrentThread() is the only method intended
-for arbitrary-thread queries. It uses a process-local portable thread token
-and performs no native call.
+Open, mutation, cancellation inspection, and close belong to the opening thread
+(@ref desktop_lifecycle_events). @c ownedByCurrentThread() is the only method for
+arbitrary-thread queries; it uses a process-local thread token with no native call.
 
-@c Progress::Description::owner is a borrowed C++ @c Window pointer. When it is
-non-null, that @c Window object must outlive the complete open lifetime of the
-@c ProgressDialog, through successful close or native-lifetime loss finalization.
+@c Progress::Description::owner is a borrowed C++ @c Window pointer; when
+non-null, that @c Window must outlive the dialog's whole open lifetime, through close or native-loss finalization.
 
-Determinate mode maps progress from [0, 1] to a stable native range.
-Indeterminate mode uses the native marquee presentation while retaining the
-most recent numeric value; switching back to determinate exposes that retained
-value. The title, heading, message, mode, and value can be changed while open.
+Determinate mode maps [0, 1] to a stable native range. Indeterminate mode shows the native marquee while retaining the
+last numeric value, which returns on switching back. Title, heading, message, mode, and value can change while open.
 
 When cancellation is enabled, the Cancel button and native close affordance set
-a sticky cancellation request without closing the dialog or cancelling
-application work. @c clearCancelRequest() clears that intent. The application
+a sticky request without closing the dialog or cancelling work; @c clearCancelRequest() clears it. The application
 owns the work and decides when to call @c close(). A successful close fully
-resets the lifetime so the same object may be opened again.
+resets the object for reopening.
 
-Progress does not create a worker thread or a second event loop. Continue
-pumping @c Desktop::Events on the owner/UI thread. Work performed elsewhere must
-publish updates through an application-owned synchronization mechanism and
-apply them to @c ProgressDialog on its owner thread.
+Progress creates no worker thread or second event loop: keep pumping @c Desktop::Events on the owner thread and
+apply worker updates there through application-owned synchronization.
 
-An owned progress dialog with @c blocksOwner set disables only the owner's
-effective native interaction state. The Window's requested
-@c userInteractionEnabled value remains authoritative. Multiple blockers are
-counted by active state: the owner remains disabled until the last blocker
-closes, then its latest requested state is restored. Ownerless dialogs and
-dialogs with @c blocksOwner disabled do not block a Window.
+With @c blocksOwner set, an owned dialog disables only the owner's
+effective native interaction; the Window's requested
+@c userInteractionEnabled stays authoritative. Blockers are counted: the owner stays disabled until the last one
+closes, then its latest requested state is restored. Ownerless dialogs and those with @c blocksOwner disabled do not block.
 
-If an owner Window loses its native lifetime, associated progress windows are
-destroyed before the owner handle becomes unusable. Their public objects retain
-portable finalization state, report not open on the owner thread, and may be
-closed safely before reuse. Wrong-thread destruction transfers live native
-cleanup to the existing owner-thread dispatcher. Dispatcher shutdown finalizes
+If an owner loses its native lifetime, its progress windows are
+destroyed first. Their public objects retain portable finalization state, report not open, and may be
+closed safely before reuse. Wrong-thread destruction hands live native
+cleanup to the owner-thread dispatcher, which finalizes
 progress resources before tearing down its Windows.

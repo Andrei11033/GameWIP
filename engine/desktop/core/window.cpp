@@ -171,7 +171,8 @@ namespace GameWIP::Desktop
                 description.pointerInputMode == Types::PointerInputMode::HitMask || !validEnum(description.backdropEffect) ||
                 !validEnum(description.dpiResizePolicy) || (!description.resizing.enabled && description.resizing.controls.maximizable) ||
                 !std::isfinite(description.opacity) || description.opacity < 0.0F || description.opacity > 1.0F ||
-                (!description.activation.visible && (description.activation.requestFocus || description.presentation != Types::PresentationState::Normal)) ||
+                (!description.activation.visible &&
+                 (description.activation.requestFocus || description.presentation != Types::PresentationState::Normal)) ||
                 (!description.activation.focusable && description.activation.requestFocus))
             {
                 return error(ErrorCode::InvalidArgument);

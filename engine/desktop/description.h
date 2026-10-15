@@ -33,8 +33,8 @@ namespace GameWIP::Desktop::Types
     struct Placement
     {
         PlacementKind kind = PlacementKind::PlatformDefault; ///< Placement strategy.
-        std::optional<Display::MonitorId> monitor;            ///< Target monitor for Centered placement; nullopt selects the primary monitor. Ignored otherwise.
-        ScreenPosition position;                             ///< Explicit position when requested.
+        std::optional<Display::MonitorId> monitor; ///< Target monitor for Centered placement; nullopt selects the primary monitor. Ignored otherwise.
+        ScreenPosition position;                   ///< Explicit position when requested.
     };
 
     /// @brief Initial/restored logical windowed geometry.
@@ -60,40 +60,50 @@ namespace GameWIP::Desktop::Types
     struct ExclusiveFullscreenRequest
     {
         std::optional<Display::MonitorId> targetMonitor; ///< Nullopt chooses the current/nearest monitor.
-        std::optional<Display::Mode> displayMode;         ///< Nullopt keeps the selected monitor's current physical mode.
+        std::optional<Display::Mode> displayMode;        ///< Nullopt keeps the selected monitor's current physical mode.
     };
 
-    /// @brief Type-safe request for a Window presentation mode.
+    /// @brief Type-safe request for a Window presentation mode; build it with WindowModes.
     using WindowModeRequest = std::variant<WindowedModeRequest, BorderlessFullscreenRequest, ExclusiveFullscreenRequest>;
 
     /// @brief Named constructors for the valid WindowModeRequest combinations.
+    /// @details Omitted monitor means the current/nearest monitor; omitted display mode keeps that
+    /// monitor's current physical mode. Fullscreen requests never change Description::windowed,
+    /// which is only the restore size.
     namespace WindowModes
     {
+        /// @brief Normal windowed presentation using Description::windowed.
         [[nodiscard]] constexpr WindowModeRequest windowed() noexcept
         {
             return WindowedModeRequest{};
         }
 
+        /// @brief Borderless fullscreen on the current/nearest monitor; the physical display mode is unchanged.
         [[nodiscard]] constexpr WindowModeRequest borderlessFullscreen() noexcept
         {
             return BorderlessFullscreenRequest{};
         }
 
+        /// @brief Borderless fullscreen on @p monitor; the physical display mode is unchanged.
         [[nodiscard]] constexpr WindowModeRequest borderlessFullscreen(Display::MonitorId monitor) noexcept
         {
             return BorderlessFullscreenRequest{monitor};
         }
 
+        /// @brief Exclusive fullscreen on the current/nearest monitor, keeping its current physical mode.
         [[nodiscard]] constexpr WindowModeRequest exclusiveFullscreen() noexcept
         {
             return ExclusiveFullscreenRequest{};
         }
 
+        /// @brief Exclusive fullscreen on the current/nearest monitor, switching it to @p displayMode.
+        /// @details The monitor's previous mode is restored when fullscreen ends.
         [[nodiscard]] constexpr WindowModeRequest exclusiveFullscreen(Display::Mode displayMode) noexcept
         {
             return ExclusiveFullscreenRequest{std::nullopt, displayMode};
         }
 
+        /// @brief Exclusive fullscreen on @p monitor, switching it to @p displayMode.
         [[nodiscard]] constexpr WindowModeRequest exclusiveFullscreen(Display::MonitorId monitor, Display::Mode displayMode) noexcept
         {
             return ExclusiveFullscreenRequest{monitor, displayMode};
@@ -189,23 +199,23 @@ namespace GameWIP::Desktop::Types
     /// runtime layout/publication and cannot be selected at open.
     struct Description
     {
-        std::string title = "GameWIP";       ///< UTF-8; embedded U+0000 is rejected by native title operations.
-        WindowedGeometry windowed;            ///< Initial/restored logical windowed geometry; independent of physical display mode.
+        std::string title = "GameWIP"; ///< UTF-8; embedded U+0000 is rejected by native title operations.
+        WindowedGeometry windowed;     ///< Initial/restored logical windowed geometry; independent of physical display mode.
         DpiResizePolicy dpiResizePolicy = DpiResizePolicy::PreserveLogicalClientSize; ///< DPI resize behavior.
-        WindowModeRequest initialWindowMode = WindowModes::windowed();                  ///< Initial presentation request; separate from windowed geometry.
-        PresentationState presentation = PresentationState::Normal;                    ///< Initial presentation state.
-        DecorationMode decoration = DecorationMode::System;                            ///< Initial decoration policy.
-        ActivationPolicy activation;                                                    ///< Visibility and focus policy; contradictory combinations are rejected.
-        ResizePolicy resizing;                                                          ///< Resizing, controls, limits, and aspect-ratio policy; contradictory combinations are rejected.
-        std::optional<WindowId> owner;                                                  ///< Optional owner Window identity; nullopt means no owner.
-        CursorMode cursorMode = CursorMode::Normal;                                   ///< Initial cursor mode.
-        CursorShape cursorShape = CursorShape::Arrow;                                 ///< Initial cursor shape.
-        PointerInputMode pointerInputMode = PointerInputMode::Normal;                 ///< Initial pointer hit-test policy.
-        BackdropEffect backdropEffect = BackdropEffect::None;                         ///< Initial backdrop treatment.
-        float opacity = 1.0F;                                                         ///< Initial opacity in [0, 1].
-        bool userInteractionEnabled = true;                                           ///< Whether user interaction is enabled.
-        bool alwaysOnTop = false;                                                     ///< Whether topmost ordering is requested.
-        bool fileDropEnabled = false;                                                 ///< Whether portable file-drop events are enabled.
-        bool transparentFramebuffer = false;                                          ///< Whether framebuffer alpha reaches the desktop.
+        WindowModeRequest initialWindowMode = WindowModes::windowed(); ///< Initial presentation request; separate from windowed geometry.
+        PresentationState presentation = PresentationState::Normal;    ///< Initial presentation state.
+        DecorationMode decoration = DecorationMode::System;            ///< Initial decoration policy.
+        ActivationPolicy activation;                                   ///< Visibility and focus policy; contradictory combinations are rejected.
+        ResizePolicy resizing;                      ///< Resizing, controls, limits, and aspect-ratio policy; contradictory combinations are rejected.
+        std::optional<WindowId> owner;              ///< Optional owner Window identity; nullopt means no owner.
+        CursorMode cursorMode = CursorMode::Normal; ///< Initial cursor mode.
+        CursorShape cursorShape = CursorShape::Arrow;                 ///< Initial cursor shape.
+        PointerInputMode pointerInputMode = PointerInputMode::Normal; ///< Initial pointer hit-test policy.
+        BackdropEffect backdropEffect = BackdropEffect::None;         ///< Initial backdrop treatment.
+        float opacity = 1.0F;                                         ///< Initial opacity in [0, 1].
+        bool userInteractionEnabled = true;                           ///< Whether user interaction is enabled.
+        bool alwaysOnTop = false;                                     ///< Whether topmost ordering is requested.
+        bool fileDropEnabled = false;                                 ///< Whether portable file-drop events are enabled.
+        bool transparentFramebuffer = false;                          ///< Whether framebuffer alpha reaches the desktop.
     };
 } // namespace GameWIP::Desktop::Types

@@ -31,35 +31,43 @@ namespace GameWIP::Desktop::Types::DataTransfer
     class FormatView
     {
     public:
+        /// @brief Standard text format.
         [[nodiscard]] static constexpr FormatView text() noexcept
         {
             return FormatView{FormatKind::Text, {}};
         }
+        /// @brief Standard file-list format.
         [[nodiscard]] static constexpr FormatView files() noexcept
         {
             return FormatView{FormatKind::FileList, {}};
         }
+        /// @brief Standard image format.
         [[nodiscard]] static constexpr FormatView image() noexcept
         {
             return FormatView{FormatKind::Image, {}};
         }
+        /// @brief Custom format; `name` is borrowed and must outlive the view.
         [[nodiscard]] static constexpr FormatView custom(std::string_view name) noexcept
         {
             return FormatView{FormatKind::Custom, name};
         }
 
+        /// @brief Format category.
         [[nodiscard]] constexpr FormatKind kind() const noexcept
         {
             return kind_;
         }
 
+        /// @brief Custom format name; empty unless `kind()` is Custom.
         [[nodiscard]] constexpr std::string_view customName() const noexcept
         {
             return customName_;
         }
 
     private:
-        constexpr FormatView(FormatKind kind, std::string_view customName) noexcept : kind_(kind), customName_(customName)
+        constexpr FormatView(FormatKind kind, std::string_view customName) noexcept
+            : kind_(kind)
+            , customName_(customName)
         {
         }
 
@@ -84,25 +92,24 @@ namespace GameWIP::Desktop::Types::DataTransfer
     /// @brief Non-owning ordered file-list item.
     struct FileListView
     {
-        std::span<const FileSystem::Types::Path> paths; ///< Nonempty absolute paths.
+        std::span<const FileSystem::Types::Path> paths; ///< Non-empty absolute paths.
     };
 
     /// @brief Non-owning sRGB, top-to-bottom, straight-alpha RGBA8 image.
     struct ImageView
     {
-        PixelSize size;                         ///< Positive physical dimensions.
+        PixelSize size;                            ///< Positive physical dimensions.
         std::optional<std::size_t> rowStrideBytes; ///< Nullopt for packed rows; otherwise at least width * 4.
-        std::span<const std::byte> rgba8;       ///< Exactly resolved stride times height bytes.
+        std::span<const std::byte> rgba8;          ///< Exactly resolved stride times height bytes.
 
+        /// @brief Image with tightly packed rows.
         [[nodiscard]] static constexpr ImageView packed(PixelSize size, std::span<const std::byte> rgba8) noexcept
         {
             return {size, std::nullopt, rgba8};
         }
 
-        [[nodiscard]] static constexpr ImageView strided(
-            PixelSize size,
-            std::size_t rowStrideBytes,
-            std::span<const std::byte> rgba8) noexcept
+        /// @brief Image with an explicit row stride in bytes.
+        [[nodiscard]] static constexpr ImageView strided(PixelSize size, std::size_t rowStrideBytes, std::span<const std::byte> rgba8) noexcept
         {
             return {size, rowStrideBytes, rgba8};
         }
@@ -111,7 +118,7 @@ namespace GameWIP::Desktop::Types::DataTransfer
     /// @brief Non-owning named opaque binary item.
     struct CustomView
     {
-        std::string_view formatName;      ///< Nonempty strict UTF-8 native format name.
+        std::string_view formatName;      ///< Non-empty strict UTF-8 native format name.
         std::span<const std::byte> bytes; ///< Opaque native-format payload; empty is representable when supported by the backend.
     };
 
@@ -121,18 +128,22 @@ namespace GameWIP::Desktop::Types::DataTransfer
     /// @brief Named constructors for transfer items, keeping the variant hidden at call sites.
     namespace Items
     {
+        /// @brief Text item; borrows `value`.
         [[nodiscard]] inline ItemView text(std::string_view value) noexcept
         {
             return TextView{value};
         }
+        /// @brief File-list item; borrows the span and its paths.
         [[nodiscard]] inline ItemView files(std::span<const FileSystem::Types::Path> value) noexcept
         {
             return FileListView{value};
         }
+        /// @brief Image item; borrows the pixel data.
         [[nodiscard]] inline ItemView image(ImageView value) noexcept
         {
             return value;
         }
+        /// @brief Custom binary item; borrows name and bytes.
         [[nodiscard]] inline ItemView custom(CustomView value) noexcept
         {
             return value;

@@ -52,7 +52,7 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     struct Filter
     {
         std::string_view name; ///< Display name shown for the filter.
-        /// @brief Nonempty extensions; compound forms such as @c tar.gz are valid.
+        /// @brief Non-empty extensions; compound forms such as @c tar.gz are valid.
         /// Each extension has no leading period, wildcard syntax, semicolon, path separator, or embedded NUL.
         /// An empty span means all files.
         std::span<const std::string_view> extensions;
@@ -78,7 +78,7 @@ namespace GameWIP::Desktop::Types::Dialogs::File
         FileSystem::Types::Path suggestedDirectory;      ///< Optional initial directory suggestion.
         std::string_view suggestedFileName;              ///< Optional UTF-8 initial file name.
         /// @brief Optional default extension.
-        /// When nonempty, it has no leading period, wildcard syntax, path separator, or embedded NUL.
+        /// When non-empty, it has no leading period, wildcard syntax, path separator, or embedded NUL.
         std::string_view suggestedExtension;
     };
 
@@ -200,7 +200,11 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
         {
             return value != 0;
         }
-        [[nodiscard]] static constexpr ButtonId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr ButtonId invalid() noexcept
+        {
+            return {};
+        }
         friend constexpr bool operator==(ButtonId left, ButtonId right) noexcept = default;
     };
 
@@ -214,7 +218,11 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
         {
             return value != 0;
         }
-        [[nodiscard]] static constexpr OptionId invalid() noexcept { return {}; }
+        /// @brief Returns the invalid id (`value` 0).
+        [[nodiscard]] static constexpr OptionId invalid() noexcept
+        {
+            return {};
+        }
         friend constexpr bool operator==(OptionId left, OptionId right) noexcept = default;
     };
 
@@ -236,26 +244,26 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
     /// @brief Optional prompt checkbox and its initial state.
     struct CheckBox
     {
-        std::string_view label; ///< Nonempty UTF-8 checkbox label.
+        std::string_view label; ///< Non-empty UTF-8 checkbox label.
         bool checked = false;   ///< Initial checked state.
     };
 
     /// @brief Call-scoped description of a caller-defined prompt.
     struct Description
     {
-        Window *owner = nullptr;            ///< Optional live owner Window on the calling thread.
-        std::string_view title;             ///< UTF-8 dialog title.
-        std::string_view heading;           ///< UTF-8 prominent heading.
-        std::string_view message;           ///< UTF-8 primary message.
-        Severity severity = Severity::None; ///< Semantic severity used for native presentation.
-        std::span<const Button> buttons;    ///< Non-empty, call-scoped actions with unique valid IDs.
+        Window *owner = nullptr;               ///< Optional live owner Window on the calling thread.
+        std::string_view title;                ///< UTF-8 dialog title.
+        std::string_view heading;              ///< UTF-8 prominent heading.
+        std::string_view message;              ///< UTF-8 primary message.
+        Severity severity = Severity::None;    ///< Semantic severity used for native presentation.
+        std::span<const Button> buttons;       ///< Non-empty, call-scoped actions with unique valid IDs.
         std::optional<ButtonId> defaultButton; ///< Optional default action; when present, must be in @c buttons.
         std::optional<ButtonId> cancelButton;  ///< Optional cancellation action; when present, must be in @c buttons.
-        std::span<const Option> options;    ///< Call-scoped mutually exclusive options with unique valid IDs.
+        std::span<const Option> options;       ///< Call-scoped mutually exclusive options with unique valid IDs.
         std::optional<OptionId> defaultOption; ///< Optional initial option; when present, must be in @c options.
-        std::string_view details;           ///< Optional UTF-8 expandable details.
-        std::string_view supplementalText;  ///< Optional UTF-8 supplemental text.
-        std::optional<CheckBox> checkBox;   ///< Optional checkbox description and initial state.
+        std::string_view details;              ///< Optional UTF-8 expandable details.
+        std::string_view supplementalText;     ///< Optional UTF-8 supplemental text.
+        std::optional<CheckBox> checkBox;      ///< Optional checkbox description and initial state.
     };
 
     /// @brief Result of a caller-defined prompt operation.
@@ -289,14 +297,14 @@ namespace GameWIP::Desktop::Types::Dialogs::Progress
     /// @brief Initial settings for a modeless operation-progress presentation.
     struct Description
     {
-        Window *owner = nullptr;         ///< Borrowed owner; its Window object must outlive this open ProgressDialog lifetime.
-        std::string_view title;          ///< UTF-8 window title, borrowed only during open().
-        std::string_view heading;        ///< UTF-8 prominent heading, borrowed only during open().
-        std::string_view message;        ///< UTF-8 operation message, borrowed only during open().
+        Window *owner = nullptr;                     ///< Borrowed owner; its Window object must outlive this open ProgressDialog lifetime.
+        std::string_view title;                      ///< UTF-8 window title, borrowed only during open().
+        std::string_view heading;                    ///< UTF-8 prominent heading, borrowed only during open().
+        std::string_view message;                    ///< UTF-8 operation message, borrowed only during open().
         Mode presentationMode = Mode::Indeterminate; ///< Initial visual progress mode.
-        double progress = 0.0;           ///< Initial normalized value in [0, 1].
-        bool cancelable = false;         ///< Whether user cancellation requests are exposed.
-        bool blocksOwner = true;         ///< Whether a supplied owner is interaction-blocked while open.
+        double progress = 0.0;                       ///< Initial normalized value in [0, 1].
+        bool cancelable = false;                     ///< Whether user cancellation requests are exposed.
+        bool blocksOwner = true;                     ///< Whether a supplied owner is interaction-blocked while open.
     };
 } // namespace GameWIP::Desktop::Types::Dialogs::Progress
 

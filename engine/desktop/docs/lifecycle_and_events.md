@@ -1,53 +1,32 @@
 @page desktop_lifecycle_events Lifecycle and events
 
-A Window lifetime begins with a checked `open()`, stays bound to its opening
-thread, and ends with observable cleanup. Events report changes during that
-lifetime without transferring ownership or invoking application callbacks.
+This page is the single source for the owner-thread, queue and close contracts.
+The owner thread is the thread that successfully calls `open()`. Events never
+transfer ownership or invoke callbacks, and Desktop creates no worker thread.
 
 ## Open lifetime
 
-A default-constructed `Window` is closed and inert. `open()` validates the complete request and event storage before committing a successful native
-lifetime. The opening thread becomes the owner thread and a successful lifetime receives a process-local `Types::WindowId`.
+A default-constructed `Window` is closed and inert. `open()` validates the whole
+request and event storage before committing, then assigns a process-local
+`Types::WindowId`.
 
-Internal event storage is allocated once at open. Use
-`Types::Events::QueueConfiguration::owned(capacity)` (or
-`Desktop::Events::owned(capacity)`) for Window-owned slots, or
-`Types::Events::QueueConfiguration::borrowed(storage)` (or
-`Desktop::Events::borrowed(storage)`) to borrow a non-empty caller span
-through lifetime finalization, including `NativeDestroyedPendingFinalize`. If
-destruction transfers cleanup to another thread's dispatcher, the caller's
-storage must also survive that deferred cleanup. Close on the owner thread
-before releasing external storage. The named configuration makes the ownership
-choice explicit at the call site.
-Window does not create a worker thread.
+Event storage is chosen at open with
+`Types::Events::QueueConfiguration::owned(capacity)` (Window-owned) or
+`borrowed(storage)` (non-empty caller span). `Desktop::Events::owned/borrowed`
+are equivalent shorthands. Borrowed storage must outlive finalization,
+including `NativeDestroyedPendingFinalize` and any cleanup deferred to another
+thread's dispatcher. Close on the owner thread before releasing it.
 
-ChildSurface, DragDrop, and Shell queues use the same explicit policy vocabulary:
-`Types::ChildSurface::QueueConfiguration::owned/borrowed`,
-`Types::DragDrop::QueueConfiguration::owned/borrowed`, and
-`Types::Shell::QueueConfiguration::owned/borrowed`. Their event envelopes also
-provide `kind()`, `is<T>()`, and `getIf<T>()`, so consumers do not need to probe
-the variant manually just to identify an event.
+ChildSurface, DragDrop and Shell queues use the same
+`Types::<Area>::QueueConfiguration::owned/borrowed` vocabulary. Their event
+envelopes provide `kind()`, `is<T>()` and `getIf<T>()`.
 
 ## Thread ownership
 
 Except `wakeEventWait()`, operations on an open Window require the owner thread by default. Wrong-thread explicit close returns `ResourceBusy`.
 Cached getters are owner-thread-only and unsynchronized unless the renderer-facing presentation facility is explicitly enabled.
 
-After owner-thread `Renderer::enableConcurrentPresentationReads(window)` succeeds, the following cached getters are also safe for concurrent reads:
-
-- `clientSize()` and `framebufferSize()`
-- `contentScale()` and `effectiveDpi()`
-- `currentMonitor()`
-- `presentationState()`, `minimized()`, and `maximized()`
-- `visible()` and `interactiveMoveResizeActive()`
-- `occluded()`
-
-Enabling is one-way for the C++ object and persists across close/reopen. It allocates and publishes the current authoritative state once; default
-Windows pay no allocation or publication cost. Call it before starting renderer reads. Enabling concurrently with reads is unsupported.
-
-Each compound result is internally coherent. Separate calls may observe successive valid states. This contract does not make concurrent destruction
-of the C++ `Window` object safe. The application must keep the object alive until the renderer thread has stopped or joined.
-
+After owner-thread `Renderer::enableConcurrentPresentationReads(window)` succeeds, the cached presentation getters (@ref desktop_renderer_integration) are also safe for concurrent reads. Each compound result is coherent; separate calls may observe successive states. This does not make concurrent destruction of the `Window` safe: keep the object alive until the renderer thread has stopped or joined.
 The optional accessibility façade has a separate threading contract. Complete
 owner-thread `enable()` before sharing it; publication, snapshot inspection,
 queue telemetry, and announcements may then run on other threads. Activation,

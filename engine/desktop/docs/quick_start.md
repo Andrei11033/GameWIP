@@ -99,10 +99,8 @@ int main()
 }
 ```
 
-`Window` is non-copyable and non-movable. Keep it in stable storage for its
-entire open lifetime, and perform lifecycle/event operations on its owner
-thread. Public text is UTF-8. File-drop paths use `FileSystem::Types::Path` and
-are not flattened into text.
+Keep the non-movable `Window` in stable storage and use it on the opening
+thread (@ref desktop_lifecycle_events).
 
 ## Failure handling
 

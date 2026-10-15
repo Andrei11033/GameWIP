@@ -150,9 +150,10 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
     static_assert(noexcept(Clipboard::clear()));
 
     const auto negative = std::chrono::milliseconds{-1};
-    static_cast<void>(
-        context.expectEq(
-            "negative hasFormat timeout is invalid", ErrorCode::InvalidArgument, Clipboard::hasFormat(Transfer::FormatView::text(), negative).status.code));
+    static_cast<void>(context.expectEq(
+        "negative hasFormat timeout is invalid",
+        ErrorCode::InvalidArgument,
+        Clipboard::hasFormat(Transfer::FormatView::text(), negative).status.code));
     static_cast<void>(
         context.expectEq("negative getFormats timeout is invalid", ErrorCode::InvalidArgument, Clipboard::getFormats(negative).status.code));
     static_cast<void>(context.expectEq("negative read timeout is invalid", ErrorCode::InvalidArgument, Clipboard::readText(negative).status.code));
@@ -312,10 +313,9 @@ void testClipboardRoundTrips(TestSupport::Context &context)
         context.expectEq("zero-byte custom failure does not mutate", ClipboardTypes::CommitState::NotStarted, emptyCustomWrite.commitState));
     const std::array<Transfer::ItemView, 1> emptyCustomItems{{Transfer::CustomView{"GameWIP.Validation.Empty.Generic", {}}}};
     const auto emptyGenericWrite = Clipboard::write(emptyCustomItems);
+    static_cast<void>(context.expectEq("zero-byte generic custom publication is unsupported", ErrorCode::Unsupported, emptyGenericWrite.status.code));
     static_cast<void>(
-        context.expectEq("zero-byte generic custom publication is unsupported", ErrorCode::Unsupported, emptyGenericWrite.status.code));
-    static_cast<void>(context.expectEq(
-        "zero-byte generic custom failure does not mutate", ClipboardTypes::CommitState::NotStarted, emptyGenericWrite.commitState));
+        context.expectEq("zero-byte generic custom failure does not mutate", ClipboardTypes::CommitState::NotStarted, emptyGenericWrite.commitState));
 
     const std::array<wchar_t, 2> malformedWide{static_cast<wchar_t>(0xD800), L'\0'};
     const auto malformedWideBytes = std::as_bytes(std::span{malformedWide});
@@ -447,7 +447,8 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     static_cast<void>(context.expectEq("all multi-format items publish", items.size(), write.formatsPublished));
     const auto formats = Clipboard::getFormats();
     static_cast<void>(context.expectTrue("multi-format enumeration succeeds", formats.ok()));
-    static_cast<void>(context.expectTrue("multi-format enumeration contains three portable entries", formats.ok() && formats->size() >= items.size()));
+    static_cast<void>(
+        context.expectTrue("multi-format enumeration contains three portable entries", formats.ok() && formats->size() >= items.size()));
     if (formats.ok() && formats->size() >= items.size())
     {
         static_cast<void>(context.expectEq(

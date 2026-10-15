@@ -218,8 +218,9 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             routeEvent(
                 state,
-                Types::Events::OwnerChanged{previous.isValid() ? std::optional<Types::WindowId>{previous} : std::nullopt,
-                                            state.owner.isValid() ? std::optional<Types::WindowId>{state.owner} : std::nullopt});
+                Types::Events::OwnerChanged{
+                    previous.isValid() ? std::optional<Types::WindowId>{previous} : std::nullopt,
+                    state.owner.isValid() ? std::optional<Types::WindowId>{state.owner} : std::nullopt});
         }
         return IO::successStatus();
     }

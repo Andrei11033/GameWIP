@@ -34,9 +34,9 @@ void testDisplayColorInformation(TestSupport::Context &context)
         static_cast<void>(context.expectTrue(
             "display-color luminance is nonnegative",
             (!primaryColor->minimumLuminanceNits || *primaryColor->minimumLuminanceNits >= 0.0F) &&
-            (!primaryColor->maximumLuminanceNits || *primaryColor->maximumLuminanceNits >= 0.0F) &&
-            (!primaryColor->maximumFullFrameLuminanceNits || *primaryColor->maximumFullFrameLuminanceNits >= 0.0F) &&
-            (!primaryColor->sdrWhiteLevelNits || *primaryColor->sdrWhiteLevelNits >= 0.0F)));
+                (!primaryColor->maximumLuminanceNits || *primaryColor->maximumLuminanceNits >= 0.0F) &&
+                (!primaryColor->maximumFullFrameLuminanceNits || *primaryColor->maximumFullFrameLuminanceNits >= 0.0F) &&
+                (!primaryColor->sdrWhiteLevelNits || *primaryColor->sdrWhiteLevelNits >= 0.0F)));
     }
 
     Desktop::Types::Description description;
@@ -44,8 +44,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
     description.windowed.clientSize = {240, 160};
     description.activation.visible = false;
     Desktop::Window window;
-    static_cast<void>(context.expectTrue(
-        "display-color Window fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("display-color Window fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
     if (!window.isOpen())
     {
         return;
@@ -81,8 +80,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
         "runtime metadata absence remains unknown",
         Desktop::Types::Display::ColorSpace::Unknown,
         runtimeUnavailable->activeColorSpace));
-    static_cast<void>(
-        context.expectFalse("runtime metadata absence has no precision", runtimeUnavailable->bitsPerColorChannel.has_value()));
+    static_cast<void>(context.expectFalse("runtime metadata absence has no precision", runtimeUnavailable->bitsPerColorChannel.has_value()));
 
     const Desktop::Types::Display::MonitorId fixtureMonitor{42};
     const Desktop::Types::Display::ColorInfo unavailable = Desktop::TestHooks::makeDisplayColorInfo(fixtureMonitor, {});
@@ -107,10 +105,10 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("HDR-capable disabled fixture remains disabled", hdrDisabled.hdrEnabled));
     static_cast<void>(context.expectEq("HDR-disabled fixture remains SDR", Desktop::Types::Display::ColorSpace::Srgb, hdrDisabled.activeColorSpace));
     static_cast<void>(context.expectEq("color precision converts to public width", std::uint16_t{10}, *hdrDisabled.bitsPerColorChannel));
-    static_cast<void>(
-        context.expectFalse("negative luminance becomes unavailable", hdrDisabled.minimumLuminanceNits.has_value()));
+    static_cast<void>(context.expectFalse("negative luminance becomes unavailable", hdrDisabled.minimumLuminanceNits.has_value()));
     static_cast<void>(context.expectNear("peak luminance keeps nit units", 1000.0, static_cast<double>(*hdrDisabled.maximumLuminanceNits), 0.001));
-    static_cast<void>(context.expectFalse("non-finite full-frame luminance becomes unavailable", hdrDisabled.maximumFullFrameLuminanceNits.has_value()));
+    static_cast<void>(
+        context.expectFalse("non-finite full-frame luminance becomes unavailable", hdrDisabled.maximumFullFrameLuminanceNits.has_value()));
     static_cast<void>(
         context.expectNear("SDR white converts from 80-nit thousandths", 200.0, static_cast<double>(*hdrDisabled.sdrWhiteLevelNits), 0.001));
 
@@ -166,11 +164,11 @@ void testMonitors(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("DisplayConfig preferred mode succeeds", preferred.ok()));
     if (preferred.ok())
     {
-        static_cast<void>(context.expectTrue(
-            "preferred mode has a physical resolution",
-            preferred->resolution.width != 0 && preferred->resolution.height != 0));
+        static_cast<void>(
+            context.expectTrue("preferred mode has a physical resolution", preferred->resolution.width != 0 && preferred->resolution.height != 0));
     }
-    static_cast<void>(
-        context.expectEq(
-            "invalid monitor lookup is rejected", ErrorCode::InvalidArgument, Desktop::Display::getMonitor(Desktop::Types::Display::MonitorId::invalid()).status.code));
+    static_cast<void>(context.expectEq(
+        "invalid monitor lookup is rejected",
+        ErrorCode::InvalidArgument,
+        Desktop::Display::getMonitor(Desktop::Types::Display::MonitorId::invalid()).status.code));
 }

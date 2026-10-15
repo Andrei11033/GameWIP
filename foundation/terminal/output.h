@@ -36,8 +36,11 @@ namespace GameWIP::Terminal
         struct Segment;
     } // namespace Types::Output
 
+    /// @brief Creates an unstyled text segment that borrows `text`; it must outlive the segment's use.
     [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment textSegment(std::string_view text) noexcept;
+    /// @brief Creates a text segment with a style request; `text` is borrowed.
     [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment styledTextSegment(std::string_view text, const Types::Style::Request &style) noexcept;
+    /// @brief Creates a raw byte segment that borrows `bytes`.
     [[nodiscard]] TERMINAL_EXPORT Types::Output::Segment byteSegment(std::span<const std::byte> bytes) noexcept;
 
     /// @brief Default timeout used by best-effort terminal control queries.
@@ -504,9 +507,8 @@ namespace GameWIP::Terminal
     /// @{
 
     /// @brief Reusable caller-owned checked plain-text buffer for batching one Terminal write.
-    /// @details The object owns its string storage and is not internally synchronized. Text arguments are valid UTF-8 by
-    /// contract. Allocating mutation and formatting report failures through IO::Types::Status and preserve the previous
-    /// complete buffer contents when an operation fails.
+    /// @details Owns its storage and is not internally synchronized. Appends reject invalid UTF-8 with InvalidArgument.
+    /// A failed operation leaves the previous contents unchanged.
     class TERMINAL_EXPORT OutputBuffer final
     {
     public:
@@ -537,12 +539,12 @@ namespace GameWIP::Terminal
         /// @warning Mutating, moving, assigning, or destroying this buffer can invalidate the view.
         [[nodiscard]] std::string_view text() const noexcept;
 
-        /// @brief Appends valid UTF-8 text.
-        /// @return Checked allocation/size status. Failure preserves the previous buffer.
+        /// @brief Appends UTF-8 text.
+        /// @return InvalidArgument for invalid UTF-8, or an allocation/size status. Failure preserves the buffer.
         [[nodiscard]] IO::Types::Status appendText(std::string_view utf8Text) noexcept;
 
-        /// @brief Appends valid UTF-8 text followed by the configured line ending.
-        /// @return Checked allocation/size status. Failure rolls back the complete line append.
+        /// @brief Appends UTF-8 text followed by the configured line ending.
+        /// @return As appendText(); failure rolls back the whole line.
         [[nodiscard]] IO::Types::Status appendLine(std::string_view utf8Text = {}) noexcept;
 
         /// @brief Formats text and appends it atomically to the buffer.

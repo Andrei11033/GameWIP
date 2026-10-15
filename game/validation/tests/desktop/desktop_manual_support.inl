@@ -122,13 +122,13 @@ void recordManualModeTransition(
         },
         request);
     const std::string requestedDisplayMode = requestedMode ? std::format(
-                                                                       "{}x{}@{}mHz/{}bpp/interlaced={}",
-                                                                       requestedMode->resolution.width,
-                                                                       requestedMode->resolution.height,
-                                                                       requestedMode->refreshRateMillihertz,
-                                                                       requestedMode->bitsPerPixel,
-                                                                       requestedMode->interlaced)
-                                                                 : std::string{"desktop"};
+                                                                 "{}x{}@{}mHz/{}bpp/interlaced={}",
+                                                                 requestedMode->resolution.width,
+                                                                 requestedMode->resolution.height,
+                                                                 requestedMode->refreshRateMillihertz,
+                                                                 requestedMode->bitsPerPixel,
+                                                                 requestedMode->interlaced)
+                                                           : std::string{"desktop"};
     const int requestMode = std::visit(
         [](const auto &value) noexcept
         {

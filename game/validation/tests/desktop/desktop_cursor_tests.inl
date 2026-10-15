@@ -183,8 +183,7 @@ void testCursorNativeResources(TestSupport::Context &context)
     {
         auto one = CursorTest::create(pixels);
         static_cast<void>(context.expectTrue("one native cursor variant creates", one.status.ok()));
-        static_cast<void>(
-            context.expectEq("one native variant is retained", std::size_t{1}, Desktop::TestHooks::customCursorVariantCount(*one)));
+        static_cast<void>(context.expectEq("one native variant is retained", std::size_t{1}, Desktop::TestHooks::customCursorVariantCount(*one)));
         const auto snapshot = Desktop::TestHooks::inspectCustomCursorVariant(*one, 0);
         static_cast<void>(context.expectTrue("native cursor variant can be inspected", snapshot.valid));
         static_cast<void>(context.expectEq("custom cursor hotspot x reaches Win32", std::uint32_t{1}, snapshot.hotspot.x));
@@ -236,7 +235,8 @@ void testCursorNativeResources(TestSupport::Context &context)
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::CursorStateAllocation);
     auto stateAllocation = Desktop::createCursor(images);
     static_cast<void>(context.expectEq("CursorState allocation failure is translated", ErrorCode::OutOfMemory, stateAllocation.status.code));
-    static_cast<void>(context.expectFalse("CursorState allocation failure publishes no Cursor", stateAllocation.value.has_value() && stateAllocation->isValid()));
+    static_cast<void>(
+        context.expectFalse("CursorState allocation failure publishes no Cursor", stateAllocation.value.has_value() && stateAllocation->isValid()));
     static_cast<void>(context.expectEq(
         "CursorState allocation failure materializes all candidates first",
         stateAllocationCreated + images.size(),
@@ -268,8 +268,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
     description.title = "GameWIP custom cursor integration";
     description.activation.visible = false;
     Desktop::Window window;
-    static_cast<void>(context.expectTrue(
-        "custom cursor fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("custom cursor fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
     if (!window.isOpen())
     {
         return;
@@ -286,8 +285,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
         context.expectEq("replacement selects its intended DPI", std::uint32_t{144}, Desktop::TestHooks::customCursorBindingDpi(window)));
 
     Desktop::Window sharedWindow;
-    static_cast<void>(context.expectTrue(
-        "second custom cursor fixture opens", sharedWindow.open(description, Desktop::Events::owned(8)).ok()));
+    static_cast<void>(context.expectTrue("second custom cursor fixture opens", sharedWindow.open(description, Desktop::Events::owned(8)).ok()));
     const std::size_t createdBeforeSharing = Desktop::TestHooks::createdCustomCursorCount();
     static_cast<void>(context.expectTrue("one Cursor can bind a second Window", Desktop::setCursor(sharedWindow, *second).ok()));
     static_cast<void>(
@@ -298,8 +296,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
         Desktop::TestHooks::createdCustomCursorCount()));
 
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
-    static_cast<void>(
-        context.expectEq("binding allocation failure is translated", ErrorCode::OutOfMemory, Desktop::setCursor(window, *first).code));
+    static_cast<void>(context.expectEq("binding allocation failure is translated", ErrorCode::OutOfMemory, Desktop::setCursor(window, *first).code));
     static_cast<void>(context.expectEq(
         "binding allocation failure preserves previous custom selection",
         std::uint32_t{144},
@@ -423,8 +420,8 @@ void testCursorLifecycle(TestSupport::Context &context)
     const std::size_t destroyedBeforeUnexpected = Desktop::TestHooks::destroyedCustomCursorCount();
     auto unexpectedCursor = CursorTest::create(pixels);
     Desktop::Window unexpected;
-    static_cast<void>(context.expectTrue(
-        "unexpected-destruction cursor fixture opens", unexpected.open(description, Desktop::Events::owned(4)).ok()));
+    static_cast<void>(
+        context.expectTrue("unexpected-destruction cursor fixture opens", unexpected.open(description, Desktop::Events::owned(4)).ok()));
     static_cast<void>(context.expectTrue("unexpected-destruction cursor binds", Desktop::setCursor(unexpected, *unexpectedCursor).ok()));
     unexpectedCursor.value = std::nullopt;
     static_cast<void>(context.expectTrue("native Window destruction succeeds", Desktop::TestHooks::destroyNativeWindow(unexpected).ok()));
@@ -437,8 +434,7 @@ void testCursorLifecycle(TestSupport::Context &context)
     const std::size_t destroyedBeforeDeferred = Desktop::TestHooks::destroyedCustomCursorCount();
     auto deferredCursor = CursorTest::create(pixels);
     auto deferred = std::make_unique<Desktop::Window>();
-    static_cast<void>(context.expectTrue(
-        "deferred cursor fixture opens", deferred->open(description, Desktop::Events::owned(4)).ok()));
+    static_cast<void>(context.expectTrue("deferred cursor fixture opens", deferred->open(description, Desktop::Events::owned(4)).ok()));
     static_cast<void>(context.expectTrue("deferred cursor binds", Desktop::setCursor(*deferred, *deferredCursor).ok()));
     deferredCursor.value = std::nullopt;
     std::thread destroyer(

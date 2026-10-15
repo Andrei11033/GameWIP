@@ -2,7 +2,7 @@
 
 GameWIP has two related identities: a release version that communicates
 compatibility, and a generated build identity that identifies the exact source
-being run. This page explains where each value comes from and when it changes.
+being run.
 
 [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) is the normative version-format and precedence definition. This page records how
 GameWIP applies it.

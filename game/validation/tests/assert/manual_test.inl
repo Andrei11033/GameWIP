@@ -75,7 +75,10 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         {
             return;
         }
-        const ScopedEnvironmentVariable childLogDirectoryOverride(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
+        const ScopedEnvironmentVariable childLogDirectoryOverride(
+            context.processState,
+            kChildLogDirectoryEnvironmentVariable,
+            pathText(childLogDirectory));
         const ScopedClearedEnvironmentVariable clearChildTestAction(context.processState, kTestActionEnvironmentVariable);
         const ScopedClearedEnvironmentVariable clearChildSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
         if (!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
