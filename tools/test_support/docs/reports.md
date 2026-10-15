@@ -8,6 +8,12 @@ categories. Report-file output receives the complete report while enabled.
 `Context` owns per-suite counts and expectations. `Runner` aggregates completed suites. `Types::Reporting::Summary` contains passed/failed/skipped
 counts, and `Types::Reporting::SuiteResult` adds the suite name and elapsed milliseconds.
 
+`Types::Reporting::SinkStatus` reports the requested report path, `SinkState`
+(`Disabled`, `Active`, `Failed`, or `Finalized`), and the separate
+`failureStatus`. A standalone `Context` or `Runner` should call `finalize()`
+when its report must be proven complete; finalization is idempotent. A
+runner-owned suite context cannot finalize the shared sink independently.
+
 Ordinary report-file setup/write/flush failures disable only that sink and do not rewrite test pass/fail counts. Formatting and stream operations
 that are not documented `noexcept` can throw; see @ref test_support_expectations for the suite exception boundary.
 

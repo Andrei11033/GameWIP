@@ -95,7 +95,13 @@ int runStartGateChild()
             static_cast<void>(
                 context.expectEq("StartGate remains open for future waiters", std::size_t{4}, lateWaiters.load(std::memory_order_relaxed)));
         });
-    return runner.exitCode();
+    const int exitCode = runner.exitCode();
+    const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
+    if (!reportStatus.failureStatus.ok())
+    {
+        std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+    }
+    return exitCode;
 }
 
 /// @brief Verifies worker coordination, callable variants, and exception propagation.

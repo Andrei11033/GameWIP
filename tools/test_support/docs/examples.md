@@ -19,7 +19,13 @@ runner.runSuite(
     {
         static_cast<void>(context.expectTrue("ready", true));
     });
-return runner.exitCode();
+const int exitCode = runner.exitCode();
+const auto reportStatus = runner.finalize();
+if (reportStatus.state == TS::Types::Reporting::SinkState::Failed)
+{
+    // Emit an infrastructure diagnostic; do not turn it into an assertion failure.
+}
+return exitCode;
 ```
 
 ## UTF-8 fixture

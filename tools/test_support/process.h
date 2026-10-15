@@ -21,7 +21,7 @@ namespace GameWIP::TestSupport
     {
         /// @brief Returns the library-wide process-state mutex.
         [[nodiscard]] std::recursive_mutex &processStateMutex() noexcept;
-    }
+    } // namespace Detail
 
     /// @brief Serializes TestSupport operations that mutate or snapshot process-global state.
     /// @details Hold this object for the complete lifetime of environment/current-directory guards and
@@ -40,10 +40,20 @@ namespace GameWIP::TestSupport
 
         /// @brief Returns the lock-acquisition status.
         [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+        /// @brief Returns the sticky status of restoration failures observed by owned guards.
+        /// @details A failed restoration remains observable even if a later explicit retry succeeds.
+        [[nodiscard]] Types::InfrastructureStatus restorationStatus() const noexcept;
 
     private:
+        friend class ScopedEnvironmentVariable;
+        friend class ScopedUnsetEnvironmentVariable;
+        friend class ScopedCurrentPath;
+
+        void recordRestorationFailure(Types::InfrastructureStatus status) noexcept;
+
         std::unique_lock<std::recursive_mutex> lock_;
         Types::InfrastructureStatus status_;
+        Types::InfrastructureStatus restorationStatus_;
     };
 
     /// @brief Default retained-memory limit for combined child stdout/stderr capture.
@@ -66,8 +76,9 @@ namespace GameWIP::TestSupport
             std::filesystem::path executablePath;                  ///< Executable path to launch.
             std::vector<std::string> arguments;                    ///< UTF-8 command-line arguments passed after the executable.
             std::vector<EnvironmentOverride> environmentOverrides; ///< Child environment overrides applied in vector order.
-            std::optional<std::chrono::milliseconds> waitTimeout{std::chrono::milliseconds{5000}}; ///< Initial wait before forced process-tree termination; nullopt waits indefinitely.
-            std::optional<std::filesystem::path> workingDirectory;  ///< Child-only current directory; nullopt inherits the parent directory.
+            std::optional<std::chrono::milliseconds> waitTimeout{
+                std::chrono::milliseconds{5000}}; ///< Initial wait before forced process-tree termination; nullopt waits indefinitely.
+            std::optional<std::filesystem::path> workingDirectory; ///< Child-only current directory; nullopt inherits the parent directory.
             bool captureOutput = true;                             ///< Routes stdout/stderr to one combined capture pipe when true.
             std::size_t maxCapturedOutputBytes = kDefaultMaxCapturedOutputBytes; ///< Retained capture byte limit; zero retains nothing.
             bool inheritParentEnvironment = true;                                ///< Copies the parent environment before overrides when true.
@@ -118,6 +129,7 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
 
     private:
+        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
         std::string name_;                              ///< Environment name owned by the guard.
         std::optional<std::string> previousValue_;      ///< Captured prior value, or nullopt when absent.
         std::optional<std::string> expectedValue_;      ///< Value expected to remain until restoration.
@@ -147,6 +159,7 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
 
     private:
+        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
         std::string name_;                              ///< Environment name owned by the guard.
         std::optional<std::string> previousValue_;      ///< Captured prior value, or nullopt when absent.
         std::optional<std::string> expectedValue_;      ///< Value expected to remain until restoration.

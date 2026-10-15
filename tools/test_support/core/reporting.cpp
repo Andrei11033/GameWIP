@@ -29,6 +29,7 @@ namespace GameWIP::TestSupport
             explicit ReportSink(Types::Reporting::Options options)
                 : options_(std::move(options))
             {
+                status_.reportPath = options_.reportPath;
                 if (options_.writeReport && !options_.reportPath.empty())
                 {
                     const std::filesystem::path parentPath = options_.reportPath.parent_path();
@@ -38,7 +39,10 @@ namespace GameWIP::TestSupport
                         std::filesystem::create_directories(parentPath, error);
                         if (error)
                         {
-                            disableReport(std::string("could not create the report directory: ") + error.message());
+                            disableReport(
+                                std::string("could not create the report directory: ") + error.message(),
+                                {.error = Types::InfrastructureError::FileOperationFailed,
+                                 .nativeCode = static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.value()))});
                             return;
                         }
                     }
@@ -47,14 +51,23 @@ namespace GameWIP::TestSupport
                     report_.open(options_.reportPath, mode);
                     if (!report_.is_open())
                     {
-                        disableReport("could not open the report file");
+                        disableReport("could not open the report file", {.error = Types::InfrastructureError::FileOperationFailed});
+                        return;
                     }
+                    status_.state = Types::Reporting::SinkState::Active;
                 }
             }
 
-            ~ReportSink()
+            ~ReportSink() noexcept
             {
-                flush();
+                try
+                {
+                    static_cast<void>(finalize());
+                }
+                catch (...)
+                {
+                    // Destruction is fallback cleanup and cannot report through exceptions.
+                }
             }
 
             void write(std::string_view category, std::string_view message)
@@ -83,20 +96,17 @@ namespace GameWIP::TestSupport
                     std::cout << text << '\n';
                 }
 
-                if (options_.writeReport && !options_.reportPath.empty() && !reportOpenFailed_)
+                if (status_.state == Types::Reporting::SinkState::Active)
                 {
-                    if (report_.is_open())
+                    report_ << text << '\n';
+                    if (options_.flushReportEachLine)
                     {
-                        report_ << text << '\n';
-                        if (options_.flushReportEachLine)
-                        {
-                            report_.flush();
-                        }
+                        report_.flush();
                     }
 
                     if (!report_ || !report_.is_open())
                     {
-                        disableReport("report output failed while writing");
+                        disableReport("report output failed while writing", {.error = Types::InfrastructureError::FileOperationFailed});
                     }
                 }
             }
@@ -104,14 +114,37 @@ namespace GameWIP::TestSupport
             void flush()
             {
                 std::lock_guard lock(mutex_);
-                if (!reportOpenFailed_ && report_.is_open())
+                flushLocked();
+            }
+
+            [[nodiscard]] Types::Reporting::SinkStatus status() const
+            {
+                std::lock_guard lock(mutex_);
+                return status_;
+            }
+
+            [[nodiscard]] Types::Reporting::SinkStatus finalize()
+            {
+                std::lock_guard lock(mutex_);
+                if (status_.state != Types::Reporting::SinkState::Active)
                 {
-                    report_.flush();
-                    if (!report_)
-                    {
-                        disableReport("report output failed while flushing");
-                    }
+                    return status_;
                 }
+
+                if (!flushLocked())
+                {
+                    return status_;
+                }
+
+                report_.close();
+                if (!report_)
+                {
+                    disableReport("report output failed while closing", {.error = Types::InfrastructureError::FileOperationFailed});
+                    return status_;
+                }
+
+                status_.state = Types::Reporting::SinkState::Finalized;
+                return status_;
             }
 
         private:
@@ -135,9 +168,26 @@ namespace GameWIP::TestSupport
                 return isActionable || category == "SUMMARY" || category == "RESULT";
             }
 
-            void disableReport(std::string_view reason)
+            bool flushLocked()
             {
-                reportOpenFailed_ = true;
+                if (status_.state != Types::Reporting::SinkState::Active)
+                {
+                    return status_.state != Types::Reporting::SinkState::Failed;
+                }
+
+                report_.flush();
+                if (!report_)
+                {
+                    disableReport("report output failed while flushing", {.error = Types::InfrastructureError::FileOperationFailed});
+                    return false;
+                }
+                return true;
+            }
+
+            void disableReport(std::string_view reason, Types::InfrastructureStatus failure)
+            {
+                status_.state = Types::Reporting::SinkState::Failed;
+                status_.failureStatus = failure;
                 report_.close();
                 if (!reportFailureReported_)
                 {
@@ -148,8 +198,8 @@ namespace GameWIP::TestSupport
 
             Types::Reporting::Options options_;
             std::ofstream report_;
-            std::mutex mutex_;
-            bool reportOpenFailed_ = false;
+            mutable std::mutex mutex_;
+            Types::Reporting::SinkStatus status_;
             bool reportFailureReported_ = false;
         };
     } // namespace Detail
@@ -198,17 +248,32 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     Context::Context(std::string_view suiteName, const Types::Reporting::Options &options)
-        : Context(suiteName, std::make_shared<Detail::ReportSink>(options))
+        : suiteName_(suiteName)
+        , reportSink_(std::make_shared<Detail::ReportSink>(options))
     {
     }
 
     Context::Context(std::string_view suiteName, std::shared_ptr<Detail::ReportSink> reportSink)
         : suiteName_(suiteName)
         , reportSink_(std::move(reportSink))
+        , ownsReportLifecycle_(false)
     {
     }
 
-    Context::~Context() = default;
+    Context::~Context() noexcept
+    {
+        if (ownsReportLifecycle_)
+        {
+            try
+            {
+                static_cast<void>(finalize());
+            }
+            catch (...)
+            {
+                // Destruction is fallback cleanup and cannot report through exceptions.
+            }
+        }
+    }
 
     void Context::info(std::string_view message)
     {
@@ -380,6 +445,20 @@ namespace GameWIP::TestSupport
         return result().ok();
     }
 
+    Types::Reporting::SinkStatus Context::reportStatus() const
+    {
+        return reportSink_->status();
+    }
+
+    Types::Reporting::SinkStatus Context::finalize()
+    {
+        if (!ownsReportLifecycle_)
+        {
+            return reportStatus();
+        }
+        return reportSink_->finalize();
+    }
+
     void Context::writeLine(std::string_view category, std::string_view message)
     {
         reportSink_->write(category, suiteName_, message);
@@ -401,7 +480,17 @@ namespace GameWIP::TestSupport
     {
     }
 
-    Runner::~Runner() = default;
+    Runner::~Runner() noexcept
+    {
+        try
+        {
+            static_cast<void>(finalize());
+        }
+        catch (...)
+        {
+            // Destruction is fallback cleanup and cannot report through exceptions.
+        }
+    }
 
     void Runner::info(std::string_view message)
     {
@@ -427,6 +516,26 @@ namespace GameWIP::TestSupport
     int Runner::exitCode() const noexcept
     {
         return ok() ? 0 : 1;
+    }
+
+    Types::Reporting::SinkStatus Runner::reportStatus() const
+    {
+        return reportSink_->status();
+    }
+
+    Types::Reporting::SinkStatus Runner::finalize()
+    {
+        try
+        {
+            return reportSink_->finalize();
+        }
+        catch (...)
+        {
+            Types::Reporting::SinkStatus status = reportSink_->status();
+            status.state = Types::Reporting::SinkState::Failed;
+            status.failureStatus = {.error = Types::InfrastructureError::FileOperationFailed};
+            return status;
+        }
     }
 
     void Runner::recordSuiteResult(const Types::Reporting::SuiteResult &result)

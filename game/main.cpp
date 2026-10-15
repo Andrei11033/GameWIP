@@ -20,6 +20,10 @@
 #include <iostream>
 #include <string_view>
 
+#ifndef GAMEWIP_STANDALONE_BENCHMARKS_ENABLED
+#define GAMEWIP_STANDALONE_BENCHMARKS_ENABLED 0
+#endif
+
 namespace
 {
 #if GAMEWIP_TRACY_ENABLED
@@ -68,7 +72,10 @@ namespace
 #else
         std::puts("This build does not include startup benchmarks.");
 #endif
-        std::puts("Use GameWIPTests.exe --help and GameWIPBenchmarks.exe --help for validation options.");
+        std::puts("Use GameWIPTests.exe --help for validation options.");
+#if GAMEWIP_STANDALONE_BENCHMARKS_ENABLED
+        std::puts("Use GameWIPBenchmarks.exe --help for standalone benchmark options.");
+#endif
     }
 } // namespace
 

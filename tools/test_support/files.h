@@ -61,11 +61,12 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
 
     private:
-        std::filesystem::path previousPath_;              ///< Captured process current directory.
-        std::filesystem::path expectedPath_;               ///< Directory expected to remain current until restoration.
-        Types::InfrastructureStatus status_;               ///< Construction status.
+        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
+        std::filesystem::path previousPath_;            ///< Captured process current directory.
+        std::filesystem::path expectedPath_;            ///< Directory expected to remain current until restoration.
+        Types::InfrastructureStatus status_;            ///< Construction status.
         Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
-        bool restored_ = false;                            ///< True once restoration succeeds.
+        bool restored_ = false;                         ///< True once restoration succeeds.
     };
 
     /// @brief Reads one complete file as strict UTF-8 text.

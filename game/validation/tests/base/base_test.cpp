@@ -14,6 +14,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
+#include <iostream>
 #include <limits>
 
 namespace
@@ -115,6 +116,12 @@ namespace GameWIP::Test
         runner.runSuite("Base Win32 procedure lookup", testProcedureLookup);
 #endif
 
-        return runner.exitCode();
+        const int exitCode = runner.exitCode();
+        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
+        if (!reportStatus.failureStatus.ok())
+        {
+            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+        }
+        return exitCode;
     }
 } // namespace GameWIP::Test

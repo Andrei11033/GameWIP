@@ -31,6 +31,23 @@ namespace GameWIP::TestSupport
             Full,    ///< Every report category, including passes and diagnostics.
         };
 
+        /// @brief Lifecycle state of a requested report-file sink.
+        enum class SinkState
+        {
+            Disabled,  ///< Report output was not requested or has no destination.
+            Active,    ///< The report destination is open and accepting output.
+            Failed,    ///< Opening, writing, flushing, or closing the destination failed.
+            Finalized, ///< The destination was flushed and closed successfully.
+        };
+
+        /// @brief Structured report-sink lifecycle and destination status.
+        struct SinkStatus
+        {
+            SinkState state = SinkState::Disabled; ///< Current report-sink lifecycle state.
+            std::filesystem::path reportPath;      ///< Requested report destination, when supplied.
+            InfrastructureStatus failureStatus;    ///< First report-sink infrastructure failure, if any.
+        };
+
         /// @brief Runtime report-output settings shared by test suites.
         struct Options
         {
@@ -143,7 +160,7 @@ namespace GameWIP::TestSupport
         /// @brief Creates a standalone context with its own report sink.
         Context(std::string_view suiteName, const Types::Reporting::Options &options);
         /// @brief Releases this context and its shared report-sink ownership.
-        ~Context();
+        ~Context() noexcept;
 
         Context(const Context &) = delete;            ///< Context synchronization/sink ownership cannot be copied.
         Context &operator=(const Context &) = delete; ///< Context synchronization/sink ownership cannot be copy-assigned.
@@ -223,6 +240,10 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
         /// @brief Reports whether this context has recorded no failed checks.
         [[nodiscard]] bool ok() const noexcept;
+        /// @brief Returns the current report-sink lifecycle status.
+        [[nodiscard]] Types::Reporting::SinkStatus reportStatus() const;
+        /// @brief Finalizes a standalone context's sink; runner-owned contexts leave the shared sink to Runner.
+        [[nodiscard]] Types::Reporting::SinkStatus finalize();
 
     private:
         friend class Runner;
@@ -231,6 +252,7 @@ namespace GameWIP::TestSupport
 
         std::string suiteName_;
         std::shared_ptr<Detail::ReportSink> reportSink_;
+        bool ownsReportLifecycle_ = true;
         mutable std::mutex mutex_;
         Types::Reporting::Summary summary_;
 
@@ -252,7 +274,7 @@ namespace GameWIP::TestSupport
         /// @brief Creates a runner with one shared report sink.
         explicit Runner(Types::Reporting::Options options);
         /// @brief Releases the runner's ownership of its shared report sink.
-        ~Runner();
+        ~Runner() noexcept;
 
         Runner(const Runner &) = delete;            ///< Runner ownership cannot be copied.
         Runner &operator=(const Runner &) = delete; ///< Runner ownership cannot be copy-assigned.
@@ -273,6 +295,11 @@ namespace GameWIP::TestSupport
         [[nodiscard]] bool ok() const noexcept;
         /// @brief Returns zero when no failures were recorded, otherwise one.
         [[nodiscard]] int exitCode() const noexcept;
+        /// @brief Returns the current report-sink lifecycle status.
+        [[nodiscard]] Types::Reporting::SinkStatus reportStatus() const;
+        /// @brief Flushes and closes the shared report sink, returning its final status.
+        /// @details Repeated calls are idempotent. A report failure does not change assertion counts or exitCode().
+        [[nodiscard]] Types::Reporting::SinkStatus finalize();
 
     private:
         std::shared_ptr<Detail::ReportSink> reportSink_;

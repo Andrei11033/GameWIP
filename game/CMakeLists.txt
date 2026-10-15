@@ -20,6 +20,7 @@ if(GAMEWIP_BUILD_GAME)
         PRIVATE
             GAMEWIP_STARTUP_TESTS_ENABLED=$<BOOL:${GAMEWIP_ENABLE_STARTUP_TESTS}>
             GAMEWIP_STARTUP_BENCHMARKS_ENABLED=$<BOOL:${GAMEWIP_RUN_BENCHMARKS_AT_STARTUP}>
+            GAMEWIP_STANDALONE_BENCHMARKS_ENABLED=$<BOOL:${GAMEWIP_BUILD_BENCHMARKS}>
             GAMEWIP_TRACY_ENABLED=$<BOOL:${GAMEWIP_ENABLE_TRACY}>
     )
     target_include_directories(GameWIP PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}/generated")
@@ -45,7 +46,17 @@ if(GAMEWIP_BUILD_GAME)
                 "-DPROJECT_VERSION_VALUE=${PROJECT_VERSION}" -P "${PROJECT_SOURCE_DIR}/cmake/ValidateGameWIPVersionOutput.cmake"
         )
         add_test(NAME validation.game.help COMMAND "$<TARGET_FILE:GameWIP>" --help)
-        set_tests_properties(validation.game.help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version" TIMEOUT 60)
+        if(GAMEWIP_BUILD_BENCHMARKS)
+            set_tests_properties(
+                validation.game.help
+                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version;GameWIPBenchmarks.exe --help" TIMEOUT 60
+            )
+        else()
+            set_tests_properties(
+                validation.game.help
+                PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;GameWIP.exe --version" FAIL_REGULAR_EXPRESSION "GameWIPBenchmarks.exe --help" TIMEOUT 60
+            )
+        endif()
         set_tests_properties(validation.game.version PROPERTIES TIMEOUT 60)
     endif()
 endif()

@@ -73,8 +73,9 @@ namespace GameWIP::TestSupport
         }
         catch (const std::system_error &error)
         {
-            status_ = {.error = Types::InfrastructureError::PlatformFailure,
-                       .nativeCode = static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.code().value()))};
+            status_ = {
+                .error = Types::InfrastructureError::PlatformFailure,
+                .nativeCode = static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.code().value()))};
         }
         catch (...)
         {
@@ -87,14 +88,25 @@ namespace GameWIP::TestSupport
         return status_;
     }
 
+    Types::InfrastructureStatus ScopedProcessState::restorationStatus() const noexcept
+    {
+        return restorationStatus_;
+    }
+
+    void ScopedProcessState::recordRestorationFailure(Types::InfrastructureStatus status) noexcept
+    {
+        if (!status.ok() && restorationStatus_.ok())
+        {
+            restorationStatus_ = status;
+        }
+    }
+
     // ------------------------------------------------------------
     // Scoped set/restore environment variable
     // ------------------------------------------------------------
 
-    ScopedEnvironmentVariable::ScopedEnvironmentVariable(
-        ScopedProcessState &processState,
-        std::string_view name,
-        std::string_view value) noexcept
+    ScopedEnvironmentVariable::ScopedEnvironmentVariable(ScopedProcessState &processState, std::string_view name, std::string_view value) noexcept
+        : processState_(&processState)
     {
         try
         {
@@ -149,6 +161,10 @@ namespace GameWIP::TestSupport
 
         restorationStatus_ = Detail::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
         restored_ = restorationStatus_.ok();
+        if (!restorationStatus_.ok())
+        {
+            processState_->recordRestorationFailure(restorationStatus_);
+        }
         return restorationStatus_;
     }
 
@@ -157,6 +173,7 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     ScopedUnsetEnvironmentVariable::ScopedUnsetEnvironmentVariable(ScopedProcessState &processState, std::string_view name) noexcept
+        : processState_(&processState)
     {
         try
         {
@@ -211,6 +228,10 @@ namespace GameWIP::TestSupport
 
         restorationStatus_ = Detail::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
         restored_ = restorationStatus_.ok();
+        if (!restorationStatus_.ok())
+        {
+            processState_->recordRestorationFailure(restorationStatus_);
+        }
         return restorationStatus_;
     }
 } // namespace GameWIP::TestSupport

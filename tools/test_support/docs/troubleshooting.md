@@ -9,8 +9,9 @@ the matching case below.
 Check `writeReport`, `reportPath`, and `appendReport`. An empty path disables file opening. Ordinary directory/open/write/flush failure emits one
 `[TEST REPORT]` diagnostic and disables that sink without affecting the test result.
 
-A standalone context normally flushes at destruction; a runner flushes after each completed suite. Use `flushReportEachLine` when another process must
-read each line immediately.
+A standalone context normally finalizes at destruction; a runner flushes after each completed suite and owns the shared sink lifecycle. Call
+`finalize()` and inspect `SinkStatus::state` when the artifact must be proven complete. Use `flushReportEachLine` when another process must read each
+line immediately.
 
 ## Runner succeeds although the report failed
 
@@ -34,7 +35,7 @@ termination, or filesystem errors can leave artifacts.
 
 These states are process-global. Create one `ScopedProcessState` and keep it alive for the complete guard lifetime. TestSupport detects unrelated
 mutations during restoration and reports `ProcessStateConflict`; it cannot coordinate APIs that bypass TestSupport. Call `restore()` when cleanup
-must be checked before destruction.
+must be checked before destruction, then inspect the owning scope's sticky `restorationStatus()` so destructor-only failures are not lost.
 
 On Win32, setting an environment guard to an empty string removes the variable.
 

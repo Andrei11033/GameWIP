@@ -20,6 +20,7 @@ foreach(
         ADDRESS_SANITIZER_ENABLED
         UNDEFINED_BEHAVIOR_SANITIZER_ENABLED
         EXECUTABLE_SUFFIX
+        RUN_RUNTIME_PROBE
 )
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required for installed-consumer validation.")
@@ -44,7 +45,7 @@ execute_process(
     COMMAND
         "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${CONSUMER_BUILD_DIR}/application-manifests"
         "-DMODULE_DIR=${INSTALL_PREFIX}/${INSTALL_LIBDIR}/cmake/GameWIPApplication" "-DGENERATOR=${GENERATOR}" "-DCXX_COMPILER=${CXX_COMPILER}"
-        "-DBUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}" -P
+        "-DBUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}" "-DRUN_RUNTIME_PROBE=${RUN_RUNTIME_PROBE}" -P
         "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
     RESULT_VARIABLE manifest_result
     OUTPUT_VARIABLE manifest_output

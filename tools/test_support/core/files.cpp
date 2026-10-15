@@ -146,6 +146,7 @@ namespace GameWIP::TestSupport
     }
 
     ScopedCurrentPath::ScopedCurrentPath(ScopedProcessState &processState, const std::filesystem::path &path) noexcept
+        : processState_(&processState)
     {
         try
         {
@@ -216,18 +217,20 @@ namespace GameWIP::TestSupport
             if (error)
             {
                 restorationStatus_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
+                processState_->recordRestorationFailure(restorationStatus_);
                 return restorationStatus_;
             }
 
             if (currentPath != expectedPath_)
             {
                 restorationStatus_ = failureStatus(Types::InfrastructureError::ProcessStateConflict);
+                processState_->recordRestorationFailure(restorationStatus_);
                 return restorationStatus_;
             }
 
             std::filesystem::current_path(previousPath_, error);
-            restorationStatus_ = error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error))
-                                       : Types::InfrastructureStatus{};
+            restorationStatus_ =
+                error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error)) : Types::InfrastructureStatus{};
         }
         catch (const std::bad_alloc &)
         {
@@ -239,6 +242,10 @@ namespace GameWIP::TestSupport
         }
 
         restored_ = restorationStatus_.ok();
+        if (!restorationStatus_.ok())
+        {
+            processState_->recordRestorationFailure(restorationStatus_);
+        }
         return restorationStatus_;
     }
 

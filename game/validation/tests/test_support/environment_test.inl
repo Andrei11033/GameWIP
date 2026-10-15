@@ -46,7 +46,8 @@ void testEnvironmentHelpers(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("Explicit environment restoration setup succeeds", explicitRestore.status().ok()));
         const TestSupport::Types::InfrastructureStatus restoreStatus = explicitRestore.restore();
         static_cast<void>(context.expectTrue("Explicit environment restoration succeeds", restoreStatus.ok()));
-        static_cast<void>(context.expectTrue("Explicit environment restoration clears the value", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
+        static_cast<void>(
+            context.expectTrue("Explicit environment restoration clears the value", std::getenv(std::string(kScopedVariable).c_str()) == nullptr));
         static_cast<void>(context.expectTrue("Environment restoration is idempotent", explicitRestore.restore().ok()));
     }
 
@@ -63,7 +64,35 @@ void testEnvironmentHelpers(TestSupport::Context &context)
             TestSupport::Types::InfrastructureError::ProcessStateConflict,
             conflicted.restore().error));
         const char *external = std::getenv(std::string(kScopedVariable).c_str());
-        static_cast<void>(context.expectTrue("Environment conflict preserves the newer value", external != nullptr && std::string_view(external) == "external"));
+        static_cast<void>(
+            context.expectTrue("Environment conflict preserves the newer value", external != nullptr && std::string_view(external) == "external"));
+#if defined(_WIN32)
+        static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), ""));
+#else
+        static_cast<void>(unsetenv(std::string(kScopedVariable).c_str()));
+#endif
+        static_cast<void>(context.expectEq(
+            "Process-state restoration status is sticky after a successful retry",
+            TestSupport::Types::InfrastructureError::ProcessStateConflict,
+            processState.restorationStatus().error));
+    }
+
+    {
+        TestSupport::ScopedProcessState destructorProcessState;
+        {
+            TestSupport::ScopedEnvironmentVariable destructorOnly(destructorProcessState, kScopedVariable, "destructor-guarded");
+            static_cast<void>(context.expectTrue("Destructor-only conflict setup succeeds", destructorOnly.status().ok()));
+#if defined(_WIN32)
+            static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), "destructor-external"));
+#else
+            static_cast<void>(setenv(std::string(kScopedVariable).c_str(), "destructor-external", 1));
+#endif
+        }
+
+        static_cast<void>(context.expectEq(
+            "Destructor-only restoration conflict is recorded",
+            TestSupport::Types::InfrastructureError::ProcessStateConflict,
+            destructorProcessState.restorationStatus().error));
 #if defined(_WIN32)
         static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), ""));
 #else

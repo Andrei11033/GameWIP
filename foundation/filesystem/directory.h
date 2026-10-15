@@ -50,7 +50,10 @@ namespace GameWIP::FileSystem
                 bool includeHidden = true;
                 /// @brief Symlink policy used when obtaining child metadata.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-                /// @brief Maximum number of returned entries, or kNoEntryLimit for no caller limit.
+                /// @brief Maximum number of accepted entries, or kNoEntryLimit for no caller limit.
+                /// @details Filtering is applied before counting. Exactly N accepted entries may be returned successfully;
+                /// an additional matching entry changes the result to SizeLimitExceeded while preserving those N entries.
+                /// A zero limit returns no entries and reports SizeLimitExceeded when a matching child exists.
                 std::uint64_t maxEntries = kNoEntryLimit;
             };
 
@@ -65,8 +68,10 @@ namespace GameWIP::FileSystem
             };
 
             /// @brief Result returned by listDirectory().
-            /// @details SizeLimitExceeded may return entries collected before the limit was reached. The result owns all
-            /// accepted entries, so retained storage is proportional to their count and path sizes.
+            /// @details Filtering occurs before the limit is counted. With maxEntries=N, exactly N accepted entries may
+            /// succeed; discovery of an additional matching child returns SizeLimitExceeded and preserves those N entries.
+            /// A zero limit returns no entries and reports SizeLimitExceeded when a matching child exists. The result owns
+            /// all accepted entries, so retained storage is proportional to their count and path sizes.
             struct ListResult
             {
                 /// @brief Operation status.
@@ -76,7 +81,10 @@ namespace GameWIP::FileSystem
             };
 
             /// @brief Result returned by one DirectoryCursor step.
-            /// @details Successful exhaustion is represented by hasEntry=false. A failed result does not contain an entry.
+            /// @details Successful exhaustion is represented by hasEntry=false. After the Nth accepted entry from a
+            /// limited cursor, the next call probes for one more matching child: it returns SizeLimitExceeded if found,
+            /// otherwise normal successful exhaustion. Once SizeLimitExceeded is returned, later calls repeat it.
+            /// A failed result does not contain an entry.
             struct CursorNextResult
             {
                 /// @brief Operation status.
@@ -97,12 +105,16 @@ namespace GameWIP::FileSystem
                 bool succeedIfMissing = false;
                 /// @brief Symlink traversal policy used only for the initial path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
-                /// @brief Maximum number of removed entries, or kNoEntryLimit for no caller limit.
+                /// @brief Maximum number of successfully removed entries, or kNoEntryLimit for no caller limit.
+                /// @details The root counts as one entry. An exact limit can complete successfully; an additional
+                /// entry returns SizeLimitExceeded after the accepted removals. A zero limit removes nothing.
                 std::uint64_t maxEntries = kNoEntryLimit;
             };
 
             /// @brief Result returned by removeDirectoryTree().
-            /// @details SizeLimitExceeded or another failure may report entries removed before the failure.
+            /// @details The count includes the root directory. Removal is incremental: an exact limit can succeed,
+            /// while an additional entry returns SizeLimitExceeded and preserves the number already removed. A zero
+            /// limit leaves an existing target unchanged and returns SizeLimitExceeded.
             struct RemoveTreeResult
             {
                 /// @brief Operation status.
@@ -118,7 +130,7 @@ namespace GameWIP::FileSystem
 
     /// @brief Move-only, bounded-memory cursor over direct directory children.
     /// @details The cursor owns backend enumeration state and applies the same filters, symlink policy, native ordering,
-    /// and maximum-entry contract as listDirectory(). Retained memory is independent of the number of sibling entries.
+    /// and accepted-entry limit contract as listDirectory(). Retained memory is independent of the number of sibling entries.
     /// A cursor object is not safe for concurrent calls.
     class DirectoryCursor final
     {
@@ -178,7 +190,8 @@ namespace GameWIP::FileSystem
     /// @brief Lists direct children of a directory in backend/native order.
     /// @param path Directory path.
     /// @param options Filtering, symlink, hidden-entry, and entry-limit behavior.
-    /// @return Collected child entries and final status.
+    /// @return Collected accepted child entries and final status. Filtering precedes maxEntries counting; an additional
+    /// matching child beyond the accepted limit returns SizeLimitExceeded with the partial entries retained.
     [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options = {}) noexcept;
 
     /// @brief Removes one empty directory.
@@ -190,7 +203,7 @@ namespace GameWIP::FileSystem
     /// @brief Recursively removes a directory tree without following discovered symlinked directories.
     /// @param path Root directory path.
     /// @param options Missing-target, initial symlink, and entry-limit behavior.
-    /// @return Final status and number of entries removed before completion or failure.
+    /// @return Final status and number of entries removed before completion or failure. The root counts toward maxEntries.
     [[nodiscard]] Types::Directory::RemoveTreeResult removeDirectoryTree(
         const Types::Path &path,
         const Types::Directory::RemoveTreeOptions &options = {}) noexcept;

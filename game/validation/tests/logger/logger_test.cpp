@@ -53,8 +53,7 @@ namespace std
 {
     template <> struct formatter<LoggerFormatProbe, char> : formatter<int, char>
     {
-        template <typename FormatContext>
-        auto format(const LoggerFormatProbe &probe, FormatContext &context) const
+        template <typename FormatContext> auto format(const LoggerFormatProbe &probe, FormatContext &context) const
         {
             if (probe.formatCount != nullptr)
             {
@@ -459,6 +458,12 @@ namespace GameWIP::Test
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
         static_cast<void>(Logger::shutdown());
-        return runner.exitCode();
+        const int exitCode = runner.exitCode();
+        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
+        if (!reportStatus.failureStatus.ok())
+        {
+            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+        }
+        return exitCode;
     }
 } // namespace GameWIP::Test

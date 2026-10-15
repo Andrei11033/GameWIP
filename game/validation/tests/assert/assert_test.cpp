@@ -597,6 +597,12 @@ namespace GameWIP::Test
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
         Logger::shutdown();
-        return runner.exitCode();
+        const int exitCode = runner.exitCode();
+        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
+        if (!reportStatus.failureStatus.ok())
+        {
+            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+        }
+        return exitCode;
     }
 } // namespace GameWIP::Test

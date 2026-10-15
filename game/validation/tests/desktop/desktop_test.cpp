@@ -49,6 +49,7 @@
 #include <filesystem>
 #include <format>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -761,6 +762,12 @@ namespace GameWIP::Test
         }
         runner.summary(std::format("Desktop library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         manualStatusWindow = nullptr;
-        return runner.exitCode();
+        const int exitCode = runner.exitCode();
+        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
+        if (!reportStatus.failureStatus.ok())
+        {
+            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+        }
+        return exitCode;
     }
 } // namespace GameWIP::Test

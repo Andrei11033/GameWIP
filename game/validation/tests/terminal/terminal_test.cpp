@@ -603,6 +603,12 @@ namespace GameWIP::Test
                     manualObservations.skipped));
         }
         runner.summary(std::format("Terminal library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return runner.exitCode();
+        const int exitCode = runner.exitCode();
+        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
+        if (!reportStatus.failureStatus.ok())
+        {
+            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+        }
+        return exitCode;
     }
 } // namespace GameWIP::Test

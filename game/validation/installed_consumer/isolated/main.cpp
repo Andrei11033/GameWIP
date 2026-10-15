@@ -28,6 +28,7 @@
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
 bool probeInstalledAccessibility();
+bool probeInstalledDragDrop();
 #elif defined(GAMEWIP_CONSUMER_Logger)
 #include "logger/logger.h"
 #elif defined(GAMEWIP_CONSUMER_Assert)
@@ -75,7 +76,7 @@ int main()
         GameWIP::Desktop::createCursor(std::span<const GameWIP::Desktop::Types::Cursor::ImageView>{});
     const auto feedback = GameWIP::Desktop::Renderer::attachOcclusionProvider(window);
     const auto displayColor = GameWIP::Desktop::Display::getColorInfo(window);
-    return probeInstalledAccessibility() && capabilities.ok() &&
+    return probeInstalledAccessibility() && probeInstalledDragDrop() && capabilities.ok() &&
                    cursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !cursor.value.has_value() &&
                    !GameWIP::Desktop::Renderer::hasOcclusionProvider(window) && feedback.code == GameWIP::IO::Types::ErrorCode::NotOpen &&
                    displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
@@ -127,9 +128,20 @@ int main()
     const GameWIP::TestSupport::Types::InfrastructureStatus status;
     const GameWIP::TestSupport::Types::Process::Result childResult;
     const std::string statusText = GameWIP::TestSupport::formatInfrastructureStatus(status);
+    GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
+    reportingOptions.writeConsole = false;
+    reportingOptions.writeReport = false;
+    GameWIP::TestSupport::Runner runner(reportingOptions);
+    const auto runnerInitialReport = runner.reportStatus();
+    const auto runnerFinalReport = runner.finalize();
+    GameWIP::TestSupport::Context context("installed", reportingOptions);
+    const auto contextFinalReport = context.finalize();
     const bool defaultsAreUsable = status.ok() && statusText == "None" && childResult.status.ok() &&
                                    childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
-                                   childResult.outputBytes.empty();
+                                   childResult.outputBytes.empty() &&
+                                   runnerInitialReport.state == GameWIP::TestSupport::Types::Reporting::SinkState::Disabled &&
+                                   runnerFinalReport.state == GameWIP::TestSupport::Types::Reporting::SinkState::Disabled &&
+                                   contextFinalReport.state == GameWIP::TestSupport::Types::Reporting::SinkState::Disabled;
     return timer.elapsedMilliseconds() >= 0.0 && defaultsAreUsable ? 0 : 1;
 #elif defined(__INTELLISENSE__)
     GameWIP::Desktop::Window window;

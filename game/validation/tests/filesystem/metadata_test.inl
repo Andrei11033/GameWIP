@@ -79,6 +79,25 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     const auto limitedListing = FileSystem::listDirectory(directory, FileSystem::Types::Directory::ListOptions{.maxEntries = 0});
     static_cast<void>(
         context.expectEq("listDirectory maxEntries returns SizeLimitExceeded", ErrorCode::SizeLimitExceeded, limitedListing.status.code));
+    static_cast<void>(context.expectTrue("listDirectory zero limit retains no entries", limitedListing.entries.empty()));
+
+    const std::filesystem::path listingLimitDirectory = root / "directories" / "listing-limit";
+    static_cast<void>(context.expectTrue("listing-limit directory creation succeeds", FileSystem::createDirectories(listingLimitDirectory).ok()));
+    static_cast<void>(context.expectTrue(
+        "listing-limit first file write succeeds",
+        FileSystem::writeAllText(listingLimitDirectory / "first.txt", "first").status.ok()));
+    const auto exactListing = FileSystem::listDirectory(listingLimitDirectory, FileSystem::Types::Directory::ListOptions{.maxEntries = 1});
+    static_cast<void>(context.expectTrue("exact listing limit succeeds", exactListing.status.ok()));
+    static_cast<void>(context.expectEq("exact listing limit returns N entries", std::size_t{1}, exactListing.entries.size()));
+    static_cast<void>(context.expectTrue(
+        "listing-limit second file write succeeds",
+        FileSystem::writeAllText(listingLimitDirectory / "second.txt", "second").status.ok()));
+    const auto partialListing = FileSystem::listDirectory(listingLimitDirectory, FileSystem::Types::Directory::ListOptions{.maxEntries = 1});
+    static_cast<void>(context.expectEq(
+        "listing with an additional matching entry reports SizeLimitExceeded",
+        ErrorCode::SizeLimitExceeded,
+        partialListing.status.code));
+    static_cast<void>(context.expectEq("partial listing preserves N entries", std::size_t{1}, partialListing.entries.size()));
 
     FileSystem::DirectoryCursor cursor;
     static_cast<void>(context.expectEq("closed directory cursor reports NotOpen", ErrorCode::NotOpen, cursor.next().status.code));
@@ -107,6 +126,21 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
         "limited directory cursor opens",
         limitedCursor.open(directory, FileSystem::Types::Directory::ListOptions{.maxEntries = 0}).ok()));
     static_cast<void>(context.expectEq("directory cursor enforces maxEntries", ErrorCode::SizeLimitExceeded, limitedCursor.next().status.code));
+    static_cast<void>(context.expectFalse("zero-limit cursor returns no entry", limitedCursor.next().hasEntry));
     static_cast<void>(
         context.expectEq("directory cursor keeps the terminal limit status", ErrorCode::SizeLimitExceeded, limitedCursor.next().status.code));
+
+    FileSystem::DirectoryCursor exactCursor;
+    static_cast<void>(context.expectTrue(
+        "exact-limit cursor opens",
+        exactCursor.open(listingLimitDirectory, FileSystem::Types::Directory::ListOptions{.maxEntries = 1}).ok()));
+    const auto exactCursorEntry = exactCursor.next();
+    static_cast<void>(context.expectTrue("exact-limit cursor returns Nth entry", exactCursorEntry.status.ok() && exactCursorEntry.hasEntry));
+    const auto limitedCursorEnd = exactCursor.next();
+    static_cast<void>(context.expectEq(
+        "cursor with an additional matching entry reports SizeLimitExceeded",
+        ErrorCode::SizeLimitExceeded,
+        limitedCursorEnd.status.code));
+    static_cast<void>(context.expectFalse("cursor limit result contains no extra entry", limitedCursorEnd.hasEntry));
+    static_cast<void>(context.expectEq("cursor limit status remains terminal", ErrorCode::SizeLimitExceeded, exactCursor.next().status.code));
 }

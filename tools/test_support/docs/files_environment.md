@@ -44,6 +44,9 @@ parent-directory creation and before a truncating destination open. Existing des
 `ScopedTemporaryDirectory` and `ScopedCurrentPath` remain non-copyable/non-movable inert-on-failure guards. Their constructors are `noexcept`; inspect
 `status()` before using the requested state. `ScopedCurrentPath` requires a live `ScopedProcessState` and holds that coordination scope for the
 complete guard lifetime. Destructors perform best-effort non-throwing cleanup/restoration; callers that need the result can call `restore()` explicitly.
+The owning `ScopedProcessState::restorationStatus()` is a sticky aggregate of
+failed or conflicting restorations, including failures observed only by a
+guard destructor. A later successful retry does not clear that audit status.
 
 `ScopedTemporaryDirectory` creates a unique child below the process temporary directory using a sanitized readable purpose plus bounded collision
 retries. GameWIP validation scopes that process directory to the active `build/<preset>/temp` tree; standalone library consumers use the host default.

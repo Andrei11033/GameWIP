@@ -52,7 +52,11 @@ int main()
             static_cast<void>(context.expectEq("one plus one", 2, 1 + 1));
         });
 
-    return runner.exitCode();
+    const int exitCode = runner.exitCode();
+    const auto reportStatus = runner.finalize();
+    // Emit an infrastructure diagnostic for SinkState::Failed separately.
+    static_cast<void>(reportStatus);
+    return exitCode;
 }
 ```
 

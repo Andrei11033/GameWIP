@@ -18,6 +18,10 @@ throw. A report-output exception can escape after aggregate counts have been upd
 `Runner::result()` is the aggregate of completed suites. `Runner::exitCode()` returns one when at least one failure was recorded and zero otherwise,
 including skipped-only and empty runs.
 
+`Runner::exitCode()` remains assertion-only. Inspect `Runner::finalize()` or
+`reportStatus()` separately when report-file delivery matters; a `Failed` sink
+is an infrastructure/artifact result, not an assertion failure.
+
 ## Context and counted outcomes
 
 `Context::pass()`, `fail()`, and `skip()` each increment exactly one counter and write one categorized line. Informational methods do not alter

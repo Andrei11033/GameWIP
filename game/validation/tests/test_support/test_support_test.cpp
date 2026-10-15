@@ -239,10 +239,10 @@ namespace GameWIP::Test
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
         if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kCurrentPathChildArgument) ||
-            hasArgument(argc, argv, kEchoChildArgument) ||
-            hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument) ||
-            hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument) ||
-            hasArgument(argc, argv, kHandleInheritanceChildArgument) || hasArgument(argc, argv, kStartGateChildArgument))
+            hasArgument(argc, argv, kEchoChildArgument) || hasArgument(argc, argv, kSleepChildArgument) ||
+            hasArgument(argc, argv, kExitCodeChildArgument) || hasArgument(argc, argv, kOutputChildArgument) ||
+            hasArgument(argc, argv, kDescendantChildArgument) || hasArgument(argc, argv, kHandleInheritanceChildArgument) ||
+            hasArgument(argc, argv, kStartGateChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }
@@ -329,6 +329,12 @@ namespace GameWIP::Test
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("TestSupport library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
-        return runner.exitCode();
+        const int exitCode = runner.exitCode();
+        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
+        if (!reportStatus.failureStatus.ok())
+        {
+            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
+        }
+        return exitCode;
     }
 } // namespace GameWIP::Test

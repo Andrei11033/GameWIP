@@ -14,19 +14,37 @@ Existing path components are resolved according to the selected symlink policy.
 
 ## Direct-child listing
 
-`listDirectory()` returns direct children in backend/native order. The result is not sorted and is not a filesystem snapshot; concurrent changes can
-affect enumeration and metadata.
+`listDirectory()` returns direct children in backend/native order. The result is
+not sorted and is not a filesystem snapshot; concurrent changes can affect
+enumeration and metadata.
 
-Filters for entry kind and hidden state are applied before `maxEntries`. Filtered-out entries do not consume the returned-entry limit.
+The `maxEntries` contract counts accepted entries, not raw directory records:
 
-When another matching child exists beyond the accepted limit, the operation returns `SizeLimitExceeded` and preserves collected entries.
-`kNoEntryLimit` removes only the caller limit.
+1. Entry-kind and hidden-entry filters are applied first. Filtered-out children
+   do not consume the limit.
+2. With `maxEntries = N`, the first N accepted children are retained.
+3. If enumeration then discovers another matching child, the status is `SizeLimitExceeded` and the N accepted entries remain available in the result.
+4. If no additional matching child exists, exactly N accepted children is a successful result. `kNoEntryLimit` removes only the caller limit.
+5. With `maxEntries = 0`, no entry is accepted. An existing matching child
+   produces `SizeLimitExceeded`; an empty-after-filtering directory completes
+   successfully.
+
+For example, a directory containing exactly one accepted file succeeds with
+`maxEntries = 1`. Adding a second accepted file changes the same request to
+`SizeLimitExceeded` with the first accepted entry still present.
 
 `Types::Directory::Entry::path` is the parent path joined with the child name. A relative parent produces relative child paths.
 
-`Types::Directory::ListResult` owns every accepted entry, so peak result storage is proportional to the number and path length of returned children.
-`DirectoryCursor` provides the same filters, ordering, symlink policy, and entry limit without retaining siblings. On Win32, child metadata is queried
-relative to the retained directory handle, avoiding a complete ancestry traversal for every entry.
+`Types::Directory::ListResult` owns every accepted entry, so peak result storage
+is proportional to the number and path length of returned children.
+`DirectoryCursor` provides the same filters, ordering, symlink policy, and
+accepted-entry limit without retaining siblings. After it returns the Nth
+accepted entry, its next call probes for one more matching child. It returns
+`SizeLimitExceeded` if one exists, otherwise normal successful exhaustion. The
+terminal limit status is sticky for later calls. With a zero limit, the first
+call returns `SizeLimitExceeded` when a matching child exists. On Win32, child
+metadata is queried relative to the retained directory handle, avoiding a
+complete ancestry traversal for every entry.
 
 ```cpp
 GameWIP::FileSystem::DirectoryCursor cursor;
@@ -95,8 +113,11 @@ Open handles can prevent rename, replacement, or removal unless their sharing po
 
 - The selected symlink policy applies to the initial path only.
 - Discovered symlinked directories are never followed.
-- `maxEntries` counts successfully removed entries, including the root.
-- A limit exactly equal to the tree's removed-entry count can succeed.
+- `maxEntries` counts successfully removed entries, including the root directory.
+- A limit exactly equal to the tree's complete removal count can succeed and remove the root.
+- If another entry would exceed the limit, removal stops with
+  `SizeLimitExceeded`; `removedEntries` reports the entries already removed and
+  the remaining tree stays available.
 - A zero limit performs no removal and returns `SizeLimitExceeded` for an existing target.
 - A failure preserves `removedEntries`; removal is incremental, not transactional.
 
