@@ -186,7 +186,13 @@ void testManualFullscreenAndTopology(
                     }
 
                     Desktop::Types::WindowModeRequest unsupported = exclusive;
-                    std::get<Desktop::Types::ExclusiveFullscreenRequest>(unsupported).displayMode->resolution = {1, 1};
+                    auto &unsupportedRequest = std::get<Desktop::Types::ExclusiveFullscreenRequest>(unsupported);
+                    if (!unsupportedRequest.displayMode)
+                    {
+                        static_cast<void>(context.expectTrue("exclusive request carries a display mode", false));
+                        return;
+                    }
+                    unsupportedRequest.displayMode->resolution = {1, 1};
                     const Desktop::Types::WindowMode previousMode = window.windowMode();
                     const IO::Types::Status unsupportedStatus = setManualModeWithDiagnostics(context, window, "exclusive-unsupported", unsupported);
                     static_cast<void>(context.expectTrue("unsupported exact mode is rejected", !unsupportedStatus.ok()));

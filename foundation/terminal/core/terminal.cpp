@@ -12,14 +12,11 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
-#include <exception>
 #include <format>
 #include <iterator>
 #include <limits>
 #include <memory>
 #include <mutex>
-#include <new>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>

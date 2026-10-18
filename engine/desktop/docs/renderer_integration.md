@@ -18,13 +18,16 @@ Once enabled, `clientSize()`, `framebufferSize()`, `contentScale()`, `effectiveD
 `maximized()`, `visible()`, `interactiveMoveResizeActive()`, and `occluded()` are safe for renderer-thread reads while the owner handles native
 messages. Compound values cannot tear; separate calls may observe successive states.
 
-`occluded()` works without this facility (owner-thread, authoritative); when enabled, transitions are also mirrored to the atomic publication. Reads never queue events.
+`occluded()` works without this facility (owner-thread, authoritative); when enabled, transitions
+are also mirrored to the atomic publication. Reads never queue events.
 
 During open, an existing sidecar stays reset and unbound until success, which binds and publishes the
 final state just before commit; failed open exposes only closed defaults. Close and unexpected native destruction reset the
 published values without freeing or disabling the sidecar.
 
-The read contract lasts only while the C++ `Window` is alive: stop or join the renderer before destroying it. Desktop creates no render thread, schedules no frames, resizes no renderer resources, and invokes no renderer callbacks from native messages.
+The read contract lasts only while the C++ `Window` is alive: stop or join the renderer before
+destroying it. Desktop creates no render thread, schedules no frames, resizes no renderer
+resources, and invokes no renderer callbacks from native messages.
 Renderer or worker results that need owner-thread Desktop mutation must go through an application-owned queue applied by the Window owner; there
 is no library-owned worker and no generic `post()` API.
 

@@ -12,7 +12,6 @@
 #endif
 #include <windows.h>
 
-#include <cstdlib>
 #include <new>
 #include <stdexcept>
 #include <string>

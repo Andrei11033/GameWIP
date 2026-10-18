@@ -107,6 +107,8 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     }
     static_cast<void>(context.expectEq("open directory cursor rejects AlreadyOpen", ErrorCode::AlreadyOpen, cursor.open(directory).code));
     FileSystem::DirectoryCursor movedCursor = std::move(cursor);
+    // The public move contract explicitly guarantees that the source cursor is closed.
+    // NOLINTNEXTLINE(bugprone-use-after-move,clang-analyzer-cplusplus.Move)
     static_cast<void>(context.expectFalse("moved-from directory cursor is closed", cursor.isOpen()));
     const auto cursorEntry = movedCursor.next();
     static_cast<void>(context.expectTrue("directory cursor returns an entry", cursorEntry.status.ok() && cursorEntry.hasEntry));

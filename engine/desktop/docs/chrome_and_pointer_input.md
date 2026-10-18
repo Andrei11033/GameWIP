@@ -1,6 +1,7 @@
 @page desktop_chrome_and_pointer_input Custom chrome and pointer input
 
-Custom chrome draws the application's own frame while keeping native resize, drag, menu, and caption-button behavior; pointer policy decides which parts accept input.
+Custom chrome draws the application's own frame while keeping native resize, drag, menu, and
+caption-button behavior; pointer policy decides which parts accept input.
 
 ## Declarative custom chrome
 
@@ -36,7 +37,8 @@ The optional @ref desktop_renderer_integration bridge stores one bit per physica
 it. Window-generated generations protect asynchronous publication. Movement preserves the mask; framebuffer changes, clearing, native
 destruction, close, and reopen invalidate it. Win32 has no documented mechanism for arbitrary
 cross-application per-pixel pass-through, so it does not advertise `PointerHitMask`:
-`Renderer::beginPointerHitMaskUpdate()` and `PointerInputMode::HitMask` return `Unsupported`. Source-tree validation hooks exercise the storage path; it is not a public routing facility.
+`Renderer::beginPointerHitMaskUpdate()` and `PointerInputMode::HitMask` return `Unsupported`.
+Source-tree validation hooks exercise the storage path; it is not a public routing facility.
 
 ## Cursor display
 

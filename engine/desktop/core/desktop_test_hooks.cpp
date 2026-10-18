@@ -543,7 +543,7 @@ namespace GameWIP::Desktop::TestHooks
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-        static_cast<void>(Detail::enqueueChildSurfaceEvent(*state, std::move(data)));
+        static_cast<void>(Detail::enqueueChildSurfaceEvent(*state, data));
         return IO::successStatus();
     }
 

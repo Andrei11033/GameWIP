@@ -420,6 +420,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 context.status = std::move(result.status);
                 return FALSE;
             }
+            if (!result.value)
+            {
+                context.status = IO::makeStatus(IO::Types::ErrorCode::Unknown);
+                return FALSE;
+            }
             try
             {
                 context.monitors->push_back(std::move(*result.value));

@@ -158,14 +158,33 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
         context.expectEq("negative getFormats timeout is invalid", ErrorCode::InvalidArgument, Clipboard::getFormats(negative).status.code));
     static_cast<void>(context.expectEq("negative read timeout is invalid", ErrorCode::InvalidArgument, Clipboard::readText(negative).status.code));
     static_cast<void>(context.expectEq("negative clear timeout is invalid", ErrorCode::InvalidArgument, Clipboard::clear(negative).status.code));
-    static_cast<void>(context.expectEq(
-        "named text format is valid",
-        ErrorCode::Success,
-        Clipboard::hasFormat(Transfer::FormatView::text(), Clipboard::kNoWait).status.code));
-    static_cast<void>(context.expectEq(
-        "named custom format is valid",
-        ErrorCode::Success,
-        Clipboard::hasFormat(Transfer::FormatView::custom("wrong"), Clipboard::kNoWait).status.code));
+    const auto noWaitProbe = [](Transfer::FormatView format)
+    {
+        for (int attempt = 0; attempt < 3; ++attempt)
+        {
+            auto result = Clipboard::hasFormat(format, Clipboard::kNoWait);
+            if (result.status.code != ErrorCode::ResourceBusy || attempt == 2)
+            {
+                return result;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds{50});
+        }
+        return Clipboard::hasFormat(format, Clipboard::kNoWait);
+    };
+    const auto namedText = noWaitProbe(Transfer::FormatView::text());
+    if (namedText.status.code == ErrorCode::ResourceBusy)
+    {
+        context.skip("Clipboard format validation", "Windows Clipboard remained busy after three no-wait attempts");
+        return;
+    }
+    static_cast<void>(context.expectEq("named text format is valid", ErrorCode::Success, namedText.status.code));
+    const auto namedCustom = noWaitProbe(Transfer::FormatView::custom("wrong"));
+    if (namedCustom.status.code == ErrorCode::ResourceBusy)
+    {
+        context.skip("Clipboard format validation", "Windows Clipboard remained busy after three no-wait attempts");
+        return;
+    }
+    static_cast<void>(context.expectEq("named custom format is valid", ErrorCode::Success, namedCustom.status.code));
     static_cast<void>(context.expectEq(
         "custom format requires name",
         ErrorCode::InvalidArgument,

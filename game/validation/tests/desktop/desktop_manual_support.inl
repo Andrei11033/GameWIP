@@ -116,9 +116,13 @@ void recordManualModeTransition(
         [](const auto &value) -> std::optional<Desktop::Types::Display::Mode>
         {
             if constexpr (requires { value.displayMode; })
+            {
                 return value.displayMode;
+            }
             else
+            {
                 return std::nullopt;
+            }
         },
         request);
     const std::string requestedDisplayMode = requestedMode ? std::format(
@@ -134,11 +138,17 @@ void recordManualModeTransition(
         {
             using Request = std::decay_t<decltype(value)>;
             if constexpr (std::is_same_v<Request, Desktop::Types::WindowedModeRequest>)
+            {
                 return 0;
+            }
             else if constexpr (std::is_same_v<Request, Desktop::Types::BorderlessFullscreenRequest>)
+            {
                 return 1;
+            }
             else
+            {
                 return 2;
+            }
         },
         request);
     const std::string result = status == nullptr ? std::string{"pending"}
@@ -161,9 +171,13 @@ void recordManualModeTransition(
                 [](const auto &value) noexcept
                 {
                     if constexpr (requires { value.targetMonitor; })
+                    {
                         return value.targetMonitor ? value.targetMonitor->value : std::uint64_t{0};
+                    }
                     else
+                    {
                         return std::uint64_t{0};
+                    }
                 },
                 request),
             requestedDisplayMode,
@@ -389,7 +403,7 @@ std::size_t manualCasesSelected = 0;
 
 [[nodiscard]] bool manualCaseSelected(std::string_view name) noexcept
 {
-    return !manualCaseSelection || name.find(*manualCaseSelection) != std::string_view::npos;
+    return !manualCaseSelection || name.contains(*manualCaseSelection);
 }
 
 inline constexpr std::string_view kManualInteropText =
@@ -397,7 +411,7 @@ inline constexpr std::string_view kManualInteropText =
 
 [[nodiscard]] Desktop::Types::DataTransfer::Image manualInteropImage()
 {
-    Desktop::Types::DataTransfer::Image image{{128, 128}, std::vector<std::byte>(128 * 128 * 4)};
+    Desktop::Types::DataTransfer::Image image{{128, 128}, std::vector<std::byte>(std::size_t{128} * 128 * 4)};
     for (std::size_t y = 0; y < 128; ++y)
     {
         for (std::size_t x = 0; x < 128; ++x)

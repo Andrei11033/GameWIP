@@ -101,6 +101,28 @@ namespace GameWIP::Desktop::Detail
         [[nodiscard]] std::size_t findIndex(A::NodeId id) const noexcept;
     };
 
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    template <typename Value> using AtomicSharedPointer = std::atomic<std::shared_ptr<Value>>;
+#else
+    /// @brief Portable atomic shared-pointer wrapper for standard libraries without the C++20 specialization.
+    template <typename Value> class AtomicSharedPointer
+    {
+    public:
+        [[nodiscard]] std::shared_ptr<Value> load(std::memory_order order = std::memory_order_seq_cst) const noexcept
+        {
+            return std::atomic_load_explicit(&value_, order);
+        }
+
+        void store(std::shared_ptr<Value> value, std::memory_order order = std::memory_order_seq_cst) noexcept
+        {
+            std::atomic_store_explicit(&value_, std::move(value), order);
+        }
+
+    private:
+        std::shared_ptr<Value> value_;
+    };
+#endif
+
     // ------------------------------------------------------------
     // Host state and bounded runtime transport
     // ------------------------------------------------------------
@@ -135,7 +157,7 @@ namespace GameWIP::Desktop::Detail
         std::atomic<bool> hostEnabled{true}; ///< Actual native owner interaction, including transient modal owner blocking.
         std::atomic<std::uintptr_t> nativeWindow{0};
 
-        std::atomic<std::shared_ptr<const PublishedSnapshot>> snapshot;
+        AtomicSharedPointer<const PublishedSnapshot> snapshot;
         std::shared_ptr<AccessibilityNativeState> native;
 
         std::mutex actionMutex, notificationMutex;
@@ -162,7 +184,7 @@ namespace GameWIP::Desktop::Detail
     /// @brief Object-lifetime publication serialization and generation history across activations.
     struct AccessibilityState
     {
-        std::atomic<std::shared_ptr<AccessibilityRuntime>> runtime;
+        AtomicSharedPointer<AccessibilityRuntime> runtime;
         std::mutex publicationMutex;
         A::Generation lastGeneration = 0;
     };

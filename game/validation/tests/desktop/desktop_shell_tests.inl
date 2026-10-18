@@ -167,8 +167,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
                       static_cast<void>(unregister(owner));
                   }};
         const RegistrationTypes::Verb malformedVerb{"invalid-label", std::string_view{"\xC3", 1}, action};
-        const auto registerOwner = [&, action](
-                                       std::string_view key,
+        const auto registerOwner = [&](std::string_view key,
                                        RegistrationTypes::ConflictPolicy policy,
                                        const ShellTypes::LaunchActionView &registrationAction,
                                        bool failAfterMutation = false)
@@ -268,8 +267,8 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             const LONG commandRead = RegGetValueW(HKEY_CURRENT_USER, commandPath.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, value.data(), &bytes);
             static_cast<void>(context.expectTrue(
                 "file application record has a selected-path launch command",
-                commandRead == ERROR_SUCCESS && std::wstring_view{value.data()}.find(applicationExecutable.wstring()) != std::wstring_view::npos &&
-                    std::wstring_view{value.data()}.find(L"%1") != std::wstring_view::npos));
+                commandRead == ERROR_SUCCESS && std::wstring_view{value.data()}.contains(applicationExecutable.wstring()) &&
+                    std::wstring_view{value.data()}.contains(L"%1")));
         }
         const auto replaced = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned, action);
         context.info(
@@ -741,7 +740,11 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         static_cast<void>(context.expectTrue(kind + " Windows dispatch launches the handler", launched));
         if (launch.hProcess != nullptr)
         {
-            const DWORD finished = WaitForSingleObject(launch.hProcess, 10000);
+            // URI dispatch may cross Explorer's broker before the controlled process exists;
+            // sanitizer-instrumented binaries can make that broker handoff exceed the normal
+            // launch latency while still remaining a valid launch.
+            constexpr DWORD shellLaunchTimeoutMilliseconds = 30000;
+            const DWORD finished = WaitForSingleObject(launch.hProcess, shellLaunchTimeoutMilliseconds);
             static_cast<void>(context.expectEq(kind + " controlled handler completes", DWORD{WAIT_OBJECT_0}, finished));
             DWORD exitCode = 0;
             static_cast<void>(context.expectTrue(

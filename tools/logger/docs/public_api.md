@@ -25,9 +25,12 @@ Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` is the n
 `flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt)`: `nullopt` waits indefinitely, zero polls, negative returns `InvalidArgument`
 (see `logger.h`).
 
-`shutdown()` returns `IO::Types::Status`, drains/flushes/closes best effort, and always leaves Logger disabled. `running()` reports whether the worker accepts normal records.
+`shutdown()` returns `IO::Types::Status`, drains/flushes/closes best effort, and always leaves Logger
+disabled. `running()` reports whether the worker accepts normal records.
 
-All queries are non-throwing and return bounded snapshots or safe defaults on failure. `getLogFilePath()` returns `Types::LogFilePathResult` so allocation or conversion failure is a status, not an exception or an ambiguous empty path.
+All queries are non-throwing and return bounded snapshots or safe defaults on failure.
+`getLogFilePath()` returns `Types::LogFilePathResult` so allocation or conversion failure is a
+status, not an exception or an ambiguous empty path.
 
 ## Runtime filters
 

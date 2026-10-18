@@ -5,6 +5,7 @@
 
 #include "io/status.h"
 
+#include <exception>
 #include <optional>
 #include <utility>
 
@@ -24,28 +25,36 @@ namespace GameWIP::Desktop::Types
             return status.ok() && value.has_value();
         }
 
-        /// @pre ok() is true; otherwise behavior is undefined.
+        /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] const Value &operator*() const & noexcept
         {
+            if (!value)
+            {
+                std::terminate();
+            }
             return *value;
         }
 
-        /// @pre ok() is true; otherwise behavior is undefined.
+        /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] Value &operator*() & noexcept
         {
+            if (!value)
+            {
+                std::terminate();
+            }
             return *value;
         }
 
         /// @pre ok() is true; otherwise behavior is undefined.
         [[nodiscard]] const Value *operator->() const noexcept
         {
-            return &*value;
+            return value ? value.operator->() : nullptr;
         }
 
         /// @pre ok() is true; otherwise behavior is undefined.
         [[nodiscard]] Value *operator->() noexcept
         {
-            return &*value;
+            return value ? value.operator->() : nullptr;
         }
 
         /// @brief Returns the value on success, otherwise @p fallback.

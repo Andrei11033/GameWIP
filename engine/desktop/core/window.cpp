@@ -214,11 +214,17 @@ namespace GameWIP::Desktop
                 {
                     using Request = std::decay_t<decltype(request)>;
                     if constexpr (std::is_same_v<Request, Types::WindowedModeRequest>)
+                    {
                         return Types::WindowMode::Windowed;
+                    }
                     else if constexpr (std::is_same_v<Request, Types::BorderlessFullscreenRequest>)
+                    {
                         return Types::WindowMode::BorderlessFullscreen;
+                    }
                     else
+                    {
                         return Types::WindowMode::ExclusiveFullscreen;
+                    }
                 },
                 description.initialWindowMode);
             state.presentation = description.presentation;
@@ -308,7 +314,9 @@ namespace GameWIP::Desktop
         const auto *ownedQueue = std::get_if<Types::Events::QueueConfiguration::Owned>(&queue.storage);
         const auto *borrowedQueue = std::get_if<Types::Events::QueueConfiguration::Borrowed>(&queue.storage);
         if ((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
+        {
             return error(ErrorCode::InvalidArgument);
+        }
 
         const IO::Types::Status validation = validateDescription(description);
         if (!validation.ok())

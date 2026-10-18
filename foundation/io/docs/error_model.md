@@ -105,6 +105,7 @@ For known-size reads, early end-of-stream becomes `PartialRead`. For unknown-siz
 `ReadFailed` because the helper cannot make progress.
 
 @anchor io_utf8_policy
+
 ## UTF-8 text policy
 
 This is the single source for UTF-8 rules across IO, FileSystem, and Terminal text APIs; other pages link here.

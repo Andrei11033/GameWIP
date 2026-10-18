@@ -90,7 +90,8 @@ namespace
             "missing export returns no procedure",
             Base::Win32::loadProcedure<ProcessIdFunction>(module, "GameWIP_Base_MissingExport") == nullptr));
         const ProcessIdFunction processId = Base::Win32::loadProcedure<ProcessIdFunction>(module, "GetCurrentProcessId");
-        if (context.expectTrue("known export resolves", processId != nullptr))
+        static_cast<void>(context.expectTrue("known export resolves", processId != nullptr));
+        if (processId != nullptr)
         {
             static_cast<void>(context.expectEq("resolved procedure returns this process id", GetCurrentProcessId(), processId()));
         }

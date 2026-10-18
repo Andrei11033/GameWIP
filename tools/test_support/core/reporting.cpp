@@ -67,6 +67,7 @@ namespace GameWIP::TestSupport
                 catch (...)
                 {
                     // Destruction is fallback cleanup and cannot report through exceptions.
+                    return;
                 }
             }
 
@@ -271,6 +272,7 @@ namespace GameWIP::TestSupport
             catch (...)
             {
                 // Destruction is fallback cleanup and cannot report through exceptions.
+                return;
             }
         }
     }
@@ -489,6 +491,7 @@ namespace GameWIP::TestSupport
         catch (...)
         {
             // Destruction is fallback cleanup and cannot report through exceptions.
+            return;
         }
     }
 

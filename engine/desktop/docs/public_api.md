@@ -42,10 +42,12 @@ backend support, and `Desktop::ShellEventQueue` is the shared fixed-capacity typ
 and bind to a `Desktop::ShellEventQueue`; `Window` carries no shell state:
 
 - `desktop/shell_taskbar.h`: `Desktop::TaskbarItem`, one taskbar publication per open `Window` lifetime.
-- `desktop/shell_tray.h`: `Desktop::TrayIcon`, process-local, independent of `Window`, with copied recursive menus and passive presentation before one-time queue binding.
+- `desktop/shell_tray.h`: `Desktop::TrayIcon`, process-local, independent of `Window`, with copied
+  recursive menus and passive presentation before one-time queue binding.
 - `desktop/shell_notifications.h`: `Desktop::NotificationCenter`, publish/update/dismiss of multiple process-local notifications.
 - `desktop/shell_jump_lists.h`: stateless complete publication of tasks, categories, and recent items.
-- `desktop/shell_registration.h`: stateless current-user file-extension and URI-scheme registration with ownership keys, atomic same-owner replacement, and conflict reporting.
+- `desktop/shell_registration.h`: stateless current-user file-extension and URI-scheme registration
+  with ownership keys, atomic same-owner replacement, and conflict reporting.
 
 See @ref desktop_shell for lifecycle, capability, ownership, and validation contracts.
 
@@ -180,9 +182,13 @@ OS HDR/WCG/color facts belong to Desktop display inspection, not to the renderer
 
 ## Text contract
 
-Public Desktop text is UTF-8, converted strictly to/from UTF-16 at native boundaries by the Unicode foundation library. Native title operations also reject embedded U+0000 (Win32 consumes NUL-terminated strings).
+Public Desktop text is UTF-8, converted strictly to/from UTF-16 at native boundaries by the Unicode
+foundation library. Native title operations also reject embedded U+0000 (Win32 consumes
+NUL-terminated strings).
 
 ## Renderer bridge
 
 `Desktop::Renderer` holds renderer-to-Window integration only: occlusion-provider attachment/reporting, pointer hit-mask publication, and the
-concurrent-read opt-in (`enableConcurrentPresentationReads()`, `concurrentPresentationReadsEnabled()`). Passive values live under `Desktop::Types::Renderer`. See @ref desktop_renderer_integration.
+concurrent-read opt-in (`enableConcurrentPresentationReads()`,
+`concurrentPresentationReadsEnabled()`). Passive values live under `Desktop::Types::Renderer`.
+See @ref desktop_renderer_integration.

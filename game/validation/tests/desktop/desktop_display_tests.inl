@@ -104,13 +104,17 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("HDR-capable disabled fixture retains support", hdrDisabled.hdrSupported));
     static_cast<void>(context.expectFalse("HDR-capable disabled fixture remains disabled", hdrDisabled.hdrEnabled));
     static_cast<void>(context.expectEq("HDR-disabled fixture remains SDR", Desktop::Types::Display::ColorSpace::Srgb, hdrDisabled.activeColorSpace));
-    static_cast<void>(context.expectEq("color precision converts to public width", std::uint16_t{10}, *hdrDisabled.bitsPerColorChannel));
+    static_cast<void>(context.expectEq("color precision converts to public width", std::uint16_t{10}, hdrDisabled.bitsPerColorChannel.value_or(0)));
     static_cast<void>(context.expectFalse("negative luminance becomes unavailable", hdrDisabled.minimumLuminanceNits.has_value()));
-    static_cast<void>(context.expectNear("peak luminance keeps nit units", 1000.0, static_cast<double>(*hdrDisabled.maximumLuminanceNits), 0.001));
+    static_cast<void>(
+        context.expectNear("peak luminance keeps nit units", 1000.0, static_cast<double>(hdrDisabled.maximumLuminanceNits.value_or(0.0F)), 0.001));
     static_cast<void>(
         context.expectFalse("non-finite full-frame luminance becomes unavailable", hdrDisabled.maximumFullFrameLuminanceNits.has_value()));
-    static_cast<void>(
-        context.expectNear("SDR white converts from 80-nit thousandths", 200.0, static_cast<double>(*hdrDisabled.sdrWhiteLevelNits), 0.001));
+    static_cast<void>(context.expectNear(
+        "SDR white converts from 80-nit thousandths",
+        200.0,
+        static_cast<double>(hdrDisabled.sdrWhiteLevelNits.value_or(0.0F)),
+        0.001));
 
     const Desktop::Types::Display::ColorInfo hdrEnabled = Desktop::TestHooks::makeDisplayColorInfo(
         fixtureMonitor,
@@ -121,8 +125,10 @@ void testDisplayColorInformation(TestSupport::Context &context)
          .bitsPerColorChannel = std::numeric_limits<std::uint32_t>::max()});
     static_cast<void>(context.expectTrue("HDR fixture remains enabled", hdrEnabled.hdrEnabled));
     static_cast<void>(context.expectEq("HDR fixture remains PQ", Desktop::Types::Display::ColorSpace::Hdr10Pq, hdrEnabled.activeColorSpace));
-    static_cast<void>(
-        context.expectEq("oversized channel precision saturates", std::numeric_limits<std::uint16_t>::max(), *hdrEnabled.bitsPerColorChannel));
+    static_cast<void>(context.expectEq(
+        "oversized channel precision saturates",
+        std::numeric_limits<std::uint16_t>::max(),
+        hdrEnabled.bitsPerColorChannel.value_or(0)));
 
     const Desktop::Types::Display::ColorInfo wideColor = Desktop::TestHooks::makeDisplayColorInfo(
         fixtureMonitor,

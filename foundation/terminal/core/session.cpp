@@ -6,23 +6,17 @@
 #include "terminal/internal/terminal_input.h"
 #include "terminal/internal/terminal_platform.h"
 #include "terminal/internal/terminal_status.h"
-#include "unicode/unicode.h"
-
-#include <algorithm>
 #include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <condition_variable>
-#include <exception>
 #include <format>
-#include <limits>
 #include <mutex>
 #include <new>
 #include <optional>
 #include <span>
 #include <stop_token>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>

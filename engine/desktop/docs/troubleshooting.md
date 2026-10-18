@@ -1,6 +1,7 @@
 @page desktop_troubleshooting Troubleshooting
 
-Most failures identify a lifecycle, owner-thread, capability, or native-state boundary. Start with the returned status and `lifetimeState()`, then find the case below.
+Most failures identify a lifecycle, owner-thread, capability, or native-state boundary. Start with
+the returned status and `lifetimeState()`, then find the case below.
 
 ## A dialog returns ResourceBusy, NotOpen, or Unsupported
 
@@ -140,7 +141,9 @@ payload, stop native/renderer use, then call `close()` on the owner thread; reop
 Include `desktop/native/win32.h` only in a Win32 translation unit and query after successful open on the owner thread. `getHandle()` returns
 `ResourceBusy` on another thread and `NotOpen` without a live HWND. Never destroy the returned HWND.
 
-For ChildSurface hosting, include `desktop/child_surface.h` and `desktop/native/win32.h`; the external technology must not destroy, reparent, or subclass the host. See @ref desktop_child_surfaces.
+For ChildSurface hosting, include `desktop/child_surface.h` and `desktop/native/win32.h`; the
+external technology must not destroy, reparent, or subclass the host. See @ref
+desktop_child_surfaces.
 
 ## Clipboard reports ResourceBusy
 
@@ -178,7 +181,9 @@ contract.
 
 ## Occlusion reporting is unavailable
 
-`supports(Types::Capability::OcclusionReporting)` is the stable backend capability, not provider attachment. Include `desktop/renderer_bridge.h`, check `Renderer::hasOcclusionProvider(window)`, and call
+`supports(Types::Capability::OcclusionReporting)` is the stable backend capability, not provider
+attachment. Include `desktop/renderer_bridge.h`, check `Renderer::hasOcclusionProvider(window)`,
+and call
 `Renderer::attachOcclusionProvider(window)` once the renderer has an authoritative presentation source.
 
 All three occlusion calls run on the owner thread. `reportOcclusion()` returns `NotOpen` before attachment and after
@@ -188,7 +193,8 @@ detachment. Forward only an authoritative Renderer result; minimization, visibil
 
 Call `Renderer::enableConcurrentPresentationReads(window)` on the open Window's owner thread before starting
 the renderer thread. `NotOpen`: no native lifetime committed; `ResourceBusy`: not the owner thread; `OutOfMemory`:
-publication allocation not installed. A failed call leaves owner-thread getters unchanged and the feature disabled. Do not retry from a renderer getter. See @ref desktop_renderer_integration.
+publication allocation not installed. A failed call leaves owner-thread getters unchanged and the
+feature disabled. Do not retry from a renderer getter. See @ref desktop_renderer_integration.
 
 ## Display color is unknown or stale
 

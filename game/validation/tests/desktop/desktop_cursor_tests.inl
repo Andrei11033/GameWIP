@@ -193,6 +193,8 @@ void testCursorNativeResources(TestSupport::Context &context)
             std::array<std::byte, 4>{std::byte{0x33}, std::byte{0x22}, std::byte{0x11}, std::byte{0x44}},
             snapshot.firstBgraPixel));
 
+        // Intentional copy: this verifies that sharing a cursor does not duplicate native variants.
+        // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
         Desktop::Cursor shared = *one;
         static_cast<void>(context.expectEq(
             "copying a Cursor does not duplicate native variants",

@@ -6,7 +6,6 @@
 
 #include <new>
 #include <system_error>
-#include <utility>
 
 namespace GameWIP::TestSupport::Detail
 {

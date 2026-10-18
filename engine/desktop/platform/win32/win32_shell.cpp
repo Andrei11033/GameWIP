@@ -22,8 +22,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <limits>
-#include <memory>
 #include <new>
 #include <span>
 #include <string>
@@ -1534,6 +1532,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 catch (...)
                 {
+                    return;
                 }
             }
 

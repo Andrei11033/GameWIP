@@ -1,6 +1,7 @@
 @page desktop_future_extensions Future extension boundaries
 
-`desktop/window.h` models only native top-level windows. Additive platform capabilities belong in opt-in headers within the existing `GameWIP::Desktop` target and package, not new top-level engine
+`desktop/window.h` models only native top-level windows. Additive platform capabilities belong in
+opt-in headers within the existing `GameWIP::Desktop` target and package, not new top-level engine
 libraries or a larger umbrella header. Active work is tracked in GitHub issues, not here.
 
 ## Platform shell boundary
@@ -23,7 +24,8 @@ backend work and stays `Unsupported` until a documented stable native API can sa
 
 ## Data transfer, drag and drop, and dialogs
 
-Clipboard and the shared transfer vocabulary live in `desktop/clipboard.h` and `desktop/data_transfer.h`; `desktop/drag_drop.h` reuses that contract. Dialogs and modeless
+Clipboard and the shared transfer vocabulary live in `desktop/clipboard.h` and
+`desktop/data_transfer.h`; `desktop/drag_drop.h` reuses that contract. Dialogs and modeless
 progress use `desktop/dialogs.h` (@ref desktop_dialogs). Lightweight file-drop events remain the core path-only capability.
 
 Renderer surface lifetime, swapchains, and synchronization remain Renderer responsibilities; the bridge's boundaries are in @ref desktop_renderer_integration.

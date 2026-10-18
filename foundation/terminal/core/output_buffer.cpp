@@ -9,8 +9,6 @@
 #include <cstddef>
 #include <format>
 #include <iterator>
-#include <new>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 

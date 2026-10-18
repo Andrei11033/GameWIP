@@ -195,7 +195,7 @@ namespace GameWIP::Desktop::Types::Shell
         /// @brief Target argument; the target's storage is borrowed.
         [[nodiscard]] inline LaunchArgumentView target(TargetView value) noexcept
         {
-            return TargetLaunchArgumentView{std::move(value)};
+            return TargetLaunchArgumentView{value};
         }
         /// @brief Placeholder expanded from the selected target set.
         [[nodiscard]] inline LaunchArgumentView placeholder(LaunchPlaceholder value) noexcept

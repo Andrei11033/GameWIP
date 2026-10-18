@@ -7,7 +7,6 @@
 #include "unicode/unicode.h"
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <new>
 
 namespace GameWIP::Desktop::Detail
@@ -244,12 +243,16 @@ namespace GameWIP::Desktop::Detail
                 return range.begin <= range.end && std::ranges::binary_search(boundaries, range.begin) &&
                        std::ranges::binary_search(boundaries, range.end);
             };
-            if ((request.range && !valid(*request.range)) || std::ranges::any_of(
-                                                                 request.selection,
-                                                                 [&](auto range)
-                                                                 {
-                                                                     return !valid(range);
-                                                                 }))
+            bool invalidSelection = false;
+            for (const auto range : request.selection)
+            {
+                if (!valid(range))
+                {
+                    invalidSelection = true;
+                    break;
+                }
+            }
+            if ((request.range && !valid(*request.range)) || invalidSelection)
             {
                 return {A::ActionAcceptance::Invalid};
             }

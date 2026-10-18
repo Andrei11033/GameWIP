@@ -3,7 +3,6 @@
 
 #include "desktop/internal/accessibility_state.h"
 #include <algorithm>
-#include <limits>
 #include <new>
 
 namespace GameWIP::Desktop::Detail

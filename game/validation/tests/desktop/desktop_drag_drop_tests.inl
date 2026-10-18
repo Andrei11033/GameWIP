@@ -339,7 +339,7 @@ void testDragDrop(TestSupport::Context &context)
         "open publishes a copy independent of caller region storage",
         DD::RegionId{2},
         Desktop::TestHooks::matchDragDropRegion(target, {30, 30}, textFormat)));
-    regions[1] = {DD::RegionId{2}, Desktop::Types::LogicalRect{{20, 20}, {80, 60}}, textFormat, DD::Effect::Copy, DD::Effect::Copy};
+    regions[1] = {DD::RegionId{2}, Desktop::Types::LogicalRect{{20, 20}, {80, 60}}, textFormat, DD::EffectPolicy::copy()};
     std::array<Transfer::FormatView, 1> filesOnly{{Transfer::FormatView::files()}};
     static_cast<void>(context.expectEq(
         "unaccepted metadata produces no region",
@@ -444,7 +444,7 @@ void testDragDrop(TestSupport::Context &context)
 
     std::string copiedCustomName = "GameWIP.FormatAlpha";
     std::array<Transfer::FormatView, 1> copiedCustomFormat{{Transfer::FormatView::custom(copiedCustomName)}};
-    std::array<DD::RegionDescription, 1> copiedRegions{{{DD::RegionId{9}, std::nullopt, copiedCustomFormat, DD::Effect::Copy, DD::Effect::Copy}}};
+    std::array<DD::RegionDescription, 1> copiedRegions{{{DD::RegionId{9}, std::nullopt, copiedCustomFormat, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectTrue("setRegions copies caller views", target.setRegions(copiedRegions).ok()));
     copiedCustomName.assign("GameWIP.FormatBravo");
     std::array<Transfer::FormatView, 1> originalCustomFormat{{Transfer::FormatView::custom("GameWIP.FormatAlpha")}};

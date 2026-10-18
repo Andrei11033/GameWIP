@@ -18,12 +18,15 @@ rectangles remain comparable in one physical desktop space.
 
 ## Conversion
 
-`clientToScreen(LogicalPosition)` returns `Types::Result<ScreenPosition>`; `screenToClient(ScreenPosition)` returns `Types::Result<LogicalPosition>`. Win32 does the native conversion and Window applies DPI rounding at the boundary, so round trips near fractional scales may differ by one
-logical unit.
+`clientToScreen(LogicalPosition)` returns `Types::Result<ScreenPosition>`;
+`screenToClient(ScreenPosition)` returns `Types::Result<LogicalPosition>`. Win32 does the native
+conversion and Window applies DPI rounding at the boundary, so round trips near fractional scales
+may differ by one logical unit.
 
-A closed Window returns `NotOpen`; wrong-thread access returns `ResourceBusy`. Scaling and client-to-frame placement
-use widened arithmetic; a value unrepresentable in Win32's signed physical coordinates (including positive extents after DPI scaling and frame adjustment) returns `InvalidArgument` with an
-arithmetic-overflow diagnostic instead of wrapping. Returned
+A closed Window returns `NotOpen`; wrong-thread access returns `ResourceBusy`.
+Scaling and client-to-frame placement use widened arithmetic; a value unrepresentable in Win32's
+signed physical coordinates (including positive extents after DPI scaling and frame adjustment)
+returns `InvalidArgument` with an arithmetic-overflow diagnostic instead of wrapping. Returned
 positions are confirmed native geometry, not an unverified request.
 
 ## Framebuffer and scale
@@ -32,15 +35,19 @@ positions are confirmed native geometry, not an unverified request.
 unit; `effectiveDpi()` is the DPI snapshot. Resize renderer attachments from
 `Types::Events::FramebufferSizeChanged` or the cached framebuffer getter.
 
-After `Renderer::enableConcurrentPresentationReads()` succeeds (@ref desktop_renderer_integration), these four getters and `currentMonitor()` use atomic publication and may be read from a renderer
+After `Renderer::enableConcurrentPresentationReads()` succeeds (@ref desktop_renderer_integration),
+these four getters and `currentMonitor()` use atomic publication and may be read from a renderer
 thread; a returned pair never mixes publications, but separate calls are not a transactional snapshot. Before opt-in they are owner-thread cached getters.
-Renderers may use `currentMonitor()` to select output-dependent color, HDR, or presentation policy, then re-query display details through owner-thread APIs.
+Renderers may use `currentMonitor()` to select output-dependent color, HDR, or presentation policy,
+then re-query display details through owner-thread APIs.
 
 ## DPI resize policy
 
-`DpiResizePolicy::PreserveLogicalClientSize` (default) keeps the logical client extent across a DPI transition, changing the physical extent to preserve apparent size.
+`DpiResizePolicy::PreserveLogicalClientSize` (default) keeps the logical client extent across a DPI
+transition, changing the physical extent to preserve apparent size.
 
-`DpiResizePolicy::PreservePhysicalClientSize` keeps the physical extent and recalculates the logical one, for capture, deterministic rendering tests, and fixed-resolution workflows.
+`DpiResizePolicy::PreservePhysicalClientSize` keeps the physical extent and recalculates the logical
+one, for capture, deterministic rendering tests, and fixed-resolution workflows.
 
 `setDpiResizePolicy()` affects future transitions only. A framebuffer-size change invalidates an active packed
 pointer mask; moving the Window without changing the extent does not.
