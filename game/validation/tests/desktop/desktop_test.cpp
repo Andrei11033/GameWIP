@@ -4,6 +4,7 @@
 #include "validation/tests/desktop/desktop_test.h"
 #include "validation/tests/desktop/accessibility_test.h"
 #include "validation/process_arguments.h"
+#include "validation/tests/runner_helpers.h"
 
 #include "test_support/test_support.h"
 #include "desktop/child_surface.h"
@@ -512,14 +513,8 @@ namespace GameWIP::Test
             std::string_view{"borderless"},    std::string_view{"exclusive"},       std::string_view{"topology"},
             std::string_view{"hdr"},           std::string_view{"modern"}};
 
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
         reportOptions.flushReportEachLine = options.enableManualTests;
-        reportOptions.reportPath = options.reportPath;
 
         TestSupport::Runner runner(reportOptions);
         ManualStatusWindow statusWindow(options.enableManualTests);
@@ -762,12 +757,6 @@ namespace GameWIP::Test
         }
         runner.summary(std::format("Desktop library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
         manualStatusWindow = nullptr;
-        const int exitCode = runner.exitCode();
-        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
-        if (!reportStatus.failureStatus.ok())
-        {
-            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
-        }
-        return exitCode;
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

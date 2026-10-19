@@ -32,11 +32,7 @@ function Get-GameWipSetupActionOptionIds
 function Assert-GameWipSetupOptionCatalog
 {
     $options = @($SetupActionConfig.Options)
-    $duplicateOptions = @($options | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object Count -gt 1)
-    if ($duplicateOptions.Count -ne 0)
-    {
-        throw "Duplicate setup option IDs: $($duplicateOptions.Name -join ', ')."
-    }
+    Assert-GameWipUniqueId -Items $options -Label 'setup option'
     $optionIds = @{}
     foreach ($option in $options)
     {
@@ -109,32 +105,17 @@ function Assert-GameWipSetupActionCatalog
 {
     $actions = @($SetupActionConfig.Actions)
     Assert-GameWipSetupOptionCatalog
+    Assert-GameWipUniqueId -Items $actions -Label 'setup action'
     $requiredActionIds = @('menu', 'full', 'check', 'update', 'repair', 'deps', 'uninstall', 'tool', 'vs', 'msys2', 'repo', 'profiler', 'editor', 'doc', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
     if ((($requiredActionIds | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
         throw "Setup action catalog drift. Required: $($requiredActionIds -join ', '); configured: $($actionIds -join ', ')."
     }
-    $duplicateIds = @($actions | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object Count -gt 1)
-    if ($duplicateIds.Count -ne 0)
-    {
-        throw "Duplicate setup action IDs: $($duplicateIds.Name -join ', ')."
-    }
     $duplicateKeys = @($actions | Where-Object { $_.ContainsKey('Key') } | ForEach-Object { [string]$_.Key } | Group-Object | Where-Object Count -gt 1)
     if ($duplicateKeys.Count -ne 0)
     {
         throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')."
-    }
-    $actionNames = @{}
-    foreach ($action in $actions)
-    {
-        $canonical = [string]$action.Id
-        $canonicalKey = $canonical.ToLowerInvariant()
-        if ($actionNames.ContainsKey($canonicalKey))
-        {
-            throw "Setup action name '$canonical' is duplicated."
-        }
-        $actionNames[$canonicalKey] = $canonical
     }
     foreach ($toolId in @($SetupActionConfig.BootstrapToolIds))
     {

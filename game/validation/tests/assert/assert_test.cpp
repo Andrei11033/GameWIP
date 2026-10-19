@@ -11,6 +11,7 @@
 #include "debug/assert/internal/assert_test_hooks.h"
 
 #include "logger/logger.h"
+#include "validation/tests/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>
@@ -403,13 +404,7 @@ namespace GameWIP::Test
             return runUnreachableChild();
         }
 
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
-        reportOptions.reportPath = options.reportPath;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("Assert test report: {}", options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
@@ -597,12 +592,6 @@ namespace GameWIP::Test
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
         Logger::shutdown();
-        const int exitCode = runner.exitCode();
-        const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
-        if (!reportStatus.failureStatus.ok())
-        {
-            std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
-        }
-        return exitCode;
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

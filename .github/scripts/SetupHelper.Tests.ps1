@@ -93,6 +93,56 @@ foreach ($action in $SetupActionConfig.Actions)
     }
 }
 
+$originalSetupStatePath = $script:SetupStatePath
+$setupStateTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\setup-state-test-' + [guid]::NewGuid().ToString('N'))
+try
+{
+    New-Item -ItemType Directory -Force -Path $setupStateTestRoot | Out-Null
+    $script:SetupStatePath = Join-Path $setupStateTestRoot 'setup.json'
+
+    $missingState = Get-GameWipSetupState
+    if ($script:SetupStateReadStatus -ne 'missing' -or $missingState.schemaVersion -ne 1)
+    {
+        throw 'A missing setup state file must continue to produce the first-install default.'
+    }
+
+    [ordered]@{
+        schemaVersion = 1
+        wingetPackages = @('package.id')
+        vscodeExtensions = @('publisher.extension')
+        msys2InstalledBySetup = $true
+    } | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
+    $validState = Get-GameWipSetupState
+    if ($script:SetupStateReadStatus -ne 'valid' -or @($validState.wingetPackages) -notcontains 'package.id' -or
+        @($validState.vscodeExtensions) -notcontains 'publisher.extension' -or -not $validState.msys2InstalledBySetup)
+    {
+        throw 'A complete setup state must preserve all ownership fields.'
+    }
+
+    foreach ($missingField in @('wingetPackages', 'vscodeExtensions', 'msys2InstalledBySetup'))
+    {
+        $state = [ordered]@{
+            schemaVersion = 1
+            wingetPackages = @()
+            vscodeExtensions = @()
+            msys2InstalledBySetup = $false
+        }
+        $state.Remove($missingField)
+        $state | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
+
+        $invalidState = Get-GameWipSetupState
+        if ($script:SetupStateReadStatus -ne 'corrupt' -or $invalidState.schemaVersion -ne 1)
+        {
+            throw "Setup state missing required ownership field '$missingField' was not rejected."
+        }
+    }
+}
+finally
+{
+    $script:SetupStatePath = $originalSetupStatePath
+    Remove-Item -LiteralPath $setupStateTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 $originalSetupStateRoot = [string]$ProjectConfig.storage.state
 $editorStateRoot = 'build/gamewip/temp/editor-state-test-' + [guid]::NewGuid().ToString('N')
 try
