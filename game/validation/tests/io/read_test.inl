@@ -17,6 +17,7 @@ void testReadAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectEq("readAllBytes exact limit preserves bytes", source, exactLimit.bytes));
 
     IO::MemoryReader seekedReader(spanOf(source));
+
     if (context.expectEq("readAllBytes fixture seek status", ErrorCode::Success, seekedReader.seek(2, IO::Types::SeekOrigin::Begin).code))
     {
         const IO::Types::ReadAllBytesResult seekedResult = IO::readAllBytes(seekedReader, 3, 2);
@@ -200,6 +201,7 @@ void testReadAllText(TestSupport::Context &context)
     static_cast<void>(context.expectEq("readAllText exact limit preserves text", text, exactLimit.text));
 
     IO::MemoryReader seekedReader(bytesOf(text));
+
     if (context.expectEq("readAllText fixture seek status", ErrorCode::Success, seekedReader.seek(5, IO::Types::SeekOrigin::Begin).code))
     {
         const IO::Types::ReadAllTextResult seekedResult = IO::readAllText(seekedReader, 5, 2);

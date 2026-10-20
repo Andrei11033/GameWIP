@@ -18,6 +18,7 @@ namespace GameWIP::Version
     inline constexpr std::string_view display = "@GAMEWIP_VERSION_DISPLAY@";
     /// @brief Full product display string suitable for `--version` output.
     inline constexpr char productDisplay[] = "GameWIP @GAMEWIP_VERSION_DISPLAY@";
+
     /// @brief Repository-local build number or fallback selected when the header was generated.
     inline constexpr std::string_view buildNumber = "@GAMEWIP_VERSION_BUILD_NUMBER@";
     /// @brief Git commit recorded when the header was generated, when available.

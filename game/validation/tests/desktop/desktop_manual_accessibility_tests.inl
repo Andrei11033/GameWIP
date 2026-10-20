@@ -13,11 +13,13 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     description.activation.visible = true;
     description.activation.requestFocus = true;
     description.windowed.clientSize = {800, 450};
+
     if (!requireManualStatus(context, "accessibility demo opens", window.open(description)))
     {
         return;
     }
     auto bridge = window.accessibility();
+
     if (!requireManualStatus(context, "accessibility demo enables", bridge.enable()))
     {
         return;
@@ -52,6 +54,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     nodes[3].value = "MUST NOT BE EXPOSED";
     nodes[3].geometry = A::Geometry{{24, 180, 180, 40}};
     A::Generation generation = 1;
+
     if (!requireManualStatus(context, "accessibility semantic fixture publishes", bridge.publish({generation, 1, nodes})))
     {
         return;
@@ -61,27 +64,32 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     const auto observe = [&]
     {
         A::ActionRequest request;
+
         while (bridge.popAction(request))
         {
             if (request.node != 2)
             {
                 continue;
             }
+
             if (request.action == A::ActionKind::Focus)
             {
                 static_cast<void>(window.requestFocus());
             }
+
             if (request.action == A::ActionKind::Invoke)
             {
                 count = std::format("Invoked {} times", ++invocations);
                 nodes[1].description = count;
                 static_cast<void>(bridge.publish({++generation, 1, nodes}));
+
                 if (bridge.features().supports(A::Feature::Announcements))
                 {
                     static_cast<void>(bridge.announce({2, "Accessibility action received", "en-US"}));
                 }
             }
         }
+
         if (manualStatusWindow)
         {
             manualStatusWindow->setObservation(
@@ -117,6 +125,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
         "Move/resize the Window and, if available, move it across differently scaled monitors. Do inspector screen bounds follow the Window and clip "
         "to its client area?",
         observe);
+
     if (!requireManualStatus(context, "accessibility demo disables", bridge.disable()))
     {
         return;

@@ -48,6 +48,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
 if ($Quiet)
 {
     $OutputMode = 'LogOnly'
@@ -83,6 +84,7 @@ if ($Action -in @('--help', '-h', '-?'))
     $Action = 'help'
 }
 $resolvedAction = Resolve-GameWipActionName -Name $Action
+
 if ($null -eq $resolvedAction)
 {
     Write-GameWipHost "Unknown project action '$Action'." -ForegroundColor Red
@@ -106,10 +108,12 @@ if ($Action -eq 'help')
 {
     Show-GameWipHelp; exit 0
 }
+
 if ($Action -eq 'list')
 {
     Show-GameWipProjectCatalog; exit 0
 }
+
 if ($Action -eq 'menu')
 {
     if ($NonInteractive)
@@ -154,6 +158,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('status', 'fetch', 'switch', 'update', 'cleanup', 'create', 'push', 'log'))
             {
                 throw "Unknown git command '$verb'."
@@ -170,6 +175,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('list', 'status', 'run'))
             {
                 throw "Unknown workflow command '$verb'."
@@ -186,10 +192,12 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('status', 'verify', 'regenerate'))
             {
                 throw "Unknown unicode command '$verb'."
             }
+
             if ($verb -eq 'regenerate')
             {
                 Invoke-GameWipMutation -Summary 'Regenerate the tracked Unicode property table.' -Risk tracked -Plan @('Verify/download pinned Unicode input.', 'Generate and format a candidate.', 'Replace the tracked table only if content changes.') -Body { Invoke-GameWipUnicodeAction -Name regenerate } | Out-Null
@@ -213,10 +221,12 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('check', 'apply'))
             {
                 throw "Unknown format command '$verb'."
             }
+
             if ($verb -eq 'apply')
             {
                 Invoke-GameWipMutation -Summary 'Apply repository C/C++ formatting.' -Risk tracked -Plan @('Rewrite maintained C/C++ files with the repository clang-format policy.') -Body { Invoke-GameWipFormat -Mode apply } | Out-Null
@@ -236,10 +246,12 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('check', 'fix', 'status', 'hygiene'))
             {
                 throw "Unknown quality command '$verb'."
             }
+
             if ($verb -eq 'fix')
             {
                 Invoke-GameWipMutation -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' -Risk tracked -Plan @('Validate every tool required by the quality workflow before mutation.', 'Apply deterministic formatter changes and normalize maintained text to LF.', 'Run all independent quality checks and aggregate failures.') -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed } | Out-Null
@@ -258,6 +270,7 @@ $result = Invoke-GameWipOperation `
                 {
                     $Target
                 }
+
                 if ($selector -eq 'list')
                 {
                     Show-GameWipHygieneList
@@ -269,6 +282,7 @@ $result = Invoke-GameWipOperation `
                 else
                 {
                     $hygieneSelection = Get-GameWipHygieneSelection -Selector $selector
+
                     if (@($hygieneSelection.Checks | Where-Object Availability -eq available).Count -eq 0)
                     {
                         Invoke-GameWipHygieneAudit -Selector $selector -Enforce:$Enforce
@@ -294,6 +308,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('list', 'status', 'check-updates', 'ensure', 'update'))
             {
                 throw "Unknown tool command '$verb'."
@@ -306,6 +321,7 @@ $result = Invoke-GameWipOperation `
             {
                 $Target
             }
+
             if ($verb -eq 'list')
             {
                 Show-GameWipToolList
@@ -566,10 +582,12 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('run', 'dry-run', 'list', 'compare'))
             {
                 throw "Unknown bench command '$verb'."
             }
+
             if ($verb -eq 'compare' -and ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate)))
             {
                 throw 'bench compare requires -BaselinePath and -CandidatePath.'
@@ -603,10 +621,12 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+
             if ($verb -notin @('list', 'show', 'clean'))
             {
                 throw "Unknown history command '$verb'."
             }
+
             if ($verb -eq 'list')
             {
                 Show-GameWipRunList -All:($Target -eq 'all')
@@ -641,10 +661,12 @@ if ($Json)
 {
     $result | ConvertTo-Json -Depth 12 | Write-Output
 }
+
 if ($result.Status -eq 'cancelled')
 {
     exit 130
 }
+
 if ($result.Status -ne 'passed')
 {
     exit 1

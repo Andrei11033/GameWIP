@@ -22,9 +22,11 @@ class JsonSourceParser {
         this.skipWhitespace();
         const value = this.parseValue();
         this.skipWhitespace();
+
         if (this.offset !== this.source.length) {
             this.fail('unexpected trailing content');
         }
+
         return value;
     }
 
@@ -40,41 +42,53 @@ class JsonSourceParser {
 
     parseValue() {
         const character = this.source[this.offset];
+
         if (character === '{') {
             return this.parseObject();
         }
+
         if (character === '[') {
             return this.parseArray();
         }
+
         if (character === '"') {
             return this.parseString();
         }
+
         if (character === 't') {
             return this.parseLiteral('true', true);
         }
+
         if (character === 'f') {
             return this.parseLiteral('false', false);
         }
+
         if (character === 'n') {
             return this.parseLiteral('null', null);
         }
+
         return this.parseNumber();
     }
 
     parseString() {
         const start = this.offset++;
+
         while (this.offset < this.source.length) {
             const character = this.source[this.offset++];
+
             if (character === '"') {
                 const token = this.source.slice(start, this.offset);
                 let value;
+
                 try {
                     value = JSON.parse(token);
                 } catch (error) {
                     this.fail(error.message);
                 }
+
                 return { type: 'string', value, start, end: this.offset };
             }
+
             if (character === '\\') {
                 if (this.offset >= this.source.length) {
                     this.fail('unterminated escape sequence');
@@ -91,19 +105,23 @@ class JsonSourceParser {
         const start = this.offset++;
         const properties = new Map();
         this.skipWhitespace();
+
         if (this.source[this.offset] === '}') {
             this.offset += 1;
             return { type: 'object', properties, start, end: this.offset };
         }
+
         while (true) {
             if (this.source[this.offset] !== '"') {
                 this.fail('object key must be a string');
             }
             const key = this.parseString();
+
             if (properties.has(key.value)) {
                 this.fail(`duplicate object key ${JSON.stringify(key.value)}`);
             }
             this.skipWhitespace();
+
             if (this.source[this.offset++] !== ':') {
                 this.fail("expected ':' after object key");
             }
@@ -111,14 +129,17 @@ class JsonSourceParser {
             properties.set(key.value, { key, value: this.parseValue() });
             this.skipWhitespace();
             const separator = this.source[this.offset++];
+
             if (separator === '}') {
                 break;
             }
+
             if (separator !== ',') {
                 this.fail("expected ',' or '}' in object");
             }
             this.skipWhitespace();
         }
+
         return { type: 'object', properties, start, end: this.offset };
     }
 
@@ -126,27 +147,33 @@ class JsonSourceParser {
         const start = this.offset++;
         const items = [];
         this.skipWhitespace();
+
         if (this.source[this.offset] === ']') {
             this.offset += 1;
             return { type: 'array', items, start, end: this.offset };
         }
+
         while (true) {
             items.push(this.parseValue());
             this.skipWhitespace();
             const separator = this.source[this.offset++];
+
             if (separator === ']') {
                 break;
             }
+
             if (separator !== ',') {
                 this.fail("expected ',' or ']' in array");
             }
             this.skipWhitespace();
         }
+
         return { type: 'array', items, start, end: this.offset };
     }
 
     parseLiteral(token, value) {
         const start = this.offset;
+
         if (this.source.slice(this.offset, this.offset + token.length) !== token) {
             this.fail('invalid literal');
         }
@@ -158,6 +185,7 @@ class JsonSourceParser {
         const start = this.offset;
         const remaining = this.source.slice(this.offset);
         const match = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/.exec(remaining);
+
         if (!match) {
             this.fail('expected a JSON value');
         }
@@ -174,6 +202,7 @@ function scalarValue(node) {
     if (!['string', 'number', 'boolean', 'null'].includes(node.type)) {
         throw new Error('Array selector match fields must be scalar values.');
     }
+
     return node.value;
 }
 
@@ -182,19 +211,23 @@ function objectProperty(node, name, context) {
         throw new Error(`${context} requires an object.`);
     }
     const property = node.properties.get(name);
+
     if (!property) {
         throw new Error(`${context} could not find property ${JSON.stringify(name)}.`);
     }
+
     return property.value;
 }
 
 function resolvePath(node, path, context) {
     let current = node;
+
     for (const segment of path) {
         if (typeof segment === 'string') {
             current = objectProperty(current, segment, context);
             continue;
         }
+
         if (
             !segment ||
             typeof segment !== 'object' ||
@@ -205,6 +238,7 @@ function resolvePath(node, path, context) {
         ) {
             throw new Error(`${context} has an unsupported path segment.`);
         }
+
         if (current.type !== 'array') {
             throw new Error(`${context} selector requires an array.`);
         }
@@ -212,16 +246,19 @@ function resolvePath(node, path, context) {
             if (candidate.type !== 'object') {
                 return false;
             }
+
             return Object.entries(segment.match).every(([key, expected]) => {
                 const property = candidate.properties.get(key);
                 return property && scalarValue(property.value) === expected;
             });
         });
+
         if (matches.length !== 1) {
             throw new Error(`${context} selector matched ${matches.length} items; expected exactly one.`);
         }
         current = matches[0];
     }
+
     return current;
 }
 
@@ -231,13 +268,16 @@ function parseJsonSource(source) {
 
 function locateMutation(root, mutation, index) {
     const context = `Mutation ${index}`;
+
     if (!mutation || typeof mutation !== 'object' || typeof mutation.toolId !== 'string' || !Array.isArray(mutation.path)) {
         throw new Error(`${context} must declare toolId and path.`);
     }
+
     if (typeof mutation.expected !== 'string' || typeof mutation.value !== 'string') {
         throw new Error(`${context} supports only string expected/value fields.`);
     }
     const tools = objectProperty(root, 'tools', context);
+
     if (tools.type !== 'array') {
         throw new Error('Top-level tools must be an array.');
     }
@@ -248,16 +288,20 @@ function locateMutation(root, mutation, index) {
         const id = tool.properties.get('id');
         return id && id.value.type === 'string' && id.value.value === mutation.toolId;
     });
+
     if (toolMatches.length !== 1) {
         throw new Error(`${context} found ${toolMatches.length} tools with id ${JSON.stringify(mutation.toolId)}; expected exactly one.`);
     }
     const target = resolvePath(toolMatches[0], mutation.path, context);
+
     if (target.type !== 'string') {
         throw new Error(`${context} target must be a JSON string.`);
     }
+
     if (target.value !== mutation.expected) {
         throw new Error(`${context} expected ${JSON.stringify(mutation.expected)} but found ${JSON.stringify(target.value)}.`);
     }
+
     return { target, mutation, index };
 }
 
@@ -268,8 +312,10 @@ function mutateProjectToolsSource(source, specification) {
     const root = parseJsonSource(source);
     const located = specification.mutations.map((mutation, index) => locateMutation(root, mutation, index));
     const ranges = new Set();
+
     for (const entry of located) {
         const range = `${entry.target.start}:${entry.target.end}`;
+
         if (ranges.has(range)) {
             throw new Error(`Duplicate mutations target source range ${range}.`);
         }
@@ -277,14 +323,17 @@ function mutateProjectToolsSource(source, specification) {
     }
     const ordered = [...located].sort((left, right) => right.target.start - left.target.start);
     let output = source;
+
     for (const entry of ordered) {
         output = output.slice(0, entry.target.start) + JSON.stringify(entry.mutation.value) + output.slice(entry.target.end);
     }
     const verifiedRoot = parseJsonSource(output);
+
     for (const entry of located) {
         const verification = { ...entry.mutation, expected: entry.mutation.value };
         locateMutation(verifiedRoot, verification, entry.index);
     }
+
     return output;
 }
 
@@ -294,9 +343,11 @@ function mutateProjectToolsSource(source, specification) {
 
 function readUtf8(path) {
     const bytes = fs.readFileSync(path);
+
     if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
         throw new Error(`${path} must be UTF-8 without BOM.`);
     }
+
     return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 

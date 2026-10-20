@@ -43,6 +43,7 @@ test('does not let removed HTML comments reform comment openers', () => {
 
 test('maps every current area selection to exactly one canonical label', () => {
     assert.deepEqual([...AREA_LABELS_BY_VALUE], currentMappings);
+
     for (const [value, label] of currentMappings) {
         assert.equal(targetAreaLabel(`### Area\n${value}`), label);
     }

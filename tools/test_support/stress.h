@@ -94,6 +94,7 @@ namespace GameWIP::TestSupport
                         catch (...)
                         {
                             std::lock_guard lock(exceptionMutex);
+
                             if (!firstException)
                             {
                                 firstException = std::current_exception();

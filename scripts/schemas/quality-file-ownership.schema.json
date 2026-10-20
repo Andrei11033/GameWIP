@@ -3,13 +3,7 @@
   "title": "GameWIP maintained-file quality ownership",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "excludePrefixes",
-    "historicalPrefixes",
-    "binaryExtensions",
-    "policies"
-  ],
+  "required": ["schemaVersion", "excludePrefixes", "historicalPrefixes", "binaryExtensions", "policies"],
   "properties": {
     "schemaVersion": {
       "const": 1,
@@ -55,12 +49,7 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "formatter",
-        "checks",
-        "allowTrailingWhitespace"
-      ],
+      "required": ["id", "formatter", "checks", "allowTrailingWhitespace"],
       "properties": {
         "id": {
           "type": "string",
@@ -91,10 +80,7 @@
           }
         },
         "formatter": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": ["string", "null"]
         },
         "noFormatterReason": {
           "type": "string",
@@ -120,32 +106,22 @@
                 "type": "null"
               }
             },
-            "required": [
-              "formatter"
-            ]
+            "required": ["formatter"]
           },
           "then": {
-            "required": [
-              "noFormatterReason"
-            ]
+            "required": ["noFormatterReason"]
           }
         },
         {
           "anyOf": [
             {
-              "required": [
-                "exactNames"
-              ]
+              "required": ["exactNames"]
             },
             {
-              "required": [
-                "extensions"
-              ]
+              "required": ["extensions"]
             },
             {
-              "required": [
-                "suffixes"
-              ]
+              "required": ["suffixes"]
             }
           ]
         }

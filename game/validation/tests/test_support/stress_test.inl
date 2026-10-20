@@ -34,10 +34,12 @@ int runStartGateChild()
                             gate.wait();
                             const std::size_t currentStarted = started.fetch_add(1, std::memory_order_relaxed) + 1;
                             condition.notify_all();
+
                             if (currentStarted == 4)
                             {
                                 stopFlag.requestStop();
                             }
+
                             while (!stopFlag.stopRequested())
                             {
                                 std::this_thread::yield();
@@ -64,6 +66,7 @@ int runStartGateChild()
                         return approaching == 4;
                     });
                 static_cast<void>(context.expectTrue("StartGate workers reached the wait boundary", ready));
+
                 if (ready)
                 {
                     // A bounded negative observation is needed to test a blocking contract.
@@ -106,6 +109,7 @@ void testStressHelpers(TestSupport::Context &context, std::string_view executabl
         context.skip("TestSupport stress helper tests", "disabled by TestSupportTestOptions");
         return;
     }
+
     if (options.enableChildProcessTests)
     {
         TestSupport::Types::Process::Options childOptions;
@@ -113,6 +117,7 @@ void testStressHelpers(TestSupport::Context &context, std::string_view executabl
         childOptions.arguments = {"--test-support-test-child=start-gate"};
         childOptions.waitTimeout = 30s;
         const auto child = TestSupport::runChildProcess(childOptions);
+
         if (!child.status.ok() || child.outcome != TestSupport::Types::Process::Outcome::Exited || child.exitCode != 0)
         {
             context.fail(
@@ -210,6 +215,7 @@ void testStressHelpers(TestSupport::Context &context, std::string_view executabl
             [&](std::size_t workerIndex)
             {
                 enteredFailureWorkers.fetch_add(1, std::memory_order_relaxed);
+
                 if (workerIndex == 2)
                 {
                     throw std::runtime_error("intentional worker failure");

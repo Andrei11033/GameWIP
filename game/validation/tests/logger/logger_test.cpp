@@ -60,6 +60,7 @@ namespace std
             {
                 probe.formatCount->fetch_add(1, memory_order_relaxed);
             }
+
             return formatter<int, char>::format(probe.value, context);
         }
     };
@@ -212,6 +213,7 @@ namespace
     [[nodiscard]] std::filesystem::path loggerLogFilePath(TestContext &context)
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
+
         if (!result.status.ok())
         {
             context.fail(
@@ -219,17 +221,20 @@ namespace
                 std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
             return {};
         }
+
         return pathFromText(result.utf8);
     }
 
     [[nodiscard]] std::string readWholeFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
+
         if (!result.status.ok())
         {
             context.fail("read Logger log fixture", TestSupport::formatInfrastructureStatus(result.status));
             return {};
         }
+
         return std::move(result.text);
     }
 
@@ -237,10 +242,12 @@ namespace
     {
         std::filesystem::path directory = context.logRoot / std::string(name);
         const auto status = TestSupport::createDirectories(directory);
+
         if (!status.ok())
         {
             context.fail("create Logger test directory", TestSupport::formatInfrastructureStatus(status));
         }
+
         return directory;
     }
 
@@ -307,6 +314,7 @@ namespace GameWIP::Test
         {
             return runReportNoDrainChild();
         }
+
         if (hasArgument(argc, argv, kFatalTerminateChildArgument))
         {
             return runFatalTerminateChild();
@@ -320,12 +328,14 @@ namespace GameWIP::Test
             [&](TestSupport::Context &suiteContext)
             {
                 TestContext context(suiteContext);
+
                 if (!context.processState.status().ok())
                 {
                     context.fail("acquire Logger process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
                     return;
                 }
                 const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
+
                 if (!workspace.status().ok())
                 {
                     context.fail("create Logger test workspace", TestSupport::formatInfrastructureStatus(workspace.status()));
@@ -335,6 +345,7 @@ namespace GameWIP::Test
                 context.logRoot = workspace.path();
                 context.executablePath = argc > 0 && argv[0] != nullptr ? std::filesystem::absolute(argv[0]).string() : std::string{};
                 const TestSupport::ScopedCurrentPath currentPath(context.processState, workspace.path());
+
                 if (!currentPath.status().ok())
                 {
                     context.fail("set Logger test working directory", TestSupport::formatInfrastructureStatus(currentPath.status()));
@@ -433,6 +444,7 @@ namespace GameWIP::Test
                     {
                         testManualFatalPopup(context, options);
                     });
+
                 if (options.enableManualTests)
                 {
                     context.testContext.summary(

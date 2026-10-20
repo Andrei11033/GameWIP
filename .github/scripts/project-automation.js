@@ -33,21 +33,26 @@ function deriveIssueStatus(issue, activeMilestone) {
     if (issue.state !== 'OPEN') {
         return STATUS.DONE;
     }
+
     if (issue.openBlockerCount > 0) {
         return STATUS.BLOCKED;
     }
 
     const openPullRequests = issue.linkedPullRequests.filter((pullRequest) => pullRequest.state === 'OPEN');
     const reviewablePullRequest = openPullRequests.some((pullRequest) => !pullRequest.isDraft && pullRequest.reviewDecision !== 'CHANGES_REQUESTED');
+
     if (reviewablePullRequest) {
         return STATUS.REVIEW;
     }
+
     if (openPullRequests.length > 0 || issue.assignees.length > 0) {
         return STATUS.IN_PROGRESS;
     }
+
     if (issue.milestone === activeMilestone && hasRequiredLabels(issue.labels)) {
         return STATUS.READY;
     }
+
     return STATUS.BACKLOG;
 }
 
@@ -55,9 +60,11 @@ function derivePullRequestStatus(pullRequest) {
     if (pullRequest.state !== 'OPEN') {
         return STATUS.DONE;
     }
+
     if (pullRequest.isDraft || pullRequest.reviewDecision === 'CHANGES_REQUESTED') {
         return STATUS.IN_PROGRESS;
     }
+
     return STATUS.REVIEW;
 }
 
@@ -83,28 +90,35 @@ function mergeLinkedIssueMetadata(linkedIssues, author) {
                 compatibilityBreaking = true;
             }
         }
+
         for (const assignee of issue.assignees) {
             assignees.add(assignee);
         }
+
         if (issue.milestone !== null) {
             milestones.set(issue.milestone.number, issue.milestone);
         }
     }
 
     const labels = [];
+
     if (areas.size === 1) {
         labels.push([...areas][0]);
     }
+
     if (types.size === 1) {
         labels.push([...types][0]);
     }
     const selectedPriority = [...priorities].sort((left, right) => PRIORITY_ORDER[right] - PRIORITY_ORDER[left])[0];
+
     if (selectedPriority !== undefined) {
         labels.push(selectedPriority);
     }
+
     if (compatibilityBreaking) {
         labels.push('compat:breaking');
     }
+
     if (assignees.size === 0 && author) {
         assignees.add(author);
     }
@@ -127,6 +141,7 @@ function planPullRequestLabelAdditions(existingLabels, inheritedLabels) {
     for (const prefix of PRIMARY_LABEL_PREFIXES) {
         const existing = existingLabels.filter((label) => label.startsWith(prefix));
         const inherited = inheritedLabels.filter((label) => label.startsWith(prefix));
+
         if (existing.length > 1) {
             duplicateDimensions.push({ prefix, labels: existing.sort() });
         } else if (existing.length === 0 && inherited.length === 1) {
@@ -145,9 +160,11 @@ function planPullRequestLabelAdditions(existingLabels, inheritedLabels) {
 
 function splitRepository(nameWithOwner) {
     const [owner, repository] = nameWithOwner.split('/');
+
     if (!owner || !repository) {
         throw new Error(`Invalid repository name: ${nameWithOwner}`);
     }
+
     return { owner, repository };
 }
 
@@ -183,15 +200,18 @@ class ProjectAutomation {
         );
 
         const project = result.user?.projectV2;
+
         if (!project) {
             throw new Error(`Project ${this.config.projectOwner}/${this.config.projectNumber} was not found.`);
         }
         const statusField = project.fields.nodes.find((field) => field?.name === 'Status');
+
         if (!statusField) {
             throw new Error(`Project ${project.title} has no Status field.`);
         }
 
         const statusOptions = new Map(statusField.options.map((option) => [option.name, option.id]));
+
         for (const status of Object.values(STATUS)) {
             if (!statusOptions.has(status)) {
                 throw new Error(`Project ${project.title} is missing the '${status}' status option.`);
@@ -223,6 +243,7 @@ class ProjectAutomation {
 
     async setStatus(contentId, displayName, status, reason) {
         const itemId = await this.ensureProjectItem(contentId);
+
         if (!this.config.dryRun) {
             await this.github.graphql(
                 `mutation($project: ID!, $item: ID!, $field: ID!, $option: String!) {
@@ -267,9 +288,11 @@ class ProjectAutomation {
             { owner, repository, number },
         );
         const issue = result.repository?.issue;
+
         if (!issue) {
             throw new Error(`Issue ${owner}/${repository}#${number} was not found.`);
         }
+
         return {
             id: issue.id,
             number: issue.number,
@@ -311,9 +334,11 @@ class ProjectAutomation {
             { owner, repository, number },
         );
         const pullRequest = result.repository?.pullRequest;
+
         if (!pullRequest) {
             throw new Error(`Pull request ${owner}/${repository}#${number} was not found.`);
         }
+
         return {
             id: pullRequest.id,
             number: pullRequest.number,
@@ -367,9 +392,11 @@ class ProjectAutomation {
                 this.core.warning(`PR #${pullRequest.number} links issues with conflicting ${conflict[0]}: ${conflict[1].join(', ')}.`);
             }
         }
+
         for (const duplicate of labelPlan.duplicateDimensions) {
             this.core.warning(`PR #${pullRequest.number} has duplicate ${duplicate.prefix} metadata: ${duplicate.labels.join(', ')}.`);
         }
+
         for (const differing of labelPlan.differingDimensions) {
             this.core.warning(
                 `PR #${pullRequest.number} keeps '${differing.existing}' instead of inheriting '${differing.inherited}' for ${differing.prefix} metadata.`,
@@ -378,6 +405,7 @@ class ProjectAutomation {
 
         const existingAssignees = new Set(pullRequest.assignees);
         const assigneesToAdd = inherited.assignees.filter((assignee) => !existingAssignees.has(assignee));
+
         if (assigneesToAdd.length > 0 && !this.config.dryRun) {
             await this.github.rest.issues.addAssignees({
                 owner,
@@ -412,6 +440,7 @@ class ProjectAutomation {
         const status = deriveIssueStatus({ ...issue, openBlockerCount: openBlockers.length }, this.config.activeMilestone);
 
         let reason = 'not yet ready for the active milestone';
+
         if (status === STATUS.DONE) {
             reason = 'issue is closed';
         } else if (status === STATUS.BLOCKED) {
@@ -439,6 +468,7 @@ class ProjectAutomation {
 
         const status = derivePullRequestStatus(pullRequest);
         let reason = 'pull request is ready for review';
+
         if (status === STATUS.DONE) {
             reason = 'pull request is closed or merged';
         } else if (status === STATUS.IN_PROGRESS) {
@@ -455,6 +485,7 @@ class ProjectAutomation {
 
     async reconcileDependents(owner, repository, number) {
         const dependents = await this.getIssueDependencies(owner, repository, number, 'blocking');
+
         for (const dependent of dependents.filter((issue) => issue.state === 'open')) {
             await this.reconcileIssue(owner, repository, dependent.number);
         }
@@ -492,11 +523,13 @@ class ProjectAutomation {
 
     async reconcileAll() {
         const items = await this.listProjectItems();
+
         for (const item of items) {
             if (item.repository.nameWithOwner !== this.config.repository) {
                 continue;
             }
             const { owner, repository } = splitRepository(item.repository.nameWithOwner);
+
             if (item.__typename === 'Issue') {
                 await this.reconcileIssue(owner, repository, item.number, { synchronizePullRequests: false });
             } else if (item.__typename === 'PullRequest') {
@@ -508,10 +541,12 @@ class ProjectAutomation {
     async writeSummary() {
         const mode = this.config.dryRun ? 'Dry run' : 'Applied';
         const lines = [`## Project automation`, '', `${mode} for **${this.project.title}**.`, ''];
+
         if (this.records.length === 0) {
             lines.push('No project items required reconciliation.');
         } else {
             lines.push('| Item | Status | Reason |', '| --- | --- | --- |');
+
             for (const record of this.records) {
                 lines.push(`| ${record.item} | ${record.status} | ${record.reason.replaceAll('|', '\\|')} |`);
             }
@@ -529,9 +564,11 @@ function readConfig(context, environment) {
         repository: context.payload.repository?.full_name ?? environment.GITHUB_REPOSITORY ?? '',
         dryRun: String(environment.DRY_RUN ?? '').toLowerCase() === 'true',
     };
+
     if (!config.projectOwner || !Number.isInteger(config.projectNumber) || !config.activeMilestone || !config.repository) {
         throw new Error('PROJECT_OWNER, PROJECT_NUMBER, ACTIVE_MILESTONE, and GITHUB_REPOSITORY must be configured.');
     }
+
     return config;
 }
 
@@ -545,8 +582,10 @@ async function run({ github, context, core, environment = process.env }) {
     await automation.initialize();
 
     const { owner, repository } = splitRepository(config.repository);
+
     if (context.eventName === 'issues') {
         const number = context.payload.issue.number;
+
         if (isPullRequestIssueEvent(context)) {
             await automation.reconcilePullRequest(owner, repository, number);
         } else {
@@ -557,9 +596,11 @@ async function run({ github, context, core, environment = process.env }) {
         await automation.reconcilePullRequest(owner, repository, context.payload.pull_request.number);
     } else if (context.eventName === 'workflow_dispatch' && context.payload.inputs?.kind !== 'all') {
         const number = Number.parseInt(context.payload.inputs?.number ?? '', 10);
+
         if (!Number.isInteger(number)) {
             throw new Error('A numeric issue or pull request number is required for focused reconciliation.');
         }
+
         if (context.payload.inputs.kind === 'issue') {
             await automation.reconcileIssue(owner, repository, number);
         } else {

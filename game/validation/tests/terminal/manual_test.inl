@@ -6,6 +6,7 @@ void testManualUnicodeOutput(TestSupport::Context &context)
 {
     constexpr std::string_view sample = "Unicode: cafe\xCC\x81 | \xCE\x95\xCE\xBB\xCE\xBB\xCE\xB7\xCE\xBD\xCE\xB9\xCE\xBA\xCE\xAC | "
                                         "\xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E | \xF0\x9F\x98\x80";
+
     if (!requireManualOperation(context, "manual Unicode output", "writeLine", Terminal::writeLine(sample)))
     {
         return;
@@ -95,6 +96,7 @@ void testManualTextStyles(TestSupport::Context &context, const Terminal::Types::
     const auto testAttribute = [&](std::string_view label, bool supported, bool Terminal::Types::Style::Request::*attribute) -> bool
     {
         const std::string name = std::format("manual {} text style", label);
+
         if (!supported)
         {
             context.skip(name, "the terminal does not report this text-style capability");
@@ -204,10 +206,12 @@ void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Ty
     }
 
     Terminal::AlternateScreenScope alternateScreen = Terminal::scopedAlternateScreen();
+
     if (!requireManualOperation(context, "manual alternate screen", "enter alternate screen", alternateScreen.status()))
     {
         return;
     }
+
     if (!alternateScreen.active())
     {
         context.fail("manual alternate screen", "alternate-screen scope did not become active");
@@ -222,12 +226,14 @@ void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Ty
                                   "manual alternate screen",
                                   "alternate-screen writeLine",
                                   Terminal::writeLine("GameWIP Terminal alternate-screen check"));
+
     if (contentReady)
     {
         answer = TestSupport::promptManualCheck("Is this prompt displayed on a clean alternate screen?", skipReason);
     }
 
     const bool restored = requireManualOperation(context, "manual alternate screen", "leave alternate screen", alternateScreen.leave());
+
     if (contentReady && restored)
     {
         recordManualAnswer(context, "manual alternate screen", answer, skipReason);
@@ -238,6 +244,7 @@ void testManualAlternateScreen(TestSupport::Context &context, const Terminal::Ty
 void testManualInput(TestSupport::Context &context)
 {
     constexpr std::string_view expected = "GameWIP-11";
+
     if (!requireManualOperation(
             context,
             "manual terminal input",
@@ -248,15 +255,18 @@ void testManualInput(TestSupport::Context &context)
     }
 
     const Terminal::Types::Input::LineResult result = Terminal::readLine();
+
     if (!requireManualOperation(context, "manual terminal input", "readLine", result.status))
     {
         return;
     }
+
     if (result.outcome != Terminal::Types::Input::ReadOutcome::Completed)
     {
         context.fail("manual terminal input", "readLine did not complete normally");
         return;
     }
+
     if (result.line != expected)
     {
         context.fail("manual terminal input", std::format("expected '{}', received '{}'", expected, result.line));
@@ -271,6 +281,7 @@ void testManualWrappedLineEditing(TestSupport::Context &context)
 {
     const Terminal::Types::SizeResult size = Terminal::getTerminalSize();
     const Terminal::Types::Cursor::PositionResult position = Terminal::getCursorPosition();
+
     if (!requireManualOperation(context, "manual wrapped line editing", "query terminal size", size.status) ||
         !requireManualOperation(context, "manual wrapped line editing", "query cursor position", position.status))
     {
@@ -281,6 +292,7 @@ void testManualWrappedLineEditing(TestSupport::Context &context)
     if (size.size.rows > 2 && position.position.row + 2 < size.size.rows)
     {
         const std::uint32_t blankLines = size.size.rows - position.position.row - 2;
+
         for (std::uint32_t line = 0; line < blankLines; ++line)
         {
             if (!requireManualOperation(context, "manual wrapped line editing", "position prompt near viewport bottom", Terminal::writeLine()))
@@ -296,16 +308,19 @@ void testManualWrappedLineEditing(TestSupport::Context &context)
             "Wrapped input check: type at least {} ASCII characters. Before Enter, use Left, Home, End, Backspace, and Delete to edit both "
             "rows; resize the terminal narrower and wider while the line is active. Watch for stale or misplaced text.",
             minimumCharacters));
+
     if (!requireManualOperation(context, "manual wrapped line editing", "wrapped-input prompt", Terminal::writeText("Wrapped/resize input: ")))
     {
         return;
     }
 
     const Terminal::Types::Input::LineResult result = Terminal::readLine();
+
     if (!requireManualOperation(context, "manual wrapped line editing", "wrapped readLine", result.status))
     {
         return;
     }
+
     if (result.outcome != Terminal::Types::Input::ReadOutcome::Completed || result.line.size() < minimumCharacters)
     {
         context.fail("manual wrapped line editing", "the completed line was not long enough to prove wrapping");
@@ -338,6 +353,7 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
 
     Terminal::Session session;
     const IO::Types::Status openStatus = session.open();
+
     if (!requireManualOperation(context, "manual structured input", "open event session", openStatus))
     {
         return;
@@ -347,14 +363,17 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     options.timeout = std::chrono::seconds{10};
 
     bool matched = false;
+
     for (int attempt = 0; attempt < 8 && !matched; ++attempt)
     {
         const Terminal::Types::Input::EventResult event = session.readEvent(options);
+
         if (!event.status.ok())
         {
             static_cast<void>(requireManualOperation(context, "manual structured input", "readEvent", event.status));
             break;
         }
+
         if (event.outcome != Terminal::Types::Input::ReadOutcome::Completed || !event.event.has_value())
         {
             context.fail("manual structured input", "readEvent did not produce a key event before the deadline");
@@ -362,6 +381,7 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
         }
 
         const Terminal::Types::Events::Key *key = event.event->getIf<Terminal::Types::Events::Key>();
+
         if (key == nullptr || key->action == Terminal::Types::Events::KeyAction::Release)
         {
             continue;
@@ -372,6 +392,7 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     }
 
     const bool closed = requireManualOperation(context, "manual structured input", "close event session", session.close());
+
     if (closed)
     {
         static_cast<void>(Terminal::writeLine());
@@ -404,6 +425,7 @@ void testManualStateRestoration(
         options.deliveryMode = Terminal::Types::Input::DeliveryMode::Stream;
 
         const IO::Types::Status openStatus = session.open(options);
+
         if (requireManualOperation(context, "manual session restoration", "open managed input session", openStatus))
         {
             if (!requireManualOperation(
@@ -418,6 +440,7 @@ void testManualStateRestoration(
 
             const Terminal::Types::Input::LineResult hiddenInput = session.readLine();
             bool readSucceeded = requireManualOperation(context, "manual session restoration", "read managed session input", hiddenInput.status);
+
             if (readSucceeded && (hiddenInput.outcome != Terminal::Types::Input::ReadOutcome::Completed || hiddenInput.line != "hidden"))
             {
                 context.fail("manual session restoration", "managed hidden input did not produce the requested line");
@@ -426,6 +449,7 @@ void testManualStateRestoration(
 
             const bool closeSucceeded =
                 requireManualOperation(context, "manual session restoration", "close and restore managed session", session.close());
+
             if (readSucceeded && closeSucceeded)
             {
                 recordManualCheck(
@@ -443,10 +467,12 @@ void testManualStateRestoration(
     }
 
     Terminal::CursorHiddenScope hiddenCursor = Terminal::scopedCursorHidden();
+
     if (!requireManualOperation(context, "manual cursor-visibility restoration", "hide cursor", hiddenCursor.status()))
     {
         return;
     }
+
     if (!hiddenCursor.active())
     {
         context.fail("manual cursor-visibility restoration", "cursor-hidden scope did not become active");
@@ -456,6 +482,7 @@ void testManualStateRestoration(
     std::string skipReason;
     const TestSupport::Types::Reporting::ManualAnswer hiddenAnswer =
         TestSupport::promptManualCheck("Is the terminal cursor currently hidden?", skipReason);
+
     if (!requireManualOperation(context, "manual cursor-visibility restoration", "restore cursor visibility", hiddenCursor.restore()))
     {
         return;
@@ -478,11 +505,13 @@ void testManualUiChecks(TestSupport::Context &context, const TerminalTestOptions
 
     const Terminal::Types::Output::CapabilitiesResult output = Terminal::prepareOutput();
     const Terminal::Types::Input::CapabilitiesResult input = Terminal::getInputCapabilities();
+
     if (!requireManualOperation(context, "manual terminal capability setup", "prepare stdout", output.status) ||
         !requireManualOperation(context, "manual terminal capability setup", "query stdin", input.status))
     {
         return;
     }
+
     if (output.capabilities.kind != Terminal::Types::StreamKind::Terminal || input.capabilities.kind != Terminal::Types::StreamKind::Terminal)
     {
         context.skip("Terminal manual tests", "requires real terminal stdin and stdout");

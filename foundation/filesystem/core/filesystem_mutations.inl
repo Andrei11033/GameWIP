@@ -12,6 +12,7 @@ IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, c
                 .access = Types::File::Access::Write,
                 .mode = Types::File::OpenMode::OpenExisting,
                 .symlinkPolicy = options.symlinkPolicy});
+
         if (!openStatus.ok())
         {
             return openStatus;
@@ -19,10 +20,12 @@ IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, c
 
         IO::Types::Status resizeStatus = file.resizeWithoutPositionRestore(sizeBytes);
         IO::Types::Status closeStatus = file.close();
+
         if (!resizeStatus.ok())
         {
             return resizeStatus;
         }
+
         return closeStatus;
     }
     catch (const std::bad_alloc &)
@@ -67,30 +70,36 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         }
 
         Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
+
         if (!source.status.ok())
         {
             return std::move(source.status);
         }
+
         if (source.info.kind != Types::EntryKind::RegularFile)
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
+
         if (equivalentOrSameLexically(from, to))
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
 
         Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+
         if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
         {
             return IO::makeStatus(ErrorCode::AlreadyExists);
         }
+
         if (!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
         {
             return std::move(destination.status);
         }
 
         IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
+
         if (!parentStatus.ok())
         {
             return parentStatus;
@@ -99,6 +108,7 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         FileReader reader;
         IO::Types::Status readerOpenStatus =
             reader.open(from, Types::File::ReaderOpenOptions{.share = Types::File::Share::All, .symlinkPolicy = options.symlinkPolicy});
+
         if (!readerOpenStatus.ok())
         {
             return readerOpenStatus;
@@ -116,6 +126,7 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
                 .share = Types::File::Share::None,
                 .symlinkPolicy = options.symlinkPolicy,
                 .createParentDirectories = false});
+
         if (!writerOpenStatus.ok())
         {
             static_cast<void>(reader.close());
@@ -124,9 +135,11 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
 
         std::vector<std::byte> buffer(IO::kDefaultBufferSize);
         std::uint64_t copiedBytes = 0;
+
         while (true)
         {
             IO::Types::ReadResult readResult = reader.read(buffer);
+
             if (!readResult.status.ok())
             {
                 static_cast<void>(writer.close());
@@ -137,6 +150,7 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
             if (readResult.bytesRead > 0)
             {
                 IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, std::span{buffer}.first(readResult.bytesRead));
+
                 if (!writeResult.status.ok())
                 {
                     static_cast<void>(writer.close());
@@ -163,14 +177,17 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
         IO::Types::Status writerCloseStatus = writer.close();
         IO::Types::Status readerCloseStatus = reader.close();
+
         if (!flushStatus.ok())
         {
             return flushStatus;
         }
+
         if (!writerCloseStatus.ok())
         {
             return writerCloseStatus;
         }
+
         if (!readerCloseStatus.ok())
         {
             return readerCloseStatus;
@@ -201,12 +218,14 @@ IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
+
         if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(from))
         {
             return IO::makeStatus(ErrorCode::Unsupported);
         }
 
         Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
+
         if (!source.status.ok())
         {
             return std::move(source.status);
@@ -217,22 +236,26 @@ IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const
             return IO::successStatus();
         }
         Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
+
         if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
         {
             return IO::makeStatus(ErrorCode::AlreadyExists);
         }
+
         if (!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
         {
             return std::move(destination.status);
         }
 
         IO::Types::Status parentStatus = validateParentDirectory(to, options.createParentDirectories, options.symlinkPolicy);
+
         if (!parentStatus.ok())
         {
             return parentStatus;
         }
 
         IO::Types::Status moveStatus = Detail::Platform::movePath(from, to, options.replaceMode, options.symlinkPolicy);
+
         if (!moveStatus.ok())
         {
             return moveStatus;
@@ -260,6 +283,7 @@ IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
+
         if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
         {
             return IO::makeStatus(ErrorCode::Unsupported);

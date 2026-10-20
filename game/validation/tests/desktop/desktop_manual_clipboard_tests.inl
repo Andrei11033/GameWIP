@@ -8,6 +8,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         return;
     }
     TestSupport::ScopedTemporaryDirectory fixtures("desktop-clipboard-manual");
+
     if (!context.expectTrue("clipboard fixture directory creates", fixtures.status().ok()))
     {
         return;
@@ -18,12 +19,14 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         "Foreign editor inbound: caf\xC3\xA9 e\xCC\x81 \xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E \xF0\x9F\x99\x82\r\nDifferent line\twith \"quotes\".";
     const auto outboundFile = fixtures.path() / "outbound-reference.txt";
     const auto inboundFile = fixtures.path() / "inbound-copy.txt";
+
     if (!context.expectTrue("outbound reference writes", TestSupport::writeTextFile(outboundFile, outbound).ok()) ||
         !context.expectTrue("inbound fixture writes", TestSupport::writeTextFile(inboundFile, inbound).ok()))
     {
         return;
     }
     Desktop::Window window;
+
     if (!openManualWindow(context, window, "GameWIP clipboard interoperability"))
     {
         return;
@@ -32,9 +35,11 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         "This suite replaces clipboard contents with controlled fixtures. Use a separate text editor such as Notepad. "
         "Enter 's reason' if that editor or its copy/paste action is unavailable. Text written by Desktop and text copied back are deliberately "
         "different.");
+
     if (manualCaseSelected("clipboard text pasted into foreign editor"))
     {
         const auto published = Desktop::Clipboard::writeText(outbound);
+
         if (!requireManualStatus(context, "outbound clipboard publication", published.status))
         {
             return;
@@ -56,6 +61,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         std::format(
             "Open {} in the separate editor, select all and Copy. Answer yes after copying; Desktop will check the exact inbound bytes.",
             inboundFile.string()));
+
     if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
         const auto copied = Desktop::Clipboard::readText();
@@ -66,6 +72,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     const auto secondFile = fixtures.path() / "second-file.txt";
     const auto copyDirectory = fixtures.path() / "clipboard-copy";
     const std::array<GameWIP::FileSystem::Types::Path, 2> filePaths{unicodeFile, secondFile};
+
     if (!context.expectTrue(
             "clipboard file fixtures write",
             TestSupport::writeTextFile(unicodeFile, "Unicode clipboard file\n").ok() &&
@@ -73,6 +80,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     {
         return;
     }
+
     if (manualCaseSelected("clipboard files pasted into Explorer"))
     {
         if (requireManualStatus(context, "file-list clipboard publication", Desktop::Clipboard::writeFiles(filePaths).status))
@@ -84,6 +92,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
                 std::format(
                     "Open {} in Explorer and press Ctrl+V. Did both files arrive with the Unicode filename displayed correctly?",
                     copyDirectory.string()));
+
             if (pasted == TestSupport::Types::Reporting::ManualAnswer::Yes)
             {
                 for (const auto &path : filePaths)
@@ -105,6 +114,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
             "Open {} in Explorer. Select just the Unicode file and second-file.txt, then Ctrl+C. Confirm after copying; exact paths and order will "
             "be checked.",
             fixtures.path().string()));
+
     if (filesCopied == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
         const auto imported = Desktop::Clipboard::readFiles();
@@ -116,10 +126,12 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     }
     const auto image = manualInteropImage();
     const auto bitmapFile = fixtures.path() / "four-quadrants.bmp";
+
     if (!requireManualStatus(context, "Paint reference bitmap writes", writeManualInteropBitmap(bitmapFile, image)))
     {
         return;
     }
+
     if (manualCaseSelected("clipboard image pasted into Paint"))
     {
         if (requireManualStatus(
@@ -150,6 +162,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         {
             paintManualImagePreview(window, image);
         });
+
     if (imageCopied == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
         const auto imported = Desktop::Clipboard::readImage();

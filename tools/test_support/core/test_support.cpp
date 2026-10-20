@@ -16,6 +16,7 @@ namespace GameWIP::TestSupport
     std::string formatInfrastructureStatus(const Types::InfrastructureStatus &status)
     {
         std::string_view errorName = "PlatformFailure";
+
         switch (status.error)
         {
         case Types::InfrastructureError::None:

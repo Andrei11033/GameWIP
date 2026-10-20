@@ -21,6 +21,7 @@ function Write-GameWipHost
     $noColorVariable = Get-Variable -Name NoColor -Scope Script -ErrorAction SilentlyContinue
     $plainPresentation = ($null -ne $operationContextVariable -and $null -ne $operationContextVariable.Value -and
         [bool]$operationContextVariable.Value.NoColor) -or ($null -ne $noColorVariable -and [bool]$noColorVariable.Value)
+
     if ($PSBoundParameters.ContainsKey('ForegroundColor') -and -not $plainPresentation)
     {
         Write-Host $Object -ForegroundColor $ForegroundColor -NoNewline:$NoNewline
@@ -74,6 +75,7 @@ function Enter-GameWipOperationLock
     }
 
     $operationLock = [System.Threading.Mutex]::new($false, 'GameWIP.HelperOperation.v1')
+
     try
     {
         if (-not $operationLock.WaitOne(0))
@@ -85,12 +87,14 @@ function Enter-GameWipOperationLock
                     -SuggestedActions @('Wait for the other helper operation to finish, then rerun this command.', 'Inspect the other terminal or its retained run log for progress.'))
         }
     }
+
     catch [System.Threading.AbandonedMutexException]
     {
         # The previous owner exited without releasing the mutex. WaitOne still
         # transfers ownership, so this operation can safely continue.
         Write-Verbose 'Recovered the operation lock from a terminated helper process.'
     }
+
     catch
     {
         $operationLock.Dispose()
@@ -105,10 +109,12 @@ function Exit-GameWipOperationLock
     {
         return
     }
+
     try
     {
         $Script:OperationContext.OperationLock.ReleaseMutex()
     }
+
     finally
     {
         $Script:OperationContext.OperationLock.Dispose()
@@ -147,16 +153,19 @@ function Write-GameWipOperationEvent
         Write-Warning $Message
         return
     }
+
     if ($Severity -eq 'error')
     {
         Write-GameWipSemanticText -Object $Message -Semantic Failure
         return
     }
+
     if ($Severity -eq 'success')
     {
         Write-GameWipSemanticText -Object $Message -Semantic Success
         return
     }
+
     if ($Severity -eq 'progress')
     {
         $progressMatch = [regex]::Match(
@@ -183,6 +192,7 @@ function Write-GameWipOperationEvent
 function Add-GameWipOperationChange
 {
     param([Parameter(Mandatory = $true)][string]$Message)
+
     if ($null -eq $Script:OperationContext)
     {
         return
@@ -194,6 +204,7 @@ function Add-GameWipOperationChange
 function Add-GameWipOperationPreserved
 {
     param([Parameter(Mandatory = $true)][string]$Message)
+
     if ($null -eq $Script:OperationContext)
     {
         return
@@ -204,6 +215,7 @@ function Add-GameWipOperationPreserved
 function Add-GameWipOperationWarning
 {
     param([Parameter(Mandatory = $true)][string]$Message)
+
     if ($null -eq $Script:OperationContext)
     {
         return
@@ -214,6 +226,7 @@ function Add-GameWipOperationWarning
 function Add-GameWipOperationNextAction
 {
     param([Parameter(Mandatory = $true)][string]$Message)
+
     if ($null -eq $Script:OperationContext)
     {
         return
@@ -224,6 +237,7 @@ function Add-GameWipOperationNextAction
 function Set-GameWipMutationState
 {
     param([ValidateSet('none', 'partial', 'complete')][string]$State)
+
     if ($null -eq $Script:OperationContext)
     {
         return
@@ -237,6 +251,7 @@ function Set-GameWipMutationStarted
     {
         return
     }
+
     if ($Script:OperationContext.MutationState -eq 'none')
     {
         $Script:OperationContext.MutationState = 'partial'
@@ -296,6 +311,7 @@ function Confirm-GameWipMutation
     )
 
     Write-GameWipOperationEvent -Phase plan -Severity info -Message $Summary
+
     foreach ($line in $Plan)
     {
         Write-Host "  - $line"
@@ -352,9 +368,11 @@ function Stop-GameWipOwnedProcess
     {
         $null
     }
+
     try
     {
         $ownsProcessGroup = $null -ne $Process.PSObject.Properties['GameWipOwnProcessGroup'] -and [bool]$Process.GameWipOwnProcessGroup
+
         try
         {
             if ($Process.HasExited -and -not $ownsProcessGroup)
@@ -362,6 +380,7 @@ function Stop-GameWipOwnedProcess
                 return
             }
         }
+
         catch
         {
             return
@@ -378,14 +397,17 @@ function Stop-GameWipOwnedProcess
                 if ($ownsProcessGroup)
                 {
                     $killCommand = Get-Command -Name kill -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+
                     if ($null -ne $killCommand)
                     {
                         & $killCommand.Source -KILL -- ("-$($Process.Id)") 2>$null
+
                         if ($LASTEXITCODE -eq 0)
                         {
                             return
                         }
                     }
+
                     if ($Process.HasExited)
                     {
                         return
@@ -394,17 +416,20 @@ function Stop-GameWipOwnedProcess
                 $descendantIds = @(Get-GameWipUnixDescendantProcessId -ParentProcessId $Process.Id)
                 Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
                 [array]::Reverse($descendantIds)
+
                 foreach ($descendantId in $descendantIds)
                 {
                     Stop-Process -Id $descendantId -Force -ErrorAction SilentlyContinue
                 }
             }
         }
+
         catch
         {
             Write-Warning "Could not terminate owned process $($Process.Id): $($_.Exception.Message)"
         }
     }
+
     finally
     {
         if ($null -ne $lastExitCodeVariable)
@@ -428,6 +453,7 @@ function Get-GameWipUnixDescendantProcessId
     }
     $processStatusCommand = Get-Command -Name ps -CommandType Application -ErrorAction Stop | Select-Object -First 1
     $childrenByParent = @{}
+
     foreach ($line in @(& $processStatusCommand.Source -eo pid=, ppid= 2>$null))
     {
         if ([string]$line -notmatch '^\s*(\d+)\s+(\d+)\s*$')
@@ -436,6 +462,7 @@ function Get-GameWipUnixDescendantProcessId
         }
         $processId = [int]$Matches[1]
         $parentId = [int]$Matches[2]
+
         if (-not $childrenByParent.ContainsKey($parentId))
         {
             $childrenByParent[$parentId] = [System.Collections.Generic.List[int]]::new()
@@ -446,19 +473,23 @@ function Get-GameWipUnixDescendantProcessId
     $descendants = [System.Collections.Generic.List[int]]::new()
     $pending = [System.Collections.Generic.Queue[int]]::new()
     $pending.Enqueue($ParentProcessId)
+
     while ($pending.Count -ne 0)
     {
         $parentId = $pending.Dequeue()
+
         if (-not $childrenByParent.ContainsKey($parentId))
         {
             continue
         }
+
         foreach ($childId in $childrenByParent[$parentId])
         {
             $descendants.Add($childId)
             $pending.Enqueue($childId)
         }
     }
+
     return $descendants.ToArray()
 }
 
@@ -468,6 +499,7 @@ function Stop-GameWipOwnedProcesses
     {
         return
     }
+
     foreach ($entry in @($Script:OperationContext.ActiveProcesses))
     {
         if ($null -ne $entry.Process)
@@ -489,6 +521,7 @@ function Show-GameWipOperationReceipt
     Write-GameWipSection 'Operation receipt'
 
     Write-Host '  Status:         ' -NoNewline
+
     switch ([string]$Result.Status)
     {
         'passed'
@@ -510,6 +543,7 @@ function Show-GameWipOperationReceipt
     }
 
     Write-Host '  Mutation state: ' -NoNewline
+
     switch ([string]$Result.MutationState)
     {
         'complete'
@@ -541,6 +575,7 @@ function Show-GameWipOperationReceipt
     if ($Result.Changes.Count -ne 0)
     {
         Write-GameWipSemanticText -Object '  Changes:' -Semantic Accent
+
         foreach ($item in $Result.Changes)
         {
             Write-Host "    - $item"
@@ -550,6 +585,7 @@ function Show-GameWipOperationReceipt
     if ($Result.Preserved.Count -ne 0)
     {
         Write-Host '  Preserved:'
+
         foreach ($item in $Result.Preserved)
         {
             Write-Host "    - $item"
@@ -559,6 +595,7 @@ function Show-GameWipOperationReceipt
     if ($Result.Warnings.Count -ne 0)
     {
         Write-GameWipSemanticText -Object '  Warnings:' -Semantic Warning
+
         foreach ($item in $Result.Warnings)
         {
             Write-GameWipSemanticText -Object "    - $item" -Semantic Warning
@@ -568,6 +605,7 @@ function Show-GameWipOperationReceipt
     if ($Result.NextActions.Count -ne 0)
     {
         Write-GameWipSemanticText -Object '  Next:' -Semantic Accent
+
         foreach ($item in $Result.NextActions)
         {
             Write-Host "    - $item"
@@ -623,10 +661,12 @@ function Show-GameWipOperationResult
     {
         Write-GameWipSemanticText -Object 'Operation cancelled.' -Semantic Warning
     }
+
     if ($null -ne $Result.FinalizationFailure)
     {
         Write-Warning "Operation finalization failed: $($Result.FinalizationFailure.Exception.Message)"
     }
+
     if (-not $SuppressReceipt)
     {
         Show-GameWipOperationReceipt -Result $Result
@@ -687,29 +727,34 @@ function Invoke-GameWipOperation
         {
             $null = & $ScriptBlock
         }
+
         if ($context.MutationState -eq 'partial')
         {
             # A mutation body returned normally after recording a partial state.
             $context.MutationState = 'complete'
         }
     }
+
     catch [System.Management.Automation.PipelineStoppedException]
     {
         Request-GameWipCancellation
         $status = 'cancelled'
         $failure = $_
     }
+
     catch [System.OperationCanceledException]
     {
         Request-GameWipCancellation
         $status = 'cancelled'
         $failure = $_
     }
+
     catch
     {
         $status = 'failed'
         $failure = $_
     }
+
     finally
     {
         # Stop owned processes, remove temporary state, and persist the receipt
@@ -720,6 +765,7 @@ function Invoke-GameWipOperation
         {
             Complete-GameWipOperationTemp
         }
+
         catch
         {
             $status = 'failed'
@@ -740,6 +786,7 @@ function Invoke-GameWipOperation
                 Save-GameWipToolRun -Run $context.Run -Status $status | Out-Null
             }
         }
+
         catch
         {
             $status = 'failed'
@@ -797,14 +844,17 @@ function Invoke-GameWipMutationBody
 
     $previousIntent = [bool]$Script:OperationContext.MutationIntent
     $Script:OperationContext.MutationIntent = $true
+
     try
     {
         & $Body
+
         if ($Script:OperationContext.MutationState -eq 'partial')
         {
             Set-GameWipMutationState -State complete
         }
     }
+
     finally
     {
         $Script:OperationContext.MutationIntent = $previousIntent

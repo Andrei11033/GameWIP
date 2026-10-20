@@ -32,6 +32,7 @@ namespace GameWIP::Desktop::Types
             {
                 std::terminate();
             }
+
             return *value;
         }
 
@@ -42,6 +43,7 @@ namespace GameWIP::Desktop::Types
             {
                 std::terminate();
             }
+
             return *value;
         }
 

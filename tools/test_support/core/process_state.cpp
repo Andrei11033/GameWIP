@@ -26,10 +26,12 @@ namespace GameWIP::TestSupport::Detail
             try
             {
                 const Platform::EnvironmentReadResult current = Platform::readEnvironmentVariable(name);
+
                 if (!current.status.ok())
                 {
                     return current.status;
                 }
+
                 if (current.value != expectedValue)
                 {
                     return failureStatus(Types::InfrastructureError::ProcessStateConflict);
@@ -39,6 +41,7 @@ namespace GameWIP::TestSupport::Detail
                 {
                     return Platform::setEnvironmentVariableValue(name, *previousValue);
                 }
+
                 return Platform::unsetEnvironmentVariableValue(name);
             }
             catch (const std::bad_alloc &)
@@ -117,6 +120,7 @@ namespace GameWIP::TestSupport
 
             name_.assign(name);
             const Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
+
             if (!readResult.status.ok())
             {
                 status_ = readResult.status;
@@ -153,6 +157,7 @@ namespace GameWIP::TestSupport
         {
             return status_;
         }
+
         if (restored_)
         {
             return restorationStatus_;
@@ -160,10 +165,12 @@ namespace GameWIP::TestSupport
 
         restorationStatus_ = Detail::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
         restored_ = restorationStatus_.ok();
+
         if (!restorationStatus_.ok())
         {
             processState_->recordRestorationFailure(restorationStatus_);
         }
+
         return restorationStatus_;
     }
 
@@ -184,6 +191,7 @@ namespace GameWIP::TestSupport
 
             name_.assign(name);
             const Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
+
             if (!readResult.status.ok())
             {
                 status_ = readResult.status;
@@ -220,6 +228,7 @@ namespace GameWIP::TestSupport
         {
             return status_;
         }
+
         if (restored_)
         {
             return restorationStatus_;
@@ -227,10 +236,12 @@ namespace GameWIP::TestSupport
 
         restorationStatus_ = Detail::restoreEnvironmentVariable(name_, expectedValue_, previousValue_);
         restored_ = restorationStatus_.ok();
+
         if (!restorationStatus_.ok())
         {
             processState_->recordRestorationFailure(restorationStatus_);
         }
+
         return restorationStatus_;
     }
 } // namespace GameWIP::TestSupport

@@ -68,6 +68,7 @@ void testReportNoDrainScenario(TestContext &context)
     config.workerBatchSize = 1;
     const auto initialized = Logger::init(config.ready());
     expectStarted(context, "report no-drain init", initialized);
+
     if (!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
     {
         return;
@@ -135,6 +136,7 @@ void testReportDoesNotDrainAsyncBacklog(TestContext &context, const LoggerTestOp
 int runReportNoDrainChild()
 {
     const char *directory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str());
+
     if (directory == nullptr)
     {
         return 2;

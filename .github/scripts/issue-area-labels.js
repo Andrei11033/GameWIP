@@ -31,8 +31,10 @@ const AREA_LABELS_BY_VALUE = new Map([
 
 function stripHtmlComments(text) {
     let result = text;
+
     while (true) {
         const start = result.indexOf('<!--');
+
         if (start < 0) {
             return result;
         }
@@ -45,16 +47,19 @@ function stripHtmlComments(text) {
 function readIssueFormField(body, heading) {
     const lines = body.split(/\r?\n/);
     const start = lines.findIndex((line) => line.trim() === `### ${heading}`);
+
     if (start < 0) {
         return undefined;
     }
     const values = [];
+
     for (const line of lines.slice(start + 1)) {
         if (line.startsWith('### ')) {
             break;
         }
         values.push(line);
     }
+
     return stripHtmlComments(values.join('\n')).trim();
 }
 
@@ -66,15 +71,18 @@ async function applyIssueAreaLabel({ github, context }) {
     const issue = context.payload.issue;
     const current = issue.labels.map((label) => label.name);
     const target = targetAreaLabel(issue.body ?? '');
+
     if (target === undefined) {
         return;
     }
     const request = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
+
     for (const label of new Set(AREA_LABELS_BY_VALUE.values())) {
         if (label !== target && current.includes(label)) {
             await github.rest.issues.removeLabel({ ...request, name: label });
         }
     }
+
     if (target && !current.includes(target)) {
         await github.rest.issues.addLabels({ ...request, labels: [target] });
     }

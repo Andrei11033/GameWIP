@@ -88,6 +88,7 @@ void testCheckOnceLogging(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "check_once"))
     {
         context.fail("CHECK_ONCE logger init", "Logger::init failed");
@@ -95,6 +96,7 @@ void testCheckOnceLogging(TestContext &context)
     }
 
     Logger::resetStats();
+
     for (int index = 0; index < 3; ++index)
     {
         CHECK_ONCE(false);

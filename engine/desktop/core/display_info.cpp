@@ -67,14 +67,17 @@ namespace GameWIP::Desktop::Display
     Types::Result<Types::Display::ColorInfo> getColorInfo(const Window &window) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
+
         if (state == nullptr || !window.isOpen())
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
         }
+
         if (!window.ownedByCurrentThread())
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
         }
+
         return Detail::Platform::getColorInfo(state->monitor);
     }
 } // namespace GameWIP::Desktop::Display

@@ -75,14 +75,7 @@
     "check": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "description",
-        "provider",
-        "availability",
-        "confidence"
-      ],
+      "required": ["id", "title", "description", "provider", "availability", "confidence"],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
@@ -96,24 +89,13 @@
           "minLength": 1
         },
         "provider": {
-          "enum": [
-            "clang-tidy",
-            "compiler-warning",
-            "future"
-          ]
+          "enum": ["clang-tidy", "compiler-warning", "future"]
         },
         "availability": {
-          "enum": [
-            "available",
-            "planned"
-          ]
+          "enum": ["available", "planned"]
         },
         "confidence": {
-          "enum": [
-            "PROVEN",
-            "LIKELY",
-            "INFORMATION"
-          ]
+          "enum": ["PROVEN", "LIKELY", "INFORMATION"]
         },
         "rules": {
           "type": "array",
@@ -145,11 +127,7 @@
     "profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "checks"
-      ],
+      "required": ["id", "title", "checks"],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
@@ -171,12 +149,7 @@
     "explanation": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "checks",
-        "pathPattern",
-        "reason"
-      ],
+      "required": ["id", "checks", "pathPattern", "reason"],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"

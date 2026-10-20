@@ -12,16 +12,19 @@ $actionConfig = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'script
 $actions = @($actionConfig.Actions)
 
 $duplicates = @($actions.Id | Group-Object | Where-Object Count -gt 1)
+
 if ($duplicates.Count -ne 0)
 {
     throw "Duplicate setup action IDs: $($duplicates.Name -join ', ')."
 }
 $menuActions = @($actions | Where-Object { $null -ne $_.PSObject.Properties['key'] })
 $duplicateKeys = @($menuActions.Key | Group-Object | Where-Object Count -gt 1)
+
 if ($duplicateKeys.Count -ne 0)
 {
     throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')."
 }
+
 foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'uninstall', 'tool', 'vs', 'msys2', 'repo', 'deps', 'profiler', 'editor', 'doc', 'list', 'help'))
 {
     if (@($actions.Id) -notcontains $requiredAction)
@@ -31,24 +34,29 @@ foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'unin
 }
 $expectedMenuOrder = @('full', 'check', 'repair', 'update', 'repo', 'tool', 'deps', 'msys2', 'editor', 'doc', 'profiler', 'vs', 'uninstall')
 $actualMenuOrder = @($menuActions | ForEach-Object { [string]$_.Id })
+
 if (($actualMenuOrder -join "`n") -cne ($expectedMenuOrder -join "`n"))
 {
     throw 'Setup menu actions are not in the approved workflow order.'
 }
+
 foreach ($nonMenuAction in @('list', 'help', 'menu'))
 {
     $action = @($actions | Where-Object Id -eq $nonMenuAction)[0]
+
     if ($null -ne $action.PSObject.Properties['key'] -or ($action -is [hashtable] -and ($action.ContainsKey('key') -or $action.ContainsKey('Key'))))
     {
         throw "Setup direct action '$nonMenuAction' must not appear as an operational menu task."
     }
 }
+
 foreach ($action in $actions)
 {
     if ($action.risk -notin @('read-only', 'local', 'tracked', 'machine', 'destructive', 'remote'))
     {
         throw "Setup action '$($action.id)' has invalid risk metadata."
     }
+
     if ($action.mutation -notin @('none', 'local', 'tracked', 'machine', 'destructive', 'remote', 'conditional'))
     {
         throw "Setup action '$($action.id)' has invalid mutation metadata."
@@ -56,6 +64,7 @@ foreach ($action in $actions)
 }
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $setupScript help 2>&1 | Out-String)
+
 foreach ($requiredHelpText in @('setup.bat <action>', 'Setup actions', '-Preview', '-NonInteractive', '-Yes', '-OutputMode', '-Quiet', '-NoColor', '-Json'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
@@ -63,6 +72,7 @@ foreach ($requiredHelpText in @('setup.bat <action>', 'Setup actions', '-Preview
         throw "Setup helper help omits '$requiredHelpText'."
     }
 }
+
 foreach ($requiredOption in @('Preview', 'NonInteractive', 'Yes', 'Json', 'Quiet', 'NoColor', 'OutputMode', 'Verbose', 'Branch', 'SkipDocs'))
 {
     if (@($actionConfig.Options | Where-Object Id -eq $requiredOption).Count -ne 1)
@@ -78,6 +88,7 @@ $SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\
 $EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\editors.json') -Name editors -SchemaPath (Join-Path $repositoryRoot 'scripts\schemas\editors.schema.json')
 $script:SetupStatePath = Join-Path $repositoryRoot (Join-Path $ProjectConfig.storage.state 'setup.json')
 $ToolConfig = @{ MsysRoot = [string]$ProjectConfig.managedEnvironment.msys2Root }
+
 foreach ($file in @('Common.ps1', 'Msys2.ps1', 'Editor.ps1', 'Uninstall.ps1'))
 {
     . (Join-Path $SetupRoot (Join-Path 'lib' $file))
@@ -95,12 +106,14 @@ foreach ($action in $SetupActionConfig.Actions)
 
 $originalSetupStatePath = $script:SetupStatePath
 $setupStateTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\setup-state-test-' + [guid]::NewGuid().ToString('N'))
+
 try
 {
     New-Item -ItemType Directory -Force -Path $setupStateTestRoot | Out-Null
     $script:SetupStatePath = Join-Path $setupStateTestRoot 'setup.json'
 
     $missingState = Get-GameWipSetupState
+
     if ($script:SetupStateReadStatus -ne 'missing' -or $missingState.schemaVersion -ne 1)
     {
         throw 'A missing setup state file must continue to produce the first-install default.'
@@ -113,6 +126,7 @@ try
         msys2InstalledBySetup = $true
     } | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
     $validState = Get-GameWipSetupState
+
     if ($script:SetupStateReadStatus -ne 'valid' -or @($validState.wingetPackages) -notcontains 'package.id' -or
         @($validState.vscodeExtensions) -notcontains 'publisher.extension' -or -not $validState.msys2InstalledBySetup)
     {
@@ -131,12 +145,14 @@ try
         $state | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
 
         $invalidState = Get-GameWipSetupState
+
         if ($script:SetupStateReadStatus -ne 'corrupt' -or $invalidState.schemaVersion -ne 1)
         {
             throw "Setup state missing required ownership field '$missingField' was not rejected."
         }
     }
 }
+
 finally
 {
     $script:SetupStatePath = $originalSetupStatePath
@@ -145,17 +161,20 @@ finally
 
 $originalSetupStateRoot = [string]$ProjectConfig.storage.state
 $editorStateRoot = 'build/gamewip/temp/editor-state-test-' + [guid]::NewGuid().ToString('N')
+
 try
 {
     $ProjectConfig.storage.state = $editorStateRoot
     Save-GameWipEditorSelection -RepositoryRoot $repositoryRoot -Editors @('vscode')
     Save-GameWipEditorSelection -RepositoryRoot $repositoryRoot -Editors @('vscode', 'visual-studio')
     $savedPreference = Get-Content -Raw -LiteralPath (Get-GameWipEditorPreferencePath -RepositoryRoot $repositoryRoot) | ConvertFrom-Json
+
     if ($savedPreference.schemaVersion -ne 1 -or @($savedPreference.editors).Count -ne 2)
     {
         throw 'Atomic editor preference persistence lost the supported state document.'
     }
 }
+
 finally
 {
     $ProjectConfig.storage.state = $originalSetupStateRoot
@@ -164,32 +183,39 @@ finally
 
 # Setup is required to keep prompting policy separate from execution mode.
 $windowsSource = Get-Content -Raw -LiteralPath $setupScript
+
 if ($windowsSource -notmatch '\[switch\]\$Yes')
 {
     throw 'Setup entrypoint does not expose explicit -Yes consent.'
 }
+
 if ($windowsSource -match '(?ms)if\s*\(\$NonInteractive\)\s*\{\s*return\s+\$true')
 {
     throw 'Setup still treats -NonInteractive as mutation approval.'
 }
+
 if ($windowsSource -notmatch '\$OutputMode\s*=\s*''Stream''')
 {
     throw 'Setup does not stream native output by default.'
 }
 
 $orchestrationSource = Get-Content -Raw -LiteralPath (Join-Path $SetupRoot 'lib\Orchestration.ps1')
+
 if ($orchestrationSource -notmatch 'Invoke-GameWipOperation')
 {
     throw 'Setup does not use the shared operation lifecycle.'
 }
+
 if ($orchestrationSource -notmatch 'Invoke-GameWipToolEnsure')
 {
     throw 'Setup does not use the shared exact tool ensure path.'
 }
+
 if ($orchestrationSource -notmatch 'Read-GameWipActionMenuItem')
 {
     throw 'Setup does not use the shared declarative menu renderer.'
 }
+
 if ($orchestrationSource -notmatch 'Uninstall owns its confirmation so inventory is always printed first')
 {
     throw 'Uninstall inventory/consent ordering is not explicit.'
@@ -204,14 +230,17 @@ function Invoke-GameWipNative
     $script:setupNativeForcedOutputMode = $PSBoundParameters.ContainsKey('OutputMode')
     return [pscustomobject]@{ ExitCode = 0 }
 }
+
 try
 {
     Invoke-GameWipSetupNative -FilePath 'sample.exe' | Out-Null
+
     if ($script:setupNativeForcedOutputMode)
     {
         throw 'Setup native execution forced an output mode instead of inheriting the operation policy.'
     }
 }
+
 finally
 {
     Set-Item -Path function:Invoke-GameWipNative -Value $originalNative
@@ -238,14 +267,17 @@ function Test-GameWipRepositoryState
 }
 $NonInteractive = $false
 $Branch = ''
+
 try
 {
     Invoke-GameWipSetupRepositoryStep
+
     if ($script:setupChooseBranch -ne $true)
     {
         throw 'Existing interactive setup did not request repository branch selection when -Branch was omitted.'
     }
 }
+
 finally
 {
     Set-Item -Path function:Switch-GameWipRepositoryBranch -Value $originalSwitchRepositoryBranch
@@ -268,6 +300,7 @@ function Assert-GameWipSetupWindows
 function Invoke-GameWipSetupActionBody
 {
     param([string]$SelectedAction)
+
     if ($SelectedAction -eq 'doc')
     {
         $script:setupDocsBodyRan = $true
@@ -286,16 +319,19 @@ try
     $ProjectConfig.storage.runs = "$setupPreviewRoot/runs"
 
     $docsPreview = Invoke-GameWipSetupOperation -SelectedAction doc
+
     if ($docsPreview.Status -ne 'passed' -or $script:setupDocsBodyRan)
     {
         throw 'setup docs -Preview executed the mutating documentation body.'
     }
 }
+
 finally
 {
     $ProjectConfig.storage.runs = $originalSetupRunRoot
 
     $setupPreviewPath = Join-Path $repositoryRoot $setupPreviewRoot
+
     if (Test-Path -LiteralPath $setupPreviewPath)
     {
         Remove-Item -LiteralPath $setupPreviewPath -Recurse -Force
@@ -309,6 +345,7 @@ finally
 
 # Common ownership markers use the shared envelope and fail conservatively.
 $marker = New-GameWipOwnershipMarker -Resource 'test-resource' -Origin created -Payload ([ordered]@{ sample = $true })
+
 if ($marker.schemaVersion -ne 1 -or $marker.owner -ne 'GameWIP' -or $marker.resource -ne 'test-resource' -or $marker.origin -ne 'created')
 {
     throw 'Ownership-marker envelope is incomplete.'
@@ -322,16 +359,19 @@ function Invoke-GameWipMsys2
     param([string]$MsysRoot, [string]$Command)
     $null = $MsysRoot, $Command
     ++$script:simulatedAttempts
+
     if ($script:simulatedFailures -gt 0)
     {
         --$script:simulatedFailures; throw 'simulated transient failure'
     }
 }
 $output = @(& { Invoke-GameWipMsys2PacmanWithRetry -MsysRoot 'C:\TestMsys2' -Command 'pacman -Syu --noconfirm' -MaxAttempts 3 -RetryDelaySeconds 0 } *>&1)
+
 if ($script:simulatedAttempts -ne 2)
 {
     throw "Pacman retry made $script:simulatedAttempts attempts instead of 2."
 }
+
 if (($output -join "`n") -notmatch 'attempt 2 of 3')
 {
     throw 'Pacman retry feedback omitted the successful retry.'
@@ -340,14 +380,17 @@ if (($output -join "`n") -notmatch 'attempt 2 of 3')
 # Destructive setup actions must never be consented by non-interactive mode alone.
 $Script:OperationContext = New-GameWipOperationContext -Label 'setup-consent' -NonInteractive
 $rejected = $false
+
 try
 {
     Confirm-GameWipMutation -Summary 'setup mutation' -Risk destructive -Plan @('remove test resource') | Out-Null
 }
+
 catch
 {
     $rejected = $_.Exception.Data['GameWipCode'] -eq 'consent-required'
 }
+
 if (-not $rejected)
 {
     throw 'Non-interactive setup implicitly authorized a destructive action.'

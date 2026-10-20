@@ -39,20 +39,24 @@ Types::Directory::ListResult listDirectory(const Types::Path &path, const Types:
     {
         DirectoryCursor cursor;
         IO::Types::Status openStatus = cursor.open(path, options);
+
         if (!openStatus.ok())
         {
             return listDirectoryFailure(std::move(openStatus));
         }
 
         Types::Directory::ListResult result{.status = IO::successStatus()};
+
         while (true)
         {
             Types::Directory::CursorNextResult next = cursor.next();
+
             if (!next.status.ok())
             {
                 result.status = std::move(next.status);
                 return result;
             }
+
             if (!next.hasEntry)
             {
                 return result;
@@ -78,6 +82,7 @@ IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::Rem
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
+
         if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
         {
             return IO::makeStatus(ErrorCode::Unsupported);
@@ -105,18 +110,22 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
         }
 
         Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
+
         if (!existing.status.ok())
         {
             if (existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
             {
                 return {.status = IO::successStatus(), .removedEntries = 0};
             }
+
             return removeTreeFailure(std::move(existing.status));
         }
+
         if (existing.info.kind != Types::EntryKind::Directory)
         {
             return removeTreeFailure(ErrorCode::NotDirectory);
         }
+
         if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
         {
             return removeTreeFailure(ErrorCode::Unsupported);
@@ -139,6 +148,7 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
         pending.push_back(RemovalFrame{.path = path, .info = existing.info});
 
         std::uint64_t removedEntries = 0;
+
         while (!pending.empty())
         {
             if (removedEntries >= options.maxEntries)
@@ -147,11 +157,13 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
             }
 
             RemovalFrame &current = pending.back();
+
             if (current.info.kind == Types::EntryKind::Directory)
             {
                 if (!current.cursor)
                 {
                     Detail::Platform::DirectoryCursorOpenResult opened;
+
                     if (pending.size() == 1)
                     {
                         opened = Detail::Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow);
@@ -161,6 +173,7 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
                         const RemovalFrame &parent = pending[pending.size() - 2];
                         opened = Detail::Platform::openChildDirectoryCursor(*parent.cursor, current.path, Types::SymlinkPolicy::DoNotFollow);
                     }
+
                     if (!opened.status.ok())
                     {
                         return removeTreeFailure(opened.status, removedEntries);
@@ -169,10 +182,12 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
                 }
 
                 Detail::Platform::DirectoryCursorNextResult child = Detail::Platform::readDirectoryCursor(*current.cursor);
+
                 if (!child.status.ok())
                 {
                     return removeTreeFailure(child.status, removedEntries);
                 }
+
                 if (child.hasEntry)
                 {
                     pending.push_back(RemovalFrame{.path = std::move(child.entry.path), .info = child.entry.info});
@@ -187,6 +202,7 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
                           current.path,
                           Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow})
                     : removeFile(current.path, Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
+
             if (!removeStatus.ok())
             {
                 return removeTreeFailure(removeStatus, removedEntries);

@@ -12,6 +12,7 @@ int runAssertFailureChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
+
     if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
@@ -35,6 +36,7 @@ int runInteractiveAbortChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
+
     if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
@@ -58,6 +60,7 @@ int runInteractiveBreakChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
+
     if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
@@ -118,6 +121,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
     }
 
     const std::filesystem::path childLogDirectory = context.logRoot / "assert_child";
+
     if (!requireInfrastructure(context, "create ASSERT child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
@@ -127,6 +131,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
         kChildLogDirectoryEnvironmentVariable,
         pathText(childLogDirectory));
     const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
+
     if (!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
     {
@@ -167,6 +172,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
     }
 
     const std::filesystem::path childLogDirectory = context.logRoot / "interactive_abort_child";
+
     if (!requireInfrastructure(context, "create interactive Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
@@ -176,6 +182,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
         kChildLogDirectoryEnvironmentVariable,
         pathText(childLogDirectory));
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "abort");
+
     if (!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
     {
@@ -216,6 +223,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
     }
 
     const std::filesystem::path childLogDirectory = context.logRoot / "interactive_break_child";
+
     if (!requireInfrastructure(context, "create interactive Break child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
@@ -225,6 +233,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
         kChildLogDirectoryEnvironmentVariable,
         pathText(childLogDirectory));
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "break");
+
     if (!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Break action", testAction.status()))
     {
@@ -265,6 +274,7 @@ void testUnreachableChild(TestContext &context)
 {
 #if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
     const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
+
     if (!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
     {
         return;

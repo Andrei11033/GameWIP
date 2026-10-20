@@ -195,6 +195,7 @@ function Invoke-GameWipDependencyPreparation
     $lockPath = Join-Path $cacheRoot '.prepare.lock'
     $lockStream = $null
     $lockDeadline = [DateTime]::UtcNow.AddMinutes(10)
+
     try
     {
         while ($null -eq $lockStream -and [DateTime]::UtcNow -lt $lockDeadline)
@@ -208,6 +209,7 @@ function Invoke-GameWipDependencyPreparation
                     [IO.FileShare]::None
                 )
             }
+
             catch [IO.IOException]
             {
                 Start-Sleep -Milliseconds 250
@@ -238,6 +240,7 @@ function Invoke-GameWipDependencyPreparation
 
         Test-GameWipDependencyCache -ThrowOnFailure
     }
+
     finally
     {
         if ($null -ne $lockStream)

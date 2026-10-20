@@ -63,9 +63,11 @@ namespace GameWIP::Action
         for (const Input::InputActivation &activation : inputState.getActivationView())
         {
             std::uint64_t activationSequence = 0;
+
             for (std::size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex)
             {
                 const ActionBinding<ActionEnum> &binding = bindings[bindingIndex];
+
                 if (binding.gesture.trigger != ActionTrigger::Value || binding.combo.primaryControl != activation.control)
                 {
                     continue;
@@ -83,6 +85,7 @@ namespace GameWIP::Action
         for (std::size_t bindingIndex = 0; bindingIndex < bindings.size(); ++bindingIndex)
         {
             const ActionBinding<ActionEnum> &binding = bindings[bindingIndex];
+
             if (binding.gesture.trigger != ActionTrigger::Value)
             {
                 continue;
@@ -92,6 +95,7 @@ namespace GameWIP::Action
                 Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaX) && inputState.getMouseDeltaX() != 0;
             const bool mouseYChanged =
                 Internal::isMouseAxis(binding.combo.primaryControl, Input::MouseAxis::DeltaY) && inputState.getMouseDeltaY() != 0;
+
             if (mouseXChanged || mouseYChanged)
             {
                 bindingStates[bindingIndex].valueChangeSequence = ++valueChangeSequence;
@@ -172,6 +176,7 @@ namespace GameWIP::Action
                 if (nextBindingActive)
                 {
                     bindingState.heldSeconds += frameSeconds;
+
                     if (!bindingState.holdFired && bindingState.heldSeconds >= binding.gesture.holdSeconds)
                     {
                         bindingState.holdFired = true;
@@ -271,6 +276,7 @@ namespace GameWIP::Action
 
         std::vector<bool> valueActive(actionStates.size(), false);
         std::vector<std::uint64_t> selectedValueSequences(actionStates.size(), 0);
+
         for (const Internal::ValueBucket<ActionEnum> &bucket : valueBuckets)
         {
             if (!isValidAction(bucket.action))
@@ -517,6 +523,7 @@ namespace GameWIP::Action
     template <typename ActionEnum> ActionResult ActionMap<ActionEnum>::addBinding(const ActionBinding<ActionEnum> &binding)
     {
         const ActionResult result = validateBinding(binding, false);
+
         if (result != ActionResult::Success && result != ActionResult::ConflictingBinding)
         {
             return result;
@@ -672,9 +679,11 @@ namespace GameWIP::Action
         const std::span<const Input::InputActivation> activations = inputState.getActivationView();
         const Input::InputActivation *bestAxisActivation = nullptr;
         float bestAxisMovement = -1.0f;
+
         for (std::size_t activationIndex = activations.size(); activationIndex > 0; --activationIndex)
         {
             const Input::InputActivation &activation = activations[activationIndex - 1];
+
             if (Internal::containsControl(cancelControls, activation.control))
             {
                 outCapture.result = RebindResult::Canceled;
@@ -690,6 +699,7 @@ namespace GameWIP::Action
             {
                 const float movement = activation.value - activation.previousValue;
                 const float movementMagnitude = movement < 0.0f ? -movement : movement;
+
                 if (movementMagnitude > bestAxisMovement)
                 {
                     bestAxisMovement = movementMagnitude;
@@ -734,6 +744,7 @@ namespace GameWIP::Action
         }
 
         const ActionResult result = validateBinding(capture.binding, capture.replaceExistingBindings);
+
         if (result != ActionResult::Success && result != ActionResult::ConflictingBinding)
         {
             return result;
@@ -806,6 +817,7 @@ namespace GameWIP::Action
         }
 
         const ActionKind actionKind = actionKinds[getActionIndex(binding.action)];
+
         if (!Internal::isBindingCompatibleWithActionKind(actionKind, binding))
         {
             return ActionResult::InvalidBinding;
@@ -850,6 +862,7 @@ namespace GameWIP::Action
         }
 
         ActionResult result = ActionResult::Success;
+
         for (const ActionBinding<ActionEnum> &existingBinding : bindings)
         {
             if (ignoreSameActionBindings && existingBinding.action == binding.action)
@@ -908,6 +921,7 @@ namespace GameWIP::Action
         binding.valueMapping.component = options.component;
         binding.valueMapping.scale = options.scale;
         binding.valueMapping.threshold = options.threshold;
+
         if (options.axisCaptureMode == AxisCaptureMode::DirectionalAxis && primaryControl.controlType == Input::InputControlType::Axis)
         {
             const float movement = activation.value - activation.previousValue;
@@ -926,6 +940,7 @@ namespace GameWIP::Action
         }
 
         const ActionResult validationResult = validateBinding(binding, options.replaceExistingBindings);
+
         if (validationResult == ActionResult::InvalidAction)
         {
             outCapture.result = RebindResult::InvalidAction;
@@ -975,6 +990,7 @@ namespace GameWIP::Action
         }
 
         const ActionBinding<ActionEnum> &binding = bindings[bindingIndex];
+
         for (std::size_t compareIndex = 0; compareIndex < bindings.size(); ++compareIndex)
         {
             if (compareIndex == bindingIndex)

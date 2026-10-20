@@ -12,6 +12,7 @@ IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types:
 
         FileReader reader;
         IO::Types::Status openStatus = reader.open(path, options.open);
+
         if (!openStatus.ok())
         {
             return {.status = std::move(openStatus)};
@@ -19,10 +20,12 @@ IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types:
 
         IO::Types::ReadAllBytesResult result = IO::readAllBytes(reader, options.maxBytes, options.bufferSize);
         IO::Types::Status closeStatus = reader.close();
+
         if (result.status.ok() && !closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
+
         return result;
     }
     catch (const std::bad_alloc &)
@@ -46,6 +49,7 @@ IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::F
 
         FileReader reader;
         IO::Types::Status openStatus = reader.open(path, options.open);
+
         if (!openStatus.ok())
         {
             return {.status = std::move(openStatus)};
@@ -53,10 +57,12 @@ IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::F
 
         IO::Types::ReadAllTextResult result = IO::readAllText(reader, options.maxBytes, options.bufferSize);
         IO::Types::Status closeStatus = reader.close();
+
         if (result.status.ok() && !closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
+
         return result;
     }
     catch (const std::bad_alloc &)
@@ -79,6 +85,7 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
         }
 
         Types::File::WriterMode writerMode = Types::File::WriterMode::CreateOrTruncate;
+
         switch (options.mode)
         {
         case Types::File::WriteMode::CreateNew:
@@ -103,12 +110,14 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
                 .symlinkPolicy = options.symlinkPolicy,
                 .createParentDirectories = options.createParentDirectories,
                 .flushOnClose = IO::Types::FlushMode::None});
+
         if (!openStatus.ok())
         {
             return writeFailure(std::move(openStatus));
         }
 
         IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
+
         if (!result.status.ok())
         {
             // The payload failure is authoritative; cleanup is best effort and a close failure must not replace it.
@@ -117,6 +126,7 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
         }
 
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
+
         if (!flushStatus.ok())
         {
             result.status = std::move(flushStatus);
@@ -124,10 +134,12 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
         }
 
         IO::Types::Status closeStatus = writer.close();
+
         if (!closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
+
         return result;
     }
     catch (const std::bad_alloc &)
@@ -160,6 +172,7 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
         }
 
         Types::File::WriterMode writerMode = Types::File::WriterMode::AppendOrCreate;
+
         switch (options.mode)
         {
         case Types::File::AppendMode::AppendOrCreate:
@@ -181,12 +194,14 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
                 .symlinkPolicy = options.symlinkPolicy,
                 .createParentDirectories = options.createParentDirectories,
                 .flushOnClose = IO::Types::FlushMode::None});
+
         if (!openStatus.ok())
         {
             return writeFailure(std::move(openStatus));
         }
 
         IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
+
         if (!result.status.ok())
         {
             // The payload failure is authoritative; cleanup is best effort and a close failure must not replace it.
@@ -195,6 +210,7 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
         }
 
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
+
         if (!flushStatus.ok())
         {
             result.status = std::move(flushStatus);
@@ -202,10 +218,12 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
         }
 
         IO::Types::Status closeStatus = writer.close();
+
         if (!closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
+
         return result;
     }
     catch (const std::bad_alloc &)
@@ -242,12 +260,14 @@ IO::Types::Status writeAllBytesAtomic(
         }
 
         IO::Types::Status prefixStatus = validateAtomicTemporaryPrefix(options.temporaryNamePrefix);
+
         if (!prefixStatus.ok())
         {
             return prefixStatus;
         }
 
         Types::Path parent = path.parent_path();
+
         if (parent.empty())
         {
             parent = ".";
@@ -257,20 +277,24 @@ IO::Types::Status writeAllBytesAtomic(
             options.createParentDirectories
                 ? createDirectories(parent, Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = options.symlinkPolicy})
                 : validateDirectoryExists(parent, options.symlinkPolicy);
+
         if (!parentStatus.ok())
         {
             return parentStatus;
         }
 
         Detail::Platform::EntryQueryResult destination = queryEntry(path, options.symlinkPolicy);
+
         if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
         {
             return IO::makeStatus(ErrorCode::AlreadyExists);
         }
+
         if (!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
         {
             return std::move(destination.status);
         }
+
         if (destination.status.ok() && options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
         {
             return IO::makeStatus(ErrorCode::Unsupported);
@@ -294,12 +318,14 @@ IO::Types::Status writeAllBytesAtomic(
                     .createParentDirectories = false,
                     .flushOnClose = IO::Types::FlushMode::None});
         }
+
         if (!openStatus.ok())
         {
             return openStatus;
         }
 
         IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, bytes);
+
         if (!writeResult.status.ok())
         {
             static_cast<void>(writer.close());
@@ -308,6 +334,7 @@ IO::Types::Status writeAllBytesAtomic(
         }
 
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
+
         if (!flushStatus.ok())
         {
             static_cast<void>(writer.close());
@@ -316,6 +343,7 @@ IO::Types::Status writeAllBytesAtomic(
         }
 
         IO::Types::Status closeStatus = writer.close();
+
         if (!closeStatus.ok())
         {
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
@@ -323,6 +351,7 @@ IO::Types::Status writeAllBytesAtomic(
         }
 
         IO::Types::Status commitStatus = Detail::Platform::movePath(temporaryPath, path, options.replaceMode, options.symlinkPolicy);
+
         if (!commitStatus.ok())
         {
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
@@ -333,6 +362,7 @@ IO::Types::Status writeAllBytesAtomic(
         if (options.flushParentDirectory)
         {
             IO::Types::Status parentFlushStatus = Detail::Platform::flushDirectory(parent);
+
             if (!parentFlushStatus.ok())
             {
                 return parentFlushStatus;

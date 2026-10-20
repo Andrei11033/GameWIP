@@ -14,11 +14,13 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         Dispatcher &current = dispatcher();
         Types::Events::PumpResult result;
+
         if (current.pumping)
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
             return result;
         }
+
         if (Detail::consumeFailure(TestHooks::FailurePoint::EventPump))
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
@@ -27,6 +29,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         current.pumping = true;
         current.activeResult = &result;
+
         if (current.deferredPumpFailure)
         {
             result.status = std::move(*current.deferredPumpFailure);
@@ -41,6 +44,7 @@ namespace GameWIP::Desktop::Detail::Platform
             current.pumping = false;
             return result;
         }
+
         if (current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
             !hasShellMessageWindows())
         {
@@ -49,11 +53,13 @@ namespace GameWIP::Desktop::Detail::Platform
             return result;
         }
         bool accessibilityPending = false;
+
         for (const WindowState *state : current.windows)
         {
             if (state && state->accessibility)
             {
                 const auto runtime = state->accessibility->runtime.load();
+
                 if (runtime && runtime->live.load())
                 {
                     std::scoped_lock lock(runtime->actionMutex, runtime->notificationMutex);
@@ -61,15 +67,18 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
         }
+
         if (wait && !accessibilityPending)
         {
             DWORD milliseconds = INFINITE;
+
             if (timeout != Events::kWaitForever)
             {
                 const auto maximum = static_cast<std::int64_t>(INFINITE - 1);
                 milliseconds = static_cast<DWORD>(std::min<std::int64_t>(timeout.count(), maximum));
             }
             const DWORD waitResult = MsgWaitForMultipleObjectsEx(0, nullptr, milliseconds, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
+
             if (waitResult == WAIT_TIMEOUT)
             {
                 result.timedOut = true;
@@ -77,6 +86,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 current.pumping = false;
                 return result;
             }
+
             if (waitResult == WAIT_FAILED)
             {
                 result.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MsgWaitForMultipleObjectsEx");
@@ -89,12 +99,14 @@ namespace GameWIP::Desktop::Detail::Platform
         bool receivedDisplayChange = false;
         MSG message{};
         const UINT wake = wakeMessage();
+
         while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != FALSE)
         {
             if (wake != 0 && message.message == wake)
             {
                 continue;
             }
+
             if (message.message == WM_QUIT)
             {
                 for (WindowState *state : current.windows)
@@ -106,6 +118,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 continue;
             }
+
             if (message.message == WM_DISPLAYCHANGE)
             {
                 receivedDisplayChange = true;
@@ -115,6 +128,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         const bool displayColorChanged = consumeDisplayColorConfigurationChange();
+
         if (!receivedDisplayChange && displayColorChanged)
         {
             for (WindowState *state : current.windows)
@@ -133,9 +147,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 publishAccessibilityGeometry(*state);
                 drainAccessibilityNotifications(*state);
             }
+
             if (state != nullptr && state->platform && state->cursorMode == Types::CursorMode::Relative && state->focused)
             {
                 IO::Types::Status cursorStatus = applyCursorState(*state);
+
                 if (!cursorStatus.ok() && result.status.ok())
                 {
                     result.status = std::move(cursorStatus);

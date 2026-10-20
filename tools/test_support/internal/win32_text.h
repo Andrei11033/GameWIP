@@ -24,16 +24,19 @@ namespace GameWIP::TestSupport::Detail::Win32
         {
             throw std::invalid_argument("Win32 text contains an embedded null");
         }
+
         if (text.empty())
         {
             return {};
         }
 
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+
         if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
             throw std::length_error("Win32 text exceeds the Unicode conversion limit");
         }
+
         if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             throw std::invalid_argument("Win32 text is not valid UTF-8");
@@ -41,16 +44,19 @@ namespace GameWIP::TestSupport::Detail::Win32
 
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+
         if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             throw std::runtime_error("Win32 UTF-8 conversion failed");
         }
 
         std::wstring output(conversion.codeUnitsWritten, L'\0');
+
         for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
         {
             output[index] = static_cast<wchar_t>(converted[index]);
         }
+
         return output;
     }
 
@@ -67,16 +73,19 @@ namespace GameWIP::TestSupport::Detail::Win32
         }
 
         std::vector<char16_t> source(text.size());
+
         for (std::size_t index = 0; index < text.size(); ++index)
         {
             source[index] = static_cast<char16_t>(text[index]);
         }
 
         const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(source);
+
         if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
             throw std::length_error("Win32 text exceeds the Unicode conversion limit");
         }
+
         if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             throw std::runtime_error("Win32 text is not valid UTF-16");
@@ -84,10 +93,12 @@ namespace GameWIP::TestSupport::Detail::Win32
 
         std::string output(measurement.requiredBytes, '\0');
         const auto conversion = GameWIP::Unicode::Utf16::convertToUtf8(source, output);
+
         if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             throw std::runtime_error("Win32 UTF-16 conversion failed");
         }
+
         return output;
     }
 } // namespace GameWIP::TestSupport::Detail::Win32

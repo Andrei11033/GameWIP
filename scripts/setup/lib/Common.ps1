@@ -9,18 +9,22 @@ Set-StrictMode -Version Latest
 function Get-GameWipSetupState
 {
     $defaultState = [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
+
     if (-not (Test-Path -LiteralPath $script:SetupStatePath -PathType Leaf))
     {
         $script:SetupStateReadStatus = 'missing'
         return $defaultState
     }
+
     try
     {
         $state = Get-Content -LiteralPath $script:SetupStatePath -Raw | ConvertFrom-Json
+
         if ($state.schemaVersion -ne 1)
         {
             throw "Unsupported setup state schemaVersion '$($state.schemaVersion)'."
         }
+
         foreach ($field in @('wingetPackages', 'vscodeExtensions', 'msys2InstalledBySetup'))
         {
             if ($null -eq $state.PSObject.Properties[$field])
@@ -29,6 +33,7 @@ function Get-GameWipSetupState
             }
         }
     }
+
     catch
     {
         $script:SetupStateReadStatus = 'corrupt'
@@ -103,6 +108,7 @@ function Assert-GameWipSetupWindows
         throw 'The Windows setup entry point can only run on Windows.'
     }
     $build = [Environment]::OSVersion.Version.Build
+
     if ($build -lt 22000)
     {
         Write-Warning "GameWIP officially supports Windows 11; detected Windows build $build."
@@ -112,6 +118,7 @@ function Assert-GameWipSetupWindows
 function Assert-GameWipSetupRepository
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
+
     foreach ($file in @('CMakeLists.txt', 'CMakePresets.json'))
     {
         if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot $file)))

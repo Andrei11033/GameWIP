@@ -22,10 +22,12 @@ namespace GameWIP::Desktop::Detail::Platform
             SetLastError(ERROR_SUCCESS);
             const LONG_PTR previous = SetWindowLongPtrW(window, GWLP_HWNDPARENT, reinterpret_cast<LONG_PTR>(owner));
             const DWORD nativeCode = GetLastError();
+
             if (previous == 0 && nativeCode != ERROR_SUCCESS)
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, nativeCode, "set window owner");
             }
+
             return IO::successStatus();
         }
 
@@ -34,6 +36,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const UINT dpi = dpiForWindow(state.platform->handle);
             const Types::PixelSize physicalSize = logicalToPhysicalSize(size, dpi);
+
             if (physicalSize.width == 0 || physicalSize.height == 0 ||
                 physicalSize.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
                 physicalSize.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
@@ -46,18 +49,21 @@ namespace GameWIP::Desktop::Detail::Platform
             RECT outer{0, 0, static_cast<LONG>(physicalSize.width), static_cast<LONG>(physicalSize.height)};
             LONG_PTR styleValue = 0;
             IO::Types::Status status = queryWindowLong(state.platform->handle, GWL_STYLE, styleValue, "GetWindowLongPtrW geometry style");
+
             if (!status.ok())
             {
                 return status;
             }
             LONG_PTR extendedStyleValue = 0;
             status = queryWindowLong(state.platform->handle, GWL_EXSTYLE, extendedStyleValue, "GetWindowLongPtrW geometry extended style");
+
             if (!status.ok())
             {
                 return status;
             }
             const DWORD style = static_cast<DWORD>(styleValue);
             const DWORD extendedStyle = static_cast<DWORD>(extendedStyleValue);
+
             if (AdjustWindowRectExForDpi(&outer, style, FALSE, extendedStyle, dpi) == FALSE)
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "AdjustWindowRectExForDpi");
@@ -66,6 +72,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::int64_t outerHeight = static_cast<std::int64_t>(outer.bottom) - outer.top;
             const std::int64_t wideX = static_cast<std::int64_t>(position.x) + outer.left;
             const std::int64_t wideY = static_cast<std::int64_t>(position.y) + outer.top;
+
             if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() || wideY < std::numeric_limits<int>::min() ||
                 wideY > std::numeric_limits<int>::max() || outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() || outerHeight <= 0 ||
                 outerHeight > std::numeric_limits<int>::max())
@@ -74,6 +81,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             const int x = static_cast<int>(wideX);
             const int y = static_cast<int>(wideY);
+
             if (SetWindowPos(
                     state.platform->handle,
                     nullptr,
@@ -85,6 +93,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos client rectangle");
             }
+
             return refreshCachedGeometry(state);
         }
 
@@ -125,18 +134,21 @@ namespace GameWIP::Desktop::Detail::Platform
 
             void *pixels = nullptr;
             HDC screen = GetDC(nullptr);
+
             if (screen == nullptr)
             {
                 return nullptr;
             }
             HBITMAP color = CreateDIBSection(screen, reinterpret_cast<const BITMAPINFO *>(&header), DIB_RGB_COLORS, &pixels, nullptr, 0);
             ReleaseDC(nullptr, screen);
+
             if (color == nullptr || pixels == nullptr)
             {
                 if (color != nullptr)
                 {
                     DeleteObject(color);
                 }
+
                 return nullptr;
             }
 
@@ -161,6 +173,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
+
             if (mask == nullptr)
             {
                 DeleteObject(color);
@@ -180,11 +193,13 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
     {
         WindowState *ownerState = owner.isValid() ? resolveWindowId(owner) : nullptr;
+
         if (owner.isValid() &&
             (ownerState == nullptr || !ownerState->platform || ownerState->platform->ownerThreadId != state.platform->ownerThreadId))
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         for (WindowState *ancestor = ownerState; ancestor != nullptr && ancestor->owner.isValid();)
         {
             if (ancestor->owner == state.id)
@@ -197,23 +212,28 @@ namespace GameWIP::Desktop::Detail::Platform
         WindowState *previousOwnerState = previous.isValid() ? resolveWindowId(previous) : nullptr;
         HWND previousOwnerHandle = previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
         IO::Types::Status status = setNativeParent(state.platform->handle, ownerState != nullptr ? ownerState->platform->handle : nullptr);
+
         if (!status.ok())
         {
             return status;
         }
         state.owner = owner;
         status = applyStyle(state);
+
         if (!status.ok())
         {
             state.owner = previous;
             IO::Types::Status parentRollback = setNativeParent(state.platform->handle, previousOwnerHandle);
             IO::Types::Status styleRollback = applyStyle(state);
+
             if (!parentRollback.ok())
             {
                 return parentRollback;
             }
+
             return styleRollback.ok() ? std::move(status) : std::move(styleRollback);
         }
+
         if (state.owner != previous)
         {
             routeEvent(
@@ -222,6 +242,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     previous.isValid() ? std::optional<Types::WindowId>{previous} : std::nullopt,
                     state.owner.isValid() ? std::optional<Types::WindowId>{state.owner} : std::nullopt});
         }
+
         return IO::successStatus();
     }
 
@@ -235,11 +256,13 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             std::wstring title;
             DWORD nativeCode = ERROR_SUCCESS;
+
             if (!utf8ToUtf16(utf8Title, title, nativeCode))
             {
                 return statusFromWin32(unicodeConversionError(nativeCode, IO::Types::ErrorCode::InvalidArgument), nativeCode, "convert window title");
             }
             std::string cachedTitle(utf8Title);
+
             if (SetWindowTextW(state.platform->handle, title.c_str()) == FALSE)
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowTextW");
@@ -269,11 +292,13 @@ namespace GameWIP::Desktop::Detail::Platform
         const int smallWidth = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
         const int smallHeight = GetSystemMetricsForDpi(SM_CYSMICON, dpi);
         HICON large = createIcon(closestIcon(images, largeWidth, largeHeight));
+
         if (large == nullptr)
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "CreateIconIndirect large");
         }
         HICON small = createIcon(closestIcon(images, smallWidth, smallHeight));
+
         if (small == nullptr)
         {
             DestroyIcon(large);
@@ -282,10 +307,12 @@ namespace GameWIP::Desktop::Detail::Platform
         // The Window owns both handles after publication and releases them on replacement or close.
         SendMessageW(state.platform->handle, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(large));
         SendMessageW(state.platform->handle, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(small));
+
         if (state.platform->largeIcon != nullptr)
         {
             DestroyIcon(state.platform->largeIcon);
         }
+
         if (state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
         {
             DestroyIcon(state.platform->smallIcon);
@@ -299,10 +326,12 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         SendMessageW(state.platform->handle, WM_SETICON, ICON_BIG, 0);
         SendMessageW(state.platform->handle, WM_SETICON, ICON_SMALL, 0);
+
         if (state.platform->largeIcon != nullptr)
         {
             DestroyIcon(state.platform->largeIcon);
         }
+
         if (state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
         {
             DestroyIcon(state.platform->smallIcon);
@@ -333,23 +362,27 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status centerOn(WindowState &state, Types::Display::MonitorId monitor) noexcept
     {
         HMONITOR native = monitor.isValid() ? nativeMonitor(monitor) : MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
+
         if (native == nullptr)
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, ERROR_NOT_FOUND, "resolve center monitor");
         }
         MONITORINFO info{};
         info.cbSize = sizeof(info);
+
         if (GetMonitorInfoW(native, &info) == FALSE)
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, GetLastError(), "resolve center monitor");
         }
         RECT frame{};
+
         if (GetWindowRect(state.platform->handle, &frame) == FALSE)
         {
             return statusFromWin32(IO::Types::ErrorCode::StatFailed, GetLastError(), "GetWindowRect center");
         }
         const int width = frame.right - frame.left;
         const int height = frame.bottom - frame.top;
+
         if (SetWindowPos(
                 state.platform->handle,
                 nullptr,
@@ -361,6 +394,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos center");
         }
+
         return refreshCachedGeometry(state);
     }
 
@@ -369,25 +403,30 @@ namespace GameWIP::Desktop::Detail::Platform
         const Types::SizeLimits previous = state.sizeLimits;
         state.sizeLimits = limits;
         Types::LogicalSize clamped = state.clientSize;
+
         if (limits.minimum)
         {
             clamped.width = std::max(clamped.width, limits.minimum->width);
             clamped.height = std::max(clamped.height, limits.minimum->height);
         }
+
         if (limits.maximum)
         {
             clamped.width = std::min(clamped.width, limits.maximum->width);
             clamped.height = std::min(clamped.height, limits.maximum->height);
         }
+
         if (clamped != state.clientSize)
         {
             IO::Types::Status status = setClientSize(state, clamped);
+
             if (!status.ok())
             {
                 state.sizeLimits = previous;
                 return status;
             }
         }
+
         return IO::successStatus();
     }
 
@@ -401,6 +440,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
         POINT point{};
+
         if (!logicalToPhysicalChecked(position.x, dpi, point.x) || !logicalToPhysicalChecked(position.y, dpi, point.y))
         {
             return {
@@ -409,10 +449,12 @@ namespace GameWIP::Desktop::Detail::Platform
                     ERROR_ARITHMETIC_OVERFLOW,
                     "logical client position exceeds Win32 range at the effective DPI")};
         }
+
         if (ClientToScreen(state.platform->handle, &point) == FALSE)
         {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen")};
         }
+
         return {.status = IO::successStatus(), .value = Types::ScreenPosition{point.x, point.y}};
     }
 
@@ -420,10 +462,12 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
         POINT point{position.x, position.y};
+
         if (ScreenToClient(state.platform->handle, &point) == FALSE)
         {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ScreenToClient")};
         }
+
         return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
 } // namespace GameWIP::Desktop::Detail::Platform

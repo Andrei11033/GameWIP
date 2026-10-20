@@ -43,6 +43,7 @@ void testProgressDialogValidation(TestSupport::Context &context)
     description.presentationMode = static_cast<ProgressTypes::Mode>(255);
     static_cast<void>(context.expectEq("ProgressDialog rejects invalid Mode", ErrorCode::InvalidArgument, progress.open(description).code));
     description.presentationMode = ProgressTypes::Mode::Determinate;
+
     for (const double invalid : {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(), -0.001, 1.001})
     {
         description.progress = invalid;
@@ -431,6 +432,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("foreign thread does not report ProgressDialog open", foreignOpen));
     static_cast<void>(context.expectFalse("foreign thread does not own ProgressDialog", foreignOwned));
     static_cast<void>(context.expectFalse("foreign thread cannot query owner cancellation", foreignCancel));
+
     for (const ErrorCode code : {foreignTitle, foreignHeading, foreignMessage, foreignMode, foreignProgress, foreignClose})
     {
         static_cast<void>(context.expectEq("foreign ProgressDialog operation is ResourceBusy", ErrorCode::ResourceBusy, code));

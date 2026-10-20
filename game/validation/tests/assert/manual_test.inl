@@ -30,6 +30,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
 
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "manual_assert_ui"))
     {
         context.fail("manual assert UI logger init", "Logger::init failed");
@@ -38,6 +39,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
 
     const ScopedClearedEnvironmentVariable clearTestAction(context.processState, kTestActionEnvironmentVariable);
     const ScopedClearedEnvironmentVariable clearSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
+
     if (!requireInfrastructure(context, "clear manual test action", clearTestAction.status()) ||
         !requireInfrastructure(context, "clear manual popup suppression", clearSuppressPopup.status()))
     {
@@ -71,6 +73,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     if (options.enableChildCrashTests)
     {
         const std::filesystem::path childLogDirectory = context.logRoot / "manual_interactive_abort_child";
+
         if (!requireInfrastructure(context, "create manual Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
         {
             return;
@@ -81,6 +84,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
             pathText(childLogDirectory));
         const ScopedClearedEnvironmentVariable clearChildTestAction(context.processState, kTestActionEnvironmentVariable);
         const ScopedClearedEnvironmentVariable clearChildSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
+
         if (!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
             !requireInfrastructure(context, "clear manual Abort child action", clearChildTestAction.status()) ||
             !requireInfrastructure(context, "clear manual Abort child popup suppression", clearChildSuppressPopup.status()))

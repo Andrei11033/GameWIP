@@ -27,6 +27,7 @@ namespace GameWIP::Terminal
             case Types::Output::LineEnding::CrLf:
                 return true;
             }
+
             return false;
         }
 
@@ -41,6 +42,7 @@ namespace GameWIP::Terminal
             case Types::Output::LineEnding::CrLf:
                 return "\r\n";
             }
+
             return {};
         }
 
@@ -175,15 +177,18 @@ namespace GameWIP::Terminal
         try
         {
             std::vformat_to(std::back_inserter(text_), format, arguments);
+
             if (appendLineEnding)
             {
                 text_.append(lineEndingText(lineEnding_));
             }
+
             if (!validUtf8(std::string_view(text_).substr(previousSize)))
             {
                 rollbackString(text_, previousSize);
                 return IO::makeStatus(ErrorCode::EncodingFailed);
             }
+
             return IO::successStatus();
         }
         catch (...)
@@ -218,6 +223,7 @@ namespace GameWIP::Terminal
     IO::Types::Status OutputBuffer::flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options) noexcept
     {
         IO::Types::Status status = writeTo(stream, options);
+
         if (status.ok())
         {
             clear();

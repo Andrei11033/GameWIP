@@ -84,6 +84,7 @@ namespace
         void emit(std::string_view line)
         {
             std::string text(line);
+
             while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
             {
                 text.pop_back();
@@ -125,6 +126,7 @@ namespace
         {
             std::string skipReason;
             const auto answer = TestSupport::promptManualCheck(question, skipReason);
+
             switch (answer)
             {
             case TestSupport::Types::Reporting::ManualAnswer::Yes:
@@ -231,6 +233,7 @@ namespace
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == argument)
@@ -238,6 +241,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
@@ -277,6 +281,7 @@ namespace
     std::filesystem::path loggerLogFilePath(TestContext &context)
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
+
         if (!result.status.ok())
         {
             context.fail(
@@ -284,22 +289,26 @@ namespace
                 std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
             return {};
         }
+
         return pathFromText(result.utf8);
     }
 
     std::string readFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
+
         if (!requireInfrastructure(context, "read Assert log fixture", result.status))
         {
             return {};
         }
+
         return std::move(result.text);
     }
 
     std::string readDirectoryFiles(TestContext &context, const std::filesystem::path &directory)
     {
         std::string contents;
+
         if (!std::filesystem::exists(directory))
         {
             return contents;
@@ -312,6 +321,7 @@ namespace
                 contents += readFile(context, entry.path());
             }
         }
+
         return contents;
     }
 
@@ -324,11 +334,13 @@ namespace
 
         std::size_t count = 0;
         std::size_t position = 0;
+
         while ((position = text.find(needle, position)) != std::string_view::npos)
         {
             ++count;
             position += needle.size();
         }
+
         return count;
     }
 
@@ -342,6 +354,7 @@ namespace
     {
         Logger::shutdown();
         const std::filesystem::path directory = context.logRoot / std::string(name);
+
         if (!TestSupport::createDirectories(directory).ok())
         {
             return false;
@@ -387,18 +400,22 @@ namespace GameWIP::Test
         {
             return runAssertFailureChild();
         }
+
         if (hasArgument(argc, argv, kInteractiveAbortChildArgument))
         {
             return runInteractiveAbortChild();
         }
+
         if (hasArgument(argc, argv, kInteractiveBreakChildArgument))
         {
             return runInteractiveBreakChild();
         }
+
         if (hasArgument(argc, argv, kDebugBreakChildArgument))
         {
             return runDebugBreakChild();
         }
+
         if (hasArgument(argc, argv, kUnreachableChildArgument))
         {
             return runUnreachableChild();
@@ -414,6 +431,7 @@ namespace GameWIP::Test
             [&](TestSupport::Context &suiteContext)
             {
                 TestContext context(suiteContext);
+
                 if (!context.processState.status().ok())
                 {
                     context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
@@ -421,6 +439,7 @@ namespace GameWIP::Test
                 }
                 context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
                 const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
+
                 if (!requireInfrastructure(context, "create Assert test workspace", workspace.status()))
                 {
                     return;
@@ -571,6 +590,7 @@ namespace GameWIP::Test
                     {
                         testManualAssertUi(context, options);
                     });
+
                 if (options.enableManualTests)
                 {
                     context.testContext.summary(

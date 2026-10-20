@@ -11,24 +11,29 @@ function Get-GameWipFileSha256
     param([Parameter(Mandatory = $true)][string]$Path)
 
     $fullPath = [IO.Path]::GetFullPath($Path)
+
     if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf))
     {
         throw "Cannot hash missing file '$fullPath'."
     }
 
     $stream = [IO.File]::OpenRead($fullPath)
+
     try
     {
         $sha256 = [System.Security.Cryptography.SHA256]::Create()
+
         try
         {
             return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
         }
+
         finally
         {
             $sha256.Dispose()
         }
     }
+
     finally
     {
         $stream.Dispose()
@@ -44,6 +49,7 @@ function Update-GameWipProcessPath
 
     $entries = [System.Collections.Generic.List[string]]::new()
     $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
     foreach ($pathValue in @(
             $env:Path,
             [Environment]::GetEnvironmentVariable('Path', 'Machine'),
@@ -53,6 +59,7 @@ function Update-GameWipProcessPath
         foreach ($entry in @([string]$pathValue -split [IO.Path]::PathSeparator))
         {
             $trimmed = $entry.Trim().Trim('"')
+
             if (-not [string]::IsNullOrWhiteSpace($trimmed) -and $seen.Add($trimmed))
             {
                 $entries.Add($trimmed) | Out-Null
@@ -79,10 +86,12 @@ function Test-GameWipPathWithinRoot
     {
         [StringComparison]::Ordinal
     }
+
     if ($canonicalPath.Equals($canonicalRoot, $comparison))
     {
         return $true
     }
+
     return $canonicalPath.StartsWith($canonicalRoot + [IO.Path]::DirectorySeparatorChar, $comparison)
 }
 
@@ -105,6 +114,7 @@ function Get-GameWipCanonicalPath
     param([Parameter(Mandatory = $true)][string]$Path)
     $canonical = [IO.Path]::GetFullPath($Path)
     $root = [IO.Path]::GetPathRoot($canonical)
+
     if ($canonical -eq $root)
     {
         return $canonical
@@ -137,6 +147,7 @@ function Assert-GameWipSafeChildPath
         $null
     }
     $ownedPrefix = $canonicalRoot + [IO.Path]::DirectorySeparatorChar
+
     if ($canonicalPath.Equals($canonicalRoot, $comparison) -or
         $canonicalPath.Equals($driveRoot, $comparison) -or
         $canonicalPath.Equals($repositoryRoot, $comparison) -or
@@ -145,6 +156,7 @@ function Assert-GameWipSafeChildPath
     {
         throw "Refusing unsafe recursive deletion target '$canonicalPath' outside owned root '$canonicalRoot'."
     }
+
     return $canonicalPath
 }
 
@@ -152,10 +164,12 @@ function Assert-GameWipNoReparsePointInOwnedTree
 {
     param([Parameter(Mandatory = $true)][string]$Path)
     $rootItem = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
+
     if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
     {
         throw "Refusing recursive deletion of reparse point '$Path'."
     }
+
     foreach ($item in @(Get-ChildItem -LiteralPath $Path -Force -Recurse -ErrorAction Stop))
     {
         if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
@@ -174,16 +188,19 @@ function Invoke-GameWipOwnedTreeRemoval
         [string]$MarkerName = '.gamewip-owned.json',
         [switch]$SuppressMutationTracking
     )
+
     if (-not (Test-Path -LiteralPath $Path))
     {
         return
     }
     $canonicalPath = Assert-GameWipSafeChildPath -Path $Path -OwnedRoot $OwnedRoot
+
     if ($RequireMarker -and -not (Test-Path -LiteralPath (Join-Path $canonicalPath $MarkerName) -PathType Leaf))
     {
         throw "Refusing to delete unmarked GameWIP tree '$canonicalPath'."
     }
     Assert-GameWipNoReparsePointInOwnedTree -Path $canonicalPath
+
     if (-not $SuppressMutationTracking)
     {
         Set-GameWipMutationStarted

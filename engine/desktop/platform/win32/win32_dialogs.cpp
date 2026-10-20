@@ -84,6 +84,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status statusFromHResult(HRESULT result) noexcept
         {
             ErrorCode code = ErrorCode::NativeFailure;
+
             if (result == E_OUTOFMEMORY)
             {
                 code = ErrorCode::OutOfMemory;
@@ -104,6 +105,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 code = ErrorCode::Unsupported;
             }
+
             return IO::makeStatus(code, static_cast<std::int64_t>(result));
         }
 
@@ -118,6 +120,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 APTTYPE type = APTTYPE_CURRENT;
                 APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
                 HRESULT result = CoGetApartmentType(&type, &qualifier);
+
                 if (SUCCEEDED(result))
                 {
                     if (type == APTTYPE_STA || type == APTTYPE_MAINSTA)
@@ -125,6 +128,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         status_ = IO::successStatus();
                         return;
                     }
+
                     if (type != APTTYPE_MTA || qualifier != APTTYPEQUALIFIER_IMPLICIT_MTA)
                     {
                         status_ = IO::makeStatus(ErrorCode::ResourceBusy, static_cast<std::int64_t>(RPC_E_CHANGED_MODE));
@@ -139,6 +143,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
 
                 result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
                 if (SUCCEEDED(result))
                 {
                     ownsInitialization_ = true;
@@ -191,10 +196,12 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
 #endif
                 DWORD nativeCode = ERROR_SUCCESS;
+
                 if (!utf8ToUtf16(text, output, nativeCode))
                 {
                     return IO::makeStatus(unicodeConversionError(nativeCode, ErrorCode::EncodingFailed), nativeCode);
                 }
+
                 return IO::successStatus();
             }
             catch (const std::bad_alloc &)
@@ -217,16 +224,19 @@ namespace GameWIP::Desktop::Detail::Platform
             try
             {
                 const auto &native = directory.native();
+
                 if (std::wstring_view(native).contains(L'\0'))
                 {
                     return IO::makeStatus(ErrorCode::InvalidArgument);
                 }
                 ComPtr<IShellItem> item;
                 const HRESULT created = SHCreateItemFromParsingName(native.c_str(), nullptr, IID_PPV_ARGS(item.put()));
+
                 if (FAILED(created))
                 {
                     return statusFromHResult(created);
                 }
+
                 if (!item)
                 {
                     return IO::makeStatus(ErrorCode::NativeFailure);
@@ -263,10 +273,12 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 native.names.reserve(filters.size());
                 native.patterns.reserve(filters.size());
+
                 for (const auto &filter : filters)
                 {
                     std::wstring name;
                     IO::Types::Status status = convertText(filter.name, name);
+
                     if (!status.ok())
                     {
                         return status;
@@ -274,6 +286,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     native.names.push_back(std::move(name));
 
                     std::wstring pattern;
+
                     if (filter.extensions.empty())
                     {
                         pattern = L"*.*";
@@ -284,10 +297,12 @@ namespace GameWIP::Desktop::Detail::Platform
                         {
                             std::wstring extension;
                             status = convertText(filter.extensions[index], extension);
+
                             if (!status.ok())
                             {
                                 return status;
                             }
+
                             if (index != 0)
                             {
                                 pattern.push_back(L';');
@@ -300,10 +315,12 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
 
                 native.specifications.reserve(filters.size());
+
                 for (std::size_t index = 0; index < filters.size(); ++index)
                 {
                     native.specifications.push_back({native.names[index].c_str(), native.patterns[index].c_str()});
                 }
+
                 return IO::successStatus();
             }
             catch (const std::bad_alloc &)
@@ -328,11 +345,13 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             FILEOPENDIALOGOPTIONS options{};
             HRESULT result = dialog.GetOptions(&options);
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
             result = dialog.SetOptions(static_cast<FILEOPENDIALOGOPTIONS>(static_cast<DWORD>(options) | requestedOptions | FOS_FORCEFILESYSTEM));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -342,11 +361,13 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 std::wstring wideTitle;
                 IO::Types::Status status = convertText(title, wideTitle);
+
                 if (!status.ok())
                 {
                     return status;
                 }
                 result = dialog.SetTitle(wideTitle.c_str());
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
@@ -354,31 +375,38 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             IO::Types::Status status = setSuggestedDirectory(dialog, suggestedDirectory);
+
             if (!status.ok())
             {
                 return status;
             }
             status = makeFilters(filters, nativeFilters);
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (!nativeFilters.specifications.empty())
             {
                 result = dialog.SetFileTypes(static_cast<UINT>(nativeFilters.specifications.size()), nativeFilters.specifications.data());
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
                 }
+
                 if (preferredFilterIndex)
                 {
                     result = dialog.SetFileTypeIndex(static_cast<UINT>(*preferredFilterIndex + 1));
+
                     if (FAILED(result))
                     {
                         return statusFromHResult(result);
                     }
                 }
             }
+
             return IO::successStatus();
         }
 
@@ -386,20 +414,24 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status selectedFilter(IFileDialog &dialog, std::size_t filterCount, std::optional<std::size_t> &selected) noexcept
         {
             selected.reset();
+
             if (filterCount == 0)
             {
                 return IO::successStatus();
             }
             UINT nativeIndex = 0;
             const HRESULT result = dialog.GetFileTypeIndex(&nativeIndex);
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
+
             if (nativeIndex >= 1 && nativeIndex <= filterCount)
             {
                 selected = static_cast<std::size_t>(nativeIndex - 1);
             }
+
             return IO::successStatus();
         }
 
@@ -426,6 +458,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 snapshot.preferredFilterIndex = preferredFilterIndex;
                 snapshot.suggestedDirectory = suggestedDirectory;
                 IO::Types::Status status = convertText(title, snapshot.title);
+
                 if (!status.ok())
                 {
                     return status;
@@ -433,6 +466,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 NativeFilters nativeFilters;
                 status = makeFilters(filters, nativeFilters);
+
                 if (!status.ok())
                 {
                     return status;
@@ -440,19 +474,23 @@ namespace GameWIP::Desktop::Detail::Platform
                 snapshot.filterNames = std::move(nativeFilters.names);
                 snapshot.filterPatterns = std::move(nativeFilters.patterns);
                 status = convertText(suggestedFileName, snapshot.suggestedFileName);
+
                 if (!status.ok())
                 {
                     return status;
                 }
                 status = convertText(suggestedExtension, snapshot.suggestedExtension);
+
                 if (!status.ok())
                 {
                     return status;
                 }
+
                 if (!suggestedDirectory.empty() && std::wstring_view(suggestedDirectory.native()).contains(L'\0'))
                 {
                     return IO::makeStatus(ErrorCode::InvalidArgument);
                 }
+
                 if (Detail::consumeFailure(TestHooks::FailurePoint::DialogSuggestedDirectory))
                 {
                     return IO::makeStatus(ErrorCode::NativeFailure);
@@ -486,26 +524,31 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.suggestedDirectory,
                 {},
                 {});
+
             if (!output.status.ok())
             {
                 return output;
             }
+
             if (Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             if (!response.accepted)
             {
                 output.status = IO::successStatus();
                 return output;
             }
+
             if (Detail::consumeFailure(TestHooks::FailurePoint::DialogResult) || response.paths.size() != 1)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
             output.path = std::move(response.paths.front());
+
             if (!folder && !description.filters.empty() && response.nativeFilterIndex && *response.nativeFilterIndex >= 1 &&
                 *response.nativeFilterIndex <= description.filters.size())
             {
@@ -532,26 +575,31 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.suggestedDirectory,
                 {},
                 {});
+
             if (!output.status.ok())
             {
                 return output;
             }
+
             if (Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             if (!response.accepted)
             {
                 output.status = IO::successStatus();
                 return output;
             }
+
             if (Detail::consumeFailure(TestHooks::FailurePoint::DialogResult) || response.paths.empty())
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
             output.paths = std::move(response.paths);
+
             if (!folder && !description.filters.empty() && response.nativeFilterIndex && *response.nativeFilterIndex >= 1 &&
                 *response.nativeFilterIndex <= description.filters.size())
             {
@@ -576,26 +624,31 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.suggestedDirectory,
                 description.suggestedFileName,
                 description.suggestedExtension);
+
             if (!output.status.ok())
             {
                 return output;
             }
+
             if (Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             if (!response.accepted)
             {
                 output.status = IO::successStatus();
                 return output;
             }
+
             if (Detail::consumeFailure(TestHooks::FailurePoint::DialogResult) || response.paths.size() != 1)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
             output.path = std::move(response.paths.front());
+
             if (!description.filters.empty() && response.nativeFilterIndex && *response.nativeFilterIndex >= 1 &&
                 *response.nativeFilterIndex <= description.filters.size())
             {
@@ -612,10 +665,12 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             CoTaskMemString native;
             const HRESULT result = item.GetDisplayName(SIGDN_FILESYSPATH, &native.value);
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
+
             if (native.value == nullptr)
             {
                 return IO::makeStatus(ErrorCode::NativeFailure);
@@ -647,6 +702,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             Types::Dialogs::File::Result output;
             ApartmentLease apartment;
+
             if (!apartment.status().ok())
             {
                 output.status = apartment.status();
@@ -655,11 +711,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
             ComPtr<IFileOpenDialog> dialog;
             HRESULT result = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.put()));
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             if (!dialog)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
@@ -668,6 +726,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             NativeFilters filters;
             DWORD options = FOS_PATHMUSTEXIST;
+
             if (folder)
             {
                 options |= FOS_PICKFOLDERS;
@@ -684,17 +743,20 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.preferredFilterIndex,
                 options,
                 filters);
+
             if (!output.status.ok())
             {
                 return output;
             }
 
             result = dialog->Show(ownerHandle(description.owner));
+
             if (isCancellation(result))
             {
                 output.status = IO::successStatus();
                 return output;
             }
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
@@ -702,25 +764,30 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ComPtr<IShellItem> item;
             result = dialog->GetResult(item.put());
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             if (!item)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
             output.status = extractPath(*item.get(), output.path);
+
             if (!output.status.ok())
             {
                 output.path.clear();
                 return output;
             }
+
             if (!folder)
             {
                 output.status = selectedFilter(*dialog.get(), description.filters.size(), output.selectedFilterIndex);
+
                 if (!output.status.ok())
                 {
                     output.path.clear();
@@ -737,6 +804,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             Types::Dialogs::File::ListResult output;
             ApartmentLease apartment;
+
             if (!apartment.status().ok())
             {
                 output.status = apartment.status();
@@ -745,11 +813,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
             ComPtr<IFileOpenDialog> dialog;
             HRESULT result = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.put()));
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             if (!dialog)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
@@ -767,17 +837,20 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.preferredFilterIndex,
                 options,
                 filters);
+
             if (!output.status.ok())
             {
                 return output;
             }
 
             result = dialog->Show(ownerHandle(description.owner));
+
             if (isCancellation(result))
             {
                 output.status = IO::successStatus();
                 return output;
             }
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
@@ -786,11 +859,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
             ComPtr<IShellItemArray> items;
             result = dialog->GetResults(items.put());
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             if (!items)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
@@ -798,11 +873,13 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             DWORD count = 0;
             result = items->GetCount(&count);
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             if (count == 0)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
@@ -812,15 +889,18 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 std::vector<FileSystem::Types::Path> paths;
                 paths.reserve(count);
+
                 for (DWORD index = 0; index < count; ++index)
                 {
                     ComPtr<IShellItem> item;
                     result = items->GetItemAt(index, item.put());
+
                     if (FAILED(result))
                     {
                         output.status = statusFromHResult(result);
                         return output;
                     }
+
                     if (!item)
                     {
                         output.status = IO::makeStatus(ErrorCode::NativeFailure);
@@ -828,15 +908,18 @@ namespace GameWIP::Desktop::Detail::Platform
                     }
                     FileSystem::Types::Path path;
                     output.status = extractPath(*item.get(), path);
+
                     if (!output.status.ok())
                     {
                         return output;
                     }
                     paths.push_back(std::move(path));
                 }
+
                 if (!folder)
                 {
                     output.status = selectedFilter(*dialog.get(), description.filters.size(), output.selectedFilterIndex);
+
                     if (!output.status.ok())
                     {
                         output.selectedFilterIndex.reset();
@@ -855,6 +938,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 output.status = IO::makeStatus(ErrorCode::Unknown);
             }
+
             return output;
         }
 
@@ -862,6 +946,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] PCWSTR severityIcon(Types::Dialogs::Severity severity) noexcept
         {
             using Severity = Types::Dialogs::Severity;
+
             switch (severity)
             {
             case Severity::Information:
@@ -873,6 +958,7 @@ namespace GameWIP::Desktop::Detail::Platform
             case Severity::None:
                 return nullptr;
             }
+
             return nullptr;
         }
 
@@ -880,6 +966,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] int nativeMessageButton(Types::Dialogs::Message::Button button) noexcept
         {
             using Button = Types::Dialogs::Message::Button;
+
             switch (button)
             {
             case Button::Ok:
@@ -895,6 +982,7 @@ namespace GameWIP::Desktop::Detail::Platform
             case Button::None:
                 return 0;
             }
+
             return 0;
         }
 
@@ -902,6 +990,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] Types::Dialogs::Message::Button portableMessageButton(int button) noexcept
         {
             using Button = Types::Dialogs::Message::Button;
+
             switch (button)
             {
             case IDOK:
@@ -937,6 +1026,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
             TestHooks::FileDialogResponse response;
+
             if (Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::OpenFile, response))
             {
                 return completeSimulatedSingleFileDialog(TestHooks::FileDialogOperation::OpenFile, description, std::move(response), false);
@@ -964,6 +1054,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
             TestHooks::FileDialogResponse response;
+
             if (Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::OpenFiles, response))
             {
                 return completeSimulatedMultipleFileDialog(TestHooks::FileDialogOperation::OpenFiles, description, std::move(response), false);
@@ -992,12 +1083,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
             TestHooks::FileDialogResponse response;
+
             if (Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::SaveFile, response))
             {
                 return completeSimulatedSaveFileDialog(description, std::move(response));
             }
 #endif
             ApartmentLease apartment;
+
             if (!apartment.status().ok())
             {
                 output.status = apartment.status();
@@ -1005,11 +1098,13 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ComPtr<IFileSaveDialog> dialog;
             HRESULT result = CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(dialog.put()));
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             if (!dialog)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
@@ -1024,19 +1119,23 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.preferredFilterIndex,
                 FOS_PATHMUSTEXIST | FOS_OVERWRITEPROMPT,
                 filters);
+
             if (!output.status.ok())
             {
                 return output;
             }
             std::wstring fileName;
+
             if (!description.suggestedFileName.empty())
             {
                 output.status = convertText(description.suggestedFileName, fileName);
+
                 if (!output.status.ok())
                 {
                     return output;
                 }
                 result = dialog->SetFileName(fileName.c_str());
+
                 if (FAILED(result))
                 {
                     output.status = statusFromHResult(result);
@@ -1044,14 +1143,17 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
             std::wstring extension;
+
             if (!description.suggestedExtension.empty())
             {
                 output.status = convertText(description.suggestedExtension, extension);
+
                 if (!output.status.ok())
                 {
                     return output;
                 }
                 result = dialog->SetDefaultExtension(extension.c_str());
+
                 if (FAILED(result))
                 {
                     output.status = statusFromHResult(result);
@@ -1059,11 +1161,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
             result = dialog->Show(ownerHandle(description.owner));
+
             if (isCancellation(result))
             {
                 output.status = IO::successStatus();
                 return output;
             }
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
@@ -1071,23 +1175,27 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ComPtr<IShellItem> item;
             result = dialog->GetResult(item.put());
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             if (!item)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
             output.status = extractPath(*item.get(), output.path);
+
             if (!output.status.ok())
             {
                 output.path.clear();
                 return output;
             }
             output.status = selectedFilter(*dialog.get(), description.filters.size(), output.selectedFilterIndex);
+
             if (!output.status.ok())
             {
                 output.path.clear();
@@ -1105,6 +1213,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             output.status = IO::makeStatus(ErrorCode::Unknown);
         }
+
         return output;
     }
 
@@ -1118,6 +1227,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 .suggestedDirectory = description.suggestedDirectory};
 #if DESKTOP_INTERNAL_TEST_HOOKS
             TestHooks::FileDialogResponse response;
+
             if (Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::SelectFolder, response))
             {
                 return completeSimulatedSingleFileDialog(TestHooks::FileDialogOperation::SelectFolder, translated, std::move(response), true);
@@ -1149,6 +1259,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 .suggestedDirectory = description.suggestedDirectory};
 #if DESKTOP_INTERNAL_TEST_HOOKS
             TestHooks::FileDialogResponse response;
+
             if (Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::SelectFolders, response))
             {
                 return completeSimulatedMultipleFileDialog(TestHooks::FileDialogOperation::SelectFolders, translated, std::move(response), true);
@@ -1182,6 +1293,7 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
             TestHooks::MessageDialogResponse simulatedResponse;
             const bool simulated = Detail::consumeMessageDialogResponse(simulatedResponse);
+
             if (simulated && Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
             {
                 output.status = IO::makeStatus(ErrorCode::OutOfMemory);
@@ -1191,11 +1303,13 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring title;
             std::wstring message;
             output.status = convertText(description.title, title);
+
             if (!output.status.ok())
             {
                 return output;
             }
             output.status = convertText(description.message, message);
+
             if (!output.status.ok())
             {
                 return output;
@@ -1209,6 +1323,7 @@ namespace GameWIP::Desktop::Detail::Platform
             config.pszContent = message.c_str();
             config.pszMainIcon = severityIcon(description.severity);
             using Buttons = Types::Dialogs::Message::Buttons;
+
             switch (description.buttons)
             {
             case Buttons::Ok:
@@ -1240,6 +1355,7 @@ namespace GameWIP::Desktop::Detail::Platform
                      .buttons = description.buttons,
                      .defaultButton = description.defaultButton,
                      .severity = description.severity});
+
                 if (Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
                 {
                     result = E_FAIL;
@@ -1247,6 +1363,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 else
                 {
                     selected = simulatedResponse.dismissed ? IDCANCEL : nativeMessageButton(simulatedResponse.button);
+
                     if (Detail::consumeFailure(TestHooks::FailurePoint::DialogResult))
                     {
                         selected = std::numeric_limits<int>::min();
@@ -1258,12 +1375,14 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 result = TaskDialogIndirect(&config, &selected, nullptr, nullptr);
             }
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
                 return output;
             }
             output.status = IO::successStatus();
+
             if (selected == IDCANCEL)
             {
                 output.outcome = Types::Dialogs::Outcome::Cancelled;
@@ -1273,6 +1392,7 @@ namespace GameWIP::Desktop::Detail::Platform
             else
             {
                 output.button = portableMessageButton(selected);
+
                 if (output.button == Types::Dialogs::Message::Button::None)
                 {
                     output = {};
@@ -1290,6 +1410,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             output.status = IO::makeStatus(ErrorCode::Unknown);
         }
+
         return output;
     }
 
@@ -1301,6 +1422,7 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
             TestHooks::PromptDialogResponse simulatedResponse;
             const bool simulated = Detail::consumePromptDialogResponse(simulatedResponse);
+
             if (simulated && Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
             {
                 output.status = IO::makeStatus(ErrorCode::OutOfMemory);
@@ -1308,6 +1430,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 #endif
             constexpr int nativeBase = 1000;
+
             if (description.buttons.size() > static_cast<std::size_t>(std::numeric_limits<int>::max() - nativeBase) ||
                 description.options.size() > static_cast<std::size_t>(std::numeric_limits<int>::max() - nativeBase) - description.buttons.size())
             {
@@ -1321,6 +1444,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring details;
             std::wstring footer;
             std::wstring verification;
+
             for (auto pair :
                  {std::pair{description.title, &title},
                   std::pair{description.heading, &heading},
@@ -1329,14 +1453,17 @@ namespace GameWIP::Desktop::Detail::Platform
                   std::pair{description.supplementalText, &footer}})
             {
                 output.status = convertText(pair.first, *pair.second);
+
                 if (!output.status.ok())
                 {
                     return output;
                 }
             }
+
             if (description.checkBox)
             {
                 output.status = convertText(description.checkBox->label, verification);
+
                 if (!output.status.ok())
                 {
                     return output;
@@ -1344,6 +1471,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             bool commandLinks = false;
+
             for (const auto &button : description.buttons)
             {
                 commandLinks = commandLinks || !button.description.empty();
@@ -1353,20 +1481,24 @@ namespace GameWIP::Desktop::Detail::Platform
             std::vector<TASKDIALOG_BUTTON> nativeButtons;
             buttonText.reserve(description.buttons.size());
             nativeButtons.reserve(description.buttons.size());
+
             for (std::size_t index = 0; index < description.buttons.size(); ++index)
             {
                 std::wstring label;
                 std::wstring detail;
                 output.status = convertText(description.buttons[index].label, label);
+
                 if (!output.status.ok())
                 {
                     return output;
                 }
                 output.status = convertText(description.buttons[index].description, detail);
+
                 if (!output.status.ok())
                 {
                     return output;
                 }
+
                 if (!detail.empty())
                 {
                     label.push_back(L'\n');
@@ -1374,6 +1506,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 buttonText.push_back(std::move(label));
             }
+
             for (std::size_t index = 0; index < buttonText.size(); ++index)
             {
                 nativeButtons.push_back({nativeBase + static_cast<int>(index), buttonText[index].c_str()});
@@ -1383,10 +1516,12 @@ namespace GameWIP::Desktop::Detail::Platform
             std::vector<TASKDIALOG_BUTTON> nativeOptions;
             optionText.reserve(description.options.size());
             nativeOptions.reserve(description.options.size());
+
             for (const auto &option : description.options)
             {
                 std::wstring label;
                 output.status = convertText(option.label, label);
+
                 if (!output.status.ok())
                 {
                     return output;
@@ -1394,6 +1529,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 optionText.push_back(std::move(label));
             }
             const int optionBase = nativeBase + static_cast<int>(description.buttons.size());
+
             for (std::size_t index = 0; index < optionText.size(); ++index)
             {
                 nativeOptions.push_back({optionBase + static_cast<int>(index), optionText[index].c_str()});
@@ -1403,14 +1539,17 @@ namespace GameWIP::Desktop::Detail::Platform
             config.cbSize = sizeof(config);
             config.hwndParent = ownerHandle(description.owner);
             DWORD taskFlags = TDF_ALLOW_DIALOG_CANCELLATION;
+
             if (commandLinks)
             {
                 taskFlags |= TDF_USE_COMMAND_LINKS;
             }
+
             if (!description.defaultOption)
             {
                 taskFlags |= TDF_NO_DEFAULT_RADIO_BUTTON;
             }
+
             if (description.checkBox && description.checkBox->checked)
             {
                 taskFlags |= TDF_VERIFICATION_FLAG_CHECKED;
@@ -1435,6 +1574,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     config.nDefaultButton = nativeBase + static_cast<int>(index);
                 }
             }
+
             for (std::size_t index = 0; index < description.options.size(); ++index)
             {
                 if (description.defaultOption && description.options[index].id == *description.defaultOption)
@@ -1466,10 +1606,12 @@ namespace GameWIP::Desktop::Detail::Platform
                 snapshot.severity = description.severity;
                 snapshot.nativeButtonIds.reserve(nativeButtons.size());
                 snapshot.nativeOptionIds.reserve(nativeOptions.size());
+
                 for (const TASKDIALOG_BUTTON &button : nativeButtons)
                 {
                     snapshot.nativeButtonIds.push_back(button.nButtonID);
                 }
+
                 for (const TASKDIALOG_BUTTON &option : nativeOptions)
                 {
                     snapshot.nativeOptionIds.push_back(option.nButtonID);
@@ -1490,6 +1632,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     {
                         selectedButton = std::numeric_limits<int>::min();
                     }
+
                     if (simulatedResponse.optionIndex)
                     {
                         const std::size_t maximumRepresentableOffset = static_cast<std::size_t>(std::numeric_limits<int>::max() - optionBase);
@@ -1498,6 +1641,7 @@ namespace GameWIP::Desktop::Detail::Platform
                                              : std::numeric_limits<int>::max();
                     }
                     checked = simulatedResponse.checkBoxChecked ? TRUE : FALSE;
+
                     if (Detail::consumeFailure(TestHooks::FailurePoint::DialogResult))
                     {
                         selectedButton = std::numeric_limits<int>::min();
@@ -1509,6 +1653,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 result = TaskDialogIndirect(&config, &selectedButton, &selectedOption, &checked);
             }
+
             if (FAILED(result))
             {
                 output.status = statusFromHResult(result);
@@ -1516,15 +1661,18 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             output.status = IO::successStatus();
+
             if (selectedOption != 0 && (selectedOption < optionBase || selectedOption >= optionBase + static_cast<int>(description.options.size())))
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             if (selectedOption >= optionBase && selectedOption < optionBase + static_cast<int>(description.options.size()))
             {
                 output.option = description.options[static_cast<std::size_t>(selectedOption - optionBase)].id;
             }
+
             if (description.checkBox)
             {
                 output.checkBoxChecked = checked != FALSE;
@@ -1536,6 +1684,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.button = description.cancelButton;
                 return output;
             }
+
             if (selectedButton >= nativeBase && selectedButton < nativeBase + static_cast<int>(description.buttons.size()))
             {
                 output.button = description.buttons[static_cast<std::size_t>(selectedButton - nativeBase)].id;
@@ -1557,6 +1706,7 @@ namespace GameWIP::Desktop::Detail::Platform
             output = {};
             output.status = IO::makeStatus(ErrorCode::Unknown);
         }
+
         return output;
     }
 

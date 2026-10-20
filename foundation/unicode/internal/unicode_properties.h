@@ -53,14 +53,17 @@ namespace GameWIP::Unicode::Internal
         {
             return {.graphemeBreak = GraphemeBreakClass::CR};
         }
+
         if (codePoint == 0x0AU)
         {
             return {.graphemeBreak = GraphemeBreakClass::LF};
         }
+
         if (codePoint <= 0x1FU || codePoint == 0x7FU)
         {
             return {.graphemeBreak = GraphemeBreakClass::Control};
         }
+
         return {};
     }
 
@@ -82,10 +85,12 @@ namespace GameWIP::Unicode::Internal
         {
             return asciiProperties(codePoint);
         }
+
         if (codePoint >= 0xAC00U && codePoint <= 0xD7A3U)
         {
             return hangulSyllableProperties(codePoint);
         }
+
         if (scalar >= Generated::kHighStart)
         {
             return {};

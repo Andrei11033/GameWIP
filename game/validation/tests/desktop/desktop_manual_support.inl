@@ -10,21 +10,25 @@
         return {};
     }
     const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+
     if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
     {
         return L"?";
     }
     std::vector<char16_t> converted(measurement.requiredCodeUnits);
     const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+
     if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
     {
         return L"?";
     }
     std::wstring wide(conversion.codeUnitsWritten, L'\0');
+
     for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
     {
         wide[index] = static_cast<wchar_t>(converted[index]);
     }
+
     return wide;
 }
 
@@ -56,11 +60,13 @@ struct ManualFullscreenSections
 [[nodiscard]] ManualNativeWindowState manualNativeWindowState(const Desktop::Window &window)
 {
     ManualNativeWindowState result;
+
     if (!window.isOpen())
     {
         return result;
     }
     const auto native = Desktop::Native::Win32::getHandle(window);
+
     if (!native.status.ok() || native->window == nullptr)
     {
         return result;
@@ -72,12 +78,14 @@ struct ManualFullscreenSections
     const HMONITOR monitor = MonitorFromWindow(native->window, MONITOR_DEFAULTTONEAREST);
     MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(monitorInfo);
+
     if (GetWindowRect(native->window, &result.frame) == FALSE || GetClientRect(native->window, &client) == FALSE ||
         ClientToScreen(native->window, &clientTopLeft) == FALSE)
     {
         return result;
     }
     clientBottomRight = {client.right, client.bottom};
+
     if (ClientToScreen(native->window, &clientBottomRight) == FALSE || monitor == nullptr || GetMonitorInfoW(monitor, &monitorInfo) == FALSE)
     {
         return result;
@@ -239,6 +247,7 @@ public:
             return;
         }
         RECT workArea{};
+
         if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
         {
             workArea = {0, 0, 1920, 1080};
@@ -260,6 +269,7 @@ public:
             nullptr,
             GetModuleHandleW(nullptr),
             nullptr);
+
         if (handle_ != nullptr)
         {
             SendMessageW(handle_, WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)), TRUE);
@@ -380,6 +390,7 @@ public:
             native.popupStyle,
             native.visibleStyle,
             native.fullscreenBounds);
+
         if (text == lastText_)
         {
             return;
@@ -412,6 +423,7 @@ inline constexpr std::string_view kManualInteropText =
 [[nodiscard]] Desktop::Types::DataTransfer::Image manualInteropImage()
 {
     Desktop::Types::DataTransfer::Image image{{128, 128}, std::vector<std::byte>(std::size_t{128} * 128 * 4)};
+
     for (std::size_t y = 0; y < 128; ++y)
     {
         for (std::size_t x = 0; x < 128; ++x)
@@ -425,6 +437,7 @@ inline constexpr std::string_view kManualInteropText =
             image.rgba8[offset + 3] = std::byte{255};
         }
     }
+
     return image;
 }
 
@@ -444,6 +457,7 @@ inline constexpr std::string_view kManualInteropText =
     std::vector<std::byte> bytes(file.bfSize);
     std::ranges::copy(std::as_bytes(std::span{&file, 1}), bytes.begin());
     std::ranges::copy(std::as_bytes(std::span{&bitmap, 1}), bytes.begin() + sizeof(file));
+
     for (std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
     {
         const std::size_t destination = file.bfOffBits + offset;
@@ -452,6 +466,7 @@ inline constexpr std::string_view kManualInteropText =
         bytes[destination + 2] = image.rgba8[offset];
         bytes[destination + 3] = image.rgba8[offset + 3];
     }
+
     return GameWIP::FileSystem::writeAllBytes(path, bytes).status;
 }
 
@@ -463,23 +478,27 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
         return;
     }
     const auto native = Desktop::Native::Win32::getHandle(window);
+
     if (!native.status.ok())
     {
         return;
     }
     constexpr std::size_t extent = 128;
     std::array<std::byte, extent * extent * 4> preview{};
+
     for (std::size_t y = 0; y < extent; ++y)
     {
         for (std::size_t x = 0; x < extent; ++x)
         {
             const std::size_t source = ((y * image.size.height / extent) * image.size.width + x * image.size.width / extent) * 4;
+
             if (source + 3 >= image.rgba8.size())
             {
                 return;
             }
             const unsigned int alpha = std::to_integer<unsigned int>(image.rgba8[source + 3]);
             const unsigned int background = ((x / 8 + y / 8) % 2) == 0 ? 192 : 240;
+
             for (std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto color = std::to_integer<unsigned int>(image.rgba8[source + 2 - channel]);
@@ -494,6 +513,7 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     bitmap.bmiHeader.biPlanes = 1;
     bitmap.bmiHeader.biBitCount = 32;
     const HDC dc = GetDC(native->window);
+
     if (dc == nullptr)
     {
         return;
@@ -522,17 +542,20 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         return;
     }
     const auto native = Desktop::Native::Win32::getHandle(window);
+
     if (!native.status.ok() || native->window == nullptr)
     {
         return;
     }
 
     RECT client{};
+
     if (GetClientRect(native->window, &client) == FALSE)
     {
         return;
     }
     HDC device = GetDC(native->window);
+
     if (device == nullptr)
     {
         return;
@@ -562,6 +585,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         SetBkMode(device, TRANSPARENT);
         SetTextColor(device, color);
         DrawTextW(device, text.data(), static_cast<int>(text.size()), &rect, format | DT_NOPREFIX);
+
         if (previousFont != nullptr)
         {
             SelectObject(device, previousFont);
@@ -569,6 +593,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     };
 
     fill(client, RGB(22, 70, 126));
+
     if (layout == ManualSurfaceLayout::DragDropSource)
     {
         fill(client, RGB(25, 104, 72));
@@ -668,10 +693,12 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     HGDIOBJ previousBrush = SelectObject(device, GetStockObject(NULL_BRUSH));
     Rectangle(device, client.left + inset, client.top + inset, client.right - inset, client.bottom - inset);
     SelectObject(device, previousBrush);
+
     if (previousPen != nullptr)
     {
         SelectObject(device, previousPen);
     }
+
     if (edgePen != nullptr)
     {
         DeleteObject(edgePen);
@@ -684,10 +711,12 @@ template <typename Payload> [[nodiscard]] bool consumeEventOfType(Desktop::Windo
 {
     bool found = false;
     Desktop::Types::Event event;
+
     while (window.popEvent(event))
     {
         found = found || event.getIf<Payload>() != nullptr;
     }
+
     return found;
 }
 
@@ -737,9 +766,11 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
         return TestSupport::Types::Reporting::ManualAnswer::Skipped;
     }
     ++manualCasesSelected;
+
     if (manualStatusWindow != nullptr)
     {
         manualStatusWindow->setScenario(name, question);
+
         if (!observe)
         {
             manualStatusWindow->setObservation({});
@@ -759,18 +790,22 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
         });
 
     IO::Types::Status pumpFailure;
+
     while (!answered.load(std::memory_order_acquire))
     {
         const Desktop::Types::Events::PumpResult pump = Desktop::Events::wait(std::chrono::milliseconds{50});
+
         if (!pump.status.ok() && pumpFailure.ok())
         {
             pumpFailure = pump.status;
         }
         paintManualValidationSurface(window, surfaceLayout);
+
         if (observe)
         {
             observe();
         }
+
         if (manualStatusWindow != nullptr)
         {
             manualStatusWindow->refresh(window);
@@ -778,19 +813,23 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     }
     promptThread.join();
     const Desktop::Types::Events::PumpResult finalPump = Desktop::Events::poll();
+
     if (!finalPump.status.ok() && pumpFailure.ok())
     {
         pumpFailure = finalPump.status;
     }
     paintManualValidationSurface(window, surfaceLayout);
+
     if (observe)
     {
         observe();
     }
+
     if (manualStatusWindow != nullptr)
     {
         manualStatusWindow->refresh(window);
     }
+
     if (!pumpFailure.ok())
     {
         ++manualObservationCounts.failed;
@@ -808,6 +847,7 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     {
         return true;
     }
+
     if (manualStatusWindow != nullptr)
     {
         manualStatusWindow->setObservation(
@@ -832,6 +872,7 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
 void pumpManualPreparation(std::chrono::milliseconds duration)
 {
     const auto deadline = std::chrono::steady_clock::now() + duration;
+
     while (std::chrono::steady_clock::now() < deadline)
     {
         static_cast<void>(Desktop::Events::wait(std::chrono::milliseconds{50}));
@@ -849,25 +890,30 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
     description.windowed.clientSize = {960, 540};
     description.activation.visible = true;
     description.activation.requestFocus = true;
+
     if (!requireManualStatus(context, "manual Window setup", window.open(description)))
     {
         return false;
     }
+
     if (!requireManualStatus(context, "manual Window presentation", window.show()))
     {
         return false;
     }
     const Desktop::Types::Events::PumpResult pump = Desktop::Events::poll();
+
     if (!requireManualStatus(context, "manual Window event pump", pump.status))
     {
         return false;
     }
+
     if (!window.isOpen() || !window.visible())
     {
         context.fail("manual Window presentation", "Window did not remain open and visible after the presentation pump");
         return false;
     }
     paintManualValidationSurface(window);
+
     if (manualStatusWindow != nullptr)
     {
         manualStatusWindow->refresh(window);
@@ -876,10 +922,12 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
     pumpManualPreparation(std::chrono::milliseconds{150});
 
     paintManualValidationSurface(window);
+
     if (manualStatusWindow != nullptr)
     {
         manualStatusWindow->refresh(window);
     }
+
     return true;
 }
 

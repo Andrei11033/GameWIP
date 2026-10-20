@@ -44,26 +44,32 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
         [[nodiscard]] KeyModifier modifiersFromControlState(DWORD state, const DecoderState &decoderState) noexcept
         {
             KeyModifier modifiers = KeyModifier::None;
+
             if ((state & SHIFT_PRESSED) != 0)
             {
                 modifiers |= KeyModifier::Shift;
             }
+
             if ((state & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0)
             {
                 modifiers |= KeyModifier::Control;
             }
+
             if ((state & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0)
             {
                 modifiers |= KeyModifier::Alt;
             }
+
             if ((state & CAPSLOCK_ON) != 0)
             {
                 modifiers |= KeyModifier::CapsLock;
             }
+
             if ((state & NUMLOCK_ON) != 0)
             {
                 modifiers |= KeyModifier::NumLock;
             }
+
             if ((state & SCROLLLOCK_ON) != 0)
             {
                 modifiers |= KeyModifier::ScrollLock;
@@ -71,11 +77,13 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 
             const std::size_t leftSuper = trackingIndex(VK_LWIN, KeyLocation::Left);
             const std::size_t rightSuper = trackingIndex(VK_RWIN, KeyLocation::Right);
+
             if ((leftSuper < decoderState.keyDown.size() && decoderState.keyDown.test(leftSuper)) ||
                 (rightSuper < decoderState.keyDown.size() && decoderState.keyDown.test(rightSuper)))
             {
                 modifiers |= KeyModifier::Super;
             }
+
             return modifiers;
         }
 
@@ -94,11 +102,13 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             // Windows commonly represents AltGr as synthetic Left Ctrl + Right Alt. When that combination
             // produced ordinary Unicode text, expose the text rather than a fake Ctrl+Alt shortcut.
             const bool altGr = (record.dwControlKeyState & RIGHT_ALT_PRESSED) != 0 && (record.dwControlKeyState & LEFT_CTRL_PRESSED) != 0;
+
             if (altGr && isPrintable(scalar))
             {
                 modifiers = clearModifier(modifiers, KeyModifier::Control);
                 modifiers = clearModifier(modifiers, KeyModifier::Alt);
             }
+
             return modifiers;
         }
 
@@ -207,6 +217,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             {
                 return FunctionKey{.number = static_cast<std::uint16_t>(virtualKey - VK_F1 + 1)};
             }
+
             return std::nullopt;
         }
 
@@ -258,14 +269,17 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             {
                 const UINT leftScan = MapVirtualKeyW(VK_LSHIFT, MAPVK_VK_TO_VSC);
                 const UINT rightScan = MapVirtualKeyW(VK_RSHIFT, MAPVK_VK_TO_VSC);
+
                 if (record.wVirtualScanCode == leftScan)
                 {
                     return KeyLocation::Left;
                 }
+
                 if (record.wVirtualScanCode == rightScan)
                 {
                     return KeyLocation::Right;
                 }
+
                 return KeyLocation::Unknown;
             }
             case VK_RETURN:
@@ -278,16 +292,19 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             {
                 return KeyLocation::Numpad;
             }
+
             if (isNavigationVirtualKey(record.wVirtualKeyCode) && (record.dwControlKeyState & ENHANCED_KEY) == 0)
             {
                 return KeyLocation::Numpad;
             }
+
             return KeyLocation::Standard;
         }
 
         [[nodiscard]] KeyModifier modifiersForKey(const KEY_EVENT_RECORD &record, const Key &key, const DecoderState &decoderState) noexcept
         {
             KeyModifier modifiers = modifiersFromControlState(record.dwControlKeyState, decoderState);
+
             if (const auto *character = std::get_if<CharacterKey>(&key))
             {
                 return normalizedCharacterModifiers(record, character->value, decoderState);
@@ -372,6 +389,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
         [[nodiscard]] std::optional<CharacterKey> ctrlCharacter(const KEY_EVENT_RECORD &record) noexcept
         {
             const bool control = (record.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0;
+
             if (!control)
             {
                 return std::nullopt;
@@ -381,10 +399,12 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             {
                 return CharacterKey{.value = static_cast<char32_t>(U'a' + (record.wVirtualKeyCode - 'A'))};
             }
+
             if (record.wVirtualKeyCode == VK_SPACE)
             {
                 return CharacterKey{.value = U' '};
             }
+
             return std::nullopt;
         }
 
@@ -410,6 +430,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                 state.pendingHighSurrogateRecord = {};
 
                 const Unicode::Types::Utf16::DecodeResult decoded = Unicode::Utf16::decodeScalar(pair);
+
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -448,6 +469,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             {
                 const std::array<char16_t, 1> single{unit};
                 const Unicode::Types::Utf16::DecodeResult decoded = Unicode::Utf16::decodeScalar(single);
+
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -455,6 +477,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                         .disposition = KeyDecodeDisposition::Failed,
                         .event = std::nullopt};
                 }
+
                 return makeEvent(CharacterKey{.value = decoded.scalar}, record, state);
             }
 

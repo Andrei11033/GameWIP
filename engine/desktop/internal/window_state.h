@@ -152,6 +152,7 @@ namespace GameWIP::Desktop::Detail
     inline void publishCachedPresentationState(WindowState &state) noexcept
     {
         publishAccessibilityGeometry(state);
+
         if (state.presentationPublication != nullptr)
         {
             publishCachedPresentationState(*state.presentationPublication, state);
@@ -180,6 +181,7 @@ namespace GameWIP::Desktop::Detail
     [[nodiscard]] inline bool pointerHitMaskAccepts(const WindowState &state, Types::LogicalPosition position) noexcept
     {
         const RendererIntegrationState *renderer = state.rendererIntegration;
+
         if (renderer == nullptr || renderer->pointerHitMask.empty() || renderer->pointerHitMaskActiveGeneration == 0 ||
             renderer->pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 ||
             position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
@@ -190,6 +192,7 @@ namespace GameWIP::Desktop::Detail
 
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
+
         if (x >= state.framebufferSize.width || y >= state.framebufferSize.height)
         {
             return true;
@@ -199,6 +202,7 @@ namespace GameWIP::Desktop::Detail
         const std::uint64_t width = state.framebufferSize.width;
         const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
         const std::uint64_t word = y * wordsPerRow + x / bitsPerWord;
+
         if (word >= renderer->pointerHitMask.size())
         {
             return true;
@@ -243,10 +247,12 @@ namespace GameWIP::Desktop::Detail
             {
                 window.rendererIntegration_ = std::make_unique<RendererIntegrationState>();
             }
+
             if (window.state_)
             {
                 window.state_->rendererIntegration = window.rendererIntegration_.get();
             }
+
             return window.rendererIntegration_.get();
         }
 

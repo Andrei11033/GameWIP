@@ -27,6 +27,7 @@ void testFixedEventQueue(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("coalesced scale event pops", window.popEvent(scaleEvent)));
     const auto *scale = scaleEvent.getIf<Desktop::Types::Events::ContentScaleChanged>();
     static_cast<void>(context.expectTrue("coalesced scale event has scale payload", scale != nullptr));
+
     if (scale != nullptr)
     {
         static_cast<void>(
@@ -62,6 +63,7 @@ void testFixedEventQueue(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("second retained event pops", window.popEvent(second)));
     const auto *moved = second.getIf<Desktop::Types::Events::ClientPositionChanged>();
     static_cast<void>(context.expectTrue("post-barrier movement remains", moved != nullptr));
+
     if (moved != nullptr)
     {
         static_cast<void>(context.expectEq("coalesced movement keeps latest payload", Desktop::Types::ScreenPosition{5, 6}, moved->position));
@@ -104,6 +106,7 @@ void testStickyClose(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("queue remains readable", source.popEvent(event)));
     const auto *close = event.getIf<Desktop::Types::Events::CloseRequested>();
     static_cast<void>(context.expectTrue("typed close payload remains", close != nullptr));
+
     if (close != nullptr)
     {
         static_cast<void>(context.expectEq("first close source wins", Desktop::Types::Events::CloseRequestSource::User, close->source));
@@ -123,6 +126,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
 
     Desktop::Window window;
     static_cast<void>(context.expectTrue("native event fixture opens", window.open(description, Desktop::Events::owned(64)).ok()));
+
     if (!window.isOpen())
     {
         return;
@@ -130,6 +134,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
 
     const auto handle = Desktop::Native::Win32::getHandle(window);
     static_cast<void>(context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle->window != nullptr));
+
     if (!handle.status.ok() || handle->window == nullptr)
     {
         static_cast<void>(window.close());
@@ -229,10 +234,12 @@ void testNativeEventTranslation(TestSupport::Context &context)
     const std::size_t dropBytes = sizeof(DROPFILES) + (droppedPath.size() + 2) * sizeof(wchar_t);
     HGLOBAL dropMemory = GlobalAlloc(GHND, dropBytes);
     static_cast<void>(context.expectTrue("synthetic drop payload allocates", dropMemory != nullptr));
+
     if (dropMemory != nullptr)
     {
         auto *drop = static_cast<DROPFILES *>(GlobalLock(dropMemory));
         static_cast<void>(context.expectTrue("synthetic drop payload locks", drop != nullptr));
+
         if (drop != nullptr)
         {
             drop->pFiles = sizeof(DROPFILES);
@@ -256,6 +263,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
             static_cast<void>(
                 context.expectTrue("WM_DROPFILES translates to FilesDroppedEvent", consumeEventOfType<Desktop::Types::Events::FilesDropped>(window)));
         }
+
         if (dropMemory != nullptr)
         {
             static_cast<void>(GlobalFree(dropMemory));

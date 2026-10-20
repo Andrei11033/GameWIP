@@ -85,6 +85,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
         const HANDLE unrelatedEvent = CreateEventW(&attributes, TRUE, FALSE, nullptr);
         static_cast<void>(
             context.expectTrue("Create inheritable sentinel handle succeeds", unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE));
+
         if (unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE)
         {
             TestSupport::Types::Process::Options childOptions;
@@ -174,6 +175,7 @@ void testChildProcesses(TestSupport::Context &context, std::string_view executab
             ExitBoundary{"-2147483648", 0x80000000u},
             ExitBoundary{"-1", 0xffffffffu},
         };
+
         for (const ExitBoundary &boundary : boundaries)
         {
             TestSupport::Types::Process::Options childOptions;

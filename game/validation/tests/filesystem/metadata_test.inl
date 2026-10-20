@@ -71,6 +71,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     const auto listing = FileSystem::listDirectory(directory);
     static_cast<void>(context.expectTrue("listDirectory succeeds", listing.status.ok()));
     static_cast<void>(context.expectEq("listDirectory returns one entry", std::size_t{1}, listing.entries.size()));
+
     if (!listing.entries.empty())
     {
         static_cast<void>(context.expectEq("listDirectory entry is file", FileSystem::Types::EntryKind::RegularFile, listing.entries[0].info.kind));
@@ -101,6 +102,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
 
     FileSystem::DirectoryCursor cursor;
     static_cast<void>(context.expectEq("closed directory cursor reports NotOpen", ErrorCode::NotOpen, cursor.next().status.code));
+
     if (!expectStatus(context, "directory cursor opens", cursor.open(directory)))
     {
         return;
@@ -112,6 +114,7 @@ void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std:
     static_cast<void>(context.expectFalse("moved-from directory cursor is closed", cursor.isOpen()));
     const auto cursorEntry = movedCursor.next();
     static_cast<void>(context.expectTrue("directory cursor returns an entry", cursorEntry.status.ok() && cursorEntry.hasEntry));
+
     if (cursorEntry.status.ok() && cursorEntry.hasEntry)
     {
         static_cast<void>(context.expectEq("moved directory cursor preserves entry path", file, cursorEntry.entry.path));

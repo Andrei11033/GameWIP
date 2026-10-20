@@ -12,27 +12,32 @@ function Resolve-GameWipBenchmarkOutputPath
     )
 
     Initialize-GameWipRunLog
+
     if ([string]::IsNullOrWhiteSpace($RequestedPath))
     {
         return Join-Path $Script:RunContext.Artifacts "benchmark-results.$Format"
     }
 
     $resolved = Resolve-GameWipRepositoryPath -Path $RequestedPath
+
     if ([string]::IsNullOrWhiteSpace([IO.Path]::GetExtension($resolved)))
     {
         $resolved = "$resolved.$Format"
     }
     $buildRoot = Join-Path $RepositoryRoot 'build'
+
     if ((Test-GameWipPathWithinRoot -Path $resolved -Root $RepositoryRoot) -and
         -not (Test-GameWipPathWithinRoot -Path $resolved -Root $buildRoot))
     {
         throw "Benchmark output inside the checkout must be under 'build'. Requested: $resolved"
     }
     $parent = Split-Path -Parent $resolved
+
     if (-not [string]::IsNullOrWhiteSpace($parent))
     {
         New-Item -ItemType Directory -Force -Path $parent | Out-Null
     }
+
     return $resolved
 }
 
@@ -51,6 +56,7 @@ function Assert-GameWipBenchmarkExtraArgument
         '--benchmark_dry_run',
         '--benchmark_list_tests'
     )
+
     foreach ($argument in $Arguments)
     {
         if (@($managedPrefixes | Where-Object { $argument.StartsWith($_, [StringComparison]::Ordinal) }).Count -ne 0)
@@ -78,17 +84,20 @@ function Invoke-GameWipBenchmark
     $Script:RunLabel = "benchmark-$Mode"
     Initialize-GameWipRunLog
     Assert-GameWipBenchmarkExtraArgument -Arguments $Arguments
+
     if (-not [string]::IsNullOrWhiteSpace($MinimumTime) -and $MinimumTime -notmatch '^(?:[0-9]+x|[0-9]+(?:\.[0-9]+)?s)$')
     {
         throw "Invalid benchmark minimum time '$MinimumTime'. Use a value such as '2s', '0.5s', or '100x'."
     }
 
     $benchmarkProfile = @($CommandConfig.BenchmarkProfiles | Where-Object { $_.Id -eq $ProfileId } | Select-Object -First 1)
+
     if ($benchmarkProfile.Count -eq 0)
     {
         throw "Unknown benchmark profile '$ProfileId'."
     }
     $command = Get-GameWipProjectCommand -Id 'benchmark-dry-run'
+
     if ($SkipBuild)
     {
         Initialize-GameWipProjectCommandBuild -Command $command -NoBuild
@@ -106,6 +115,7 @@ function Invoke-GameWipBenchmark
         $benchmarkArguments.Add("--benchmark_filter=$NameFilter") | Out-Null
     }
     $resultPath = $null
+
     switch ($Mode)
     {
         'dry-run'
@@ -139,6 +149,7 @@ function Invoke-GameWipBenchmark
             $benchmarkArguments.Add("--benchmark_min_time=$effectiveMinTime") | Out-Null
             $benchmarkArguments.Add("--benchmark_report_aggregates_only=$($effectiveAggregates.ToString().ToLowerInvariant())") | Out-Null
             $benchmarkArguments.Add("--benchmark_display_aggregates_only=$($effectiveAggregates.ToString().ToLowerInvariant())") | Out-Null
+
             if ($benchmarkProfile[0].ContainsKey('RandomInterleaving') -and [bool]$benchmarkProfile[0].RandomInterleaving)
             {
                 $benchmarkArguments.Add('--benchmark_enable_random_interleaving=true') | Out-Null
@@ -158,12 +169,14 @@ function Invoke-GameWipBenchmark
             }
         }
     }
+
     foreach ($argument in $Arguments)
     {
         $benchmarkArguments.Add($argument) | Out-Null
     }
 
     Invoke-GameWipNative -Name "benchmark-$Mode" -FilePath $executable -Arguments $benchmarkArguments.ToArray() -UseWorkspaceTemp
+
     if ($null -ne $resultPath)
     {
         Add-GameWipToolRunOutput -Run $Script:RunContext -Kind 'benchmark-results' -Path $resultPath
@@ -214,6 +227,7 @@ function Get-GameWipBenchmarkComparisonRow
         throw "Benchmark result does not exist: $Path"
     }
     $document = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+
     if (-not $document.PSObject.Properties['benchmarks'])
     {
         throw "Benchmark result has no 'benchmarks' array: $Path"
@@ -227,9 +241,11 @@ function Get-GameWipBenchmarkComparisonRow
                 $_.name
             } })
     $rows = [ordered]@{}
+
     foreach ($group in $groups)
     {
         $mean = @($group.Group | Where-Object { $_.run_type -eq 'aggregate' -and $_.aggregate_name -eq 'mean' } | Select-Object -First 1)
+
         if ($mean.Count -ne 0)
         {
             $samples = @($mean)
@@ -238,6 +254,7 @@ function Get-GameWipBenchmarkComparisonRow
         {
             $samples = @($group.Group | Where-Object { -not $_.PSObject.Properties['run_type'] -or $_.run_type -eq 'iteration' })
         }
+
         if ($samples.Count -eq 0)
         {
             continue
@@ -250,6 +267,7 @@ function Get-GameWipBenchmarkComparisonRow
             RealNanoseconds = ($realValues | Measure-Object -Average).Average
         }
     }
+
     return $rows
 }
 
@@ -267,11 +285,13 @@ function Invoke-GameWipBenchmarkComparison
     $candidateResolved = Resolve-GameWipRepositoryPath -Path $CandidatePath
     $commandLine = "compare benchmark results '$baselineResolved' '$candidateResolved'"
     $step = Initialize-GameWipToolRunStep -Run $Script:RunContext -Name 'benchmark-compare' -CommandLine $commandLine
+
     try
     {
         $baselineRows = Get-GameWipBenchmarkComparisonRow -Path $baselineResolved
         $candidateRows = Get-GameWipBenchmarkComparisonRow -Path $candidateResolved
         $comparisons = [System.Collections.Generic.List[object]]::new()
+
         foreach ($name in @($baselineRows.Keys | Where-Object { $candidateRows.Contains($_) } | Sort-Object))
         {
             $before = $baselineRows[$name]
@@ -302,6 +322,7 @@ function Invoke-GameWipBenchmarkComparison
                     realChangePercent = $realDelta
                 }) | Out-Null
         }
+
         if ($comparisons.Count -eq 0)
         {
             throw 'The benchmark result files have no matching benchmark names.'
@@ -329,6 +350,7 @@ function Invoke-GameWipBenchmarkComparison
         Write-Host ' ' -NoNewline
         Write-GameWipSemanticText -Object $outputPath -Semantic Muted
     }
+
     catch
     {
         Complete-GameWipToolRunStep -Run $Script:RunContext -Step $step -ExitCode 1

@@ -65,6 +65,7 @@ namespace
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == argument)
@@ -72,6 +73,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
@@ -79,6 +81,7 @@ namespace
     std::string argumentAfter(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (std::size_t index = 1; index + 1 < arguments.size(); ++index)
         {
             if (arguments[index] != nullptr && std::string_view(arguments[index]) == argument && arguments[index + 1] != nullptr)
@@ -86,6 +89,7 @@ namespace
                 return arguments[index + 1];
             }
         }
+
         return {};
     }
 
@@ -147,6 +151,7 @@ namespace
         {
             return runStartGateChild();
         }
+
         if (hasArgument(argc, argv, kEnvironmentChildArgument))
         {
             const char *setValue = std::getenv(std::string(kChildSetVariable).c_str());
@@ -156,6 +161,7 @@ namespace
             std::cout << "child-unset=" << (unsetValue != nullptr ? unsetValue : "<unset>") << '\n';
             return setValue != nullptr && std::string_view(setValue) == "child-value" && unsetValue == nullptr ? 0 : 9;
         }
+
         if (hasArgument(argc, argv, kCurrentPathChildArgument))
         {
             std::cout << std::filesystem::current_path().generic_string() << '\n';
@@ -207,6 +213,7 @@ namespace
             STARTUPINFOA startupInfo{};
             startupInfo.cb = sizeof(startupInfo);
             PROCESS_INFORMATION processInfo{};
+
             if (CreateProcessA(nullptr, commandLine.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &processInfo) ==
                 FALSE)
             {
@@ -249,6 +256,7 @@ namespace GameWIP::Test
         }
 
         const TestSupport::ScopedTemporaryDirectory workspace("test_support_tests");
+
         if (!workspace.status().ok())
         {
             std::cerr << "TestSupport could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';

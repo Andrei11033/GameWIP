@@ -55,6 +55,7 @@ namespace GameWIP::Logger::Detail::Core
         case OutputMode::Both:
             return true;
         }
+
         return false;
     }
 
@@ -112,6 +113,7 @@ namespace GameWIP::Logger::Detail::Core
     void waitForQueueSlot(QueueSlot &slot, std::size_t ticket)
     {
         std::uint32_t spins = 0;
+
         while (slot.sequence.load(std::memory_order_acquire) != ticket)
         {
             if (spins++ < kQueueSlotSpinBeforeYield)
@@ -139,6 +141,7 @@ namespace GameWIP::Logger::Detail::Core
     void updateAtomicMax(std::atomic<std::size_t> &target, std::size_t value)
     {
         std::size_t current = target.load(std::memory_order_relaxed);
+
         while (current < value && !target.compare_exchange_weak(current, value, std::memory_order_relaxed, std::memory_order_relaxed))
         {
         }
@@ -204,6 +207,7 @@ namespace GameWIP::Logger::Detail::Core
             {
             case Types::Health::FailureSource::File:
                 loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
+
                 if (loggerState().mode == OutputMode::Both)
                 {
                     loggerState().mode = OutputMode::Console;
@@ -253,6 +257,7 @@ namespace GameWIP::Logger::Detail::Core
             style.foreground = Terminal::basicColor(color);
             return LogStyle{text, style, stderrStream};
         };
+
         switch (level)
         {
         case LogLevel::Trace:
@@ -268,6 +273,7 @@ namespace GameWIP::Logger::Detail::Core
         case LogLevel::Fatal:
             return colored("FATAL", Terminal::Types::Style::BasicColor::Red, true);
         }
+
         return {};
     }
 
@@ -294,6 +300,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         const long double precise = static_cast<long double>(softQueueSize) * static_cast<long double>(multiplier);
         const long double maximum = static_cast<long double>(std::numeric_limits<std::size_t>::max());
+
         if (precise >= maximum)
         {
             return std::numeric_limits<std::size_t>::max();
@@ -305,12 +312,14 @@ namespace GameWIP::Logger::Detail::Core
     std::size_t effectiveHardQueueLimit(double &multiplier, std::size_t softQueueSize, bool &adjusted)
     {
         adjusted = false;
+
         if (!std::isfinite(multiplier) || multiplier < 1.0)
         {
             adjusted = true;
             multiplier = 1.0;
             return softQueueSize;
         }
+
         return computeHardQueueLimit(softQueueSize, multiplier);
     }
 
@@ -398,6 +407,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         loggerState().mode = mode;
+
         if (!hasFileOutput(mode))
         {
             loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);

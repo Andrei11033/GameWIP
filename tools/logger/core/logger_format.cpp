@@ -13,6 +13,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         std::string text;
         outStatus = GameWIP::Logger::Detail::Platform::formatLocalTime(time, timeFormat, text);
+
         if (!outStatus.ok())
         {
             return "invalid-time";
@@ -31,10 +32,12 @@ namespace GameWIP::Logger::Detail::Core
     {
         const auto now = std::chrono::system_clock::now();
         const std::time_t currentSecond = std::chrono::system_clock::to_time_t(now);
+
         if (!cache.valid || cache.second != currentSecond)
         {
             Status status;
             cache.text = formatTimeOrFallback(currentSecond, "%H:%M:%S", status);
+
             if (!status.ok())
             {
                 recordHealthFailure(Types::Health::FailureSource::TimeConversion, status, false);
@@ -52,12 +55,14 @@ namespace GameWIP::Logger::Detail::Core
         const auto now = std::chrono::system_clock::now();
         const std::time_t currentSecond = std::chrono::system_clock::to_time_t(now);
         Status status;
+
         if (!loggerState().debugTimestampCache.valid || loggerState().debugTimestampCache.second != currentSecond)
         {
             loggerState().debugTimestampCache.text = formatTimeOrFallback(currentSecond, "%H:%M:%S", status);
             loggerState().debugTimestampCache.second = currentSecond;
             loggerState().debugTimestampCache.valid = true;
         }
+
         if (outStatus)
         {
             *outStatus = status;
@@ -73,6 +78,7 @@ namespace GameWIP::Logger::Detail::Core
     std::string_view findSourceName(const SourceRegistry *registry, SourceId source, bool &outUnknownSource)
     {
         outUnknownSource = false;
+
         if (registry)
         {
             if (const RegisteredSource *registeredSource = findSource(*registry, source))
@@ -109,6 +115,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         constexpr std::string_view suffix = "... [truncated]";
         outMessage.clear();
+
         if (maxMessageLength == 0)
         {
             return;
@@ -131,12 +138,14 @@ namespace GameWIP::Logger::Detail::Core
     std::string_view boundedMessageView(std::string_view message, bool alreadyTruncated, std::string &scratch, bool &outTruncated)
     {
         outTruncated = false;
+
         if (alreadyTruncated)
         {
             return message;
         }
 
         const std::size_t maxMessageLength = loggerState().maxMessageLengthAtomic.load(std::memory_order_acquire);
+
         if (message.size() <= maxMessageLength)
         {
             return message;
@@ -159,6 +168,7 @@ namespace GameWIP::Logger::Detail::Core
         const std::size_t required = timestamp.size() + levelText.size() + source.size() + message.size() + fixedFormatLength;
 
         outMessage.clear();
+
         if (outMessage.capacity() < required)
         {
             outMessage.reserve(required);

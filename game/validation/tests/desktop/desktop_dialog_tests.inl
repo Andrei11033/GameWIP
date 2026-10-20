@@ -294,10 +294,12 @@ int runColdApartmentChild()
     {
         return 2;
     }
+
     if (!Desktop::TestHooks::testDialogApartment().ok() || observeApartment().result != CO_E_NOTINITIALIZED)
     {
         return 3;
     }
+
     return Desktop::TestHooks::testShellApartment().ok() && observeApartment().result == CO_E_NOTINITIALIZED ? 0 : 4;
 }
 
@@ -324,6 +326,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
             }
         }
     } mtaUsage;
+
     if (!context.expectTrue("controlled process MTA is available", SUCCEEDED(mtaUsage.result)))
     {
         return;
@@ -333,6 +336,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
     const std::array probes{
         std::pair<std::string_view, Probe>{"dialogs", &Desktop::TestHooks::testDialogApartment},
         std::pair<std::string_view, Probe>{"shell", &Desktop::TestHooks::testShellApartment}};
+
     for (const auto &[name, probe] : probes)
     {
         ApartmentObservation before;
@@ -368,6 +372,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
             [&]
             {
                 initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
                 if (SUCCEEDED(initialized))
                 {
                     before = observeApartment();
@@ -387,6 +392,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
             [&]
             {
                 initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+
                 if (SUCCEEDED(initialized))
                 {
                     leaseStatus = probe();
@@ -486,6 +492,7 @@ void testMessageDialogs(TestSupport::Context &context)
         DialogTypes::Severity::Information,
         DialogTypes::Severity::Warning,
         DialogTypes::Severity::Error};
+
     for (DialogTypes::Severity severity : severities)
     {
         description.severity = severity;

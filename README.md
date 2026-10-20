@@ -80,9 +80,6 @@ build/        Setup-managed dependency caches and generated build output.
 retained reference source that is not compiled. None of these legacy targets
 should be used for new code; see the [engine boundary in the developer manual](docs/doxygen/project_structure.md#engine-libraries-and-reference-code).
 
-The root entry points stay short; detailed subsystem contracts and workflows
-live in the [developer manual](docs/doxygen/index.md).
-
 ## License
 
 GameWIP first-party source code and documentation are licensed under the

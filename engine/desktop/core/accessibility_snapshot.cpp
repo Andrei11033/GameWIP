@@ -25,6 +25,7 @@ namespace GameWIP::Desktop::Detail
     {
         A::ExtensionValue result;
         result.kind = source.kind;
+
         switch (source.kind)
         {
         case A::ExtensionValueKind::Boolean:
@@ -50,6 +51,7 @@ namespace GameWIP::Desktop::Detail
             extensionLists.emplace_back();
             auto &items = extensionLists.back();
             items.reserve(source.listValue.size());
+
             for (const auto &item : source.listValue)
             {
                 items.push_back(copyExtension(item));
@@ -58,6 +60,7 @@ namespace GameWIP::Desktop::Detail
             break;
         }
         }
+
         return result;
     }
 
@@ -74,6 +77,7 @@ namespace GameWIP::Desktop::Detail
         children.assign(source.children.begin(), source.children.end());
         node.children = children;
         relations.reserve(source.relations.size());
+
         for (const auto &relation : source.relations)
         {
             relationTargets.emplace_back(relation.targets.begin(), relation.targets.end());
@@ -81,21 +85,25 @@ namespace GameWIP::Desktop::Detail
         }
         node.relations = relations;
         extensions.reserve(source.extensions.size());
+
         for (const auto &extension : source.extensions)
         {
             extensions.push_back({copyString(extension.namespaceName), copyString(extension.name), copyExtension(extension.value)});
         }
         node.extensions = extensions;
+
         if (source.selection)
         {
             selectedNodes.assign(source.selection->selectedNodes.begin(), source.selection->selectedNodes.end());
             node.selection->selectedNodes = selectedNodes;
         }
+
         if (source.text)
         {
             node.text->utf8 = copyString(source.text->utf8);
             node.text->language = copyString(source.text->language);
             annotations.assign(source.text->annotations.begin(), source.text->annotations.end());
+
             for (auto &annotation : annotations)
             {
                 annotation.value = copyString(annotation.value);
@@ -150,6 +158,7 @@ namespace GameWIP::Desktop::Accessibility
                 nodeBytes += text.size();
                 return nodeBytes <= limits.maximumTextBytesPerNode;
             };
+
             for (auto text : {node.name, node.description, node.helpText, node.value, node.language, node.accessKey, node.keyboardShortcut})
             {
                 if (!string(text))
@@ -157,15 +166,18 @@ namespace GameWIP::Desktop::Accessibility
                     return false;
                 }
             }
+
             if (node.children.size() > limits.maximumChildrenPerNode || node.relations.size() > limits.maximumRelationsPerNode ||
                 node.extensions.size() > limits.maximumExtensionsPerNode)
             {
                 return false;
             }
             std::uint64_t targets = 0;
+
             for (const auto &relation : node.relations)
             {
                 targets += relation.targets.size();
+
                 if (targets > limits.maximumRelationTargetsPerNode)
                 {
                     return false;
@@ -177,16 +189,19 @@ namespace GameWIP::Desktop::Accessibility
                 {
                     return false;
                 }
+
                 if (value.kind == A::ExtensionValueKind::Utf8)
                 {
                     return string(value.utf8Value);
                 }
+
                 if (value.kind == A::ExtensionValueKind::List)
                 {
                     if (value.listValue.size() > limits.maximumExtensionListItems)
                     {
                         return false;
                     }
+
                     for (const auto &item : value.listValue)
                     {
                         if (!self(self, item, depth + 1))
@@ -195,8 +210,10 @@ namespace GameWIP::Desktop::Accessibility
                         }
                     }
                 }
+
                 return value.kind <= A::ExtensionValueKind::List;
             };
+
             for (const auto &value : node.extensions)
             {
                 if (!string(value.namespaceName) || !string(value.name) || !extension(extension, value.value, 0))
@@ -204,18 +221,22 @@ namespace GameWIP::Desktop::Accessibility
                     return false;
                 }
             }
+
             if (node.selection && node.selection->selectedNodes.size() > limits.maximumNodes)
             {
                 return false;
             }
+
             if (node.text)
             {
                 const auto &text = *node.text;
+
                 if (text.annotations.size() > limits.maximumTextAnnotationsPerNode || text.fragments.size() > limits.maximumTextFragmentsPerNode ||
                     text.selection.size() > limits.maximumTextSelectionsPerNode || !string(text.utf8) || !string(text.language))
                 {
                     return false;
                 }
+
                 for (const auto &annotation : text.annotations)
                 {
                     if (!string(annotation.value))
@@ -307,22 +328,26 @@ namespace GameWIP::Desktop::Accessibility
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
+
             if (state_ && state_->nodeIds.contains(node.id))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
 
             std::uint64_t bytes = state_ ? state_->textBytes : 0;
+
             if (!boundedNode(node, limits_, bytes))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
 
             auto owned = std::make_shared<Detail::OwnedAccessibilityNode>(node);
+
             if (!state_)
             {
                 state_ = std::make_unique<Detail::SnapshotBuilderState>();
             }
+
             if (state_->nodes.size() == state_->nodes.capacity())
             {
                 const auto capacity =

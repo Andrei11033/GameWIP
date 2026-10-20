@@ -16,15 +16,18 @@ function Add-GameWipToolCandidate
         [Parameter(Mandatory = $true)][int]$Priority,
         [Parameter(Mandatory = $true)][string]$SelectionReason
     )
+
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf))
     {
         return
     }
     $resolved = [IO.Path]::GetFullPath($Path)
+
     if ((Test-GameWipWindowsHost) -and [IO.Path]::GetExtension($resolved).ToLowerInvariant() -notin @('.exe', '.com', '.cmd', '.bat', '.ps1'))
     {
         return
     }
+
     if ($Seen.Add($resolved))
     {
         $Candidates.Add([pscustomobject]@{
@@ -77,6 +80,7 @@ function Get-GameWipToolCandidates
             {
                 Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) "$environment\bin"
             }
+
             foreach ($command in $commands)
             {
                 foreach ($name in @(Get-GameWipExecutableNames -Command $command))
@@ -102,6 +106,7 @@ function Get-GameWipToolCandidates
             }
         }
     }
+
     foreach ($managedRoot in @(Get-GameWipManagedToolPath))
     {
         foreach ($command in $commands)
@@ -123,6 +128,7 @@ function Get-GameWipToolCandidates
             }
         }
     }
+
     return @($candidates | Sort-Object Priority, Path)
 }
 
@@ -130,9 +136,11 @@ function Get-GameWipPowerShellGalleryCandidates
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
     $items = [System.Collections.Generic.List[object]]::new()
+
     if (Test-GameWipWindowsHost)
     {
         $managedRoot = Join-Path ((Get-GameWipManagedToolRoot)) "powershell\$($Tool.provider.package)"
+
         foreach ($directory in @(Get-ChildItem -LiteralPath $managedRoot -Directory -ErrorAction SilentlyContinue))
         {
             if ($directory.Name.StartsWith('.', [StringComparison]::Ordinal))
@@ -141,6 +149,7 @@ function Get-GameWipPowerShellGalleryCandidates
             }
 
             $manifest = Join-Path $directory.FullName "$($Tool.provider.package).psd1"
+
             if (-not (Test-Path -LiteralPath $manifest -PathType Leaf))
             {
                 continue
@@ -155,14 +164,17 @@ function Get-GameWipPowerShellGalleryCandidates
                 }) | Out-Null
         }
     }
+
     foreach ($module in @(Get-Module -ListAvailable -Name ([string]$Tool.provider.package)))
     {
         $items.Add([pscustomobject]@{ Version = $module.Version.ToString(); Location = $module.ModuleBase; Source = 'PSModulePath'; Priority = 100; SelectionReason = 'PSModulePath fallback' }) | Out-Null
     }
+
     return @($items | Sort-Object Priority, @{ Expression = { try
                 {
                     [version]$_.Version
                 }
+
                 catch
                 {
                     [version]'0.0'
@@ -173,20 +185,25 @@ function Get-GameWipPowerShellGalleryCandidates
 function Resolve-GameWipToolCommand
 {
     param([hashtable]$Tool, [string]$Command)
+
     if ($null -ne $Tool)
     {
         $candidates = @(Get-GameWipToolCandidates -Tool $Tool)
+
         if ($candidates.Count -eq 0)
         {
             return $null
         }
+
         return $candidates[0].Path
     }
+
     if ([string]::IsNullOrWhiteSpace($Command))
     {
         throw 'Resolve-GameWipToolCommand requires -Tool or -Command.'
     }
     $names = @(Get-GameWipExecutableNames -Command $Command)
+
     if (Test-GameWipWindowsHost)
     {
         foreach ($managedRoot in @(Get-GameWipManagedToolPath))
@@ -194,18 +211,22 @@ function Resolve-GameWipToolCommand
             foreach ($name in $names)
             {
                 $candidate = Join-Path $managedRoot $name
+
                 if (Test-Path -LiteralPath $candidate -PathType Leaf)
                 {
                     return [IO.Path]::GetFullPath($candidate)
                 }
             }
         }
+
         foreach ($environment in @('ucrt64', 'clang64', 'usr'))
         {
             $bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) "$environment\bin"
+
             foreach ($name in $names)
             {
                 $candidate = Join-Path $bin $name
+
                 if (Test-Path -LiteralPath $candidate -PathType Leaf)
                 {
                     return [IO.Path]::GetFullPath($candidate)
@@ -214,19 +235,23 @@ function Resolve-GameWipToolCommand
         }
     }
     $resolved = Get-Command $Command -ErrorAction SilentlyContinue | Select-Object -First 1
+
     if ($null -ne $resolved)
     {
         return $resolved.Source
     }
+
     return $null
 }
 
 function Get-GameWipDetectedTool
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
     if ($Tool.provider.kind -eq 'powershellGallery')
     {
         $candidates = @(Get-GameWipPowerShellGalleryCandidates -Tool $Tool)
+
         if ($candidates.Count -eq 0)
         {
             return [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; SelectionReason = $null; Candidates = @() }
@@ -235,6 +260,7 @@ function Get-GameWipDetectedTool
         return [pscustomobject]@{ Installed = $true; Version = $selected.Version; Location = $selected.Location; Source = $selected.Source; SelectionReason = $selected.SelectionReason; Candidates = $candidates }
     }
     $candidates = @(Get-GameWipToolCandidates -Tool $Tool)
+
     if ($candidates.Count -eq 0)
     {
         return [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; SelectionReason = $null; Candidates = @() }
@@ -242,6 +268,7 @@ function Get-GameWipDetectedTool
     $selected = $candidates[0]
     $version = Get-GameWipToolCandidateVersion -Tool $Tool -Path $selected.Path
     $usesPackageQueryHost = $Tool.provider.kind -in @('python', 'npm') -and [string]$Tool.detection.command -ne [string]$Tool.provider.package
+
     if ($usesPackageQueryHost -and $null -eq $version)
     {
         # A package-query host may exist more than once on PATH. Select the
@@ -250,6 +277,7 @@ function Get-GameWipDetectedTool
         foreach ($candidate in @($candidates | Select-Object -Skip 1))
         {
             $candidateVersion = Get-GameWipToolCandidateVersion -Tool $Tool -Path $candidate.Path
+
             if ($null -ne $candidateVersion)
             {
                 $selected = $candidate
@@ -258,12 +286,14 @@ function Get-GameWipDetectedTool
             }
         }
     }
+
     if ($usesPackageQueryHost -and $null -eq $version)
     {
         # The executables are only package-query hosts (for example, Python
         # used to query jsonschema), not evidence that the package exists.
         return [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; SelectionReason = $null; Candidates = $candidates }
     }
+
     return [pscustomobject]@{
         Installed = $true
         Version = $version
@@ -283,6 +313,7 @@ function Show-GameWipToolStatus
     Write-Host ('  {0,-20} {1,-13} {2,-13} {3,-11} {4}' -f 'Tool', 'Requirement', 'Installed', 'State', 'Provider')
     Write-Host ('  {0,-20} {1,-13} {2,-13} {3,-11} {4}' -f ('-' * 20), ('-' * 13), ('-' * 13), ('-' * 11), ('-' * 18))
     $results = [System.Collections.Generic.List[object]]::new()
+
     foreach ($toolInfo in @($ProjectTools.tools))
     {
         $status = Get-GameWipToolStatus -Tool $toolInfo
@@ -307,6 +338,7 @@ function Show-GameWipToolStatus
         {
             '-'
         }
+
         if ($installed.Length -gt 13)
         {
             $installed = $installed.Substring(0, 10) + '...'
@@ -336,6 +368,7 @@ function Show-GameWipToolStatus
     $groups = @($results | Group-Object State | Sort-Object Name)
     Write-Host ''
     Write-Host '  Summary: ' -NoNewline
+
     for ($groupIndex = 0; $groupIndex -lt $groups.Count; ++$groupIndex)
     {
         $group = $groups[$groupIndex]
@@ -372,6 +405,7 @@ function Show-GameWipToolStatus
     $details = @($results | Where-Object {
             $_.Tool.versionPolicy -ne 'informational' -and $_.Detected.Installed -and (@($_.Detected.Candidates).Count -gt 1 -or $_.State -ne 'compatible')
         })
+
     if ($details.Count -eq 0)
     {
         return
@@ -379,6 +413,7 @@ function Show-GameWipToolStatus
 
     Write-GameWipSection 'Selection details'
     Write-Host '  Declared provider locations take precedence over PATH fallbacks.'
+
     foreach ($result in $details)
     {
         $toolInfo = $result.Tool
@@ -390,9 +425,11 @@ function Show-GameWipToolStatus
         Write-Host '    Source: ' -NoNewline
         Write-GameWipSemanticText -Object "$($detected.Source) ($($detected.SelectionReason))" -Semantic Muted
         $alternatives = @($detected.Candidates | Select-Object -Skip 1)
+
         if ($alternatives.Count -ne 0)
         {
             Write-Host '    Also found:'
+
             foreach ($candidate in $alternatives)
             {
                 $candidatePath = if ($candidate.PSObject.Properties['Path'])

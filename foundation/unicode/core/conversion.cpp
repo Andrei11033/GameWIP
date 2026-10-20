@@ -55,6 +55,7 @@ namespace GameWIP::Unicode
             while (sourceBytesProcessed < source.size())
             {
                 const Types::Utf8::DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesProcessed));
+
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -65,6 +66,7 @@ namespace GameWIP::Unicode
                 }
 
                 const std::size_t scalarCodeUnits = Internal::utf16EncodedLength(decoded.scalar);
+
                 if (GameWIP::Base::wouldAddOverflow(requiredCodeUnits, scalarCodeUnits))
                 {
                     return {
@@ -98,6 +100,7 @@ namespace GameWIP::Unicode
             while (sourceBytesConsumed < source.size())
             {
                 const Types::Utf8::DecodeResult decoded = Internal::decodeUtf8Scalar(source.substr(sourceBytesConsumed));
+
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -108,6 +111,7 @@ namespace GameWIP::Unicode
                 }
 
                 const std::size_t scalarCodeUnits = Internal::utf16EncodedLength(decoded.scalar);
+
                 if (scalarCodeUnits > destination.size() - codeUnitsWritten)
                 {
                     return {
@@ -140,6 +144,7 @@ namespace GameWIP::Unicode
             while (sourceCodeUnitsProcessed < source.size())
             {
                 const Types::Utf16::DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsProcessed));
+
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -150,6 +155,7 @@ namespace GameWIP::Unicode
                 }
 
                 const std::size_t scalarBytes = Internal::utf8EncodedLength(decoded.scalar);
+
                 if (GameWIP::Base::wouldAddOverflow(requiredBytes, scalarBytes))
                 {
                     return {
@@ -183,6 +189,7 @@ namespace GameWIP::Unicode
             while (sourceCodeUnitsConsumed < source.size())
             {
                 const Types::Utf16::DecodeResult decoded = Internal::decodeUtf16Scalar(source.subspan(sourceCodeUnitsConsumed));
+
                 if (decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {
@@ -193,6 +200,7 @@ namespace GameWIP::Unicode
                 }
 
                 const std::size_t scalarBytes = Internal::utf8EncodedLength(decoded.scalar);
+
                 if (scalarBytes > destination.size() - bytesWritten)
                 {
                     return {

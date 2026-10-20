@@ -62,6 +62,7 @@ namespace GameWIP::Desktop::Detail
         {
             return false;
         }
+
         if (cursorNativeCreationFailureCountdown != 0)
         {
             --cursorNativeCreationFailureCountdown;
@@ -173,6 +174,7 @@ namespace GameWIP::Desktop::TestHooks
     void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept
     {
         Detail::ShellEventQueueState *state = Detail::ShellEventQueueAccess::state(queue);
+
         if (state != nullptr)
         {
             Detail::publishShellEvent(*state, std::move(payload));
@@ -299,10 +301,12 @@ namespace GameWIP::Desktop::TestHooks
     IO::Types::Status enqueueDragDrop(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
     {
         Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+
         if (!state)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
+
         return Detail::enqueueDragDropEvent(*state, std::move(data), terminal) ? IO::successStatus()
                                                                                : IO::makeStatus(IO::Types::ErrorCode::StorageFull);
     }
@@ -310,6 +314,7 @@ namespace GameWIP::Desktop::TestHooks
     Types::DragDrop::SessionId nextDragDropSessionId(DragDropTarget &target, std::uint64_t nextValue) noexcept
     {
         Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+
         if (state == nullptr)
         {
             return {};
@@ -352,11 +357,13 @@ namespace GameWIP::Desktop::TestHooks
     {
         Types::Events::PumpResult result;
         Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+
         if (state == nullptr)
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             return result;
         }
+
         return Detail::Platform::testRouteDragDropDuringPump(*state, std::move(data), terminal);
     }
 
@@ -413,10 +420,12 @@ namespace GameWIP::Desktop::TestHooks
     std::uint32_t customCursorBindingDpi(const Window &window) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
+
         if (state == nullptr || !state->platform || !Detail::Platform::hasCustomCursor(*state))
         {
             return 0;
         }
+
         return Detail::Platform::customCursorBindingDpi(*state);
     }
 
@@ -433,6 +442,7 @@ namespace GameWIP::Desktop::TestHooks
     CustomCursorNativeSnapshot inspectCustomCursorVariant(const Cursor &cursor, std::size_t index) noexcept
     {
         const auto &state = Detail::CursorAccess::state(cursor);
+
         if (!state || index >= state->variants.size())
         {
             return {};
@@ -472,6 +482,7 @@ namespace GameWIP::Desktop::TestHooks
     void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept
     {
         Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+
         if (renderer != nullptr)
         {
             renderer->pointerHitMaskGeneration = generation;
@@ -495,6 +506,7 @@ namespace GameWIP::Desktop::TestHooks
         {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
         }
+
         if (storage.empty())
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
@@ -507,6 +519,7 @@ namespace GameWIP::Desktop::TestHooks
             state->eventStorage = storage;
             state->eventStorageKind = Types::Events::StorageKind::External;
             Detail::WindowAccess::bindRendererIntegration(window, *state);
+
             if (Detail::WindowAccess::presentationPublication(window) != nullptr)
             {
                 Detail::WindowAccess::bindPresentationPublication(window, *state);
@@ -528,6 +541,7 @@ namespace GameWIP::Desktop::TestHooks
     IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
+
         if (state == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
@@ -539,6 +553,7 @@ namespace GameWIP::Desktop::TestHooks
     IO::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept
     {
         Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
+
         if (state == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
@@ -550,6 +565,7 @@ namespace GameWIP::Desktop::TestHooks
     IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
+
         if (state == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
@@ -561,6 +577,7 @@ namespace GameWIP::Desktop::TestHooks
     void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
+
         if (state == nullptr)
         {
             return;
@@ -574,6 +591,7 @@ namespace GameWIP::Desktop::TestHooks
         state->visible = snapshot.visible;
         state->interactiveMoveResizeActive = snapshot.interactiveMoveResizeActive;
         Detail::publishCachedPresentationState(*state);
+
         if (Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
         {
             publication->publishOccluded(snapshot.occluded);

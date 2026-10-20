@@ -16,10 +16,12 @@ function Invoke-GameWipBundle
     $bundleInfo = Get-GameWipProjectBundle -Id $Id
     $freshByDefault = $bundleInfo.ContainsKey('FreshBuildTrees') -and [bool]$bundleInfo.FreshBuildTrees
     $effectiveFresh = [bool]$Fresh -or $freshByDefault
+
     if ($NoBuild -and $effectiveFresh)
     {
         throw "Bundle '$Id' cannot combine clean build-tree recreation with -SkipBuild."
     }
+
     if ($null -eq $FreshenedPresets)
     {
         $FreshenedPresets = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -38,6 +40,7 @@ function Invoke-GameWipBundle
                 'ProjectCommand'
                 {
                     $buildIfMissing = -not $step.ContainsKey('BuildIfMissing') -or [bool]$step.BuildIfMissing
+
                     if ($buildIfMissing)
                     {
                         [string](Get-GameWipProjectCommand -Id $step.Command).BuildPreset
@@ -53,6 +56,7 @@ function Invoke-GameWipBundle
                     ''
                 }
             }
+
             if (-not [string]::IsNullOrWhiteSpace($preset) -and $FreshenedPresets.Add($preset))
             {
                 Reset-GameWipPresetBuildTree -Name $preset
@@ -61,6 +65,7 @@ function Invoke-GameWipBundle
     }
 
     Write-GameWipSection $bundleInfo.Name
+
     foreach ($step in $bundleInfo.Steps)
     {
         switch ($step.Kind)
@@ -99,6 +104,7 @@ function Invoke-GameWipBundle
                     Id = $step.Command
                     NoBuild = ($NoBuild -or -not $buildIfMissing)
                 }
+
                 if ($step.ContainsKey('Arguments'))
                 {
                     $projectCommandParameters.Arguments = @($step.Arguments)

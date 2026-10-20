@@ -69,6 +69,7 @@ function Write-GameWipStatusLine
     )
 
     $marker = "[$Status]"
+
     if ($MarkerWidth -gt $marker.Length)
     {
         $marker = $marker.PadRight($MarkerWidth)
@@ -131,10 +132,12 @@ function Read-GameWipActionMenuItem
     )
 
     Write-GameWipSection $Title
+
     if ($null -ne $Header)
     {
         & $Header
     }
+
     foreach ($item in $Items)
     {
         Write-Host "$($item.Key). $($item.Label)"
@@ -143,6 +146,7 @@ function Read-GameWipActionMenuItem
 
     $keys = @($Items | ForEach-Object { [string]$_.Key })
     $choice = Read-GameWipActionKey -Prompt $Prompt -AllowedKeys $keys -AllowEscape
+
     if ($choice.Status -eq 'Cancelled')
     {
         return New-GameWipChoiceResult -Status Cancelled -Value $null
@@ -157,6 +161,7 @@ function Test-GameWipInteractiveConsole
     {
         return -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected -and $Host.Name -ne 'ServerRemoteHost'
     }
+
     catch
     {
         return $false
@@ -166,6 +171,7 @@ function Test-GameWipInteractiveConsole
 function Assert-GameWipInteractiveConsole
 {
     param([string]$Purpose = 'This action')
+
     if (-not (Test-GameWipInteractiveConsole))
     {
         throw (New-GameWipDiagnosticException `
@@ -199,10 +205,12 @@ function Read-GameWipActionKey
         [Parameter(Mandatory = $true)][string[]]$AllowedKeys,
         [switch]$AllowEscape
     )
+
     while ($true)
     {
         Write-Host "$Prompt " -NoNewline
         $key = Read-GameWipConsoleKey -Purpose $Prompt
+
         if ($AllowEscape -and $key.Key -eq [ConsoleKey]::Escape)
         {
             Write-Host 'ESC'
@@ -210,6 +218,7 @@ function Read-GameWipActionKey
         }
         $value = $key.KeyChar.ToString()
         Write-Host $value
+
         if ($AllowedKeys -ccontains $value -or $AllowedKeys -contains $value)
         {
             return New-GameWipChoiceResult -Status Selected -Value $value
@@ -227,16 +236,19 @@ function Read-GameWipIndexedChoiceResult
         [switch]$AllowMultiple
     )
     Assert-GameWipInteractiveConsole -Purpose $Prompt
+
     if ($Choices.Count -eq 0)
     {
         return New-GameWipChoiceResult -Status Cancelled -Value $null
     }
     Write-Host ''
     Write-Host $Prompt
+
     for ($index = 0; $index -lt $Choices.Count; ++$index)
     {
         Write-Host ("  [{0}] {1}" -f ($index + 1), $Choices[$index])
     }
+
     while ($true)
     {
         $inputPrompt = if ([string]::IsNullOrWhiteSpace($Default))
@@ -248,22 +260,27 @@ function Read-GameWipIndexedChoiceResult
             "Selection [Enter = $Default, Q = cancel]"
         }
         $answer = Read-Host $inputPrompt
+
         if ($answer -eq 'q' -or $answer -eq 'Q')
         {
             return New-GameWipChoiceResult -Status Cancelled -Value $null
         }
+
         if ([string]::IsNullOrWhiteSpace($answer) -and -not [string]::IsNullOrWhiteSpace($Default))
         {
             return New-GameWipChoiceResult -Status Selected -Value $Default
         }
+
         if ($AllowMultiple)
         {
             $parts = @($answer -split '[,\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
             $numbers = [System.Collections.Generic.List[int]]::new()
             $valid = $parts.Count -gt 0
+
             foreach ($part in $parts)
             {
                 $number = 0
+
                 if (-not [int]::TryParse($part, [ref]$number) -or $number -lt 1 -or $number -gt $Choices.Count -or $numbers.Contains($number))
                 {
                     $valid = $false
@@ -271,12 +288,14 @@ function Read-GameWipIndexedChoiceResult
                 }
                 $numbers.Add($number)
             }
+
             if ($valid)
             {
                 return New-GameWipChoiceResult -Status Selected -Value @($numbers | ForEach-Object { $Choices[$_ - 1] })
             }
         }
         $number = 0
+
         if ([int]::TryParse($answer, [ref]$number) -and $number -ge 1 -and $number -le $Choices.Count)
         {
             return New-GameWipChoiceResult -Status Selected -Value $Choices[($number - 1)]
@@ -297,10 +316,12 @@ function Read-GameWipIndexedChoice
 {
     param([string]$Prompt, [string[]]$Choices)
     $result = Read-GameWipIndexedChoiceResult -Prompt $Prompt -Choices $Choices
+
     if ($result.Status -eq 'Cancelled')
     {
         return $null
     }
+
     return $result.Value
 }
 
@@ -313,29 +334,35 @@ function Read-GameWipMenuChoiceResult
     )
     Assert-GameWipInteractiveConsole -Purpose $Prompt
     $keys = @('1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f')
+
     if ($Choices.Count -gt $keys.Count)
     {
         return Read-GameWipIndexedChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default
     }
+
     while ($true)
     {
         Write-Host ''
         Write-Host $Prompt
+
         for ($index = 0; $index -lt $Choices.Count; ++$index)
         {
             Write-Host ("  [{0}] {1}" -f $keys[$index], $Choices[$index])
         }
+
         if (-not [string]::IsNullOrWhiteSpace($Default))
         {
             Write-Host "  [Enter] $Default"
         }
         Write-Host 'Choose one key, or ESC/q to cancel: ' -NoNewline
         $key = Read-GameWipConsoleKey -Purpose $Prompt
+
         if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
         {
             Write-Host 'cancel'
             return New-GameWipChoiceResult -Status Cancelled -Value $null
         }
+
         if ($key.Key -eq [ConsoleKey]::Enter -and -not [string]::IsNullOrWhiteSpace($Default))
         {
             Write-Host 'Enter'
@@ -344,6 +371,7 @@ function Read-GameWipMenuChoiceResult
         $selectionKey = $key.KeyChar.ToString().ToLowerInvariant()
         Write-Host $selectionKey
         $index = [array]::IndexOf($keys, $selectionKey)
+
         if ($index -ge 0 -and $index -lt $Choices.Count)
         {
             return New-GameWipChoiceResult -Status Selected -Value $Choices[$index]
@@ -364,10 +392,12 @@ function Read-GameWipTextValue
     {
         Read-Host "$Prompt [$Default]"
     }
+
     if ([string]::IsNullOrWhiteSpace($value))
     {
         return $Default
     }
+
     return $value
 }
 
@@ -375,10 +405,12 @@ function Read-GameWipIntegerValue
 {
     param([Parameter(Mandatory = $true)][string]$Prompt, [Parameter(Mandatory = $true)][int]$Default)
     Assert-GameWipInteractiveConsole -Purpose $Prompt
+
     while ($true)
     {
         $value = Read-GameWipTextValue -Prompt $Prompt -Default ([string]$Default)
         $parsed = 0
+
         if ([int]::TryParse($value, [ref]$parsed) -and $parsed -gt 0)
         {
             return $parsed
@@ -399,15 +431,18 @@ function Read-GameWipYesNo
     {
         '[y/N]'
     }
+
     while ($true)
     {
         Write-Host "$Prompt $suffix " -NoNewline
         $key = Read-GameWipConsoleKey -Purpose $Prompt
+
         if ($key.Key -eq [ConsoleKey]::Escape)
         {
             Write-Host 'cancel'
             throw [System.OperationCanceledException]::new("$Prompt was cancelled.")
         }
+
         if ($key.Key -eq [ConsoleKey]::Enter)
         {
             Write-Host 'Enter'
@@ -415,10 +450,12 @@ function Read-GameWipYesNo
         }
         $value = $key.KeyChar.ToString().ToLowerInvariant()
         Write-Host $value
+
         if ($value -eq 'y')
         {
             return $true
         }
+
         if ($value -eq 'n')
         {
             return $false
@@ -435,15 +472,18 @@ function Read-GameWipMultiChoiceResult
     )
     Assert-GameWipInteractiveConsole -Purpose $Prompt
     $keys = @('1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'a', 'b', 'c', 'd', 'e', 'f')
+
     if ($Choices.Count -gt $keys.Count)
     {
         return Read-GameWipIndexedMultiChoiceResult -Prompt $Prompt -Choices $Choices
     }
     $selected = New-Object System.Collections.Generic.HashSet[string]
+
     while ($true)
     {
         Write-Host ''
         Write-Host $Prompt
+
         for ($index = 0; $index -lt $Choices.Count; ++$index)
         {
             $marker = if ($selected.Contains($Choices[$index]))
@@ -458,11 +498,13 @@ function Read-GameWipMultiChoiceResult
         }
         Write-Host 'Toggle one key, Enter to accept, or ESC/q to cancel: ' -NoNewline
         $key = Read-GameWipConsoleKey -Purpose $Prompt
+
         if ($key.Key -eq [ConsoleKey]::Escape -or $key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q')
         {
             Write-Host 'cancel'
             return New-GameWipChoiceResult -Status Cancelled -Value $null
         }
+
         if ($key.Key -eq [ConsoleKey]::Enter)
         {
             Write-Host 'Enter'
@@ -471,9 +513,11 @@ function Read-GameWipMultiChoiceResult
         $selectionKey = $key.KeyChar.ToString().ToLowerInvariant()
         Write-Host $selectionKey
         $index = [array]::IndexOf($keys, $selectionKey)
+
         if ($index -ge 0 -and $index -lt $Choices.Count)
         {
             $choice = $Choices[$index]
+
             if ($selected.Contains($choice))
             {
                 [void]$selected.Remove($choice)
@@ -491,21 +535,25 @@ function Read-GameWipMultiChoiceResult
 function ConvertTo-GameWipMultiChoiceIndexes
 {
     param([Parameter(Mandatory = $true)][string]$InputText, [Parameter(Mandatory = $true)][int]$ChoiceCount)
+
     if ([string]::IsNullOrWhiteSpace($InputText))
     {
         return @()
     }
     $indexes = [System.Collections.Generic.HashSet[int]]::new()
+
     foreach ($token in @($InputText -split ','))
     {
         $trimmed = $token.Trim()
         $number = 0
+
         if ([string]::IsNullOrWhiteSpace($trimmed) -or -not [int]::TryParse($trimmed, [ref]$number) -or $number -lt 1 -or $number -gt $ChoiceCount)
         {
             throw "Enter comma-separated numbers from 1 to $ChoiceCount."
         }
         [void]$indexes.Add($number)
     }
+
     return @($indexes | Sort-Object)
 }
 
@@ -516,15 +564,18 @@ function Read-GameWipIndexedMultiChoiceResult
         [Parameter(Mandatory = $true)][string[]]$Choices
     )
     Assert-GameWipInteractiveConsole -Purpose $Prompt
+
     if ($Choices.Count -eq 0)
     {
         return New-GameWipChoiceResult -Status Cancelled -Value $null
     }
     $selected = [System.Collections.Generic.HashSet[int]]::new()
+
     while ($true)
     {
         Write-Host ''
         Write-Host $Prompt
+
         for ($index = 0; $index -lt $Choices.Count; ++$index)
         {
             $marker = if ($selected.Contains($index + 1))
@@ -538,13 +589,16 @@ function Read-GameWipIndexedMultiChoiceResult
             Write-Host ("  [{0}] [{1}] {2}" -f ($index + 1), $marker, $Choices[$index])
         }
         $answer = Read-Host 'Toggle numbers separated by commas, Enter to accept, or Q to cancel'
+
         if ($answer -eq 'q' -or $answer -eq 'Q')
         {
             return New-GameWipChoiceResult -Status Cancelled -Value $null
         }
+
         if ([string]::IsNullOrWhiteSpace($answer))
         {
             $values = [System.Collections.Generic.List[string]]::new()
+
             for ($index = 0; $index -lt $Choices.Count; ++$index)
             {
                 if ($selected.Contains($index + 1))
@@ -552,11 +606,14 @@ function Read-GameWipIndexedMultiChoiceResult
                     $values.Add($Choices[$index]) | Out-Null
                 }
             }
+
             return New-GameWipChoiceResult -Status Selected -Value $values.ToArray()
         }
+
         try
         {
             $indexes = @(ConvertTo-GameWipMultiChoiceIndexes -InputText $answer -ChoiceCount $Choices.Count)
+
             foreach ($number in $indexes)
             {
                 if ($selected.Contains($number))
@@ -569,6 +626,7 @@ function Read-GameWipIndexedMultiChoiceResult
                 }
             }
         }
+
         catch
         {
             Write-GameWipHost $_.Exception.Message -ForegroundColor Yellow

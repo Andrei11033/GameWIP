@@ -136,6 +136,7 @@ namespace GameWIP::Desktop
     const Detail::NativeCursorVariant &Detail::CursorState::variantForDpi(std::uint32_t dpi) const noexcept
     {
         std::size_t best = 0;
+
         for (std::size_t index = 1; index < variants.size(); ++index)
         {
             if (isBetterDpiCandidate(variants[index].intendedDpi, variants[best].intendedDpi, dpi))
@@ -143,6 +144,7 @@ namespace GameWIP::Desktop
                 best = index;
             }
         }
+
         return variants[best];
     }
 
@@ -169,6 +171,7 @@ namespace GameWIP::Desktop
     Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept
     {
         IO::Types::Status status = validateVariants(variants);
+
         if (!status.ok())
         {
             return {.status = std::move(status)};
@@ -183,6 +186,7 @@ namespace GameWIP::Desktop
             }
             nativeVariants.reserve(variants.size());
             status = Detail::Platform::createNativeCursorVariants(variants, nativeVariants);
+
             if (!status.ok())
             {
                 Detail::Platform::destroyNativeCursorVariants(nativeVariants);
@@ -211,18 +215,22 @@ namespace GameWIP::Desktop
     IO::Types::Status setCursor(Window &window, const Cursor &cursor) noexcept
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
+
         if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
         {
             return error(ErrorCode::NotOpen);
         }
+
         if (!Detail::Platform::ownedByCurrentThread(*state))
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         if (!cursor.isValid())
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         return Detail::Platform::setCustomCursor(*state, Detail::CursorAccess::state(cursor));
     }
 

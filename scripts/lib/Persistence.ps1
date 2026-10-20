@@ -46,9 +46,11 @@ function Write-GameWipTextAtomic
         [IO.Path]::GetFileName($fullPath),
         [guid]::NewGuid().ToString('N')
     )
+
     try
     {
         [IO.File]::WriteAllText($temporaryPath, $Content, [Text.UTF8Encoding]::new($false))
+
         if (Test-Path -LiteralPath $fullPath -PathType Leaf)
         {
             try
@@ -61,19 +63,23 @@ function Write-GameWipTextAtomic
                 $temporaryPath = $null
                 return
             }
+
             catch [PlatformNotSupportedException]
             {
                 $null = $_.Exception
             }
+
             catch [System.IO.IOException]
             {
                 $null = $_.Exception
             }
+
             catch [System.ArgumentException]
             {
                 $null = $_.Exception
             }
         }
+
         if (-not $SuppressMutationTracking)
         {
             Set-GameWipMutationStarted
@@ -81,6 +87,7 @@ function Write-GameWipTextAtomic
         Move-Item -LiteralPath $temporaryPath -Destination $fullPath -Force
         $temporaryPath = $null
     }
+
     finally
     {
         if (-not [string]::IsNullOrWhiteSpace([string]$temporaryPath))
@@ -118,6 +125,7 @@ function New-GameWipOwnershipMarker
         origin = $Origin
         recordedAt = (Get-Date).ToUniversalTime().ToString('o')
     }
+
     if ($IncludeProcess)
     {
         $marker.process = [ordered]@{
@@ -125,10 +133,12 @@ function New-GameWipOwnershipMarker
             startedAt = (Get-Process -Id $PID).StartTime.ToUniversalTime().ToString('o')
         }
     }
+
     if ($null -ne $Payload)
     {
         $marker.payload = $Payload
     }
+
     return $marker
 }
 
@@ -143,31 +153,38 @@ function Read-GameWipOwnershipMarker
     {
         return [pscustomobject]@{ Status = 'missing'; Marker = $null; Reason = 'marker does not exist' }
     }
+
     try
     {
         $marker = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
     }
+
     catch
     {
         return [pscustomobject]@{ Status = 'malformed'; Marker = $null; Reason = $_.Exception.Message }
     }
     $properties = @($marker.PSObject.Properties.Name)
+
     if ('schemaVersion' -notin $properties -or 'owner' -notin $properties -or 'resource' -notin $properties)
     {
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'marker identity fields are incomplete' }
     }
+
     if ($marker.schemaVersion -ne 1 -or $marker.owner -ne 'GameWIP' -or $marker.resource -ne $Resource)
     {
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'marker identity does not match the requested GameWIP resource' }
     }
+
     if ('origin' -notin $properties)
     {
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'ownership origin is missing or unsupported' }
     }
+
     if ($marker.origin -notin @('created', 'claimedEmpty', 'adopted'))
     {
         return [pscustomobject]@{ Status = 'unknown'; Marker = $marker; Reason = 'ownership origin is missing or unsupported' }
     }
+
     return [pscustomobject]@{ Status = 'valid'; Marker = $marker; Reason = '' }
 }
 
@@ -179,6 +196,7 @@ function Test-GameWipOperationOwnerActive
     {
         return $null
     }
+
     try
     {
         $process = Get-Process -Id ([int]$Marker.process.id) -ErrorAction Stop
@@ -186,10 +204,12 @@ function Test-GameWipOperationOwnerActive
         $actual = $process.StartTime.ToUniversalTime()
         return [Math]::Abs(($actual - $expected).TotalSeconds) -lt 1.0
     }
+
     catch [Microsoft.PowerShell.Commands.ProcessCommandException]
     {
         return $false
     }
+
     catch
     {
         return $null
@@ -200,6 +220,7 @@ function Invoke-GameWipStaleOperationTempCleanup
 {
     $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
     $cutoff = (Get-Date).ToUniversalTime().AddDays(-1)
+
     foreach ($directory in @(Get-ChildItem -LiteralPath $tempRoot -Directory -ErrorAction SilentlyContinue))
     {
         if ($directory.LastWriteTimeUtc -ge $cutoff)
@@ -208,11 +229,13 @@ function Invoke-GameWipStaleOperationTempCleanup
         }
         $markerPath = Join-Path $directory.FullName '.gamewip-owned.json'
         $state = Read-GameWipOwnershipMarker -Path $markerPath -Resource 'operation-temp'
+
         if ($state.Status -ne 'valid')
         {
             continue
         }
         $ownerActive = Test-GameWipOperationOwnerActive -Marker $state.Marker
+
         if ($ownerActive -ne $false)
         {
             continue

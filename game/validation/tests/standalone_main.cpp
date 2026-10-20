@@ -48,11 +48,13 @@ namespace
         std::puts("");
         std::puts("Registered modules:");
         std::vector<std::string_view> moduleNames;
+
         for (const GameWIP::Validation::Tests::Module &module : GameWIP::Validation::Tests::registeredModules())
         {
             moduleNames.push_back(module.name);
         }
         std::ranges::sort(moduleNames);
+
         for (const std::string_view moduleName : moduleNames)
         {
             std::printf("  %.*s\n", static_cast<int>(moduleName.size()), moduleName.data());
@@ -66,6 +68,7 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
         std::string_view targetArgument;
+
         for (char *argument : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (argument == nullptr || std::string_view{argument}.starts_with('-'))
@@ -73,12 +76,14 @@ namespace
                 continue;
             }
             const std::string_view candidate{argument};
+
             if (candidate.rfind(".gamewip-validation-") != std::string_view::npos)
             {
                 targetArgument = candidate;
                 break;
             }
         }
+
         if (targetArgument.empty())
         {
             return std::nullopt;
@@ -86,6 +91,7 @@ namespace
         const std::filesystem::path targetPath(targetArgument);
         const std::filesystem::path receipt = targetPath.parent_path() / ".gamewip-generic-launch-receipt.txt";
         std::ofstream output(receipt, std::ios::binary | std::ios::trunc);
+
         if (!output)
         {
             return 3;
@@ -101,6 +107,7 @@ int main(int argc, char **argv)
     {
         return *genericShellLaunch;
     }
+
     if (requestsHelp(GameWIP::Validation::processArguments(argc, argv)))
     {
         printHelp();
@@ -113,5 +120,6 @@ int main(int argc, char **argv)
     {
         return result.exitCode;
     }
+
     return result.ok() ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -107,6 +107,7 @@ int main()
     CHECK_MSG(condition(), message());
     CHECK_ONCE(condition());
     CHECK_ONCE_MSG(condition(), message());
+
     if (conditionEvaluations != 0 || messageEvaluations != 0)
     {
         return 1;

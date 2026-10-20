@@ -31,10 +31,12 @@ function Read-GameWipNamedChoice
     {
         Read-GameWipMenuChoiceResult -Prompt $Prompt -Choices $Choices -Default $Default
     }
+
     if ($result.Status -eq 'Cancelled')
     {
         return $null
     }
+
     return [string]$result.Value
 }
 
@@ -43,6 +45,7 @@ function Get-GameWipInteractiveContext
 {
     $branch = '<none>'
     $workspace = 'unknown'
+
     try
     {
         if (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
@@ -59,20 +62,24 @@ function Get-GameWipInteractiveContext
             }
         }
     }
+
     catch
     {
         $workspace = 'degraded'
     }
 
     $environment = 'degraded'
+
     try
     {
         $cmake = Get-GameWipProjectTool -Id 'cmake'
+
         if ($null -ne (Resolve-GameWipToolCommand -Tool $cmake))
         {
             $environment = 'ready'
         }
     }
+
     catch
     {
         $null = $_.Exception
@@ -132,6 +139,7 @@ function Read-GameWipConfiguredMenuItem
     param([Parameter(Mandatory = $true)][string]$MenuId, [scriptblock]$Header)
 
     $menuMatches = @($CommandConfig.Menus | Where-Object { [string]$_.Id -eq $MenuId })
+
     if ($menuMatches.Count -ne 1)
     {
         throw "Interactive menu '$MenuId' is not registered exactly once."
@@ -150,15 +158,18 @@ function Show-GameWipDevelopmentMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId development
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'config'
             {
                 $preset = Read-GameWipNamedChoice -Prompt 'Configure preset' -Choices (Get-GameWipVisiblePresetName -Kind configure) -Default $CommandConfig.DefaultConfigurePreset
+
                 if ($null -ne $preset)
                 {
                     Invoke-GameWipInteractiveOperation -Label "configure-$preset" -Body { Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -CleanBuild is active.', "cmake --preset $preset") -Body { Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh } | Out-Null } | Out-Null
@@ -167,6 +178,7 @@ function Show-GameWipDevelopmentMenu
             'build'
             {
                 $preset = Read-GameWipNamedChoice -Prompt 'Build preset' -Choices (Get-GameWipVisiblePresetName -Kind build) -Default $CommandConfig.DefaultBuildPreset
+
                 if ($null -ne $preset)
                 {
                     Invoke-GameWipInteractiveOperation -Label "build-$preset" -Body { Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -CleanBuild is active.', 'Ensure configuration if missing.', "cmake --build --preset $preset") -Body { Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh } | Out-Null } | Out-Null
@@ -175,6 +187,7 @@ function Show-GameWipDevelopmentMenu
             'run'
             {
                 $id = Read-GameWipNamedChoice -Prompt 'Project command' -Choices @($CommandConfig.ProjectCommands | ForEach-Object { $_.Id }) -Default 'dev-version'
+
                 if ($null -ne $id)
                 {
                     Invoke-GameWipInteractiveOperation -Label "run-$id" -Body { Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable unless -SkipBuild is used.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id -NoBuild:$NoBuild } | Out-Null } | Out-Null
@@ -193,15 +206,18 @@ function Show-GameWipValidationMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId validation
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'test'
             {
                 $preset = Read-GameWipNamedChoice -Prompt 'CTest preset' -Choices (Get-GameWipVisiblePresetName -Kind test) -Default $CommandConfig.DefaultTestPreset
+
                 if ($null -ne $preset)
                 {
                     Invoke-GameWipInteractiveOperation -Label "test-$preset" -Body { Invoke-GameWipMutation -Summary "Ensure and run CTest preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -CleanBuild is active.', 'Build missing prerequisites unless -SkipBuild is used.', "ctest --preset $preset") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
@@ -210,6 +226,7 @@ function Show-GameWipValidationMenu
             'module'
             {
                 $module = Read-GameWipNamedChoice -Prompt 'Validation module' -Choices (@('all') + @(Get-GameWipValidationModuleName)) -Default $CommandConfig.DefaultModule
+
                 if ($null -ne $module)
                 {
                     Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -NoBuild:$NoBuild } | Out-Null } | Out-Null
@@ -218,6 +235,7 @@ function Show-GameWipValidationMenu
             'stress'
             {
                 $module = Read-GameWipNamedChoice -Prompt 'Stress module' -Choices (@('all') + @(Get-GameWipValidationModuleName)) -Default $CommandConfig.DefaultModule
+
                 if ($null -ne $module)
                 {
                     $runs = Read-GameWipIntegerValue -Prompt 'Run count' -Default ([int]$CommandConfig.DefaultStressCount)
@@ -236,6 +254,7 @@ function Show-GameWipValidationMenu
             'bundle'
             {
                 $bundle = Read-GameWipNamedChoice -Prompt 'Bundle' -Choices @($CommandConfig.Bundles | ForEach-Object { $_.Id }) -Default quick
+
                 if ($null -ne $bundle)
                 {
                     Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -CleanBuild.', 'Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
@@ -264,10 +283,12 @@ function Show-GameWipHygieneMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId hygiene
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'hygiene-standard'
@@ -281,6 +302,7 @@ function Show-GameWipHygieneMenu
             'hygiene-check'
             {
                 $id = Read-GameWipNamedChoice -Prompt 'Hygiene check' -Choices @($HygieneConfig.Checks | Where-Object Availability -eq available | ForEach-Object { $_.Id }) -Default unused-includes
+
                 if ($null -ne $id)
                 {
                     Invoke-GameWipInteractiveOperation -Label "hygiene-$id" -Body { Invoke-GameWipMutation -Summary "Run optional hygiene check '$id'." -Risk local -Plan @('Ensure the analyze compilation database.', 'Run the selected advisory check.', 'Retain normalized evidence without editing tracked files.') -Body { Invoke-GameWipHygieneAudit -Selector $id } | Out-Null } | Out-Null
@@ -303,10 +325,12 @@ function Show-GameWipQualityMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId quality
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'quality-check'
@@ -347,10 +371,12 @@ function Show-GameWipToolUpdatesMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId tool-updates
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'tool-plan'
@@ -360,6 +386,7 @@ function Show-GameWipToolUpdatesMenu
             'tool-preview'
             {
                 $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to preview' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
+
                 if ($null -ne $id)
                 {
                     Invoke-GameWipInteractiveOperation -Label "tool-preview-$($id -join '-')" -Body { Invoke-GameWipToolUpdate -ToolId $id -PreviewOnly } | Out-Null
@@ -368,6 +395,7 @@ function Show-GameWipToolUpdatesMenu
             'tool-update'
             {
                 $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to update' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
+
                 if ($null -ne $id)
                 {
                     # One combined plan keeps earlier selected updates from making
@@ -384,10 +412,12 @@ function Show-GameWipToolsMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId tools
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'ready'
@@ -415,10 +445,12 @@ function Show-GameWipGitWorkspaceMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId git-workspace
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'git-status'
@@ -462,10 +494,12 @@ function Show-GameWipGitHubWorkflowsMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId github-workflows
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'workflow-list'
@@ -479,6 +513,7 @@ function Show-GameWipGitHubWorkflowsMenu
             'workflow-run'
             {
                 $workflow = Read-GameWipNamedChoice -Prompt 'Workflow' -Choices @($CommandConfig.ManualWorkflows | ForEach-Object { $_.Id }) -Default validation
+
                 if ($null -ne $workflow)
                 {
                     Invoke-GameWipInteractiveOperation -Label "workflow-$workflow" -Body { Invoke-GameWipWorkflowAction -Name run -WorkflowId $workflow } | Out-Null
@@ -494,10 +529,12 @@ function Show-GameWipUnicodeDataMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId unicode-data
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'unicode-status'
@@ -521,10 +558,12 @@ function Show-GameWipRunHistoryMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId run-history
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'history-list'
@@ -548,10 +587,12 @@ function Show-GameWipDependencyMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId dependencies
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'deps-check'
@@ -578,10 +619,12 @@ function Show-GameWipAdvancedValidationMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId advanced-validation
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'wizard'
@@ -591,6 +634,7 @@ function Show-GameWipAdvancedValidationMenu
             'bundle'
             {
                 $bundle = Read-GameWipNamedChoice -Prompt 'Bundle' -Choices @($CommandConfig.Bundles | ForEach-Object { $_.Id }) -Default quick
+
                 if ($null -ne $bundle)
                 {
                     Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -CleanBuild.', 'Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
@@ -617,10 +661,12 @@ function Show-GameWipAdvancedMenu
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId advanced
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'menu-advanced-validation'
@@ -654,13 +700,16 @@ function Show-GameWipAdvancedMenu
 function Show-GameWipMenu
 {
     Assert-GameWipInteractiveConsole -Purpose 'The GameWIP menu'
+
     while ($true)
     {
         $choice = Read-GameWipConfiguredMenuItem -MenuId root -Header { Write-GameWipInteractiveHeader }
+
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         switch ([string]$choice.Value)
         {
             'menu-development'

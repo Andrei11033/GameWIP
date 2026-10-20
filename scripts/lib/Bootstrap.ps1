@@ -75,6 +75,7 @@ $libraryFiles = @(
     'Help.ps1',
     'Interactive.ps1'
 )
+
 foreach ($libraryFile in $libraryFiles)
 {
     . (Join-Path $ScriptsRoot (Join-Path 'lib' $libraryFile))

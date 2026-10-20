@@ -21,6 +21,7 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
 
     Desktop::Window window;
     const IO::Types::Status openStatus = window.open(description);
+
     if (!openStatus.ok())
     {
         context.fail("manual Window opens", openStatus.message);
@@ -53,6 +54,7 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
         "system close request",
         "Click the Window close button once. Does the Window remain alive while recording a close request?");
     static_cast<void>(context.expectTrue("system close request becomes sticky", window.hasCloseRequest()));
+
     if (window.hasCloseRequest())
     {
         static_cast<void>(context.expectTrue("system close request clears", window.clearCloseRequest().ok()));
@@ -84,6 +86,7 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     }
 
     Desktop::Window owner;
+
     if (!openManualWindow(context, owner, "GameWIP manual owner Window"))
     {
         return;
@@ -92,6 +95,7 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     Desktop::Types::Description childDescription;
     childDescription.owner = owner.id();
     Desktop::Window child;
+
     if (!openManualWindow(context, child, "GameWIP manual owned tool Window", childDescription))
     {
         return;
@@ -165,6 +169,7 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
 
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
+
     if (!capabilities.supports(Desktop::Types::Capability::CustomChrome))
     {
         context.skip("Window custom chrome", "backend does not advertise CustomChrome");
@@ -174,6 +179,7 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
     Desktop::Types::Description description;
     description.decoration = Desktop::Types::DecorationMode::Custom;
     Desktop::Window window;
+
     if (!openManualWindow(context, window, "GameWIP custom chrome validation", description))
     {
         return;
@@ -186,6 +192,7 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
     layout.minimizeButtonRegion = Desktop::Types::LogicalRect{{800, 0}, {48, 48}};
     layout.maximizeButtonRegion = Desktop::Types::LogicalRect{{848, 0}, {48, 48}};
     layout.closeButtonRegion = Desktop::Types::LogicalRect{{896, 0}, {64, 48}};
+
     if (!requireManualStatus(context, "custom chrome layout applies", window.setCustomChromeLayout(layout)))
     {
         return;
@@ -238,6 +245,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
+
     if (!openManualWindow(context, window, "GameWIP opacity and pointer validation"))
     {
         return;
@@ -246,6 +254,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     if (capabilities.supports(Desktop::Types::Capability::Opacity))
     {
         context.manual("Place another high-contrast application beneath the validation Window as the opacity and input reference.");
+
         for (const float opacity : {1.0F, 0.5F, 0.0F})
         {
             static_cast<void>(context.expectTrue("opacity transition succeeds", window.setOpacity(opacity).ok()));
@@ -291,11 +300,13 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     }
 
     const std::array region{Desktop::Types::LogicalRect{{20, 20}, {120, 80}}};
+
     for (const Desktop::Types::PointerInputMode mode :
          {Desktop::Types::PointerInputMode::AcceptRegions, Desktop::Types::PointerInputMode::IgnoreRegions})
     {
         Desktop::Types::PointerInputLayout regionLayout{.mode = mode, .regions = region};
         const IO::Types::Status status = window.setPointerInputLayout(regionLayout);
+
         if (capabilities.supports(Desktop::Types::Capability::PointerRegions))
         {
             static_cast<void>(context.expectTrue("supported pointer-region layout applies", status.ok()));
@@ -319,9 +330,11 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     alphaDescription.transparentFramebuffer = true;
     Desktop::Window alpha;
     const IO::Types::Status alphaStatus = alpha.open(alphaDescription);
+
     if (capabilities.supports(Desktop::Types::Capability::TransparentFramebuffer))
     {
         static_cast<void>(context.expectTrue("transparent framebuffer Window opens", alphaStatus.ok()));
+
         if (alpha.isOpen())
         {
             static_cast<void>(alpha.show());
@@ -348,6 +361,7 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
     Desktop::Window window;
     Desktop::Types::Description description;
     description.dpiResizePolicy = Desktop::Types::DpiResizePolicy::PreserveLogicalClientSize;
+
     if (!openManualWindow(context, window, "GameWIP mixed-DPI validation", description))
     {
         return;
@@ -376,9 +390,11 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
         Desktop::Types::LogicalPosition{0, static_cast<std::int32_t>(size.height - 1)},
         Desktop::Types::LogicalPosition{static_cast<std::int32_t>(size.width - 1), static_cast<std::int32_t>(size.height - 1)}};
     bool conversionsRoundTrip = true;
+
     for (const Desktop::Types::LogicalPosition point : points)
     {
         const auto screen = window.clientToScreen(point);
+
         if (!screen.status.ok())
         {
             conversionsRoundTrip = false;
@@ -396,6 +412,7 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
 
     const auto monitors = Desktop::Display::getMonitors();
     bool monitorRectsValid = monitors.ok() && !monitors->empty();
+
     for (const Desktop::Types::Display::Info &monitor : *monitors)
     {
         monitorRectsValid = monitorRectsValid && monitor.bounds.size.width > 0 && monitor.bounds.size.height > 0 && monitor.workArea.size.width > 0 &&
@@ -422,6 +439,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
     Desktop::Window window;
+
     if (!openManualWindow(context, window, "GameWIP cursor validation"))
     {
         return;
@@ -457,6 +475,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
         std::string_view{"ResizeDiagonalNorthWestSouthEast"},
         std::string_view{"ResizeDiagonalNorthEastSouthWest"},
         std::string_view{"NotAllowed"}};
+
     for (std::size_t index = 0; index < shapes.size(); ++index)
     {
         static_cast<void>(context.expectTrue("standard cursor shape applies", window.setCursorShape(shapes[index]).ok()));
@@ -503,6 +522,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
     if (capabilities.supports(Desktop::Types::Capability::CursorWarping))
     {
         const Desktop::Types::LogicalSize size = window.clientSize();
+
         for (const Desktop::Types::LogicalPosition point :
              {Desktop::Types::LogicalPosition{0, 0},
               Desktop::Types::LogicalPosition{static_cast<std::int32_t>(size.width - 1), static_cast<std::int32_t>(size.height - 1)}})
@@ -510,6 +530,7 @@ void testManualCursor(TestSupport::Context &context, const GameWIP::Test::Deskto
             static_cast<void>(context.expectTrue("cursor warp succeeds", window.setCursorPosition(point).ok()));
             const auto actual = window.cursorPosition();
             static_cast<void>(context.expectTrue("cursor warp query succeeds", actual.status.ok()));
+
             if (actual.status.ok())
             {
                 static_cast<void>(context.expectEq("cursor warp reaches requested logical point", point, *actual));

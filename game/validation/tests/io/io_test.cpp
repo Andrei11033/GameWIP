@@ -468,6 +468,7 @@ namespace
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
         {
             ++writeCalls_;
+
             if (bytes.empty())
             {
                 return {.status = {}, .bytesWritten = 0};

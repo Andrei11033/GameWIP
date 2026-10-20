@@ -41,6 +41,7 @@ void testUtf16CodecAndValidation(TestSupport::Context &context)
         EncodeCase{static_cast<char32_t>(0x10000), {static_cast<char16_t>(0xD800), static_cast<char16_t>(0xDC00)}, 2},
         EncodeCase{static_cast<char32_t>(0x10FFFF), {static_cast<char16_t>(0xDBFF), static_cast<char16_t>(0xDFFF)}, 2},
     };
+
     for (const EncodeCase &testCase : encodeCases)
     {
         const std::string name = std::format("UTF-16 encode U+{:04X}", static_cast<std::uint32_t>(testCase.scalar));
@@ -51,6 +52,7 @@ void testUtf16CodecAndValidation(TestSupport::Context &context)
             name + " code units",
             std::ranges::equal(std::span{testCase.expected}.first(testCase.count), encodedCodeUnits(encoded))));
     }
+
     for (const char32_t invalidScalar : {
              static_cast<char32_t>(0xD800),
              static_cast<char32_t>(0xDFFF),

@@ -10,12 +10,14 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
     const std::filesystem::path intermediateDirectoryLink = root / "symlinks" / "intermediate-directory-link";
 
     const auto directorySetup = TestSupport::createDirectories(targetDirectory);
+
     if (!context.expectTrue("symlink fixture directory creation succeeds", directorySetup.ok()))
     {
         context.info(TestSupport::formatInfrastructureStatus(directorySetup));
         return;
     }
     const auto fileSetup = TestSupport::writeTextFile(targetFile, "payload");
+
     if (!context.expectTrue("symlink fixture file write succeeds", fileSetup.ok()))
     {
         context.info(TestSupport::formatInfrastructureStatus(fileSetup));
@@ -110,6 +112,7 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
 
     const std::filesystem::path malformedFile = directory / "malformed.bin";
     const auto rawWrite = FileSystem::writeAllBytes(malformedFile, bytesOf(malformed));
+
     if (!expectStatus(context, "byte helper writes malformed fixture bytes", rawWrite.status))
     {
         return;
@@ -199,6 +202,7 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
             .access = FileSystem::Types::File::Access::ReadWrite,
             .mode = FileSystem::Types::File::OpenMode::OpenExisting,
             .initialPosition = FileSystem::Types::File::InitialPosition::End});
+
     if (!expectStatus(context, "File open succeeds", openStatus))
     {
         return;
@@ -220,6 +224,7 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
     FileSystem::FileWriter appendWriter;
     const IO::Types::Status appendOpen =
         appendWriter.open(file, FileSystem::Types::File::WriterOpenOptions{.mode = FileSystem::Types::File::WriterMode::AppendExisting});
+
     if (!expectStatus(context, "append writer opens", appendOpen))
     {
         return;
@@ -248,6 +253,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     const std::filesystem::path tree = directory / "tree";
 
     static_cast<void>(context.expectTrue("create mutation directory", FileSystem::createDirectories(directory).ok()));
+
     if (!expectStatus(context, "write mutation source", FileSystem::writeAllText(source, "abcdef").status))
     {
         return;
@@ -274,6 +280,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     const auto copiedLastWrite = FileSystem::getLastWriteTime(metadataCopy);
     static_cast<void>(context.expectTrue("source last-write query succeeds", sourceLastWrite.status.ok()));
     static_cast<void>(context.expectTrue("metadata copy last-write query succeeds", copiedLastWrite.status.ok()));
+
     if (sourceLastWrite.status.ok() && copiedLastWrite.status.ok())
     {
         static_cast<void>(context.expectEq(
@@ -313,6 +320,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
             });
         const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("strict move reaches destination validation pause", movePaused));
+
         if (movePaused)
         {
             std::error_code renameError;
@@ -343,6 +351,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
             });
         const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("move reaches committed pause", movePaused));
+
         if (movePaused)
         {
             static_cast<void>(
@@ -362,6 +371,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("remove metadata copy succeeds", FileSystem::removeFile(metadataCopy).ok()));
     static_cast<void>(context.expectTrue("truncateFile succeeds", FileSystem::truncateFile(source).ok()));
     const auto truncatedSize = FileSystem::getFileSize(source);
+
     if (expectStatus(context, "truncateFile size query", truncatedSize.status))
     {
         static_cast<void>(context.expectEq("truncateFile size is zero", std::uint64_t{0}, truncatedSize.sizeBytes));
@@ -380,6 +390,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     const std::filesystem::path deepTree = directory / "deep-tree";
     std::filesystem::path deepest = deepTree;
     constexpr std::uint64_t kDeepDirectoryDepth = 32;
+
     for (std::uint64_t index = 0; index < kDeepDirectoryDepth; ++index)
     {
         deepest /= std::format("level_{}", index);
@@ -413,6 +424,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("create wide tree succeeds", FileSystem::createDirectories(wideTree).ok()));
     constexpr std::uint64_t kWideEntryCount = 128;
     bool wideWritesSucceeded = true;
+
     for (std::uint64_t index = 0; index < kWideEntryCount; ++index)
     {
         const bool writeSucceeded = FileSystem::writeAllText(wideTree / std::format("entry_{:03}.txt", index), "x").status.ok();

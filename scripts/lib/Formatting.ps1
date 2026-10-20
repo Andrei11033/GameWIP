@@ -11,10 +11,12 @@ function Get-GameWipFormatFile
     param([string[]]$Files = @())
 
     $extensions = @('.c', '.cc', '.cpp', '.cxx', '.h', '.hh', '.hpp', '.hxx', '.inl')
+
     if ($null -ne $Files -and @($Files).Count -ne 0)
     {
         return @(
             $Files |
+
                 ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
                 Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
                 Where-Object { $extensions -contains [IO.Path]::GetExtension($_).ToLowerInvariant() } |
@@ -23,13 +25,16 @@ function Get-GameWipFormatFile
     }
 
     $result = [System.Collections.Generic.List[string]]::new()
+
     foreach ($relativeRoot in @($CommandConfig.Formatting.SourceRoots))
     {
         $root = Resolve-GameWipRepositoryPath -Path ([string]$relativeRoot)
+
         if (-not (Test-Path -LiteralPath $root))
         {
             continue
         }
+
         foreach ($file in Get-ChildItem -LiteralPath $root -Recurse -File)
         {
             if ($extensions -contains $file.Extension.ToLowerInvariant())
@@ -38,6 +43,7 @@ function Get-GameWipFormatFile
             }
         }
     }
+
     return @($result | Sort-Object -Unique)
 }
 
@@ -50,12 +56,14 @@ function Invoke-GameWipFormat
 
     $formatter = Resolve-GameWipClangFormat
     $formatConfig = Resolve-GameWipRepositoryPath -Path ([string]$CommandConfig.Formatting.ConfigPath)
+
     if (-not (Test-Path -LiteralPath $formatConfig))
     {
         throw "Repository clang-format configuration is missing: $formatConfig"
     }
 
     $formatFiles = @(Get-GameWipFormatFile -Files $Files)
+
     if ($formatFiles.Count -eq 0)
     {
         if ($null -ne $Files -and @($Files).Count -ne 0)
@@ -78,6 +86,7 @@ function Invoke-GameWipFormat
     $supportsIncompleteFormatFailure = $help.ExitCode -eq 0 -and ((@($help.Stdout) + @($help.Stderr)) -join "`n") -match '(?m)^\s*--fail-on-incomplete-format\b'
 
     $beforeHashes = @{}
+
     if ($Mode -eq 'apply')
     {
         foreach ($file in $formatFiles)
@@ -88,6 +97,7 @@ function Invoke-GameWipFormat
 
     $batchSize = 40
     $batchCount = [int][Math]::Ceiling($formatFiles.Count / [double]$batchSize)
+
     for ($offset = 0; $offset -lt $formatFiles.Count; $offset += $batchSize)
     {
         $last = [Math]::Min($offset + $batchSize - 1, $formatFiles.Count - 1)
@@ -95,6 +105,7 @@ function Invoke-GameWipFormat
         $arguments = [System.Collections.Generic.List[string]]::new()
         $arguments.Add("--style=file:$formatConfig") | Out-Null
         $arguments.Add('--Werror') | Out-Null
+
         if ($supportsIncompleteFormatFailure)
         {
             $arguments.Add('--fail-on-incomplete-format') | Out-Null
@@ -107,6 +118,7 @@ function Invoke-GameWipFormat
                 {
                     '-i'
                 })) | Out-Null
+
         foreach ($file in $batch)
         {
             $arguments.Add($file) | Out-Null
@@ -124,6 +136,7 @@ function Invoke-GameWipFormat
     foreach ($file in $formatFiles)
     {
         $afterHash = Get-GameWipFileSha256 -Path $file
+
         if ($beforeHashes[$file] -ne $afterHash)
         {
             Add-GameWipOperationChange -Message "Formatted $(Get-GameWipRepositoryRelativePath -Path $file)"

@@ -13,10 +13,12 @@ Set-StrictMode -Version Latest
 function ConvertTo-GameWipNativeArgument
 {
     param([AllowEmptyString()][string]$Argument)
+
     if ($null -eq $Argument -or $Argument.Length -eq 0)
     {
         return '""'
     }
+
     if ($Argument -notmatch '[\s"&|<>^()%!]')
     {
         return $Argument
@@ -25,12 +27,14 @@ function ConvertTo-GameWipNativeArgument
     $builder = [System.Text.StringBuilder]::new()
     [void]$builder.Append('"')
     $backslashes = 0
+
     foreach ($character in $Argument.ToCharArray())
     {
         if ($character -eq '\')
         {
             ++$backslashes; continue
         }
+
         if ($character -eq '"')
         {
             [void]$builder.Append('\' * (($backslashes * 2) + 1))
@@ -38,12 +42,14 @@ function ConvertTo-GameWipNativeArgument
             $backslashes = 0
             continue
         }
+
         if ($backslashes -gt 0)
         {
             [void]$builder.Append('\' * $backslashes); $backslashes = 0
         }
         [void]$builder.Append($character)
     }
+
     if ($backslashes -gt 0)
     {
         [void]$builder.Append('\' * ($backslashes * 2))
@@ -63,6 +69,7 @@ function Resolve-GameWipProcessLaunch
     param([Parameter(Mandatory = $true)][string]$FilePath, [string[]]$Arguments = @())
 
     $extension = [IO.Path]::GetExtension($FilePath).ToLowerInvariant()
+
     if ((Test-GameWipWindowsHost) -and $extension -in @('.cmd', '.bat'))
     {
         $commandInterpreter = if ([string]::IsNullOrWhiteSpace([string]$env:ComSpec))
@@ -76,12 +83,14 @@ function Resolve-GameWipProcessLaunch
         $commandLine = ConvertTo-GameWipNativeCommandLine -FilePath $FilePath -Arguments $Arguments
         return [pscustomobject]@{ FilePath = $commandInterpreter; ArgumentLine = "/d /s /c `"$commandLine`"" }
     }
+
     if ((Test-GameWipWindowsHost) -and $extension -eq '.ps1')
     {
         $powerShell = (Get-Process -Id $PID).Path
         $launchArguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $FilePath) + @($Arguments)
         return [pscustomobject]@{ FilePath = $powerShell; ArgumentLine = (@($launchArguments | ForEach-Object { ConvertTo-GameWipNativeArgument $_ }) -join ' ') }
     }
+
     return [pscustomobject]@{
         FilePath = $FilePath
         ArgumentLine = (@($Arguments | ForEach-Object { ConvertTo-GameWipNativeArgument $_ }) -join ' ')
@@ -93,20 +102,24 @@ function Resolve-GameWipOwnedProcessLaunch
     param([Parameter(Mandatory = $true)][string]$FilePath, [string[]]$Arguments = @())
 
     $launch = Resolve-GameWipProcessLaunch -FilePath $FilePath -Arguments $Arguments
+
     if (Test-GameWipWindowsHost)
     {
         return [pscustomobject]@{ FilePath = $launch.FilePath; ArgumentLine = $launch.ArgumentLine; OwnProcessGroup = $false }
     }
     $setsid = Get-Command -Name setsid -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+
     if ($null -eq $setsid)
     {
         return [pscustomobject]@{ FilePath = $launch.FilePath; ArgumentLine = $launch.ArgumentLine; OwnProcessGroup = $false }
     }
     $argumentLine = ConvertTo-GameWipNativeArgument -Argument $launch.FilePath
+
     if (-not [string]::IsNullOrWhiteSpace([string]$launch.ArgumentLine))
     {
         $argumentLine += " $($launch.ArgumentLine)"
     }
+
     return [pscustomobject]@{ FilePath = $setsid.Source; ArgumentLine = $argumentLine; OwnProcessGroup = $true }
 }
 
@@ -122,19 +135,23 @@ function Write-GameWipProcessNewOutput
         [string]$Prefix = '',
         [string]$PrefixColor
     )
+
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf))
     {
         return
     }
     $lines = @(Get-Content -LiteralPath $Path -ErrorAction SilentlyContinue)
+
     if ($lines.Count -le $LineCount.Value)
     {
         return
     }
+
     foreach ($line in @($lines | Select-Object -Skip $LineCount.Value))
     {
         $colorEnabled = -not [string]::IsNullOrWhiteSpace($PrefixColor) -and
         ($null -eq $Script:OperationContext -or -not $Script:OperationContext.NoColor)
+
         if ($colorEnabled -and -not [string]::IsNullOrEmpty($Prefix))
         {
             Write-GameWipHost $Prefix -NoNewline -ForegroundColor $PrefixColor
@@ -167,14 +184,17 @@ function Start-GameWipOwnedProcess
         PassThru = $true
         NoNewWindow = $true
     }
+
     if (-not [string]::IsNullOrWhiteSpace([string]$launch.ArgumentLine))
     {
         $start.ArgumentList = $launch.ArgumentLine
     }
+
     if ($RedirectStandardOutput)
     {
         $start.RedirectStandardOutput = $RedirectStandardOutput
     }
+
     if ($RedirectStandardError)
     {
         $start.RedirectStandardError = $RedirectStandardError
@@ -184,6 +204,7 @@ function Start-GameWipOwnedProcess
     # this, Windows PowerShell can report ExitCode = 0 for a failed process.
     $null = $process.Handle
     $process | Add-Member -NotePropertyName GameWipOwnProcessGroup -NotePropertyValue ([bool]$launch.OwnProcessGroup)
+
     if ($null -ne $Script:OperationContext)
     {
         $Script:OperationContext.ActiveProcesses.Add([pscustomobject]@{
@@ -191,16 +212,19 @@ function Start-GameWipOwnedProcess
                 Command = ConvertTo-GameWipNativeCommandLine -FilePath $FilePath -Arguments $Arguments
             }) | Out-Null
     }
+
     return $process
 }
 
 function Remove-GameWipOwnedProcessRegistration
 {
     param([Parameter(Mandatory = $true)]$Process)
+
     if ($null -eq $Script:OperationContext)
     {
         return
     }
+
     for ($index = $Script:OperationContext.ActiveProcesses.Count - 1; $index -ge 0; --$index)
     {
         if ($Script:OperationContext.ActiveProcesses[$index].Process.Id -eq $Process.Id)
@@ -230,10 +254,12 @@ function Invoke-GameWipProcess
     )
 
     Assert-GameWipNotCancelled
+
     if ($null -eq $DisplayArguments)
     {
         $DisplayArguments = @($Arguments)
     }
+
     if ([string]::IsNullOrWhiteSpace($OutputMode))
     {
         $OutputMode = if ($null -ne $Script:OperationContext)
@@ -258,6 +284,7 @@ function Invoke-GameWipProcess
     $stdoutPath = Join-Path $temporaryRoot "$captureId.stdout.log"
     $stderrPath = Join-Path $temporaryRoot "$captureId.stderr.log"
     $ephemeralLog = $false
+
     if ([string]::IsNullOrWhiteSpace($LogPath))
     {
         if ($null -ne $Script:OperationContext -and $null -ne $Script:OperationContext.Run)
@@ -274,6 +301,7 @@ function Invoke-GameWipProcess
     $displayCommandLine = ConvertTo-GameWipNativeCommandLine -FilePath $FilePath -Arguments $DisplayArguments
     $launch = Resolve-GameWipOwnedProcessLaunch -FilePath $FilePath -Arguments $Arguments
     $previousEnvironment = @{}
+
     foreach ($entry in $Environment.GetEnumerator())
     {
         $previousEnvironment[$entry.Key] = [Environment]::GetEnvironmentVariable([string]$entry.Key, 'Process')
@@ -288,6 +316,7 @@ function Invoke-GameWipProcess
     $stdoutLineCount = 0
     $stderrLineCount = 0
     $lastVisibleActivitySeconds = 0.0
+
     try
     {
         # Manual validation must see the caller's real stdin/stdout handles. In
@@ -299,11 +328,13 @@ function Invoke-GameWipProcess
             PassThru = $true
             NoNewWindow = $true
         }
+
         if (-not $InheritConsole)
         {
             $start.RedirectStandardOutput = $stdoutPath
             $start.RedirectStandardError = $stderrPath
         }
+
         if (-not [string]::IsNullOrWhiteSpace([string]$launch.ArgumentLine))
         {
             $start.ArgumentList = $launch.ArgumentLine
@@ -313,6 +344,7 @@ function Invoke-GameWipProcess
         # this, Windows PowerShell can report ExitCode = 0 for a failed process.
         $null = $process.Handle
         $process | Add-Member -NotePropertyName GameWipOwnProcessGroup -NotePropertyValue ([bool]$launch.OwnProcessGroup)
+
         if ($null -ne $Script:OperationContext)
         {
             $Script:OperationContext.ActiveProcesses.Add([pscustomobject]@{ Process = $process; Command = $displayCommandLine }) | Out-Null
@@ -321,17 +353,20 @@ function Invoke-GameWipProcess
         while (-not $process.HasExited)
         {
             Assert-GameWipNotCancelled
+
             if ($TimeoutSeconds -gt 0 -and $clock.Elapsed.TotalSeconds -ge $TimeoutSeconds)
             {
                 $timedOut = $true
                 Stop-GameWipOwnedProcess -Process $process
                 break
             }
+
             if ($OutputMode -eq 'Stream')
             {
                 $previousLineCount = $stdoutLineCount + $stderrLineCount
                 Write-GameWipProcessNewOutput -Path $stdoutPath -LineCount ([ref]$stdoutLineCount)
                 Write-GameWipProcessNewOutput -Path $stderrPath -LineCount ([ref]$stderrLineCount) -Prefix '[stderr] ' -PrefixColor Yellow
+
                 if (($stdoutLineCount + $stderrLineCount) -gt $previousLineCount)
                 {
                     $lastVisibleActivitySeconds = $clock.Elapsed.TotalSeconds
@@ -351,22 +386,27 @@ function Invoke-GameWipProcess
             }
             Start-Sleep -Milliseconds 100
         }
+
         try
         {
             $process.WaitForExit()
         }
+
         catch
         {
             $null = $_.Exception
         }
+
         try
         {
             $process.Refresh()
         }
+
         catch
         {
             $null = $_.Exception
         }
+
         if ($timedOut)
         {
             $exitCode = -1
@@ -376,32 +416,39 @@ function Invoke-GameWipProcess
             $exitCode = [int]$process.ExitCode
         }
     }
+
     catch [System.Management.Automation.PipelineStoppedException]
     {
         Request-GameWipCancellation
         $cancelled = $true
+
         if ($null -ne $process)
         {
             Stop-GameWipOwnedProcess -Process $process
         }
     }
+
     catch [System.OperationCanceledException]
     {
         $cancelled = $true
+
         if ($null -ne $process)
         {
             Stop-GameWipOwnedProcess -Process $process
         }
     }
+
     finally
     {
         # Restore process-wide environment state before removing the process from
         # the operation registry, so cancellation cleanup sees a coherent state.
         $clock.Stop()
+
         foreach ($entry in $previousEnvironment.GetEnumerator())
         {
             [Environment]::SetEnvironmentVariable([string]$entry.Key, $entry.Value, 'Process')
         }
+
         if ($null -ne $Script:OperationContext -and $null -ne $process)
         {
             for ($index = $Script:OperationContext.ActiveProcesses.Count - 1; $index -ge 0; --$index)
@@ -431,18 +478,22 @@ function Invoke-GameWipProcess
             Get-Content -LiteralPath $stderrPath -ErrorAction SilentlyContinue
         })
     $combined = [System.Collections.Generic.List[string]]::new()
+
     if ($InheritConsole)
     {
         $combined.Add('Interactive process output was inherited by the caller console and was not captured.') | Out-Null
     }
+
     foreach ($line in $stdout)
     {
         $combined.Add([string]$line) | Out-Null
     }
+
     if ($stderr.Count -ne 0)
     {
         $combined.Add('') | Out-Null
         $combined.Add('--- stderr ---') | Out-Null
+
         foreach ($line in $stderr)
         {
             $combined.Add([string]$line) | Out-Null
@@ -471,11 +522,13 @@ function Invoke-GameWipProcess
     # Temporary streams are no longer needed once the retained result is built.
     Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
     $resultLogPath = $LogPath
+
     if ($ephemeralLog)
     {
         Remove-Item -LiteralPath $LogPath -Force -ErrorAction SilentlyContinue
         $resultLogPath = $null
     }
+
     return [pscustomobject]@{
         FilePath = $FilePath
         Arguments = @($DisplayArguments)
@@ -507,6 +560,7 @@ function Invoke-GameWipNative
     )
 
     Initialize-GameWipRunLog
+
     if ($null -eq $DisplayArguments)
     {
         $DisplayArguments = @($Arguments)
@@ -538,16 +592,19 @@ function Invoke-GameWipNative
     }
 
     $effectiveEnvironment = @{}
+
     foreach ($entry in $Environment.GetEnumerator())
     {
         $effectiveEnvironment[[string]$entry.Key] = [string]$entry.Value
     }
+
     if ($UseWorkspaceTemp -and -not $NoWorkspaceTemp -and -not [string]::IsNullOrWhiteSpace([string]$Script:OperationContext.Temp))
     {
         $effectiveEnvironment.TEMP = $Script:OperationContext.Temp
         $effectiveEnvironment.TMP = $Script:OperationContext.Temp
         Write-Verbose "workspace temp: $Script:OperationContext.Temp"
     }
+
     if (-not [string]::IsNullOrWhiteSpace($PathPrefix))
     {
         $effectiveEnvironment.PATH = @($PathPrefix, $env:PATH) -join [IO.Path]::PathSeparator
@@ -567,11 +624,13 @@ function Invoke-GameWipNative
             -LogPath $step.LogPath `
             -InheritConsole:$Interactive
     }
+
     catch [System.OperationCanceledException]
     {
         Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $step -ExitCode -1 -Status cancelled
         throw
     }
+
     catch
     {
         Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $step -ExitCode -1 -Status failed
@@ -601,6 +660,7 @@ function Invoke-GameWipNative
     {
         throw [System.OperationCanceledException]::new("$Name was cancelled.")
     }
+
     if ($result.TimedOut)
     {
         throw (New-GameWipDiagnosticException `
@@ -609,6 +669,7 @@ function Invoke-GameWipNative
                 -SuggestedActions @('Inspect the retained step log.', 'Rerun the focused operation after resolving the underlying stall.') `
                 -LogPath $step.LogPath)
     }
+
     if ($AllowedExitCodes -notcontains $result.ExitCode)
     {
         throw (New-GameWipDiagnosticException `
@@ -617,9 +678,11 @@ function Invoke-GameWipNative
                 -SuggestedActions @('Inspect the retained step log.', 'Rerun the smallest focused GameWIP command that reproduces the failure.') `
                 -LogPath $step.LogPath)
     }
+
     if ($effectiveOutputMode -ne 'LogOnly')
     {
         Write-GameWipHost "Finished: $Name" -ForegroundColor Green
     }
+
     return $result
 }

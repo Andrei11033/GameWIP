@@ -304,6 +304,7 @@ void recordExpectedManualAnswer(
     TestSupport::Types::Reporting::ManualAnswer expectedAnswer)
 {
     const TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::promptManualCheck(question);
+
     if (answer == expectedAnswer)
     {
         context.pass(name);

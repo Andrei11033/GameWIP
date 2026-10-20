@@ -173,12 +173,14 @@ namespace GameWIP::Unicode::Utf8
         [[nodiscard]] Types::Utf8::BoundaryResult nextAsciiBoundary(std::string_view text, std::size_t byteOffset) noexcept
         {
             const std::uint8_t current = Internal::byteValue(text[byteOffset]);
+
             if (current >= 0x80U)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
             }
 
             const bool previousIsAscii = byteOffset == 0 || Internal::byteValue(text[byteOffset - 1]) < 0x80U;
+
             if (!previousIsAscii)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
@@ -191,6 +193,7 @@ namespace GameWIP::Unicode::Utf8
 
             const bool currentIsControl = current <= 0x1FU || current == 0x7FU;
             const bool nextIsAscii = byteOffset + 1 == text.size() || Internal::byteValue(text[byteOffset + 1]) < 0x80U;
+
             if (currentIsControl || nextIsAscii)
             {
                 return {.byteOffset = byteOffset + 1, .outcome = Types::Utf8::BoundaryOutcome::Found};
@@ -204,6 +207,7 @@ namespace GameWIP::Unicode::Utf8
         {
             const std::size_t previousOffset = byteOffset - 1;
             const std::uint8_t previous = Internal::byteValue(text[previousOffset]);
+
             if (previous >= 0x80U)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
@@ -215,6 +219,7 @@ namespace GameWIP::Unicode::Utf8
             }
 
             const bool beforePreviousIsAscii = previousOffset == 0 || Internal::byteValue(text[previousOffset - 1]) < 0x80U;
+
             if (beforePreviousIsAscii)
             {
                 return {.byteOffset = previousOffset, .outcome = Types::Utf8::BoundaryOutcome::Found};
@@ -232,24 +237,29 @@ namespace GameWIP::Unicode::Utf8
             {
                 return false;
             }
+
             if (isControlClass(previous.graphemeBreak) || isControlClass(current.graphemeBreak))
             {
                 return true;
             }
+
             if (previous.graphemeBreak == Class::L && (current.graphemeBreak == Class::L || current.graphemeBreak == Class::V ||
                                                        current.graphemeBreak == Class::LV || current.graphemeBreak == Class::LVT))
             {
                 return false;
             }
+
             if ((previous.graphemeBreak == Class::LV || previous.graphemeBreak == Class::V) &&
                 (current.graphemeBreak == Class::V || current.graphemeBreak == Class::T))
             {
                 return false;
             }
+
             if ((previous.graphemeBreak == Class::LVT || previous.graphemeBreak == Class::T) && current.graphemeBreak == Class::T)
             {
                 return false;
             }
+
             if (current.graphemeBreak == Class::Extend || current.graphemeBreak == Class::ZWJ || current.graphemeBreak == Class::SpacingMark ||
                 previous.graphemeBreak == Class::Prepend)
             {
@@ -276,15 +286,18 @@ namespace GameWIP::Unicode::Utf8
         [[nodiscard]] RestartResult findSafeRestart(std::string_view text, std::size_t scalarOffset) noexcept
         {
             std::size_t currentOffset = scalarOffset;
+
             while (currentOffset > 0)
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
+
                 if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = scalarOffset, .valid = false};
                 }
 
                 const Internal::PreviousUtf8ScalarResult previousDecoded = Internal::decodePreviousUtf8Scalar(text, currentOffset);
+
                 if (previousDecoded.decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = scalarOffset, .valid = false};
@@ -292,6 +305,7 @@ namespace GameWIP::Unicode::Utf8
 
                 const Internal::UnicodeProperties previousProperties = Internal::unicodeProperties(previousDecoded.decoded.scalar);
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
+
                 if (isGuaranteedBreak(previousProperties, currentProperties))
                 {
                     return {.byteOffset = currentOffset};
@@ -307,6 +321,7 @@ namespace GameWIP::Unicode::Utf8
         template <typename BoundaryVisitor> [[nodiscard]] bool visitGraphemeBoundaries(std::string_view text, BoundaryVisitor &visitor) noexcept
         {
             visitor(std::size_t{0});
+
             if (text.empty())
             {
                 return true;
@@ -314,6 +329,7 @@ namespace GameWIP::Unicode::Utf8
 
             std::size_t currentOffset = 0;
             Types::Utf8::DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text);
+
             if (previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return false;
@@ -327,12 +343,14 @@ namespace GameWIP::Unicode::Utf8
             while (currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
+
                 if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return false;
                 }
 
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
+
                 if (shouldBreak(previousProperties, currentProperties, state))
                 {
                     visitor(currentOffset);
@@ -351,6 +369,7 @@ namespace GameWIP::Unicode::Utf8
         [[nodiscard]] Types::Utf8::BoundaryResult scanNextFrom(std::string_view text, std::size_t restartOffset, std::size_t targetOffset) noexcept
         {
             Types::Utf8::DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text.substr(restartOffset));
+
             if (previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
@@ -364,12 +383,14 @@ namespace GameWIP::Unicode::Utf8
             while (currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
+
                 if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
                 }
 
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
+
                 if (shouldBreak(previousProperties, currentProperties, state) && currentOffset > targetOffset)
                 {
                     return {.byteOffset = currentOffset, .outcome = Types::Utf8::BoundaryOutcome::Found};
@@ -391,6 +412,7 @@ namespace GameWIP::Unicode::Utf8
         {
             std::size_t previousBoundary = restartOffset;
             Types::Utf8::DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text.substr(restartOffset));
+
             if (previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
@@ -404,12 +426,14 @@ namespace GameWIP::Unicode::Utf8
             while (currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
+
                 if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
                 }
 
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
+
                 if (shouldBreak(previousProperties, currentProperties, state))
                 {
                     if (currentOffset >= targetOffset)
@@ -492,6 +516,7 @@ namespace GameWIP::Unicode::Utf8
         }
 
         const auto found = std::lower_bound(boundaries_.begin(), boundaries_.end(), byteOffset);
+
         if (found == boundaries_.end() || *found != byteOffset)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
@@ -507,6 +532,7 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
+
         if (currentBoundaryIndex_ + 1 >= boundaries_.size())
         {
             return {.byteOffset = byteOffset(), .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
@@ -522,6 +548,7 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
+
         if (currentBoundaryIndex_ == 0)
         {
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
@@ -545,23 +572,28 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
+
         if (byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
+
         if (byteOffset == text.size())
         {
             const Types::Utf8::ValidationResult validation = validate(text);
+
             if (validation.outcome != Types::ValidationOutcome::Valid)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
+
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
         }
 
         if (Internal::byteValue(text[byteOffset]) < 0x80U)
         {
             const Types::Utf8::BoundaryResult ascii = nextAsciiBoundary(text, byteOffset);
+
             if (ascii.outcome == Types::Utf8::BoundaryOutcome::Found)
             {
                 return ascii;
@@ -569,10 +601,12 @@ namespace GameWIP::Unicode::Utf8
         }
 
         const RestartResult restart = findSafeRestart(text, byteOffset);
+
         if (!restart.valid)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
+
         return scanNextFrom(text, restart.byteOffset, byteOffset);
     }
 
@@ -582,10 +616,12 @@ namespace GameWIP::Unicode::Utf8
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
+
         if (byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
+
         if (byteOffset == 0)
         {
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
@@ -594,6 +630,7 @@ namespace GameWIP::Unicode::Utf8
         if (Internal::byteValue(text[byteOffset - 1]) < 0x80U)
         {
             const Types::Utf8::BoundaryResult ascii = previousAsciiBoundary(text, byteOffset);
+
             if (ascii.outcome == Types::Utf8::BoundaryOutcome::Found)
             {
                 return ascii;
@@ -601,16 +638,19 @@ namespace GameWIP::Unicode::Utf8
         }
 
         const Internal::PreviousUtf8ScalarResult previousScalar = Internal::decodePreviousUtf8Scalar(text, byteOffset);
+
         if (previousScalar.decoded.outcome != Types::DecodeOutcome::Decoded)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
 
         const RestartResult restart = findSafeRestart(text, previousScalar.startOffset);
+
         if (!restart.valid)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
+
         return scanPreviousFrom(text, restart.byteOffset, byteOffset);
     }
 } // namespace GameWIP::Unicode::Utf8

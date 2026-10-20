@@ -8,20 +8,24 @@ void testManualFocusedDialogs(TestSupport::Context &context)
 {
     const bool saveSelected = manualCaseSelected("save-overwrite-dpi");
     const bool progressSelected = manualCaseSelected("progress-dpi");
+
     if (!saveSelected && !progressSelected)
     {
         return;
     }
     Desktop::Window owner;
+
     if (!openManualWindow(context, owner, "GameWIP focused dialog validation"))
     {
         return;
     }
+
     if (saveSelected)
     {
         TestSupport::ScopedTemporaryDirectory fixtures("desktop-save-overwrite");
         const auto path = fixtures.path() / "overwrite-check.gamewip";
         constexpr std::string_view marker = "Existing file must remain unchanged by the path picker.\n";
+
         if (!context.expectTrue("overwrite fixture creates", fixtures.status().ok() && TestSupport::writeTextFile(path, marker).ok()))
         {
             return;
@@ -39,6 +43,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
         constexpr std::string_view instruction =
             "Move the Save picker across differently scaled monitors if available. Then Save the existing overwrite-check.gamewip: choose No, verify "
             "the picker stays open, Save again and choose Yes. The shared Windows picker can pause during DPI relayout.";
+
         if (manualStatusWindow != nullptr)
         {
             manualStatusWindow->setScenario("save-overwrite-dpi", instruction);
@@ -52,6 +57,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
             "save-overwrite-dpi",
             "Did both overwrite confirmation paths work, and did the picker stay sharp, correctly laid out and responsive after changing monitors? "
             "Skip if you could not exercise the requested paths.");
+
         if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
         {
             static_cast<void>(context.expectTrue(
@@ -63,6 +69,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
                 context.expectTrue("overwrite path selection preserves existing file bytes", unchanged.status.ok() && unchanged.text == marker));
         }
     }
+
     if (progressSelected)
     {
         Desktop::ProgressDialog progress;
@@ -73,6 +80,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
         description.presentationMode = ManualProgressTypes::Mode::Determinate;
         description.cancelable = true;
         description.blocksOwner = false;
+
         if (!requireManualStatus(context, "focused progress opens", progress.open(description)))
         {
             return;
@@ -88,15 +96,18 @@ void testManualFocusedDialogs(TestSupport::Context &context)
             [&]
             {
                 const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - started).count();
+
                 if (!updateFailed && !progress.hasCancelRequest())
                 {
                     const auto updated = progress.setProgress(static_cast<double>(elapsed % 5000) / 5000.0);
+
                     if (!updated.ok())
                     {
                         updateFailed = true;
                         context.fail("live progress update", updated.message);
                     }
                 }
+
                 if (manualStatusWindow != nullptr)
                 {
                     manualStatusWindow->setObservation(
@@ -104,6 +115,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
                                                     : "Live progress updates; move the dialog, then press Cancel.");
                 }
             });
+
         if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
         {
             static_cast<void>(context.expectTrue("focused progress cancellation is sticky", progress.hasCancelRequest()));
@@ -119,6 +131,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     {
         return;
     }
+
     if (manualCaseSelection)
     {
         testManualFocusedDialogs(context);
@@ -134,6 +147,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         }
         manualStatusWindow->setScenario(name, question);
         manualStatusWindow->setObservation({});
+
         if (owner.isOpen())
         {
             paintManualValidationSurface(owner);
@@ -143,6 +157,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     prepareDialogManualCheck(
         "open one file",
         "Select one existing text or Markdown file, then choose Open. The picker should show the ordered filters.");
+
     if (!openManualWindow(context, owner, "GameWIP dialog validation owner"))
     {
         return;
@@ -223,6 +238,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         MessageCase{MessageDialogs::Buttons::YesNo, DialogTypes::Severity::Warning, "Yes-No / warning"},
         MessageCase{MessageDialogs::Buttons::YesNoCancel, DialogTypes::Severity::Error, "Yes-No-Cancel / error"},
         MessageCase{MessageDialogs::Buttons::RetryCancel, DialogTypes::Severity::Information, "Retry-Cancel / information"}};
+
     for (const MessageCase &testCase : messageCases)
     {
         MessageDialogs::Description message{
@@ -305,6 +321,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
             ++updateStep;
             const double value = static_cast<double>(updateStep % 101) / 100.0;
             static_cast<void>(progress.setProgress(value));
+
             if (updateStep == 10)
             {
                 static_cast<void>(progress.setTitle("GameWIP progress title updated"));

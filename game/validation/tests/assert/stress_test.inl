@@ -18,6 +18,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
     }
 
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "check_once_thread_stress"))
     {
         context.fail("CHECK_ONCE thread stress logger init", "Logger::init failed");
@@ -43,6 +44,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
     }
 
     start.store(true, std::memory_order_release);
+
     for (std::thread &worker : workers)
     {
         worker.join();

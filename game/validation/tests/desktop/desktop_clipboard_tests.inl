@@ -32,21 +32,25 @@ bool openNativeClipboardFixture(
     do
     {
         ++attempts;
+
         if (OpenClipboard(owner) != FALSE)
         {
             return true;
         }
         error = GetLastError();
+
         if (std::chrono::steady_clock::now() >= deadline)
         {
             break;
         }
         Sleep(1);
     } while (true);
+
     if (context != nullptr)
     {
         context->info(std::format("Clipboard fixture: OpenClipboard failed, native={}, attempts={}, timeout={}ms", error, attempts, timeout.count()));
     }
+
     return false;
 }
 
@@ -54,16 +58,19 @@ bool publishNativeClipboardData(TestSupport::Context &context, UINT format, std:
 {
     HWND owner =
         CreateWindowExW(0, L"STATIC", L"GameWIP Clipboard Test Owner", WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+
     if (owner == nullptr)
     {
         context.info(std::format("Clipboard fixture: CreateWindowExW failed, native={}", GetLastError()));
     }
+
     if (owner == nullptr || !openNativeClipboardFixture(owner, &context))
     {
         if (owner != nullptr)
         {
             static_cast<void>(DestroyWindow(owner));
         }
+
         return false;
     }
     const auto diagnose = [&](const char *call, bool success)
@@ -72,32 +79,39 @@ bool publishNativeClipboardData(TestSupport::Context &context, UINT format, std:
         {
             context.info(std::format("Clipboard fixture: {} failed, native={}, format={}", call, GetLastError(), format));
         }
+
         return success;
     };
     bool success = diagnose("EmptyClipboard", EmptyClipboard() != FALSE);
     HGLOBAL memory = success ? GlobalAlloc(GMEM_MOVEABLE, bytes.size()) : nullptr;
     success = success && diagnose("GlobalAlloc", memory != nullptr);
+
     if (success && !bytes.empty())
     {
         void *destination = GlobalLock(memory);
         success = diagnose("GlobalLock", destination != nullptr);
+
         if (success)
         {
             std::ranges::copy(bytes, nativeClipboardBytes(destination, bytes.size()).begin());
         }
+
         if (destination != nullptr)
         {
             static_cast<void>(GlobalUnlock(memory));
         }
     }
+
     if (success)
     {
         success = diagnose("SetClipboardData", SetClipboardData(format, memory) != nullptr);
+
         if (success)
         {
             memory = nullptr;
         }
     }
+
     if (memory != nullptr)
     {
         static_cast<void>(GlobalFree(memory));
@@ -114,25 +128,30 @@ bool readNativeDibV5Header(TestSupport::Context &context, BITMAPV5HEADER &header
         return false;
     }
     const HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(CF_DIBV5));
+
     if (memory == nullptr)
     {
         context.info(std::format("Clipboard fixture: GetClipboardData(CF_DIBV5) failed, native={}", GetLastError()));
     }
     const bool largeEnough = memory != nullptr && GlobalSize(memory) >= sizeof(header);
     const void *data = largeEnough ? GlobalLock(memory) : nullptr;
+
     if (data != nullptr)
     {
         std::ranges::copy(nativeClipboardBytes(data, sizeof(header)), std::as_writable_bytes(std::span{&header, 1}).begin());
     }
+
     if (data != nullptr)
     {
         static_cast<void>(GlobalUnlock(memory));
     }
     const bool closed = CloseClipboard() != FALSE;
+
     if (!closed)
     {
         context.info(std::format("Clipboard fixture: CloseClipboard failed, native={}", GetLastError()));
     }
+
     return data != nullptr && closed;
 }
 
@@ -163,15 +182,18 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
         for (int attempt = 0; attempt < 3; ++attempt)
         {
             auto result = Clipboard::hasFormat(format, Clipboard::kNoWait);
+
             if (result.status.code != ErrorCode::ResourceBusy || attempt == 2)
             {
                 return result;
             }
             std::this_thread::sleep_for(std::chrono::milliseconds{50});
         }
+
         return Clipboard::hasFormat(format, Clipboard::kNoWait);
     };
     const auto namedText = noWaitProbe(Transfer::FormatView::text());
+
     if (namedText.status.code == ErrorCode::ResourceBusy)
     {
         context.skip("Clipboard format validation", "Windows Clipboard remained busy after three no-wait attempts");
@@ -179,6 +201,7 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
     }
     static_cast<void>(context.expectEq("named text format is valid", ErrorCode::Success, namedText.status.code));
     const auto namedCustom = noWaitProbe(Transfer::FormatView::custom("wrong"));
+
     if (namedCustom.status.code == ErrorCode::ResourceBusy)
     {
         context.skip("Clipboard format validation", "Windows Clipboard remained busy after three no-wait attempts");
@@ -282,6 +305,7 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     const auto imageWrite = Clipboard::writeImage({{2, 2}, 12, paddedPixels});
     static_cast<void>(context.expectTrue("padded RGBA8 image publishes", imageWrite.status.ok()));
     BITMAPV5HEADER publishedHeader{};
+
     if (context.expectTrue("published DIBV5 header is readable", readNativeDibV5Header(context, publishedHeader)))
     {
         static_cast<void>(context.expectEq("published DIBV5 uses image rendering intent", DWORD{LCS_GM_IMAGES}, publishedHeader.bV5Intent));
@@ -338,6 +362,7 @@ void testClipboardRoundTrips(TestSupport::Context &context)
 
     const std::array<wchar_t, 2> malformedWide{static_cast<wchar_t>(0xD800), L'\0'};
     const auto malformedWideBytes = std::as_bytes(std::span{malformedWide});
+
     if (context.expectTrue("native malformed Unicode fixture publishes", publishNativeClipboardData(context, CF_UNICODETEXT, malformedWideBytes)))
     {
         static_cast<void>(
@@ -358,10 +383,12 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     rgbDib[sizeof(dibHeader) + 1] = std::byte{0x22};
     rgbDib[sizeof(dibHeader) + 2] = std::byte{0x11};
     rgbDib[sizeof(dibHeader) + 3] = std::byte{0x00};
+
     if (context.expectTrue("foreign BI_RGB fixture publishes", publishNativeClipboardData(context, CF_DIB, rgbDib)))
     {
         const auto rgbRead = Clipboard::readImage();
         static_cast<void>(context.expectTrue("foreign BI_RGB image reads", rgbRead.ok()));
+
         if (rgbRead->rgba8.size() == 4)
         {
             static_cast<void>(context.expectEq("foreign RGB red converts", std::byte{0x11}, rgbRead->rgba8[0]));
@@ -382,6 +409,7 @@ void testClipboardRoundTrips(TestSupport::Context &context)
     unsupportedHeader.bV5BlueMask = 0x00FF0000U;
     std::vector<std::byte> unsupportedDib(sizeof(unsupportedHeader) + 4);
     std::ranges::copy(std::as_bytes(std::span{&unsupportedHeader, std::size_t{1}}), unsupportedDib.begin());
+
     if (context.expectTrue("valid nonstandard-mask DIB fixture publishes", publishNativeClipboardData(context, CF_DIBV5, unsupportedDib)))
     {
         static_cast<void>(
@@ -415,6 +443,7 @@ void testClipboardFixtureContention(TestSupport::Context &context)
                 locked = owner != nullptr && openNativeClipboardFixture(owner);
                 ready.store(true, std::memory_order_release);
                 ready.notify_one();
+
                 if (locked)
                 {
                     if (releaseSoon)
@@ -427,12 +456,14 @@ void testClipboardFixtureContention(TestSupport::Context &context)
                     }
                     CloseClipboard();
                 }
+
                 if (owner != nullptr)
                 {
                     DestroyWindow(owner);
                 }
             });
         ready.wait(false, std::memory_order_acquire);
+
         if (context.expectTrue("contention fixture acquires clipboard on separate thread", locked))
         {
             const auto started = std::chrono::steady_clock::now();
@@ -441,6 +472,7 @@ void testClipboardFixtureContention(TestSupport::Context &context)
                 releaseSoon ? "fixture retries until foreign owner releases" : "fixture reports bounded access failure",
                 releaseSoon,
                 opened));
+
             if (opened)
             {
                 CloseClipboard();
@@ -468,6 +500,7 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("multi-format enumeration succeeds", formats.ok()));
     static_cast<void>(
         context.expectTrue("multi-format enumeration contains three portable entries", formats.ok() && formats->size() >= items.size()));
+
     if (formats.ok() && formats->size() >= items.size())
     {
         static_cast<void>(context.expectEq(
@@ -574,23 +607,28 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
                 nullptr);
             holderOpened.store(owner != nullptr && OpenClipboard(owner) != FALSE);
             holderReady.store(true);
+
             while (!releaseHolder.load())
             {
                 std::this_thread::yield();
             }
+
             if (holderOpened.load())
             {
                 static_cast<void>(CloseClipboard());
             }
+
             if (owner != nullptr)
             {
                 static_cast<void>(DestroyWindow(owner));
             }
         });
+
     while (!holderReady.load())
     {
         std::this_thread::yield();
     }
+
     if (holderOpened.load())
     {
         const auto before = std::chrono::steady_clock::now();

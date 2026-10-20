@@ -149,6 +149,7 @@ namespace GameWIP::Terminal
         {
             ReadDecision decision;
             decision.status = validateTimeout(timeout);
+
             if (!decision.status.ok())
             {
                 return decision;
@@ -179,6 +180,7 @@ namespace GameWIP::Terminal
                     decision.status = unsupportedStatus();
                     return decision;
                 }
+
                 if (timeout->count() > 0 && !capabilities.supportsFiniteTimeouts)
                 {
                     decision.status = unsupportedStatus();
@@ -187,6 +189,7 @@ namespace GameWIP::Terminal
             }
 
             const bool canBlock = !timeout.has_value() || timeout->count() > 0;
+
             if (canBlock && stopToken.stop_possible() && !capabilities.supportsCancellation)
             {
                 decision.status = unsupportedStatus();
@@ -214,6 +217,7 @@ namespace GameWIP::Terminal
                 mode.reportPointerEvents = false;
                 mode.exclusiveEventDelivery = true;
             }
+
             return mode;
         }
 
@@ -231,6 +235,7 @@ namespace GameWIP::Terminal
                     primary.message.append(" ");
                 }
                 primary.message.append("Terminal input restoration also failed");
+
                 if (!restoration.message.empty())
                 {
                     primary.message.append(": ");
@@ -280,10 +285,12 @@ namespace GameWIP::Terminal
                 Detail::releaseInput(stream, owner);
                 ownership.claimed = false;
             }
+
             if (restoration.ok() || !retainOwnershipOnFailure)
             {
                 ownership.hasPreviousMode = false;
             }
+
             return restoration;
         }
 
@@ -295,6 +302,7 @@ namespace GameWIP::Terminal
             ownership = {};
 
             IO::Types::Status status = Detail::claimInput(options.input, owner);
+
             if (!status.ok())
             {
                 return status;
@@ -306,6 +314,7 @@ namespace GameWIP::Terminal
                 {
                     std::lock_guard lock(Detail::inputIoMutex(options.input));
                     Types::Input::CapabilitiesResult capabilityResult = Detail::Platform::getInputCapabilities(options.input);
+
                     if (!capabilityResult.status.ok())
                     {
                         status = std::move(capabilityResult.status);
@@ -313,6 +322,7 @@ namespace GameWIP::Terminal
                     else
                     {
                         ownership.capabilities = capabilityResult.capabilities;
+
                         if (ownership.capabilities.kind == Types::StreamKind::Detached)
                         {
                             status = notOpenStatus();
@@ -325,6 +335,7 @@ namespace GameWIP::Terminal
                         {
                             Detail::Platform::InputModeSnapshotResult snapshot = Detail::Platform::captureInputMode(options.input);
                             status = snapshot.status;
+
                             if (status.ok())
                             {
                                 ownership.previousMode = snapshot.snapshot;
@@ -389,6 +400,7 @@ namespace GameWIP::Terminal
             [[nodiscard]] IO::Types::Status finish(IO::Types::Status primary) noexcept
             {
                 const IO::Types::Status restoration = restoreManagedInput(options_.input, ownership_, this, false);
+
                 if (primary.ok())
                 {
                     return restoration;
@@ -422,14 +434,17 @@ namespace GameWIP::Terminal
         {
             ReadDecision decision;
             decision.status = validateTimeout(options.timeout);
+
             if (!decision.status.ok())
             {
                 return decision;
             }
+
             if (options.stopToken.stop_requested())
             {
                 decision.cancelled = true;
             }
+
             return decision;
         }
 
@@ -453,6 +468,7 @@ namespace GameWIP::Terminal
             {
                 InputCoordinator &coordinator = inputCoordinator(stream);
                 std::lock_guard lock(coordinator.ownershipMutex);
+
                 if (coordinator.owner != nullptr)
                 {
                     return IO::makeStatus(ErrorCode::ResourceBusy);
@@ -478,6 +494,7 @@ namespace GameWIP::Terminal
             {
                 InputCoordinator &coordinator = inputCoordinator(stream);
                 std::lock_guard lock(coordinator.ownershipMutex);
+
                 if (coordinator.owner == owner)
                 {
                     coordinator.owner = nullptr;
@@ -526,6 +543,7 @@ namespace GameWIP::Terminal
                 : previous_(current_)
             {
                 bool reentrant = false;
+
                 for (const Operation *operation = current_; operation != nullptr; operation = operation->previous_)
                 {
                     if (operation->state_ == &requested)
@@ -536,6 +554,7 @@ namespace GameWIP::Terminal
                 }
 
                 std::unique_lock lock(requested.lifecycleMutex);
+
                 if (!reentrant)
                 {
                     requested.lifecycleCondition.wait(
@@ -545,6 +564,7 @@ namespace GameWIP::Terminal
                             return !requested.lifecycleMutation;
                         });
                 }
+
                 if (!requested.open.load(std::memory_order_acquire))
                 {
                     return;
@@ -568,6 +588,7 @@ namespace GameWIP::Terminal
                 current_ = previous_;
                 std::lock_guard lock(state_->lifecycleMutex);
                 --state_->activeOperations;
+
                 if (state_->activeOperations == 0)
                 {
                     state_->lifecycleCondition.notify_all();
@@ -583,6 +604,7 @@ namespace GameWIP::Terminal
                         return true;
                     }
                 }
+
                 return false;
             }
 
@@ -664,6 +686,7 @@ namespace GameWIP::Terminal
                 const State::PersistentOutputState restore = state_->outputRestoreOrder[state_->outputRestoreCount - 1];
 
                 IO::Types::Status status = IO::successStatus();
+
                 switch (restore)
                 {
                 case State::PersistentOutputState::CursorHidden:
@@ -680,6 +703,7 @@ namespace GameWIP::Terminal
                     {
                         return status;
                     }
+
                     switch (restore)
                     {
                     case State::PersistentOutputState::CursorHidden:
@@ -689,6 +713,7 @@ namespace GameWIP::Terminal
                         state_->alternateScreenScope.restoreOnDestruction_ = false;
                         break;
                     }
+
                     if (firstFailure.ok())
                     {
                         firstFailure = std::move(status);
@@ -720,6 +745,7 @@ namespace GameWIP::Terminal
         try
         {
             State::Mutation mutation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return;
@@ -763,6 +789,7 @@ namespace GameWIP::Terminal
             }
 
             State::Mutation mutation(*state_);
+
             if (state_->open.load(std::memory_order_acquire))
             {
                 return IO::makeStatus(ErrorCode::AlreadyOpen);
@@ -770,6 +797,7 @@ namespace GameWIP::Terminal
 
             PreparedInputOwnership ownership;
             IO::Types::Status status = acquireManagedInput(options, state_.get(), ownership);
+
             if (!status.ok())
             {
                 return status;
@@ -805,18 +833,21 @@ namespace GameWIP::Terminal
             }
 
             State::Mutation mutation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return IO::successStatus();
             }
 
             IO::Types::Status status = restoreOutputState(true);
+
             if (!status.ok())
             {
                 return status;
             }
 
             status = restoreManagedInput(state_->options.input, state_->ownership, state_.get(), true);
+
             if (!status.ok())
             {
                 return status;
@@ -850,10 +881,12 @@ namespace GameWIP::Terminal
         {
             State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return failedResult<Types::Input::EventResult>(notOpenStatus());
             }
+
             if (state_->options.deliveryMode != Types::Input::DeliveryMode::Events)
             {
                 return failedResult<Types::Input::EventResult>(unsupportedStatus());
@@ -861,10 +894,12 @@ namespace GameWIP::Terminal
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Event, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 return failedResult<Types::Input::EventResult>(decision.status);
             }
+
             if (decision.cancelled)
             {
                 return cancelledResult<Types::Input::EventResult>();
@@ -894,10 +929,12 @@ namespace GameWIP::Terminal
         {
             State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return failedResult<Types::Input::ByteResult>(notOpenStatus());
             }
+
             if (state_->options.deliveryMode != Types::Input::DeliveryMode::Stream)
             {
                 return failedResult<Types::Input::ByteResult>(unsupportedStatus());
@@ -905,10 +942,12 @@ namespace GameWIP::Terminal
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Bytes, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 return failedResult<Types::Input::ByteResult>(decision.status);
             }
+
             if (decision.cancelled)
             {
                 return cancelledResult<Types::Input::ByteResult>();
@@ -943,10 +982,12 @@ namespace GameWIP::Terminal
         {
             State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return failedResult<Types::Input::TextResult>(notOpenStatus());
             }
+
             if (state_->options.deliveryMode != Types::Input::DeliveryMode::Stream)
             {
                 return failedResult<Types::Input::TextResult>(unsupportedStatus());
@@ -954,10 +995,12 @@ namespace GameWIP::Terminal
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Text, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 return failedResult<Types::Input::TextResult>(decision.status);
             }
+
             if (decision.cancelled)
             {
                 return cancelledResult<Types::Input::TextResult>();
@@ -992,10 +1035,12 @@ namespace GameWIP::Terminal
         {
             State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return failedResult<Types::Input::LineResult>(notOpenStatus());
             }
+
             if (state_->options.deliveryMode != Types::Input::DeliveryMode::Stream)
             {
                 return failedResult<Types::Input::LineResult>(unsupportedStatus());
@@ -1003,10 +1048,12 @@ namespace GameWIP::Terminal
 
             const ReadDecision decision =
                 validateReadContract(state_->ownership.capabilities, ReadOperation::Line, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 return failedResult<Types::Input::LineResult>(decision.status);
             }
+
             if (decision.cancelled)
             {
                 return cancelledResult<Types::Input::LineResult>();
@@ -1040,10 +1087,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .capabilities = {}};
             }
+
             return {.status = IO::successStatus(), .capabilities = state_->ownership.capabilities};
         }
         catch (...)
@@ -1062,10 +1111,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .capabilities = {}};
             }
+
             return Terminal::getOutputCapabilities(state_->options.output);
         }
         catch (...)
@@ -1088,10 +1139,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .capabilities = {}};
             }
+
             return Terminal::prepareOutput(state_->options.output);
         }
         catch (...)
@@ -1110,10 +1163,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .size = {}};
             }
+
             return Terminal::getTerminalSize(state_->options.output);
         }
         catch (...)
@@ -1132,10 +1187,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::writeText(state_->options.output, utf8Text, options);
         }
         catch (...)
@@ -1154,10 +1211,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::writeLine(state_->options.output, utf8Text, options);
         }
         catch (...)
@@ -1176,10 +1235,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .bytesWritten = 0};
             }
+
             return Terminal::writeBytes(state_->options.output, bytes, options);
         }
         catch (...)
@@ -1198,10 +1259,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::writeSegments(state_->options.output, segments, options);
         }
         catch (...)
@@ -1220,10 +1283,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Detail::vprint(state_->options.output, options, format, arguments);
         }
         catch (...)
@@ -1242,10 +1307,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Detail::vprintln(state_->options.output, options, format, arguments);
         }
         catch (...)
@@ -1264,10 +1331,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::flush(state_->options.output, mode);
         }
         catch (...)
@@ -1290,10 +1359,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::resetStyle(state_->options.output, options);
         }
         catch (...)
@@ -1315,10 +1386,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::moveCursor(state_->options.output, direction, amount, options);
         }
         catch (...)
@@ -1337,10 +1410,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::setCursorPosition(state_->options.output, position, options);
         }
         catch (...)
@@ -1360,10 +1435,12 @@ namespace GameWIP::Terminal
         {
             State::Operation operation(*state_);
             std::lock_guard inputOperationLock(state_->inputOperationMutex);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return {.status = notOpenStatus(), .position = {}};
             }
+
             return Terminal::getCursorPosition(state_->options.output, state_->options.input, options);
         }
         catch (...)
@@ -1382,10 +1459,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::saveCursorPosition(state_->options.output, options);
         }
         catch (...)
@@ -1404,10 +1483,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::restoreCursorPosition(state_->options.output, options);
         }
         catch (...)
@@ -1426,16 +1507,19 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             if (!IO::isValidFlushMode(options.flushMode))
             {
                 return invalidArgumentStatus();
             }
 
             std::lock_guard persistentLock(state_->persistentOutputMutex);
+
             if (!visible)
             {
                 if (state_->cursorHiddenScope.active())
@@ -1444,6 +1528,7 @@ namespace GameWIP::Terminal
                 }
 
                 CursorHiddenScope scope = scopedCursorHidden(state_->options.output, options);
+
                 if (scope.active())
                 {
                     state_->cursorHiddenScope = std::move(scope);
@@ -1461,6 +1546,7 @@ namespace GameWIP::Terminal
 
             state_->cursorHiddenScope.options_ = options;
             IO::Types::Status status = state_->cursorHiddenScope.restore();
+
             if (!status.ok())
             {
                 return status;
@@ -1478,6 +1564,7 @@ namespace GameWIP::Terminal
                     break;
                 }
             }
+
             return IO::successStatus();
         }
         catch (...)
@@ -1496,10 +1583,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::clear(state_->options.output, target, options);
         }
         catch (...)
@@ -1521,10 +1610,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::scroll(state_->options.output, direction, lines, options);
         }
         catch (...)
@@ -1543,22 +1634,26 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             if (!IO::isValidFlushMode(options.flushMode))
             {
                 return invalidArgumentStatus();
             }
 
             std::lock_guard persistentLock(state_->persistentOutputMutex);
+
             if (state_->alternateScreenScope.active())
             {
                 return IO::successStatus();
             }
 
             AlternateScreenScope scope = scopedAlternateScreen(state_->options.output, options);
+
             if (scope.active())
             {
                 state_->alternateScreenScope = std::move(scope);
@@ -1584,16 +1679,19 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             if (!IO::isValidFlushMode(options.flushMode))
             {
                 return invalidArgumentStatus();
             }
 
             std::lock_guard persistentLock(state_->persistentOutputMutex);
+
             if (!state_->alternateScreenScope.active())
             {
                 return Terminal::leaveAlternateScreen(state_->options.output, options);
@@ -1601,6 +1699,7 @@ namespace GameWIP::Terminal
 
             state_->alternateScreenScope.options_ = options;
             IO::Types::Status status = state_->alternateScreenScope.leave();
+
             if (!status.ok())
             {
                 return status;
@@ -1618,6 +1717,7 @@ namespace GameWIP::Terminal
                     break;
                 }
             }
+
             return IO::successStatus();
         }
         catch (...)
@@ -1636,10 +1736,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::setTitle(state_->options.output, utf8Title, options);
         }
         catch (...)
@@ -1658,10 +1760,12 @@ namespace GameWIP::Terminal
         try
         {
             State::Operation operation(*state_);
+
             if (!state_->open.load(std::memory_order_acquire))
             {
                 return notOpenStatus();
             }
+
             return Terminal::ringBell(state_->options.output, options);
         }
         catch (...)
@@ -1687,10 +1791,12 @@ namespace GameWIP::Terminal
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
+
         if (!initial.status.ok())
         {
             return failedResult<Types::Input::EventResult>(initial.status);
         }
+
         if (initial.cancelled)
         {
             return cancelledResult<Types::Input::EventResult>();
@@ -1700,17 +1806,20 @@ namespace GameWIP::Terminal
         {
             DirectInputLease lease(stream);
             IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Events);
+
             if (!status.ok())
             {
                 return failedResult<Types::Input::EventResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Event, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
                 return failedResult<Types::Input::EventResult>(std::move(status));
             }
+
             if (decision.cancelled)
             {
                 Types::Input::EventResult result = cancelledResult<Types::Input::EventResult>();
@@ -1752,10 +1861,12 @@ namespace GameWIP::Terminal
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
+
         if (!initial.status.ok())
         {
             return failedResult<Types::Input::ByteResult>(initial.status);
         }
+
         if (initial.cancelled)
         {
             return cancelledResult<Types::Input::ByteResult>();
@@ -1765,12 +1876,14 @@ namespace GameWIP::Terminal
         {
             DirectInputLease lease(stream);
             IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
+
             if (!status.ok())
             {
                 return failedResult<Types::Input::ByteResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Bytes, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
@@ -1808,10 +1921,12 @@ namespace GameWIP::Terminal
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
+
         if (!initial.status.ok())
         {
             return failedResult<Types::Input::TextResult>(initial.status);
         }
+
         if (initial.cancelled)
         {
             return cancelledResult<Types::Input::TextResult>();
@@ -1821,12 +1936,14 @@ namespace GameWIP::Terminal
         {
             DirectInputLease lease(stream);
             IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
+
             if (!status.ok())
             {
                 return failedResult<Types::Input::TextResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Text, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
@@ -1864,10 +1981,12 @@ namespace GameWIP::Terminal
         }
 
         const ReadDecision initial = validateDirectReadOptions(options);
+
         if (!initial.status.ok())
         {
             return failedResult<Types::Input::LineResult>(initial.status);
         }
+
         if (initial.cancelled)
         {
             return cancelledResult<Types::Input::LineResult>();
@@ -1877,12 +1996,14 @@ namespace GameWIP::Terminal
         {
             DirectInputLease lease(stream);
             IO::Types::Status status = lease.open(Types::Input::DeliveryMode::Stream);
+
             if (!status.ok())
             {
                 return failedResult<Types::Input::LineResult>(std::move(status));
             }
 
             const ReadDecision decision = validateReadContract(lease.capabilities(), ReadOperation::Line, options.timeout, options.stopToken);
+
             if (!decision.status.ok())
             {
                 status = lease.finish(decision.status);
@@ -1890,6 +2011,7 @@ namespace GameWIP::Terminal
             }
 
             Types::Input::LineResult result;
+
             if (lease.capabilities().kind == Types::StreamKind::Terminal && lease.capabilities().supportsEventInput)
             {
                 std::vector<std::size_t> graphemeStorage;

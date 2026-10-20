@@ -8,10 +8,12 @@ function Get-GameWipPythonToolLatestVersion
 {
     param([hashtable]$Tool)
     $query = Get-GameWipToolLatestQuery -Tool $Tool
+
     if ($query.State -eq 'resolved')
     {
         return $query.Version
     }
+
     return $null
 }
 
@@ -26,6 +28,7 @@ function Get-GameWipPythonEnvironmentInterpreterPath
     {
         "$Root\Scripts\python.exe"
     }
+
     if (Test-Path -LiteralPath $windowsPath)
     {
         return $windowsPath
@@ -38,24 +41,29 @@ function Get-GameWipPythonEnvironmentInterpreterPath
     {
         "$Root\bin\python.exe"
     }
+
     if (Test-Path -LiteralPath $msysPath)
     {
         return $msysPath
     }
+
     if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows))
     {
         return $windowsPath
     }
+
     if ($Root.EndsWith('/'))
     {
         return "$($Root)bin/python"
     }
+
     return "$Root/bin/python"
 }
 
 function Test-GameWipPythonEnvironmentIsMsys
 {
     param([Parameter(Mandatory = $true)][string]$PythonPath)
+
     if (-not (Test-Path -LiteralPath $PythonPath))
     {
         return $false
@@ -65,18 +73,22 @@ function Test-GameWipPythonEnvironmentIsMsys
     # therefore not evidence of an MSYS2 interpreter. Inspect the base runtime
     # that created the venv instead.
     $query = Invoke-GameWipProcess -FilePath $PythonPath -Arguments @('-c', "import sys; print(sys.base_prefix); print(getattr(sys, '_base_executable', sys.executable))") -OutputMode LogOnly -TimeoutSeconds 15
+
     if ($query.ExitCode -ne 0 -or $query.Stdout.Count -lt 1)
     {
         return $false
     }
+
     foreach ($line in $query.Stdout)
     {
         $path = ([string]$line).Trim().Replace('/', '\')
+
         if ($path -match '(?i)\\(?:msys64?|ucrt64|clang64)\\')
         {
             return $true
         }
     }
+
     return $false
 }
 
@@ -124,6 +136,7 @@ function Install-GameWipPythonTool
     }
 
     $environmentPythonPath = Get-GameWipPythonEnvironmentInterpreterPath -Root $root
+
     if (-not (Test-Path -LiteralPath $environmentPythonPath))
     {
         $systemPython = Resolve-GameWipPythonProviderHost

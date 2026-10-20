@@ -71,6 +71,7 @@ namespace
     {
         std::wstring output;
         output.reserve(text.size());
+
         for (char ch : text)
         {
             const unsigned char value = static_cast<unsigned char>(ch);
@@ -96,6 +97,7 @@ namespace
         }
 
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+
         if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return asciiFallbackToWide(text);
@@ -103,18 +105,21 @@ namespace
 
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+
         if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return asciiFallbackToWide(text);
         }
 
         std::wstring output(conversion.codeUnitsWritten, L'\0');
+
         for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
         {
             // Native dialogs stop at NUL; replacement keeps the following text visible.
             const char16_t codeUnit = converted[index];
             output[index] = codeUnit == u'\0' ? L'?' : static_cast<wchar_t>(codeUnit);
         }
+
         return output;
     }
 
@@ -155,6 +160,7 @@ namespace
         }
 
         constexpr std::wstring_view suffix = L"... [truncated]";
+
         if (maxCodeUnits <= suffix.size())
         {
             text.resize(utf16PrefixBoundary(text, maxCodeUnits));
@@ -164,6 +170,7 @@ namespace
         // The suffix overwrites discarded text in existing storage, so truncation needs no allocation.
         const std::size_t prefixLimit = maxCodeUnits - suffix.size();
         const std::size_t prefixSize = utf16PrefixBoundary(text, prefixLimit);
+
         for (std::size_t index = 0; index < suffix.size(); ++index)
         {
             text[prefixSize + index] = suffix[index];
@@ -246,6 +253,7 @@ namespace
     TaskDialogIndirectFn loadTaskDialogIndirect() noexcept
     {
         HMODULE commonControls = GetModuleHandleW(L"comctl32.dll");
+
         if (commonControls == nullptr)
         {
             commonControls = LoadLibraryW(L"comctl32.dll");
@@ -267,6 +275,7 @@ namespace
     {
         // MessageBox uses fixed labels: Retry maps to Break, and Ignore affects this failure only.
         const int result = MessageBoxW(nullptr, message, title, MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_TASKMODAL | MB_SETFOREGROUND);
+
         switch (result)
         {
         case IDABORT:
@@ -346,9 +355,11 @@ namespace GameWIP::Debug::Assert::Detail::Platform
             config.nDefaultButton = buttonIdForAction(defaultAction);
 
             int selectedButton = buttonIdForAction(defaultAction);
+
             if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
             {
                 const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
+
                 if (SUCCEEDED(result))
                 {
                     return actionForButtonId(selectedButton, defaultAction);

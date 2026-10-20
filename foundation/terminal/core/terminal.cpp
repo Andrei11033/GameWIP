@@ -86,12 +86,14 @@ namespace GameWIP::Terminal
                 try
                 {
                     text_.clear();
+
                     if (text_.capacity() > kRetainedAssemblyLimit)
                     {
                         std::string{}.swap(text_);
                     }
 
                     std::lock_guard lock(state_.mutex);
+
                     if (text_.capacity() > state_.formatScratch.capacity())
                     {
                         text_.swap(state_.formatScratch);
@@ -283,6 +285,7 @@ namespace GameWIP::Terminal
         void releaseLargeAssembly(OutputState &state) noexcept
         {
             state.assembly.clear();
+
             if (state.assembly.capacity() > kRetainedAssemblyLimit)
             {
                 std::string{}.swap(state.assembly);
@@ -356,22 +359,27 @@ namespace GameWIP::Terminal
             {
                 appendSgrParameter(sequence, 1, hasParameter);
             }
+
             if (style.dim)
             {
                 appendSgrParameter(sequence, 2, hasParameter);
             }
+
             if (style.italic)
             {
                 appendSgrParameter(sequence, 3, hasParameter);
             }
+
             if (style.underline)
             {
                 appendSgrParameter(sequence, 4, hasParameter);
             }
+
             if (style.inverse)
             {
                 appendSgrParameter(sequence, 7, hasParameter);
             }
+
             if (style.strikethrough)
             {
                 appendSgrParameter(sequence, 9, hasParameter);
@@ -443,19 +451,23 @@ namespace GameWIP::Terminal
             {
                 return {};
             }
+
             if (mode == Types::Style::Mode::Never)
             {
                 return {};
             }
 
             Types::Output::CapabilitiesResult capabilities = Detail::Platform::getOutputCapabilities(stream);
+
             if (capabilities.status.ok())
             {
                 StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
+
                 if (plan.status.ok() && plan.emitStyle)
                 {
                     return plan;
                 }
+
                 if (capabilities.capabilities.kind == Types::StreamKind::Redirected)
                 {
                     return plan;
@@ -463,9 +475,11 @@ namespace GameWIP::Terminal
             }
 
             capabilities = Detail::Platform::prepareOutput(stream);
+
             if (capabilities.status.ok())
             {
                 StylePlan plan = stylePlanForCapabilities(mode, style, capabilities.capabilities.style);
+
                 if (plan.status.ok() && plan.emitStyle)
                 {
                     return plan;
@@ -476,10 +490,12 @@ namespace GameWIP::Terminal
             {
                 return {};
             }
+
             if (!capabilities.status.ok())
             {
                 return {.status = capabilities.status};
             }
+
             return {.status = unsupportedStatus("Terminal output stream does not support the requested style.")};
         }
 
@@ -503,10 +519,12 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status writeAssembly(Types::Output::Stream stream, OutputState &state, IO::Types::FlushMode flushMode)
         {
             IO::Types::Status status = IO::successStatus();
+
             if (!state.assembly.empty())
             {
                 status = Detail::Platform::writeText(stream, state.assembly);
             }
+
             if (status.ok())
             {
                 status = flushIfRequested(stream, flushMode);
@@ -529,12 +547,14 @@ namespace GameWIP::Terminal
             }
 
             IO::Types::Status textStatus = validateUtf8Text(utf8Text);
+
             if (!textStatus.ok())
             {
                 return textStatus;
             }
 
             const StylePlan plan = stylePlan(stream, options.styleMode, options.style);
+
             if (!plan.status.ok())
             {
                 return plan.status;
@@ -565,30 +585,35 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal line ending.");
             }
+
             if (!IO::isValidFlushMode(options.flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
             }
 
             IO::Types::Status textStatus = validateUtf8Text(utf8Text);
+
             if (!textStatus.ok())
             {
                 return textStatus;
             }
 
             const StylePlan plan = stylePlan(stream, options.styleMode, options.style);
+
             if (!plan.status.ok())
             {
                 return plan.status;
             }
 
             state.assembly.clear();
+
             if (plan.emitStyle)
             {
                 const StyleSequence prefix = makeStyleSequence(options.style);
                 state.assembly.append(prefix.bytes.data(), prefix.size);
             }
             state.assembly.append(utf8Text);
+
             if (plan.emitStyle)
             {
                 state.assembly.append("\x1b[0m");
@@ -609,6 +634,7 @@ namespace GameWIP::Terminal
             }
 
             IO::Types::WriteResult result = Detail::Platform::writeBytes(stream, bytes);
+
             if (!result.status.ok())
             {
                 return result;
@@ -639,6 +665,7 @@ namespace GameWIP::Terminal
                 case Types::Output::SegmentKind::StyledText:
                 {
                     const StylePlan plan = stylePlanForCapabilities(styleMode, segment.style(), capabilities.style);
+
                     if (!plan.status.ok())
                     {
                         return plan.status;
@@ -664,6 +691,7 @@ namespace GameWIP::Terminal
         [[nodiscard]] SegmentRequirements segmentRequirements(std::span<const Types::Output::Segment> segments, Types::Style::Mode styleMode) noexcept
         {
             SegmentRequirements requirements;
+
             for (const Types::Output::Segment &segment : segments)
             {
                 if (segment.kind() == Types::Output::SegmentKind::Bytes)
@@ -677,6 +705,7 @@ namespace GameWIP::Terminal
                     requirements.needsStyleCapabilities = true;
                 }
             }
+
             return requirements;
         }
 
@@ -693,6 +722,7 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal line ending.");
             }
+
             if (!IO::isValidFlushMode(options.flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
@@ -713,6 +743,7 @@ namespace GameWIP::Terminal
                 if ((segment.kind() == Types::Output::SegmentKind::Text || segment.kind() == Types::Output::SegmentKind::StyledText))
                 {
                     IO::Types::Status textStatus = validateUtf8Text(segment.text());
+
                     if (!textStatus.ok())
                     {
                         return textStatus;
@@ -726,6 +757,7 @@ namespace GameWIP::Terminal
             if (requirements.hasBytes || requirements.needsStyleCapabilities)
             {
                 capabilityResult = Detail::Platform::getOutputCapabilities(stream);
+
                 if (!capabilityResult.status.ok())
                 {
                     if (requirements.hasBytes)
@@ -734,6 +766,7 @@ namespace GameWIP::Terminal
                     }
 
                     Types::Output::CapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
+
                     if (prepared.status.ok())
                     {
                         capabilityResult = std::move(prepared);
@@ -757,11 +790,13 @@ namespace GameWIP::Terminal
                             return segment.kind() != Types::Output::SegmentKind::StyledText || isDefaultStyle(segment.style()) ||
                                    styleSupported(segment.style(), capabilityResult.capabilities.style);
                         });
+
                     if (!allStylesSupported)
                     {
                         if (capabilityResult.capabilities.kind != Types::StreamKind::Redirected)
                         {
                             Types::Output::CapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
+
                             if (prepared.status.ok())
                             {
                                 capabilityResult = std::move(prepared);
@@ -776,6 +811,7 @@ namespace GameWIP::Terminal
             }
 
             IO::Types::Status status = validateSegments(segments, options.styleMode, capabilityResult.capabilities);
+
             if (!status.ok())
             {
                 return status;
@@ -789,6 +825,7 @@ namespace GameWIP::Terminal
             }
 
             state.assembly.clear();
+
             for (const Types::Output::Segment &segment : segments)
             {
                 switch (segment.kind())
@@ -799,12 +836,14 @@ namespace GameWIP::Terminal
                 case Types::Output::SegmentKind::StyledText:
                 {
                     const StylePlan plan = stylePlanForCapabilities(options.styleMode, segment.style(), capabilityResult.capabilities.style);
+
                     if (plan.emitStyle)
                     {
                         const StyleSequence prefix = makeStyleSequence(segment.style());
                         state.assembly.append(prefix.bytes.data(), prefix.size);
                     }
                     state.assembly.append(segment.text());
+
                     if (plan.emitStyle)
                     {
                         state.assembly.append("\x1b[0m");
@@ -830,10 +869,12 @@ namespace GameWIP::Terminal
                 const auto assembled = std::as_bytes(std::span{state.assembly});
                 IO::Types::WriteResult result = Detail::Platform::writeBytes(stream, assembled);
                 IO::Types::Status writeStatus = std::move(result.status);
+
                 if (writeStatus.ok() && result.bytesWritten != assembled.size())
                 {
                     writeStatus = IO::makeStatus(ErrorCode::PartialWrite);
                 }
+
                 if (writeStatus.ok())
                 {
                     writeStatus = flushIfRequested(stream, options.flushMode);
@@ -886,12 +927,14 @@ namespace GameWIP::Terminal
             {
                 *emitted = false;
             }
+
             if (!IO::isValidFlushMode(flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
             }
 
             Types::Output::CapabilitiesResult capabilities = Detail::Platform::getOutputCapabilities(stream);
+
             if (!capabilities.status.ok())
             {
                 return capabilities.status;
@@ -900,10 +943,12 @@ namespace GameWIP::Terminal
             if (!controlFeatureSupported(capabilities.capabilities, feature))
             {
                 capabilities = Detail::Platform::prepareOutput(stream);
+
                 if (!capabilities.status.ok())
                 {
                     return capabilities.status;
                 }
+
                 if (!controlFeatureSupported(capabilities.capabilities, feature))
                 {
                     return unsupportedStatus(unsupportedMessage);
@@ -911,6 +956,7 @@ namespace GameWIP::Terminal
             }
 
             IO::Types::Status status = Detail::Platform::writeText(stream, sequence);
+
             if (!status.ok())
             {
                 return status;
@@ -970,11 +1016,13 @@ namespace GameWIP::Terminal
                     "Terminal cursor visibility is unsupported for this output stream.",
                     options.flushMode,
                     &emitted);
+
                 if (emitted)
                 {
                     state.cursorHiddenScopeDepth = 0;
                     restored = true;
                 }
+
                 return status;
             }
             catch (...)
@@ -1016,11 +1064,13 @@ namespace GameWIP::Terminal
                     "Terminal alternate screen is unsupported for this output stream.",
                     options.flushMode,
                     &emitted);
+
                 if (emitted)
                 {
                     state.alternateScreenScopeDepth = 0;
                     restored = true;
                 }
+
                 return status;
             }
             catch (...)
@@ -1036,6 +1086,7 @@ namespace GameWIP::Terminal
             {
                 OutputState &state = outputState(stream);
                 std::lock_guard lock(state.mutex);
+
                 if (state.cursorHiddenScopeDepth > 0)
                 {
                     --state.cursorHiddenScopeDepth;
@@ -1055,6 +1106,7 @@ namespace GameWIP::Terminal
             {
                 OutputState &state = outputState(stream);
                 std::lock_guard lock(state.mutex);
+
                 if (state.alternateScreenScopeDepth > 0)
                 {
                     --state.alternateScreenScopeDepth;
@@ -1073,6 +1125,7 @@ namespace GameWIP::Terminal
             for (const char character : utf8Title)
             {
                 const auto byte = static_cast<unsigned char>(character);
+
                 if (byte == 0x1b || byte == 0x07 || byte < 0x20 || byte == 0x7f)
                 {
                     output.push_back(' ');
@@ -1143,6 +1196,7 @@ namespace GameWIP::Terminal
             {
                 // Preserve ownership on failure instead of silently losing an alternate-screen leave obligation.
                 static_cast<void>(leave());
+
                 if (active_)
                 {
                     return *this;
@@ -1168,6 +1222,7 @@ namespace GameWIP::Terminal
         {
             static_cast<void>(leave());
         }
+
         if (active_)
         {
             abandonAlternateScreenScope(stream_);
@@ -1193,6 +1248,7 @@ namespace GameWIP::Terminal
             if (restorationEmitted_)
             {
                 status_ = Terminal::flush(stream_, options_.flushMode);
+
                 if (status_.ok())
                 {
                     active_ = false;
@@ -1203,6 +1259,7 @@ namespace GameWIP::Terminal
             {
                 bool restored = false;
                 status_ = leaveAlternateScreenScope(stream_, options_, restored);
+
                 if (restored)
                 {
                     if (status_.ok())
@@ -1243,6 +1300,7 @@ namespace GameWIP::Terminal
             {
                 // Preserve ownership on failure instead of silently losing a cursor-visibility restoration obligation.
                 static_cast<void>(restore());
+
                 if (active_)
                 {
                     return *this;
@@ -1268,6 +1326,7 @@ namespace GameWIP::Terminal
         {
             static_cast<void>(restore());
         }
+
         if (active_)
         {
             abandonCursorHiddenScope(stream_);
@@ -1293,6 +1352,7 @@ namespace GameWIP::Terminal
             if (restorationEmitted_)
             {
                 status_ = Terminal::flush(stream_, options_.flushMode);
+
                 if (status_.ok())
                 {
                     active_ = false;
@@ -1303,6 +1363,7 @@ namespace GameWIP::Terminal
             {
                 bool restored = false;
                 status_ = restoreCursorHiddenScope(stream_, options_, restored);
+
                 if (restored)
                 {
                     if (status_.ok())
@@ -1535,6 +1596,7 @@ namespace GameWIP::Terminal
                 {
                     return invalidArgumentStatus("Unknown terminal output stream.");
                 }
+
                 if (!IO::isValidFlushMode(options.flushMode))
                 {
                     return invalidArgumentStatus("Unknown IO flush mode.");
@@ -1565,10 +1627,12 @@ namespace GameWIP::Terminal
                 {
                     return invalidArgumentStatus("Unknown terminal output stream.");
                 }
+
                 if (!validLineEnding(options.lineEnding))
                 {
                     return invalidArgumentStatus("Unknown terminal line ending.");
                 }
+
                 if (!IO::isValidFlushMode(options.flushMode))
                 {
                     return invalidArgumentStatus("Unknown IO flush mode.");
@@ -1601,6 +1665,7 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
+
             if (!IO::isValidFlushMode(mode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
@@ -1669,6 +1734,7 @@ namespace GameWIP::Terminal
             std::lock_guard lock(state.mutex);
 
             char command = 'A';
+
             switch (direction)
             {
             case Types::Cursor::MoveDirection::Up:
@@ -1692,6 +1758,7 @@ namespace GameWIP::Terminal
                 return flushIfRequested(stream, options.flushMode);
             }
             IO::Types::Status validationStatus = Detail::Platform::validateCursorMovement(stream, amount);
+
             if (!validationStatus.ok())
             {
                 return validationStatus;
@@ -1731,6 +1798,7 @@ namespace GameWIP::Terminal
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
             IO::Types::Status validationStatus = Detail::Platform::validateCursorPosition(stream, position);
+
             if (!validationStatus.ok())
             {
                 return validationStatus;
@@ -1778,6 +1846,7 @@ namespace GameWIP::Terminal
             std::scoped_lock lock(outputState(outputStream).mutex, Detail::inputIoMutex(responseStream));
 
             IO::Types::Status status = flushIfRequested(outputStream, options.flushMode);
+
             if (!status.ok())
             {
                 return {.status = status, .position = {}};
@@ -1923,11 +1992,13 @@ namespace GameWIP::Terminal
         CursorHiddenScope scope;
         scope.stream_ = stream;
         scope.options_ = options;
+
         if (!validOutputStream(stream))
         {
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
             return scope;
         }
+
         if (!IO::isValidFlushMode(options.flushMode))
         {
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
@@ -1938,6 +2009,7 @@ namespace GameWIP::Terminal
         {
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
+
             if (state.cursorHiddenScopeDepth == std::numeric_limits<std::size_t>::max())
             {
                 scope.status_ = IO::makeStatus(ErrorCode::SizeLimitExceeded);
@@ -1954,6 +2026,7 @@ namespace GameWIP::Terminal
                     "Terminal cursor visibility is unsupported for this output stream.",
                     options.flushMode,
                     &emitted);
+
                 if (!emitted)
                 {
                     return scope;
@@ -1967,6 +2040,7 @@ namespace GameWIP::Terminal
         {
             scope.status_ = Detail::exceptionStatus();
         }
+
         return scope;
     }
 
@@ -1987,6 +2061,7 @@ namespace GameWIP::Terminal
             std::lock_guard lock(outputState(stream).mutex);
 
             std::string_view sequence;
+
             switch (target)
             {
             case Types::Output::ClearTarget::EntireScreen:
@@ -2049,6 +2124,7 @@ namespace GameWIP::Terminal
             std::lock_guard lock(state.mutex);
 
             char command = 'S';
+
             switch (direction)
             {
             case Types::Output::ScrollDirection::Up:
@@ -2066,6 +2142,7 @@ namespace GameWIP::Terminal
                 return flushIfRequested(stream, options.flushMode);
             }
             IO::Types::Status validationStatus = Detail::Platform::validateScroll(stream, lines);
+
             if (!validationStatus.ok())
             {
                 return validationStatus;
@@ -2154,11 +2231,13 @@ namespace GameWIP::Terminal
         AlternateScreenScope scope;
         scope.stream_ = stream;
         scope.options_ = options;
+
         if (!validOutputStream(stream))
         {
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
             return scope;
         }
+
         if (!IO::isValidFlushMode(options.flushMode))
         {
             scope.status_ = IO::makeStatus(ErrorCode::InvalidArgument);
@@ -2169,6 +2248,7 @@ namespace GameWIP::Terminal
         {
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
+
             if (state.alternateScreenScopeDepth == std::numeric_limits<std::size_t>::max())
             {
                 scope.status_ = IO::makeStatus(ErrorCode::SizeLimitExceeded);
@@ -2185,6 +2265,7 @@ namespace GameWIP::Terminal
                     "Terminal alternate screen is unsupported for this output stream.",
                     options.flushMode,
                     &emitted);
+
                 if (!emitted)
                 {
                     return scope;
@@ -2198,6 +2279,7 @@ namespace GameWIP::Terminal
         {
             scope.status_ = Detail::exceptionStatus();
         }
+
         return scope;
     }
 
@@ -2215,11 +2297,13 @@ namespace GameWIP::Terminal
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
             IO::Types::Status validationStatus = validateUtf8Text(utf8Title);
+
             if (!validationStatus.ok())
             {
                 return validationStatus;
             }
             validationStatus = Detail::Platform::validateTitle(stream, utf8Title);
+
             if (!validationStatus.ok())
             {
                 return validationStatus;

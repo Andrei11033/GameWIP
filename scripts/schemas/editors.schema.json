@@ -3,11 +3,7 @@
   "title": "GameWIP editor registry",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "default",
-    "options"
-  ],
+  "required": ["schemaVersion", "default", "options"],
   "properties": {
     "schemaVersion": {
       "const": 1,
@@ -36,14 +32,7 @@
     "editor": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "key",
-        "id",
-        "name",
-        "recommended",
-        "handler",
-        "package"
-      ],
+      "required": ["key", "id", "name", "recommended", "handler", "package"],
       "properties": {
         "key": {
           "type": "string",
@@ -62,10 +51,7 @@
           "type": "boolean"
         },
         "handler": {
-          "enum": [
-            "vscode",
-            "visual-studio"
-          ]
+          "enum": ["vscode", "visual-studio"]
         },
         "package": {
           "type": "string",

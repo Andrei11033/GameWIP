@@ -30,13 +30,16 @@ namespace GameWIP::TestSupport
                 : options_(std::move(options))
             {
                 status_.reportPath = options_.reportPath;
+
                 if (options_.writeReport && !options_.reportPath.empty())
                 {
                     const std::filesystem::path parentPath = options_.reportPath.parent_path();
+
                     if (!parentPath.empty())
                     {
                         std::error_code error;
                         std::filesystem::create_directories(parentPath, error);
+
                         if (error)
                         {
                             disableReport(
@@ -49,6 +52,7 @@ namespace GameWIP::TestSupport
 
                     const std::ios::openmode mode = options_.appendReport ? (std::ios::out | std::ios::app) : (std::ios::out | std::ios::trunc);
                     report_.open(options_.reportPath, mode);
+
                     if (!report_.is_open())
                     {
                         disableReport("could not open the report file", {.error = Types::InfrastructureError::FileOperationFailed});
@@ -80,10 +84,12 @@ namespace GameWIP::TestSupport
             {
                 std::ostringstream line;
                 line << '[' << category << ']';
+
                 if (!suiteName.empty())
                 {
                     line << " [" << suiteName << ']';
                 }
+
                 if (!message.empty())
                 {
                     line << ' ' << message;
@@ -100,6 +106,7 @@ namespace GameWIP::TestSupport
                 if (status_.state == Types::Reporting::SinkState::Active)
                 {
                     report_ << text << '\n';
+
                     if (options_.flushReportEachLine)
                     {
                         report_.flush();
@@ -127,6 +134,7 @@ namespace GameWIP::TestSupport
             [[nodiscard]] Types::Reporting::SinkStatus finalize()
             {
                 std::lock_guard lock(mutex_);
+
                 if (status_.state != Types::Reporting::SinkState::Active)
                 {
                     return status_;
@@ -138,6 +146,7 @@ namespace GameWIP::TestSupport
                 }
 
                 report_.close();
+
                 if (!report_)
                 {
                     disableReport("report output failed while closing", {.error = Types::InfrastructureError::FileOperationFailed});
@@ -155,12 +164,14 @@ namespace GameWIP::TestSupport
                 {
                     return false;
                 }
+
                 if (options_.consoleVerbosity == Types::Reporting::ConsoleVerbosity::Full)
                 {
                     return true;
                 }
 
                 const bool isActionable = category == "FAIL" || category == "SKIP" || category == "MANUAL";
+
                 if (options_.consoleVerbosity == Types::Reporting::ConsoleVerbosity::Minimal)
                 {
                     return isActionable;
@@ -177,11 +188,13 @@ namespace GameWIP::TestSupport
                 }
 
                 report_.flush();
+
                 if (!report_)
                 {
                     disableReport("report output failed while flushing", {.error = Types::InfrastructureError::FileOperationFailed});
                     return false;
                 }
+
                 return true;
             }
 
@@ -190,6 +203,7 @@ namespace GameWIP::TestSupport
                 status_.state = Types::Reporting::SinkState::Failed;
                 status_.failureStatus = failure;
                 report_.close();
+
                 if (!reportFailureReported_)
                 {
                     std::cerr << "[TEST REPORT] " << reason << ": " << options_.reportPath.string() << '\n';
@@ -358,6 +372,7 @@ namespace GameWIP::TestSupport
             fail(name, "tolerance must be non-negative", location);
             return false;
         }
+
         if (std::fabs(expected - actual) <= tolerance)
         {
             pass(name);
@@ -391,6 +406,7 @@ namespace GameWIP::TestSupport
         std::source_location location)
     {
         const Types::BoolResult result = fileContains(path, expectedSubstring);
+
         if (result.status.ok() && result.value)
         {
             pass(name);
@@ -399,6 +415,7 @@ namespace GameWIP::TestSupport
 
         std::ostringstream reason;
         reason << "expected file '" << path.string() << "' to contain '" << expectedSubstring << "'";
+
         if (!result.status.ok())
         {
             reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
@@ -415,6 +432,7 @@ namespace GameWIP::TestSupport
         std::source_location location)
     {
         const Types::CountResult result = countFileOccurrences(path, text);
+
         if (result.status.ok() && result.count == expectedCount)
         {
             pass(name);
@@ -423,6 +441,7 @@ namespace GameWIP::TestSupport
 
         std::ostringstream reason;
         reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << path.string() << "', got " << result.count;
+
         if (!result.status.ok())
         {
             reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
@@ -458,6 +477,7 @@ namespace GameWIP::TestSupport
         {
             return reportStatus();
         }
+
         return reportSink_->finalize();
     }
 
@@ -594,23 +614,28 @@ namespace GameWIP::TestSupport
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question, std::string &skipReason)
     {
         skipReason.clear();
+
         for (;;)
         {
             std::cout << "[MANUAL] " << question << " [y/n/s reason]: ";
             std::string answer;
+
             if (!std::getline(std::cin, answer))
             {
                 skipReason = "input ended before an answer";
                 return Types::Reporting::ManualAnswer::Skipped;
             }
+
             if (answer == "y" || answer == "Y" || answer == "yes" || answer == "Yes")
             {
                 return Types::Reporting::ManualAnswer::Yes;
             }
+
             if (answer == "n" || answer == "N" || answer == "no" || answer == "No")
             {
                 return Types::Reporting::ManualAnswer::No;
             }
+
             if (answer == "s" || answer == "S" || answer == "skip" || answer == "Skip")
             {
                 skipReason = "no skip reason supplied";
@@ -618,6 +643,7 @@ namespace GameWIP::TestSupport
             }
             const std::size_t separator = answer.find(' ');
             const std::string_view command = std::string_view{answer}.substr(0, separator);
+
             if (separator != std::string::npos && (command == "s" || command == "S" || command == "skip" || command == "Skip"))
             {
                 const std::size_t reasonStart = answer.find_first_not_of(" \t", separator);

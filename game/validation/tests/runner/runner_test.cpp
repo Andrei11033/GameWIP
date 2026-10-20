@@ -133,6 +133,7 @@ namespace
     [[nodiscard]] bool hasProbeArgument(int argc, char **argv, std::string_view expected) noexcept
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == expected)
@@ -140,6 +141,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
@@ -159,6 +161,7 @@ namespace
         {
             throw std::runtime_error("expected matcher exception");
         }
+
         return false;
     }
 
@@ -184,6 +187,7 @@ namespace
         std::vector<std::string> argumentStorage;
         argumentStorage.reserve(arguments.size() + 1);
         argumentStorage.emplace_back("runner-tests");
+
         for (const std::string_view argument : arguments)
         {
             argumentStorage.emplace_back(argument);
@@ -191,6 +195,7 @@ namespace
 
         std::vector<char *> argumentPointers;
         argumentPointers.reserve(argumentStorage.size());
+
         for (std::string &argument : argumentStorage)
         {
             argumentPointers.push_back(argument.data());
@@ -332,6 +337,7 @@ namespace
     void testReportResolutionAndAggregation(TestSupport::Context &context)
     {
         const TestSupport::ScopedTemporaryDirectory workspace("runner_report");
+
         if (!context.expectTrue("report workspace is available", workspace.status().ok()))
         {
             return;
@@ -342,6 +348,7 @@ namespace
         TestSupport::ScopedProcessState processState;
         {
             const TestSupport::ScopedCurrentPath currentPath(processState, workspace.path());
+
             if (!context.expectTrue("report workspace becomes current", currentPath.status().ok()))
             {
                 return;

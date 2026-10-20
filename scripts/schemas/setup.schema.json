@@ -3,13 +3,7 @@
   "title": "GameWIP setup registry",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "actions",
-    "options",
-    "actionOptions",
-    "bootstrapToolIds"
-  ],
+  "required": ["schemaVersion", "actions", "options", "actionOptions", "bootstrapToolIds"],
   "properties": {
     "schemaVersion": {
       "const": 1,
@@ -58,14 +52,7 @@
     "action": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "description",
-        "risk",
-        "network",
-        "mutation"
-      ],
+      "required": ["id", "name", "description", "risk", "network", "mutation"],
       "properties": {
         "id": {
           "type": "string",
@@ -85,23 +72,13 @@
           "minLength": 1
         },
         "risk": {
-          "enum": [
-            "read-only",
-            "local",
-            "machine",
-            "destructive"
-          ]
+          "enum": ["read-only", "local", "machine", "destructive"]
         },
         "network": {
           "type": "boolean"
         },
         "mutation": {
-          "enum": [
-            "none",
-            "local",
-            "machine",
-            "destructive"
-          ]
+          "enum": ["none", "local", "machine", "destructive"]
         }
       }
     }

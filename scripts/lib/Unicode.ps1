@@ -95,6 +95,7 @@ function Get-GameWipUnicodePath
 function Test-GameWipUnicodeInput
 {
     param([Parameter(Mandatory = $true)]$Paths)
+
     foreach ($relativePath in $Paths.RequiredFiles)
     {
         if (-not (Test-Path -LiteralPath (Join-Path $Paths.UcdRoot $relativePath)))
@@ -102,6 +103,7 @@ function Test-GameWipUnicodeInput
             return $false
         }
     }
+
     return $true
 }
 
@@ -116,18 +118,22 @@ function Show-GameWipUnicodeStatus
     Write-GameWipSemanticText -Object ([string]$paths.Generator) -Semantic Muted
     Write-Host '  Runtime data: ' -NoNewline
     Write-GameWipSemanticText -Object ([string]$paths.CheckedInHeader) -Semantic Muted
+
     try
     {
         $python = Resolve-GameWipPython; Write-GameWipUnicodeState -State ready -Label Python -Detail "$($python.Version) via $($python.Source) [$($python.Path)]"
     }
+
     catch
     {
         Write-GameWipUnicodeState -State missing -Label Python -Detail $_.Exception.Message
     }
+
     try
     {
         $formatter = Resolve-GameWipClangFormat; Write-GameWipUnicodeState -State ready -Label clang-format -Detail "$($formatter.Version) via $($formatter.Source) [$($formatter.Path)]"
     }
+
     catch
     {
         Write-GameWipUnicodeState -State missing -Label clang-format -Detail $_.Exception.Message
@@ -140,6 +146,7 @@ function Show-GameWipUnicodeStatus
         {
             'missing'
         }) -Label 'UCD archive' -Detail $paths.Archive
+
     foreach ($relativePath in $paths.RequiredFiles)
     {
         Write-GameWipUnicodeState -State $(if (Test-Path -LiteralPath (Join-Path $paths.UcdRoot $relativePath))
@@ -151,6 +158,7 @@ function Show-GameWipUnicodeStatus
                 'missing'
             }) -Label $relativePath
     }
+
     if (Test-Path -LiteralPath $paths.CheckedInHeader)
     {
         Write-GameWipUnicodeState -State ready -Label 'Checked-in property table' -Detail "sha256=$(Get-GameWipFileSha256 -Path $paths.CheckedInHeader)"
@@ -164,15 +172,18 @@ function Show-GameWipUnicodeStatus
 function Initialize-GameWipUnicodeData
 {
     param([Parameter(Mandatory = $true)]$Paths, [switch]$Refresh)
+
     if (-not $Refresh -and (Test-GameWipUnicodeInput -Paths $Paths))
     {
         Write-GameWipUnicodeState -State cached -Label "Unicode $($Paths.Version) source data" -Detail $Paths.UcdRoot; return
     }
     New-Item -ItemType Directory -Force -Path $Paths.VersionRoot | Out-Null
+
     if ($Refresh -or -not (Test-Path -LiteralPath $Paths.Archive))
     {
         Write-GameWipOperationEvent -Phase execute -Step unicode-download -Severity progress -Message "Downloading $($Paths.Url)"
         $query = Invoke-GameWipDownload -Uri $Paths.Url -OutFile $Paths.Archive -Label "Unicode $($Paths.Version) UCD"
+
         if ($query.State -ne 'resolved')
         {
             throw "Unicode data download failed after $($query.Attempts) attempt(s): $($query.Reason)"
@@ -183,6 +194,7 @@ function Initialize-GameWipUnicodeData
     {
         Write-GameWipUnicodeState -State cached -Label 'UCD archive' -Detail $Paths.Archive
     }
+
     if (Test-Path -LiteralPath $Paths.UcdRoot)
     {
         Invoke-GameWipOwnedTreeRemoval -Path $Paths.UcdRoot -OwnedRoot $Paths.VersionRoot
@@ -190,6 +202,7 @@ function Initialize-GameWipUnicodeData
     New-Item -ItemType Directory -Force -Path $Paths.UcdRoot | Out-Null
     Expand-Archive -LiteralPath $Paths.Archive -DestinationPath $Paths.UcdRoot -Force
     $missing = @($Paths.RequiredFiles | Where-Object { -not (Test-Path -LiteralPath (Join-Path $Paths.UcdRoot $_)) })
+
     if ($missing.Count -ne 0)
     {
         throw "Unicode $($Paths.Version) archive is missing required file(s): $($missing -join ', ')."
@@ -199,6 +212,7 @@ function Initialize-GameWipUnicodeData
 function Invoke-GameWipUnicodeFormatter
 {
     param([Parameter(Mandatory = $true)]$Paths, [Parameter(Mandatory = $true)][string]$InputPath)
+
     if (-not (Test-Path -LiteralPath $Paths.FormatConfig))
     {
         throw "Repository clang-format configuration is missing: $($Paths.FormatConfig)"
@@ -210,6 +224,7 @@ function Invoke-GameWipUnicodeFormatter
 function Invoke-GameWipUnicodeGenerator
 {
     param([Parameter(Mandatory = $true)]$Paths, [Parameter(Mandatory = $true)][string]$OutputPath)
+
     if (-not (Test-Path -LiteralPath $Paths.Generator))
     {
         throw "Unicode generator is missing: $($Paths.Generator)"
@@ -218,6 +233,7 @@ function Invoke-GameWipUnicodeGenerator
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
     Remove-Item -LiteralPath $OutputPath -Force -ErrorAction SilentlyContinue
     Invoke-GameWipNative -Name "unicode-generate-$($Paths.Version)" -FilePath $python.Path -Arguments @($Paths.Generator, '--ucd-dir', $Paths.UcdRoot, '--output', $OutputPath)
+
     if (-not (Test-Path -LiteralPath $OutputPath))
     {
         throw "Unicode generator completed without producing '$OutputPath'."
@@ -236,6 +252,7 @@ function Invoke-GameWipUnicodeVerify
     $paths = Get-GameWipUnicodePath
     Write-GameWipSection "Unicode $($paths.Version) reproducibility verification"
     Initialize-GameWipUnicodeData -Paths $paths -Refresh:$RefreshUnicodeData
+
     if (-not (Test-Path -LiteralPath $paths.CheckedInHeader))
     {
         throw "Checked-in Unicode property table is missing: $($paths.CheckedInHeader)"
@@ -245,6 +262,7 @@ function Invoke-GameWipUnicodeVerify
     $generatedHash = Get-GameWipFileSha256 -Path $paths.TemporaryHeader
     Write-Host "Checked-in SHA-256: $checkedHash"
     Write-Host "Generated  SHA-256: $generatedHash"
+
     if (-not (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader))
     {
         throw (New-GameWipDiagnosticException -Code 'unicode-reproducibility' -Summary "Unicode $($paths.Version) generated data differs from the tracked table." -Details "Generated candidate: $($paths.TemporaryHeader)" -SuggestedActions @('Review the generated candidate.', "Regenerate intentionally with '.\gamewip.bat unicode regenerate'."))
@@ -267,6 +285,7 @@ function Invoke-GameWipUnicodeRegenerate
         '<missing>'
     }
     $afterHash = Get-GameWipFileSha256 -Path $paths.TemporaryHeader
+
     if ((Test-Path -LiteralPath $paths.CheckedInHeader) -and (Test-GameWipFilesEqual -First $paths.CheckedInHeader -Second $paths.TemporaryHeader))
     {
         Write-GameWipUnicodeState -State unchanged -Label 'Property table' -Detail "sha256=$afterHash"; return
@@ -281,6 +300,7 @@ function Invoke-GameWipUnicodeRegenerate
 function Invoke-GameWipUnicodeAction
 {
     param([Parameter(Mandatory = $true)][ValidateSet('status', 'verify', 'regenerate')][string]$Name)
+
     switch ($Name)
     {
         status

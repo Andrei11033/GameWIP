@@ -41,6 +41,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         Terminal::Session session;
         const IO::Types::Status openStatus = session.open(sessionOptions);
         static_cast<void>(context.expectTrue("managed line session opens", openStatus.ok()));
+
         if (!openStatus.ok())
         {
             return Terminal::Types::Input::LineResult{.status = openStatus};
@@ -75,6 +76,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         Terminal::Session session;
         const IO::Types::Status openStatus = session.open(sessionOptions);
         static_cast<void>(context.expectTrue("managed echo session opens", openStatus.ok()));
+
         if (!openStatus.ok())
         {
             return EchoRunResult{.line = {.status = openStatus}};
@@ -186,6 +188,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("wrapped edit status", result.line.status.ok()));
         static_cast<void>(context.expectEq("wrapped left/home edit text", std::string{"bcXdY"}, result.line.line));
         static_cast<void>(context.expectTrue("wrapped edit performs cursor redraw", !result.cursorSets.empty()));
+
         if (!result.cursorSets.empty())
         {
             static_cast<void>(context.expectEq("wrapped redraw rebuilds stable origin column", std::uint32_t{3}, result.cursorSets.front().column));
@@ -229,6 +232,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         static_cast<void>(context.expectTrue("resize redraw status", result.line.status.ok()));
         static_cast<void>(context.expectEq("resize redraw preserves editable text", std::string{"Zabcd"}, result.line.line));
         static_cast<void>(context.expectTrue("resize redraw performs cursor positioning", !result.cursorSets.empty()));
+
         if (!result.cursorSets.empty())
         {
             static_cast<void>(context.expectEq("resize redraw rebuilds reflowed origin column", std::uint32_t{0}, result.cursorSets.front().column));

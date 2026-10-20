@@ -13,6 +13,7 @@ function Get-GameWipPowerShellGalleryVersions
     # exposes the same version metadata without requiring that provider.
     $uri = "https://www.powershellgallery.com/api/v2/FindPackagesById()?id='$Package'"
     $response = Invoke-GameWipHttpRead -Uri $uri -Headers @{ Accept = 'application/atom+xml' }
+
     if ($response.State -ne 'resolved')
     {
         throw "PowerShell Gallery metadata request failed: $($response.Reason)"
@@ -21,6 +22,7 @@ function Get-GameWipPowerShellGalleryVersions
     $feed = [xml]$response.Value.Content
     return @(
         $feed.SelectNodes("//*[local-name()='entry']") |
+
             ForEach-Object { [string]$_.SelectSingleNode(".//*[local-name()='Version']").InnerText } |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
             Sort-Object { [version]$_ } -Descending -Unique
@@ -30,10 +32,12 @@ function Get-GameWipPowerShellGalleryVersions
 function Get-GameWipPowerShellGalleryToolLatestVersion
 {
     param([hashtable]$Tool)
+
     try
     {
         return [string](@(Get-GameWipPowerShellGalleryVersions -Package $Tool.provider.package) | Select-Object -First 1)
     }
+
     catch
     {
         return $null
@@ -43,6 +47,7 @@ function Get-GameWipPowerShellGalleryToolLatestVersion
 function Install-GameWipPowerShellGalleryTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
+
     if (-not $Version)
     {
         throw "PowerShell Gallery tool '$($Tool.id)' requires a version."
@@ -50,6 +55,7 @@ function Install-GameWipPowerShellGalleryTool
     $root = Join-Path ((Get-GameWipManagedToolRoot)) 'powershell'
     $destination = Join-Path $root "$($Tool.provider.package)\$Version"
     $manifestName = "$($Tool.provider.package).psd1"
+
     if ((Test-Path -LiteralPath $destination -PathType Container) -and
         (Test-Path -LiteralPath (Join-Path $destination $manifestName) -PathType Leaf))
     {
@@ -57,6 +63,7 @@ function Install-GameWipPowerShellGalleryTool
     }
     $archive = Join-Path $Script:OperationContext.Temp "$($Tool.provider.package).$Version.nupkg"
     $download = Invoke-GameWipDownload -Uri "https://www.powershellgallery.com/api/v2/package/$($Tool.provider.package)/$Version" -OutFile $archive -Label "$($Tool.provider.package) $Version"
+
     if ($download.State -ne 'resolved')
     {
         throw "PowerShell Gallery download failed: $($download.Reason)"
@@ -66,16 +73,19 @@ function Install-GameWipPowerShellGalleryTool
     $incoming = $null
     $backup = $null
     $destinationParentCreated = $false
+
     try
     {
         New-Item -ItemType Directory -Path $staging | Out-Null
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [IO.Compression.ZipFile]::ExtractToDirectory($archive, $staging)
+
         if (-not (Test-Path -LiteralPath (Join-Path $staging $manifestName) -PathType Leaf))
         {
             throw "PowerShell Gallery package '$($Tool.provider.package) $Version' did not contain the expected module manifest '$manifestName'."
         }
         Initialize-GameWipManagedToolRoot
+
         if (-not (Test-Path -LiteralPath $destinationParent -PathType Container))
         {
             Set-GameWipMutationStarted
@@ -84,10 +94,12 @@ function Install-GameWipPowerShellGalleryTool
         }
         $incoming = Join-Path $destinationParent ('.{0}.{1}.incoming' -f $Version, [guid]::NewGuid().ToString('N'))
         Copy-Item -LiteralPath $staging -Destination $incoming -Recurse
+
         if (-not (Test-Path -LiteralPath (Join-Path $incoming $manifestName) -PathType Leaf))
         {
             throw "Staged PowerShell module '$($Tool.provider.package) $Version' failed same-volume verification."
         }
+
         if (Test-Path -LiteralPath $destination)
         {
             $backup = Join-Path $destinationParent ('.{0}.{1}.backup' -f $Version, [guid]::NewGuid().ToString('N'))
@@ -98,11 +110,13 @@ function Install-GameWipPowerShellGalleryTool
         {
             Set-GameWipMutationStarted
         }
+
         try
         {
             Move-Item -LiteralPath $incoming -Destination $destination
             $incoming = $null
         }
+
         catch
         {
             if ($null -ne $backup -and (Test-Path -LiteralPath $backup) -and -not (Test-Path -LiteralPath $destination))
@@ -112,12 +126,14 @@ function Install-GameWipPowerShellGalleryTool
             }
             throw
         }
+
         if (-not (Test-Path -LiteralPath (Join-Path $destination $manifestName) -PathType Leaf))
         {
             if (Test-Path -LiteralPath $destination)
             {
                 Invoke-GameWipOwnedTreeRemoval -Path $destination -OwnedRoot $destinationParent -SuppressMutationTracking
             }
+
             if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
             {
                 Move-Item -LiteralPath $backup -Destination $destination
@@ -125,6 +141,7 @@ function Install-GameWipPowerShellGalleryTool
             }
             throw "Installed PowerShell module '$($Tool.provider.package) $Version' failed post-swap verification."
         }
+
         if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
         {
             Invoke-GameWipOwnedTreeRemoval -Path $backup -OwnedRoot $destinationParent -SuppressMutationTracking
@@ -132,6 +149,7 @@ function Install-GameWipPowerShellGalleryTool
         }
         Add-GameWipOperationChange -Message "Installed PowerShell module $($Tool.provider.package) $Version."
     }
+
     finally
     {
         # Roll back the previous module when replacement or verification fails;
@@ -140,10 +158,12 @@ function Install-GameWipPowerShellGalleryTool
         {
             Invoke-GameWipOwnedTreeRemoval -Path $staging -OwnedRoot $Script:OperationContext.Temp -SuppressMutationTracking
         }
+
         if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
         {
             Invoke-GameWipOwnedTreeRemoval -Path $incoming -OwnedRoot $destinationParent -SuppressMutationTracking
         }
+
         if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
         {
             if (-not (Test-Path -LiteralPath $destination))
@@ -152,6 +172,7 @@ function Install-GameWipPowerShellGalleryTool
                 $backup = $null
             }
         }
+
         if ($destinationParentCreated -and (Test-Path -LiteralPath $destinationParent) -and @(Get-ChildItem -LiteralPath $destinationParent -Force).Count -eq 0)
         {
             Remove-Item -LiteralPath $destinationParent -Force -ErrorAction SilentlyContinue

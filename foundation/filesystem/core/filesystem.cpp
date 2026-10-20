@@ -97,6 +97,7 @@ namespace GameWIP::FileSystem
             case Types::EntryKind::Other:
                 return options.includeOther;
             }
+
             return false;
         }
 
@@ -297,6 +298,7 @@ namespace GameWIP::FileSystem
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed);
             }
+
             if (prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
@@ -309,10 +311,12 @@ namespace GameWIP::FileSystem
         [[nodiscard]] IO::Types::Status validateDirectoryExists(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
         {
             Detail::Platform::EntryQueryResult result = queryEntry(path, symlinkPolicy);
+
             if (!result.status.ok())
             {
                 return std::move(result.status);
             }
+
             if (result.info.kind != Types::EntryKind::Directory)
             {
                 return IO::makeStatus(ErrorCode::NotDirectory);
@@ -330,6 +334,7 @@ namespace GameWIP::FileSystem
             try
             {
                 const Types::Path parent = path.parent_path();
+
                 if (parent.empty())
                 {
                     return IO::successStatus();
@@ -383,6 +388,7 @@ namespace GameWIP::FileSystem
         [[nodiscard]] Types::Path pathFromTrustedUtf8(std::string_view utf8Path)
         {
             std::u8string converted(utf8Path.size(), u8'\0');
+
             if (!utf8Path.empty())
             {
                 std::ranges::transform(
@@ -393,6 +399,7 @@ namespace GameWIP::FileSystem
                         return static_cast<char8_t>(byte);
                     });
             }
+
             return Types::Path{converted};
         }
 

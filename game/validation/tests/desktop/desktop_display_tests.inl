@@ -18,6 +18,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
 
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("display-color primary monitor resolves", primary.ok()));
+
     if (!primary.ok())
     {
         return;
@@ -25,6 +26,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
 
     const auto primaryColor = Feedback::getColorInfo(primary->id);
     static_cast<void>(context.expectTrue("native display-color query succeeds", primaryColor.ok()));
+
     if (primaryColor.ok())
     {
         static_cast<void>(context.expectEq("display-color result retains monitor identity", primary->id, primaryColor->monitor));
@@ -45,6 +47,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
     description.activation.visible = false;
     Desktop::Window window;
     static_cast<void>(context.expectTrue("display-color Window fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
+
     if (!window.isOpen())
     {
         return;
@@ -52,6 +55,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
 
     const auto windowColor = Feedback::getColorInfo(window);
     static_cast<void>(context.expectTrue("Window display-color query succeeds", windowColor.ok()));
+
     if (windowColor.ok())
     {
         static_cast<void>(context.expectEq("Window color query uses its cached monitor", window.currentMonitor(), windowColor->monitor));
@@ -155,6 +159,7 @@ void testMonitors(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("monitor enumeration is nonempty", monitors->empty()));
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("primary monitor query succeeds", primary.ok()));
+
     if (!primary.ok())
     {
         return;
@@ -168,6 +173,7 @@ void testMonitors(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("current display mode succeeds", Desktop::Display::getCurrentMode(primary->id).ok()));
     const auto preferred = Desktop::Display::getPreferredMode(primary->id);
     static_cast<void>(context.expectTrue("DisplayConfig preferred mode succeeds", preferred.ok()));
+
     if (preferred.ok())
     {
         static_cast<void>(

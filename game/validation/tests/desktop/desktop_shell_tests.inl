@@ -12,6 +12,7 @@ namespace JumpListTypes = Desktop::Types::JumpLists;
 int runJumpListPublicationChild(const std::filesystem::path &executable)
 {
     const std::wstring appId = std::format(L"GameWIP.Validation.JumpLists.{}", GetCurrentProcessId());
+
     if (FAILED(SetCurrentProcessExplicitAppUserModelID(appId.c_str())))
     {
         return 2;
@@ -30,6 +31,7 @@ int runJumpListPublicationChild(const std::filesystem::path &executable)
 void testJumpListNativePublication(TestSupport::Context &context, const std::filesystem::path &executable)
 {
     const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
     if (!context.expectTrue("metadata inspection STA initializes", SUCCEEDED(initialized)))
     {
         return;
@@ -49,6 +51,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     const JumpListTypes::Task task{"Native title caf\xC3\xA9 \xF0\x9F\x99\x82", "Distinct task tooltip", action};
     void *rawLink = nullptr;
     const auto created = Desktop::TestHooks::createJumpLink(task, rawLink);
+
     if (!context.expectTrue("native jump link creates", created.ok() && rawLink != nullptr))
     {
         return;
@@ -59,6 +62,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     };
     std::unique_ptr<IShellLinkW, decltype(releaseLink)> link(static_cast<IShellLinkW *>(rawLink), releaseLink);
     IPropertyStore *rawProperties = nullptr;
+
     if (context.expectTrue("jump link exposes property store", SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&rawProperties)))))
     {
         const auto releaseProperties = [](IPropertyStore *properties)
@@ -70,6 +74,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
         const HRESULT titleResult = properties->GetValue(PKEY_Title, &title);
         static_cast<void>(
             context.expectTrue("jump title is a string property", SUCCEEDED(titleResult) && title.vt == VT_LPWSTR && title.pwszVal != nullptr));
+
         if (title.vt == VT_LPWSTR && title.pwszVal != nullptr)
         {
             static_cast<void>(context.expectEq(
@@ -123,6 +128,7 @@ namespace RegistrationTypes = Desktop::Types::Registration;
 void testShellRegistrationOwnership(TestSupport::Context &context, const std::filesystem::path &executable)
 {
     TestSupport::ScopedTemporaryDirectory fixtures("desktop-shell-registration-ownership");
+
     if (!context.expectTrue("shell registration ownership fixture creates", fixtures.status().ok()))
     {
         return;
@@ -133,12 +139,14 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
     const std::filesystem::path foreignApplicationExecutable = fixtures.path() / std::format("GameWIPForeign-{}.exe", identity);
     std::error_code copyError;
     std::filesystem::copy_file(absoluteExecutable, applicationExecutable, std::filesystem::copy_options::overwrite_existing, copyError);
+
     if (!context.expectTrue("shell registration primary executable fixture copies", !copyError))
     {
         return;
     }
     copyError.clear();
     std::filesystem::copy_file(absoluteExecutable, foreignApplicationExecutable, std::filesystem::copy_options::overwrite_existing, copyError);
+
     if (!context.expectTrue("shell registration foreign executable fixture copies", !copyError))
     {
         return;
@@ -148,6 +156,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
     const ShellTypes::LaunchActionView foreignAction{ShellTypes::PathTargetView{std::cref(foreignApplicationExecutable)}, arguments};
     const std::string owner = std::format("GameWIP.NativeRegistration.{}.caf\xC3\xA9", identity);
     const std::string foreignOwner = owner + ".Foreign";
+
     for (const bool file : {true, false})
     {
         const std::string target = std::format("{}gamewip-regression-{}", file ? "." : "", identity);
@@ -179,6 +188,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
                 description.extension = target;
                 description.displayName = failAfterMutation ? "Mutated before rollback" : "GameWIP native registration regression";
                 description.defaultAction = registrationAction;
+
                 if (failAfterMutation)
                 {
                     description.verbs = std::span{&malformedVerb, 1};
@@ -191,6 +201,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             description.scheme = target;
             description.displayName = failAfterMutation ? "Mutated before rollback" : "GameWIP native registration regression";
             description.defaultAction = registrationAction;
+
             if (failAfterMutation)
             {
                 description.verbs = std::span{&malformedVerb, 1};
@@ -200,10 +211,12 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
         };
         const std::string kind = file ? "file" : "URI";
         const auto first = registerOwner(owner, RegistrationTypes::ConflictPolicy::Coexist, action);
+
         if (!context.expectTrue(kind + " registration creates", first.status.ok()))
         {
             continue;
         }
+
         if (file)
         {
             // The modern Open With surface uses the executable application record as
@@ -215,6 +228,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             DWORD bytes = static_cast<DWORD>(sizeof(value));
             const LONG progIdRead =
                 RegGetValueW(HKEY_CURRENT_USER, targetRegistrationPath.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, value.data(), &bytes);
+
             if (context.expectEq("file registration exposes a ProgID", LONG{ERROR_SUCCESS}, progIdRead))
             {
                 const std::wstring programPath = L"Software\\Classes\\" + std::wstring{value.data()};
@@ -293,6 +307,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             nullptr,
             registryText.data(),
             &registryBytes);
+
         if (context.expectEq(kind + " rollback restores target ProgID", LONG{ERROR_SUCCESS}, targetRead))
         {
             const std::wstring programPath = L"Software\\Classes\\" + std::wstring{registryText.data()};
@@ -310,6 +325,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
         const auto rejected = registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Report, foreignAction);
         static_cast<void>(context.expectEq(kind + " foreign replacement is rejected", ErrorCode::AlreadyExists, rejected.status.code));
         static_cast<void>(context.expectEq(kind + " reports one foreign conflict", std::size_t{1}, rejected.conflicts.size()));
+
         if (rejected.conflicts.size() == 1)
         {
             static_cast<void>(context.expectEq(kind + " conflict retains exact Unicode owner", owner, rejected.conflicts.front().ownerKey));
@@ -322,6 +338,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
         static_cast<void>(context.expectTrue(kind + " coexisting handler cleanup succeeds", unregister(foreignOwner).status.ok()));
         const auto retained = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned, action);
         static_cast<void>(context.expectTrue(kind + " original owner remains after foreign cleanup", retained.status.ok() && retained.replacedOwned));
+
         if (file)
         {
             static_cast<void>(context.expectTrue(
@@ -329,12 +346,14 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
                 registerOwner(foreignOwner, RegistrationTypes::ConflictPolicy::Coexist, foreignAction).status.ok()));
         }
         static_cast<void>(context.expectTrue(kind + " owner cleanup succeeds", unregister(owner).status.ok()));
+
         if (file)
         {
             const std::wstring applicationName = applicationExecutable.filename().wstring();
             const std::wstring applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
             HKEY application = nullptr;
             const LONG applicationStatus = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, &application);
+
             if (application != nullptr)
             {
                 RegCloseKey(application);
@@ -345,6 +364,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             const std::wstring alternativesPath = targetPath + L"\\OpenWithProgids";
             const LONG opened = RegOpenKeyExW(HKEY_CURRENT_USER, alternativesPath.c_str(), 0, KEY_READ, &alternatives);
             DWORD values = 0;
+
             if (opened == ERROR_SUCCESS)
             {
                 RegQueryInfoKeyW(alternatives, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &values, nullptr, nullptr, nullptr, nullptr);
@@ -355,6 +375,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             static_cast<void>(context.expectTrue("last coexisting file handler cleanup succeeds", unregister(foreignOwner).status.ok()));
             HKEY remaining = nullptr;
             const LONG remainingStatus = RegOpenKeyExW(HKEY_CURRENT_USER, targetPath.c_str(), 0, KEY_READ, &remaining);
+
             if (remaining != nullptr)
             {
                 RegCloseKey(remaining);
@@ -369,6 +390,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
 void testShellRegistrationApplicationOwnership(TestSupport::Context &context, const std::filesystem::path &executable)
 {
     TestSupport::ScopedTemporaryDirectory fixtures("desktop-shell-application-ownership");
+
     if (!context.expectTrue("application ownership fixture creates", fixtures.status().ok()))
     {
         return;
@@ -378,6 +400,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     const std::filesystem::path applicationExecutable = fixtures.path() / std::format("GameWIPCollision-{}.exe", identity);
     std::error_code copyError;
     std::filesystem::copy_file(absoluteExecutable, applicationExecutable, std::filesystem::copy_options::overwrite_existing, copyError);
+
     if (!context.expectTrue("application ownership executable fixture copies", !copyError))
     {
         return;
@@ -425,15 +448,18 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
             nullptr,
             &application,
             &disposition);
+
         if (created != ERROR_SUCCESS || application == nullptr)
         {
             if (application != nullptr)
             {
                 RegCloseKey(application);
             }
+
             return false;
         }
         LONG ownerResult = ERROR_SUCCESS;
+
         if (withOwner)
         {
             const std::wstring foreignOwnerWide = manualDiagnosticWideText(foreignOwner);
@@ -468,6 +494,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     const auto foreignCollision = registerDescription();
     static_cast<void>(context.expectEq("foreign application ownership blocks registration", ErrorCode::AlreadyExists, foreignCollision.status.code));
     static_cast<void>(context.expectEq("foreign application conflict is reported", std::size_t{1}, foreignCollision.conflicts.size()));
+
     if (foreignCollision.conflicts.size() == 1)
     {
         static_cast<void>(context.expectEq(
@@ -483,6 +510,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     }
     HKEY targetKey = nullptr;
     const LONG targetStatus = RegOpenKeyExW(HKEY_CURRENT_USER, targetPath.c_str(), 0, KEY_READ, &targetKey);
+
     if (targetKey != nullptr)
     {
         RegCloseKey(targetKey);
@@ -514,6 +542,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     const auto unownedCollision = registerDescription();
     static_cast<void>(context.expectEq("unowned application record blocks registration", ErrorCode::AlreadyExists, unownedCollision.status.code));
     static_cast<void>(context.expectEq("unowned application conflict is reported", std::size_t{1}, unownedCollision.conflicts.size()));
+
     if (unownedCollision.conflicts.size() == 1)
     {
         static_cast<void>(context.expectTrue("unowned application conflict has no owner", unownedCollision.conflicts.front().ownerKey.empty()));
@@ -521,6 +550,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     static_cast<void>(context.expectTrue("unowned application fixture removes", removeApplicationFixture()));
 
     const auto created = registerDescription();
+
     if (!context.expectTrue("application registration succeeds after conflict removal", created.status.ok()))
     {
         return;
@@ -531,6 +561,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     Desktop::TestHooks::resetFailures();
     HKEY retained = nullptr;
     const LONG retainedStatus = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, &retained);
+
     if (retained != nullptr)
     {
         RegCloseKey(retained);
@@ -538,6 +569,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     static_cast<void>(context.expectEq("failed cleanup retains application record for retry", LONG{ERROR_SUCCESS}, retainedStatus));
     HKEY retainedTarget = nullptr;
     const LONG retainedTargetStatus = RegOpenKeyExW(HKEY_CURRENT_USER, targetPath.c_str(), 0, KEY_READ, &retainedTarget);
+
     if (retainedTarget != nullptr)
     {
         RegCloseKey(retainedTarget);
@@ -559,6 +591,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     static_cast<void>(context.expectTrue("cleanup retry succeeds", Desktop::Registration::unregisterFileExtension(owner, target).status.ok()));
     HKEY removed = nullptr;
     const LONG removedStatus = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, &removed);
+
     if (removed != nullptr)
     {
         RegCloseKey(removed);
@@ -570,6 +603,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
 void testShellRegistrationLaunch(TestSupport::Context &context, const std::filesystem::path &executable)
 {
     const HRESULT apartment = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
     if (!context.expectTrue("association discovery enters STA", SUCCEEDED(apartment)))
     {
         return;
@@ -587,6 +621,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
     const std::filesystem::path launchExecutable = absoluteExecutable.parent_path() / std::format("GameWIPLaunch-{}.exe", executableIdentity);
     std::error_code copyError;
     std::filesystem::copy_file(absoluteExecutable, launchExecutable, std::filesystem::copy_options::overwrite_existing, copyError);
+
     if (!context.expectTrue("shell launch executable fixture copies", !copyError))
     {
         return;
@@ -600,6 +635,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             std::filesystem::remove(path, ignored);
         }
     } executableCleanup{launchExecutable};
+
     for (const bool file : {true, false})
     {
         const std::string token = std::format("{}-{}-{}", GetCurrentProcessId(), GetTickCount64(), file ? 1 : 2);
@@ -608,6 +644,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         const std::string tokenArgument = "--desktop-shell-launch-token=" + token;
         const std::string kind = file ? "file" : "URI";
         TestSupport::ScopedTemporaryDirectory fixtures("desktop-association-launch");
+
         if (!context.expectTrue(kind + " launch fixture creates", fixtures.status().ok()))
         {
             continue;
@@ -645,6 +682,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
                       static_cast<void>(TestSupport::removeIfExists(receiptPath.string() + ".arguments"));
                   }};
         RegistrationTypes::Result registration;
+
         if (file)
         {
             RegistrationTypes::FileExtensionDescription description;
@@ -663,11 +701,13 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             description.defaultAction = action;
             registration = Desktop::Registration::registerUriScheme(description);
         }
+
         if (!context.expectTrue(kind + " launch registration succeeds", registration.status.ok()))
         {
             continue;
         }
         std::wstring progId;
+
         if (file)
         {
             IEnumAssocHandlers *handlers = nullptr;
@@ -675,12 +715,15 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             bool discovered = false;
             bool named = false;
             bool recommended = false;
+
             if (SUCCEEDED(enumerated) && handlers != nullptr)
             {
                 IAssocHandler *handler = nullptr;
+
                 while (handlers->Next(1, &handler, nullptr) == S_OK)
                 {
                     PWSTR name = nullptr;
+
                     if (SUCCEEDED(handler->GetName(&name)) && name != nullptr)
                     {
                         if (std::filesystem::path{name} == launchExecutable)
@@ -711,6 +754,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             std::array<wchar_t, 4096> value{};
             DWORD size = sizeof(value);
             const auto key = L"Software\\Classes\\" + targetWide;
+
             if (!context.expectEq(
                     "file dispatch ProgID reads",
                     LONG{ERROR_SUCCESS},
@@ -720,6 +764,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             }
             progId = value.data();
         }
+
         if (file && !context.expectTrue("launch file writes", TestSupport::writeTextFile(path, "controlled launch").ok()))
         {
             continue;
@@ -727,6 +772,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         SHELLEXECUTEINFOW launch{};
         launch.cbSize = sizeof(launch);
         launch.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC | SEE_MASK_FLAG_NO_UI;
+
         if (file)
         {
             launch.fMask |= SEE_MASK_CLASSNAME;
@@ -738,6 +784,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         const bool launched = ShellExecuteExW(&launch) != FALSE;
         context.info(std::format("{} ShellExecuteEx: success={} native={}", kind, launched, launched ? 0 : GetLastError()));
         static_cast<void>(context.expectTrue(kind + " Windows dispatch launches the handler", launched));
+
         if (launch.hProcess != nullptr)
         {
             // URI dispatch may cross Explorer's broker before the controlled process exists;
@@ -754,6 +801,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         }
         const auto receipt = TestSupport::readTextFile(receiptPath);
         const auto receivedArguments = TestSupport::readTextFile(receiptPath.string() + ".arguments");
+
         if (receivedArguments.status.ok())
         {
             context.info(kind + " received arguments:\n" + receivedArguments.text);
@@ -768,6 +816,7 @@ void testTrayNativeCallbacks(TestSupport::Context &context)
     const std::array<std::byte, 4> pixel{std::byte{0x11}, std::byte{0x22}, std::byte{0x33}, std::byte{0xFF}};
     const Desktop::Types::IconImageView icon{{1, 1}, pixel};
     Desktop::ShellEventQueue queue;
+
     if (!context.expectTrue("tray callback queue opens", queue.open(ShellTypes::QueueConfiguration::owned(16)).ok()))
     {
         return;
@@ -776,17 +825,20 @@ void testTrayNativeCallbacks(TestSupport::Context &context)
     description.icons = std::span{&icon, 1};
     description.tooltip = "GameWIP callback regression";
     Desktop::TrayIcon tray;
+
     if (!context.expectTrue("tray callback icon opens", tray.open(description, queue).ok()))
     {
         return;
     }
     const HWND window = FindWindowExW(nullptr, nullptr, L"GameWIP.Shell.TrayMessage", L"GameWIP tray");
+
     if (!context.expectTrue("tray owns a broadcast-capable hidden window", window != nullptr))
     {
         return;
     }
     DWORD process = 0;
     const DWORD thread = GetWindowThreadProcessId(window, &process);
+
     if (!context.expectTrue("tray callback target belongs to this owner", process == GetCurrentProcessId() && thread == GetCurrentThreadId()))
     {
         return;
@@ -828,6 +880,7 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
 {
     const auto capabilities = Desktop::Shell::getCapabilities();
     static_cast<void>(context.expectTrue("shell capability query succeeds", capabilities.status.ok()));
+
     for (std::uint8_t index = 0; index < static_cast<std::uint8_t>(ShellTypes::Capability::Count); ++index)
     {
         const auto capability = static_cast<ShellTypes::Capability>(index);
@@ -926,6 +979,7 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
             };
 
             Desktop::NotificationCenter notifications;
+
             if (!notifications.open().ok())
             {
                 context.fail("shell-only notification center", "the native message window could not be opened");
@@ -946,6 +1000,7 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
             description.icons = std::span{&icon, 1};
             Desktop::TrayIcon tray;
             const auto opened = tray.open(description);
+
             if (opened.ok())
             {
                 checkPump(false);
@@ -986,6 +1041,7 @@ void testShellValidation(TestSupport::Context &context)
     windowDescription.windowed.clientSize = {160, 100};
     windowDescription.activation.visible = false;
     Desktop::Window window;
+
     if (!window.open(windowDescription, Desktop::Events::owned(8)).ok())
     {
         context.fail("shell validation Window", "the hidden native validation Window could not be opened");
@@ -1092,6 +1148,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     windowDescription.windowed.clientSize = {160, 100};
     windowDescription.activation.visible = false;
     Desktop::Window window;
+
     if (!window.open(windowDescription, Desktop::Events::owned(8)).ok())
     {
         context.skip("shell native lifetimes", "the hidden native validation Window could not be opened");
@@ -1103,6 +1160,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     TaskbarTypes::Description taskbarDescription;
     taskbarDescription.progress = progress;
     const IO::Types::Status taskbarStatus = taskbar.open(window, taskbarDescription);
+
     if (!taskbarStatus.ok())
     {
         context.skip(
@@ -1127,6 +1185,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     static_cast<void>(taskbarQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     Desktop::TaskbarItem queuedTaskbar;
     const IO::Types::Status queuedTaskbarStatus = queuedTaskbar.open(window, {}, taskbarQueue);
+
     if (!queuedTaskbarStatus.ok())
     {
         context.skip(
@@ -1156,6 +1215,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     trayDescription.menu.items = std::span{&trayMenuItem, 1};
     Desktop::TrayIcon tray;
     const IO::Types::Status trayStatus = tray.open(trayDescription, trayQueue);
+
     if (!trayStatus.ok())
     {
         context.skip("tray native lifetime", std::format("native tray publication returned {}", IO::errorCodeName(trayStatus.code)));
@@ -1176,6 +1236,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     queuedEmptyTrayDescription.tooltip = "Queued empty tray menu";
     Desktop::TrayIcon queuedEmptyTray;
     const IO::Types::Status queuedEmptyTrayStatus = queuedEmptyTray.open(queuedEmptyTrayDescription, trayQueue);
+
     if (!queuedEmptyTrayStatus.ok())
     {
         context.skip("empty tray queue binding", std::format("native tray publication returned {}", IO::errorCodeName(queuedEmptyTrayStatus.code)));
@@ -1195,6 +1256,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
     Desktop::ShellEventQueue notificationQueue;
     static_cast<void>(notificationQueue.open(ShellTypes::QueueConfiguration::owned(8)));
     const IO::Types::Status notificationStatus = notifications.open(notificationQueue);
+
     if (!notificationStatus.ok())
     {
         context.skip("notification native lifetime", std::format("notification center returned {}", IO::errorCodeName(notificationStatus.code)));
@@ -1209,6 +1271,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         basicDescription.title = "GameWIP shell validation";
         basicDescription.body = "The notification lifetime test is active.";
         const auto published = notifications.publish(basicDescription);
+
         if (!published.status.ok())
         {
             context.skip("basic notification publication", std::format("notification service returned {}", IO::errorCodeName(published.status.code)));

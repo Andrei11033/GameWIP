@@ -19,6 +19,7 @@ namespace
     void BM_Terminal_OutputBufferAppend(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
+
         if (!buffer.reserve(kChunk.size() * 64).ok())
         {
             state.SkipWithError("Terminal OutputBuffer reserve failed.");
@@ -50,6 +51,7 @@ namespace
     void BM_Terminal_OutputBufferFormat(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
+
         if (!buffer.reserve(4096).ok())
         {
             state.SkipWithError("Terminal OutputBuffer reserve failed.");
@@ -79,6 +81,7 @@ namespace
     void BM_Terminal_OutputBufferLines(benchmark::State &state)
     {
         Terminal::OutputBuffer buffer;
+
         if (!buffer.setLineEnding(Terminal::Types::Output::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
         {
             state.SkipWithError("Terminal OutputBuffer setup failed.");

@@ -98,6 +98,7 @@ def relative(path: Path) -> str:
 
 def maintained_manual_files() -> list[Path]:
     files: list[Path] = []
+
     for root in (ROOT / "docs", ROOT / "foundation", ROOT / "engine", ROOT / "tools"):
         files.extend(path for path in root.rglob("*.md") if "releases" not in path.relative_to(ROOT).parts)
     return sorted(files)
@@ -106,6 +107,7 @@ def maintained_manual_files() -> list[Path]:
 def maintained_documentation_files() -> list[Path]:
     """Return tracked documentation surfaces governed by the prose standard."""
     files = list(ROOT.glob("*.md"))
+
     for root in (ROOT / "docs", ROOT / "foundation", ROOT / "engine", ROOT / "game", ROOT / "scripts", ROOT / "tools"):
         files.extend(root.rglob("*.md"))
     roadmap = ROOT / "docs/roadmap.md"
@@ -126,22 +128,27 @@ def check_page_graph(files: list[Path], errors: list[str]) -> None:
     parents: dict[str, set[Path]] = defaultdict(set)
 
     mainpage_path = ROOT / "docs/doxygen/index.md"
+
     for path in files:
         text = manual_markup(path)
         page_declarations = list(PAGE_PATTERN.finditer(text))
         expected_page_count = 0 if path == mainpage_path else 1
+
         if len(page_declarations) != expected_page_count:
             errors.append(f"manual file must declare exactly {expected_page_count} @page entries; found {len(page_declarations)} ({relative(path)})")
+
         if path == mainpage_path and not re.search(r"^#\s+\S", text):
             errors.append(f"developer manual main page must start with one Markdown title ({relative(path)})")
 
         for match in page_declarations:
             page_id, title = match.groups()
             previous = page_owners.get(page_id)
+
             if previous:
                 errors.append(f"duplicate Doxygen page ID `{page_id}` in {relative(previous)} and {relative(path)}")
             else:
                 page_owners[page_id] = path
+
             if not title[0].isupper():
                 errors.append(f"page title must use sentence case in {relative(path)}: `{title}`")
 
@@ -151,22 +158,26 @@ def check_page_graph(files: list[Path], errors: list[str]) -> None:
     for child, owners in sorted(parents.items()):
         if child not in page_owners:
             errors.append(f"sidebar references undefined page `{child}`")
+
         if len(owners) > 1:
             locations = ", ".join(relative(path) for path in sorted(owners))
             errors.append(f"sidebar page `{child}` has multiple parents: {locations}")
 
     for page_id, path in sorted(page_owners.items()):
         owner_count = len(parents.get(page_id, set()))
+
         if owner_count != 1:
             errors.append(f"manual page `{page_id}` must have exactly one sidebar parent; found {owner_count} ({relative(path)})")
 
 
 def check_sidebar_order(errors: list[str]) -> None:
     index_children = declared_subpages(ROOT / "docs/doxygen/index.md")
+
     if index_children != TOP_LEVEL_SIDEBAR:
         errors.append("developer-manual top-level sidebar order changed; expected " + ", ".join(TOP_LEVEL_SIDEBAR))
 
     manual_children = declared_subpages(ROOT / "docs/doxygen/project_manual.md")
+
     if manual_children != PROJECT_MANUAL_SIDEBAR:
         errors.append("project-manual sidebar order changed; expected " + ", ".join(PROJECT_MANUAL_SIDEBAR))
 
@@ -181,55 +192,69 @@ def check_project_registration(errors: list[str]) -> None:
             marker = chr(36) + "{GAMEWIP_DOXYGEN_ROOT}/" + path.name
         else:
             marker = chr(36) + "{PROJECT_SOURCE_DIR}/docs/" + path.name
+
         if marker not in registration:
             errors.append(f"project manual page is not explicitly registered: {relative(path)}")
 
 
 def check_library_child_titles(errors: list[str]) -> None:
+
     for root, library_name, landing_name in LIBRARY_DOCS:
         for path in sorted((ROOT / root).glob("*.md")):
             if path.name == landing_name:
                 continue
             match = PAGE_PATTERN.search(path.read_text(encoding="utf-8"))
+
             if not match:
                 errors.append(f"library manual file has no @page declaration: {relative(path)}")
                 continue
             title = match.group(2)
+
             if title.startswith(f"{library_name} "):
                 errors.append(f"library child title repeats its sidebar parent in {relative(path)}: `{title}`")
 
 
 def check_required_library_docs(errors: list[str]) -> None:
+
     for root, _library_name, landing_name in LIBRARY_DOCS:
         required_files = (landing_name, *REQUIRED_LIBRARY_DOCS)
+
         for filename in required_files:
             path = ROOT / root / filename
+
             if not path.is_file():
                 errors.append(f"required library manual file is missing: {relative(path)}")
 
         landing_path = ROOT / root / landing_name
+
         if landing_path.is_file():
             headings = set(re.findall(r"^##\s+(.+?)\s*$", manual_markup(landing_path), re.MULTILINE))
+
             for heading in REQUIRED_LANDING_HEADINGS:
                 if heading not in headings:
                     errors.append(f"library landing page lacks required `{heading}` section: {relative(landing_path)}")
 
         quick_start_path = ROOT / root / "quick_start.md"
+
         if quick_start_path.is_file():
             headings = set(re.findall(r"^##\s+(.+?)\s*$", manual_markup(quick_start_path), re.MULTILINE))
+
             for heading in REQUIRED_QUICK_START_HEADINGS:
                 if heading not in headings:
                     errors.append(f"library quick start lacks required `{heading}` section: {relative(quick_start_path)}")
+
             if not any(heading.startswith("Minimal") for heading in headings):
                 errors.append(f"library quick start lacks a minimal-usage section: {relative(quick_start_path)}")
 
 
 def check_source_file_headers(errors: list[str]) -> None:
+
     for source_root in DOCUMENTED_SOURCE_ROOTS:
         for path in sorted((ROOT / source_root).rglob("*")):
             if not path.is_file() or not path.name.endswith((".h", ".h.in", ".cpp", ".inl")):
                 continue
             header = "\n".join(path.read_text(encoding="utf-8").splitlines()[:12])
+
             if "@file" not in header or "@brief" not in header:
                 errors.append(f"documented source lacks leading @file/@brief ownership: {relative(path)}")
 
@@ -239,6 +264,7 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
     helper_text = helper_path.read_text(encoding="utf-8")
     command_config = json.loads((ROOT / "scripts/config/commands.json").read_text(encoding="utf-8"))
     command_page = (ROOT / "docs/doxygen/command_line_tools.md").read_text(encoding="utf-8")
+
     for action in (entry["id"] for entry in command_config["actions"]):
         if f"| `{action}` |" not in command_page:
             errors.append(f"project-helper action `{action}` is absent from the command reference")
@@ -248,26 +274,33 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
         parameter_block,
         re.MULTILINE,
     )
+
     for parameter in parameter_names:
         if parameter == "Action":
             continue
+
         if f"-{parameter}" not in command_page:
             errors.append(f"project-helper option `-{parameter}` is absent from the command reference")
 
     setup_config_path = ROOT / "scripts/setup/config/setup.json"
     setup_config = json.loads(setup_config_path.read_text(encoding="utf-8"))
     setup_manual = (ROOT / "docs/doxygen/environment_setup.md").read_text(encoding="utf-8")
+
     for action in (entry["id"] for entry in setup_config["actions"]):
         marker = "`setup.bat` or `setup.bat menu`" if action == "menu" else f"`setup.bat {action}`"
+
         if marker not in setup_manual:
             errors.append(f"setup action `{action}` is absent from the environment manual")
 
 
 def check_explanatory_documentation(files: list[Path], errors: list[str]) -> None:
+
     for path in files:
         text = manual_markup(path)
+
         if TASK_ITEM_PATTERN.search(text):
             errors.append(f"documentation contains task-state checkbox items: {relative(path)}")
+
         if CHECKLIST_WORD_PATTERN.search(text):
             errors.append(f"documentation uses checklist framing instead of explanatory prose: {relative(path)}")
 
@@ -286,6 +319,7 @@ def main() -> int:
 
     if errors:
         print("Documentation standards failed:")
+
         for error in errors:
             print(f"- {error}")
         return 1

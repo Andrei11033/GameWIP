@@ -89,6 +89,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status statusFromHResult(HRESULT result) noexcept
         {
             ErrorCode code = ErrorCode::NativeFailure;
+
             if (result == E_OUTOFMEMORY)
             {
                 code = ErrorCode::OutOfMemory;
@@ -109,6 +110,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 code = ErrorCode::Unsupported;
             }
+
             return IO::makeStatus(code, static_cast<std::int64_t>(result));
         }
 
@@ -121,6 +123,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 APTTYPE type = APTTYPE_CURRENT;
                 APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
                 HRESULT result = CoGetApartmentType(&type, &qualifier);
+
                 if (SUCCEEDED(result))
                 {
                     if (type == APTTYPE_STA || type == APTTYPE_MAINSTA)
@@ -128,6 +131,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         status_ = IO::successStatus();
                         return;
                     }
+
                     if (type != APTTYPE_MTA || qualifier != APTTYPEQUALIFIER_IMPLICIT_MTA)
                     {
                         status_ = IO::makeStatus(ErrorCode::ResourceBusy, static_cast<std::int64_t>(RPC_E_CHANGED_MODE));
@@ -141,6 +145,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     return;
                 }
                 result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
                 if (SUCCEEDED(result))
                 {
                     ownsInitialization_ = true;
@@ -197,6 +202,7 @@ namespace GameWIP::Desktop::Detail::Platform
             header.bV5BlueMask = 0x000000FF;
             header.bV5AlphaMask = 0xFF000000;
             HDC screen = GetDC(nullptr);
+
             if (screen == nullptr)
             {
                 return nullptr;
@@ -204,16 +210,19 @@ namespace GameWIP::Desktop::Detail::Platform
             void *pixels = nullptr;
             HBITMAP color = CreateDIBSection(screen, reinterpret_cast<const BITMAPINFO *>(&header), DIB_RGB_COLORS, &pixels, nullptr, 0);
             ReleaseDC(nullptr, screen);
+
             if (color == nullptr || pixels == nullptr)
             {
                 if (color != nullptr)
                 {
                     DeleteObject(color);
                 }
+
                 return nullptr;
             }
             copyRgbaToBgra(image.rgba8, static_cast<std::byte *>(pixels));
             HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
+
             if (mask == nullptr)
             {
                 DeleteObject(color);
@@ -259,10 +268,12 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             std::wstring converted;
             DWORD nativeCode = ERROR_SUCCESS;
+
             if (!utf8ToUtf16(text, converted, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
             }
+
             if (converted.size() >= output.size())
             {
                 return IO::makeStatus(ErrorCode::SizeLimitExceeded);
@@ -276,22 +287,26 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status applyTaskbarProgress(TaskbarNative &native, const std::optional<Types::Shell::Progress> &progress) noexcept
         {
             ApartmentLease apartment;
+
             if (!apartment.status().ok())
             {
                 return apartment.status();
             }
             ComPtr<ITaskbarList3> taskbar;
             HRESULT result = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(taskbar.put()));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
             result = taskbar->HrInit();
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
             TBPFLAG flag = TBPF_NOPROGRESS;
+
             if (progress.has_value())
             {
                 switch (progress->state)
@@ -313,19 +328,23 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
             result = taskbar->SetProgressState(native.window, flag);
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
+
             if (progress.has_value() && progress->state != Types::Shell::ProgressState::Indeterminate)
             {
                 const ULONGLONG value = static_cast<ULONGLONG>(std::llround(std::clamp(progress->fraction, 0.0, 1.0) * 1000.0));
                 result = taskbar->SetProgressValue(native.window, value, 1000);
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
                 }
             }
+
             return IO::successStatus();
         }
 
@@ -353,17 +372,20 @@ namespace GameWIP::Desktop::Detail::Platform
             try
             {
                 ApartmentLease apartment;
+
                 if (!apartment.status().ok())
                 {
                     return apartment.status();
                 }
                 ComPtr<ITaskbarList3> taskbar;
                 HRESULT result = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(taskbar.put()));
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
                 }
                 result = taskbar->HrInit();
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
@@ -371,6 +393,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 std::array<THUMBBUTTON, kTaskbarButtonCapacity> nativeButtons;
                 newIcons.assign(kTaskbarButtonCapacity, nullptr);
+
                 for (std::size_t index = 0; index < kTaskbarButtonCapacity; ++index)
                 {
                     THUMBBUTTON &nativeButton = nativeButtons[index];
@@ -380,6 +403,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     nativeButton.hIcon = nullptr;
                     nativeButton.szTip[0] = L'\0';
                     nativeButton.dwFlags = THBF_HIDDEN;
+
                     if (index >= buttons.size())
                     {
                         continue;
@@ -388,14 +412,17 @@ namespace GameWIP::Desktop::Detail::Platform
                     nativeButton.iId = button.id.value;
                     nativeButton.dwFlags = button.enabled ? THBF_ENABLED : THBF_DISABLED;
                     IO::Types::Status tipStatus = convertTip(button.label, *reinterpret_cast<std::array<wchar_t, 260> *>(nativeButton.szTip));
+
                     if (!tipStatus.ok())
                     {
                         cleanupIcons();
                         return tipStatus;
                     }
+
                     if (button.icon.has_value())
                     {
                         HICON icon = createIcon(*button.icon);
+
                         if (icon == nullptr)
                         {
                             cleanupIcons();
@@ -415,6 +442,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     result = taskbar->ThumbBarUpdateButtons(native.window, static_cast<UINT>(nativeButtons.size()), nativeButtons.data());
                 }
+
                 if (FAILED(result))
                 {
                     cleanupIcons();
@@ -469,6 +497,7 @@ namespace GameWIP::Desktop::Detail::Platform
             header.bV5BlueMask = 0x000000FF;
             header.bV5AlphaMask = 0xFF000000;
             HDC screen = GetDC(nullptr);
+
             if (screen == nullptr)
             {
                 return nullptr;
@@ -476,12 +505,14 @@ namespace GameWIP::Desktop::Detail::Platform
             void *pixels = nullptr;
             HBITMAP bitmap = CreateDIBSection(screen, reinterpret_cast<const BITMAPINFO *>(&header), DIB_RGB_COLORS, &pixels, nullptr, 0);
             ReleaseDC(nullptr, screen);
+
             if (bitmap == nullptr || pixels == nullptr)
             {
                 if (bitmap != nullptr)
                 {
                     DeleteObject(bitmap);
                 }
+
                 return nullptr;
             }
             copyRgbaToBgra(image.rgba8, static_cast<std::byte *>(pixels));
@@ -492,11 +523,13 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] bool menuText(const OwnedTrayMenuItem &item, std::wstring &text)
         {
             std::string utf8 = item.label;
+
             if (!item.accelerator.empty())
             {
                 utf8 += "\t";
                 utf8 += item.accelerator;
             }
+
             if (!item.badge.empty())
             {
                 utf8 += " [";
@@ -514,10 +547,12 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 MENUITEMINFOW info{};
                 info.cbSize = sizeof(info);
+
                 if (item.kind == Types::Tray::MenuItemKind::Separator)
                 {
                     info.fMask = MIIM_FTYPE;
                     info.fType = MFT_SEPARATOR;
+
                     if (InsertMenuItemW(menu, static_cast<UINT>(-1), TRUE, &info) == FALSE)
                     {
                         return false;
@@ -525,6 +560,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     continue;
                 }
                 std::wstring text;
+
                 if (!menuText(item, text))
                 {
                     return false;
@@ -532,19 +568,23 @@ namespace GameWIP::Desktop::Detail::Platform
                 info.fMask = MIIM_FTYPE | MIIM_STATE | MIIM_STRING;
                 info.fType = MFT_STRING;
                 info.fState = item.enabled ? MFS_ENABLED : MFS_DISABLED;
+
                 if ((item.kind == Types::Tray::MenuItemKind::Check || item.kind == Types::Tray::MenuItemKind::Radio) && item.checked)
                 {
                     info.fState |= MFS_CHECKED;
                 }
+
                 if (item.kind == Types::Tray::MenuItemKind::Radio)
                 {
                     info.fType |= MFT_RADIOCHECK;
                 }
                 info.dwTypeData = text.data();
                 HMENU submenu = nullptr;
+
                 if (item.kind == Types::Tray::MenuItemKind::Submenu)
                 {
                     submenu = CreatePopupMenu();
+
                     if (submenu == nullptr)
                     {
                         return false;
@@ -570,9 +610,11 @@ namespace GameWIP::Desktop::Detail::Platform
                     info.fMask |= MIIM_ID;
                     info.wID = item.commandId.value;
                 }
+
                 if (item.icon.has_value())
                 {
                     HBITMAP bitmap = createMenuBitmap(*item.icon);
+
                     if (bitmap == nullptr)
                     {
                         return false;
@@ -589,15 +631,18 @@ namespace GameWIP::Desktop::Detail::Platform
                     info.fMask |= MIIM_BITMAP;
                     info.hbmpItem = bitmap;
                 }
+
                 if (InsertMenuItemW(menu, static_cast<UINT>(-1), TRUE, &info) == FALSE)
                 {
                     if (submenu != nullptr)
                     {
                         DestroyMenu(submenu);
                     }
+
                     return false;
                 }
             }
+
             return true;
         }
 
@@ -625,6 +670,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return;
             }
             POINT point{};
+
             if (!position && GetCursorPos(&point) != FALSE)
             {
                 position = Types::ScreenPosition{point.x, point.y};
@@ -644,10 +690,12 @@ namespace GameWIP::Desktop::Detail::Platform
             try
             {
                 menu = CreatePopupMenu();
+
                 if (menu == nullptr)
                 {
                     return;
                 }
+
                 if (!appendMenuItems(menu, native.state->menu, bitmaps))
                 {
                     destroyMenuBitmaps(bitmaps);
@@ -655,6 +703,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     return;
                 }
                 POINT point{};
+
                 if (position)
                 {
                     point = {position->x, position->y};
@@ -672,6 +721,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 destroyMenuBitmaps(bitmaps);
                 DestroyMenu(menu);
                 menu = nullptr;
+
                 if (command != 0)
                 {
                     publishShellEvent(
@@ -682,6 +732,7 @@ namespace GameWIP::Desktop::Detail::Platform
             catch (...)
             {
                 destroyMenuBitmaps(bitmaps);
+
                 if (menu != nullptr)
                 {
                     DestroyMenu(menu);
@@ -693,21 +744,25 @@ namespace GameWIP::Desktop::Detail::Platform
         LRESULT CALLBACK trayWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         {
             auto *native = reinterpret_cast<TrayNative *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+
             if (message == WM_NCCREATE)
             {
                 const auto *create = reinterpret_cast<const CREATESTRUCTW *>(lParam);
                 native = static_cast<TrayNative *>(create->lpCreateParams);
                 SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(native));
+
                 if (native != nullptr)
                 {
                     native->window = window;
                     ++shellMessageWindowCount;
                 }
             }
+
             if (native == nullptr)
             {
                 return DefWindowProcW(window, message, wParam, lParam);
             }
+
             if (message == WM_NCDESTROY)
             {
                 SetWindowLongPtrW(window, GWLP_USERDATA, 0);
@@ -715,6 +770,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 --shellMessageWindowCount;
                 return DefWindowProcW(window, message, wParam, lParam);
             }
+
             if (message == native->taskbarCreatedMessage)
             {
                 try
@@ -728,12 +784,14 @@ namespace GameWIP::Desktop::Detail::Platform
                     data.hIcon = native->icon;
                     DWORD nativeCode = ERROR_SUCCESS;
                     std::wstring tooltip;
+
                     if (utf8ToUtf16(native->state->tooltip, tooltip, nativeCode))
                     {
                         const std::size_t length = std::min<std::size_t>(tooltip.size(), ARRAYSIZE(data.szTip) - 1);
                         std::copy_n(tooltip.data(), length, data.szTip);
                     }
                     native->version4 = false;
+
                     if (Shell_NotifyIconW(NIM_ADD, &data) != FALSE)
                     {
                         data.uVersion = NOTIFYICON_VERSION_4;
@@ -744,14 +802,17 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     SetLastError(ERROR_GEN_FAILURE);
                 }
+
                 return 0;
             }
+
             if (message == kTrayCallbackMessage)
             {
                 const UINT event = native->version4 ? LOWORD(lParam) : static_cast<UINT>(lParam);
                 const std::optional<Types::ScreenPosition> position =
                     native->version4 ? std::optional{Types::ScreenPosition{static_cast<short>(LOWORD(wParam)), static_cast<short>(HIWORD(wParam))}}
                                      : std::nullopt;
+
                 switch (event)
                 {
                 case WM_LBUTTONUP:
@@ -782,6 +843,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     break;
                 }
             }
+
             return DefWindowProcW(window, message, wParam, lParam);
         }
 
@@ -790,6 +852,7 @@ namespace GameWIP::Desktop::Detail::Platform
             WNDCLASSEXW existing{};
             existing.cbSize = sizeof(existing);
             HINSTANCE instance = GetModuleHandleW(nullptr);
+
             if (GetClassInfoExW(instance, kTrayWindowClassName, &existing) != FALSE)
             {
                 return IO::successStatus();
@@ -799,10 +862,12 @@ namespace GameWIP::Desktop::Detail::Platform
             classInfo.lpfnWndProc = trayWindowProc;
             classInfo.hInstance = instance;
             classInfo.lpszClassName = kTrayWindowClassName;
+
             if (RegisterClassExW(&classInfo) == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
             {
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "RegisterClassExW tray window");
             }
+
             return IO::successStatus();
         }
 
@@ -830,31 +895,37 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::Unsupported);
             }
+
             if (!utf8ToUtf16(description.title, title, nativeCode) || !utf8ToUtf16(description.body, body, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
             }
+
             if (title.size() >= ARRAYSIZE(NOTIFYICONDATAW{}.szInfoTitle) || body.size() >= ARRAYSIZE(NOTIFYICONDATAW{}.szInfo))
             {
                 return IO::makeStatus(ErrorCode::SizeLimitExceeded);
             }
+
             return IO::successStatus();
         }
 
         LRESULT CALLBACK notificationWindowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         {
             auto *native = reinterpret_cast<NotificationNative *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+
             if (message == WM_NCCREATE)
             {
                 const auto *create = reinterpret_cast<const CREATESTRUCTW *>(lParam);
                 native = static_cast<NotificationNative *>(create->lpCreateParams);
                 SetWindowLongPtrW(window, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(native));
+
                 if (native != nullptr)
                 {
                     native->window = window;
                     ++shellMessageWindowCount;
                 }
             }
+
             if (native != nullptr && message == WM_NCDESTROY)
             {
                 SetWindowLongPtrW(window, GWLP_USERDATA, 0);
@@ -862,17 +933,21 @@ namespace GameWIP::Desktop::Detail::Platform
                 --shellMessageWindowCount;
                 return DefWindowProcW(window, message, wParam, lParam);
             }
+
             if (native == nullptr || native->state == nullptr)
             {
                 return DefWindowProcW(window, message, wParam, lParam);
             }
+
             if (message == kTrayCallbackMessage)
             {
                 const std::uint64_t id = static_cast<UINT>(wParam);
+
                 if (native->state->eventQueue == nullptr)
                 {
                     return 0;
                 }
+
                 if (lParam == NIN_BALLOONUSERCLICK)
                 {
                     publishShellEvent(
@@ -887,8 +962,10 @@ namespace GameWIP::Desktop::Detail::Platform
                             Types::Shell::NotificationId{id},
                             Types::Shell::Events::NotificationDismissReason::Expired});
                 }
+
                 return 0;
             }
+
             return DefWindowProcW(window, message, wParam, lParam);
         }
 
@@ -897,6 +974,7 @@ namespace GameWIP::Desktop::Detail::Platform
             WNDCLASSEXW existing{};
             existing.cbSize = sizeof(existing);
             HINSTANCE instance = GetModuleHandleW(nullptr);
+
             if (GetClassInfoExW(instance, kNotificationWindowClassName, &existing) != FALSE)
             {
                 return IO::successStatus();
@@ -906,10 +984,12 @@ namespace GameWIP::Desktop::Detail::Platform
             classInfo.lpfnWndProc = notificationWindowProc;
             classInfo.hInstance = instance;
             classInfo.lpszClassName = kNotificationWindowClassName;
+
             if (RegisterClassExW(&classInfo) == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS)
             {
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "RegisterClassExW notification window");
             }
+
             return IO::successStatus();
         }
 
@@ -923,6 +1003,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring body;
             DWORD nativeCode = ERROR_SUCCESS;
             IO::Types::Status status = validateBasicNotification(description, title, body, nativeCode);
+
             if (!status.ok())
             {
                 return status;
@@ -938,15 +1019,18 @@ namespace GameWIP::Desktop::Detail::Platform
             std::copy(body.begin(), body.end(), data.szInfo);
             data.dwInfoFlags = description.sound == Types::Notifications::Sound::Silent ? NIIF_NOSOUND : NIIF_INFO;
             data.uTimeout = 10000;
+
             if (add)
             {
                 data.dwState = NIS_HIDDEN;
                 data.dwStateMask = NIS_HIDDEN;
             }
+
             if (Shell_NotifyIconW(add ? NIM_ADD : NIM_MODIFY, &data) == FALSE)
             {
                 return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "Shell_NotifyIconW notification");
             }
+
             return IO::successStatus();
         }
 
@@ -955,6 +1039,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             commandLine.push_back(L'"');
             std::size_t backslashes = 0;
+
             for (wchar_t character : argument)
             {
                 if (character == L'\\')
@@ -962,6 +1047,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     ++backslashes;
                     continue;
                 }
+
                 if (character == L'"')
                 {
                     commandLine.append(backslashes * 2 + 1, L'\\');
@@ -983,14 +1069,17 @@ namespace GameWIP::Desktop::Detail::Platform
             bool allowPlaceholders)
         {
             DWORD nativeCode = ERROR_SUCCESS;
+
             if (const auto *literal = std::get_if<Types::Shell::LiteralLaunchArgumentView>(&argument))
             {
                 if (!utf8ToUtf16(literal->text, text, nativeCode))
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
                 }
+
                 return IO::successStatus();
             }
+
             if (const auto *target = std::get_if<Types::Shell::TargetLaunchArgumentView>(&argument))
             {
                 if (const auto *path = std::get_if<Types::Shell::PathTargetView>(&target->target))
@@ -998,20 +1087,25 @@ namespace GameWIP::Desktop::Detail::Platform
                     text = path->path.get().wstring();
                     return IO::successStatus();
                 }
+
                 if (const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target->target))
                 {
                     if (!utf8ToUtf16(uri->uri, text, nativeCode))
                     {
                         return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
                     }
+
                     return IO::successStatus();
                 }
+
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             if (!allowPlaceholders)
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             switch (std::get<Types::Shell::LaunchPlaceholder>(argument))
             {
             case Types::Shell::LaunchPlaceholder::SelectedPath:
@@ -1037,23 +1131,28 @@ namespace GameWIP::Desktop::Detail::Platform
             // Convert a copy at the native boundary; retain the caller's portable spelling.
             auto nativeExecutable = action.executable.path.get();
             executable = nativeExecutable.make_preferred().wstring();
+
             if (executable.empty())
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
             arguments.clear();
+
             for (const Types::Shell::LaunchArgumentView &argument : action.arguments)
             {
                 std::wstring text;
                 IO::Types::Status status = launchArgumentText(argument, text, allowPlaceholders);
+
                 if (!status.ok())
                 {
                     return status;
                 }
+
                 if (!arguments.empty())
                 {
                     arguments.push_back(L' ');
                 }
+
                 if (text == L"%*")
                 {
                     arguments += text;
@@ -1063,12 +1162,14 @@ namespace GameWIP::Desktop::Detail::Platform
                     appendQuotedArgument(text, arguments);
                 }
             }
+
             return IO::successStatus();
         }
 
         [[nodiscard]] IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, ComPtr<IShellLinkW> &out)
         {
             HRESULT result = CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(out.put()));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -1076,32 +1177,38 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring executable;
             std::wstring arguments;
             IO::Types::Status status = makeLaunchCommand(task.action, false, executable, arguments);
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (arguments.empty())
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
             result = out->SetPath(executable.c_str());
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
             result = out->SetArguments(arguments.c_str());
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
             std::wstring title;
             DWORD nativeCode = ERROR_SUCCESS;
+
             if (!utf8ToUtf16(task.title, title, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
             }
             ComPtr<IPropertyStore> properties;
             result = out->QueryInterface(IID_PPV_ARGS(properties.put()));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -1110,21 +1217,25 @@ namespace GameWIP::Desktop::Detail::Platform
             titleValue.vt = VT_LPWSTR;
             titleValue.pwszVal = title.data(); // SetValue copies this borrowed string.
             result = properties->SetValue(PKEY_Title, titleValue);
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
             result = properties->Commit();
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
             std::wstring description;
+
             if (!utf8ToUtf16(task.description, description, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
             }
             result = out->SetDescription(description.c_str());
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -1140,19 +1251,23 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             ComPtr<IObjectCollection> collection;
             HRESULT result = CoCreateInstance(CLSID_EnumerableObjectCollection, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(collection.put()));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
             }
+
             for (const Types::JumpLists::Task &task : tasks)
             {
                 ComPtr<IShellLinkW> link;
                 IO::Types::Status status = createJumpLink(task, link);
+
                 if (!status.ok())
                 {
                     return status;
                 }
                 result = collection->AddObject(link.get());
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
@@ -1160,6 +1275,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ComPtr<IObjectArray> objects;
             result = collection->QueryInterface(IID_PPV_ARGS(objects.put()));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -1215,6 +1331,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     RegCloseKey(value_);
                     value_ = nullptr;
                 }
+
                 return &value_;
             }
             [[nodiscard]] HKEY get() const noexcept
@@ -1245,6 +1362,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::successStatus();
             }
             ErrorCode portable = ErrorCode::NativeFailure;
+
             if (code == ERROR_FILE_NOT_FOUND)
             {
                 portable = ErrorCode::NotFound;
@@ -1268,6 +1386,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status openRegistryKey(HKEY root, std::wstring_view path, REGSAM access, RegistryKey &key, bool create)
         {
             LONG result = ERROR_SUCCESS;
+
             if (create)
             {
                 DWORD disposition = 0;
@@ -1278,6 +1397,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 result = RegOpenKeyExW(root, std::wstring(path).c_str(), 0, access, key.put());
             }
+
             return result == ERROR_SUCCESS ? IO::successStatus() : registryStatus(result, "registry key operation");
         }
 
@@ -1286,6 +1406,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DWORD type = 0;
             DWORD size = 0;
             LONG result = RegGetValueW(key, nullptr, std::wstring(name).c_str(), RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ, &type, nullptr, &size);
+
             if (result != ERROR_SUCCESS)
             {
                 return registryStatus(result, "read registry value");
@@ -1294,16 +1415,19 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 value.resize(size / sizeof(wchar_t));
                 result = RegGetValueW(key, nullptr, std::wstring(name).c_str(), RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ, &type, value.data(), &size);
+
                 if (result != ERROR_SUCCESS)
                 {
                     return registryStatus(result, "read registry value");
                 }
                 // The size query may reserve an extra terminator; only the returned bytes are the value.
                 value.resize(size / sizeof(wchar_t));
+
                 if (!value.empty() && value.back() == L'\0')
                 {
                     value.pop_back();
                 }
+
                 return IO::successStatus();
             }
             catch (const std::bad_alloc &)
@@ -1357,10 +1481,12 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             RegistryKey key;
             IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, path, KEY_READ, key, false);
+
             if (status.code == ErrorCode::NotFound)
             {
                 return IO::successStatus();
             }
+
             if (!status.ok())
             {
                 return status;
@@ -1369,10 +1495,12 @@ namespace GameWIP::Desktop::Detail::Platform
             DWORD children = 0;
             const LONG queried =
                 RegQueryInfoKeyW(key.get(), nullptr, nullptr, nullptr, &children, nullptr, nullptr, &values, nullptr, nullptr, nullptr, nullptr);
+
             if (queried != ERROR_SUCCESS)
             {
                 return registryStatus(queried, "inspect registration cleanup key");
             }
+
             if (values != 0 || children != 0)
             {
                 return IO::successStatus();
@@ -1410,23 +1538,28 @@ namespace GameWIP::Desktop::Detail::Platform
             [[nodiscard]] IO::Types::Status capture()
             {
                 IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, backupPath_, KEY_READ | KEY_WRITE, backupRoot_, true);
+
                 if (!status.ok())
                 {
                     return status;
                 }
                 status = captureTree(targetPath_, L"Target", targetCaptured_);
+
                 if (!status.ok())
                 {
                     return status;
                 }
                 status = captureTree(programPath_, L"Program", programCaptured_);
+
                 if (!status.ok())
                 {
                     return status;
                 }
+
                 if (!applicationPath_.empty())
                 {
                     status = captureTree(applicationPath_, L"Application", applicationCaptured_);
+
                     if (!status.ok())
                     {
                         return status;
@@ -1447,11 +1580,13 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 RegistryKey source;
                 const LONG openResult = RegOpenKeyExW(HKEY_CURRENT_USER, std::wstring(sourcePath).c_str(), 0, KEY_READ, source.put());
+
                 if (openResult == ERROR_FILE_NOT_FOUND)
                 {
                     captured = false;
                     return IO::successStatus();
                 }
+
                 if (openResult != ERROR_SUCCESS)
                 {
                     return registryStatus(openResult, "open registry backup source");
@@ -1459,11 +1594,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 RegistryKey destination;
                 // RegCopyTreeW copies the DACL as well as the values and subkeys.
                 IO::Types::Status status = openRegistryKey(backupRoot_.get(), slot, KEY_READ | KEY_WRITE | WRITE_DAC, destination, true);
+
                 if (!status.ok())
                 {
                     return status;
                 }
                 const LONG copyResult = RegCopyTreeW(source.get(), nullptr, destination.get());
+
                 if (copyResult != ERROR_SUCCESS)
                 {
                     return registryStatus(copyResult, "copy registry backup source");
@@ -1475,22 +1612,26 @@ namespace GameWIP::Desktop::Detail::Platform
             [[nodiscard]] IO::Types::Status restoreTree(std::wstring_view destinationPath, std::wstring_view slot, bool captured)
             {
                 const IO::Types::Status deleteStatus = deleteRegistryTree(HKEY_CURRENT_USER, destinationPath, "remove registry replacement");
+
                 if (!deleteStatus.ok())
                 {
                     return deleteStatus;
                 }
+
                 if (!captured)
                 {
                     return IO::successStatus();
                 }
                 RegistryKey source;
                 IO::Types::Status status = openRegistryKey(backupRoot_.get(), slot, KEY_READ, source, false);
+
                 if (!status.ok())
                 {
                     return status;
                 }
                 RegistryKey destination;
                 status = openRegistryKey(HKEY_CURRENT_USER, destinationPath, KEY_READ | KEY_WRITE | WRITE_DAC, destination, true);
+
                 if (!status.ok())
                 {
                     return status;
@@ -1505,6 +1646,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     static_cast<void>(restoreTree(programPath_, L"Program", programCaptured_));
                     static_cast<void>(restoreTree(targetPath_, L"Target", targetCaptured_));
+
                     if (!applicationPath_.empty())
                     {
                         static_cast<void>(restoreTree(applicationPath_, L"Application", applicationCaptured_));
@@ -1565,44 +1707,53 @@ namespace GameWIP::Desktop::Detail::Platform
             try
             {
                 normalizedUtf8.assign(input);
+
                 if (extension && normalizedUtf8.starts_with("*"))
                 {
                     normalizedUtf8.erase(0, 1);
                 }
+
                 if (extension && !normalizedUtf8.starts_with("."))
                 {
                     normalizedUtf8.insert(normalizedUtf8.begin(), '.');
                 }
+
                 if (!extension && normalizedUtf8.ends_with(':'))
                 {
                     normalizedUtf8.pop_back();
                 }
+
                 if (normalizedUtf8.empty() || normalizedUtf8.find_first_of("\\/:*?\"<>|\0") != std::string::npos)
                 {
                     return IO::makeStatus(ErrorCode::InvalidArgument);
                 }
                 const std::size_t start = extension ? 1U : 0U;
+
                 if (!extension && (start >= normalizedUtf8.size() || ((normalizedUtf8[start] < 'A' || normalizedUtf8[start] > 'Z') &&
                                                                       (normalizedUtf8[start] < 'a' || normalizedUtf8[start] > 'z'))))
                 {
                     return IO::makeStatus(ErrorCode::InvalidArgument);
                 }
+
                 for (char &character : normalizedUtf8)
                 {
                     if (static_cast<unsigned char>(character) >= 0x80U)
                     {
                         return IO::makeStatus(ErrorCode::InvalidArgument);
                     }
+
                     if (character >= 'A' && character <= 'Z')
                     {
                         character = static_cast<char>(character - 'A' + 'a');
                     }
                 }
                 DWORD nativeCode = ERROR_SUCCESS;
+
                 if (!utf8ToUtf16(normalizedUtf8, normalizedUtf16, nativeCode))
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
                 }
+
                 return IO::successStatus();
             }
             catch (const std::bad_alloc &)
@@ -1621,6 +1772,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DWORD nativeCode = ERROR_SUCCESS;
             std::wstring owner;
             std::wstring target;
+
             if (!utf8ToUtf16(ownerKey, owner, nativeCode) || !utf8ToUtf16(normalizedTarget, target, nativeCode))
             {
                 return {};
@@ -1628,6 +1780,7 @@ namespace GameWIP::Desktop::Detail::Platform
             result += owner;
             result.push_back(L'.');
             result += target;
+
             for (wchar_t &character : result)
             {
                 if ((character < L'A' || character > L'Z') && (character < L'a' || character > L'z') && (character < L'0' || character > L'9') &&
@@ -1636,6 +1789,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     character = L'_';
                 }
             }
+
             return result;
         }
 
@@ -1643,16 +1797,20 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             std::wstring ownerUtf16;
             IO::Types::Status status = readRegistryString(targetKey, L"GameWIP.OwnerKey", ownerUtf16);
+
             if (!status.ok())
             {
                 hasOwner = false;
+
                 if (status.code == ErrorCode::NotFound)
                 {
                     return IO::successStatus();
                 }
+
                 return status;
             }
             DWORD nativeCode = ERROR_SUCCESS;
+
             if (!utf16ToUtf8(ownerUtf16, owner, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
@@ -1666,6 +1824,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring executable;
             std::wstring arguments;
             IO::Types::Status status = makeLaunchCommand(action, true, executable, arguments);
+
             if (!status.ok())
             {
                 return status;
@@ -1673,11 +1832,13 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring command = L"\"";
             command += executable;
             command += L"\"";
+
             if (!arguments.empty())
             {
                 command.push_back(L' ');
                 command += arguments;
             }
+
             return writeRegistryString(commandKey, L"", command);
         }
 
@@ -1691,6 +1852,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 std::filesystem::path executable = action.executable.path.get();
                 executable.make_preferred();
                 applicationName = executable.filename().wstring();
+
                 if (applicationName.empty() || applicationName == L"." || applicationName == L".." ||
                     applicationName.find_first_of(L"\\/") != std::wstring::npos)
                 {
@@ -1721,16 +1883,19 @@ namespace GameWIP::Desktop::Detail::Platform
             existingOwner.clear();
             RegistryKey existing;
             const LONG opened = RegOpenKeyExW(HKEY_CURRENT_USER, std::wstring(applicationPath).c_str(), 0, KEY_READ, existing.put());
+
             if (opened == ERROR_FILE_NOT_FOUND)
             {
                 return IO::successStatus();
             }
+
             if (opened != ERROR_SUCCESS)
             {
                 return registryStatus(opened, "inspect application registration");
             }
             bool hasOwner = false;
             const IO::Types::Status ownerStatus = readOwner(existing.get(), existingOwner, hasOwner);
+
             if (!ownerStatus.ok())
             {
                 return ownerStatus;
@@ -1753,10 +1918,12 @@ namespace GameWIP::Desktop::Detail::Platform
             bool sameOwner = false;
             std::string existingOwner;
             IO::Types::Status status = inspectApplicationRegistration(applicationPath, ownerKey, exists, sameOwner, existingOwner);
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (exists && !sameOwner)
             {
                 return registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
@@ -1764,6 +1931,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             RegistryKey application;
             status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, true);
+
             if (!status.ok())
             {
                 return status;
@@ -1771,45 +1939,54 @@ namespace GameWIP::Desktop::Detail::Platform
             DWORD nativeCode = ERROR_SUCCESS;
             std::wstring owner;
             std::wstring display;
+
             if (!utf8ToUtf16(ownerKey, owner, nativeCode) || !utf8ToUtf16(displayName, display, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
             }
             status = writeRegistryString(application.get(), L"GameWIP.OwnerKey", owner);
+
             if (!status.ok())
             {
                 return status;
             }
             status = writeRegistryString(application.get(), L"", display);
+
             if (!status.ok())
             {
                 return status;
             }
             status = writeRegistryString(application.get(), L"FriendlyAppName", display);
+
             if (!status.ok())
             {
                 return status;
             }
             status = writeRegistryString(application.get(), L"ApplicationName", display);
+
             if (!status.ok())
             {
                 return status;
             }
             status = writeRegistryString(application.get(), L"ApplicationDescription", display);
+
             if (!status.ok())
             {
                 return status;
             }
 
             status = deleteRegistryTree(application.get(), L"DefaultIcon", "remove previous application icon");
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (icon.has_value())
             {
                 RegistryKey iconKey;
                 status = openRegistryKey(application.get(), L"DefaultIcon", KEY_READ | KEY_WRITE, iconKey, true);
+
                 if (!status.ok())
                 {
                     return status;
@@ -1817,6 +1994,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 std::wstring path = icon->path.path.get().wstring();
                 std::wstring iconValue = L"\"" + path + L"\"," + std::to_wstring(icon->index);
                 status = writeRegistryString(iconKey.get(), L"", iconValue);
+
                 if (!status.ok())
                 {
                     return status;
@@ -1825,23 +2003,27 @@ namespace GameWIP::Desktop::Detail::Platform
 
             RegistryKey shell;
             status = openRegistryKey(application.get(), L"shell", KEY_READ | KEY_WRITE, shell, true);
+
             if (!status.ok())
             {
                 return status;
             }
             RegistryKey open;
             status = openRegistryKey(shell.get(), L"open", KEY_READ | KEY_WRITE, open, true);
+
             if (!status.ok())
             {
                 return status;
             }
             status = writeRegistryString(open.get(), L"", L"Open");
+
             if (!status.ok())
             {
                 return status;
             }
             RegistryKey command;
             status = openRegistryKey(open.get(), L"command", KEY_READ | KEY_WRITE, command, true);
+
             if (!status.ok())
             {
                 return status;
@@ -1849,6 +2031,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::array<Types::Shell::LaunchArgumentView, 1> arguments{Types::Shell::LaunchPlaceholder::SelectedPath};
             const Types::Shell::LaunchActionView genericAction{action.executable, arguments};
             status = writeLaunchCommand(command.get(), genericAction);
+
             if (!status.ok())
             {
                 return status;
@@ -1858,12 +2041,14 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 DWORD extensionCode = ERROR_SUCCESS;
                 std::wstring extensionWide;
+
                 if (!utf8ToUtf16(extension, extensionWide, extensionCode))
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed, extensionCode);
                 }
                 RegistryKey supportedTypes;
                 status = openRegistryKey(application.get(), L"SupportedTypes", KEY_READ | KEY_WRITE, supportedTypes, true);
+
                 if (!status.ok())
                 {
                     return status;
@@ -1871,6 +2056,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 status = registryStatus(
                     RegSetValueExW(supportedTypes.get(), extensionWide.c_str(), 0, REG_SZ, reinterpret_cast<const BYTE *>(L""), sizeof(wchar_t)),
                     "write application supported type");
+
                 if (!status.ok())
                 {
                     return status;
@@ -1894,14 +2080,17 @@ namespace GameWIP::Desktop::Detail::Platform
             bool sameOwner = false;
             std::string existingOwner;
             IO::Types::Status status = inspectApplicationRegistration(applicationPath, ownerKey, exists, sameOwner, existingOwner);
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (!exists)
             {
                 return IO::successStatus();
             }
+
             if (!sameOwner)
             {
                 return registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
@@ -1909,6 +2098,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             RegistryKey application;
             status = openRegistryKey(HKEY_CURRENT_USER, applicationPath, KEY_READ | KEY_WRITE, application, false);
+
             if (!status.ok())
             {
                 return status;
@@ -1916,6 +2106,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             DWORD nativeCode = ERROR_SUCCESS;
             std::wstring extensionWide;
+
             if (!utf8ToUtf16(extension, extensionWide, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
@@ -1923,9 +2114,11 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::wstring supportedPath = applicationPath + L"\\SupportedTypes";
             RegistryKey supportedTypes;
             status = openRegistryKey(HKEY_CURRENT_USER, supportedPath, KEY_READ | KEY_WRITE, supportedTypes, false);
+
             if (status.ok())
             {
                 status = removeRegistryValue(supportedTypes.get(), extensionWide);
+
                 if (!status.ok())
                 {
                     return status;
@@ -1936,6 +2129,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return status;
             }
             status = pruneEmptyRegistrationKey(supportedPath);
+
             if (!status.ok())
             {
                 return status;
@@ -1943,50 +2137,60 @@ namespace GameWIP::Desktop::Detail::Platform
 
             RegistryKey remainingTypes;
             status = openRegistryKey(HKEY_CURRENT_USER, supportedPath, KEY_READ, remainingTypes, false);
+
             if (status.ok())
             {
                 return IO::successStatus();
             }
+
             if (status.code != ErrorCode::NotFound)
             {
                 return status;
             }
 
             status = deleteRegistryTree(application.get(), L"DefaultIcon", "remove owned application icon");
+
             if (!status.ok())
             {
                 return status;
             }
             status = deleteRegistryTree(application.get(), L"shell", "remove owned application shell commands");
+
             if (!status.ok())
             {
                 return status;
             }
             status = removeRegistryValue(application.get(), L"");
+
             if (!status.ok())
             {
                 return status;
             }
             status = removeRegistryValue(application.get(), L"FriendlyAppName");
+
             if (!status.ok())
             {
                 return status;
             }
             status = removeRegistryValue(application.get(), L"ApplicationName");
+
             if (!status.ok())
             {
                 return status;
             }
             status = removeRegistryValue(application.get(), L"ApplicationDescription");
+
             if (!status.ok())
             {
                 return status;
             }
             status = removeRegistryValue(application.get(), L"GameWIP.OwnerKey");
+
             if (!status.ok())
             {
                 return status;
             }
+
             return pruneEmptyRegistrationKey(applicationPath);
         }
 
@@ -2003,6 +2207,7 @@ namespace GameWIP::Desktop::Detail::Platform
             RegistryKey program;
             IO::Types::Status status =
                 openRegistryKey(HKEY_CURRENT_USER, std::wstring(L"Software\\Classes\\") + std::wstring(progId), KEY_READ | KEY_WRITE, program, true);
+
             if (!status.ok())
             {
                 return status;
@@ -2011,16 +2216,19 @@ namespace GameWIP::Desktop::Detail::Platform
             std::wstring owner;
             std::wstring display;
             std::wstring type;
+
             if (!utf8ToUtf16(ownerKey, owner, nativeCode) || !utf8ToUtf16(displayName, display, nativeCode) ||
                 (!contentType.empty() && !utf8ToUtf16(contentType, type, nativeCode)))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
             }
             status = writeRegistryString(program.get(), L"GameWIP.OwnerKey", owner);
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (!applicationName.empty())
             {
                 status = writeRegistryString(program.get(), L"GameWIP.ApplicationKey", applicationName);
@@ -2029,16 +2237,19 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 status = removeRegistryValue(program.get(), L"GameWIP.ApplicationKey");
             }
+
             if (!status.ok())
             {
                 return status;
             }
             status = writeRegistryString(program.get(), L"", display);
+
             if (!status.ok())
             {
                 return status;
             }
             status = writeRegistryString(program.get(), L"FriendlyAppName", display);
+
             if (!status.ok())
             {
                 return status;
@@ -2046,21 +2257,26 @@ namespace GameWIP::Desktop::Detail::Platform
             // Give the shell a display identity even when the executable has no version resource.
             RegistryKey application;
             status = openRegistryKey(program.get(), L"Application", KEY_READ | KEY_WRITE, application, true);
+
             if (status.ok())
             {
                 status = writeRegistryString(application.get(), L"ApplicationName", display);
             }
+
             if (status.ok())
             {
                 status = writeRegistryString(application.get(), L"ApplicationDescription", display);
             }
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (!type.empty())
             {
                 status = writeRegistryString(program.get(), L"Content Type", type);
+
                 if (!status.ok())
                 {
                     return status;
@@ -2069,6 +2285,7 @@ namespace GameWIP::Desktop::Detail::Platform
             else
             {
                 status = removeRegistryValue(program.get(), L"Content Type");
+
                 if (!status.ok())
                 {
                     return status;
@@ -2076,14 +2293,17 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             status = deleteRegistryTree(program.get(), L"DefaultIcon", "remove previous program icon");
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (icon.has_value())
             {
                 RegistryKey iconKey;
                 status = openRegistryKey(program.get(), L"DefaultIcon", KEY_READ | KEY_WRITE, iconKey, true);
+
                 if (!status.ok())
                 {
                     return status;
@@ -2091,6 +2311,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 std::wstring path = icon->path.path.get().wstring();
                 std::wstring iconValue = L"\"" + path + L"\"," + std::to_wstring(icon->index);
                 status = writeRegistryString(iconKey.get(), L"", iconValue);
+
                 if (!status.ok())
                 {
                     return status;
@@ -2098,49 +2319,59 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             status = deleteRegistryTree(program.get(), L"shell", "remove previous program shell commands");
+
             if (!status.ok())
             {
                 return status;
             }
+
             if (defaultAction.has_value() || !verbs.empty())
             {
                 RegistryKey shell;
                 status = openRegistryKey(program.get(), L"shell", KEY_READ | KEY_WRITE, shell, true);
+
                 if (!status.ok())
                 {
                     return status;
                 }
+
                 if (defaultAction.has_value())
                 {
                     RegistryKey open;
                     status = openRegistryKey(shell.get(), L"open", KEY_READ | KEY_WRITE, open, true);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                     std::wstring label = L"Open";
                     status = writeRegistryString(open.get(), L"", label);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                     RegistryKey command;
                     status = openRegistryKey(open.get(), L"command", KEY_READ | KEY_WRITE, command, true);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                     status = writeLaunchCommand(command.get(), *defaultAction);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                 }
+
                 for (const Types::Registration::Verb &verb : verbs)
                 {
                     DWORD verbCode = ERROR_SUCCESS;
                     std::wstring verbName;
                     std::wstring verbLabel;
+
                     if (!utf8ToUtf16(verb.name, verbName, verbCode) || !utf8ToUtf16(verb.label, verbLabel, verbCode) ||
                         verbName.find_first_of(L"\\/") != std::wstring::npos)
                     {
@@ -2148,28 +2379,33 @@ namespace GameWIP::Desktop::Detail::Platform
                     }
                     RegistryKey verbKey;
                     status = openRegistryKey(shell.get(), verbName, KEY_READ | KEY_WRITE, verbKey, true);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                     status = writeRegistryString(verbKey.get(), L"", verbLabel);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                     RegistryKey command;
                     status = openRegistryKey(verbKey.get(), L"command", KEY_READ | KEY_WRITE, command, true);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                     status = writeLaunchCommand(command.get(), verb.action);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                 }
             }
+
             return IO::successStatus();
         }
 
@@ -2182,6 +2418,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             RegistryKey key;
             IO::Types::Status status = openRegistryKey(HKEY_CURRENT_USER, targetPath, KEY_READ, key, false);
+
             if (!status.ok())
             {
                 if (status.code == ErrorCode::NotFound)
@@ -2191,21 +2428,25 @@ namespace GameWIP::Desktop::Detail::Platform
                     existingOwner.clear();
                     return IO::successStatus();
                 }
+
                 return status;
             }
             exists = true;
             bool hasOwner = false;
             status = readOwner(key.get(), existingOwner, hasOwner);
+
             if (!status.ok())
             {
                 return status;
             }
             std::wstring defaultValue;
             const IO::Types::Status defaultStatus = readRegistryString(key.get(), L"", defaultValue);
+
             if (!defaultStatus.ok() && defaultStatus.code != ErrorCode::NotFound)
             {
                 return defaultStatus;
             }
+
             if (!hasOwner && defaultValue.empty())
             {
                 exists = false;
@@ -2226,6 +2467,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             DWORD nativeCode = ERROR_SUCCESS;
             std::string applicationNameUtf8;
+
             if (!utf16ToUtf8(applicationName, applicationNameUtf8, nativeCode))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
@@ -2246,6 +2488,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 std::string target;
                 std::wstring targetWide;
                 IO::Types::Status status = normalizeTarget(input, extension, target, targetWide);
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -2256,6 +2499,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 bool sameOwner = false;
                 std::string existingOwner;
                 status = inspectTarget(targetPath, ownerKey, exists, sameOwner, existingOwner);
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -2263,6 +2507,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 const Types::Registration::TargetKind kind =
                     extension ? Types::Registration::TargetKind::FileExtension : Types::Registration::TargetKind::UriScheme;
+
                 if (exists && !sameOwner)
                 {
                     result.conflicts.push_back(makeConflict(kind, target, existingOwner));
@@ -2275,20 +2520,24 @@ namespace GameWIP::Desktop::Detail::Platform
                 std::wstring applicationPath;
                 RegistryKey program;
                 status = openRegistryKey(HKEY_CURRENT_USER, progPath, KEY_READ, program, false);
+
                 if (status.ok())
                 {
                     std::string programOwner;
                     bool hasOwner = false;
                     status = readOwner(program.get(), programOwner, hasOwner);
+
                     if (!status.ok())
                     {
                         result.status = status;
                         return result;
                     }
                     ownProgram = hasOwner && programOwner == ownerKey;
+
                     if (ownProgram && extension)
                     {
                         const IO::Types::Status applicationStatus = readRegistryString(program.get(), L"GameWIP.ApplicationKey", applicationName);
+
                         if (!applicationStatus.ok() && applicationStatus.code != ErrorCode::NotFound)
                         {
                             result.status = applicationStatus;
@@ -2311,6 +2560,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     result.status = exists ? IO::makeStatus(ErrorCode::AlreadyExists) : IO::makeStatus(ErrorCode::NotFound);
                     return result;
                 }
+
                 if (extension && ownProgram && !applicationName.empty())
                 {
                     applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
@@ -2318,14 +2568,17 @@ namespace GameWIP::Desktop::Detail::Platform
                     bool applicationSameOwner = false;
                     std::string applicationOwner;
                     status = inspectApplicationRegistration(applicationPath, ownerKey, applicationExists, applicationSameOwner, applicationOwner);
+
                     if (!status.ok())
                     {
                         result.status = status;
                         return result;
                     }
+
                     if (applicationExists && !applicationSameOwner)
                     {
                         status = appendApplicationConflict(applicationName, applicationOwner, result.conflicts);
+
                         if (!status.ok())
                         {
                             result.status = status;
@@ -2338,30 +2591,36 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 RegistryTreeBackup transaction(targetPath, progPath, applicationPath);
                 status = transaction.capture();
+
                 if (!status.ok())
                 {
                     result.status = status;
                     return result;
                 }
+
                 if (extension && ownProgram && !applicationName.empty())
                 {
                     status = removeApplicationRegistration(applicationName, ownerKey, target);
+
                     if (!status.ok())
                     {
                         result.status = status;
                         return result;
                     }
                 }
+
                 if (extension)
                 {
                     const std::wstring alternativesPath = targetPath + L"\\OpenWithProgids";
                     {
                         RegistryKey alternatives;
                         status = openRegistryKey(HKEY_CURRENT_USER, alternativesPath, KEY_READ | KEY_WRITE, alternatives, false);
+
                         if (status.ok())
                         {
                             status = removeRegistryValue(alternatives.get(), progId);
                         }
+
                         if (!status.ok() && status.code != ErrorCode::NotFound)
                         {
                             result.status = status;
@@ -2369,15 +2628,18 @@ namespace GameWIP::Desktop::Detail::Platform
                         }
                     }
                     status = pruneEmptyRegistrationKey(alternativesPath);
+
                     if (!status.ok())
                     {
                         result.status = status;
                         return result;
                     }
+
                     if (sameOwner)
                     {
                         RegistryKey targetKey;
                         status = openRegistryKey(HKEY_CURRENT_USER, targetPath, KEY_READ | KEY_WRITE, targetKey, false);
+
                         if (!status.ok())
                         {
                             result.status = status;
@@ -2385,16 +2647,19 @@ namespace GameWIP::Desktop::Detail::Platform
                         }
                         std::wstring currentProgram;
                         status = readRegistryString(targetKey.get(), L"", currentProgram);
+
                         if (status.ok() && currentProgram == progId)
                         {
                             status = removeRegistryValue(targetKey.get(), L"");
                         }
+
                         if (!status.ok() && status.code != ErrorCode::NotFound)
                         {
                             result.status = status;
                             return result;
                         }
                         status = removeRegistryValue(targetKey.get(), L"GameWIP.OwnerKey");
+
                         if (!status.ok())
                         {
                             result.status = status;
@@ -2402,6 +2667,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         }
                     }
                     status = pruneEmptyRegistrationKey(targetPath);
+
                     if (!status.ok())
                     {
                         result.status = status;
@@ -2411,15 +2677,18 @@ namespace GameWIP::Desktop::Detail::Platform
                 else if (sameOwner)
                 {
                     status = deleteRegistryTree(HKEY_CURRENT_USER, targetPath, "delete shell registration target");
+
                     if (!status.ok())
                     {
                         result.status = status;
                         return result;
                     }
                 }
+
                 if (ownProgram)
                 {
                     status = deleteRegistryTree(HKEY_CURRENT_USER, progPath, "delete shell registration program");
+
                     if (!status.ok())
                     {
                         result.status = status;
@@ -2428,6 +2697,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 result.replacedOwned = true;
                 status = transaction.commit();
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -2491,11 +2761,13 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
+
         if (state.window == nullptr)
         {
             return IO::makeStatus(ErrorCode::NotOpen);
         }
         const NativeHandleView nativeHandleView = nativeHandle(*state.window);
+
         if (nativeHandleView.window == nullptr)
         {
             return IO::makeStatus(ErrorCode::NotOpen);
@@ -2506,10 +2778,12 @@ namespace GameWIP::Desktop::Detail::Platform
             native->window = static_cast<HWND>(nativeHandleView.window);
             state.platform = native;
             IO::Types::Status status = applyTaskbar(state);
+
             if (!status.ok())
             {
                 closeTaskbarBestEffort(state);
             }
+
             return status;
         }
         catch (const std::bad_alloc &)
@@ -2529,6 +2803,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<TaskbarNative *>(state.platform);
+
         if (native == nullptr || native->window == nullptr)
         {
             return IO::makeStatus(ErrorCode::NotOpen);
@@ -2548,11 +2823,13 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
             IO::Types::Status status = applyTaskbarButtons(*native, state.thumbnailButtons, newIcons);
+
             if (!status.ok())
             {
                 return status;
             }
             status = applyTaskbarProgress(*native, state.progress);
+
             if (!status.ok())
             {
                 cleanupIcons();
@@ -2560,6 +2837,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             ApartmentLease apartment;
+
             if (!apartment.status().ok())
             {
                 cleanupIcons();
@@ -2567,21 +2845,25 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ComPtr<ITaskbarList3> taskbar;
             HRESULT result = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(taskbar.put()));
+
             if (FAILED(result))
             {
                 cleanupIcons();
                 return statusFromHResult(result);
             }
             result = taskbar->HrInit();
+
             if (FAILED(result))
             {
                 cleanupIcons();
                 return statusFromHResult(result);
             }
             HICON newOverlay = nullptr;
+
             if (state.overlayIcon.has_value())
             {
                 newOverlay = createIcon(*state.overlayIcon);
+
                 if (newOverlay == nullptr)
                 {
                     cleanupIcons();
@@ -2589,6 +2871,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
             result = taskbar->SetOverlayIcon(native->window, newOverlay, L"");
+
             if (FAILED(result))
             {
                 if (newOverlay != nullptr)
@@ -2598,11 +2881,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 cleanupIcons();
                 return statusFromHResult(result);
             }
+
             if (native->overlay != nullptr)
             {
                 DestroyIcon(native->overlay);
             }
             native->overlay = newOverlay;
+
             for (HICON icon : native->buttonIcons)
             {
                 if (icon != nullptr)
@@ -2632,17 +2917,21 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<TaskbarNative *>(state.platform);
+
         if (native == nullptr)
         {
             state.open = false;
             return IO::successStatus();
         }
+
         if (native->overlay != nullptr)
         {
             ApartmentLease apartment;
+
             if (apartment.status().ok())
             {
                 ComPtr<ITaskbarList3> taskbar;
+
                 if (SUCCEEDED(CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(taskbar.put()))) &&
                     SUCCEEDED(taskbar->HrInit()))
                 {
@@ -2651,6 +2940,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             DestroyIcon(native->overlay);
         }
+
         for (HICON icon : native->buttonIcons)
         {
             if (icon != nullptr)
@@ -2675,12 +2965,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             TaskbarItemState *taskbar = window.taskbarItem;
             auto *native = static_cast<TaskbarNative *>(taskbar->platform);
+
             if (native != nullptr)
             {
                 if (native->overlay != nullptr)
                 {
                     DestroyIcon(native->overlay);
                 }
+
                 for (HICON icon : native->buttonIcons)
                 {
                     if (icon != nullptr)
@@ -2700,10 +2992,12 @@ namespace GameWIP::Desktop::Detail::Platform
     void routeTaskbarCommand(WindowState &window, std::uint32_t commandId) noexcept
     {
         TaskbarItemState *taskbar = window.taskbarItem;
+
         if (taskbar == nullptr || taskbar->eventQueue == nullptr || !taskbar->open)
         {
             return;
         }
+
         for (const OwnedThumbnailButton &button : taskbar->thumbnailButtons)
         {
             if (button.id.value == commandId && button.enabled)
@@ -2725,6 +3019,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         IO::Types::Status status = ensureTrayWindowClass();
+
         if (!status.ok())
         {
             return status;
@@ -2734,6 +3029,7 @@ namespace GameWIP::Desktop::Detail::Platform
             auto *native = new TrayNative();
             native->state = &state;
             native->taskbarCreatedMessage = RegisterWindowMessageW(L"TaskbarCreated");
+
             if (native->taskbarCreatedMessage == 0)
             {
                 delete native;
@@ -2753,6 +3049,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 nullptr,
                 GetModuleHandleW(nullptr),
                 native);
+
             if (native->window == nullptr)
             {
                 state.platform = nullptr;
@@ -2761,10 +3058,12 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             state.open = true;
             status = applyTray(state);
+
             if (!status.ok())
             {
                 closeTrayBestEffort(state);
             }
+
             return status;
         }
         catch (const std::bad_alloc &)
@@ -2784,12 +3083,14 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<TrayNative *>(state.platform);
+
         if (native == nullptr || native->window == nullptr || state.icons.empty())
         {
             return IO::makeStatus(ErrorCode::NotOpen);
         }
         const OwnedIconImage &selectedIcon = closestIcon(state.icons, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON));
         HICON newIcon = createIcon(selectedIcon);
+
         if (newIcon == nullptr)
         {
             return statusFromWin32(ErrorCode::NativeFailure, GetLastError(), "create tray icon");
@@ -2798,6 +3099,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             std::wstring tooltip;
             DWORD nativeCode = ERROR_SUCCESS;
+
             if (!utf8ToUtf16(state.tooltip, tooltip, nativeCode))
             {
                 DestroyIcon(newIcon);
@@ -2813,17 +3115,20 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::size_t length = std::min<std::size_t>(tooltip.size(), ARRAYSIZE(data.szTip) - 1);
             std::copy_n(tooltip.data(), length, data.szTip);
             const DWORD operation = native->icon == nullptr ? NIM_ADD : NIM_MODIFY;
+
             if (Shell_NotifyIconW(operation, &data) == FALSE)
             {
                 const DWORD errorCode = GetLastError();
                 DestroyIcon(newIcon);
                 return statusFromWin32(ErrorCode::NativeFailure, errorCode, "Shell_NotifyIconW tray icon");
             }
+
             if (native->icon == nullptr)
             {
                 data.uVersion = NOTIFYICON_VERSION_4;
                 native->version4 = Shell_NotifyIconW(NIM_SETVERSION, &data) != FALSE;
             }
+
             if (native->icon != nullptr)
             {
                 DestroyIcon(native->icon);
@@ -2850,6 +3155,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<TrayNative *>(state.platform);
+
         if (native == nullptr)
         {
             state.open = false;
@@ -2860,10 +3166,12 @@ namespace GameWIP::Desktop::Detail::Platform
         data.hWnd = native->window;
         data.uID = kTrayNativeId;
         static_cast<void>(Shell_NotifyIconW(NIM_DELETE, &data));
+
         if (native->window != nullptr)
         {
             DestroyWindow(native->window);
         }
+
         if (native->icon != nullptr)
         {
             DestroyIcon(native->icon);
@@ -2890,6 +3198,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         IO::Types::Status status = ensureNotificationWindowClass();
+
         if (!status.ok())
         {
             return status;
@@ -2912,6 +3221,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 nullptr,
                 GetModuleHandleW(nullptr),
                 native);
+
             if (native->window == nullptr)
             {
                 state.platform = nullptr;
@@ -2938,6 +3248,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<NotificationNative *>(state.platform);
+
         if (native == nullptr || native->window == nullptr)
         {
             return IO::makeStatus(ErrorCode::NotOpen);
@@ -2963,6 +3274,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<NotificationNative *>(state.platform);
+
         if (native == nullptr || native->window == nullptr)
         {
             return IO::makeStatus(ErrorCode::NotOpen);
@@ -2988,6 +3300,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<NotificationNative *>(state.platform);
+
         if (native == nullptr || native->window == nullptr)
         {
             return IO::makeStatus(ErrorCode::NotOpen);
@@ -2996,14 +3309,17 @@ namespace GameWIP::Desktop::Detail::Platform
         data.cbSize = sizeof(data);
         data.hWnd = native->window;
         data.uID = static_cast<UINT>(id);
+
         if (Shell_NotifyIconW(NIM_DELETE, &data) == FALSE)
         {
             const DWORD nativeCode = GetLastError();
+
             if (nativeCode != ERROR_FILE_NOT_FOUND)
             {
                 return statusFromWin32(ErrorCode::NativeFailure, nativeCode, "Shell_NotifyIconW dismiss notification");
             }
         }
+
         return IO::successStatus();
     }
 
@@ -3014,11 +3330,13 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
         auto *native = static_cast<NotificationNative *>(state.platform);
+
         if (native == nullptr)
         {
             state.open = false;
             return IO::successStatus();
         }
+
         for (const auto &entry : state.notifications)
         {
             NOTIFYICONDATAW data{};
@@ -3027,6 +3345,7 @@ namespace GameWIP::Desktop::Detail::Platform
             data.uID = static_cast<UINT>(entry.first);
             static_cast<void>(Shell_NotifyIconW(NIM_DELETE, &data));
         }
+
         if (native->window != nullptr)
         {
             DestroyWindow(native->window);
@@ -3058,6 +3377,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         out = nullptr;
         ApartmentLease apartment;
+
         if (!apartment.status().ok())
         {
             return apartment.status();
@@ -3066,11 +3386,13 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             ComPtr<IShellLinkW> link;
             const IO::Types::Status status = createJumpLink(task, link);
+
             if (status.ok())
             {
                 link->AddRef();
                 out = link.get();
             }
+
             return status;
         }
         catch (const std::bad_alloc &)
@@ -3087,6 +3409,7 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status publishJumpLists(const Types::JumpLists::Description &description) noexcept
     {
         ApartmentLease apartment;
+
         if (!apartment.status().ok())
         {
             return apartment.status();
@@ -3095,10 +3418,12 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             std::vector<std::wstring> recentItems;
             recentItems.reserve(description.recentItems.size());
+
             for (const Types::Shell::TargetView &target : description.recentItems)
             {
                 std::wstring recent;
                 DWORD nativeCode = ERROR_SUCCESS;
+
                 if (const auto *path = std::get_if<Types::Shell::PathTargetView>(&target))
                 {
                     recent = path->path.get().wstring();
@@ -3118,6 +3443,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ComPtr<ICustomDestinationList> list;
             HRESULT result = CoCreateInstance(CLSID_DestinationList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(list.put()));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -3125,6 +3451,7 @@ namespace GameWIP::Desktop::Detail::Platform
             UINT maximumSlots = 0;
             ComPtr<IObjectArray> removed;
             result = list->BeginList(&maximumSlots, IID_PPV_ARGS(removed.put()));
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -3135,19 +3462,23 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 ComPtr<IObjectCollection> collection;
                 result = CoCreateInstance(CLSID_EnumerableObjectCollection, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(collection.put()));
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
                 }
+
                 for (const Types::JumpLists::Task &task : description.tasks)
                 {
                     ComPtr<IShellLinkW> link;
                     IO::Types::Status status = createJumpLink(task, link);
+
                     if (!status.ok())
                     {
                         return status;
                     }
                     result = collection->AddObject(link.get());
+
                     if (FAILED(result))
                     {
                         return statusFromHResult(result);
@@ -3155,31 +3486,37 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 ComPtr<IObjectArray> objects;
                 result = collection->QueryInterface(IID_PPV_ARGS(objects.put()));
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
                 }
                 result = list->AddUserTasks(objects.get());
+
                 if (FAILED(result))
                 {
                     return statusFromHResult(result);
                 }
             }
+
             for (const Types::JumpLists::Category &category : description.categories)
             {
                 std::wstring label;
                 DWORD nativeCode = ERROR_SUCCESS;
+
                 if (!utf8ToUtf16(category.label, label, nativeCode))
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
                 }
                 IO::Types::Status status = appendJumpTasks(list.get(), label, category.tasks);
+
                 if (!status.ok())
                 {
                     return status;
                 }
             }
             result = list->CommitList();
+
             if (FAILED(result))
             {
                 return statusFromHResult(result);
@@ -3190,6 +3527,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 SHAddToRecentDocs(SHARD_PATHW, recent.c_str());
             }
+
             return IO::successStatus();
         }
         catch (const std::bad_alloc &)
@@ -3210,6 +3548,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::string target;
             std::wstring targetWide;
             IO::Types::Status status = normalizeTarget(description.extension, true, target, targetWide);
+
             if (!status.ok())
             {
                 result.status = status;
@@ -3220,14 +3559,17 @@ namespace GameWIP::Desktop::Detail::Platform
             bool sameOwner = false;
             std::string existingOwner;
             status = inspectTarget(targetPath, description.ownerKey, exists, sameOwner, existingOwner);
+
             if (!status.ok())
             {
                 result.status = status;
                 return result;
             }
+
             if (exists && !sameOwner)
             {
                 result.conflicts.push_back(makeConflict(Types::Registration::TargetKind::FileExtension, target, existingOwner));
+
                 if (description.conflictPolicy == Types::Registration::ConflictPolicy::Report ||
                     description.conflictPolicy == Types::Registration::ConflictPolicy::ReplaceOwned)
                 {
@@ -3243,6 +3585,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             const std::wstring progId = registrationProgId(true, description.ownerKey, target);
+
             if (progId.empty())
             {
                 result.status = IO::makeStatus(ErrorCode::EncodingFailed);
@@ -3251,9 +3594,11 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::wstring progPath = L"Software\\Classes\\" + progId;
             std::wstring applicationName;
             std::wstring applicationPath;
+
             if (description.defaultAction.has_value())
             {
                 status = applicationRegistrationIdentity(*description.defaultAction, applicationName, applicationPath);
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -3264,14 +3609,17 @@ namespace GameWIP::Desktop::Detail::Platform
                 std::string applicationOwner;
                 status =
                     inspectApplicationRegistration(applicationPath, description.ownerKey, applicationExists, applicationSameOwner, applicationOwner);
+
                 if (!status.ok())
                 {
                     result.status = status;
                     return result;
                 }
+
                 if (applicationExists && !applicationSameOwner)
                 {
                     status = appendApplicationConflict(applicationName, applicationOwner, result.conflicts);
+
                     if (!status.ok())
                     {
                         result.status = status;
@@ -3283,6 +3631,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             RegistryTreeBackup transaction(targetPath, progPath, applicationPath);
             status = transaction.capture();
+
             if (!status.ok())
             {
                 result.status = status;
@@ -3297,11 +3646,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.defaultAction,
                 description.verbs,
                 applicationName);
+
             if (!status.ok())
             {
                 result.status = status;
                 return result;
             }
+
             if (description.defaultAction.has_value())
             {
                 status = writeApplicationRegistration(
@@ -3312,16 +3663,19 @@ namespace GameWIP::Desktop::Detail::Platform
                     target,
                     description.icon,
                     *description.defaultAction);
+
                 if (!status.ok())
                 {
                     result.status = status;
                     return result;
                 }
             }
+
             if (!exists || sameOwner)
             {
                 RegistryKey targetKey;
                 status = openRegistryKey(HKEY_CURRENT_USER, targetPath, KEY_READ | KEY_WRITE, targetKey, true);
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -3329,18 +3683,21 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 DWORD nativeCode = ERROR_SUCCESS;
                 std::wstring owner;
+
                 if (!utf8ToUtf16(description.ownerKey, owner, nativeCode))
                 {
                     result.status = IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"GameWIP.OwnerKey", owner);
+
                 if (!status.ok())
                 {
                     result.status = status;
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"", progId);
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -3350,10 +3707,12 @@ namespace GameWIP::Desktop::Detail::Platform
             // Advertise this owner's handler even when a foreign default is retained.
             RegistryKey alternatives;
             status = openRegistryKey(HKEY_CURRENT_USER, targetPath + L"\\OpenWithProgids", KEY_READ | KEY_WRITE, alternatives, true);
+
             if (status.ok())
             {
                 status = registryStatus(RegSetValueExW(alternatives.get(), progId.c_str(), 0, REG_NONE, nullptr, 0), "write Open with entry");
             }
+
             if (!status.ok())
             {
                 result.status = status;
@@ -3361,6 +3720,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             result.replacedOwned = sameOwner;
             status = transaction.commit();
+
             if (!status.ok())
             {
                 result.status = status;
@@ -3389,6 +3749,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::string target;
             std::wstring targetWide;
             IO::Types::Status status = normalizeTarget(description.scheme, false, target, targetWide);
+
             if (!status.ok())
             {
                 result.status = status;
@@ -3399,14 +3760,17 @@ namespace GameWIP::Desktop::Detail::Platform
             bool sameOwner = false;
             std::string existingOwner;
             status = inspectTarget(targetPath, description.ownerKey, exists, sameOwner, existingOwner);
+
             if (!status.ok())
             {
                 result.status = status;
                 return result;
             }
+
             if (exists && !sameOwner)
             {
                 result.conflicts.push_back(makeConflict(Types::Registration::TargetKind::UriScheme, target, existingOwner));
+
                 if (description.conflictPolicy == Types::Registration::ConflictPolicy::Report ||
                     description.conflictPolicy == Types::Registration::ConflictPolicy::ReplaceOwned)
                 {
@@ -3422,6 +3786,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             const std::wstring progId = registrationProgId(false, description.ownerKey, target);
+
             if (progId.empty())
             {
                 result.status = IO::makeStatus(ErrorCode::EncodingFailed);
@@ -3430,6 +3795,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::wstring progPath = L"Software\\Classes\\" + progId;
             RegistryTreeBackup transaction(targetPath, progPath);
             status = transaction.capture();
+
             if (!status.ok())
             {
                 result.status = status;
@@ -3443,15 +3809,18 @@ namespace GameWIP::Desktop::Detail::Platform
                 description.icon,
                 description.defaultAction,
                 description.verbs);
+
             if (!status.ok())
             {
                 result.status = status;
                 return result;
             }
+
             if (!exists || sameOwner)
             {
                 RegistryKey targetKey;
                 status = openRegistryKey(HKEY_CURRENT_USER, targetPath, KEY_READ | KEY_WRITE, targetKey, true);
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -3459,24 +3828,28 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 DWORD nativeCode = ERROR_SUCCESS;
                 std::wstring owner;
+
                 if (!utf8ToUtf16(description.ownerKey, owner, nativeCode))
                 {
                     result.status = IO::makeStatus(ErrorCode::EncodingFailed, nativeCode);
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"GameWIP.OwnerKey", owner);
+
                 if (!status.ok())
                 {
                     result.status = status;
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"", progId);
+
                 if (!status.ok())
                 {
                     result.status = status;
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"URL Protocol", L"");
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -3490,10 +3863,12 @@ namespace GameWIP::Desktop::Detail::Platform
                     description.icon,
                     description.defaultAction,
                     description.verbs);
+
                 if (status.ok())
                 {
                     status = writeRegistryString(targetKey.get(), L"GameWIP.ProgId", progId);
                 }
+
                 if (!status.ok())
                 {
                     result.status = status;
@@ -3502,6 +3877,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             result.replacedOwned = sameOwner;
             status = transaction.commit();
+
             if (!status.ok())
             {
                 result.status = status;

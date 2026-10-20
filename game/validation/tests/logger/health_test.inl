@@ -45,6 +45,7 @@ void testShutdownAndHealthEpoch(TestContext &context)
                                     snapshot.effectiveOutput == Logger::Types::OutputMode::None &&
                                     snapshot.lastFailureSource == Logger::Types::Health::FailureSource::File &&
                                     snapshot.lastError != IO::Types::ErrorCode::Success && snapshot.failureCount > 0;
+
                 if (!healthy && !failed)
                 {
                     healthSnapshotsCoherent.store(false, std::memory_order_release);

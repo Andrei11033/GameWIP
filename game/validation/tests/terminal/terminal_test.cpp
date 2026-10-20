@@ -110,10 +110,12 @@ template <> struct std::formatter<TerminalReentrantFormat>
     template <typename FormatContext> auto format(const TerminalReentrantFormat &, FormatContext &context) const
     {
         const GameWIP::IO::Types::Status status = GameWIP::Terminal::writeText("inner");
+
         if (!status.ok())
         {
             throw std::runtime_error("terminal reentrant formatter write failed");
         }
+
         return std::format_to(context.out(), "outer");
     }
 };
@@ -128,10 +130,12 @@ template <> struct std::formatter<TerminalSessionReentrantFormat>
     template <typename FormatContext> auto format(const TerminalSessionReentrantFormat &value, FormatContext &context) const
     {
         const GameWIP::IO::Types::Status status = value.useGlobalOutput ? GameWIP::Terminal::writeText("global") : value.session->writeText("inner");
+
         if (!status.ok())
         {
             throw std::runtime_error("terminal Session reentrant formatter write failed");
         }
+
         return std::format_to(context.out(), "outer");
     }
 };
@@ -213,6 +217,7 @@ namespace
     [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == expected)
@@ -220,6 +225,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
@@ -243,10 +249,12 @@ namespace
         sessionOptions.deliveryMode = Terminal::Types::Input::DeliveryMode::Stream;
 
         Terminal::Session session;
+
         if (!session.open(sessionOptions).ok())
         {
             return 1;
         }
+
         if (!session.print("{}", TerminalSessionReentrantFormat{.session = &session}).ok())
         {
             return 2;
@@ -254,21 +262,25 @@ namespace
 
         Terminal::Types::Output::LineOptions lineOptions;
         lineOptions.lineEnding = Terminal::Types::Output::LineEnding::Lf;
+
         if (!session.println(lineOptions, "{}", TerminalSessionReentrantFormat{.session = &session}).ok())
         {
             return 3;
         }
+
         if (!session.print("{}", TerminalSessionReentrantFormat{.session = &session, .useGlobalOutput = true}).ok())
         {
             return 4;
         }
 
         ErrorCode closeCode = ErrorCode::Unknown;
+
         if (!session.print("{}", TerminalSessionCloseFormat{.session = &session, .closeCode = &closeCode}).ok() ||
             closeCode != ErrorCode::ResourceBusy || !session.isOpen())
         {
             return 5;
         }
+
         return session.close().ok() ? 0 : 6;
     }
 
@@ -325,6 +337,7 @@ namespace
         }
 
         std::string reason = std::format("{} failed with {}", operation, IO::errorCodeName(status.code));
+
         if (!status.message.empty())
         {
             reason += std::format(": {}", status.message);
@@ -528,6 +541,7 @@ namespace GameWIP::Test
         {
             return runReentrantFormatChild();
         }
+
         if (hasArgument(argc, argv, kSessionReentrantFormatChildArgument))
         {
             return runSessionReentrantFormatChild();
@@ -588,6 +602,7 @@ namespace GameWIP::Test
 #endif
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
+
         if (options.enableManualTests)
         {
             runner.summary(

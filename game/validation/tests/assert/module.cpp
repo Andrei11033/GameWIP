@@ -22,6 +22,7 @@ namespace
             "--assert-test-child=interactive-break",
         };
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::ranges::find(selectors, std::string_view(value)) != std::end(selectors))
@@ -29,6 +30,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 

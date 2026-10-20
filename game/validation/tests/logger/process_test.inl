@@ -18,6 +18,7 @@
 [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view argument)
 {
     const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
     for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
     {
         if (value != nullptr && std::string_view(value) == argument)
@@ -25,6 +26,7 @@
             return true;
         }
     }
+
     return false;
 }
 
@@ -37,6 +39,7 @@ int runFatalTerminateChild()
     config.output = Logger::Types::OutputMode::None;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
+
     if (const char *directory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
@@ -58,6 +61,7 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
 
     const std::filesystem::path directory = testDirectory(context, "fatal-terminate-child");
     const TestSupport::ScopedEnvironmentVariable environment(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(directory));
+
     if (!environment.status().ok())
     {
         context.fail("set fatalTerminate child directory", TestSupport::formatInfrastructureStatus(environment.status()));
@@ -70,6 +74,7 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
         child.status.ok() && child.outcome == TestSupport::Types::Process::Outcome::Exited && child.exitCode != 0);
 
     std::string contents;
+
     for (const auto &entry : std::filesystem::directory_iterator(directory))
     {
         if (entry.is_regular_file())
@@ -93,6 +98,7 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
     config.enableFatalPopup = true;
     const auto initialized = Logger::init(config);
     expectStarted(context, "manual fatal popup init", initialized);
+
     if (!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
     {
         return;
@@ -102,6 +108,7 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
         "manual fatal popup report delivered",
         reportDelivered(report),
         std::format("code={} native={} message={}", IO::errorCodeName(report.status.code), report.status.nativeCode, report.status.message));
+
     if (!reportDelivered(report))
     {
         return;
@@ -109,6 +116,7 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
     std::string skipReason;
     const auto answer =
         TestSupport::promptManualCheck("Did the fatal popup show the Manual Logger message, and could you close it normally?", skipReason);
+
     switch (answer)
     {
     case TestSupport::Types::Reporting::ManualAnswer::Yes:

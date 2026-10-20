@@ -38,6 +38,7 @@ function Assert-GameWipRunId
     )
 
     $actualId = [string]$Run.databaseId
+
     if ($actualId -ne $ExpectedId)
     {
         throw "Expected workflow run '$ExpectedId', received '$actualId'."
@@ -92,6 +93,7 @@ $staleRun = Wait-GameWipWorkflowRun `
     -WorkflowFile 'project-automation.yml' `
     -PreviousIds @() `
     -DispatchedAfter $dispatchTime
+
 if ($null -ne $staleRun)
 {
     throw 'A workflow run older than the dispatch window was incorrectly correlated.'
@@ -113,6 +115,7 @@ $script:WorkflowRunResponses = @(
 )
 
 $ambiguityRejected = $false
+
 try
 {
     $null = Wait-GameWipWorkflowRun `
@@ -120,6 +123,7 @@ try
         -PreviousIds @() `
         -DispatchedAfter $dispatchTime
 }
+
 catch
 {
     if ($_.Exception.Message -notmatch 'correlation is ambiguous')
@@ -139,6 +143,7 @@ $missingRun = Wait-GameWipWorkflowRun `
     -WorkflowFile 'project-automation.yml' `
     -PreviousIds @() `
     -DispatchedAfter $dispatchTime
+
 if ($null -ne $missingRun)
 {
     throw 'Expected a null result when no workflow run becomes visible.'

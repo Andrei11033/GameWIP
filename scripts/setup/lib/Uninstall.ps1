@@ -11,10 +11,12 @@ function Write-GameWipUninstallSection
     param([Parameter(Mandatory = $true)][string]$Title, [string[]]$Items = @())
     Write-Host ''
     Write-Host "${Title}:"
+
     if ($Items.Count -eq 0)
     {
         Write-Host '  (none)'; return
     }
+
     foreach ($item in $Items)
     {
         Write-Host "  - $item"
@@ -32,6 +34,7 @@ function Invoke-GameWipEditorIntegrationRemoval
     $extensionSource = Join-Path $RepositoryRoot 'scripts\setup\editor\gamewip-workflows'
     $package = Get-Content -Raw -LiteralPath (Join-Path $extensionSource 'package.json') | ConvertFrom-Json
     $extensionId = "$($package.publisher).$($package.name)"
+
     if (Test-GameWipSetupCommand -Name code)
     {
         Invoke-GameWipSetupNative -FilePath code -ArgumentList @('--uninstall-extension', $extensionId) -AllowedExitCodes @(0, 1) | Out-Null
@@ -42,10 +45,12 @@ function Invoke-GameWipEditorIntegrationRemoval
     }
 
     $keybindings = Join-Path $env:APPDATA 'Code\User\keybindings.json'
+
     if (Test-Path -LiteralPath $keybindings)
     {
         $text = Get-Content -Raw -LiteralPath $keybindings
         $updated = [regex]::Replace($text, '(?ms)\s*,?\s*// GameWIP managed keybindings begin.*?// GameWIP managed keybindings end\s*', '')
+
         if ($updated -ne $text)
         {
             Write-GameWipTextAtomic -Path $keybindings -Content $updated
@@ -75,6 +80,7 @@ function Invoke-GameWipUninstall
 
     $proven.Add('GameWIP VS Code workflow integration and managed keybinding block') | Out-Null
     $planned.Add('GameWIP VS Code workflow integration and managed keybinding block') | Out-Null
+
     if ($null -ne $toolMarker)
     {
         $proven.Add("$toolRoot ($($toolMarker.origin))") | Out-Null; $planned.Add($toolRoot) | Out-Null
@@ -97,10 +103,12 @@ function Invoke-GameWipUninstall
     {
         $recorded.Add("WinGet package $id") | Out-Null; $planned.Add("WinGet package $id") | Out-Null
     }
+
     foreach ($id in @($state.vscodeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
     {
         $recorded.Add("VS Code extension $id") | Out-Null; $planned.Add("VS Code extension $id") | Out-Null
     }
+
     foreach ($tree in @('build/gamewip/cache/tracy', 'build/dev', 'build/docs', 'disposable setup/editor state'))
     {
         $planned.Add($tree) | Out-Null
@@ -128,6 +136,7 @@ function Invoke-GameWipUninstall
     }
     Invoke-GameWipMutationBody -Body {
         Invoke-GameWipEditorIntegrationRemoval
+
         if (Test-GameWipSetupCommand -Name code)
         {
             foreach ($id in @($state.vscodeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
@@ -135,6 +144,7 @@ function Invoke-GameWipUninstall
                 Invoke-GameWipSetupNative -FilePath code -ArgumentList @('--uninstall-extension', $id) -AllowedExitCodes @(0, 1) | Out-Null
             }
         }
+
         if ($null -ne $toolMarker)
         {
             Invoke-GameWipOwnedTreeRemoval -Path $toolRoot -OwnedRoot $msysRoot -RequireMarker -MarkerName '.gamewip-managed.json'
@@ -142,27 +152,33 @@ function Invoke-GameWipUninstall
         }
         $cacheRoot = Join-Path $RepositoryRoot $ProjectConfig.storage.cache
         $tracy = Join-Path $cacheRoot 'tracy'
+
         if (Test-Path -LiteralPath $tracy)
         {
             Invoke-GameWipOwnedTreeRemoval -Path $tracy -OwnedRoot $cacheRoot
         }
         $buildRoot = Join-Path $RepositoryRoot 'build'
+
         foreach ($tree in @('dev', 'docs'))
         {
             $path = Join-Path $buildRoot $tree
+
             if (Test-Path -LiteralPath $path)
             {
                 Invoke-GameWipOwnedTreeRemoval -Path $path -OwnedRoot $buildRoot
             }
         }
+
         foreach ($id in @($state.wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
         {
             Uninstall-GameWipWingetPackage -Id $id
         }
+
         if ($msysState.Status -eq 'valid' -and $msysState.Marker.payload.installedBySetup -eq $true -and (Test-Path -LiteralPath $msysRoot))
         {
             Add-GameWipOperationWarning -Message "MSYS2 was installed by GameWIP but may now contain user data. Review '$msysRoot' manually before removing it."
         }
+
         foreach ($path in @($script:SetupStatePath, (Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot)))
         {
             if (Test-Path -LiteralPath $path -PathType Leaf)

@@ -41,6 +41,7 @@ namespace GameWIP::IO::Detail::Core
             KnownReadableByteCount result;
 
             Types::SizeResult sizeResult = reader.size();
+
             if (!sizeResult.status.ok())
             {
                 if (isUnsupportedReaderCapability(sizeResult.status))
@@ -56,6 +57,7 @@ namespace GameWIP::IO::Detail::Core
             result.byteCount = sizeResult.sizeBytes;
 
             Types::PositionResult positionResult = reader.position();
+
             if (!positionResult.status.ok())
             {
                 if (isUnsupportedReaderCapability(positionResult.status))
@@ -91,6 +93,7 @@ namespace GameWIP::IO::Detail::Core
         [[nodiscard]] Types::ReadAllTextResult finalizeReadAllText(Types::ReadAllTextResult result) noexcept
         {
             const Unicode::Types::Utf8::ValidationResult validation = Unicode::Utf8::validate(result.text);
+
             if (validation.outcome == Unicode::Types::ValidationOutcome::Valid)
             {
                 return result;
@@ -99,6 +102,7 @@ namespace GameWIP::IO::Detail::Core
             result.text.resize(validation.validPrefixBytes);
 
             const bool reachedDefinitiveEnd = result.status.ok() || result.status.code == Types::ErrorCode::PartialRead;
+
             if (validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding || reachedDefinitiveEnd)
             {
                 result.status = makeStatus(Types::ErrorCode::EncodingFailed);
@@ -406,6 +410,7 @@ namespace GameWIP::IO::Detail::Core
                 if (readResult.bytesRead > 0)
                 {
                     Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)));
+
                     if (!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
@@ -465,6 +470,7 @@ namespace GameWIP::IO::Detail::Core
                 if (readResult.bytesRead > 0)
                 {
                     Types::Status appendStatus = appendTextBytes(result.text, std::as_bytes(request.first(readResult.bytesRead)));
+
                     if (!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
@@ -511,6 +517,7 @@ namespace GameWIP::IO
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
+
         if (!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};
@@ -566,6 +573,7 @@ namespace GameWIP::IO
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
+
         if (!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};
@@ -592,6 +600,7 @@ namespace GameWIP::IO
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
+
         if (!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};
@@ -647,6 +656,7 @@ namespace GameWIP::IO
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
+
         if (!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};

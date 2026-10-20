@@ -3,10 +3,7 @@
   "title": "GameWIP project tool registry",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "schemaVersion",
-    "tools"
-  ],
+  "required": ["schemaVersion", "tools"],
   "properties": {
     "schemaVersion": {
       "const": 1,
@@ -25,16 +22,7 @@
     "tool": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "category",
-        "provider",
-        "versionPolicy",
-        "detection",
-        "capabilities",
-        "references"
-      ],
+      "required": ["id", "name", "category", "provider", "versionPolicy", "detection", "capabilities", "references"],
       "properties": {
         "id": {
           "type": "string",
@@ -52,12 +40,7 @@
           "$ref": "#/$defs/provider"
         },
         "versionPolicy": {
-          "enum": [
-            "exact",
-            "minimum",
-            "managed",
-            "informational"
-          ]
+          "enum": ["exact", "minimum", "managed", "informational"]
         },
         "requiredVersion": {
           "type": "string",
@@ -81,20 +64,13 @@
           "if": {
             "properties": {
               "versionPolicy": {
-                "enum": [
-                  "exact",
-                  "minimum"
-                ]
+                "enum": ["exact", "minimum"]
               }
             },
-            "required": [
-              "versionPolicy"
-            ]
+            "required": ["versionPolicy"]
           },
           "then": {
-            "required": [
-              "requiredVersion"
-            ]
+            "required": ["requiredVersion"]
           }
         }
       ]
@@ -127,21 +103,13 @@
     "providerMsys2": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "environment",
-        "package"
-      ],
+      "required": ["kind", "environment", "package"],
       "properties": {
         "kind": {
           "const": "msys2"
         },
         "environment": {
-          "enum": [
-            "common",
-            "ucrt64",
-            "clang64"
-          ]
+          "enum": ["common", "ucrt64", "clang64"]
         },
         "package": {
           "type": "string",
@@ -158,10 +126,7 @@
     "providerNpm": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "package"
-      ],
+      "required": ["kind", "package"],
       "properties": {
         "kind": {
           "const": "npm"
@@ -181,10 +146,7 @@
     "providerPython": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "package"
-      ],
+      "required": ["kind", "package"],
       "properties": {
         "kind": {
           "const": "python"
@@ -204,10 +166,7 @@
     "providerPowerShellGallery": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "package"
-      ],
+      "required": ["kind", "package"],
       "properties": {
         "kind": {
           "const": "powershellGallery"
@@ -221,12 +180,7 @@
     "providerGitHubRelease": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "repository",
-        "releaseTag",
-        "assets"
-      ],
+      "required": ["kind", "repository", "releaseTag", "assets"],
       "properties": {
         "kind": {
           "const": "githubRelease"
@@ -255,10 +209,7 @@
     "providerWinget": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "package"
-      ],
+      "required": ["kind", "package"],
       "properties": {
         "kind": {
           "const": "winget"
@@ -282,10 +233,7 @@
     "providerExternal": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind",
-        "homepage"
-      ],
+      "required": ["kind", "homepage"],
       "properties": {
         "kind": {
           "const": "external"
@@ -300,9 +248,7 @@
     "providerPackage": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "package"
-      ],
+      "required": ["package"],
       "properties": {
         "package": {
           "type": "string",
@@ -313,21 +259,14 @@
           "minLength": 1
         },
         "environment": {
-          "enum": [
-            "common",
-            "ucrt64",
-            "clang64"
-          ]
+          "enum": ["common", "ucrt64", "clang64"]
         }
       }
     },
     "asset": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "archive",
-        "sha256"
-      ],
+      "required": ["archive", "sha256"],
       "properties": {
         "archive": {
           "type": "string",
@@ -338,21 +277,14 @@
           "pattern": "^[0-9a-f]{64}$"
         },
         "format": {
-          "enum": [
-            "archive",
-            "executable"
-          ]
+          "enum": ["archive", "executable"]
         }
       }
     },
     "detection": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "command",
-        "versionArguments",
-        "versionPattern"
-      ],
+      "required": ["command", "versionArguments", "versionPattern"],
       "properties": {
         "command": {
           "type": "string",
@@ -388,11 +320,7 @@
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "detectInstalled",
-        "checkLatest",
-        "update"
-      ],
+      "required": ["detectInstalled", "checkLatest", "update"],
       "properties": {
         "detectInstalled": {
           "type": "boolean"
@@ -411,10 +339,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "path",
-            "kind"
-          ],
+          "required": ["path", "kind"],
           "properties": {
             "path": {
               "type": "string",
@@ -428,11 +353,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "path",
-            "kind",
-            "pattern"
-          ],
+          "required": ["path", "kind", "pattern"],
           "properties": {
             "path": {
               "type": "string",
@@ -455,10 +376,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "path",
-            "kind"
-          ],
+          "required": ["path", "kind"],
           "properties": {
             "path": {
               "type": "string",

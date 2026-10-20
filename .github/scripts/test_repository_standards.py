@@ -26,10 +26,12 @@ class UnicodeAuthorityTests(unittest.TestCase):
             fixture.write_text(contents, encoding="utf-8")
             previous_root = CHECKER.ROOT
             CHECKER.ROOT = root
+
             try:
                 failures: list[str] = []
                 CHECKER.check_unicode_conversion_authority(failures)
                 return failures
+
             finally:
                 CHECKER.ROOT = previous_root
 
@@ -74,6 +76,7 @@ class UnicodeAuthorityTests(unittest.TestCase):
         self.assertEqual(len(failures), 1)
 
     def test_character_literals_do_not_corrupt_scanning(self) -> None:
+
         for literal in ("'x'", "L'x'", "u'x'", "U'x'", "u8'x'", "'\\''"):
             with self.subTest(literal=literal):
                 failures = self.check_fixture("fixture.cpp", f"auto value = {literal};\nMultiByteToWideChar(...);\n")
@@ -104,14 +107,17 @@ class UnicodeAuthorityTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "fixture.cpp").write_text("auto value = MultiByteToWideChar();\n", encoding="utf-8")
+
             for excluded in (".git", "build", "external", "generated", "vendor"):
                 path = root / excluded / "fixture.cpp"
                 path.parent.mkdir(parents=True)
                 path.write_text("auto value = MultiByteToWideChar();\n", encoding="utf-8")
             previous_root = CHECKER.ROOT
             CHECKER.ROOT = root
+
             try:
                 self.assertEqual([path.relative_to(root).as_posix() for path in CHECKER.maintained_files()], ["fixture.cpp"])
+
             finally:
                 CHECKER.ROOT = previous_root
 

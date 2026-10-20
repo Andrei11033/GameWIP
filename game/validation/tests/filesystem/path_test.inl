@@ -6,6 +6,7 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
 {
     const std::string utf8Name = std::string{"unicode_"} + "\xD1\x84\xD0\xB0\xD0\xB9\xD0\xBB.txt";
     const auto namePath = FileSystem::pathFromUtf8(utf8Name);
+
     if (!expectStatus(context, "pathFromUtf8 succeeds for non-ASCII filename", namePath.status))
     {
         return;
@@ -20,6 +21,7 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
     const std::u8string utf8Name8 = u8"unicode_файл8.txt";
     const auto namePath8 = FileSystem::pathFromUtf8(std::u8string_view(utf8Name8));
     static_cast<void>(context.expectTrue("pathFromUtf8 accepts explicit char8_t text", namePath8.status.ok()));
+
     if (namePath8.status.ok())
     {
         const auto roundTrip8 = FileSystem::pathToUtf8(namePath8.path);

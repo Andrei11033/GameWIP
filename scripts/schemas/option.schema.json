@@ -4,24 +4,14 @@
   "title": "GameWIP command-line option",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "id",
-    "kind",
-    "description"
-  ],
+  "required": ["id", "kind", "description"],
   "properties": {
     "id": {
       "type": "string",
       "pattern": "^[A-Za-z][A-Za-z0-9]*$"
     },
     "kind": {
-      "enum": [
-        "switch",
-        "string",
-        "integer",
-        "choice",
-        "string-list"
-      ]
+      "enum": ["switch", "string", "integer", "choice", "string-list"]
     },
     "valueName": {
       "type": "string",

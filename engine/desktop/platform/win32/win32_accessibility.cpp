@@ -43,6 +43,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::array xs{r.x, r.x + r.width, r.x, r.x + r.width};
             const std::array ys{r.y, r.y, r.y + r.height, r.y + r.height};
             double left = std::numeric_limits<double>::max(), top = left, right = -left, bottom = -left;
+
             for (unsigned i = 0; i < 4; ++i)
             {
                 const double x = t.m11 * xs[i] + t.m21 * ys[i] + t.tx, y = t.m12 * xs[i] + t.m22 * ys[i] + t.ty;
@@ -51,6 +52,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 top = std::min(top, y);
                 bottom = std::max(bottom, y);
             }
+
             return {left, top, right - left, bottom - top};
         }
 
@@ -149,6 +151,7 @@ namespace GameWIP::Desktop::Detail::Platform
             case A::Role::Count:
                 return UIA_CustomControlTypeId;
             }
+
             return UIA_CustomControlTypeId;
         }
 
@@ -210,6 +213,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto reference = sources[q.index];
             source = reference.first;
             index = reference.second;
+
             if (source >= q.snapshot->storage.nodes.size())
             {
                 return nullptr;
@@ -248,10 +252,12 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT string(VARIANT *out, std::u16string_view value) noexcept
         {
             const auto hr = stringValue(value, &out->bstrVal);
+
             if (SUCCEEDED(hr))
             {
                 out->vt = VT_BSTR;
             }
+
             return hr;
         }
 
@@ -264,12 +270,14 @@ namespace GameWIP::Desktop::Detail::Platform
                     return r.targets;
                 }
             }
+
             return {};
         }
 
         bool descendant(const PublishedSnapshot &snapshot, const A::Node &node, A::NodeId ancestor) noexcept
         {
             const auto nodeIndex = snapshot.findIndex(node.id), ancestorIndex = snapshot.findIndex(ancestor);
+
             if (nodeIndex >= snapshot.storage.nodes.size() || ancestorIndex >= snapshot.storage.nodes.size())
             {
                 return false;
@@ -292,6 +300,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return;
             }
             const auto beforeIndex = event.before->findIndex(event.notification.node), afterIndex = event.after->findIndex(event.notification.node);
+
             if (beforeIndex >= event.before->storage.nodes.size() || afterIndex >= event.after->storage.nodes.size())
             {
                 return;
@@ -299,6 +308,7 @@ namespace GameWIP::Desktop::Detail::Platform
             UiaQuery before{runtime, event.before, &event.before->storage.nodes[beforeIndex], beforeIndex};
             UiaQuery after{runtime, event.after, &event.after->storage.nodes[afterIndex], afterIndex};
             AccessibilityHostGeometry host;
+
             if (runtime->readGeometry(host))
             {
                 before.host = after.host = host;
@@ -307,22 +317,27 @@ namespace GameWIP::Desktop::Detail::Platform
             auto protectedAfter = *after.node;
             const auto current = runtime->snapshot.load();
             const auto *currentNode = current ? current->find(after.node->id) : nullptr;
+
             if (!currentNode)
             {
                 return;
             }
+
             if (after.node->exposure == A::Exposure::RedactContent || currentNode->exposure == A::Exposure::RedactContent)
             {
                 protectedBefore.exposure = A::Exposure::RedactContent;
             }
+
             if (currentNode->exposure == A::Exposure::RedactContent)
             {
                 protectedAfter.exposure = A::Exposure::RedactContent;
             }
+
             if (valueHidden(*after.node) || valueHidden(*currentNode))
             {
                 protectedBefore.states.flags |= static_cast<std::uint64_t>(A::State::Sensitive);
             }
+
             if (valueHidden(*currentNode))
             {
                 protectedAfter.states.flags |= static_cast<std::uint64_t>(A::State::Sensitive);
@@ -330,6 +345,7 @@ namespace GameWIP::Desktop::Detail::Platform
             before.node = &protectedBefore;
             after.node = &protectedAfter;
             VARIANT oldValue{}, newValue{};
+
             if (SUCCEEDED(property(before, id, &oldValue)) && SUCCEEDED(property(after, id, &newValue)))
             {
                 static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider, id, oldValue, newValue));
@@ -367,29 +383,35 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         UiaQuery result;
         result.runtime = runtime.lock();
+
         if (!result.runtime || !result.runtime->live.load())
         {
             return result;
         }
         result.snapshot = result.runtime->snapshot.load();
+
         if (!result.snapshot)
         {
             return result;
         }
         result.index = result.snapshot->findIndex(id);
+
         if (result.index < result.snapshot->storage.nodes.size())
         {
             result.node = &result.snapshot->storage.nodes[result.index];
         }
         AccessibilityHostGeometry host;
+
         if (result.runtime->readGeometry(host))
         {
             result.host = host;
         }
+
         if (!result.runtime->live.load())
         {
             result.node = nullptr;
         }
+
         return result;
     }
 
@@ -429,10 +451,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         const auto &host = *query.host;
         const auto &layout = static_cast<const UiaSnapshot *>(query.snapshot->native.get())->layout[query.index];
+
         if (!layout.visible)
         {
             return {};
         }
+
         if (layout.clip)
         {
             rect = intersection(rect, *layout.clip);
@@ -444,6 +468,7 @@ namespace GameWIP::Desktop::Detail::Platform
     UiaRect nodeBounds(const UiaQuery &query) noexcept
     {
         auto rect = static_cast<const UiaSnapshot *>(query.snapshot->native.get())->layout[query.index].bounds;
+
         if (query.node->id == query.snapshot->storage.root && !query.node->geometry)
         {
             if (!query.host)
@@ -452,6 +477,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             rect = {0, 0, query.host->width, query.host->height};
         }
+
         return clientRect(query, rect);
     }
 
@@ -473,15 +499,18 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         auto *array = SafeArrayCreateVector(VT_UNKNOWN, 0, static_cast<ULONG>(ids.size()));
+
         if (!array)
         {
             return E_OUTOFMEMORY;
         }
+
         for (std::size_t i = 0; i < ids.size(); ++i)
         {
             LONG index = static_cast<LONG>(i);
             IUnknown *provider = providerFor(snapshot, ids[i]);
             const auto hr = SafeArrayPutElement(array, &index, provider);
+
             if (FAILED(hr))
             {
                 SafeArrayDestroy(array);
@@ -502,12 +531,14 @@ namespace GameWIP::Desktop::Detail::Platform
             return E_POINTER;
         }
         VariantInit(out);
+
         if (!q)
         {
             return kUnavailable;
         }
         const auto &n = *q.node;
         const bool redact = n.exposure == A::Exposure::RedactContent;
+
         switch (id)
         {
         case UIA_ControlTypePropertyId:
@@ -528,10 +559,12 @@ namespace GameWIP::Desktop::Detail::Platform
             std::array<char16_t, 24> wide{};
             const auto result = std::to_chars(digits.begin(), digits.end(), n.id);
             const auto length = static_cast<std::size_t>(result.ptr - digits.data());
+
             for (std::size_t i = 0; i < length; ++i)
             {
                 wide[i] = static_cast<char16_t>(digits[i]);
             }
+
             return string(out, {wide.data(), length});
         }
         case UIA_FrameworkIdPropertyId:
@@ -570,14 +603,17 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto r = nodeBounds(q);
             const std::array values{r.left, r.top, r.width, r.height};
             auto *array = SafeArrayCreateVector(VT_R8, 0, 4);
+
             if (!array)
             {
                 return E_OUTOFMEMORY;
             }
+
             for (LONG i = 0; i < 4; ++i)
             {
                 double value = values[static_cast<std::size_t>(i)];
                 const auto hr = SafeArrayPutElement(array, &i, &value);
+
                 if (FAILED(hr))
                 {
                     SafeArrayDestroy(array);
@@ -653,10 +689,12 @@ namespace GameWIP::Desktop::Detail::Platform
             if (n.selection)
             {
                 const auto hr = nodeArray(*q.snapshot, n.selection->selectedNodes, &out->parray);
+
                 if (SUCCEEDED(hr))
                 {
                     out->vt = VT_ARRAY | VT_UNKNOWN;
                 }
+
                 return hr;
             }
             break;
@@ -666,6 +704,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout[q.index];
             out->punkVal =
                 providerFor(*q.snapshot, id == UIA_SelectionItemSelectionContainerPropertyId ? layout.selectionContainer : layout.containingGrid);
+
             if (out->punkVal)
             {
                 out->punkVal->AddRef();
@@ -685,12 +724,14 @@ namespace GameWIP::Desktop::Detail::Platform
             if (n.selection)
             {
                 A::NodeId selected = n.selection->activeNode;
+
                 if (id != UIA_Selection2CurrentSelectedItemPropertyId && !n.selection->selectedNodes.empty())
                 {
                     selected =
                         id == UIA_Selection2FirstSelectedItemPropertyId ? n.selection->selectedNodes.front() : n.selection->selectedNodes.back();
                 }
                 out->punkVal = providerFor(*q.snapshot, selected);
+
                 if (out->punkVal)
                 {
                     out->punkVal->AddRef();
@@ -752,10 +793,12 @@ namespace GameWIP::Desktop::Detail::Platform
                     id == UIA_TableRowHeadersPropertyId || id == UIA_TableItemRowHeaderItemsPropertyId ? A::RelationKind::RowHeaders
                                                                                                        : A::RelationKind::ColumnHeaders),
                 &out->parray);
+
             if (SUCCEEDED(hr))
             {
                 out->vt = VT_ARRAY | VT_UNKNOWN;
             }
+
             return hr;
         }
         case UIA_PositionInSetPropertyId:
@@ -815,9 +858,11 @@ namespace GameWIP::Desktop::Detail::Platform
         case UIA_LabeledByPropertyId:
         {
             const auto ids = relation(n, A::RelationKind::LabelledBy);
+
             if (!ids.empty())
             {
                 out->punkVal = providerFor(*q.snapshot, ids.front());
+
                 if (out->punkVal)
                 {
                     out->punkVal->AddRef();
@@ -836,10 +881,12 @@ namespace GameWIP::Desktop::Detail::Platform
                               : id == UIA_FlowsToPropertyId       ? A::RelationKind::FlowsTo
                                                                   : A::RelationKind::FlowsFrom;
             const auto hr = nodeArray(*q.snapshot, relation(n, kind), &out->parray);
+
             if (SUCCEEDED(hr))
             {
                 out->vt = VT_ARRAY | VT_UNKNOWN;
             }
+
             return hr;
         }
         case UIA_IsInvokePatternAvailablePropertyId:
@@ -891,10 +938,12 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             std::size_t source = 0, annotationIndex = 0;
             const auto *annotation = annotationFor(q, source, annotationIndex);
+
             if (!annotation)
             {
                 break;
             }
+
             if (id == UIA_AnnotationAnnotationTypeIdPropertyId)
             {
                 return integer(
@@ -903,13 +952,16 @@ namespace GameWIP::Desktop::Detail::Platform
                     : annotation->kind == A::TextAnnotationKind::Emphasis ? AnnotationType_Highlighted
                                                                           : AnnotationType_Unknown);
             }
+
             if (id == UIA_AnnotationAnnotationTypeNamePropertyId)
             {
                 return string(out, q.snapshot->textCache[source].annotationValues[annotationIndex]);
             }
+
             if (id == UIA_AnnotationTargetPropertyId)
             {
                 out->punkVal = providerFor(*q.snapshot, q.snapshot->storage.nodes[source].id);
+
                 if (out->punkVal)
                 {
                     out->punkVal->AddRef();
@@ -917,11 +969,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 out->vt = VT_UNKNOWN;
                 break;
             }
+
             return string(out, {});
         }
         default:
             break;
         }
+
         return S_OK;
     }
     // ------------------------------------------------------------
@@ -936,6 +990,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         request.node = q.node->id;
         request.observedGeneration = q.snapshot->storage.generation;
+
         switch (submitAccessibilityAction(*q.runtime, std::move(request)).acceptance)
         {
         case A::ActionAcceptance::Accepted:
@@ -951,6 +1006,7 @@ namespace GameWIP::Desktop::Detail::Platform
         case A::ActionAcceptance::Rejected:
             return static_cast<HRESULT>(UIA_E_ELEMENTNOTENABLED);
         }
+
         return E_FAIL;
     }
 
@@ -978,6 +1034,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return E_POINTER;
         }
         *out = nullptr;
+
         if (IsEqualIID(iid, IID_IUnknown) || IsEqualIID(iid, __uuidof(IRawElementProviderSimple)))
         {
             *out = static_cast<IRawElementProviderSimple *>(this);
@@ -1028,10 +1085,12 @@ namespace GameWIP::Desktop::Detail::Platform
     ULONG NodeProvider::Release()
     {
         const auto remaining = references_.fetch_sub(1) - 1;
+
         if (remaining == 0)
         {
             delete this;
         }
+
         return remaining;
     }
 
@@ -1054,14 +1113,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!(id == UIA_AnnotationPatternId || id == UIA_TextChildPatternId ? annotationSupported(q) : patternSupported(*q.node, id)))
         {
             return S_OK;
         }
+
         switch (id)
         {
         case UIA_InvokePatternId:
@@ -1125,10 +1187,12 @@ namespace GameWIP::Desktop::Detail::Platform
         default:
             break;
         }
+
         if (*out)
         {
             (*out)->AddRef();
         }
+
         return S_OK;
     }
 
@@ -1145,10 +1209,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         return root_ ? UiaHostProviderFromHwnd(reinterpret_cast<HWND>(q.runtime->nativeWindow.load()), out) : S_OK;
     }
     // ------------------------------------------------------------
@@ -1163,11 +1229,13 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
         A::NodeId target = 0;
+
         switch (direction)
         {
         case NavigateDirection_Parent:
@@ -1190,6 +1258,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if (const auto *parent = q.snapshot->find(q.node->parent))
             {
                 const auto children = parent->children;
+
                 for (std::size_t i = 0; i < children.size(); ++i)
                 {
                     if (children[i] == id_)
@@ -1198,6 +1267,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         {
                             target = children[i + 1];
                         }
+
                         if (direction == NavigateDirection_PreviousSibling && i != 0)
                         {
                             target = children[i - 1];
@@ -1210,6 +1280,7 @@ namespace GameWIP::Desktop::Detail::Platform
         default:
             return E_INVALIDARG;
         }
+
         return fragment(*q.snapshot, target, out);
     }
 
@@ -1220,15 +1291,18 @@ namespace GameWIP::Desktop::Detail::Platform
             return E_POINTER;
         }
         *out = nullptr;
+
         if (!query())
         {
             return kUnavailable;
         }
+
         if (root_)
         {
             return S_OK;
         }
         auto *array = SafeArrayCreateVector(VT_I4, 0, 3);
+
         if (!array)
         {
             return E_OUTOFMEMORY;
@@ -1237,10 +1311,12 @@ namespace GameWIP::Desktop::Detail::Platform
             UiaAppendRuntimeId,
             std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(id_)),
             std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(id_ >> 32))};
+
         for (LONG i = 0; i < 3; ++i)
         {
             LONG value = values[static_cast<std::size_t>(i)];
             const auto hr = SafeArrayPutElement(array, &i, &value);
+
             if (FAILED(hr))
             {
                 SafeArrayDestroy(array);
@@ -1259,6 +1335,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = {};
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
@@ -1298,6 +1375,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
@@ -1314,19 +1392,23 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!std::isfinite(x) || !std::isfinite(y))
         {
             return E_INVALIDARG;
         }
         const auto rootBounds = nodeBounds(q);
+
         if (x < rootBounds.left || y < rootBounds.top || x >= rootBounds.left + rootBounds.width || y >= rootBounds.top + rootBounds.height)
         {
             return S_OK;
         }
+
         if (!q.host || q.host->scaleX <= 0 || q.host->scaleY <= 0)
         {
             return S_OK;
@@ -1336,14 +1418,17 @@ namespace GameWIP::Desktop::Detail::Platform
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout;
         A::NodeId best = q.snapshot->storage.root;
         std::uint32_t bestOrder = 0, bestOrdinal = 0;
+
         for (std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
         {
             const auto &node = q.snapshot->storage.nodes[i];
+
             if (!node.geometry || !node.geometry->hitTestable || !layout[i].visible)
             {
                 continue;
             }
             const auto &clip = layout[i].clip;
+
             if (clip && (clientX < clip->x || clientY < clip->y || clientX >= clip->x + clip->width || clientY >= clip->y + clip->height))
             {
                 continue;
@@ -1353,10 +1438,12 @@ namespace GameWIP::Desktop::Detail::Platform
             const double determinant = t.m11 * t.m22 - t.m12 * t.m21;
             const double localX = (t.m22 * (clientX - t.tx) - t.m21 * (clientY - t.ty)) / determinant;
             const double localY = (-t.m12 * (clientX - t.tx) + t.m11 * (clientY - t.ty)) / determinant;
+
             if (localX < r.x || localY < r.y || localX >= r.x + r.width || localY >= r.y + r.height)
             {
                 continue;
             }
+
             if (layout[i].order > bestOrder || (layout[i].order == bestOrder && layout[i].ordinal >= bestOrdinal))
             {
                 best = node.id;
@@ -1364,6 +1451,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 bestOrdinal = layout[i].ordinal;
             }
         }
+
         return fragment(*q.snapshot, best, out);
     }
 
@@ -1375,14 +1463,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.host || !q.host->focused)
         {
             return S_OK;
         }
+
         return q.snapshot->focusedNode != 0 ? fragment(*q.snapshot, q.snapshot->focusedNode, out) : S_OK;
     }
 
@@ -1391,6 +1482,7 @@ namespace GameWIP::Desktop::Detail::Platform
         static_cast<void>(id);
         static_cast<void>(properties);
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
@@ -1404,12 +1496,14 @@ namespace GameWIP::Desktop::Detail::Platform
         static_cast<void>(id);
         static_cast<void>(properties);
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
         auto &listeners = static_cast<UiaState *>(q.runtime->native.get())->listeners;
         auto count = listeners.load();
+
         for (unsigned i = 0; i < 8 && count != 0; ++i)
         {
             if (listeners.compare_exchange_weak(count, count - 1))
@@ -1417,6 +1511,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 break;
             }
         }
+
         return S_OK;
     }
     // ------------------------------------------------------------
@@ -1435,10 +1530,12 @@ namespace GameWIP::Desktop::Detail::Platform
             return E_INVALIDARG;
         }
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (valueHidden(*q.node))
         {
             return kUnsupported;
@@ -1458,6 +1555,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         const std::u16string_view wide(reinterpret_cast<const char16_t *>(value), size);
         const auto measured = Unicode::Utf16::measureToUtf8(wide);
+
         if (measured.outcome != Unicode::Types::MeasureOutcome::Measured || measured.requiredBytes > q.runtime->limits.maximumActionTextBytes)
         {
             return E_INVALIDARG;
@@ -1468,10 +1566,12 @@ namespace GameWIP::Desktop::Detail::Platform
             request.action = A::ActionKind::SetValue;
             request.text.resize(measured.requiredBytes);
             const auto converted = Unicode::Utf16::convertToUtf8(wide, request.text);
+
             if (converted.outcome != Unicode::Types::ConversionOutcome::Converted)
             {
                 return E_INVALIDARG;
             }
+
             return action(q, std::move(request));
         }
         catch (...)
@@ -1488,10 +1588,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         return stringValue(valueHidden(*q.node) ? std::u16string_view{} : q.text().value, out);
     }
 
@@ -1503,6 +1605,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = TRUE;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
@@ -1514,10 +1617,12 @@ namespace GameWIP::Desktop::Detail::Platform
     HRESULT NodeProvider::SetValue(double value)
     {
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->rangeValue || valueHidden(*q.node))
         {
             return kUnsupported;
@@ -1536,10 +1641,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = 0;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->rangeValue || valueHidden(*q.node))
         {
             return kUnsupported;
@@ -1586,6 +1693,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = ToggleState_Off;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
@@ -1614,14 +1722,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = ExpandCollapseState_LeafNode;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (patternSupported(*q.node, UIA_ExpandCollapsePatternId))
         {
             *out = q.node->states.contains(A::State::Expanded) ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
         }
+
         return S_OK;
     }
     // ------------------------------------------------------------
@@ -1636,14 +1747,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->selection)
         {
             return kUnsupported;
         }
+
         return nodeArray(*q.snapshot, q.node->selection->selectedNodes, out);
     }
 
@@ -1655,10 +1769,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = FALSE;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->selection)
         {
             return kUnsupported;
@@ -1675,10 +1791,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = FALSE;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->selection)
         {
             return kUnsupported;
@@ -1700,25 +1818,30 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->selection)
         {
             return kUnsupported;
         }
         const auto &selection = *q.node->selection;
         A::NodeId selected = selection.activeNode;
+
         if (kind < 2 && !selection.selectedNodes.empty())
         {
             selected = kind == 0 ? selection.selectedNodes.front() : selection.selectedNodes.back();
         }
         *out = providerFor(*q.snapshot, selected);
+
         if (*out)
         {
             (*out)->AddRef();
         }
+
         return S_OK;
     }
 
@@ -1745,10 +1868,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = 0;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->selection)
         {
             return kUnsupported;
@@ -1775,6 +1900,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = FALSE;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
@@ -1791,16 +1917,19 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout[q.index];
         *out = providerFor(*q.snapshot, selection ? layout.selectionContainer : layout.containingGrid);
+
         if (*out)
         {
             (*out)->AddRef();
         }
+
         return S_OK;
     }
 
@@ -1829,22 +1958,27 @@ namespace GameWIP::Desktop::Detail::Platform
             case ScrollAmount_SmallIncrement:
                 return 1.0;
             }
+
             return 0.0;
         };
+
         if (horizontal < ScrollAmount_LargeDecrement || horizontal > ScrollAmount_SmallIncrement || vertical < ScrollAmount_LargeDecrement ||
             vertical > ScrollAmount_SmallIncrement)
         {
             return E_INVALIDARG;
         }
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->scroll)
         {
             return kUnsupported;
         }
+
         if ((!q.node->scroll->horizontalScrollable && horizontal != ScrollAmount_NoAmount) ||
             (!q.node->scroll->verticalScrollable && vertical != ScrollAmount_NoAmount))
         {
@@ -1859,19 +1993,23 @@ namespace GameWIP::Desktop::Detail::Platform
     HRESULT NodeProvider::SetScrollPercent(double horizontal, double vertical)
     {
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->scroll)
         {
             return kUnsupported;
         }
+
         if (!std::isfinite(horizontal) || !std::isfinite(vertical) || horizontal < -1 || horizontal > 100 || vertical < -1 || vertical > 100 ||
             (horizontal < 0 && horizontal != kNoScroll) || (vertical < 0 && vertical != kNoScroll))
         {
             return E_INVALIDARG;
         }
+
         if ((!q.node->scroll->horizontalScrollable && horizontal != kNoScroll) || (!q.node->scroll->verticalScrollable && vertical != kNoScroll))
         {
             return kUnsupported;
@@ -1890,10 +2028,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = 0;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->scroll)
         {
             return kUnsupported;
@@ -1934,10 +2074,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = FALSE;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->scroll)
         {
             return kUnsupported;
@@ -1954,10 +2096,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = FALSE;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->scroll)
         {
             return kUnsupported;
@@ -1982,38 +2126,46 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->collection)
         {
             return kUnsupported;
         }
         const auto &c = *q.node->collection;
+
         if (row < 0 || column < 0 || static_cast<std::uint32_t>(row) >= c.rowCount || static_cast<std::uint32_t>(column) >= c.columnCount)
         {
             return E_INVALIDARG;
         }
         const auto &nodes = q.snapshot->storage.nodes;
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout;
+
         for (std::size_t i = 0; i < nodes.size(); ++i)
         {
             if (const auto &n = nodes[i]; n.collection && patternSupported(n, UIA_GridItemPatternId) && layout[i].containingGrid == id_)
             {
                 const auto &item = *n.collection;
+
                 if (static_cast<std::uint32_t>(row) >= item.rowIndex && static_cast<std::uint32_t>(row) - item.rowIndex < item.rowSpan &&
                     static_cast<std::uint32_t>(column) >= item.columnIndex && static_cast<std::uint32_t>(column) - item.columnIndex < item.columnSpan)
                 {
                     *out = providerFor(*q.snapshot, n.id);
+
                     if (*out)
                     {
                         (*out)->AddRef();
                     }
+
                     return S_OK;
                 }
             }
         }
+
         return S_OK; // A partial virtualized snapshot does not invent unrealized providers.
     }
 
@@ -2025,10 +2177,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = 0;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (!q.node->collection)
         {
             return kUnsupported;
@@ -2080,10 +2234,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         return nodeArray(*q.snapshot, relation(*q.node, kind), out);
     }
 
@@ -2133,23 +2289,28 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         if (id != 0 && id != UIA_NamePropertyId && id != UIA_ControlTypePropertyId && id != UIA_SelectionItemIsSelectedPropertyId &&
             id != UIA_AutomationIdPropertyId)
         {
             return kUnsupported;
         }
+
         if ((id == UIA_NamePropertyId || id == UIA_AutomationIdPropertyId) && value.vt != VT_BSTR)
         {
             return E_INVALIDARG;
         }
+
         if (id == UIA_ControlTypePropertyId && value.vt != VT_I4)
         {
             return E_INVALIDARG;
         }
+
         if (id == UIA_SelectionItemIsSelectedPropertyId && value.vt != VT_BOOL)
         {
             return E_INVALIDARG;
@@ -2157,9 +2318,11 @@ namespace GameWIP::Desktop::Detail::Platform
         bool past = start == nullptr;
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout;
         std::uint32_t startOrdinal = 0;
+
         if (start)
         {
             bool found = false;
+
             for (std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
             {
                 if (providerFor(*q.snapshot, q.snapshot->storage.nodes[i].id) == start)
@@ -2169,6 +2332,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     break;
                 }
             }
+
             if (!found)
             {
                 return E_INVALIDARG;
@@ -2177,14 +2341,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         A::NodeId best = 0;
         std::uint32_t bestOrdinal = std::numeric_limits<std::uint32_t>::max();
+
         for (std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
         {
             const auto &n = q.snapshot->storage.nodes[i];
+
             if (!past || !descendant(*q.snapshot, n, id_) || (start && layout[i].ordinal <= startOrdinal))
             {
                 continue;
             }
             bool matches = id == 0;
+
             if (id == UIA_ControlTypePropertyId)
             {
                 matches = controlType(n.role) == value.lVal;
@@ -2206,25 +2373,30 @@ namespace GameWIP::Desktop::Detail::Platform
                 const auto length = static_cast<std::size_t>(converted.ptr - digits.data());
                 const std::wstring_view supplied(value.bstrVal, SysStringLen(value.bstrVal));
                 matches = supplied.size() == length;
+
                 for (std::size_t j = 0; matches && j < supplied.size(); ++j)
                 {
                     matches = supplied[j] == static_cast<wchar_t>(static_cast<unsigned char>(digits[j]));
                 }
             }
+
             if (matches && layout[i].ordinal < bestOrdinal)
             {
                 best = n.id;
                 bestOrdinal = layout[i].ordinal;
             }
         }
+
         if (best != 0)
         {
             *out = providerFor(*q.snapshot, best);
+
             if (*out)
             {
                 (*out)->AddRef();
             }
         }
+
         return S_OK;
     }
 
@@ -2240,16 +2412,19 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = AnnotationType_Unknown;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
         std::size_t source = 0, index = 0;
         const auto *annotation = annotationFor(q, source, index);
+
         if (!annotation)
         {
             return kUnsupported;
         }
+
         if (annotation->kind == A::TextAnnotationKind::Spelling)
         {
             *out = AnnotationType_SpellingError;
@@ -2258,6 +2433,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             *out = AnnotationType_Highlighted;
         }
+
         return S_OK;
     }
 
@@ -2269,15 +2445,18 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
         std::size_t source = 0, index = 0;
+
         if (!annotationFor(q, source, index))
         {
             return kUnsupported;
         }
+
         return stringValue(q.snapshot->textCache[source].annotationValues[index], out);
     }
 
@@ -2289,10 +2468,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
+
         return annotationSupported(q) ? stringValue({}, out) : kUnsupported;
     }
 
@@ -2309,20 +2490,24 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
         std::size_t source = 0, index = 0;
+
         if (!annotationFor(q, source, index))
         {
             return kUnsupported;
         }
         *out = providerFor(*q.snapshot, q.snapshot->storage.nodes[source].id);
+
         if (*out)
         {
             (*out)->AddRef();
         }
+
         return S_OK;
     }
 
@@ -2339,12 +2524,14 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         *out = nullptr;
         const auto q = query();
+
         if (!q)
         {
             return kUnavailable;
         }
         std::size_t source = 0, index = 0;
         const auto *annotation = annotationFor(q, source, index);
+
         if (!annotation)
         {
             return kUnsupported;
@@ -2362,16 +2549,19 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
             const auto *data = static_cast<const WindowData *>(window.platform.get());
+
             if (!data || !data->handle)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             }
             auto native = std::make_shared<UiaState>();
             native->ranges.reserve(runtime->limits.maximumNativeTextRanges);
+
             for (std::uint32_t i = 0; i < runtime->limits.maximumNativeTextRanges; ++i)
             {
                 native->ranges.push_back(std::make_unique<TextRangeProvider>());
             }
+
             if (const auto module = GetModuleHandleW(L"uiautomationcore.dll"))
             {
                 native->raiseNotification = Base::Win32::loadProcedure<RaiseNotification>(module, "UiaRaiseNotificationEvent");
@@ -2382,10 +2572,12 @@ namespace GameWIP::Desktop::Detail::Platform
             runtime->native = std::move(native);
             runtime->features.flags = (std::uint64_t{1} << static_cast<unsigned>(A::Feature::Count)) - 1;
             runtime->features.flags &= ~(std::uint64_t{1} << static_cast<unsigned>(A::Feature::AnnouncementLanguage));
+
             if (!static_cast<UiaState *>(runtime->native.get())->raiseNotification)
             {
                 runtime->features.flags &= ~(std::uint64_t{1} << static_cast<unsigned>(A::Feature::Announcements));
             }
+
             return {};
         }
         catch (const std::bad_alloc &)
@@ -2404,6 +2596,7 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
             std::size_t missing = 0;
+
             for (const auto &node : snapshot.storage.nodes)
             {
                 if (!native.providers.contains(node.id))
@@ -2411,6 +2604,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     ++missing;
                 }
             }
+
             if (missing > runtime->limits.maximumNativeProviders - native.providers.size())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
@@ -2419,6 +2613,7 @@ namespace GameWIP::Desktop::Detail::Platform
             result->providers.reserve(snapshot.storage.nodes.size());
             result->layout.resize(snapshot.storage.nodes.size());
             result->annotationSources.resize(snapshot.storage.nodes.size(), {snapshot.storage.nodes.size(), 0});
+
             for (std::size_t i = 0; i < snapshot.storage.nodes.size(); ++i)
             {
                 if (const auto &text = snapshot.storage.nodes[i].text)
@@ -2428,6 +2623,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         if (const auto target = text->annotations[j].target; target != 0)
                         {
                             auto &reference = result->annotationSources[snapshot.findIndex(target)];
+
                             if (reference.first == snapshot.storage.nodes.size())
                             {
                                 reference = {i, j};
@@ -2479,6 +2675,7 @@ namespace GameWIP::Desktop::Detail::Platform
             std::vector<std::size_t> traversal;
             traversal.reserve(snapshot.storage.nodes.size());
             std::uint32_t ordinal = 0;
+
             while (!pending.empty())
             {
                 const auto id = pending.back();
@@ -2489,6 +2686,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 layout.ordinal = ordinal++;
                 layout.subtreeEnd = ordinal;
                 traversal.push_back(index);
+
                 if (node.parent != 0)
                 {
                     const auto parentIndex = snapshot.findIndex(node.parent);
@@ -2500,21 +2698,25 @@ namespace GameWIP::Desktop::Detail::Platform
                     layout.containingGrid = parentNode.role == A::Role::Table && parentNode.collection ? parentNode.id : parent.containingGrid;
                 }
                 layout.visible = layout.visible && !node.states.contains(A::State::Invisible);
+
                 if (node.geometry)
                 {
                     layout.bounds = transformed(*node.geometry);
                     layout.visible = layout.visible && node.geometry->visible;
                     layout.order = node.geometry->hitTestOrder;
+
                     if (node.geometry->clippingBounds)
                     {
                         layout.clip = layout.clip ? intersection(*layout.clip, *node.geometry->clippingBounds) : node.geometry->clippingBounds;
                     }
                 }
+
                 for (auto child = node.children.rbegin(); child != node.children.rend(); ++child)
                 {
                     pending.push_back(*child);
                 }
             }
+
             for (auto index = traversal.rbegin(); index != traversal.rend(); ++index)
             {
                 if (const auto parent = snapshot.storage.nodes[*index].parent; parent != 0)
@@ -2525,6 +2727,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             // No fallible work after the identity registry merge: map node transfer does not allocate.
             native.providers.merge(additions.values);
+
             for (const auto &node : snapshot.storage.nodes)
             {
                 auto *provider = static_cast<IRawElementProviderSimple *>(native.providers.find(node.id)->second);
@@ -2551,14 +2754,17 @@ namespace GameWIP::Desktop::Detail::Platform
     void detachAccessibility(AccessibilityRuntime &runtime) noexcept
     {
         auto *native = static_cast<UiaState *>(runtime.native.get());
+
         if (!native)
         {
             return;
         }
+
         if (runtime.nativeThread == GetCurrentThreadId())
         {
             static_cast<void>(UiaReturnRawElementProvider(reinterpret_cast<HWND>(runtime.nativeWindow.load()), 0, 0, nullptr));
         }
+
         for (auto [id, provider] : native->providers)
         {
             static_cast<void>(id);
@@ -2583,16 +2789,19 @@ namespace GameWIP::Desktop::Detail::Platform
             return false;
         }
         const auto runtime = state.accessibility->runtime.load();
+
         if (!runtime || !runtime->live.load())
         {
             return false;
         }
         const auto snapshot = runtime->snapshot.load();
+
         if (!snapshot)
         {
             return false;
         }
         auto *provider = providerFor(*snapshot, snapshot->storage.root);
+
         if (!provider)
         {
             return false;
@@ -2619,22 +2828,26 @@ namespace GameWIP::Desktop::Detail::Platform
             return;
         }
         auto *provider = providerFor(*event.after, event.notification.node);
+
         if (!provider)
         {
             return;
         }
         const auto *node = event.after->find(event.notification.node);
+
         if (!node)
         {
             return;
         }
         const auto currentSnapshot = runtime.snapshot.load();
         const auto *currentNode = currentSnapshot ? currentSnapshot->find(node->id) : nullptr;
+
         if (!currentNode)
         {
             return;
         }
         const auto &notification = event.notification;
+
         switch (notification.kind)
         {
         case A::NotificationKind::TreeInvalidated:
@@ -2644,6 +2857,7 @@ namespace GameWIP::Desktop::Detail::Platform
         case A::NotificationKind::FocusChanged:
         {
             AccessibilityHostGeometry host;
+
             if (runtime.readGeometry(host) && host.focused && currentNode->states.contains(A::State::Focused))
             {
                 static_cast<void>(UiaRaiseAutomationEvent(provider, UIA_AutomationFocusChangedEventId));
@@ -2687,11 +2901,13 @@ namespace GameWIP::Desktop::Detail::Platform
         case A::NotificationKind::LiveRegionChanged:
         {
             auto *native = static_cast<UiaState *>(runtime.native.get());
+
             if (!native->raiseNotification || textHidden(*node) || textHidden(*currentNode))
             {
                 break;
             }
             BSTR text = nullptr, activity = nullptr;
+
             if (SUCCEEDED(stringValue(event.announcement, &text)) && SUCCEEDED(stringValue(u"GameWIP.Announcement", &activity)))
             {
                 static_cast<void>(native->raiseNotification(
@@ -2711,10 +2927,12 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             // Values exposed in property events are subject to the same redaction as direct queries.
             auto owningRuntime = static_cast<NodeProvider *>(provider)->query().runtime;
+
             if (!owningRuntime)
             {
                 break;
             }
+
             switch (notification.property)
             {
             case A::PropertyKind::Name:
@@ -2816,10 +3034,12 @@ namespace GameWIP::Desktop::TestHooks
         const auto runtime = state ? state->runtime.load() : nullptr;
         const auto snapshot = runtime && runtime->live.load() ? runtime->snapshot.load() : nullptr;
         auto *provider = snapshot ? Detail::Platform::providerFor(*snapshot, node) : nullptr;
+
         if (provider)
         {
             provider->AddRef();
         }
+
         return provider;
     }
 } // namespace GameWIP::Desktop::TestHooks

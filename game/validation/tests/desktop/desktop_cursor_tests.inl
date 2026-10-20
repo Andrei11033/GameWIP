@@ -256,6 +256,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
     auto first = CursorTest::create(pixels, 96);
     auto second = CursorTest::create(pixels, 144);
     static_cast<void>(context.expectTrue("cursor integration resources create", first.status.ok() && second.status.ok()));
+
     if (!first->isValid() || !second->isValid())
     {
         return;
@@ -271,6 +272,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
     description.activation.visible = false;
     Desktop::Window window;
     static_cast<void>(context.expectTrue("custom cursor fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
+
     if (!window.isOpen())
     {
         return;
@@ -378,6 +380,7 @@ void testCursorLifecycle(TestSupport::Context &context)
     std::array images{CursorTest::image(pixels, 96), CursorTest::image(pixels, 144)};
     auto cursor = Desktop::createCursor(images);
     static_cast<void>(context.expectTrue("DPI cursor resource creates", cursor.status.ok()));
+
     if (!cursor->isValid())
     {
         return;
@@ -391,6 +394,7 @@ void testCursorLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("DPI cursor binds", Desktop::setCursor(window, *cursor).ok()));
     const auto native = Desktop::Native::Win32::getHandle(window);
     static_cast<void>(context.expectTrue("DPI cursor fixture exposes its native handle", native.status.ok()));
+
     if (!native.status.ok())
     {
         return;

@@ -39,6 +39,7 @@ namespace
     [[nodiscard]] constexpr std::string_view colorSpaceName(GameWIP::Desktop::Types::Display::ColorSpace colorSpace) noexcept
     {
         using GameWIP::Desktop::Types::Display::ColorSpace;
+
         switch (colorSpace)
         {
         case ColorSpace::Srgb:
@@ -69,9 +70,11 @@ namespace
             ZoneScopedNC("Enumerate displays, display modes, and HDR state", ProfileZoneColor::Initialization);
 #endif
             monitors = GameWIP::Desktop::Display::getMonitors();
+
             if (monitors.ok())
             {
                 GameWIP::Logger::info("Startup", "Enumerated {} connected display(s)", monitors->size());
+
                 for (const GameWIP::Desktop::Types::Display::Info &monitor : *monitors)
                 {
                     const auto activeMode = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
@@ -139,6 +142,7 @@ namespace
                 }
             }
         }
+
         return monitors;
     }
 
@@ -174,6 +178,7 @@ namespace
 #endif
                 events = GameWIP::Desktop::Events::wait(std::chrono::milliseconds(16));
             }
+
             if (!events.status.ok())
             {
 #if GAMEWIP_TRACY_ENABLED
@@ -192,12 +197,14 @@ namespace
 #endif
                     static_cast<void>(window.close());
                 }
+
                 return false;
             }
 #if GAMEWIP_TRACY_ENABLED
             FrameMark;
 #endif
         }
+
         return true;
     }
 
@@ -216,11 +223,13 @@ namespace
 #endif
 
         const GameWIP::IO::Types::Status shutdownStatus = GameWIP::Logger::shutdown();
+
         if (primaryExitCode == EXIT_SUCCESS && !shutdownStatus.ok())
         {
             std::fputs("GameWIP: Logger shutdown failed.\n", stderr);
             return EXIT_FAILURE;
         }
+
         return primaryExitCode;
     }
 } // namespace
@@ -232,33 +241,40 @@ namespace GameWIP::Game
 #if GAMEWIP_TRACY_ENABLED
         ZoneScopedNC("Game runtime", ProfileZoneColor::Runtime);
 #endif
+
         // Initialize logging first so every later startup failure has a diagnostic sink.
         const Logger::Types::Init::Result loggerInit = initializeLogger();
+
         if (!loggerInit.status.ok() || loggerInit.outcome != Logger::Types::Init::Outcome::Started)
         {
             std::fputs("GameWIP: Logger initialization failed.\n", stderr);
             return EXIT_FAILURE;
         }
+
         Logger::info("Startup", "Logger initialized");
 
         // Display inspection must precede window creation so it logs the pre-fullscreen topology.
         const auto monitors = inspectDisplays();
+
         if (!monitors.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(monitors.status.message.c_str(), monitors.status.message.size());
 #endif
+
             Logger::error("Window", "Failed to enumerate displays: {}", monitors.status.message);
             return finishRuntime(EXIT_FAILURE);
         }
 
         Desktop::Window window;
         const IO::Types::Status openStatus = openRuntimeWindow(window);
+
         if (!openStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(openStatus.message.c_str(), openStatus.message.size());
 #endif
+
             Logger::error("Window", "Failed to open borderless fullscreen window: {}", openStatus.message);
             return finishRuntime(EXIT_FAILURE);
         }
@@ -275,11 +291,13 @@ namespace GameWIP::Game
 
         // Close before logger shutdown so the final lifecycle result is recorded.
         const IO::Types::Status closeStatus = closeRuntimeWindow(window);
+
         if (!closeStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(closeStatus.message.c_str(), closeStatus.message.size());
 #endif
+
             Logger::error("Window", "Failed to close borderless fullscreen window: {}", closeStatus.message);
             return finishRuntime(EXIT_FAILURE);
         }
@@ -290,6 +308,7 @@ namespace GameWIP::Game
 
         static_cast<void>(argc);
         static_cast<void>(argv);
+
         Logger::warn("Shutdown", "Logger shutting down");
         return finishRuntime(EXIT_SUCCESS);
     }

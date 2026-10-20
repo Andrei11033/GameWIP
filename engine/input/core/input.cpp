@@ -53,6 +53,7 @@ namespace GameWIP::Input
         void addUniqueControl(std::vector<InputControl> &controls, InputControl control)
         {
             auto entry = findControl(controls, control);
+
             if (!isMatchingControl(entry, controls.end(), control))
             {
                 controls.insert(entry, control);
@@ -62,6 +63,7 @@ namespace GameWIP::Input
         void removeControl(std::vector<InputControl> &controls, InputControl control)
         {
             auto entry = findControl(controls, control);
+
             if (isMatchingControl(entry, controls.end(), control))
             {
                 controls.erase(entry);
@@ -100,12 +102,14 @@ namespace GameWIP::Input
         void setControlValue(std::vector<std::pair<InputControl, float>> &values, InputControl control, float value)
         {
             auto entry = findControlValue(values, control);
+
             if (value == 0.0f)
             {
                 if (isMatchingControlValue(entry, values.end(), control))
                 {
                     values.erase(entry);
                 }
+
                 return;
             }
 
@@ -216,6 +220,7 @@ namespace GameWIP::Input
         std::string makeBackendName(const InputDeviceInfo &device)
         {
             std::string name;
+
             if (device.hasBuiltInFeed)
             {
                 name += "BuiltIn";
@@ -422,6 +427,7 @@ namespace GameWIP::Input
 
             std::vector<InputControlInfo> controls;
             controls.reserve(keys.size());
+
             for (const auto &[code, name] : keys)
             {
                 controls.push_back(makeButtonControlInfo(makeKeyboardKey(code), name));
@@ -461,6 +467,7 @@ namespace GameWIP::Input
         void appendUtf8Codepoint(std::string &text, char32_t codepoint)
         {
             auto encoded = GameWIP::Unicode::Utf8::encodeScalar(codepoint);
+
             if (encoded.outcome != GameWIP::Unicode::Types::EncodeOutcome::Encoded)
             {
                 encoded = GameWIP::Unicode::Utf8::encodeScalar(U'\uFFFD');
@@ -490,6 +497,7 @@ namespace GameWIP::Input
     const InputControlInfo *InputDeviceRegistry::findControl(InputControl control) const
     {
         const InputDeviceInfo *device = findDevice(InputDeviceRef{control.deviceType, control.deviceIndex});
+
         if (device == nullptr)
         {
             return nullptr;
@@ -567,6 +575,7 @@ namespace GameWIP::Input
     {
         InputDeviceInfo nextDevice = deviceInfo;
         const InputDeviceRef requestedDevice = nextDevice.device;
+
         if (nextDevice.device.deviceType != nextDevice.deviceType)
         {
             nextDevice.device.deviceType = nextDevice.deviceType;
@@ -605,6 +614,7 @@ namespace GameWIP::Input
         }
 
         auto deviceEntry = findDeviceEntry(devices, nextDevice.device);
+
         if (isMatchingDevice(deviceEntry, devices.end(), nextDevice.device))
         {
             *deviceEntry = nextDevice;
@@ -620,6 +630,7 @@ namespace GameWIP::Input
     InputDeviceRef InputDeviceRegistry::mergeDeviceBackend(InputDeviceRef device, const InputDeviceInfo &backendInfo)
     {
         auto entry = findDeviceEntry(devices, device);
+
         if (!isMatchingDevice(entry, devices.end(), device))
         {
             return upsertDevice(backendInfo);
@@ -633,9 +644,11 @@ namespace GameWIP::Input
     void InputDeviceRegistry::setDeviceConnected(InputDeviceRef device, bool connected)
     {
         auto entry = findDeviceEntry(devices, device);
+
         if (isMatchingDevice(entry, devices.end(), device))
         {
             entry->connected = connected;
+
             if (!connected)
             {
                 entry->hasXInputFeed = false;
@@ -648,6 +661,7 @@ namespace GameWIP::Input
     void InputDeviceRegistry::setDeviceBackendConnected(InputDeviceRef device, InputDeviceBackend backend, bool connected)
     {
         auto entry = findDeviceEntry(devices, device);
+
         if (isMatchingDevice(entry, devices.end(), device))
         {
             switch (backend)
@@ -670,6 +684,7 @@ namespace GameWIP::Input
     void InputDeviceRegistry::setDeviceCanonical(InputDeviceRef device, bool canonical)
     {
         auto entry = findDeviceEntry(devices, device);
+
         if (isMatchingDevice(entry, devices.end(), device))
         {
             entry->canonical = canonical;
@@ -679,6 +694,7 @@ namespace GameWIP::Input
     void InputDeviceRegistry::replaceDeviceControls(InputDeviceRef device, std::span<const InputControlInfo> controls)
     {
         auto entry = findDeviceEntry(devices, device);
+
         if (isMatchingDevice(entry, devices.end(), device))
         {
             entry->controls.assign(controls.begin(), controls.end());
@@ -688,6 +704,7 @@ namespace GameWIP::Input
     void InputDeviceRegistry::mergeDeviceControls(InputDeviceRef device, std::span<const InputControlInfo> controls)
     {
         auto entry = findDeviceEntry(devices, device);
+
         if (isMatchingDevice(entry, devices.end(), device))
         {
             mergeControlInfo(entry->controls, controls);
@@ -738,6 +755,7 @@ namespace GameWIP::Input
         for (std::uint16_t candidate = 0; candidate <= std::numeric_limits<DeviceIndex>::max(); ++candidate)
         {
             const DeviceIndex deviceIndex = static_cast<DeviceIndex>(candidate);
+
             if (!hasDeviceIndex(devices, deviceType, deviceIndex))
             {
                 return deviceIndex;
@@ -979,6 +997,7 @@ namespace GameWIP::Input
         }
 
         float previousValue = getAxis(control);
+
         if (previousValue == value)
         {
             return;
@@ -1112,6 +1131,7 @@ namespace GameWIP::Input
         for (auto value = axisValues.begin(); value != axisValues.end();)
         {
             const InputControl control = value->first;
+
             if (control.deviceType == device.deviceType && control.deviceIndex == device.deviceIndex)
             {
                 value = axisValues.erase(value);

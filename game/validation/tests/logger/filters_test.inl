@@ -70,6 +70,7 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
             {
                 std::this_thread::yield();
             }
+
             for (std::size_t i = 0; i < iterations; ++i)
             {
                 Logger::info(TestSource::Core, "producer {}", i);
@@ -82,6 +83,7 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
             {
                 std::this_thread::yield();
             }
+
             for (std::size_t i = 0; i < iterations; ++i)
             {
                 if (!Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Core), (i & 1u) == 0).ok())

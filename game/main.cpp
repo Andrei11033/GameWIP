@@ -89,11 +89,13 @@ int main(int argc, char **argv)
     // Keep utility-only invocations independent from validation so packaging and
     // smoke-test scripts can query metadata from any build configuration.
     const GameWIP::Validation::ProcessArguments arguments = GameWIP::Validation::processArguments(argc, argv);
+
     if (requestsVersion(arguments))
     {
         std::cout << GameWIP::Version::productDisplay << '\n';
         return EXIT_SUCCESS;
     }
+
     if (requestsHelp(arguments))
     {
         printHelp();
@@ -104,6 +106,7 @@ int main(int argc, char **argv)
     // In that case the process must return the child route result directly and
     // must not continue into benchmarks or the runtime.
     GameWIP::Validation::TestResult tests;
+
     if (GameWIP::Validation::shouldRunTests(argc, argv))
     {
 #if GAMEWIP_TRACY_ENABLED
@@ -112,10 +115,12 @@ int main(int argc, char **argv)
 #endif
         tests = GameWIP::Validation::runTests(argc, argv);
     }
+
     if (tests.handledChildInvocation)
     {
         return tests.exitCode;
     }
+
     if (!tests.ok())
     {
         return tests.exitCode == 0 ? EXIT_FAILURE : tests.exitCode;
@@ -131,6 +136,7 @@ int main(int argc, char **argv)
 #endif
         benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
     }
+
     if (!benchmarks.ok())
     {
         return EXIT_FAILURE;

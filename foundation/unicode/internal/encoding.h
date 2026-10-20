@@ -56,6 +56,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t second = byteValue(bytes[1]);
+
             if ((second & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -88,6 +89,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t third = byteValue(bytes[2]);
+
             if ((third & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -120,6 +122,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t third = byteValue(bytes[2]);
+
             if ((third & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -131,6 +134,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t fourth = byteValue(bytes[3]);
+
             if ((fourth & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -151,14 +155,17 @@ namespace GameWIP::Unicode::Internal
         {
             return 1;
         }
+
         if (scalar <= static_cast<char32_t>(0x7FF))
         {
             return 2;
         }
+
         if (scalar <= static_cast<char32_t>(0xFFFF))
         {
             return 3;
         }
+
         return 4;
     }
 
@@ -203,6 +210,7 @@ namespace GameWIP::Unicode::Internal
         }
 
         const char16_t first = codeUnits[0];
+
         if (!Utf16::isSurrogate(first))
         {
             return {
@@ -223,6 +231,7 @@ namespace GameWIP::Unicode::Internal
         }
 
         const char16_t second = codeUnits[1];
+
         if (!Utf16::isLowSurrogate(second))
         {
             return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -248,6 +257,7 @@ namespace GameWIP::Unicode::Internal
     inline void encodeUtf16Unchecked(char32_t scalar, std::span<char16_t> destination) noexcept
     {
         const std::uint32_t value = static_cast<std::uint32_t>(scalar);
+
         if (value <= 0xFFFFU)
         {
             destination[0] = static_cast<char16_t>(value);
@@ -275,6 +285,7 @@ namespace GameWIP::Unicode::Internal
         }
 
         std::size_t startOffset = byteOffset - 1;
+
         while (startOffset > 0 && isContinuationByte(text[startOffset]))
         {
             --startOffset;

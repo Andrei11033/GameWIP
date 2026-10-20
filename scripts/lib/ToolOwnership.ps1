@@ -9,23 +9,29 @@ Set-StrictMode -Version Latest
 function Copy-GameWipValue
 {
     param([AllowNull()]$Value)
+
     if ($null -eq $Value -or $Value -is [string] -or $Value.GetType().IsValueType)
     {
         return $Value
     }
+
     if ($Value -is [System.Collections.IDictionary])
     {
         $copy = @{}
+
         foreach ($key in $Value.Keys)
         {
             $copy[[string]$key] = Copy-GameWipValue -Value $Value[$key]
         }
+
         return $copy
     }
+
     if ($Value -is [System.Collections.IEnumerable])
     {
         return , @($Value | ForEach-Object { Copy-GameWipValue -Value $_ })
     }
+
     return ConvertTo-GameWipHashtable -Value $Value
 }
 
@@ -34,10 +40,12 @@ function Get-GameWipManagedToolRootOwnership
     param([Parameter(Mandatory = $true)][string]$Root)
     $markerPath = Join-Path $Root '.gamewip-managed.json'
     $state = Read-GameWipOwnershipMarker -Path $markerPath -Resource 'project-tools'
+
     if ($state.Status -eq 'valid')
     {
         return $state.Marker
     }
+
     return $null
 }
 
@@ -54,10 +62,12 @@ function Initialize-GameWipManagedToolRoot
     $created = $false
     $origin = 'created'
     $ownership = $null
+
     if (Test-Path -LiteralPath $root)
     {
         $ownership = Get-GameWipManagedToolRootOwnership -Root $root
         $entries = @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne '.gamewip-managed.json' })
+
         if ((Test-GameWipWindowsHost) -and $null -eq $ownership -and $entries.Count -ne 0)
         {
             if (-not $AdoptExisting)
@@ -87,9 +97,11 @@ function Initialize-GameWipManagedToolRoot
             })
         Write-GameWipJsonAtomic -Path (Join-Path $root '.gamewip-managed.json') -Value $marker
     }
+
     foreach ($name in @('bin', 'tools', 'npm', 'python', 'powershell'))
     {
         $directory = Join-Path $root $name
+
         if (-not (Test-Path -LiteralPath $directory -PathType Container))
         {
             Set-GameWipMutationStarted

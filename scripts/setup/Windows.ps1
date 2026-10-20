@@ -20,6 +20,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
 if ($Quiet)
 {
     $OutputMode = 'LogOnly'
@@ -38,6 +39,7 @@ if ($Action -in @('--help', '-h', '-?'))
     $Action = 'help'
 }
 $resolvedAction = Resolve-GameWipSetupActionName -Name $Action
+
 if ($null -eq $resolvedAction)
 {
     Write-GameWipHost "Unknown setup action '$Action'." -ForegroundColor Red
@@ -45,20 +47,24 @@ if ($null -eq $resolvedAction)
     exit 2
 }
 $Action = $resolvedAction
+
 if ($Action -notin @('help', 'list', 'menu'))
 {
     Assert-GameWipSetupActionOptions -Action $Action -BoundParameters $PSBoundParameters
 }
+
 if ($Action -eq 'help')
 {
     Show-GameWipSetupHelp
     exit 0
 }
+
 if ($Action -eq 'list')
 {
     Show-GameWipSetupActionCatalog
     exit 0
 }
+
 if ($Action -eq 'menu')
 {
     if ($NonInteractive)
@@ -73,20 +79,24 @@ if ($Action -eq 'menu')
 try
 {
     $result = Invoke-GameWipSetupOperation -SelectedAction $Action
+
     if ($Json)
     {
         $result | ConvertTo-Json -Depth 12 | Write-Output
     }
+
     if ($result.Status -eq 'cancelled')
     {
         exit 130
     }
+
     if ($result.Status -ne 'passed')
     {
         exit 1
     }
     exit 0
 }
+
 catch
 {
     Write-Error $_

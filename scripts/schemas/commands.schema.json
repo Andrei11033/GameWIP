@@ -99,10 +99,7 @@
       "type": "object",
       "additionalProperties": false,
       "description": "C/C++ formatting configuration and maintained source roots.",
-      "required": [
-        "configPath",
-        "sourceRoots"
-      ],
+      "required": ["configPath", "sourceRoots"],
       "properties": {
         "configPath": {
           "type": "string",
@@ -123,13 +120,7 @@
       "type": "object",
       "additionalProperties": false,
       "description": "Pinned Unicode input, generator, and generated-output locations.",
-      "required": [
-        "version",
-        "generator",
-        "generatedHeader",
-        "ucdUrlTemplate",
-        "requiredFiles"
-      ],
+      "required": ["version", "generator", "generatedHeader", "ucdUrlTemplate", "requiredFiles"],
       "properties": {
         "version": {
           "type": "string",
@@ -203,9 +194,7 @@
     "validationModule": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id"
-      ],
+      "required": ["id"],
       "properties": {
         "id": {
           "type": "string",
@@ -223,14 +212,7 @@
     "validationBuilderOption": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "description",
-        "kind",
-        "arguments",
-        "default"
-      ],
+      "required": ["id", "title", "description", "kind", "arguments", "default"],
       "properties": {
         "id": {
           "type": "string",
@@ -245,12 +227,7 @@
           "minLength": 1
         },
         "kind": {
-          "enum": [
-            "boolean",
-            "choice",
-            "integer",
-            "text"
-          ]
+          "enum": ["boolean", "choice", "integer", "text"]
         },
         "arguments": {
           "type": "array",
@@ -283,16 +260,7 @@
     "action": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "description",
-        "group",
-        "visible",
-        "network",
-        "mutation",
-        "risk"
-      ],
+      "required": ["id", "title", "description", "group", "visible", "network", "mutation", "risk"],
       "properties": {
         "id": {
           "type": "string",
@@ -307,15 +275,7 @@
           "minLength": 1
         },
         "group": {
-          "enum": [
-            "navigation",
-            "development",
-            "validation",
-            "quality",
-            "tools",
-            "repository",
-            "maintenance"
-          ]
+          "enum": ["navigation", "development", "validation", "quality", "tools", "repository", "maintenance"]
         },
         "key": {
           "type": "string",
@@ -329,37 +289,17 @@
           "type": "boolean"
         },
         "mutation": {
-          "enum": [
-            "none",
-            "local",
-            "tracked",
-            "machine",
-            "remote",
-            "conditional"
-          ]
+          "enum": ["none", "local", "tracked", "machine", "remote", "conditional"]
         },
         "risk": {
-          "enum": [
-            "read-only",
-            "local",
-            "tracked",
-            "machine",
-            "destructive",
-            "remote"
-          ]
+          "enum": ["read-only", "local", "tracked", "machine", "destructive", "remote"]
         }
       }
     },
     "menu": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "title",
-        "prompt",
-        "exitLabel",
-        "items"
-      ],
+      "required": ["id", "title", "prompt", "exitLabel", "items"],
       "properties": {
         "id": {
           "type": "string",
@@ -374,10 +314,7 @@
           "minLength": 1
         },
         "exitLabel": {
-          "enum": [
-            "Back",
-            "Exit"
-          ]
+          "enum": ["Back", "Exit"]
         },
         "items": {
           "type": "array",
@@ -391,11 +328,7 @@
     "menuItem": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "key",
-        "label",
-        "handler"
-      ],
+      "required": ["key", "label", "handler"],
       "properties": {
         "key": {
           "type": "string",
@@ -415,13 +348,7 @@
     "benchmarkProfile": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "repetitions",
-        "minTime",
-        "aggregatesOnly"
-      ],
+      "required": ["id", "name", "repetitions", "minTime", "aggregatesOnly"],
       "properties": {
         "id": {
           "type": "string",
@@ -450,12 +377,7 @@
     "manualWorkflow": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "file",
-        "safety"
-      ],
+      "required": ["id", "name", "file", "safety"],
       "properties": {
         "id": {
           "type": "string",
@@ -470,28 +392,14 @@
           "pattern": "^[a-z][a-z0-9-]*\\.yml$"
         },
         "safety": {
-          "enum": [
-            "check",
-            "dry-run",
-            "write",
-            "finalize",
-            "deploy"
-          ]
+          "enum": ["check", "dry-run", "write", "finalize", "deploy"]
         }
       }
     },
     "projectCommand": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "buildPreset",
-        "executable",
-        "arguments",
-        "useWorkspaceTemp",
-        "acceptsExtraArgs"
-      ],
+      "required": ["id", "name", "buildPreset", "executable", "arguments", "useWorkspaceTemp", "acceptsExtraArgs"],
       "properties": {
         "id": {
           "type": "string",
@@ -530,11 +438,7 @@
     "bundle": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "steps"
-      ],
+      "required": ["id", "name", "steps"],
       "properties": {
         "id": {
           "type": "string",
@@ -559,20 +463,10 @@
     "bundleStep": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "kind"
-      ],
+      "required": ["kind"],
       "properties": {
         "kind": {
-          "enum": [
-            "Configure",
-            "Build",
-            "BuildTarget",
-            "CTest",
-            "ProjectCommand",
-            "Benchmark",
-            "Bundle"
-          ]
+          "enum": ["Configure", "Build", "BuildTarget", "CTest", "ProjectCommand", "Benchmark", "Bundle"]
         },
         "preset": {
           "type": "string",

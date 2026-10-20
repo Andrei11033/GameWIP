@@ -36,6 +36,7 @@ namespace GameWIP::Unicode::Utf16
         while (codeUnitOffset < text.size())
         {
             const Types::Utf16::DecodeResult decoded = Internal::decodeUtf16Scalar(text.subspan(codeUnitOffset));
+
             if (decoded.outcome == Types::DecodeOutcome::Incomplete)
             {
                 return {
@@ -43,6 +44,7 @@ namespace GameWIP::Unicode::Utf16
                     .outcome = Types::ValidationOutcome::Incomplete,
                 };
             }
+
             if (decoded.outcome == Types::DecodeOutcome::InvalidEncoding)
             {
                 return {

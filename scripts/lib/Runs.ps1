@@ -10,10 +10,12 @@ function ConvertTo-GameWipToolSafeName
 {
     param([Parameter(Mandatory = $true)][string]$Text)
     $safe = ($Text -replace '[^A-Za-z0-9_.-]+', '-').Trim('-')
+
     if ([string]::IsNullOrWhiteSpace($safe))
     {
         return 'run'
     }
+
     return $safe.ToLowerInvariant()
 }
 
@@ -165,6 +167,7 @@ function Save-GameWipToolRun
     $lines.Add("Repository: $($Run.Repository)") | Out-Null
     $lines.Add("Failed steps: $($failed.Count)") | Out-Null
     $lines.Add('') | Out-Null
+
     foreach ($step in $Run.Steps)
     {
         $marker = if ($step.Status -eq 'passed')
@@ -185,6 +188,7 @@ function Save-GameWipToolRun
         }
         $lines.Add(('{0} {1} exit={2} duration={3:N3}s log={4}' -f $marker, $step.Name, $step.ExitCode, $step.DurationSeconds, $step.LogPath)) | Out-Null
     }
+
     foreach ($section in @(
             @{ Name = 'Changes'; Values = @($Run.Changes) },
             @{ Name = 'Preserved'; Values = @($Run.Preserved) },
@@ -198,15 +202,18 @@ function Save-GameWipToolRun
         }
         $lines.Add('') | Out-Null
         $lines.Add("$($section.Name):") | Out-Null
+
         foreach ($value in $section.Values)
         {
             $lines.Add("  $value") | Out-Null
         }
     }
+
     if ($Run.Outputs.Count -ne 0)
     {
         $lines.Add('') | Out-Null
         $lines.Add('Outputs:') | Out-Null
+
         foreach ($output in $Run.Outputs)
         {
             $lines.Add("  $($output.Kind): $($output.Path)") | Out-Null
@@ -226,6 +233,7 @@ function Initialize-GameWipRunLog
     {
         throw 'A run log can only be initialized inside a GameWIP operation.'
     }
+
     if ($null -ne $Script:OperationContext.Run)
     {
         $Script:RunContext = $Script:OperationContext.Run
@@ -256,6 +264,7 @@ function Get-GameWipRunRoot
 function Get-GameWipRetainedRun
 {
     $root = Get-GameWipRunRoot
+
     if (-not (Test-Path -LiteralPath $root))
     {
         return @()
@@ -268,6 +277,7 @@ function Get-GameWipRetainedRun
     {
         ''
     }
+
     return @(Get-ChildItem -LiteralPath $root -Directory -ErrorAction SilentlyContinue |
             Where-Object { [IO.Path]::GetFullPath($_.FullName) -ne $activeRunRoot } |
             Sort-Object Name -Descending)
@@ -278,6 +288,7 @@ function Show-GameWipRunList
     param([switch]$All)
     Write-GameWipSection 'Retained runs'
     $items = @(Get-GameWipRetainedRun)
+
     if ($items.Count -eq 0)
     {
         Write-Host '  (none)'; return
@@ -290,6 +301,7 @@ function Show-GameWipRunList
     {
         @($items | Select-Object -First 25)
     }
+
     if (-not $All -and $displayItems.Count -lt $items.Count)
     {
         Write-Host "  Showing the newest $($displayItems.Count) of $($items.Count) runs. Use 'gamewip history list all' for complete history."
@@ -299,16 +311,19 @@ function Show-GameWipRunList
     $rowFormat = "  {0,-$runWidth} {1,-10} {2}"
     Write-Host ($rowFormat -f 'Run', 'Status', 'Action')
     Write-Host ($rowFormat -f ('-' * $runWidth), ('-' * 10), ('-' * 24))
+
     foreach ($item in $displayItems)
     {
         $manifest = Join-Path $item.FullName 'manifest.json'
         $status = 'incomplete'; $action = $item.Name
+
         if (Test-Path -LiteralPath $manifest -PathType Leaf)
         {
             try
             {
                 $doc = Get-Content -Raw -LiteralPath $manifest | ConvertFrom-Json; $status = [string]$doc.status; $action = [string]$doc.action
             }
+
             catch
             {
                 $null = $_.Exception
@@ -355,19 +370,23 @@ function Resolve-GameWipRunSelection
 {
     param([Parameter(Mandatory = $true)][string]$Selector)
     $items = @(Get-GameWipRetainedRun)
+
     if ($items.Count -eq 0)
     {
         throw 'No retained GameWIP runs exist.'
     }
+
     if ($Selector -eq 'latest')
     {
         return $items[0]
     }
     $match = @($items | Where-Object { $_.Name -eq $Selector })
+
     if ($match.Count -ne 1)
     {
         throw "Unknown retained run '$Selector'."
     }
+
     return $match[0]
 }
 
@@ -376,6 +395,7 @@ function Show-GameWipRun
     param([string]$Selector = 'latest')
     $run = Resolve-GameWipRunSelection -Selector $Selector
     $summary = Join-Path $run.FullName 'summary.txt'
+
     if (Test-Path -LiteralPath $summary)
     {
         Get-Content -LiteralPath $summary | ForEach-Object { Write-Host $_ }
@@ -402,16 +422,19 @@ function Invoke-GameWipRunCleanup
         {
             Resolve-GameWipRunSelection -Selector $Selector
         })
+
     if ($targets.Count -eq 0)
     {
         Write-Host 'No retained runs to clean.'; return
     }
     $plan = @($targets | ForEach-Object { "Remove retained run $($_.Name)" })
+
     if (-not (Confirm-GameWipMutation -Summary "Remove $($targets.Count) retained run(s)?" -Risk destructive -Plan $plan))
     {
         return
     }
     Set-GameWipMutationState partial
+
     foreach ($target in $targets)
     {
         Assert-GameWipSafeChildPath -Path $target.FullName -OwnedRoot $root | Out-Null

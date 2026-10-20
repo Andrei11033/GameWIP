@@ -169,6 +169,7 @@ namespace
     std::uint64_t hashWideIdentity(std::wstring_view text)
     {
         std::uint64_t hash = kFnvOffset;
+
         for (wchar_t character : text)
         {
             const wchar_t folded = static_cast<wchar_t>(std::towlower(character));
@@ -189,17 +190,20 @@ namespace
         }
 
         std::vector<char16_t> source(text.size());
+
         for (std::size_t index = 0; index < text.size(); ++index)
         {
             source[index] = static_cast<char16_t>(text[index]);
         }
         const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(source);
+
         if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return {};
         }
         std::string output(measurement.requiredBytes, '\0');
         const auto conversion = GameWIP::Unicode::Utf16::convertToUtf8(source, output);
+
         if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return {};
@@ -212,6 +216,7 @@ namespace
     {
         std::wstring output;
         output.reserve(text.size());
+
         for (wchar_t character : text)
         {
             output.push_back(static_cast<wchar_t>(std::towlower(character)));
@@ -224,6 +229,7 @@ namespace
     {
         std::string output;
         output.reserve(text.size());
+
         for (char character : text)
         {
             if (character >= 'A' && character <= 'Z')
@@ -252,16 +258,19 @@ namespace
     bool tryParseHexAfterMarker(std::wstring_view text, std::wstring_view marker, std::uint16_t &outValue)
     {
         const std::size_t markerPosition = text.find(marker);
+
         if (markerPosition == std::wstring_view::npos || markerPosition + marker.size() + 4 > text.size())
         {
             return false;
         }
 
         std::uint16_t value = 0;
+
         for (std::size_t digitIndex = 0; digitIndex < 4; ++digitIndex)
         {
             const wchar_t digit = text[markerPosition + marker.size() + digitIndex];
             value <<= 4;
+
             if (digit >= L'0' && digit <= L'9')
             {
                 value |= static_cast<std::uint16_t>(digit - L'0');
@@ -292,6 +301,7 @@ namespace
     std::string getHidProductName(const std::wstring &path)
     {
         HANDLE deviceHandle = openHidDevicePath(path);
+
         if (deviceHandle == INVALID_HANDLE_VALUE)
         {
             return {};
@@ -300,6 +310,7 @@ namespace
         wchar_t productName[128]{};
         const bool ok = HidD_GetProductString(deviceHandle, productName, sizeof(productName)) != FALSE;
         CloseHandle(deviceHandle);
+
         if (!ok || productName[0] == L'\0')
         {
             return {};
@@ -314,10 +325,12 @@ namespace
         outProductId = 0;
 
         HANDLE deviceHandle = openHidDevicePath(path);
+
         if (deviceHandle != INVALID_HANDLE_VALUE)
         {
             HIDD_ATTRIBUTES attributes{};
             attributes.Size = sizeof(attributes);
+
             if (HidD_GetAttributes(deviceHandle, &attributes) != FALSE)
             {
                 outVendorId = attributes.VendorID;
@@ -343,12 +356,14 @@ namespace
     {
         DWORD requiredSize = 0;
         SetupDiGetDeviceRegistryPropertyW(deviceInfoSet, &deviceInfoData, SPDRP_HARDWAREID, nullptr, nullptr, 0, &requiredSize);
+
         if (requiredSize == 0)
         {
             return {};
         }
 
         std::vector<wchar_t> buffer((requiredSize / sizeof(wchar_t)) + 1, L'\0');
+
         if (SetupDiGetDeviceRegistryPropertyW(
                 deviceInfoSet,
                 &deviceInfoData,
@@ -363,11 +378,13 @@ namespace
 
         std::vector<std::string> hardwareIds;
         std::span<const wchar_t> entries = buffer;
+
         while (!entries.empty() && entries.front() != L'\0')
         {
             const auto terminator = std::ranges::find(entries, L'\0');
             const std::size_t length = static_cast<std::size_t>(std::ranges::distance(entries.begin(), terminator));
             hardwareIds.push_back(wideToUtf8(std::wstring_view(entries.data(), length)));
+
             if (terminator == entries.end())
             {
                 break;
@@ -382,6 +399,7 @@ namespace
     {
         ULONG requiredSize = 0;
         CONFIGRET sizeResult = CM_Get_Device_ID_Size(&requiredSize, deviceInfoData.DevInst, 0);
+
         if (sizeResult != CR_SUCCESS || requiredSize == 0)
         {
             return {};
@@ -398,16 +416,19 @@ namespace
         HidD_GetHidGuid(&hidGuid);
 
         HDEVINFO deviceInfoSet = SetupDiGetClassDevsW(&hidGuid, nullptr, nullptr, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
+
         if (deviceInfoSet == INVALID_HANDLE_VALUE)
         {
             return;
         }
 
         const std::wstring targetPath = toLowerWide(runtime.nativePath);
+
         for (DWORD index = 0;; ++index)
         {
             SP_DEVICE_INTERFACE_DATA interfaceData{};
             interfaceData.cbSize = sizeof(interfaceData);
+
             if (SetupDiEnumDeviceInterfaces(deviceInfoSet, nullptr, &hidGuid, index, &interfaceData) == FALSE)
             {
                 break;
@@ -415,6 +436,7 @@ namespace
 
             DWORD requiredSize = 0;
             SetupDiGetDeviceInterfaceDetailW(deviceInfoSet, &interfaceData, nullptr, 0, &requiredSize, nullptr);
+
             if (requiredSize == 0)
             {
                 continue;
@@ -434,6 +456,7 @@ namespace
 
             SP_DEVINFO_DATA deviceInfoData{};
             deviceInfoData.cbSize = sizeof(deviceInfoData);
+
             if (SetupDiGetDeviceInterfaceDetailW(deviceInfoSet, &interfaceData, detailData, requiredSize, nullptr, &deviceInfoData) == FALSE)
             {
                 continue;
@@ -610,12 +633,14 @@ namespace
         const double minimumWide = static_cast<double>(logicalMinimum);
         const double maximumWide = static_cast<double>(logicalMaximum);
         const float normalized = static_cast<float>((valueWide - minimumWide) / (maximumWide - minimumWide));
+
         if (logicalMinimum >= 0 && !isCenteredHidAxis(deviceType, usage))
         {
             return std::clamp(normalized, 0.0f, 1.0f);
         }
 
         float centeredValue = std::clamp((normalized * 2.0f) - 1.0f, -1.0f, 1.0f);
+
         if (isInvertedCenteredHidAxis(deviceType, usage))
         {
             centeredValue = -centeredValue;
@@ -654,6 +679,7 @@ namespace
     bool loadHidPreparsedData(HidDeviceRuntime &runtime)
     {
         UINT preparsedSize = 0;
+
         if (GetRawInputDeviceInfoW(runtime.rawDevice, RIDI_PREPARSEDDATA, nullptr, &preparsedSize) != 0 || preparsedSize == 0)
         {
             return false;
@@ -662,6 +688,7 @@ namespace
         runtime.preparsedData.resize(preparsedSize);
         UINT expectedSize = preparsedSize;
         const UINT result = GetRawInputDeviceInfoW(runtime.rawDevice, RIDI_PREPARSEDDATA, runtime.preparsedData.data(), &preparsedSize);
+
         if (result == static_cast<UINT>(-1) || result != expectedSize)
         {
             return false;
@@ -758,6 +785,7 @@ namespace
             }
 
             bool matches = false;
+
             if (backendInfo.backend == InputDeviceBackend::XInput && device.hasHidFeed)
             {
                 matches = isSameBackendIdentity(device.hidNativeIdentityHash, backendInfo.xInputNativeIdentityHash);
@@ -819,9 +847,11 @@ namespace
         getHidAttributes(runtime.nativePath, runtime.vendorId, runtime.productId);
 
         std::string productName = getHidProductName(runtime.nativePath);
+
         if (productName.empty())
         {
             productName = "HID Controller";
+
             if (runtime.vendorId != 0 || runtime.productId != 0)
             {
                 productName += " VID_" + std::to_string(runtime.vendorId) + " PID_" + std::to_string(runtime.productId);
@@ -846,6 +876,7 @@ namespace
         deviceInfo.hasHidFeed = true;
 
         InputDeviceRef mergeTarget{};
+
         if (runtime.deviceType == InputDeviceType::Gamepad && findBackendMergeTarget(devices, deviceInfo, mergeTarget))
         {
             runtime.device = InputInternal::InputDeviceRegistryAccess::mergeDeviceBackend(devices, mergeTarget, deviceInfo);
@@ -857,12 +888,15 @@ namespace
         }
 
         std::vector<HIDP_BUTTON_CAPS> buttonCaps(runtime.caps.NumberInputButtonCaps);
+
         if (!buttonCaps.empty())
         {
             USHORT buttonCount = static_cast<USHORT>(buttonCaps.size());
+
             if (HidP_GetButtonCaps(HidP_Input, buttonCaps.data(), &buttonCount, getPreparsedData(runtime)) == HIDP_STATUS_SUCCESS)
             {
                 buttonCaps.resize(buttonCount);
+
                 for (const HIDP_BUTTON_CAPS &cap : buttonCaps)
                 {
                     buildHidButtonRuntime(runtime, cap, controls);
@@ -871,16 +905,20 @@ namespace
         }
 
         std::vector<HIDP_VALUE_CAPS> valueCaps(runtime.caps.NumberInputValueCaps);
+
         if (!valueCaps.empty())
         {
             USHORT valueCount = static_cast<USHORT>(valueCaps.size());
+
             if (HidP_GetValueCaps(HidP_Input, valueCaps.data(), &valueCount, getPreparsedData(runtime)) == HIDP_STATUS_SUCCESS)
             {
                 valueCaps.resize(valueCount);
+
                 for (const HIDP_VALUE_CAPS &cap : valueCaps)
                 {
                     const USAGE usageMin = cap.IsRange ? cap.Range.UsageMin : cap.NotRange.Usage;
                     const USAGE usageMax = cap.IsRange ? cap.Range.UsageMax : cap.NotRange.Usage;
+
                     for (USAGE usage = usageMin; usage <= usageMax; ++usage)
                     {
                         if (cap.UsagePage == HID_USAGE_PAGE_GENERIC)
@@ -893,14 +931,17 @@ namespace
         }
 
         runtime.usable = !runtime.buttons.empty() || !runtime.values.empty();
+
         if (!runtime.usable)
         {
             InputInternal::InputDeviceRegistryAccess::setDeviceBackendConnected(devices, runtime.device, InputDeviceBackend::RawInputHID, false);
             const InputDeviceInfo *registeredDevice = devices.findDevice(runtime.device);
+
             if (registeredDevice == nullptr || !registeredDevice->connected)
             {
                 InputInternal::InputDeviceRegistryAccess::setDeviceCanonical(devices, runtime.device, false);
             }
+
             return false;
         }
 
@@ -911,12 +952,14 @@ namespace
     std::wstring getRawInputDeviceName(HANDLE device)
     {
         UINT nameLength = 0;
+
         if (GetRawInputDeviceInfoW(device, RIDI_DEVICENAME, nullptr, &nameLength) != 0 || nameLength == 0)
         {
             return {};
         }
 
         std::wstring name(nameLength, L'\0');
+
         if (GetRawInputDeviceInfoW(device, RIDI_DEVICENAME, name.data(), &nameLength) == static_cast<UINT>(-1))
         {
             return {};
@@ -938,12 +981,14 @@ namespace
         InputInternal::InputDeviceRegistryAccess::clearBackend(devices, InputDeviceBackend::RawInputHID);
 
         UINT deviceCount = 0;
+
         if (GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) != 0 || deviceCount == 0)
         {
             return;
         }
 
         std::vector<RAWINPUTDEVICELIST> rawDevices(deviceCount);
+
         if (GetRawInputDeviceList(rawDevices.data(), &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
         {
             return;
@@ -959,6 +1004,7 @@ namespace
             RID_DEVICE_INFO deviceInfo{};
             deviceInfo.cbSize = sizeof(deviceInfo);
             UINT infoSize = sizeof(deviceInfo);
+
             if (GetRawInputDeviceInfoW(rawDevice.hDevice, RIDI_DEVICEINFO, &deviceInfo, &infoSize) == static_cast<UINT>(-1))
             {
                 continue;
@@ -973,6 +1019,7 @@ namespace
             runtime.rawDevice = rawDevice.hDevice;
             runtime.deviceType = deviceInfo.hid.usUsage == HID_USAGE_GENERIC_GAMEPAD ? InputDeviceType::Gamepad : InputDeviceType::Joystick;
             runtime.nativePath = getRawInputDeviceName(rawDevice.hDevice);
+
             if (runtime.nativePath.empty())
             {
                 continue;
@@ -1016,6 +1063,7 @@ namespace
     void setHatButtons(InputState &inputState, const HidValueRuntime &valueRuntime, LONG rawValue)
     {
         LONG hat = rawValue;
+
         if (valueRuntime.logicalMinimum == 1 && valueRuntime.logicalMaximum == 8)
         {
             --hat;
@@ -1063,9 +1111,11 @@ namespace
         }
 
         activeUsages.resize(usageCount);
+
         for (USAGE usage = buttonRuntime.usageMin; usage <= buttonRuntime.usageMax; ++usage)
         {
             const std::size_t controlIndex = static_cast<std::size_t>(usage - buttonRuntime.usageMin);
+
             if (controlIndex >= buttonRuntime.controls.size())
             {
                 break;
@@ -1095,6 +1145,7 @@ namespace
         }
 
         const LONG rawValue = static_cast<LONG>(value);
+
         if (valueRuntime.previousRawValue == rawValue)
         {
             return;
@@ -1117,6 +1168,7 @@ namespace
     {
         float normalized =
             value < 128 ? static_cast<float>(static_cast<int>(value) - 128) / 128.0f : static_cast<float>(static_cast<int>(value) - 128) / 127.0f;
+
         if (invert)
         {
             normalized = -normalized;
@@ -1154,6 +1206,7 @@ namespace
         }
 
         std::size_t commonOffset = 0;
+
         if (report[0] == 0x01)
         {
             commonOffset = 1;
@@ -1220,6 +1273,7 @@ namespace
     bool handleRawHidInput(const RAWINPUT &rawInput, std::size_t rawInputSize, InputState &inputState, InputDeviceRegistry &devices)
     {
         HidDeviceRuntime *runtime = findHidDevice(rawInput.header.hDevice);
+
         if (runtime == nullptr)
         {
             refreshHidDevices(devices);
@@ -1237,12 +1291,14 @@ namespace
         const RAWHID &rawHid = rawInput.data.hid;
         const std::size_t reportSize = rawHid.dwSizeHid;
         const std::size_t reportCount = rawHid.dwCount;
+
         if (reportSize != 0 && reportCount > std::numeric_limits<std::size_t>::max() / reportSize)
         {
             return false;
         }
         const std::size_t reportBytes = reportSize * reportCount;
         const std::size_t reportOffsetInInput = offsetof(RAWINPUT, data) + offsetof(RAWHID, bRawData);
+
         if (reportOffsetInInput > rawInputSize || reportBytes > rawInputSize - reportOffsetInInput)
         {
             return false;
@@ -1260,6 +1316,7 @@ namespace
         {
             const std::size_t reportOffset = static_cast<std::size_t>(reportIndex) * rawHid.dwSizeHid;
             const std::span<const unsigned char> report = reportData.subspan(reportOffset, reportSize);
+
             if (tryFeedDualSenseReport(inputState, *runtime, report))
             {
                 continue;
@@ -1306,12 +1363,14 @@ namespace
         for (const wchar_t *libraryName : xInputLibraries)
         {
             HMODULE library = LoadLibraryW(libraryName);
+
             if (library == nullptr)
             {
                 continue;
             }
 
             const XInputGetStateFn function = GameWIP::Base::Win32::loadProcedure<XInputGetStateFn>(library, "XInputGetState");
+
             if (function != nullptr)
             {
                 cachedXInputGetState = function;
@@ -1357,6 +1416,7 @@ namespace
         for (DWORD attempt = 0; attempt < kMaxGamepadCount; ++attempt)
         {
             DWORD userIndex = (nextDisconnectedGamepadSlotToPoll + attempt) % kMaxGamepadCount;
+
             if (!cachedGamepadConnected[static_cast<std::size_t>(userIndex)])
             {
                 nextDisconnectedGamepadSlotToPoll = (userIndex + 1) % kMaxGamepadCount;
@@ -1370,6 +1430,7 @@ namespace
     bool isRegistryBackendDevice(const InputDeviceRegistry &devices, InputDeviceRef device, InputDeviceBackend backend)
     {
         const InputDeviceInfo *deviceInfo = devices.findDevice(device);
+
         if (deviceInfo == nullptr)
         {
             return false;
@@ -1396,6 +1457,7 @@ namespace
         std::uint64_t clearGeneration)
     {
         const InputDeviceRef device{InputDeviceType::Gamepad, deviceIndex};
+
         if (!isRegistryBackendDevice(devices, device, InputDeviceBackend::XInput))
         {
             cachedGamepadInputStates[cacheIndex] = nullptr;
@@ -1430,6 +1492,7 @@ namespace
         for (DWORD userIndex = 0; userIndex < kMaxGamepadCount; ++userIndex)
         {
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
+
             if (cachedGamepadConnected[cacheIndex] || !gamepadControlsCleared[cacheIndex])
             {
                 DeviceIndex deviceIndex =
@@ -1441,6 +1504,7 @@ namespace
                 cachedGamepadInputStates[cacheIndex] = nullptr;
                 hasCachedGamepadPacket[cacheIndex] = false;
                 const InputDeviceRef device{InputDeviceType::Gamepad, static_cast<DeviceIndex>(userIndex)};
+
                 if (isRegistryBackendDevice(devices, device, InputDeviceBackend::XInput))
                 {
                     InputInternal::InputDeviceRegistryAccess::setDeviceBackendConnected(devices, device, InputDeviceBackend::XInput, false);
@@ -1500,6 +1564,7 @@ namespace
         deviceInfo.backendName = "XInput";
         deviceInfo.nativeIdentity = "xinput:" + std::to_string(userIndex);
         deviceInfo.nativeIdentityHash = static_cast<std::uint64_t>(0x58494E5055540000ull + userIndex);
+
         if (const XInputHidIdentity *identity = findXInputHidIdentityForSlot(userIndex); identity != nullptr)
         {
             deviceInfo.xInputNativeIdentity = identity->nativeIdentity;
@@ -1541,6 +1606,7 @@ namespace
         }
 
         InputDeviceRef mergeTarget{};
+
         if (findBackendMergeTarget(devices, deviceInfo, mergeTarget))
         {
             for (InputControlInfo &control : deviceInfo.controls)
@@ -1604,6 +1670,7 @@ namespace
             {
                 InputInternal::InputStateAccess::addTextCodepoint(inputState, 0xFFFD);
             }
+
             return true;
         }
 
@@ -1614,6 +1681,7 @@ namespace
         }
 
         char32_t codepoint = static_cast<char32_t>(codeUnit);
+
         if (!isTextCodepoint(codepoint))
         {
             return true;
@@ -1628,6 +1696,7 @@ namespace
     bool feedUnicodeTextCodepoint(char32_t codepoint, InputState &inputState)
     {
         InputInternal::InputStateAccess::clearTextComposition(inputState);
+
         if (!isTextCodepoint(codepoint))
         {
             return true;
@@ -1888,6 +1957,7 @@ namespace
         if (scanCode == 0 && rawKeyboard.VKey != 0)
         {
             UINT mappedScanCode = MapVirtualKeyW(rawKeyboard.VKey, MAPVK_VK_TO_VSC_EX);
+
             if (mappedScanCode == 0)
             {
                 return 0;
@@ -1911,6 +1981,7 @@ namespace
     bool feedMouseButton(const RAWMOUSE &rawMouse, USHORT downFlag, USHORT upFlag, MouseButton button, InputState &inputState)
     {
         bool updated = false;
+
         if ((rawMouse.usButtonFlags & downFlag) != 0)
         {
             InputInternal::InputStateAccess::setButton(inputState, makeMouseButton(button), true);
@@ -1983,10 +2054,12 @@ namespace
     {
         HRAWINPUT rawInputHandle = reinterpret_cast<HRAWINPUT>(lParam);
         UINT bufferSize = 0;
+
         if (GetRawInputData(rawInputHandle, RID_INPUT, nullptr, &bufferSize, sizeof(RAWINPUTHEADER)) != 0)
         {
             return false;
         }
+
         if (bufferSize == 0)
         {
             return false;
@@ -1997,6 +2070,7 @@ namespace
         buffer.resize(elementCount);
         UINT expectedBufferSize = bufferSize;
         UINT result = GetRawInputData(rawInputHandle, RID_INPUT, buffer.data(), &bufferSize, sizeof(RAWINPUTHEADER));
+
         if (result == static_cast<UINT>(-1) || result != expectedBufferSize)
         {
             return false;
@@ -2008,6 +2082,7 @@ namespace
         {
             RAWKEYBOARD &rawKeyboard = rawInput.data.keyboard;
             ControlCode controlCode = getKeyboardControlCode(rawKeyboard);
+
             if (controlCode != 0)
             {
                 bool isDown = (rawKeyboard.Flags & RI_KEY_BREAK) == 0;
@@ -2048,9 +2123,11 @@ namespace GameWIP::Input::Platform::Win32
         DWORD disconnectedSlotToPoll = kMaxGamepadCount;
         auto now = std::chrono::steady_clock::now();
         const bool pollAllDisconnectedSlots = !initialXInputScanComplete;
+
         if (!pollAllDisconnectedSlots && now >= nextDisconnectedGamepadPollTime)
         {
             disconnectedSlotToPoll = chooseDisconnectedGamepadSlot();
+
             if (disconnectedSlotToPoll != kMaxGamepadCount)
             {
                 nextDisconnectedGamepadPollTime = now + kDisconnectedGamepadPollInterval;
@@ -2063,6 +2140,7 @@ namespace GameWIP::Input::Platform::Win32
             std::size_t cacheIndex = static_cast<std::size_t>(userIndex);
 
             bool wasConnected = cachedGamepadConnected[cacheIndex];
+
             if (!wasConnected && !pollAllDisconnectedSlots && userIndex != disconnectedSlotToPoll)
             {
                 continue;
@@ -2070,6 +2148,7 @@ namespace GameWIP::Input::Platform::Win32
 
             XINPUT_STATE state{};
             DWORD result = xInputGetState(userIndex, &state);
+
             if (result == ERROR_SUCCESS)
             {
                 InputDeviceRef device = registerXInputDevice(devices, userIndex, true);

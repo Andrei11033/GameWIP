@@ -9,9 +9,11 @@ Set-StrictMode -Version Latest
 function Test-GameWipTransientNetworkError
 {
     param([Parameter(Mandatory = $true)]$ErrorRecord)
+
     try
     {
         $response = $ErrorRecord.Exception.Response
+
         if ($null -eq $response)
         {
             return $true
@@ -19,6 +21,7 @@ function Test-GameWipTransientNetworkError
         $statusCode = [int]$response.StatusCode
         return $statusCode -eq 408 -or $statusCode -eq 429 -or $statusCode -ge 500
     }
+
     catch
     {
         return $true
@@ -40,10 +43,12 @@ function Invoke-GameWipHttpDownloadAttempt
     $response = $null
     $inputStream = $null
     $outputStream = $null
+
     try
     {
         $client = [Net.Http.HttpClient]::new()
         $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSeconds)
+
         foreach ($name in $Headers.Keys)
         {
             [void]$client.DefaultRequestHeaders.TryAddWithoutValidation([string]$name, [string]$Headers[$name])
@@ -51,9 +56,11 @@ function Invoke-GameWipHttpDownloadAttempt
 
         $responseTask = $client.GetAsync($Uri, [Net.Http.HttpCompletionOption]::ResponseHeadersRead)
         $lastReport = [Diagnostics.Stopwatch]::StartNew()
+
         while (-not $responseTask.IsCompleted)
         {
             Assert-GameWipNotCancelled
+
             if ($lastReport.Elapsed.TotalSeconds -ge 15)
             {
                 Write-GameWipHost "  $Label is still connecting..." -ForegroundColor DarkGray
@@ -69,13 +76,16 @@ function Invoke-GameWipHttpDownloadAttempt
         $buffer = [byte[]]::new(65536)
         [long]$received = 0
         $lastReport.Restart()
+
         while ($true)
         {
             Assert-GameWipNotCancelled
             $readTask = $inputStream.ReadAsync($buffer, 0, $buffer.Length)
+
             while (-not $readTask.IsCompleted)
             {
                 Assert-GameWipNotCancelled
+
                 if ($lastReport.Elapsed.TotalSeconds -ge 15)
                 {
                     Write-GameWipHost "  $Label is still downloading ($([Math]::Round($received / 1MB, 1)) MiB received)..." -ForegroundColor DarkGray
@@ -84,12 +94,14 @@ function Invoke-GameWipHttpDownloadAttempt
                 Start-Sleep -Milliseconds 200
             }
             $read = $readTask.GetAwaiter().GetResult()
+
             if ($read -eq 0)
             {
                 break
             }
             $outputStream.Write($buffer, 0, $read)
             $received += $read
+
             if ($lastReport.Elapsed.TotalSeconds -ge 15)
             {
                 $progress = if ($null -ne $contentLength -and $contentLength -gt 0)
@@ -105,20 +117,24 @@ function Invoke-GameWipHttpDownloadAttempt
             }
         }
     }
+
     finally
     {
         if ($null -ne $outputStream)
         {
             $outputStream.Dispose()
         }
+
         if ($null -ne $inputStream)
         {
             $inputStream.Dispose()
         }
+
         if ($null -ne $response)
         {
             $response.Dispose()
         }
+
         if ($null -ne $client)
         {
             $client.Dispose()
@@ -140,10 +156,12 @@ function Invoke-GameWipHttpRead
 
     $lastError = $null
     $attemptsUsed = 0
+
     for ($attempt = 1; $attempt -le $MaxAttempts; ++$attempt)
     {
         $attemptsUsed = $attempt
         Assert-GameWipNotCancelled
+
         try
         {
             Write-Verbose "HTTP read attempt $attempt/${MaxAttempts}: $Uri"
@@ -187,6 +205,7 @@ function Invoke-GameWipHttpRead
                         Reason = ''
                     }
                 }
+
                 finally
                 {
                     if (-not [string]::IsNullOrWhiteSpace([string]$temporaryOutFile))
@@ -205,12 +224,15 @@ function Invoke-GameWipHttpRead
             {
                 $value = Invoke-WebRequest -Uri $Uri -Headers $Headers -TimeoutSec $TimeoutSeconds -UseBasicParsing
             }
+
             return [pscustomobject]@{ State = 'resolved'; Value = $value; Attempts = $attempt; Reason = '' }
         }
+
         catch
         {
             $lastError = $_
             $transient = Test-GameWipTransientNetworkError -ErrorRecord $_
+
             if (-not $transient -or $attempt -ge $MaxAttempts)
             {
                 break
@@ -229,6 +251,7 @@ function Invoke-GameWipHttpRead
     {
         'request did not complete'
     }
+
     return [pscustomobject]@{ State = 'unavailable'; Value = $null; Attempts = $attemptsUsed; Reason = $reason }
 }
 
