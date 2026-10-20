@@ -5,6 +5,8 @@
 /// reentrant child execution, state restoration, and opt-in manual tests.
 
 #include "validation/tests/terminal/terminal_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/runner_helpers.h"
 
@@ -463,7 +465,7 @@ namespace
 #endif
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
-    void testReentrantFormatting(TestSupport::Context &context, std::string_view executablePath);
+    void testReentrantFormatting(TestSupport::Context &context, const std::filesystem::path &executablePath);
     void testManualUnicodeOutput(TestSupport::Context &context);
     void testManualBasicColorOutput(TestSupport::Context &context, const Terminal::Types::Style::Capabilities &capabilities);
     void testManualRgbColorOutput(TestSupport::Context &context, const Terminal::Types::Style::Capabilities &capabilities);
@@ -506,7 +508,7 @@ namespace
 #if TERMINAL_INTERNAL_TEST_HOOKS
 #if defined(_WIN32)
     void testInputEndpointReplacement(TestSupport::Context &context);
-    void testCancellationSignalFailure(TestSupport::Context &context, std::string_view executablePath);
+    void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath);
     void testCancellationResetFailure(TestSupport::Context &context);
 #endif
 #endif
@@ -567,7 +569,7 @@ namespace GameWIP::Test
             "Terminal reentrant formatting",
             [&](TestSupport::Context &context)
             {
-                testReentrantFormatting(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
+                testReentrantFormatting(context, GameWIP::Validation::currentExecutablePath());
             });
 
         manualObservations = {};
@@ -592,7 +594,7 @@ namespace GameWIP::Test
             "Terminal cancellation signal failure",
             [&](TestSupport::Context &context)
             {
-                testCancellationSignalFailure(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
+                testCancellationSignalFailure(context, GameWIP::Validation::currentExecutablePath());
             });
         runner.runSuite("Terminal cancellation reset failure", testCancellationResetFailure);
 #endif

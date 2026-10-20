@@ -2,6 +2,8 @@
 /// @brief Executable self-tests for the Logger library.
 
 #include "validation/tests/logger/logger_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 
 #include "logger/logger.h"
@@ -105,7 +107,7 @@ namespace
         TestSupport::Context &testContext;
         TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
-        std::string executablePath;
+        std::filesystem::path executablePath;
         TestSupport::Types::Reporting::Summary manualObservations;
 
         void pass(std::string_view name)
@@ -343,7 +345,7 @@ namespace GameWIP::Test
                 }
 
                 context.logRoot = workspace.path();
-                context.executablePath = argc > 0 && argv[0] != nullptr ? std::filesystem::absolute(argv[0]).string() : std::string{};
+                context.executablePath = GameWIP::Validation::currentExecutablePath();
                 const TestSupport::ScopedCurrentPath currentPath(context.processState, workspace.path());
 
                 if (!currentPath.status().ok())

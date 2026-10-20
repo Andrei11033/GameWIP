@@ -16,8 +16,10 @@ project_command_line_tools.
 
 ## Requirements
 
-Run every command in this page from an MSYS2 UCRT64 shell (except the
-CLANG64 sanitizer presets below). The supported environment is MSYS2 UCRT64 with CMake 4.4.2
+Use PowerShell for the `gamewip.bat` helper commands and MSYS2 UCRT64 Bash
+for the direct CMake commands below. PowerShell can also run CMake directly when
+UCRT64 tools are first on `PATH`; the sanitizer examples select CLANG64 instead.
+The supported environment is MSYS2 UCRT64 with CMake 4.4.2
 or newer, Ninja, GCC or Clang as selected by the preset, and C++23 support. The
 root `cmake_minimum_required()` declaration is the authoritative CMake version;
 standalone validation entry points receive that value from the root
@@ -39,16 +41,25 @@ tools first on `PATH` before configuring those presets.
 
 ## Common workflow
 
-From the repository root, configure and build one preset:
+From PowerShell at the repository root, the helper selects the toolchain and
+configures the preset when needed:
 
 ```powershell
+.\gamewip.bat build dev
+.\gamewip.bat test test
+.\gamewip.bat build docs
+```
+
+From MSYS2 UCRT64 Bash, configure and build one preset:
+
+```bash
 cmake --preset dev
 cmake --build --preset dev
 ```
 
 Run tests through the validation preset:
 
-```powershell
+```bash
 cmake --preset test
 cmake --build --preset test
 ctest --preset test
@@ -56,7 +67,7 @@ ctest --preset test
 
 Generate documentation through the docs preset:
 
-```powershell
+```bash
 cmake --preset docs
 cmake --build --preset docs
 ```
@@ -136,7 +147,20 @@ cmake --build --preset asan
 ctest --preset asan
 ```
 
-Use this only from an environment where CLANG64 tools are first on `PATH`.
+The equivalent commands in MSYS2 CLANG64 Bash are:
+
+```bash
+export PATH="/clang64/bin:$PATH"
+cmake --preset asan
+cmake --build --preset asan
+ctest --preset asan
+```
+
+Or use the PowerShell helper, which selects CLANG64 and starts a fresh build:
+
+```powershell
+.\gamewip.bat asan
+```
 
 ### Configure UndefinedBehaviorSanitizer
 
@@ -147,7 +171,20 @@ cmake --build --preset ubsan
 ctest --preset ubsan
 ```
 
-Use this only from an environment where CLANG64 tools are first on `PATH`.
+The equivalent commands in MSYS2 CLANG64 Bash are:
+
+```bash
+export PATH="/clang64/bin:$PATH"
+cmake --preset ubsan
+cmake --build --preset ubsan
+ctest --preset ubsan
+```
+
+Or use the PowerShell helper, which selects CLANG64 and starts a fresh build:
+
+```powershell
+.\gamewip.bat ubsan
+```
 
 ## Project options
 

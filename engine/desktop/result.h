@@ -6,6 +6,7 @@
 #include "io/status.h"
 
 #include <exception>
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -28,7 +29,7 @@ namespace GameWIP::Desktop::Types
         /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] const Value &operator*() const & noexcept
         {
-            if (!value)
+            if (!status.ok() || !value.has_value())
             {
                 std::terminate();
             }
@@ -39,7 +40,7 @@ namespace GameWIP::Desktop::Types
         /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] Value &operator*() & noexcept
         {
-            if (!value)
+            if (!status.ok() || !value.has_value())
             {
                 std::terminate();
             }
@@ -47,22 +48,22 @@ namespace GameWIP::Desktop::Types
             return *value;
         }
 
-        /// @pre ok() is true; otherwise behavior is undefined.
+        /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] const Value *operator->() const noexcept
         {
-            return value ? value.operator->() : nullptr;
+            return std::addressof(operator*());
         }
 
-        /// @pre ok() is true; otherwise behavior is undefined.
+        /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] Value *operator->() noexcept
         {
-            return value ? value.operator->() : nullptr;
+            return std::addressof(operator*());
         }
 
         /// @brief Returns the value on success, otherwise @p fallback.
         [[nodiscard]] Value value_or(Value fallback) const
         {
-            return value ? *value : std::move(fallback);
+            return status.ok() && value.has_value() ? *value : std::move(fallback);
         }
     };
 } // namespace GameWIP::Desktop::Types

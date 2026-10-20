@@ -576,7 +576,7 @@ int runCancellationSignalFailureChild()
 }
 
 /// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
-void testCancellationSignalFailure(TestSupport::Context &context, std::string_view executablePath)
+void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath)
 {
     Hooks::reset();
     TestSupport::Types::Process::Options child;

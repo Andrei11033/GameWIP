@@ -5,6 +5,8 @@
 /// private fragments cover macros, diagnostics, interactive actions, stress, process paths, and manual UI.
 
 #include "validation/tests/assert/assert_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 
 #include "debug/assert/assert.h"
@@ -68,7 +70,7 @@ namespace
         TestSupport::Context &testContext;
         TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
-        std::string executablePath;
+        std::filesystem::path executablePath;
         TestSupport::Types::Reporting::Summary manualObservations;
 
         [[nodiscard]] TestSupport::Types::Reporting::Summary result() const noexcept
@@ -246,14 +248,14 @@ namespace
     }
 
     TestSupport::Types::Process::Result runChildProcessResult(
-        std::string_view executablePath,
+        const std::filesystem::path &executablePath,
         std::string_view argument,
         // Crash and assertion startup paths can be delayed by Windows error handling and CTest
         // process instrumentation; dedicated timeout cases below still use short explicit waits.
         std::chrono::milliseconds timeout = 30s)
     {
         TestSupport::Types::Process::Options child;
-        child.executablePath = std::filesystem::path(std::string(executablePath));
+        child.executablePath = executablePath;
         child.arguments = {std::string(argument)};
         child.waitTimeout = timeout;
         child.captureOutput = true;
@@ -437,7 +439,7 @@ namespace GameWIP::Test
                     context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
                     return;
                 }
-                context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+                context.executablePath = GameWIP::Validation::currentExecutablePath();
                 const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
 
                 if (!requireInfrastructure(context, "create Assert test workspace", workspace.status()))

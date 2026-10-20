@@ -2,6 +2,8 @@
 /// @brief Deterministic Desktop checks and opt-in visible manual validation.
 
 #include "validation/tests/desktop/desktop_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/tests/desktop/accessibility_test.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/runner_helpers.h"
@@ -47,6 +49,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstring>
+#include <cstdlib>
+#include <exception>
 #include <filesystem>
 #include <format>
 #include <functional>
@@ -460,6 +464,28 @@ namespace GameWIP::Test
 {
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
+        if (hasArgument(argc, argv, "--desktop-test-child=result-empty-arrow"))
+        {
+            std::set_terminate(
+                []
+                {
+                    std::_Exit(73);
+                });
+            const Desktop::Types::Result<Desktop::Types::LogicalSize> result{IO::successStatus(), std::nullopt};
+            return static_cast<int>(result->width);
+        }
+
+        if (hasArgument(argc, argv, "--desktop-test-child=result-failed-dereference"))
+        {
+            std::set_terminate(
+                []
+                {
+                    std::_Exit(73);
+                });
+            Desktop::Types::Result<Desktop::Types::LogicalSize> result{IO::makeStatus(ErrorCode::NativeFailure), Desktop::Types::LogicalSize{1, 2}};
+            return static_cast<int>((*result).width);
+        }
+
         if (hasArgument(argc, argv, "--desktop-test-child=accessibility-client"))
         {
             return runAccessibilityClientChild();
@@ -512,7 +538,7 @@ namespace GameWIP::Test
 
         if (hasArgument(argc, argv, "--desktop-test-child=jump-list-publication"))
         {
-            return runJumpListPublicationChild(argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+            return runJumpListPublicationChild(GameWIP::Validation::currentExecutablePath());
         }
 
         if (hasArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
@@ -587,6 +613,7 @@ namespace GameWIP::Test
         if (!manualOnly)
         {
             runner.runSuite("Window passive values and closed state", testPassiveValuesAndClosedState);
+            runner.runSuite("Desktop result access preconditions", testResultAccessPreconditions);
             runAccessibilityTests(runner);
             runner.runSuite("Window Clipboard values and validation", testClipboardValuesAndValidation);
             runner.runSuite("Window Clipboard native round trips", testClipboardRoundTrips);
@@ -595,6 +622,7 @@ namespace GameWIP::Test
             runner.runSuite("Window native data drag and drop", testDragDrop);
             runner.runSuite("Window description validation", testDescriptionValidation);
             runner.runSuite("Window native construction lifecycle", testNativeConstructionLifecycle);
+            runner.runSuite("Window initial monitor geometry", testInitialMonitorGeometry);
             runner.runSuite("Window cursor DPI selection", testCursorDpiSelection);
             runner.runSuite("Window custom cursor values and validation", testCursorValuesAndValidation);
 #if DESKTOP_INTERNAL_TEST_HOOKS
@@ -603,7 +631,7 @@ namespace GameWIP::Test
                 "Desktop dialog and shell COM apartments",
                 [&](TestSupport::Context &context)
                 {
-                    testDialogApartmentContracts(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                    testDialogApartmentContracts(context, GameWIP::Validation::currentExecutablePath());
                 });
             runner.runSuite("Desktop fixed-button messages", testMessageDialogs);
             runner.runSuite("Desktop semantic prompts", testPromptDialogs);
@@ -643,25 +671,25 @@ namespace GameWIP::Test
                 "Desktop jump-list native publication",
                 [&](TestSupport::Context &context)
                 {
-                    testJumpListNativePublication(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                    testJumpListNativePublication(context, GameWIP::Validation::currentExecutablePath());
                 });
             runner.runSuite(
                 "Desktop shell registration ownership",
                 [&](TestSupport::Context &context)
                 {
-                    testShellRegistrationOwnership(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                    testShellRegistrationOwnership(context, GameWIP::Validation::currentExecutablePath());
                 });
             runner.runSuite(
                 "Desktop shell registration application ownership",
                 [&](TestSupport::Context &context)
                 {
-                    testShellRegistrationApplicationOwnership(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                    testShellRegistrationApplicationOwnership(context, GameWIP::Validation::currentExecutablePath());
                 });
             runner.runSuite(
                 "Desktop shell association discovery and launch",
                 [&](TestSupport::Context &context)
                 {
-                    testShellRegistrationLaunch(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                    testShellRegistrationLaunch(context, GameWIP::Validation::currentExecutablePath());
                 });
 #endif
             runner.runSuite("Window renderer occlusion feedback", testRendererOcclusionFeedback);
@@ -670,7 +698,7 @@ namespace GameWIP::Test
                 "Window process-isolated shutdown",
                 [&](TestSupport::Context &context)
                 {
-                    testDesktopProcessShutdown(context, argc > 0 && argv[0] != nullptr ? argv[0] : "GameWIPTests.exe");
+                    testDesktopProcessShutdown(context, GameWIP::Validation::currentExecutablePath());
                 });
             runner.runSuite("Window monitors and display modes", testMonitors);
         }

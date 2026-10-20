@@ -103,15 +103,10 @@ function parseMilestoneReleaseMetadata(description) {
 
     const lines = description.replace(/\r\n?/g, '\n').split('\n');
     const versionLines = lines.filter((line) => line.startsWith('Release version:'));
-    const issueLines = lines.filter((line) => line.startsWith('Release issue:'));
     const nextMilestoneLines = lines.filter((line) => line.startsWith('Next milestone:'));
 
     if (versionLines.length !== 1) {
         throw new Error(`Expected exactly one Release version line, found ${versionLines.length}.`);
-    }
-
-    if (issueLines.length > 1) {
-        throw new Error(`Expected at most one Release issue line, found ${issueLines.length}.`);
     }
 
     if (nextMilestoneLines.length !== 1) {
@@ -124,18 +119,6 @@ function parseMilestoneReleaseMetadata(description) {
         throw new Error(`Invalid Release version line: ${versionLines[0]}`);
     }
 
-    let releaseIssue = null;
-
-    if (issueLines.length === 1) {
-        const issueMatch = /^Release issue: `#([1-9]\d*)`$/.exec(issueLines[0]);
-
-        if (issueMatch === null) {
-            throw new Error(`Invalid Release issue line: ${issueLines[0]}`);
-        }
-
-        releaseIssue = Number.parseInt(issueMatch[1], 10);
-    }
-
     const nextMilestoneMatch = /^Next milestone: `([^`]+)`$/.exec(nextMilestoneLines[0]);
 
     if (nextMilestoneMatch === null) {
@@ -144,7 +127,6 @@ function parseMilestoneReleaseMetadata(description) {
 
     return {
         version: parseReleaseVersion(versionMatch[1]),
-        releaseIssue,
         nextMilestoneTitle: nextMilestoneMatch[1] === 'none' ? null : nextMilestoneMatch[1],
     };
 }
@@ -170,17 +152,7 @@ function isAutomaticReleaseIssueCandidate(issue) {
     return issueLabelNames(issue).includes(RELEASE_ISSUE_LABEL) || RELEASE_ISSUE_TITLE_PATTERN.test(title);
 }
 
-function resolveReleaseIssue({ milestone, metadataReleaseIssue, issues }) {
-    if (metadataReleaseIssue !== null) {
-        const releaseIssues = issues.filter((issue) => issue.number === metadataReleaseIssue);
-
-        if (releaseIssues.length !== 1) {
-            throw new Error(`Milestone '${milestone.title}' must contain release issue #${metadataReleaseIssue} exactly once.`);
-        }
-
-        return releaseIssues[0];
-    }
-
+function resolveReleaseIssue({ milestone, issues }) {
     const releaseIssues = issues.filter(isAutomaticReleaseIssueCandidate);
 
     if (releaseIssues.length !== 1) {
@@ -225,7 +197,6 @@ function validateMilestoneReadiness({ activeMilestone, milestone, issues }) {
     const metadata = parseMilestoneReleaseMetadata(milestone.description);
     const releaseIssue = resolveReleaseIssue({
         milestone,
-        metadataReleaseIssue: metadata.releaseIssue,
         issues,
     });
 
@@ -419,7 +390,7 @@ function planFinalizationArtifacts({ version, releaseCommitSha, tags = [], relea
     };
 }
 
-function buildReleasePreparationPlan(snapshot) {
+function buildCommonReleasePlan(snapshot) {
     const readiness = validateMilestoneReadiness({
         activeMilestone: snapshot.activeMilestone,
         milestone: snapshot.milestone,
@@ -427,7 +398,7 @@ function buildReleasePreparationPlan(snapshot) {
     });
     const projectVersion = parseProjectVersion(snapshot.cmakeContents);
     const latestVersion = findLatestReleaseVersion(snapshot.tagNames);
-    validateTargetVersion({ targetVersion: readiness.version, projectVersion, latestVersion });
+    validateTargetVersion({ targetVersion: readiness.version, projectVersion, latestVersion: null });
     validateRequiredChecks({
         masterSha: snapshot.masterSha,
         evaluatedSha: snapshot.evaluatedSha,
@@ -452,6 +423,32 @@ function buildReleasePreparationPlan(snapshot) {
             pullRequests: snapshot.pullRequests,
         }),
     };
+}
+
+function buildReleasePreparationPlan(snapshot) {
+    const plan = buildCommonReleasePlan(snapshot);
+    validateTargetVersion({ targetVersion: plan.version, projectVersion: plan.version, latestVersion: plan.latestVersion });
+    return plan;
+}
+
+function buildReleaseFinalizationPlan(snapshot, releaseCommitSha) {
+    const preparationPlan = buildCommonReleasePlan(snapshot);
+
+    if (releaseCommitSha !== snapshot.masterSha) {
+        throw new Error(`Release commit ${releaseCommitSha} is not latest master commit ${snapshot.masterSha}.`);
+    }
+
+    if (preparationPlan.latestVersion !== null && compareReleaseVersions(preparationPlan.version, preparationPlan.latestVersion) < 0) {
+        throw new Error(`Milestone target ${preparationPlan.version.text} is older than latest release ${preparationPlan.latestVersion.text}.`);
+    }
+
+    const finalizationPlan = planFinalizationArtifacts({
+        version: preparationPlan.version,
+        releaseCommitSha,
+        tags: snapshot.tags,
+        releases: snapshot.releases,
+    });
+    return { preparationPlan, finalizationPlan };
 }
 
 // ------------------------------------------------------------
@@ -771,7 +768,7 @@ async function buildGitHubSnapshot(github, config) {
         evaluatedSha: masterSha,
         requiredChecks: config.requiredChecks,
         checks,
-        milestones: milestones.map((candidate) => ({ title: candidate.title })),
+        milestones: milestones.map((candidate) => ({ title: candidate.title, state: candidate.state })),
         branches,
         pullRequests,
     };
@@ -1027,18 +1024,7 @@ async function runFinalizationCommand({ github, core, config }) {
     }
 
     const snapshot = await buildGitHubSnapshot(github, config);
-    const preparationPlan = buildReleasePreparationPlan(snapshot);
-
-    if (config.releaseCommit !== snapshot.masterSha) {
-        throw new Error(`Release commit ${config.releaseCommit} is not latest master commit ${snapshot.masterSha}.`);
-    }
-
-    const finalizationPlan = planFinalizationArtifacts({
-        version: preparationPlan.version,
-        releaseCommitSha: config.releaseCommit,
-        tags: snapshot.tags,
-        releases: snapshot.releases,
-    });
+    const { preparationPlan, finalizationPlan } = buildReleaseFinalizationPlan(snapshot, config.releaseCommit);
     await writeSummary(core, finalizationPlanMarkdown(config, preparationPlan, finalizationPlan));
     validateMergedReleasePullRequest(preparationPlan, config.releaseCommit);
     const releaseNotes = readReleaseNotesForRelease(preparationPlan.version);
@@ -1082,6 +1068,7 @@ async function run({ github, context, core }) {
 module.exports = {
     DEFAULT_REQUIRED_CHECKS,
     buildReleasePreparationPlan,
+    buildReleaseFinalizationPlan,
     compareReleaseVersions,
     findLatestReleaseVersion,
     parseProjectVersion,

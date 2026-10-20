@@ -137,6 +137,12 @@ Repeating the same selector or skip is accepted. Selecting different modules, se
 skipping every selected module is an error.
 
 The runner does not remove recognized arguments or reject unrelated arguments.
+The shared internal executable-path helper queries the operating system for the
+running image path, independently of `argv[0]` and the current directory. Runners
+use that native path for report and temporary roots; self-spawning suites use it
+for child executables. Windows lookup preserves Unicode and grows its buffer for
+long paths. Discovery failures propagate as setup exceptions.
+
 Every selected module receives the original `argc` and `argv`, allowing
 module-owned child protocols and library-specific test logic to inspect them.
 

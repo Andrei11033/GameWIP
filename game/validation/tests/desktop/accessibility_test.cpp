@@ -700,7 +700,7 @@ namespace
         equal(context, "character movement", S_OK, range->Move(TextUnit_Character, 2, &moved));
         equal(context, "grapheme movement count", 2, moved);
         equal(context, "emoji range query", S_OK, range->GetText(-1, &wide));
-        check(context, "emoji remains intact", SysStringLen(wide) == 2 && wide[0] == 0xD83D && wide[1] == 0xDE42);
+        check(context, "emoji remains intact", std::wstring_view(wide, SysStringLen(wide)) == L"\U0001F642");
         SysFreeString(wide);
         equal(context, "UTF16 cap does not split surrogate", S_OK, range->GetText(1, &wide));
         equal(context, "split surrogate suppressed", UINT{0}, SysStringLen(wide));
@@ -1012,7 +1012,7 @@ namespace
                     attribute.vt == VT_I4 && attribute.lVal == static_cast<LONG>(LocaleNameToLCID(L"fr-FR", 0)));
             });
         annotations[0] = {{0, 2}, A::TextAnnotationKind::Link, "target", 1};
-        content.annotations = {annotations.data(), 1};
+        content.annotations = std::span(annotations).first<1>();
         check(context, "portable link association publishes", bridge.publish(tree.view(6)).ok());
         read(
             UIA_LinkAttributeId,

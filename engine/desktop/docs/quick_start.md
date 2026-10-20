@@ -106,8 +106,10 @@ thread (@ref desktop_lifecycle_events).
 
 Window operations return direct `IO::Types::Status` values or typed
 `Types::Result<T>`/operation-result structures. For query results, inspect
-`status` (or `ok()`) before consuming the optional `value`; operation-specific
-results document their own progress fields. A failed event wait or pump does not close an open window
+`ok()` before consuming the optional `value`. Dereference and arrow access terminate
+the process if either the status failed or the value is absent; `value_or()` returns
+the supplied fallback in either case. Operation-specific results document their
+own progress fields. A failed event wait or pump does not close an open window
 automatically. Call `close()` and handle its status; destruction performs only
 best-effort cleanup.
 

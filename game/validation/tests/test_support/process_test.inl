@@ -2,7 +2,7 @@
 /// @brief Private TestSupport correctness cases grouped by behavioral responsibility.
 
 /// @brief Verifies child launch, merged capture, truncation, timeout, environment, and process-tree cleanup.
-void testChildProcesses(TestSupport::Context &context, std::string_view executablePath, const TestSupportTestOptions &options)
+void testChildProcesses(TestSupport::Context &context, const std::filesystem::path &executablePath, const TestSupportTestOptions &options)
 {
     TestSupport::ScopedProcessState processState;
     static_cast<void>(context.expectTrue("Process-state scope construction succeeds", processState.status().ok()));

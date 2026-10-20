@@ -363,7 +363,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 monitor = targetMonitor(state, resolved.targetMonitor.value_or(Types::Display::MonitorId::invalid()));
                 monitorInfo = monitorFromNative(monitor);
 
-                if (!monitorInfo.status.ok())
+                if (!monitorInfo.ok())
                 {
                     return monitorInfo.status;
                 }
@@ -595,7 +595,7 @@ namespace GameWIP::Desktop::Detail::Platform
         Types::Result<Types::Display::Info> portablePrimary = monitorFromNative(primary);
         IO::Types::Status monitorFailure = IO::successStatus();
 
-        if (!portablePrimary.status.ok())
+        if (!portablePrimary.ok())
         {
             monitorFailure = std::move(portablePrimary.status);
         }

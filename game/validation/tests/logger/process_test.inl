@@ -2,13 +2,13 @@
 /// @brief Logger child-process and manual diagnostic correctness suites.
 
 [[nodiscard]] TestSupport::Types::Process::Result runChild(
-    std::string_view executable,
+    const std::filesystem::path &executable,
     std::string_view argument,
     // Crash logging may cross the Windows error-reporting boundary before the child exits.
     std::chrono::milliseconds timeout = 30s)
 {
     TestSupport::Types::Process::Options options;
-    options.executablePath = std::filesystem::path(std::string(executable));
+    options.executablePath = executable;
     options.arguments = {std::string(argument)};
     options.waitTimeout = timeout;
     options.captureOutput = true;

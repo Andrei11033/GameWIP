@@ -84,12 +84,20 @@ namespace
                     std::string displayReport;
                     std::format_to(
                         std::back_inserter(displayReport),
-                        "Display '{}'{} at ({}, {}) has {} supported mode(s)",
+                        "Display '{}'{} at ({}, {})",
                         monitor.name,
                         monitor.primary ? " [primary]" : "",
                         monitor.bounds.position.x,
-                        monitor.bounds.position.y,
-                        supportedModes.ok() ? supportedModes->size() : std::size_t{0});
+                        monitor.bounds.position.y);
+
+                    if (supportedModes.ok())
+                    {
+                        std::format_to(std::back_inserter(displayReport), " has {} supported mode(s)", supportedModes->size());
+                    }
+                    else
+                    {
+                        std::format_to(std::back_inserter(displayReport), "\n  mode query failed: {}", supportedModes.status.message);
+                    }
 
                     if (activeMode.ok())
                     {
@@ -125,17 +133,20 @@ namespace
                         std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
 
-                    for (const auto &mode : *supportedModes)
+                    if (supportedModes.ok())
                     {
-                        std::format_to(
-                            std::back_inserter(displayReport),
-                            "\n  mode: {}x{} @ {}.{:03} Hz, {} bpp{}",
-                            mode.resolution.width,
-                            mode.resolution.height,
-                            mode.refreshRateMillihertz / 1000,
-                            mode.refreshRateMillihertz % 1000,
-                            mode.bitsPerPixel,
-                            mode.interlaced ? ", interlaced" : "");
+                        for (const auto &mode : *supportedModes)
+                        {
+                            std::format_to(
+                                std::back_inserter(displayReport),
+                                "\n  mode: {}x{} @ {}.{:03} Hz, {} bpp{}",
+                                mode.resolution.width,
+                                mode.resolution.height,
+                                mode.refreshRateMillihertz / 1000,
+                                mode.refreshRateMillihertz % 1000,
+                                mode.bitsPerPixel,
+                                mode.interlaced ? ", interlaced" : "");
+                        }
                     }
 
                     GameWIP::Logger::info("Startup", "{}", displayReport);

@@ -1060,7 +1060,7 @@ namespace GameWIP::Desktop::Detail::Platform
         HMONITOR native = MonitorFromWindow(state.platform->handle, MONITOR_DEFAULTTONEAREST);
         Types::Result<Types::Display::Info> info = monitorFromNative(native);
 
-        if (!info.status.ok())
+        if (!info.ok())
         {
             recordPumpFailure(std::move(info.status));
             return;

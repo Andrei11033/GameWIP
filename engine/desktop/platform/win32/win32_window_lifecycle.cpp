@@ -251,6 +251,29 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             updateCurrentMonitor(state);
 
+            // Construction uses a provisional system DPI. Restore the requested logical
+            // rectangle at the HWND's effective DPI before fullscreen transitions or showing it.
+            state.mode = Types::WindowMode::Windowed;
+            state.fullscreen = {};
+            status = description.windowed.placement.kind == Types::PlacementKind::Explicit
+                         ? setClientRect(state, description.windowed.placement.position, description.windowed.clientSize)
+                         : setClientSize(state, description.windowed.clientSize);
+
+            if (!status.ok())
+            {
+                return status;
+            }
+
+            if (description.windowed.placement.kind == Types::PlacementKind::Centered)
+            {
+                status = centerOn(state, description.windowed.placement.monitor.value_or(Types::Display::MonitorId{}));
+
+                if (!status.ok())
+                {
+                    return status;
+                }
+            }
+
             if (state.transparentFramebuffer)
             {
                 const BOOL enabled = TRUE;
@@ -280,10 +303,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
-            // Portable state is initialized from Description before native creation. The native
-            // window itself starts windowed, so make that transition origin explicit.
-            state.mode = Types::WindowMode::Windowed;
-            state.fullscreen = {};
             status = setWindowMode(state, description.initialWindowMode);
 
             if (!status.ok())

@@ -147,9 +147,8 @@ When adding a backend:
 - Run the relevant validation, installed-consumer, and documentation workflows.
 
 Unicode and IO are portable foundation libraries and do not receive artificial
-backend directories. Input and Action remain compile-only surfaces for now;
-they are not part of the supported backend-completeness contract. WindowManager
-is outside this contract's scope.
+backend directories. Input, Action, and WindowManager are unbuilt reference
+sources outside the supported backend-completeness contract.
 
 ## Allowed exceptions
 

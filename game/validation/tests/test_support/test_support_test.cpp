@@ -5,6 +5,8 @@
 /// manual prompts, temporary resources, and deterministic stress primitives.
 
 #include "validation/tests/test_support/test_support_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/runner_helpers.h"
 
@@ -209,13 +211,24 @@ namespace
         if (hasArgument(argc, argv, kDescendantChildArgument))
         {
 #if defined(_WIN32)
-            std::string commandLine = "\"" + std::string(argv[0]) + "\" " + std::string(kSleepChildArgument);
-            STARTUPINFOA startupInfo{};
+            const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
+            const std::wstring childArgument(kSleepChildArgument.begin(), kSleepChildArgument.end());
+            std::wstring commandLine = L"\"" + executablePath.native() + L"\" " + childArgument;
+            STARTUPINFOW startupInfo{};
             startupInfo.cb = sizeof(startupInfo);
             PROCESS_INFORMATION processInfo{};
 
-            if (CreateProcessA(nullptr, commandLine.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &processInfo) ==
-                FALSE)
+            if (CreateProcessW(
+                    executablePath.c_str(),
+                    commandLine.data(),
+                    nullptr,
+                    nullptr,
+                    TRUE,
+                    CREATE_NO_WINDOW,
+                    nullptr,
+                    nullptr,
+                    &startupInfo,
+                    &processInfo) == FALSE)
             {
                 return 11;
             }
@@ -275,7 +288,7 @@ namespace GameWIP::Test
                 options.enableStressTests,
                 options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
 
-        const std::string executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+        const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
 
         runner.runSuite("TestSupport core", testSummaryAndTimer);
         runner.runSuite(

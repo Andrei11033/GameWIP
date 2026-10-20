@@ -6,6 +6,8 @@
 
 #include "validation/tests/runner/runner_test.h"
 
+#include "validation/executable_path.h"
+
 #include "validation/tests/runner_helpers.h"
 #include "test_support/test_support.h"
 #include "validation/process_arguments.h"
@@ -343,8 +345,9 @@ namespace
             return;
         }
 
-        const std::filesystem::path relativeReport = "logs/validation/aggregate.txt";
-        const std::filesystem::path expectedReport = (workspace.path() / relativeReport).lexically_normal();
+        const std::filesystem::path outputRoot = Validation::currentExecutablePath().parent_path();
+        const std::filesystem::path relativeReport = std::filesystem::relative(workspace.path(), outputRoot) / "aggregate.txt";
+        const std::filesystem::path expectedReport = (outputRoot / relativeReport).lexically_normal();
         TestSupport::ScopedProcessState processState;
         {
             const TestSupport::ScopedCurrentPath currentPath(processState, workspace.path());
@@ -362,7 +365,7 @@ namespace
 
         static_cast<void>(context.expectEq("relative report resolves beneath executable directory", expectedReport, probeState.alpha.reportPath));
         std::error_code temporaryPathError;
-        const bool temporaryPathMatches = std::filesystem::equivalent(workspace.path() / "temp", probeState.alpha.temporaryRoot, temporaryPathError);
+        const bool temporaryPathMatches = std::filesystem::equivalent(outputRoot / "temp", probeState.alpha.temporaryRoot, temporaryPathError);
         static_cast<void>(
             context.expectTrue("temporary activity resolves beneath executable directory", !temporaryPathError && temporaryPathMatches));
         static_cast<void>(context.expectFalse("first module truncates aggregate report", probeState.beta.appendReport));
@@ -370,6 +373,14 @@ namespace
         static_cast<void>(context.expectFileContains("aggregate report retains first module result", expectedReport, "module=beta result=PASS"));
         static_cast<void>(context.expectFileContains("aggregate report retains later module result", expectedReport, "module=alpha result=PASS"));
         static_cast<void>(context.expectFileContains("aggregate report retains final result", expectedReport, "result=PASS modules=2 failed=0"));
+
+        const std::filesystem::path explicitReport = workspace.path() / "absolute-report.txt";
+        ValidationTests::RunOptions absoluteOptions;
+        absoluteOptions.reportPath = explicitReport;
+        const Validation::TestResult absoluteResult = runProbe({}, std::move(absoluteOptions));
+        static_cast<void>(context.expectTrue("absolute report invocation succeeds", absoluteResult.ok()));
+        static_cast<void>(context.expectEq("explicit absolute report path is preserved", explicitReport, probeState.alpha.reportPath));
+        static_cast<void>(context.expectFileContains("absolute report retains final result", explicitReport, "result=PASS modules=2 failed=0"));
     }
 
     void testModuleFailureIsolation(TestSupport::Context &context)

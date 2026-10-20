@@ -4,6 +4,7 @@
 #include "validation/tests/runner.h"
 
 #include "validation/process_arguments.h"
+#include "validation/executable_path.h"
 #include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/registry.h"
 
@@ -20,6 +21,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -136,22 +138,6 @@ namespace GameWIP::Validation::Tests
             }
 
             return selection;
-        }
-
-        /// @brief Returns the normalized directory that owns outputs for this executable invocation.
-        [[nodiscard]] std::filesystem::path executableDirectory(ProcessArguments arguments)
-        {
-            if (!arguments.empty() && arguments.front() != nullptr && !std::string_view(arguments.front()).empty())
-            {
-                const std::filesystem::path executablePath = std::filesystem::absolute(arguments.front()).lexically_normal();
-
-                if (executablePath.has_parent_path())
-                {
-                    return executablePath.parent_path();
-                }
-            }
-
-            return std::filesystem::current_path();
         }
 
         /// @brief Resolves ordinary relative reports beneath the running executable directory and rejects parent traversal.
@@ -325,7 +311,18 @@ namespace GameWIP::Validation::Tests
         // Validation owns disposable process activity beneath its executable's
         // preset tree. Scoped restoration prevents this policy from leaking to
         // the game runtime that may follow embedded startup validation.
-        const std::filesystem::path outputRoot = executableDirectory(arguments);
+        std::filesystem::path executablePath;
+
+        try
+        {
+            executablePath = currentExecutablePath();
+        }
+        catch (const std::system_error &error)
+        {
+            std::cerr << "[VALIDATION] executable path discovery failed: " << error.what() << '\n';
+            return {.modulesFailed = 1, .exitCode = 1};
+        }
+        const std::filesystem::path outputRoot = executablePath.parent_path();
         const std::filesystem::path temporaryRoot = outputRoot / "temp";
         std::error_code temporaryError;
         std::filesystem::create_directories(temporaryRoot, temporaryError);
@@ -335,7 +332,8 @@ namespace GameWIP::Validation::Tests
             std::cerr << "Validation temporary directory setup failed: " << temporaryError.message() << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
         }
-        const std::string temporaryRootText = temporaryRoot.string();
+        const std::u8string temporaryRootUtf8 = temporaryRoot.u8string();
+        const std::string temporaryRootText(temporaryRootUtf8.begin(), temporaryRootUtf8.end());
         TestSupport::ScopedProcessState processState;
 
         if (!processState.status().ok())

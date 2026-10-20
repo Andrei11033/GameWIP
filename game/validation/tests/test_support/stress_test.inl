@@ -102,7 +102,7 @@ int runStartGateChild()
 }
 
 /// @brief Verifies worker coordination, callable variants, and exception propagation.
-void testStressHelpers(TestSupport::Context &context, std::string_view executablePath, const TestSupportTestOptions &options)
+void testStressHelpers(TestSupport::Context &context, const std::filesystem::path &executablePath, const TestSupportTestOptions &options)
 {
     if (!options.enableStressTests)
     {
@@ -204,6 +204,17 @@ void testStressHelpers(TestSupport::Context &context, std::string_view executabl
     auto workerIds = std::make_shared<std::set<std::size_t>>();
     TestSupport::runWorkers(4, WorkerCopyRecorder{nextWorkerId, addressMutex, workerIds});
     static_cast<void>(context.expectEq("runWorkers gives each worker its own callable copy", std::size_t{4}, workerIds->size()));
+
+    std::mutex workerIndexMutex;
+    std::set<std::size_t> workerIndices;
+    TestSupport::runWorkers(
+        4,
+        [&](std::size_t workerIndex)
+        {
+            std::lock_guard lock(workerIndexMutex);
+            workerIndices.insert(workerIndex);
+        });
+    static_cast<void>(context.expectEq("runWorkers passes each worker its index", std::set<std::size_t>{0, 1, 2, 3}, workerIndices));
 
     std::atomic<std::size_t> enteredFailureWorkers{0};
     std::atomic<std::size_t> completedFailureWorkers{0};

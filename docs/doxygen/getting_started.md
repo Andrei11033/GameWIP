@@ -19,13 +19,20 @@ the `dev` compilation database used by workspace IntelliSense.
 
 ## Configure, build, and run
 
-From an MSYS2 UCRT64 shell, configure and build the `dev` preset (see
-@ref project_build for all presets), then run the executable:
+From PowerShell, use the helper to build the `dev` preset with the configured
+toolchain (see @ref project_build for all presets), then run the executable:
 
 ```powershell
+.\gamewip.bat build dev
+.\build\dev\GameWIP.exe
+```
+
+From MSYS2 UCRT64 Bash, the equivalent direct commands are:
+
+```bash
 cmake --preset dev
 cmake --build --preset dev
-.\build\dev\GameWIP.exe
+./build/dev/GameWIP.exe
 ```
 
 The executable's `--version` option prints the generated build identity. Run it
@@ -42,7 +49,15 @@ including safe `--help` forms, are in @ref project_command_line_tools.
 
 ## Run validation
 
+In PowerShell:
+
 ```powershell
+.\gamewip.bat test test
+```
+
+In MSYS2 UCRT64 Bash:
+
+```bash
 cmake --preset test
 cmake --build --preset test
 ctest --preset test

@@ -41,6 +41,11 @@ thread; a returned pair never mixes publications, but separate calls are not a t
 Renderers may use `currentMonitor()` to select output-dependent color, HDR, or presentation policy,
 then re-query display details through owner-thread APIs.
 
+Initial creation keeps the native window hidden while reading its effective DPI,
+restoring the requested logical client size, and correcting explicit or centered
+placement. These corrections precede fullscreen transitions and initial showing,
+so the saved windowed rectangle also uses the destination monitor's scale.
+
 ## DPI resize policy
 
 `DpiResizePolicy::PreserveLogicalClientSize` (default) keeps the logical client extent across a DPI

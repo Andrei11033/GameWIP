@@ -1,3 +1,6 @@
+/// @file runner_helpers.h
+/// @brief Shared reporting setup and finalization for correctness-module adapters.
+
 #pragma once
 
 #include "test_support/test_support.h"
@@ -6,6 +9,10 @@
 
 namespace GameWIP::Test::RunnerHelpers
 {
+    /// @brief Maps module reporting policy into the shared TestSupport sink options.
+    /// @tparam Options Module options exposing reporting and console fields.
+    /// @param options Module reporting policy.
+    /// @return Corresponding shared report sink options.
     template <typename Options> [[nodiscard]] inline TestSupport::Types::Reporting::Options makeReportingOptions(const Options &options)
     {
         TestSupport::Types::Reporting::Options reportOptions;
@@ -18,6 +25,10 @@ namespace GameWIP::Test::RunnerHelpers
         return reportOptions;
     }
 
+    /// @brief Finalizes reporting and returns the recorded correctness result.
+    /// @param runner Completed module runner.
+    /// @return The runner's test exit code.
+    /// @note Report sink failures are diagnosed without changing the test result.
     [[nodiscard]] inline int finalizeRunner(TestSupport::Runner &runner)
     {
         const int exitCode = runner.exitCode();

@@ -17,8 +17,7 @@ and the [roadmap](docs/roadmap.md).
 
 ## Development approach
 
-I write the implementation myself and docs. I use AI to help with research, review,
-tests and maintenance.
+I develop and document the project, using AI to support me in research, review, testing, and maintenance.
 
 ## Start here
 
@@ -32,13 +31,20 @@ Setup prepares the development environment, pinned dependencies, and profiler
 tools, and handles updates, repair, and uninstall. See the
 [development environment guide](docs/doxygen/environment_setup.md).
 
-Open `GameWIP.code-workspace`, then from an MSYS2 UCRT64 shell build and run the
-`dev` preset:
+Open `GameWIP.code-workspace`, then build and run the `dev` preset. In PowerShell,
+use the helper to select the configured toolchain:
 
 ```powershell
+.\gamewip.bat build dev
+.\build\dev\GameWIP.exe
+```
+
+Or use CMake directly from MSYS2 UCRT64 Bash:
+
+```bash
 cmake --preset dev
 cmake --build --preset dev
-.\build\dev\GameWIP.exe
+./build/dev/GameWIP.exe
 ```
 
 See the [getting started guide](docs/doxygen/getting_started.md), the
@@ -76,8 +82,8 @@ build/        Setup-managed dependency caches and generated build output.
 ```
 
 `engine/desktop` is the supported, maintained engine library. `engine/input` and
-`engine/action` are retained reference targets, and `engine/window_manager` is
-retained reference source that is not compiled. None of these legacy targets
+`engine/action`, along with `engine/window_manager`, are retained reference
+sources excluded from normal builds. None of these legacy components
 should be used for new code; see the [engine boundary in the developer manual](docs/doxygen/project_structure.md#engine-libraries-and-reference-code).
 
 ## License

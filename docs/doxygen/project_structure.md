@@ -92,8 +92,8 @@ keeps its portable result contracts free of unrelated higher-level dependencies.
 
 ## Engine libraries and reference code
 
-Desktop is the maintained engine library. Input and Action remain source-tree
-reference targets; WindowManager is reference source and is not compiled. These
+Desktop is the maintained engine library. Input, Action, and WindowManager remain
+source-tree reference code excluded from normal builds. These
 reference components are outside the installed API, maintained correctness
 modules and generated manual.
 

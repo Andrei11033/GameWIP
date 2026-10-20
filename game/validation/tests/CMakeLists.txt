@@ -2,6 +2,7 @@
 add_library(GameWIPTestModules OBJECT registry.cpp runner.cpp)
 target_compile_features(GameWIPTestModules PUBLIC cxx_std_23)
 target_include_directories(GameWIPTestModules PUBLIC "${PROJECT_SOURCE_DIR}/game")
+target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess)
 
 if(GAMEWIP_BUILD_TESTS)
     # The standalone executable exposes focused module selection to developers and CTest.

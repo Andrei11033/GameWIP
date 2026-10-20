@@ -3,6 +3,19 @@
 
 void testPassiveValuesAndClosedState(TestSupport::Context &context)
 {
+    Desktop::Types::Result<Desktop::Types::LogicalSize> value{IO::successStatus(), Desktop::Types::LogicalSize{12, 24}};
+    static_cast<void>(context.expectTrue("successful populated result is usable", value.ok()));
+    static_cast<void>(context.expectEq("mutable arrow accesses the contained value", std::uint32_t{12}, value->width));
+    value->height = 48;
+    const auto &constantValue = value;
+    static_cast<void>(context.expectEq("const dereference observes the same value", std::uint32_t{48}, (*constantValue).height));
+    static_cast<void>(context.expectEq("const arrow accesses the contained value", std::uint32_t{48}, constantValue->height));
+    value.status = IO::makeStatus(ErrorCode::NativeFailure);
+    static_cast<void>(context.expectFalse("failed status makes a populated result unusable", value.ok()));
+    static_cast<void>(context.expectEq("failed result uses the explicit fallback", Desktop::Types::LogicalSize{1, 2}, value.value_or({1, 2})));
+    value = {IO::successStatus(), std::nullopt};
+    static_cast<void>(context.expectFalse("success status without a value is unusable", value.ok()));
+
     static_cast<void>(context.expectFalse("default window id is invalid", Desktop::Types::WindowId{}.isValid()));
     static_cast<void>(context.expectTrue("nonzero window id is valid", Desktop::Types::WindowId{4}.isValid()));
     static_cast<void>(context.expectFalse("default monitor id is invalid", Desktop::Types::Display::MonitorId::invalid().isValid()));
@@ -48,8 +61,12 @@ void testPassiveValuesAndClosedState(TestSupport::Context &context)
 
     const auto capabilities = Desktop::getCapabilities();
     static_cast<void>(context.expectTrue("capability query succeeds", capabilities.status.ok()));
-    static_cast<void>(context.expectTrue("Win32 supports multiple windows", capabilities->supports(Desktop::Types::Capability::MultipleWindows)));
-    static_cast<void>(context.expectTrue("Win32 supports custom native cursors", capabilities->supports(Desktop::Types::Capability::CustomCursor)));
+    if (capabilities.ok())
+    {
+        static_cast<void>(context.expectTrue("Win32 supports multiple windows", capabilities->supports(Desktop::Types::Capability::MultipleWindows)));
+        static_cast<void>(
+            context.expectTrue("Win32 supports custom native cursors", capabilities->supports(Desktop::Types::Capability::CustomCursor)));
+    }
     static_cast<void>(context.expectFalse("Count is not a capability", capabilities->supports(Desktop::Types::Capability::Count)));
 
     const Desktop::Types::Events::PumpResult idlePoll = Desktop::Events::poll();
@@ -762,5 +779,79 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     {
         static_cast<void>(context.expectEq("unsupported transparent framebuffer is rejected before open", ErrorCode::Unsupported, alphaStatus.code));
         static_cast<void>(context.expectFalse("unsupported alpha request creates no HWND", alphaWindow.isOpen()));
+    }
+}
+
+void testInitialMonitorGeometry(TestSupport::Context &context)
+{
+    const auto monitors = Desktop::Display::getMonitors();
+
+    if (!context.expectTrue("initial geometry monitor enumeration succeeds", monitors.ok()))
+    {
+        return;
+    }
+
+    for (const auto &monitor : *monitors)
+    {
+        for (const auto placement : {Desktop::Types::PlacementKind::Centered, Desktop::Types::PlacementKind::Explicit})
+        {
+            Desktop::Types::Description description;
+            description.title = "Initial monitor geometry validation";
+            description.activation.visible = false;
+            description.windowed.clientSize = {240, 160};
+            description.windowed.placement.kind = placement;
+
+            if (placement == Desktop::Types::PlacementKind::Centered)
+            {
+                description.windowed.placement.monitor = monitor.id;
+            }
+            else
+            {
+                description.windowed.placement.position = {monitor.workArea.position.x + 80, monitor.workArea.position.y + 80};
+            }
+
+            Desktop::Window window;
+
+            if (!context.expectTrue("hidden initial geometry fixture opens", window.open(description).ok()))
+            {
+                continue;
+            }
+
+            static_cast<void>(
+                context.expectEq("initial logical size survives destination DPI", description.windowed.clientSize, window.clientSize()));
+            static_cast<void>(context.expectFalse("initial geometry correction keeps the window hidden", window.visible()));
+            static_cast<void>(context.expectEq("initial geometry uses the selected monitor", monitor.id, window.currentMonitor()));
+
+            if (placement == Desktop::Types::PlacementKind::Explicit)
+            {
+                static_cast<void>(context.expectEq(
+                    "initial explicit client origin is preserved",
+                    description.windowed.placement.position,
+                    window.clientPosition()));
+            }
+
+            static_cast<void>(context.expectTrue("initial geometry fixture closes", window.close().ok()));
+        }
+    }
+}
+
+void testResultAccessPreconditions(TestSupport::Context &context)
+{
+    for (const std::string_view argument : {"--desktop-test-child=result-empty-arrow", "--desktop-test-child=result-failed-dereference"})
+    {
+        TestSupport::Types::Process::Options child;
+        child.executablePath = GameWIP::Validation::currentExecutablePath();
+        child.arguments = {std::string(argument)};
+        child.waitTimeout = std::chrono::seconds(10);
+        child.captureOutput = true;
+        const auto result = TestSupport::runChildProcess(child);
+
+        if (!context.expectTrue("result precondition child starts", result.status.ok()))
+        {
+            continue;
+        }
+
+        static_cast<void>(context.expectEq("result precondition child exits", TestSupport::Types::Process::Outcome::Exited, result.outcome));
+        static_cast<void>(context.expectEq("invalid result access invokes terminate", std::uint32_t{73}, result.exitCode));
     }
 }
