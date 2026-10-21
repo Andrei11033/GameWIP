@@ -19,12 +19,12 @@ namespace GameWIP::Desktop::Detail::Platform
 
         std::uint64_t pack(A::TextRange range) noexcept
         {
-            return (static_cast<std::uint64_t>(range.begin) << 32) | range.end;
+            return (static_cast<std::uint64_t>(range.begin) << 32U) | range.end;
         }
 
         A::TextRange unpack(std::uint64_t value) noexcept
         {
-            return {static_cast<std::uint32_t>(value >> 32), static_cast<std::uint32_t>(value)};
+            return {static_cast<std::uint32_t>(value >> 32U), static_cast<std::uint32_t>(value)};
         }
 
         bool validEndpoint(TextPatternRangeEndpoint endpoint) noexcept

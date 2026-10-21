@@ -251,6 +251,10 @@ function Show-GameWipValidationMenu
             {
                 Invoke-GameWipInteractiveOperation -Label 'benchmark-standard' -Body { Invoke-GameWipMutation -Summary 'Build/run standard benchmark profile.' -Risk local -Plan @('Ensure benchmark executable unless -SkipBuild is used.', 'Collect retained benchmark result.') -Body { Invoke-GameWipBenchmark -Mode run -ProfileId standard -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format json -SkipBuild:$NoBuild } | Out-Null } | Out-Null
             }
+            'menu-advanced-validation'
+            {
+                Show-GameWipAdvancedValidationMenu
+            }
             'bundle'
             {
                 $bundle = Read-GameWipNamedChoice -Prompt 'Bundle' -Choices @($CommandConfig.Bundles | ForEach-Object { $_.Id }) -Default quick

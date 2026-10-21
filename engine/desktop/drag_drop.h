@@ -63,9 +63,9 @@ namespace GameWIP::Desktop::Types::DragDrop
     enum class Effect : std::uint8_t
     {
         None = 0,       ///< Reject the transfer or report no completed effect.
-        Copy = 1U << 0, ///< Copy the transferred data.
-        Move = 1U << 1, ///< Request source-defined move semantics after a successful drop.
-        Link = 1U << 2  ///< Create a source-defined link to the transferred data.
+        Copy = 1U << 0U, ///< Copy the transferred data.
+        Move = 1U << 1U, ///< Request source-defined move semantics after a successful drop.
+        Link = 1U << 2U  ///< Create a source-defined link to the transferred data.
     };
 
     [[nodiscard]] constexpr Effect operator|(Effect left, Effect right) noexcept
