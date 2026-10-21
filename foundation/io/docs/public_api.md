@@ -36,7 +36,9 @@ The `GameWIP::IO::Types` namespace contains passive value types:
 | `ReadAllTextResult` | Fields `status` and `text`; see @ref io_utf8_policy. |
 | `CopyTextResult` | Fields `status` and an owned `text` copy. |
 
-A nonzero transfer count may accompany a failure status; `ReadResult::endOfStream` is independent of `bytesRead` and may be true on the final non-empty read (@ref io_error_model).
+A nonzero transfer count may accompany a failure status. `ReadResult::endOfStream`
+is independent of `bytesRead` and may be true on the final non-empty read
+(@ref io_error_model).
 
 ## Status helpers
 
