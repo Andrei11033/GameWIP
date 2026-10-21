@@ -2,8 +2,9 @@
 
 This manual covers how GameWIP is put together, how its libraries behave, and
 how to build, validate, extend, and maintain it. It is for contributors and
-library users, not players. The root README gets a checkout running; come here
-for designs, cross-component behavior, exact API contracts, and project rules.
+library users, not players. The root README gets a checkout running; use this
+manual to understand designs, cross-component behavior, and the reasoning behind
+project rules.
 
 ## How the documentation fits together
 

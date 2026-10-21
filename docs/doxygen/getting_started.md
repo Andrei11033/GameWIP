@@ -69,7 +69,7 @@ authoring rules are documented in @ref project_testing.
 
 ## What to read next
 
-@ref project_structure (ownership and dependency direction; read before moving
-code), @ref project_quality_workflows and @ref project_contracts (quality,
-repository and release workflows), and @ref project_contributing (merge
-guidance).
+After the first build and validation run, read @ref project_structure before
+moving code between areas. @ref project_quality_workflows and @ref
+project_contracts cover quality, repository, and release workflows; @ref
+project_contributing covers merge guidance.

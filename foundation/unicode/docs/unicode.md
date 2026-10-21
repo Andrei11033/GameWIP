@@ -4,7 +4,7 @@
 caller-backed measure/convert APIs; platform backends bridge the resulting code units to native representations at their boundary.
 
 It provides strict UTF-8 and UTF-16 scalar operations, validation and conversion, UTF-8 code-point traversal, and Unicode 17.0.0 default extended
-grapheme-cluster traversal, including caller-backed indexed traversal for repeated movement. UTF-8 is the canonical public text representation;
+grapheme-cluster traversal, including caller-backed indexed grapheme traversal for repeated movement. UTF-8 is the canonical public text representation;
 UTF-16 is an explicit bridge for boundaries that require it.
 
 ## How the library is organized

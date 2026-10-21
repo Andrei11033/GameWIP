@@ -72,7 +72,7 @@ the [documentation guide](docs/doxygen/documentation.md)).
 
 ```text
 foundation/   Reusable low-level libraries.
-engine/       Desktop (supported). Input, Action, WindowManager are legacy reference code; do not use.
+engine/       Engine libraries and retained reference code.
 tools/        Diagnostics, logging, assertions, and test support.
 game/         Game executable and source-tree validation.
 cmake/        Project build and validation infrastructure.

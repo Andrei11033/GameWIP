@@ -42,8 +42,10 @@ Source-tree validation hooks exercise the storage path; it is not a public routi
 
 ## Cursor display
 
-`CursorMode` controls whether and how the pointer is presented or confined. A custom native cursor follows the same visibility rules as a
-system `CursorShape`; hidden and relative modes retain the selection without displaying it. See @ref desktop_custom_cursors.
+`CursorMode` controls whether and how the pointer is presented or confined. A
+selected custom native cursor follows the same visibility rules as a system
+`CursorShape`; hidden and relative modes retain the selection without displaying
+it. See @ref desktop_custom_cursors.
 
 ## Opacity, framebuffer alpha, and backdrop
 

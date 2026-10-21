@@ -20,7 +20,7 @@ Use PowerShell for the `gamewip.bat` helper commands and MSYS2 UCRT64 Bash
 for the direct CMake commands below. PowerShell can also run CMake directly when
 UCRT64 tools are first on `PATH`; the sanitizer examples select CLANG64 instead.
 The supported environment is MSYS2 UCRT64 with CMake 4.4.4
-or newer, Ninja, GCC 16.2 or newer or Clang 23.1 or newer as selected by the
+or newer, Ninja, GCC 16.2 or newer or Clang 23.1.3 or newer as selected by the
 preset, and C++23 support. The compiler floors are declared as `minimum` in
 `scripts/config/project-tools.json`; an older compiler is reported as outdated
 instead of silently producing different diagnostics than CI. The
