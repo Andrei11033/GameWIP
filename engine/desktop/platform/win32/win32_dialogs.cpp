@@ -945,7 +945,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Maps portable severity to the TaskDialog icon resource.
         [[nodiscard]] PCWSTR severityIcon(Types::Dialogs::Severity severity) noexcept
         {
-            using Severity = Types::Dialogs::Severity;
+            using Types::Dialogs::Severity;
 
             switch (severity)
             {
@@ -965,7 +965,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Maps a portable message result to its TaskDialog button identifier.
         [[nodiscard]] int nativeMessageButton(Types::Dialogs::Message::Button button) noexcept
         {
-            using Button = Types::Dialogs::Message::Button;
+            using Types::Dialogs::Message::Button;
 
             switch (button)
             {
@@ -989,7 +989,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Maps a native TaskDialog button identifier back to a portable result.
         [[nodiscard]] Types::Dialogs::Message::Button portableMessageButton(int button) noexcept
         {
-            using Button = Types::Dialogs::Message::Button;
+            using Types::Dialogs::Message::Button;
 
             switch (button)
             {
@@ -1011,7 +1011,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Returns whether a message-button policy has a cancelable result.
         [[nodiscard]] bool messageHasCancel(Types::Dialogs::Message::Buttons buttons) noexcept
         {
-            using Buttons = Types::Dialogs::Message::Buttons;
+            using Types::Dialogs::Message::Buttons;
             return buttons == Buttons::OkCancel || buttons == Buttons::YesNoCancel || buttons == Buttons::RetryCancel;
         }
     } // namespace
@@ -1322,7 +1322,7 @@ namespace GameWIP::Desktop::Detail::Platform
             config.pszWindowTitle = title.c_str();
             config.pszContent = message.c_str();
             config.pszMainIcon = severityIcon(description.severity);
-            using Buttons = Types::Dialogs::Message::Buttons;
+            using Types::Dialogs::Message::Buttons;
 
             switch (description.buttons)
             {
@@ -1330,16 +1330,20 @@ namespace GameWIP::Desktop::Detail::Platform
                 config.dwCommonButtons = TDCBF_OK_BUTTON;
                 break;
             case Buttons::OkCancel:
-                config.dwCommonButtons = static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(TDCBF_OK_BUTTON | TDCBF_CANCEL_BUTTON);
+                config.dwCommonButtons =
+                    static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(static_cast<DWORD>(TDCBF_OK_BUTTON) | static_cast<DWORD>(TDCBF_CANCEL_BUTTON));
                 break;
             case Buttons::YesNo:
-                config.dwCommonButtons = static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(TDCBF_YES_BUTTON | TDCBF_NO_BUTTON);
+                config.dwCommonButtons =
+                    static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(static_cast<DWORD>(TDCBF_YES_BUTTON) | static_cast<DWORD>(TDCBF_NO_BUTTON));
                 break;
             case Buttons::YesNoCancel:
-                config.dwCommonButtons = static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(TDCBF_YES_BUTTON | TDCBF_NO_BUTTON | TDCBF_CANCEL_BUTTON);
+                config.dwCommonButtons = static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(
+                    static_cast<DWORD>(TDCBF_YES_BUTTON) | static_cast<DWORD>(TDCBF_NO_BUTTON) | static_cast<DWORD>(TDCBF_CANCEL_BUTTON));
                 break;
             case Buttons::RetryCancel:
-                config.dwCommonButtons = static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(TDCBF_RETRY_BUTTON | TDCBF_CANCEL_BUTTON);
+                config.dwCommonButtons =
+                    static_cast<TASKDIALOG_COMMON_BUTTON_FLAGS>(static_cast<DWORD>(TDCBF_RETRY_BUTTON) | static_cast<DWORD>(TDCBF_CANCEL_BUTTON));
                 break;
             }
             config.nDefaultButton = nativeMessageButton(description.defaultButton);

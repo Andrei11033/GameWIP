@@ -415,8 +415,10 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return queryStatus;
             }
+            const ULONG_PTR styleBits = static_cast<ULONG_PTR>(style);
+            const ULONG_PTR marqueeStyle = static_cast<ULONG_PTR>(PBS_MARQUEE);
             const LONG_PTR requestedStyle =
-                mode == Types::Dialogs::Progress::Mode::Indeterminate ? style | PBS_MARQUEE : style & ~static_cast<LONG_PTR>(PBS_MARQUEE);
+                static_cast<LONG_PTR>(mode == Types::Dialogs::Progress::Mode::Indeterminate ? styleBits | marqueeStyle : styleBits & ~marqueeStyle);
             SetLastError(ERROR_SUCCESS);
             const LONG_PTR previous = SetWindowLongPtrW(data.progress, GWL_STYLE, requestedStyle);
             const DWORD error = GetLastError();
@@ -645,7 +647,7 @@ namespace GameWIP::Desktop::Detail::Platform
         ProgressDialogState *portableOwner = data->owner;
         data->owner = nullptr;
         const bool onOwnerThread = data->ownerThreadId == GetCurrentThreadId();
-        const auto finalizePortableFallback = [&]() noexcept
+        const auto finalizePortableFallback = [&] noexcept
         {
             if (!onOwnerThread || portableOwner == nullptr)
             {
@@ -1305,7 +1307,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (style != 0 || GetLastError() == ERROR_SUCCESS)
                 {
-                    snapshot.marquee = (style & PBS_MARQUEE) != 0;
+                    snapshot.marquee = (static_cast<ULONG_PTR>(style) & static_cast<ULONG_PTR>(PBS_MARQUEE)) != 0;
                 }
             }
         }

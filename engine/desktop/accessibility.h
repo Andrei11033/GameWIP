@@ -790,6 +790,7 @@ namespace GameWIP::Desktop::Accessibility
     /// @details Externally synchronized. Moved-from builders remain reusable. Construction allocates nothing;
     /// checked mutations may allocate. addNode() enforces copy budgets and unique IDs; validate()/publish()
     /// enforces complete semantic correctness, permitting forward references while authoring.
+    // NOLINTNEXTLINE(performance-trivially-destructible) -- The incomplete-state pimpl requires an out-of-line destructor.
     class DESKTOP_EXPORT SnapshotBuilder final
     {
     public:

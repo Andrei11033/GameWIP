@@ -590,7 +590,7 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     std::atomic_bool releaseHolder = false;
     std::atomic_bool holderOpened = false;
     std::thread holder(
-        [&]()
+        [&]
         {
             HWND owner = CreateWindowExW(
                 0,
@@ -646,7 +646,7 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
 
     std::atomic<ErrorCode> threadResult{ErrorCode::Unknown};
     std::thread ordinaryThread(
-        [&]()
+        [&]
         {
             threadResult.store(Clipboard::writeText("ordinary thread").status.code);
         });

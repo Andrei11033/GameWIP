@@ -81,31 +81,31 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         return;
     }
 
-    if (manualCaseSelected("clipboard files pasted into Explorer"))
-    {
-        if (requireManualStatus(context, "file-list clipboard publication", Desktop::Clipboard::writeFiles(filePaths).status))
-        {
-            const auto pasted = recordManualCheck(
-                context,
-                window,
-                "clipboard files pasted into Explorer",
-                std::format(
-                    "Open {} in Explorer and press Ctrl+V. Did both files arrive with the Unicode filename displayed correctly?",
-                    copyDirectory.string()));
+    if ((manualCaseSelected("clipboard files pasted into Explorer")) &&
+        (requireManualStatus(context, "file-list clipboard publication", Desktop::Clipboard::writeFiles(filePaths).status)))
 
-            if (pasted == TestSupport::Types::Reporting::ManualAnswer::Yes)
+    {
+        const auto pasted = recordManualCheck(
+            context,
+            window,
+            "clipboard files pasted into Explorer",
+            std::format(
+                "Open {} in Explorer and press Ctrl+V. Did both files arrive with the Unicode filename displayed correctly?",
+                copyDirectory.string()));
+
+        if (pasted == TestSupport::Types::Reporting::ManualAnswer::Yes)
+        {
+            for (const auto &path : filePaths)
             {
-                for (const auto &path : filePaths)
-                {
-                    const auto original = TestSupport::readTextFile(path);
-                    const auto copy = TestSupport::readTextFile(copyDirectory / path.filename());
-                    static_cast<void>(context.expectTrue(
-                        "Explorer pasted file contents match exact fixture",
-                        original.status.ok() && copy.status.ok() && original.text == copy.text));
-                }
+                const auto original = TestSupport::readTextFile(path);
+                const auto copy = TestSupport::readTextFile(copyDirectory / path.filename());
+                static_cast<void>(context.expectTrue(
+                    "Explorer pasted file contents match exact fixture",
+                    original.status.ok() && copy.status.ok() && original.text == copy.text));
             }
         }
     }
+
     const auto filesCopied = recordManualCheck(
         context,
         window,
@@ -132,25 +132,25 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         return;
     }
 
-    if (manualCaseSelected("clipboard image pasted into Paint"))
+    if ((manualCaseSelected("clipboard image pasted into Paint")) &&
+        (requireManualStatus(
+            context,
+            "image clipboard publication",
+            Desktop::Clipboard::writeImage(Desktop::Types::DataTransfer::ImageView::packed(image.size, image.rgba8)).status)))
+
     {
-        if (requireManualStatus(
-                context,
-                "image clipboard publication",
-                Desktop::Clipboard::writeImage(Desktop::Types::DataTransfer::ImageView::packed(image.size, image.rgba8)).status))
-        {
-            recordManualCheck(
-                context,
-                window,
-                "clipboard image pasted into Paint",
-                "In Paint, paste with Ctrl+V. Expect a 128x128 image: red/green across the top, blue/white across the bottom. Confirm channel order "
-                "and row orientation.",
-                [&]
-                {
-                    paintManualImagePreview(window, image);
-                });
-        }
+        recordManualCheck(
+            context,
+            window,
+            "clipboard image pasted into Paint",
+            "In Paint, paste with Ctrl+V. Expect a 128x128 image: red/green across the top, blue/white across the bottom. Confirm channel order "
+            "and row orientation.",
+            [&]
+            {
+                paintManualImagePreview(window, image);
+            });
     }
+
     const auto imageCopied = recordManualCheck(
         context,
         window,

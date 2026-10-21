@@ -21,7 +21,7 @@ namespace GameWIP::FileSystem
 
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         /// @brief Builds a failed predicate result with a false payload.
         Types::BoolResult boolFailure(IO::Types::Status status) noexcept
@@ -172,7 +172,9 @@ namespace GameWIP::FileSystem
         /// @brief Rejects file-share bits outside the supported mask.
         [[nodiscard]] bool isValidFileShare(Types::File::Share share) noexcept
         {
-            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::File::Share::All)) == 0;
+            const std::uint32_t shareBits = static_cast<std::uint8_t>(share);
+            const std::uint32_t allowedBits = static_cast<std::uint8_t>(Types::File::Share::All);
+            return (shareBits & ~allowedBits) == 0;
         }
 
         /// @brief Validates symlink-policy enum values crossing the public boundary.

@@ -19,7 +19,7 @@ namespace
     namespace Desktop = GameWIP::Desktop;
     namespace A = Desktop::Types::Accessibility;
     namespace Bridge = Desktop::Accessibility;
-    using Context = GameWIP::TestSupport::Context;
+    using GameWIP::TestSupport::Context;
     using Error = GameWIP::IO::Types::ErrorCode;
     constexpr HRESULT kUnavailable = static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
     static_assert(!std::is_copy_constructible_v<Bridge::SnapshotBuilder>);
@@ -107,9 +107,9 @@ namespace
         tree.nodes[1].role = A::Role::Count;
         expectIssue(A::ValidationIssue::InvalidRole);
         tree.nodes[1].role = A::Role::Button;
-        tree.nodes[1].states.flags |= std::uint64_t{1} << 63;
+        tree.nodes[1].states.flags |= std::uint64_t{1} << 63U;
         expectIssue(A::ValidationIssue::InvalidState);
-        tree.nodes[1].states.flags &= ~(std::uint64_t{1} << 63);
+        tree.nodes[1].states.flags &= ~(std::uint64_t{1} << 63U);
         tree.nodes[1].name = std::string_view("\xC0\xAF", 2);
         expectIssue(A::ValidationIssue::InvalidText);
         tree.nodes[1].name = "Run";
@@ -1453,7 +1453,7 @@ namespace
         check(context, "exceptional lifetime fresh publish", bridge.publish(tree.view(2)).ok());
         Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
         std::thread destroyer(
-            [owned = std::move(window)]() mutable
+            [owned = std::move(window)] mutable
             {
                 owned.reset();
             });
@@ -1571,7 +1571,7 @@ namespace GameWIP::Test
                     done = true;
                     return;
                 }
-                const auto runClient = [&]() -> int
+                const auto runClient = [&] -> int
                 {
                     Com<IUIAutomation> automation;
 

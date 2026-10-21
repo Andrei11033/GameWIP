@@ -16,7 +16,7 @@ namespace GameWIP::FileSystem
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         [[nodiscard]] Types::PathResult pathFailure(IO::Types::Status status) noexcept
         {

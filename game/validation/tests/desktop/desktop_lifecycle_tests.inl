@@ -222,7 +222,7 @@ void testNativeConstructionLifecycle(TestSupport::Context &context)
 #if DESKTOP_INTERNAL_TEST_HOOKS
 void testFailureInjection(TestSupport::Context &context)
 {
-    using FailurePoint = Desktop::TestHooks::FailurePoint;
+    using Desktop::TestHooks::FailurePoint;
     Desktop::TestHooks::resetFailures();
 
     Desktop::Types::Description description;
@@ -473,7 +473,7 @@ void testExceptionalLifetime(TestSupport::Context &context)
         deferredHandle = Desktop::Native::Win32::getHandle(*deferred)->window;
     }
     std::thread destroyer(
-        [owned = std::move(deferred)]() mutable
+        [owned = std::move(deferred)] mutable
         {
             owned.reset();
         });
@@ -629,11 +629,13 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     const LONG_PTR clickThroughStyle = GetWindowLongPtrW(handle->window, GWL_EXSTYLE);
     static_cast<void>(context.expectTrue(
         "click-through uses documented layered hit-testing styles",
-        (clickThroughStyle & WS_EX_LAYERED) != 0 && (clickThroughStyle & WS_EX_TRANSPARENT) != 0));
+        (static_cast<ULONG_PTR>(clickThroughStyle) & static_cast<ULONG_PTR>(WS_EX_LAYERED)) != 0 &&
+            (static_cast<ULONG_PTR>(clickThroughStyle) & static_cast<ULONG_PTR>(WS_EX_TRANSPARENT)) != 0));
     static_cast<void>(context.expectTrue("normal pointer policy restores", owner.setPointerInputLayout({}).ok()));
     const LONG_PTR normalPointerStyle = GetWindowLongPtrW(handle->window, GWL_EXSTYLE);
-    static_cast<void>(
-        context.expectFalse("normal pointer policy removes transparent hit-testing style", (normalPointerStyle & WS_EX_TRANSPARENT) != 0));
+    static_cast<void>(context.expectFalse(
+        "normal pointer policy removes transparent hit-testing style",
+        (static_cast<ULONG_PTR>(normalPointerStyle) & static_cast<ULONG_PTR>(WS_EX_TRANSPARENT)) != 0));
     const std::array<Desktop::Types::LogicalRect, 1> pointerRegions{{{{0, 0}, {10, 10}}}};
     static_cast<void>(context.expectEq(
         "rectangular pointer routing remains Unsupported",
@@ -644,14 +646,15 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("opacity update succeeds", owner.setOpacity(0.8F).ok()));
     static_cast<void>(context.expectTrue("opacity restores", owner.setOpacity(1.0F).ok()));
     static_cast<void>(context.expectTrue("file-drop enable succeeds", owner.setFileDropEnabled(true).ok()));
-    static_cast<void>(
-        context.expectTrue("file-drop native style is enabled", (GetWindowLongPtrW(handle->window, GWL_EXSTYLE) & WS_EX_ACCEPTFILES) != 0));
+    static_cast<void>(context.expectTrue(
+        "file-drop native style is enabled",
+        (static_cast<ULONG_PTR>(GetWindowLongPtrW(handle->window, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_ACCEPTFILES)) != 0));
     static_cast<void>(context.expectTrue(
         "style mutation while file drops are enabled succeeds",
         owner.setDecorationMode(Desktop::Types::DecorationMode::Borderless).ok()));
     static_cast<void>(context.expectTrue(
         "style mutation preserves file-drop native state",
-        (GetWindowLongPtrW(handle->window, GWL_EXSTYLE) & WS_EX_ACCEPTFILES) != 0));
+        (static_cast<ULONG_PTR>(GetWindowLongPtrW(handle->window, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_ACCEPTFILES)) != 0));
     static_cast<void>(context.expectTrue(
         "system decoration restores after file-drop style check",
         owner.setDecorationMode(Desktop::Types::DecorationMode::System).ok()));
@@ -731,19 +734,19 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         const HWND childHandle = Desktop::Native::Win32::getHandle(child)->window;
         static_cast<void>(context.expectFalse(
             "owned Window has no independent taskbar style",
-            (GetWindowLongPtrW(childHandle, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
+            (static_cast<ULONG_PTR>(GetWindowLongPtrW(childHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
         child.clearEvents();
         static_cast<void>(context.expectTrue("owner can be cleared at runtime", child.setOwner(std::nullopt).ok()));
         static_cast<void>(context.expectTrue(
             "owner removal restores independent taskbar style",
-            (GetWindowLongPtrW(childHandle, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
+            (static_cast<ULONG_PTR>(GetWindowLongPtrW(childHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
         static_cast<void>(
             context.expectTrue("owner clear translates to OwnerChangedEvent", consumeEventOfType<Desktop::Types::Events::OwnerChanged>(child)));
         child.clearEvents();
         static_cast<void>(context.expectTrue("owner can be restored at runtime", child.setOwner(owner.id()).ok()));
         static_cast<void>(context.expectFalse(
             "owner restoration removes independent taskbar style",
-            (GetWindowLongPtrW(childHandle, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
+            (static_cast<ULONG_PTR>(GetWindowLongPtrW(childHandle, GWL_EXSTYLE)) & static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
         static_cast<void>(
             context.expectTrue("owner restore translates to OwnerChangedEvent", consumeEventOfType<Desktop::Types::Events::OwnerChanged>(child)));
     }
@@ -754,7 +757,8 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         static_cast<void>(context.expectFalse("closing owner clears child owner identity", child.ownerId().has_value()));
         static_cast<void>(context.expectTrue(
             "closing owner restores child taskbar style",
-            (GetWindowLongPtrW(Desktop::Native::Win32::getHandle(child)->window, GWL_EXSTYLE) & WS_EX_APPWINDOW) != 0));
+            (static_cast<ULONG_PTR>(GetWindowLongPtrW(Desktop::Native::Win32::getHandle(child)->window, GWL_EXSTYLE)) &
+             static_cast<ULONG_PTR>(WS_EX_APPWINDOW)) != 0));
         static_cast<void>(context.expectTrue("child closes after owner", child.close().ok()));
     }
     static_cast<void>(context.expectFalse("closed owner reports closed", owner.isOpen()));

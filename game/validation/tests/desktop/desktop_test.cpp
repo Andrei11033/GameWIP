@@ -71,7 +71,7 @@ namespace
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
     namespace Desktop = GameWIP::Desktop;
-    using ErrorCode = IO::Types::ErrorCode;
+    using IO::Types::ErrorCode;
 
     inline constexpr wchar_t kManualTestAppUserModelId[] = L"GameWIP.Validation.DesktopManualTests";
     inline constexpr std::string_view kStandaloneColorChildArgument = "--desktop-test-child=standalone-color-shutdown";
@@ -817,7 +817,7 @@ namespace GameWIP::Test
                 "Desktop manual case selection",
                 [&](TestSupport::Context &context)
                 {
-                    context.fail("manual case selector matched no scenarios", std::string(*manualCaseSelection));
+                    context.fail("manual case selector matched no scenarios", *manualCaseSelection);
                 });
         }
         const TestSupport::Types::Reporting::Summary result = runner.result();

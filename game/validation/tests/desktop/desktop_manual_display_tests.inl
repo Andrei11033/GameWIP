@@ -30,7 +30,7 @@ void testManualFullscreenAndTopology(
     }
     const Desktop::Types::ScreenPosition savedPosition = window.clientPosition();
     const Desktop::Types::LogicalSize savedSize = window.clientSize();
-    const auto disconnectableMonitor = []() -> std::optional<Desktop::Types::Display::MonitorId>
+    const auto disconnectableMonitor = [] -> std::optional<Desktop::Types::Display::MonitorId>
     {
         const auto connected = Desktop::Display::getMonitors();
 
@@ -117,9 +117,9 @@ void testManualFullscreenAndTopology(
                     {},
                     [&](const Desktop::Types::Display::Mode &mode)
                     {
-                        const std::uint64_t resolutionPenalty = mode.resolution == currentMode->resolution ? 0 : std::uint64_t{1} << 48;
-                        const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode->bitsPerPixel ? 0 : std::uint64_t{1} << 40;
-                        const std::uint64_t interlacePenalty = mode.interlaced == currentMode->interlaced ? 0 : std::uint64_t{1} << 39;
+                        const std::uint64_t resolutionPenalty = mode.resolution == currentMode->resolution ? 0 : std::uint64_t{1} << 48U;
+                        const std::uint64_t depthPenalty = mode.bitsPerPixel == currentMode->bitsPerPixel ? 0 : std::uint64_t{1} << 40U;
+                        const std::uint64_t interlacePenalty = mode.interlaced == currentMode->interlaced ? 0 : std::uint64_t{1} << 39U;
                         const std::uint64_t refreshDifference = mode.refreshRateMillihertz > currentMode->refreshRateMillihertz
                                                                     ? mode.refreshRateMillihertz - currentMode->refreshRateMillihertz
                                                                     : currentMode->refreshRateMillihertz - mode.refreshRateMillihertz;

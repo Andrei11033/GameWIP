@@ -28,7 +28,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
         namespace Transfer = Types::DataTransfer;
         namespace ClipboardTypes = Types::Clipboard;
 

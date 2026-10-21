@@ -36,12 +36,12 @@ namespace
     namespace Unicode = GameWIP::Unicode;
     namespace TestSupport = GameWIP::TestSupport;
 
-    using BoundaryOutcome = Unicode::Types::Utf8::BoundaryOutcome;
-    using ConversionOutcome = Unicode::Types::ConversionOutcome;
-    using DecodeOutcome = Unicode::Types::DecodeOutcome;
-    using EncodeOutcome = Unicode::Types::EncodeOutcome;
-    using MeasureOutcome = Unicode::Types::MeasureOutcome;
-    using ValidationOutcome = Unicode::Types::ValidationOutcome;
+    using Unicode::Types::ConversionOutcome;
+    using Unicode::Types::DecodeOutcome;
+    using Unicode::Types::EncodeOutcome;
+    using Unicode::Types::MeasureOutcome;
+    using Unicode::Types::ValidationOutcome;
+    using Unicode::Types::Utf8::BoundaryOutcome;
 
     static_assert(Unicode::Utf8::kMaximumScalarBytes == 4);
     static_assert(Unicode::Utf16::kMaximumScalarCodeUnits == 2);

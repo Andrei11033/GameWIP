@@ -16,16 +16,16 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 {
     namespace
     {
-        using CharacterKey = Terminal::Types::Events::CharacterKey;
-        using FunctionKey = Terminal::Types::Events::FunctionKey;
+        using Terminal::Types::Events::CharacterKey;
+        using Terminal::Types::Events::FunctionKey;
         using Key = Terminal::Types::Events::KeyValue;
-        using KeyAction = Terminal::Types::Events::KeyAction;
+        using Terminal::Types::Events::KeyAction;
         using KeyEvent = Terminal::Types::Events::Key;
-        using KeyLocation = Terminal::Types::Events::KeyLocation;
-        using KeyModifier = Terminal::Types::Events::KeyModifier;
-        using MediaKey = Terminal::Types::Events::MediaKey;
-        using ModifierKey = Terminal::Types::Events::ModifierKey;
-        using NamedKey = Terminal::Types::Events::NamedKey;
+        using Terminal::Types::Events::KeyLocation;
+        using Terminal::Types::Events::KeyModifier;
+        using Terminal::Types::Events::MediaKey;
+        using Terminal::Types::Events::ModifierKey;
+        using Terminal::Types::Events::NamedKey;
 
         inline constexpr std::size_t kTrackedLocationCount = 5;
 
@@ -38,8 +38,13 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 
         [[nodiscard]] constexpr KeyModifier clearModifier(KeyModifier value, KeyModifier bit) noexcept
         {
-            return static_cast<KeyModifier>(static_cast<std::uint16_t>(value) & ~static_cast<std::uint16_t>(bit));
+            const std::uint32_t valueBits = static_cast<std::uint16_t>(value);
+            const std::uint32_t bitMask = static_cast<std::uint16_t>(bit);
+            return static_cast<KeyModifier>(static_cast<std::uint16_t>(valueBits & ~bitMask));
         }
+
+        constexpr DWORD kControlModifierMask = static_cast<DWORD>(LEFT_CTRL_PRESSED) | static_cast<DWORD>(RIGHT_CTRL_PRESSED);
+        constexpr DWORD kAltModifierMask = static_cast<DWORD>(LEFT_ALT_PRESSED) | static_cast<DWORD>(RIGHT_ALT_PRESSED);
 
         [[nodiscard]] KeyModifier modifiersFromControlState(DWORD state, const DecoderState &decoderState) noexcept
         {
@@ -50,12 +55,12 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                 modifiers |= KeyModifier::Shift;
             }
 
-            if ((state & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0)
+            if ((state & kControlModifierMask) != 0)
             {
                 modifiers |= KeyModifier::Control;
             }
 
-            if ((state & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0)
+            if ((state & kAltModifierMask) != 0)
             {
                 modifiers |= KeyModifier::Alt;
             }
@@ -388,7 +393,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 
         [[nodiscard]] std::optional<CharacterKey> ctrlCharacter(const KEY_EVENT_RECORD &record) noexcept
         {
-            const bool control = (record.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) != 0;
+            const bool control = (record.dwControlKeyState & kControlModifierMask) != 0;
 
             if (!control)
             {

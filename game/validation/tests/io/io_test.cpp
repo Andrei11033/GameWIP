@@ -29,8 +29,8 @@ namespace
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
 
-    using IOTestOptions = GameWIP::Test::IOTestOptions;
-    using ErrorCode = IO::Types::ErrorCode;
+    using GameWIP::Test::IOTestOptions;
+    using IO::Types::ErrorCode;
 
     /// @brief Converts integer literals into a byte vector for readable fixtures.
     [[nodiscard]] std::vector<std::byte> makeBytes(std::initializer_list<unsigned int> values)

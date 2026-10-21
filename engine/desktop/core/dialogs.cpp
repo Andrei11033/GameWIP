@@ -98,14 +98,14 @@ namespace GameWIP::Desktop::Dialogs
         /// @brief Validates the portable severity values accepted by every dialog backend.
         [[nodiscard]] bool validSeverity(Types::Dialogs::Severity severity) noexcept
         {
-            using Severity = Types::Dialogs::Severity;
+            using Types::Dialogs::Severity;
             return severity == Severity::None || severity == Severity::Information || severity == Severity::Warning || severity == Severity::Error;
         }
 
         /// @brief Validates the supported message-button combinations.
         [[nodiscard]] bool validMessageButtons(Types::Dialogs::Message::Buttons buttons) noexcept
         {
-            using Buttons = Types::Dialogs::Message::Buttons;
+            using Types::Dialogs::Message::Buttons;
             return buttons == Buttons::Ok || buttons == Buttons::OkCancel || buttons == Buttons::YesNo || buttons == Buttons::YesNoCancel ||
                    buttons == Buttons::RetryCancel;
         }
@@ -113,8 +113,8 @@ namespace GameWIP::Desktop::Dialogs
         /// @brief Returns whether a message-button set contains the requested result.
         [[nodiscard]] bool messageContainsButton(Types::Dialogs::Message::Buttons buttons, Types::Dialogs::Message::Button button) noexcept
         {
-            using Button = Types::Dialogs::Message::Button;
-            using Buttons = Types::Dialogs::Message::Buttons;
+            using Types::Dialogs::Message::Button;
+            using Types::Dialogs::Message::Buttons;
 
             switch (buttons)
             {

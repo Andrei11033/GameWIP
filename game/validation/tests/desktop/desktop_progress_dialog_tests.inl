@@ -443,7 +443,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     auto deferredOne = std::make_unique<Desktop::ProgressDialog>();
     static_cast<void>(context.expectTrue("deferred ProgressDialog opens", deferredOne->open(description).ok()));
     std::thread destroyForeign(
-        [owned = std::move(deferredOne)]() mutable
+        [owned = std::move(deferredOne)] mutable
         {
             owned.reset();
         });
@@ -462,7 +462,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("first cleanup-chain ProgressDialog opens", deferredFirst->open(description).ok()));
     static_cast<void>(context.expectTrue("second cleanup-chain ProgressDialog opens", deferredSecond->open(description).ok()));
     std::thread destroyChain(
-        [first = std::move(deferredFirst), second = std::move(deferredSecond)]() mutable
+        [first = std::move(deferredFirst), second = std::move(deferredSecond)] mutable
         {
             first.reset();
             second.reset();

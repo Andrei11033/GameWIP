@@ -301,17 +301,17 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return 0;
         case WM_SYSCOMMAND:
-            if ((wParam & 0xFFF0) == SC_CLOSE && !state->controls.closable)
+            if ((wParam & static_cast<WPARAM>(0xFFF0U)) == static_cast<WPARAM>(SC_CLOSE) && !state->controls.closable)
             {
                 return 0;
             }
 
-            if ((wParam & 0xFFF0) == SC_MINIMIZE && !state->controls.minimizable)
+            if ((wParam & static_cast<WPARAM>(0xFFF0U)) == static_cast<WPARAM>(SC_MINIMIZE) && !state->controls.minimizable)
             {
                 return 0;
             }
 
-            if ((wParam & 0xFFF0) == SC_MAXIMIZE && !state->controls.maximizable)
+            if ((wParam & static_cast<WPARAM>(0xFFF0U)) == static_cast<WPARAM>(SC_MAXIMIZE) && !state->controls.maximizable)
             {
                 return 0;
             }

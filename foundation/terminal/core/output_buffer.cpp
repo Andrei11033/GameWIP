@@ -16,7 +16,7 @@ namespace GameWIP::Terminal
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         [[nodiscard]] bool validLineEnding(Types::Output::LineEnding lineEnding) noexcept
         {

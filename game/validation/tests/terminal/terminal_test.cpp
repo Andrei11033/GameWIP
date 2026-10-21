@@ -178,8 +178,8 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
     namespace PlatformHooks = GameWIP::Terminal::Detail::Platform::TestHooks;
 
-    using ErrorCode = IO::Types::ErrorCode;
-    using TerminalTestOptions = GameWIP::Test::TerminalTestOptions;
+    using GameWIP::Test::TerminalTestOptions;
+    using IO::Types::ErrorCode;
 
     inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
     inline constexpr std::string_view kSessionReentrantFormatChildArgument = "--terminal-test-child=session-reentrant-format";

@@ -358,7 +358,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::SizeLimitExceeded);
             }
-            const auto cleanupIcons = [&]() noexcept
+            const auto cleanupIcons = [&] noexcept
             {
                 for (HICON icon : newIcons)
                 {
@@ -526,7 +526,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!item.accelerator.empty())
             {
-                utf8 += "\t";
+                utf8 += '\t';
                 utf8 += item.accelerator;
             }
 
@@ -534,7 +534,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 utf8 += " [";
                 utf8 += item.badge;
-                utf8 += "]";
+                utf8 += ']';
             }
             DWORD nativeCode = ERROR_SUCCESS;
             return utf8ToUtf16(utf8, text, nativeCode);
@@ -1708,12 +1708,12 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 normalizedUtf8.assign(input);
 
-                if (extension && normalizedUtf8.starts_with("*"))
+                if (extension && normalizedUtf8.starts_with('*'))
                 {
                     normalizedUtf8.erase(0, 1);
                 }
 
-                if (extension && !normalizedUtf8.starts_with("."))
+                if (extension && !normalizedUtf8.starts_with('.'))
                 {
                     normalizedUtf8.insert(normalizedUtf8.begin(), '.');
                 }
@@ -1831,7 +1831,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             std::wstring command = L"\"";
             command += executable;
-            command += L"\"";
+            command += L'\"';
 
             if (!arguments.empty())
             {
@@ -2491,7 +2491,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 const std::wstring targetPath = L"Software\\Classes\\" + targetWide;
@@ -2502,7 +2502,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 const Types::Registration::TargetKind kind =
@@ -2529,7 +2529,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
                     ownProgram = hasOwner && programOwner == ownerKey;
@@ -2547,7 +2547,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 else if (status.code != ErrorCode::NotFound)
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
 
@@ -2571,7 +2571,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
 
@@ -2581,7 +2581,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                         if (!status.ok())
                         {
-                            result.status = status;
+                            result.status = std::move(status);
                             return result;
                         }
                         result.status = registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
@@ -2594,7 +2594,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
 
@@ -2604,7 +2604,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
                 }
@@ -2623,7 +2623,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                         if (!status.ok() && status.code != ErrorCode::NotFound)
                         {
-                            result.status = status;
+                            result.status = std::move(status);
                             return result;
                         }
                     }
@@ -2631,7 +2631,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
 
@@ -2642,7 +2642,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                         if (!status.ok())
                         {
-                            result.status = status;
+                            result.status = std::move(status);
                             return result;
                         }
                         std::wstring currentProgram;
@@ -2655,14 +2655,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
                         if (!status.ok() && status.code != ErrorCode::NotFound)
                         {
-                            result.status = status;
+                            result.status = std::move(status);
                             return result;
                         }
                         status = removeRegistryValue(targetKey.get(), L"GameWIP.OwnerKey");
 
                         if (!status.ok())
                         {
-                            result.status = status;
+                            result.status = std::move(status);
                             return result;
                         }
                     }
@@ -2670,7 +2670,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
                 }
@@ -2680,7 +2680,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
                 }
@@ -2691,7 +2691,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
                 }
@@ -2700,7 +2700,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
@@ -2809,7 +2809,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::NotOpen);
         }
         std::vector<HICON> newIcons;
-        const auto cleanupIcons = [&]() noexcept
+        const auto cleanupIcons = [&] noexcept
         {
             for (HICON icon : newIcons)
             {
@@ -3551,7 +3551,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             const std::wstring targetPath = L"Software\\Classes\\" + targetWide;
@@ -3562,7 +3562,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
 
@@ -3601,7 +3601,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 bool applicationExists = false;
@@ -3612,7 +3612,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
 
@@ -3622,7 +3622,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                     if (!status.ok())
                     {
-                        result.status = status;
+                        result.status = std::move(status);
                         return result;
                     }
                     result.status = registryStatus(ERROR_ALREADY_EXISTS, "application registration is owned by another registration");
@@ -3634,7 +3634,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             status = writeRegistrationProgram(
@@ -3649,7 +3649,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
 
@@ -3666,7 +3666,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
             }
@@ -3678,7 +3678,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 DWORD nativeCode = ERROR_SUCCESS;
@@ -3693,14 +3693,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"", progId);
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
             }
@@ -3715,7 +3715,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             result.replacedOwned = sameOwner;
@@ -3723,7 +3723,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
@@ -3752,7 +3752,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             const std::wstring targetPath = L"Software\\Classes\\" + targetWide;
@@ -3763,7 +3763,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
 
@@ -3798,7 +3798,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             status = writeRegistrationProgram(
@@ -3812,7 +3812,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
 
@@ -3823,7 +3823,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 DWORD nativeCode = ERROR_SUCCESS;
@@ -3838,21 +3838,21 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"", progId);
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 status = writeRegistryString(targetKey.get(), L"URL Protocol", L"");
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
                 status = writeRegistrationProgram(
@@ -3871,7 +3871,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 if (!status.ok())
                 {
-                    result.status = status;
+                    result.status = std::move(status);
                     return result;
                 }
             }
@@ -3880,7 +3880,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);

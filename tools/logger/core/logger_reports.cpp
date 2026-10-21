@@ -231,20 +231,17 @@ namespace GameWIP::Logger::Detail::Core
                     return progress;
                 }
 
-                if (consoleOutput)
+                if ((consoleOutput) && (!markSinkTimedOutIfExpired(deadline, progress)))
                 {
-                    if (!markSinkTimedOutIfExpired(deadline, progress))
-                    {
-                        consoleStatus = writeConsoleLine(style, line);
+                    consoleStatus = writeConsoleLine(style, line);
 
-                        if (consoleStatus.ok())
-                        {
-                            ++progress.delivered;
-                        }
-                        else
-                        {
-                            progress.status = firstFailure(std::move(progress.status), consoleStatus);
-                        }
+                    if (consoleStatus.ok())
+                    {
+                        ++progress.delivered;
+                    }
+                    else
+                    {
+                        progress.status = firstFailure(std::move(progress.status), consoleStatus);
                     }
                 }
 
@@ -371,14 +368,11 @@ namespace GameWIP::Logger::Detail::Core
             }
         }
 
-        if (hasFileOutput(mode))
+        if ((hasFileOutput(mode)) && (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire)))
         {
-            if (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire))
-            {
-                fileBatchScratch.append(lineScratch);
-                fileBatchScratch.push_back('\n');
-                result.queuedFile = true;
-            }
+            fileBatchScratch.append(lineScratch);
+            fileBatchScratch.push_back('\n');
+            result.queuedFile = true;
         }
 
         if (unknown)
@@ -442,25 +436,23 @@ namespace GameWIP::Logger::Detail::Core
             return result;
         }
 
-        if (hasConsoleOutput(mode))
+        if ((hasConsoleOutput(mode)) && (!markFlushTimedOutIfExpired(deadline, result)))
+
         {
-            if (!markFlushTimedOutIfExpired(deadline, result))
+            Status stdoutStatus = Terminal::flush(Terminal::Types::Output::Stream::Stdout, IO::Types::FlushMode::Data);
+            Status stderrStatus;
+
+            if (!deadlineExpired(deadline))
             {
-                Status stdoutStatus = Terminal::flush(Terminal::Types::Output::Stream::Stdout, IO::Types::FlushMode::Data);
-                Status stderrStatus;
-
-                if (!deadlineExpired(deadline))
-                {
-                    stderrStatus = Terminal::flush(Terminal::Types::Output::Stream::Stderr, IO::Types::FlushMode::Data);
-                }
-                else
-                {
-                    result.outcome = Types::FlushOutcome::TimedOut;
-                }
-
-                consoleStatus = firstFailure(std::move(stdoutStatus), stderrStatus);
-                result.status = firstFailure(std::move(result.status), consoleStatus);
+                stderrStatus = Terminal::flush(Terminal::Types::Output::Stream::Stderr, IO::Types::FlushMode::Data);
             }
+            else
+            {
+                result.outcome = Types::FlushOutcome::TimedOut;
+            }
+
+            consoleStatus = firstFailure(std::move(stdoutStatus), stderrStatus);
+            result.status = firstFailure(std::move(result.status), consoleStatus);
         }
 
         if (hasFileOutput(mode) && result.outcome != Types::FlushOutcome::TimedOut)

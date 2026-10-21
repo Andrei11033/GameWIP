@@ -73,7 +73,7 @@ namespace
     namespace Logger = GameWIP::Logger;
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
-    using LoggerTestOptions = GameWIP::Test::LoggerTestOptions;
+    using GameWIP::Test::LoggerTestOptions;
     using namespace std::chrono_literals;
 
     constexpr std::string_view kTestSource = "LoggerTest";

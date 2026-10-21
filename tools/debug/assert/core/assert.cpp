@@ -29,7 +29,7 @@ namespace
         Check
     };
 
-    using FailureAction = GameWIP::Debug::Assert::FailureAction;
+    using GameWIP::Debug::Assert::FailureAction;
 
     // ------------------------------------------------------------
     // Diagnostic text construction

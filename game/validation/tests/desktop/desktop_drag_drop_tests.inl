@@ -525,7 +525,7 @@ void testDragDrop(TestSupport::Context &context)
                 deferredTargetB->open(deferredWindowB, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok()))
         {
             std::thread destroyOnWrongThread(
-                [first = std::move(deferredTargetA), second = std::move(deferredTargetB)]() mutable
+                [first = std::move(deferredTargetA), second = std::move(deferredTargetB)] mutable
                 {
                     first.reset();
                     second.reset();

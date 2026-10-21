@@ -684,7 +684,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if (!status.ok() && firstFailure.ok())
         {
-            firstFailure = status;
+            firstFailure = std::move(status);
         }
         state.monitor = portablePrimary->id;
 

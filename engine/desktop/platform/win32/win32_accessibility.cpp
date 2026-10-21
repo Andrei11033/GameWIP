@@ -1100,8 +1100,9 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return E_POINTER;
         }
-        *out =
-            static_cast<ProviderOptions>(ProviderOptions_ServerSideProvider | ProviderOptions_ProviderOwnsSetFocus | ProviderOptions_UseComThreading);
+        *out = static_cast<ProviderOptions>(
+            static_cast<std::uint32_t>(ProviderOptions_ServerSideProvider) | static_cast<std::uint32_t>(ProviderOptions_ProviderOwnsSetFocus) |
+            static_cast<std::uint32_t>(ProviderOptions_UseComThreading));
         return query() ? S_OK : kUnavailable;
     }
 
@@ -1310,7 +1311,7 @@ namespace GameWIP::Desktop::Detail::Platform
         const std::array<LONG, 3> values{
             UiaAppendRuntimeId,
             std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(id_)),
-            std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(id_ >> 32))};
+            std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(id_ >> 32U))};
 
         for (LONG i = 0; i < 3; ++i)
         {

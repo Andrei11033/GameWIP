@@ -42,11 +42,11 @@ namespace GameWIP::Terminal::Detail::Platform
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
         using InputStream = Terminal::Types::Input::Stream;
         using OutputStream = Terminal::Types::Output::Stream;
-        using ReadOutcome = Terminal::Types::Input::ReadOutcome;
-        using StreamKind = Terminal::Types::StreamKind;
+        using Terminal::Types::StreamKind;
+        using Terminal::Types::Input::ReadOutcome;
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         namespace HookDetail = GameWIP::Terminal::Detail::TestHooks;
@@ -250,7 +250,7 @@ namespace GameWIP::Terminal::Detail::Platform
         [[nodiscard]] auto compareObjectHandlesFunction() noexcept
         {
             using Function = BOOL(WINAPI *)(HANDLE, HANDLE);
-            static const Function function = []() noexcept -> Function
+            static const Function function = [] noexcept -> Function
             {
                 HMODULE module = GetModuleHandleW(L"kernelbase.dll");
 

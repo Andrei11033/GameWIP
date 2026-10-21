@@ -415,7 +415,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     const std::wstring applicationPath = L"Software\\Classes\\Applications\\" + applicationName;
     const std::wstring targetPath = L"Software\\Classes\\" + manualDiagnosticWideText(target);
 
-    const auto removeApplicationFixture = [&]()
+    const auto removeApplicationFixture = [&]
     {
         const LONG removed = RegDeleteTreeW(HKEY_CURRENT_USER, applicationPath.c_str());
         return removed == ERROR_SUCCESS || removed == ERROR_FILE_NOT_FOUND;
@@ -475,7 +475,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
         return ownerResult == ERROR_SUCCESS;
     };
 
-    const auto registerDescription = [&]()
+    const auto registerDescription = [&]
     {
         RegistrationTypes::FileExtensionDescription description;
         description.ownerKey = owner;
@@ -792,7 +792,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             // launch latency while still remaining a valid launch.
             constexpr DWORD shellLaunchTimeoutMilliseconds = 30000;
             const DWORD finished = WaitForSingleObject(launch.hProcess, shellLaunchTimeoutMilliseconds);
-            static_cast<void>(context.expectEq(kind + " controlled handler completes", DWORD{WAIT_OBJECT_0}, finished));
+            static_cast<void>(context.expectEq(kind + " controlled handler completes", (WAIT_OBJECT_0), finished));
             DWORD exitCode = 0;
             static_cast<void>(context.expectTrue(
                 kind + " selected target arrives as one exact argument",

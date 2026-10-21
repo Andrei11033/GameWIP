@@ -1227,7 +1227,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         : description.triggerButton == DD::TriggerButton::Right ? VK_RBUTTON
                                                                                 : VK_MBUTTON;
 
-        if ((GetAsyncKeyState(key) & 0x8000) == 0)
+        if ((static_cast<std::uint16_t>(GetAsyncKeyState(key)) & 0x8000U) == 0)
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             return result;

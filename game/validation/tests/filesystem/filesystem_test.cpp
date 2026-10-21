@@ -38,7 +38,7 @@ namespace
     namespace FileSystem = GameWIP::FileSystem;
     namespace IO = GameWIP::IO;
 
-    using Path = FileSystem::Types::Path;
+    using FileSystem::Types::Path;
     using ConstByteSpan = std::span<const std::byte>;
 
     static_assert(
@@ -91,7 +91,7 @@ namespace
     static_assert(std::is_same_v<decltype(FileSystem::Types::Lock::Result{}.outcome), FileSystem::Types::Lock::Outcome>);
 
     namespace TestSupport = GameWIP::TestSupport;
-    using ErrorCode = IO::Types::ErrorCode;
+    using IO::Types::ErrorCode;
 
     /// @brief Creates entry-query options for one explicit symlink policy.
     FileSystem::Types::EntryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept

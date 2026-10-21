@@ -286,8 +286,8 @@ void testManualFilesAndShell(
 
                 if (taskbarStatus.ok())
                 {
-                    using Progress = Desktop::Types::Shell::Progress;
-                    using ProgressState = Desktop::Types::Shell::ProgressState;
+                    using Desktop::Types::Shell::Progress;
+                    using Desktop::Types::Shell::ProgressState;
                     const std::array progressCases{
                         std::pair<std::string_view, Progress>{"normal 35 percent", {ProgressState::Normal, 0.35}},
                         std::pair<std::string_view, Progress>{"indeterminate", {ProgressState::Indeterminate, 0.0}},
@@ -888,7 +888,7 @@ struct ManualDragDropCapture
         key = VK_MBUTTON;
     }
 
-    return (GetAsyncKeyState(key) & 0x8000) != 0;
+    return (static_cast<std::uint16_t>(GetAsyncKeyState(key)) & 0x8000U) != 0;
 }
 
 [[nodiscard]] bool manualPointerInside(const Desktop::Window &window) noexcept
@@ -1017,7 +1017,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 {
     namespace DD = Desktop::Types::DragDrop;
     namespace Transfer = Desktop::Types::DataTransfer;
-    using ManualAnswer = TestSupport::Types::Reporting::ManualAnswer;
+    using TestSupport::Types::Reporting::ManualAnswer;
 
     if (!beginManualSuite(context, options, "Window native data drag and drop"))
     {

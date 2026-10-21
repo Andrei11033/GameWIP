@@ -490,7 +490,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
 
     const std::filesystem::path detachedOwnerFile = root / "atomic-locks" / "detached-owner.txt";
     static_cast<void>(context.expectTrue("detached-owner file write succeeds", FileSystem::writeAllText(detachedOwnerFile, "lock").status.ok()));
-    FileSystem::FileLock detachedOwnerLock = [&]()
+    FileSystem::FileLock detachedOwnerLock = [&]
     {
         FileSystem::File owner;
         static_cast<void>(context.expectTrue("detached lock owner opens", owner.open(detachedOwnerFile).ok()));

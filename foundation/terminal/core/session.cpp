@@ -24,9 +24,15 @@
 
 namespace GameWIP::Terminal
 {
+    namespace Detail
+    {
+        [[nodiscard]] IO::Types::Status claimDirectInput(Types::Input::Stream stream) noexcept;
+        void releaseDirectInput(Types::Input::Stream stream) noexcept;
+    } // namespace Detail
+
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         enum class ReadOperation
         {
@@ -41,6 +47,7 @@ namespace GameWIP::Terminal
             std::mutex ownershipMutex;
             std::mutex ioMutex;
             const void *owner = nullptr;
+            bool directLease = false;
         };
 
         struct PreparedInputOwnership
@@ -49,6 +56,7 @@ namespace GameWIP::Terminal
             Detail::Platform::InputModeSnapshot previousMode{};
             bool hasPreviousMode = false;
             bool claimed = false;
+            bool directClaimed = false;
         };
 
         struct ReadDecision
@@ -282,7 +290,15 @@ namespace GameWIP::Terminal
 
             if (ownership.claimed)
             {
-                Detail::releaseInput(stream, owner);
+                if (ownership.directClaimed)
+                {
+                    Detail::releaseDirectInput(stream);
+                    ownership.directClaimed = false;
+                }
+                else
+                {
+                    Detail::releaseInput(stream, owner);
+                }
                 ownership.claimed = false;
             }
 
@@ -301,13 +317,15 @@ namespace GameWIP::Terminal
         {
             ownership = {};
 
-            IO::Types::Status status = Detail::claimInput(options.input, owner);
+            const bool directClaim = owner == nullptr;
+            IO::Types::Status status = directClaim ? Detail::claimDirectInput(options.input) : Detail::claimInput(options.input, owner);
 
             if (!status.ok())
             {
                 return status;
             }
             ownership.claimed = true;
+            ownership.directClaimed = directClaim;
 
             try
             {
@@ -380,7 +398,7 @@ namespace GameWIP::Terminal
 
             ~DirectInputLease() noexcept
             {
-                static_cast<void>(restoreManagedInput(options_.input, ownership_, this, false));
+                static_cast<void>(restoreManagedInput(options_.input, ownership_, nullptr, false));
             }
 
             [[nodiscard]] IO::Types::Status open(
@@ -389,7 +407,7 @@ namespace GameWIP::Terminal
             {
                 options_.deliveryMode = deliveryMode;
                 options_.controlKeyMode = controlKeyMode;
-                return acquireManagedInput(options_, this, ownership_);
+                return acquireManagedInput(options_, nullptr, ownership_);
             }
 
             [[nodiscard]] const Types::Input::Capabilities &capabilities() const noexcept
@@ -399,7 +417,7 @@ namespace GameWIP::Terminal
 
             [[nodiscard]] IO::Types::Status finish(IO::Types::Status primary) noexcept
             {
-                const IO::Types::Status restoration = restoreManagedInput(options_.input, ownership_, this, false);
+                const IO::Types::Status restoration = restoreManagedInput(options_.input, ownership_, nullptr, false);
 
                 if (primary.ok())
                 {
@@ -469,7 +487,7 @@ namespace GameWIP::Terminal
                 InputCoordinator &coordinator = inputCoordinator(stream);
                 std::lock_guard lock(coordinator.ownershipMutex);
 
-                if (coordinator.owner != nullptr)
+                if (coordinator.owner != nullptr || coordinator.directLease)
                 {
                     return IO::makeStatus(ErrorCode::ResourceBusy);
                 }
@@ -480,6 +498,52 @@ namespace GameWIP::Terminal
             catch (...)
             {
                 return IO::makeStatus(ErrorCode::Unknown);
+            }
+        }
+
+        IO::Types::Status claimDirectInput(Types::Input::Stream stream) noexcept
+        {
+            if (!validInputStream(stream))
+            {
+                return IO::makeStatus(ErrorCode::InvalidArgument);
+            }
+
+            try
+            {
+                InputCoordinator &coordinator = inputCoordinator(stream);
+                std::lock_guard lock(coordinator.ownershipMutex);
+
+                if (coordinator.owner != nullptr || coordinator.directLease)
+                {
+                    return IO::makeStatus(ErrorCode::ResourceBusy);
+                }
+
+                coordinator.directLease = true;
+                return IO::successStatus();
+            }
+            catch (...)
+            {
+                return IO::makeStatus(ErrorCode::Unknown);
+            }
+        }
+
+        void releaseDirectInput(Types::Input::Stream stream) noexcept
+        {
+            if (!validInputStream(stream))
+            {
+                return;
+            }
+
+            try
+            {
+                InputCoordinator &coordinator = inputCoordinator(stream);
+                std::lock_guard lock(coordinator.ownershipMutex);
+                coordinator.directLease = false;
+            }
+            catch (...)
+            {
+                // Ownership release is best effort at a noexcept cleanup boundary.
+                return;
             }
         }
 

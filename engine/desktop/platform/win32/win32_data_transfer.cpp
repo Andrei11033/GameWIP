@@ -23,7 +23,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
 
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
         namespace Transfer = Types::DataTransfer;
         /// @brief Creates a data-transfer status with an optional native error value.
         [[nodiscard]] IO::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept

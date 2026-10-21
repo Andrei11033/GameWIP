@@ -350,7 +350,7 @@ void testPointerHitMask(TestSupport::Context &context)
 void testRendererOcclusionFeedback(TestSupport::Context &context)
 {
     namespace Feedback = Desktop::Renderer;
-    using Capability = Desktop::Types::Capability;
+    using Desktop::Types::Capability;
 
     Desktop::Window closed;
     static_cast<void>(

@@ -25,7 +25,7 @@ namespace GameWIP::Terminal
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         /// @brief Internal capability selector shared by terminal-control emitters.
         enum class ControlFeature
@@ -791,20 +791,18 @@ namespace GameWIP::Terminal
                                    styleSupported(segment.style(), capabilityResult.capabilities.style);
                         });
 
-                    if (!allStylesSupported)
-                    {
-                        if (capabilityResult.capabilities.kind != Types::StreamKind::Redirected)
-                        {
-                            Types::Output::CapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
+                    if ((!allStylesSupported) && (capabilityResult.capabilities.kind != Types::StreamKind::Redirected))
 
-                            if (prepared.status.ok())
-                            {
-                                capabilityResult = std::move(prepared);
-                            }
-                            else if (options.styleMode == Types::Style::Mode::Required)
-                            {
-                                return prepared.status;
-                            }
+                    {
+                        Types::Output::CapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
+
+                        if (prepared.status.ok())
+                        {
+                            capabilityResult = std::move(prepared);
+                        }
+                        else if (options.styleMode == Types::Style::Mode::Required)
+                        {
+                            return prepared.status;
                         }
                     }
                 }

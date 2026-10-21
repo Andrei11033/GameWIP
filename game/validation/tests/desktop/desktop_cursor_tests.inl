@@ -444,7 +444,7 @@ void testCursorLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("deferred cursor binds", Desktop::setCursor(*deferred, *deferredCursor).ok()));
     deferredCursor.value = std::nullopt;
     std::thread destroyer(
-        [owned = std::move(deferred)]() mutable
+        [owned = std::move(deferred)] mutable
         {
             owned.reset();
         });

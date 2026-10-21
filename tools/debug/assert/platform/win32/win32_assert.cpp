@@ -41,7 +41,7 @@ namespace
         return size == 1 && value[0] == L'1';
     }
 
-    using FailureAction = GameWIP::Debug::Assert::FailureAction;
+    using GameWIP::Debug::Assert::FailureAction;
 
 #if ASSERT_INTERNAL_TEST_HOOKS
     /// @brief One-shot diagnostic preparation failure used by the focused noexcept test.

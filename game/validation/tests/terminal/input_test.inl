@@ -165,7 +165,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
 
         if (!decoded.event.has_value())
         {
-            context.fail(std::string(label), "decoder produced no portable event");
+            context.fail(label, "decoder produced no portable event");
             return nullptr;
         }
 

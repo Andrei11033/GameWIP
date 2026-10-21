@@ -25,7 +25,7 @@ namespace GameWIP::Terminal
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         [[nodiscard]] IO::Types::Status unsupportedStatus() noexcept
         {
@@ -898,7 +898,7 @@ namespace GameWIP::Terminal
 
                     if (!navigationStatus.ok())
                     {
-                        result.status = navigationStatus;
+                        result.status = std::move(navigationStatus);
                         result.line = std::move(line);
                         return result;
                     }
@@ -947,7 +947,7 @@ namespace GameWIP::Terminal
 
                         if (!navigationStatus.ok())
                         {
-                            result.status = navigationStatus;
+                            result.status = std::move(navigationStatus);
                             result.line = std::move(line);
                             return result;
                         }
@@ -961,7 +961,7 @@ namespace GameWIP::Terminal
 
                     if (!navigationStatus.ok())
                     {
-                        result.status = navigationStatus;
+                        result.status = std::move(navigationStatus);
                         result.line = std::move(line);
                         return result;
                     }
@@ -995,7 +995,7 @@ namespace GameWIP::Terminal
 
                         if (!navigationStatus.ok())
                         {
-                            result.status = navigationStatus;
+                            result.status = std::move(navigationStatus);
                             result.line = std::move(line);
                             return result;
                         }
@@ -1008,7 +1008,7 @@ namespace GameWIP::Terminal
 
                     if (!navigationStatus.ok())
                     {
-                        result.status = navigationStatus;
+                        result.status = std::move(navigationStatus);
                         result.line = std::move(line);
                         return result;
                     }
@@ -1026,7 +1026,7 @@ namespace GameWIP::Terminal
 
                     if (!navigationStatus.ok())
                     {
-                        result.status = navigationStatus;
+                        result.status = std::move(navigationStatus);
                         result.line = std::move(line);
                         return result;
                     }

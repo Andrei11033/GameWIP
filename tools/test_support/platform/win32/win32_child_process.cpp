@@ -19,6 +19,7 @@
 #include <cstddef>
 #include <cwchar>
 #include <cwctype>
+#include <exception>
 #include <functional>
 #include <limits>
 #include <new>
@@ -39,8 +40,19 @@ namespace GameWIP::TestSupport
         // Native handles and startup attributes
         // ------------------------------------------------------------
 
-        struct NativeInfrastructureFailure
+        struct NativeInfrastructureFailure final : std::exception
         {
+            NativeInfrastructureFailure(Types::InfrastructureError failure, std::uint64_t code) noexcept
+                : error(failure)
+                , nativeCode(code)
+            {
+            }
+
+            [[nodiscard]] const char *what() const noexcept override
+            {
+                return "Native process infrastructure failure";
+            }
+
             Types::InfrastructureError error;
             std::uint64_t nativeCode;
         };
@@ -338,7 +350,7 @@ namespace GameWIP::TestSupport
 
             if (environmentStrings == nullptr)
             {
-                throw NativeInfrastructureFailure{.error = Types::InfrastructureError::ProcessSetupFailed, .nativeCode = GetLastError()};
+                throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
             }
 
             try
@@ -363,7 +375,7 @@ namespace GameWIP::TestSupport
 
             if (FreeEnvironmentStringsW(environmentStrings) == FALSE)
             {
-                throw NativeInfrastructureFailure{.error = Types::InfrastructureError::ProcessSetupFailed, .nativeCode = GetLastError()};
+                throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
             }
 
             return entries;

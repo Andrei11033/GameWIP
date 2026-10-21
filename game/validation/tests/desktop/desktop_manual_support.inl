@@ -96,10 +96,12 @@ struct ManualFullscreenSections
     result.style = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_STYLE));
     result.extendedStyle = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_EXSTYLE));
     result.dpi = GetDpiForWindow(native->window);
-    result.popupStyle = (result.style & WS_POPUP) != 0 && (result.style & (WS_CAPTION | WS_THICKFRAME)) == 0;
-    result.visibleStyle = (result.style & WS_VISIBLE) != 0;
+    result.popupStyle = (result.style & static_cast<DWORD>(WS_POPUP)) != 0 &&
+                        (result.style & (static_cast<DWORD>(WS_CAPTION) | static_cast<DWORD>(WS_THICKFRAME))) == 0;
+    result.visibleStyle = (result.style & static_cast<DWORD>(WS_VISIBLE)) != 0;
     result.fullscreenBounds = EqualRect(&result.frame, &result.monitor) != FALSE && EqualRect(&result.client, &result.monitor) != FALSE;
-    result.taskbarEligible = (result.extendedStyle & WS_EX_APPWINDOW) != 0 && (result.extendedStyle & WS_EX_TOOLWINDOW) == 0 && result.visibleStyle &&
+    result.taskbarEligible = (result.extendedStyle & static_cast<DWORD>(WS_EX_APPWINDOW)) != 0 &&
+                             (result.extendedStyle & static_cast<DWORD>(WS_EX_TOOLWINDOW)) == 0 && result.visibleStyle &&
                              IsWindowVisible(native->window) != FALSE && GetWindow(native->window, GW_OWNER) == nullptr;
     result.valid = true;
     return result;

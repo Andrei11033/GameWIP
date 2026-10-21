@@ -28,7 +28,9 @@ namespace GameWIP::Desktop::Detail
         /// @brief Validates that no unsupported effect bits cross the internal policy boundary.
         [[nodiscard]] constexpr bool validEffectBits(Types::DragDrop::Effect value) noexcept
         {
-            return (static_cast<std::uint8_t>(value) & ~static_cast<std::uint8_t>(kAllEffects)) == 0;
+            const std::uint32_t effectBits = static_cast<std::uint8_t>(value);
+            const std::uint32_t allowedBits = static_cast<std::uint8_t>(kAllEffects);
+            return (effectBits & ~allowedBits) == 0;
         }
         /// @brief Returns whether an event participates in the secondary movement index.
         [[nodiscard]] bool movement(const Types::DragDrop::Event &event) noexcept

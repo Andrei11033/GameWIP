@@ -43,7 +43,7 @@
 namespace
 {
     namespace TestSupport = GameWIP::TestSupport;
-    using TestSupportTestOptions = GameWIP::Test::TestSupportTestOptions;
+    using GameWIP::Test::TestSupportTestOptions;
     using namespace std::chrono_literals;
 
     constexpr std::string_view kEnvironmentChildArgument = "--test-support-test-child=environment";

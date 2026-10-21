@@ -411,8 +411,8 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
 
 void testMessageDialogs(TestSupport::Context &context)
 {
-    using Button = MessageDialogs::Button;
-    using Buttons = MessageDialogs::Buttons;
+    using MessageDialogs::Button;
+    using MessageDialogs::Buttons;
 
     struct ButtonSetCase
     {
@@ -540,10 +540,10 @@ void testMessageDialogs(TestSupport::Context &context)
 
 void testPromptDialogs(TestSupport::Context &context)
 {
-    using Button = PromptDialogs::Button;
-    using ButtonId = PromptDialogs::ButtonId;
-    using Option = PromptDialogs::Option;
-    using OptionId = PromptDialogs::OptionId;
+    using PromptDialogs::Button;
+    using PromptDialogs::ButtonId;
+    using PromptDialogs::Option;
+    using PromptDialogs::OptionId;
 
     PromptDialogs::Description description;
     static_cast<void>(

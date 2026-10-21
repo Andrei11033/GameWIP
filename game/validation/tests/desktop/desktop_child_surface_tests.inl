@@ -362,7 +362,7 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(abandoned->open(parent, {{{0, 0}, {32, 24}}, false, true}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)));
     const HWND abandonedHandle = Desktop::Native::Win32::getHandle(*abandoned)->window;
     std::thread destroyer(
-        [ownedSurface = std::move(abandoned)]() mutable
+        [ownedSurface = std::move(abandoned)] mutable
         {
             ownedSurface.reset();
         });

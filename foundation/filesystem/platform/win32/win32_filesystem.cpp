@@ -35,7 +35,7 @@ namespace GameWIP::FileSystem::Detail::Platform
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         /// @brief Native sharing used for metadata traversal that must not block ordinary owners.
         constexpr DWORD kShareAll = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
@@ -436,7 +436,9 @@ namespace GameWIP::FileSystem::Detail::Platform
         /// @brief Rejects file-sharing bits outside the supported mask.
         [[nodiscard]] bool isValidFileShare(Types::File::Share share) noexcept
         {
-            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::File::Share::All)) == 0;
+            const std::uint32_t shareBits = static_cast<std::uint8_t>(share);
+            const std::uint32_t allowedBits = static_cast<std::uint8_t>(Types::File::Share::All);
+            return (shareBits & ~allowedBits) == 0;
         }
 
         /// @brief Validates symlink-policy values before backend traversal.

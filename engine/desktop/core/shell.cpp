@@ -1376,7 +1376,7 @@ namespace GameWIP::Desktop
 
         if (!status.ok())
         {
-            result.status = status;
+            result.status = std::move(status);
             return result;
         }
 
@@ -1394,7 +1394,7 @@ namespace GameWIP::Desktop
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             std::uint64_t id = state_->nextId++;
@@ -1417,7 +1417,7 @@ namespace GameWIP::Desktop
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
             publishedId = id;
@@ -1625,7 +1625,7 @@ namespace GameWIP::Desktop
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
         }
@@ -1640,7 +1640,7 @@ namespace GameWIP::Desktop
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
         }
@@ -1664,7 +1664,7 @@ namespace GameWIP::Desktop
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
         }
@@ -1679,7 +1679,7 @@ namespace GameWIP::Desktop
 
             if (!status.ok())
             {
-                result.status = status;
+                result.status = std::move(status);
                 return result;
             }
         }

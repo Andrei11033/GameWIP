@@ -489,8 +489,8 @@ void testCodePointBoundaries(TestSupport::Context &context)
 void testGeneratedPropertyData(TestSupport::Context &context)
 {
     namespace Generated = Unicode::Internal::Generated;
-    using GraphemeBreakClass = Unicode::Internal::GraphemeBreakClass;
-    using IndicConjunctBreakClass = Unicode::Internal::IndicConjunctBreakClass;
+    using Unicode::Internal::GraphemeBreakClass;
+    using Unicode::Internal::IndicConjunctBreakClass;
 
     static_cast<void>(context.expectEq("generated major version", std::uint8_t{17}, Generated::kUnicodeVersionMajor));
     static_cast<void>(context.expectEq("generated minor version", std::uint8_t{0}, Generated::kUnicodeVersionMinor));

@@ -328,7 +328,9 @@ namespace GameWIP::Logger::Detail::Core
             }
             else
             {
-                outMask = static_cast<std::uint8_t>(outMask & ~bit);
+                const std::uint32_t currentMask = outMask;
+                const std::uint32_t bitMask = bit;
+                outMask = static_cast<std::uint8_t>(currentMask & ~bitMask);
             }
         }
 

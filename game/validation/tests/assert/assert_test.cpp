@@ -46,7 +46,7 @@ namespace
 {
     namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
-    using AssertTestOptions = GameWIP::Test::AssertTestOptions;
+    using GameWIP::Test::AssertTestOptions;
     using namespace std::chrono_literals;
 
     constexpr std::string_view kAssertFailureChildArgument = "--assert-test-child=assert-failure";
@@ -206,7 +206,7 @@ namespace
         }
     }
 
-    using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
+    using TestSupport::ScopedEnvironmentVariable;
     using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
     // ------------------------------------------------------------
