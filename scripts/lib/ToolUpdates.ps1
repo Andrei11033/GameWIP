@@ -659,7 +659,7 @@ function Invoke-GameWipToolUpdate
         return
     }
     Assert-GameWipCleanTrackedTree
-    $planLines = @($installPlan | ForEach-Object { "$($_.Tool.id): install/verify $(if ($_.Latest) { $_.Latest } elseif ($_.Tool.Contains('requiredVersion')) { $_.Tool.requiredVersion } else { 'provider-managed version' })" }) + @($trackedPlan.Descriptions)
+    $planLines = @($installPlan | ForEach-Object { "$($_.Tool.id): install/verify $(if ($_.Latest) { $_.Latest } elseif ($_.Tool.Contains('requiredVersion')) { $_.Tool.requiredVersion } else { 'provider-managed version' })" }) + @($trackedPlan.Descriptions) + @('Format maintained files with the updated tools, then run the quality gate.')
 
     if (-not (Confirm-GameWipMutation -Summary 'Apply the complete project-tool update plan?' -Risk machine -Plan $planLines))
     {
@@ -677,8 +677,8 @@ function Invoke-GameWipToolUpdate
             Assert-GameWipProjectToolConfig
         }
 
-        Write-GameWipOperationEvent -Phase verify -Severity info -Message 'Running the complete quality gate after the update...'
-        Invoke-GameWipQuality -Mode check
+        Write-GameWipOperationEvent -Phase verify -Severity info -Message 'Reformatting with the updated tools, then running the complete quality gate...'
+        Invoke-GameWipQuality -Mode fix
         Invoke-GameWipNative -Name 'git-status-after-tool-update' -FilePath 'git' -Arguments @('-C', $RepositoryRoot, 'status', '--short')
     }
 }

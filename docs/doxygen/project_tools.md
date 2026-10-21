@@ -119,7 +119,7 @@ Malformed input fails, and writes remain UTF-8 without a byte-order mark.
 
 Provider adapters own provider-specific queries, installation, and rollback.
 The shared engine owns discovery, planning, staging, validation, preview,
-consent, application, verification, and quality. Verified GitHub-release
+consent, application, verification, formatting, and quality. Verified GitHub-release
 providers download and checksum a candidate, verify it before replacement, and
 restore the previous managed tool and shim if replacement fails. If every
 selected declaration and installation is current, the update is a true no-op:

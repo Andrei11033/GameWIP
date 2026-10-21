@@ -51,12 +51,12 @@ Exact version-sensitive quality-tool pins are declared centrally:
 
 | Tool | Exact version | Provider |
 | --- | --- | --- |
-| Ruff | 0.16.8 | Python |
-| ESLint | 10.11.0 | npm |
-| Prettier | 3.9.8 | npm |
-| prettier-plugin-powershell | 2.1.12 | npm dependency of Prettier |
-| Gersemi | 0.29.1 | verified GitHub release |
-| markdownlint-cli2 | 0.23.3 | npm |
+| Ruff | 0.17.1 | Python |
+| ESLint | 10.13.0 | npm |
+| Prettier | 3.9.10 | npm |
+| prettier-plugin-powershell | 2.2.0 | npm dependency of Prettier |
+| Gersemi | 0.29.2 | verified GitHub release |
+| markdownlint-cli2 | 0.24.0 | npm |
 | yamllint | 1.38.0 | Python |
 | jsonschema | 4.26.0 | Python |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
@@ -66,8 +66,9 @@ Exact version-sensitive quality-tool pins are declared centrally:
 explicit online query without changing files or installations. `gamewip tool
 update <id|all>` builds and validates a complete staged plan before consent.
 The update applies source-preserving compare-and-set registry mutations and
-declared live references, verifies the planned provider state, and runs the
-repository quality gate without committing or pushing. Informational `path`
+declared live references, verifies the planned provider state, then formats with
+the updated tools and runs the repository quality gate without committing or
+pushing. Informational `path`
 references, including historical release notes, are never rewritten. See
 @ref project_tools for reference kinds, the strict UTF-8 contract, preview and
 no-op behavior, and the provider rollback boundary.

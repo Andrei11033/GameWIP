@@ -24,7 +24,8 @@ Project-tool updates start with `scripts/config/project-tools.json`. Provider
 adapters handle upstream queries, installation, verification, and rollback for
 the machine state they manage. The shared tool engine handles discovery,
 planning, tracked staging, validation, preview, consent, application,
-post-update verification, and the final quality gate. A normal tool for an
+post-update verification, formatting with the updated tools, and the final
+quality gate. A normal tool for an
 existing provider, or another reference to an existing tool version, belongs in
 configuration rather than new updater code.
 

@@ -252,7 +252,7 @@ The dedicated `Packages (CMake)` job owns ordinary package compatibility across
 Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest
 entries instead of repeating the single-config cases. The `coverage`, `asan`, and
 `ubsan` presets still run their package entries because those executions prove
-that separately instrumented consumers link and run. The root CMake 4.4.2
+that separately instrumented consumers link and run. The root CMake 4.4.4
 requirement is propagated into each independently configured consumer rather
 than copied into consumer source.
 
