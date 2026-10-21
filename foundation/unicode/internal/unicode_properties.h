@@ -53,14 +53,17 @@ namespace GameWIP::Unicode::Internal
         {
             return {.graphemeBreak = GraphemeBreakClass::CR};
         }
+
         if (codePoint == 0x0AU)
         {
             return {.graphemeBreak = GraphemeBreakClass::LF};
         }
+
         if (codePoint <= 0x1FU || codePoint == 0x7FU)
         {
             return {.graphemeBreak = GraphemeBreakClass::Control};
         }
+
         return {};
     }
 
@@ -82,10 +85,12 @@ namespace GameWIP::Unicode::Internal
         {
             return asciiProperties(codePoint);
         }
+
         if (codePoint >= 0xAC00U && codePoint <= 0xD7A3U)
         {
             return hangulSyllableProperties(codePoint);
         }
+
         if (scalar >= Generated::kHighStart)
         {
             return {};
@@ -94,7 +99,7 @@ namespace GameWIP::Unicode::Internal
         const std::size_t blockIndexOffset = static_cast<std::size_t>(codePoint) >> Generated::kBlockShift;
         const std::size_t blockIndex = Generated::kBlockIndexes[blockIndexOffset];
         const std::size_t propertyOffset = (blockIndex << Generated::kBlockShift) | (static_cast<std::size_t>(codePoint) & Generated::kBlockMask);
-        const std::uint8_t packed = Generated::kPropertyBlocks[propertyOffset];
+        const std::uint32_t packed = Generated::kPropertyBlocks[propertyOffset];
 
         return {
             .graphemeBreak = static_cast<GraphemeBreakClass>(packed & 0x0FU),

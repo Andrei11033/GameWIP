@@ -5,12 +5,15 @@
 /// private fragments cover macros, diagnostics, interactive actions, stress, process paths, and manual UI.
 
 #include "validation/tests/assert/assert_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_test_hooks.h"
 
 #include "logger/logger.h"
+#include "validation/tests/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>
@@ -43,7 +46,7 @@ namespace
 {
     namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
-    using AssertTestOptions = GameWIP::Test::AssertTestOptions;
+    using GameWIP::Test::AssertTestOptions;
     using namespace std::chrono_literals;
 
     constexpr std::string_view kAssertFailureChildArgument = "--assert-test-child=assert-failure";
@@ -65,8 +68,10 @@ namespace
         }
 
         TestSupport::Context &testContext;
+        TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
-        std::string executablePath;
+        std::filesystem::path executablePath;
+        TestSupport::Types::Reporting::Summary manualObservations;
 
         [[nodiscard]] TestSupport::Types::Reporting::Summary result() const noexcept
         {
@@ -81,6 +86,7 @@ namespace
         void emit(std::string_view line)
         {
             std::string text(line);
+
             while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
             {
                 text.pop_back();
@@ -112,9 +118,32 @@ namespace
             testContext.info(text);
         }
 
-        void pass(std::string_view name)
+        void skip(std::string_view name, std::string_view reason)
         {
-            testContext.pass(name);
+            testContext.skip(name, reason);
+        }
+
+        /// @brief Records an operator observation separately from setup assertions.
+        void manualCheck(std::string_view name, std::string_view question)
+        {
+            std::string skipReason;
+            const auto answer = TestSupport::promptManualCheck(question, skipReason);
+
+            switch (answer)
+            {
+            case TestSupport::Types::Reporting::ManualAnswer::Yes:
+                ++manualObservations.passed;
+                testContext.pass(name);
+                break;
+            case TestSupport::Types::Reporting::ManualAnswer::No:
+                ++manualObservations.failed;
+                testContext.fail(name, "manual observation rejected by user");
+                break;
+            case TestSupport::Types::Reporting::ManualAnswer::Skipped:
+                ++manualObservations.skipped;
+                testContext.skip(name, skipReason);
+                break;
+            }
         }
 
         void fail(std::string_view name, std::string_view details)
@@ -177,7 +206,7 @@ namespace
         }
     }
 
-    using ScopedEnvironmentVariable = TestSupport::ScopedEnvironmentVariable;
+    using TestSupport::ScopedEnvironmentVariable;
     using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
     // ------------------------------------------------------------
@@ -206,6 +235,7 @@ namespace
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == argument)
@@ -213,18 +243,21 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
     TestSupport::Types::Process::Result runChildProcessResult(
-        std::string_view executablePath,
+        const std::filesystem::path &executablePath,
         std::string_view argument,
-        std::chrono::milliseconds timeout = 5000ms)
+        // Crash and assertion startup paths can be delayed by Windows error handling and CTest
+        // process instrumentation; dedicated timeout cases below still use short explicit waits.
+        std::chrono::milliseconds timeout = 30s)
     {
         TestSupport::Types::Process::Options child;
-        child.executablePath = std::filesystem::path(std::string(executablePath));
+        child.executablePath = executablePath;
         child.arguments = {std::string(argument)};
-        child.timeout = timeout;
+        child.waitTimeout = timeout;
         child.captureOutput = true;
         return TestSupport::runChildProcess(child);
     }
@@ -250,6 +283,7 @@ namespace
     std::filesystem::path loggerLogFilePath(TestContext &context)
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
+
         if (!result.status.ok())
         {
             context.fail(
@@ -257,22 +291,26 @@ namespace
                 std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
             return {};
         }
+
         return pathFromText(result.utf8);
     }
 
     std::string readFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
+
         if (!requireInfrastructure(context, "read Assert log fixture", result.status))
         {
             return {};
         }
+
         return std::move(result.text);
     }
 
     std::string readDirectoryFiles(TestContext &context, const std::filesystem::path &directory)
     {
         std::string contents;
+
         if (!std::filesystem::exists(directory))
         {
             return contents;
@@ -285,6 +323,7 @@ namespace
                 contents += readFile(context, entry.path());
             }
         }
+
         return contents;
     }
 
@@ -297,11 +336,13 @@ namespace
 
         std::size_t count = 0;
         std::size_t position = 0;
+
         while ((position = text.find(needle, position)) != std::string_view::npos)
         {
             ++count;
             position += needle.size();
         }
+
         return count;
     }
 
@@ -315,6 +356,7 @@ namespace
     {
         Logger::shutdown();
         const std::filesystem::path directory = context.logRoot / std::string(name);
+
         if (!TestSupport::createDirectories(directory).ok())
         {
             return false;
@@ -360,30 +402,28 @@ namespace GameWIP::Test
         {
             return runAssertFailureChild();
         }
+
         if (hasArgument(argc, argv, kInteractiveAbortChildArgument))
         {
             return runInteractiveAbortChild();
         }
+
         if (hasArgument(argc, argv, kInteractiveBreakChildArgument))
         {
             return runInteractiveBreakChild();
         }
+
         if (hasArgument(argc, argv, kDebugBreakChildArgument))
         {
             return runDebugBreakChild();
         }
+
         if (hasArgument(argc, argv, kUnreachableChildArgument))
         {
             return runUnreachableChild();
         }
 
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
-        reportOptions.reportPath = options.reportPath;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("Assert test report: {}", options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
@@ -393,8 +433,15 @@ namespace GameWIP::Test
             [&](TestSupport::Context &suiteContext)
             {
                 TestContext context(suiteContext);
-                context.executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+
+                if (!context.processState.status().ok())
+                {
+                    context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
+                    return;
+                }
+                context.executablePath = GameWIP::Validation::currentExecutablePath();
                 const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
+
                 if (!requireInfrastructure(context, "create Assert test workspace", workspace.status()))
                 {
                     return;
@@ -507,7 +554,7 @@ namespace GameWIP::Test
                         }
                         else
                         {
-                            context.pass("automated interactive assert tests skipped by AssertTestOptions");
+                            context.skip("automated interactive assert tests", "disabled by AssertTestOptions");
                         }
                     });
                 runCase(
@@ -545,6 +592,16 @@ namespace GameWIP::Test
                     {
                         testManualAssertUi(context, options);
                     });
+
+                if (options.enableManualTests)
+                {
+                    context.testContext.summary(
+                        std::format(
+                            "Assert manual observations passed={} failed={} skipped={} (excludes setup assertions)",
+                            context.manualObservations.passed,
+                            context.manualObservations.failed,
+                            context.manualObservations.skipped));
+                }
                 Logger::shutdown();
                 printSummary(context);
             });
@@ -557,6 +614,6 @@ namespace GameWIP::Test
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
         Logger::shutdown();
-        return runner.exitCode();
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

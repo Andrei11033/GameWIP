@@ -39,8 +39,8 @@ namespace GameWIP::Desktop::Types::Tray
     /// @brief Borrowed recursive tray-menu entry.
     /// @details All referenced strings, icons, and child spans are copied before the receiving
     /// open or replacement operation returns. Command, Check, and Radio entries require a
-    /// unique nonzero command identity, a nonempty label, and empty children. Submenu entries
-    /// require an invalid command identity, a nonempty label, nonempty children, and an empty
+    /// unique nonzero command identity, a non-empty label, and empty children. Submenu entries
+    /// require an invalid command identity, a non-empty label, non-empty children, and an empty
     /// accelerator. Separator entries require an invalid command identity and empty label,
     /// icon, accelerator, badge, and children. The checked state is meaningful only for Check
     /// and Radio entries.
@@ -48,17 +48,76 @@ namespace GameWIP::Desktop::Types::Tray
     {
         MenuItemKind kind = MenuItemKind::Command; ///< Entry presentation and interaction kind.
         Shell::CommandId commandId;                ///< Required command identity for actionable entries.
-        std::string_view label;                    ///< Nonempty UTF-8 label except for separators.
+        std::string_view label;                    ///< Non-empty UTF-8 label except for separators.
         std::optional<IconImageView> icon;         ///< Optional borrowed RGBA8 icon for non-separators.
         std::string_view accelerator;              ///< Optional UTF-8 accelerator display text for actionable entries.
         std::string_view badge;                    ///< Optional UTF-8 badge or glyph display text for non-separators.
-        std::span<const MenuItem> children;        ///< Nonempty child entries only for Submenu.
+        std::span<const MenuItem> children;        ///< Non-empty child entries only for Submenu.
         bool enabled = true;                       ///< Whether a non-separator entry accepts user interaction; true for separators.
         bool checked = false;                      ///< Check or radio state; false for other entry kinds.
     };
 
+    /// @brief Named constructors for valid tray-menu entry kinds.
+    namespace MenuItems
+    {
+        /// @brief Actionable entry that raises `id` when invoked.
+        [[nodiscard]] inline MenuItem command(
+            Shell::CommandId id,
+            std::string_view label,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view accelerator = {},
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Command, id, label, icon, accelerator, badge, {}, enabled, false};
+        }
+
+        /// @brief Checkable entry with initial state `checked`.
+        [[nodiscard]] inline MenuItem check(
+            Shell::CommandId id,
+            std::string_view label,
+            bool checked,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view accelerator = {},
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Check, id, label, icon, accelerator, badge, {}, enabled, checked};
+        }
+
+        /// @brief Radio entry with initial state `checked`.
+        [[nodiscard]] inline MenuItem radio(
+            Shell::CommandId id,
+            std::string_view label,
+            bool checked,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view accelerator = {},
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Radio, id, label, icon, accelerator, badge, {}, enabled, checked};
+        }
+
+        /// @brief Separator line; carries no command or label.
+        [[nodiscard]] inline MenuItem separator() noexcept
+        {
+            return {MenuItemKind::Separator, Shell::CommandId::invalid(), {}, std::nullopt, {}, {}, {}, true, false};
+        }
+
+        /// @brief Submenu; `children` is borrowed and must be non-empty.
+        [[nodiscard]] inline MenuItem submenu(
+            std::string_view label,
+            std::span<const MenuItem> children,
+            std::optional<IconImageView> icon = std::nullopt,
+            std::string_view badge = {},
+            bool enabled = true) noexcept
+        {
+            return {MenuItemKind::Submenu, Shell::CommandId::invalid(), label, icon, {}, badge, children, enabled, false};
+        }
+    } // namespace MenuItems
+
     /// @brief Borrowed complete tray-menu tree.
-    /// @details An empty item span clears the menu. Nonempty menus require a bound
+    /// @details An empty item span clears the menu. Non-empty menus require a bound
     /// ShellEventQueue so command invocations have a delivery destination. Command identities
     /// must be unique across the complete recursive tree.
     struct MenuDescription
@@ -68,10 +127,10 @@ namespace GameWIP::Desktop::Types::Tray
 
     /// @brief Initial tray-icon presentation and menu snapshot.
     /// @details Icon views, tooltip text, and the complete recursive menu tree are copied before
-    /// open returns. The icon span must be nonempty. A nonempty menu requires the queue overload.
+    /// open returns. The icon span must be non-empty. A non-empty menu requires the queue overload.
     struct Description
     {
-        std::span<const IconImageView> icons; ///< Nonempty borrowed RGBA8 icon variants.
+        std::span<const IconImageView> icons; ///< Non-empty borrowed RGBA8 icon variants.
         std::string_view tooltip;             ///< Optional UTF-8 tooltip; empty disables the tooltip.
         MenuDescription menu;                 ///< Borrowed initial menu tree.
     };
@@ -83,7 +142,7 @@ namespace GameWIP::Desktop
     /// @details A successful open binds this icon to its owner thread and generates one
     /// process-local TrayIconId. Opening without a queue provides passive icon and tooltip
     /// presentation; user interactions are discarded until a queue is bound. A queue may be
-    /// bound once before the first nonempty menu is published. Tray resources publish no
+    /// bound once before the first non-empty menu is published. Tray resources publish no
     /// callbacks and retain no state in Window.
     class DESKTOP_EXPORT TrayIcon final
     {
@@ -103,7 +162,7 @@ namespace GameWIP::Desktop
         ~TrayIcon() noexcept;
 
         /// @brief Opens passive icon and tooltip presentation without event delivery.
-        /// @details The initial menu must be empty. A nonempty menu requires the queue overload.
+        /// @details The initial menu must be empty. A non-empty menu requires the queue overload.
         /// @param description Initial icon, tooltip, and empty-menu presentation snapshot.
         /// @return Success, or a status explaining why no tray icon was opened.
         [[nodiscard]] IO::Types::Status open(const Types::Tray::Description &description) noexcept;
@@ -127,9 +186,9 @@ namespace GameWIP::Desktop
         /// @brief Reports whether interaction events have a bound queue.
         [[nodiscard]] bool hasEventQueue() const noexcept;
 
-        /// @brief Binds an event queue once before the first nonempty menu is published.
+        /// @brief Binds an event queue once before the first non-empty menu is published.
         /// @details The tray icon must be open without a queue, the queue must be open on the
-        /// calling thread, and no nonempty menu may have been published. The queue is borrowed
+        /// calling thread, and no non-empty menu may have been published. The queue is borrowed
         /// until close and cannot be replaced or detached.
         /// @param eventQueue Open queue owned by the calling thread.
         /// @return Success, NotOpen, InvalidArgument for a prohibited binding, ResourceBusy for
@@ -146,7 +205,7 @@ namespace GameWIP::Desktop
         /// @{
 
         /// @brief Replaces the tray icon image variants.
-        /// @param icons Nonempty borrowed RGBA8 icon views copied before return.
+        /// @param icons Non-empty borrowed RGBA8 icon views copied before return.
         /// @return Success, or a validation, ownership, capability, allocation, or native failure.
         [[nodiscard]] IO::Types::Status setIcon(std::span<const Types::IconImageView> icons) noexcept;
 
@@ -156,7 +215,7 @@ namespace GameWIP::Desktop
         [[nodiscard]] IO::Types::Status setTooltip(std::string_view tooltip) noexcept;
 
         /// @brief Replaces the complete recursive tray-menu tree.
-        /// @details An empty menu clears the current menu. A nonempty menu requires a bound event
+        /// @details An empty menu clears the current menu. A non-empty menu requires a bound event
         /// queue. A failed replacement leaves the previously published menu unchanged.
         /// @param menu Borrowed complete menu tree copied before return.
         /// @return Success, or a validation, ownership, queue, capability, size, allocation, or native failure.

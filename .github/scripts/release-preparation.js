@@ -30,6 +30,7 @@ function compareReleaseVersions(left, right) {
 
 function parseReleaseVersion(value) {
     const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(value);
+
     if (match === null) {
         throw new Error(`Invalid release version: ${value}`);
     }
@@ -49,6 +50,7 @@ function parseProjectVersion(cmakeContents) {
 
     const uncommented = cmakeContents.replace(/#[^\r\n]*/g, '');
     const matches = [...uncommented.matchAll(/\bproject\s*\(\s*GameWIP\s+VERSION\s+([^\s)]+)/gi)];
+
     if (matches.length !== 1) {
         throw new Error(`Expected exactly one GameWIP project version, found ${matches.length}.`);
     }
@@ -60,6 +62,7 @@ function parseReleaseTag(tagName) {
     if (typeof tagName !== 'string' || !tagName.startsWith('v')) {
         throw new Error(`Invalid release tag: ${tagName}`);
     }
+
     return parseReleaseVersion(tagName.slice(1));
 }
 
@@ -69,19 +72,23 @@ function findLatestReleaseVersion(tagNames) {
     }
 
     let latest = null;
+
     for (const tagName of tagNames) {
         if (typeof tagName !== 'string') {
             throw new Error('Every tag name must be a string.');
         }
+
         if (!tagName.startsWith('v')) {
             continue;
         }
 
         const version = parseReleaseTag(tagName);
+
         if (latest === null || compareReleaseVersions(version, latest) > 0) {
             latest = version;
         }
     }
+
     return latest;
 }
 
@@ -96,15 +103,10 @@ function parseMilestoneReleaseMetadata(description) {
 
     const lines = description.replace(/\r\n?/g, '\n').split('\n');
     const versionLines = lines.filter((line) => line.startsWith('Release version:'));
-    const issueLines = lines.filter((line) => line.startsWith('Release issue:'));
     const nextMilestoneLines = lines.filter((line) => line.startsWith('Next milestone:'));
 
     if (versionLines.length !== 1) {
         throw new Error(`Expected exactly one Release version line, found ${versionLines.length}.`);
-    }
-
-    if (issueLines.length > 1) {
-        throw new Error(`Expected at most one Release issue line, found ${issueLines.length}.`);
     }
 
     if (nextMilestoneLines.length !== 1) {
@@ -112,29 +114,19 @@ function parseMilestoneReleaseMetadata(description) {
     }
 
     const versionMatch = /^Release version: `([^`]+)`$/.exec(versionLines[0]);
+
     if (versionMatch === null) {
         throw new Error(`Invalid Release version line: ${versionLines[0]}`);
     }
 
-    let releaseIssue = null;
-
-    if (issueLines.length === 1) {
-        const issueMatch = /^Release issue: `#([1-9]\d*)`$/.exec(issueLines[0]);
-        if (issueMatch === null) {
-            throw new Error(`Invalid Release issue line: ${issueLines[0]}`);
-        }
-
-        releaseIssue = Number.parseInt(issueMatch[1], 10);
-    }
-
     const nextMilestoneMatch = /^Next milestone: `([^`]+)`$/.exec(nextMilestoneLines[0]);
+
     if (nextMilestoneMatch === null) {
         throw new Error(`Invalid Next milestone line: ${nextMilestoneLines[0]}`);
     }
 
     return {
         version: parseReleaseVersion(versionMatch[1]),
-        releaseIssue,
         nextMilestoneTitle: nextMilestoneMatch[1] === 'none' ? null : nextMilestoneMatch[1],
     };
 }
@@ -149,6 +141,7 @@ function issueLabelNames(issue) {
             if (typeof label === 'string') {
                 return label;
             }
+
             return String(label?.name ?? '');
         })
         .filter((name) => name.length > 0);
@@ -159,22 +152,16 @@ function isAutomaticReleaseIssueCandidate(issue) {
     return issueLabelNames(issue).includes(RELEASE_ISSUE_LABEL) || RELEASE_ISSUE_TITLE_PATTERN.test(title);
 }
 
-function resolveReleaseIssue({ milestone, metadataReleaseIssue, issues }) {
-    if (metadataReleaseIssue !== null) {
-        const releaseIssues = issues.filter((issue) => issue.number === metadataReleaseIssue);
-        if (releaseIssues.length !== 1) {
-            throw new Error(`Milestone '${milestone.title}' must contain release issue #${metadataReleaseIssue} exactly once.`);
-        }
-        return releaseIssues[0];
-    }
-
+function resolveReleaseIssue({ milestone, issues }) {
     const releaseIssues = issues.filter(isAutomaticReleaseIssueCandidate);
+
     if (releaseIssues.length !== 1) {
         const suffix = releaseIssues.length === 0 ? 'none were found' : `found ${releaseIssues.map((issue) => `#${issue.number}`).join(', ')}`;
         throw new Error(
             `Milestone '${milestone.title}' must have exactly one release issue labeled '${RELEASE_ISSUE_LABEL}' or titled 'release: ...'; ${suffix}.`,
         );
     }
+
     return releaseIssues[0];
 }
 
@@ -182,9 +169,11 @@ function validateTargetVersion({ targetVersion, projectVersion, latestVersion })
     if (compareReleaseVersions(targetVersion, projectVersion) !== 0) {
         throw new Error(`Milestone target ${targetVersion.text} does not match root project version ${projectVersion.text}.`);
     }
+
     if (latestVersion !== null && compareReleaseVersions(targetVersion, latestVersion) <= 0) {
         throw new Error(`Milestone target ${targetVersion.text} must be newer than latest release ${latestVersion.text}.`);
     }
+
     return true;
 }
 
@@ -192,12 +181,15 @@ function validateMilestoneReadiness({ activeMilestone, milestone, issues }) {
     if (!milestone || typeof milestone !== 'object') {
         throw new Error('A milestone is required.');
     }
+
     if (milestone.title !== activeMilestone) {
         throw new Error(`Selected milestone '${milestone.title}' is not active milestone '${activeMilestone}'.`);
     }
+
     if (String(milestone.state).toLowerCase() !== 'open') {
         throw new Error(`Milestone '${milestone.title}' must be open.`);
     }
+
     if (!Array.isArray(issues)) {
         throw new Error('Milestone issues must be an array.');
     }
@@ -205,9 +197,9 @@ function validateMilestoneReadiness({ activeMilestone, milestone, issues }) {
     const metadata = parseMilestoneReleaseMetadata(milestone.description);
     const releaseIssue = resolveReleaseIssue({
         milestone,
-        metadataReleaseIssue: metadata.releaseIssue,
         issues,
     });
+
     if (String(releaseIssue.state).toLowerCase() !== 'open') {
         throw new Error(`Release issue #${releaseIssue.number} must remain open during preparation.`);
     }
@@ -216,6 +208,7 @@ function validateMilestoneReadiness({ activeMilestone, milestone, issues }) {
         .filter((issue) => issue.number !== releaseIssue.number && String(issue.state).toLowerCase() === 'open')
         .map((issue) => issue.number)
         .sort((left, right) => left - right);
+
     if (otherOpenIssues.length > 0) {
         throw new Error(`Milestone '${milestone.title}' still has open implementation issues: ${otherOpenIssues.join(', ')}.`);
     }
@@ -231,25 +224,31 @@ function validateRequiredChecks({ masterSha, evaluatedSha, requiredChecks, check
     if (masterSha !== evaluatedSha) {
         throw new Error(`Evaluated commit ${evaluatedSha} is not latest master commit ${masterSha}.`);
     }
+
     if (!Array.isArray(requiredChecks) || requiredChecks.length === 0) {
         throw new Error('At least one required validation check must be configured.');
     }
+
     if (!checks || typeof checks !== 'object' || Array.isArray(checks)) {
         throw new Error('Validation checks must be keyed by required check name.');
     }
 
     for (const name of requiredChecks) {
         const check = checks[name];
+
         if (!check) {
             throw new Error(`Required validation check is missing: ${name}.`);
         }
+
         if (check.headSha !== masterSha) {
             throw new Error(`Required validation check '${name}' belongs to ${check.headSha}, not ${masterSha}.`);
         }
+
         if (String(check.status).toLowerCase() !== 'completed' || String(check.conclusion).toLowerCase() !== 'success') {
             throw new Error(`Required validation check '${name}' has not completed successfully.`);
         }
     }
+
     return true;
 }
 
@@ -261,17 +260,21 @@ function resolveNextMilestone({ milestones, currentMilestoneTitle, nextMilestone
     if (!Array.isArray(milestones)) {
         throw new Error('Milestones must be an array.');
     }
+
     if (nextMilestoneTitle === currentMilestoneTitle) {
         throw new Error(`Next milestone '${nextMilestoneTitle}' must not equal current milestone.`);
     }
 
     const matches = milestones.filter((milestone) => milestone.title === nextMilestoneTitle);
+
     if (matches.length !== 1) {
         throw new Error(`Expected exactly one milestone titled '${nextMilestoneTitle}', found ${matches.length}.`);
     }
+
     if (String(matches[0].state).toLowerCase() !== 'open') {
         throw new Error(`Next milestone '${nextMilestoneTitle}' must be open.`);
     }
+
     return matches[0];
 }
 
@@ -296,37 +299,46 @@ function releaseNotesPath(version) {
 function planPreparationArtifacts({ version, masterSha, branches = [], pullRequests = [] }) {
     const names = releaseNames(version);
     const matchingBranches = branches.filter((branch) => branch.name === names.branchName);
+
     if (matchingBranches.length > 1) {
         throw new Error(`Multiple release branches found for ${names.branchName}.`);
     }
     const branch = matchingBranches[0] ?? null;
 
     const matchingPullRequests = pullRequests.filter((pullRequest) => pullRequest.headRefName === names.branchName);
+
     if (matchingPullRequests.length > 1) {
         throw new Error(`Multiple release pull requests found for ${names.branchName}.`);
     }
     const pullRequest = matchingPullRequests[0] ?? null;
+
     if (pullRequest !== null && pullRequest.baseRefName !== 'master') {
         throw new Error(`Release pull request for ${names.branchName} does not target master.`);
     }
 
     const pullRequestState = pullRequest === null ? null : String(pullRequest.state).toLowerCase();
+
     if (pullRequestState === 'closed') {
         throw new Error(`Release pull request for ${names.branchName} was closed without merging.`);
     }
+
     if (pullRequestState !== null && !['open', 'merged'].includes(pullRequestState)) {
         throw new Error(`Unknown release pull request state: ${pullRequest.state}.`);
     }
+
     if (pullRequestState === 'open' && branch === null) {
         throw new Error(`Open release pull request for ${names.branchName} has no matching branch.`);
     }
+
     if (pullRequestState === null && branch !== null && branch.sha !== masterSha) {
         throw new Error(`Unclaimed release branch ${names.branchName} points to ${branch.sha}, not ${masterSha}.`);
     }
+
     if (pullRequestState === 'open') {
         if (pullRequest.headSha !== branch.sha) {
             throw new Error(`Release pull request head does not match branch ${names.branchName}.`);
         }
+
         if (pullRequest.mergeBaseSha !== masterSha) {
             throw new Error(`Release pull request is not based on latest master commit ${masterSha}.`);
         }
@@ -347,19 +359,23 @@ function planPreparationArtifacts({ version, masterSha, branches = [], pullReque
 function planFinalizationArtifacts({ version, releaseCommitSha, tags = [], releases = [] }) {
     const names = releaseNames(version);
     const matchingTags = tags.filter((tag) => tag.name === names.tagName);
+
     if (matchingTags.length > 1) {
         throw new Error(`Multiple tags found for ${names.tagName}.`);
     }
     const tag = matchingTags[0] ?? null;
+
     if (tag !== null && (!tag.annotated || tag.targetSha !== releaseCommitSha)) {
         throw new Error(`Existing tag ${names.tagName} is not the expected immutable annotated release tag.`);
     }
 
     const matchingReleases = releases.filter((release) => release.tagName === names.tagName);
+
     if (matchingReleases.length > 1) {
         throw new Error(`Multiple GitHub releases found for ${names.tagName}.`);
     }
     const release = matchingReleases[0] ?? null;
+
     if (release !== null && tag === null) {
         throw new Error(`GitHub release ${names.tagName} exists without its immutable tag.`);
     }
@@ -374,7 +390,7 @@ function planFinalizationArtifacts({ version, releaseCommitSha, tags = [], relea
     };
 }
 
-function buildReleasePreparationPlan(snapshot) {
+function buildCommonReleasePlan(snapshot) {
     const readiness = validateMilestoneReadiness({
         activeMilestone: snapshot.activeMilestone,
         milestone: snapshot.milestone,
@@ -382,7 +398,7 @@ function buildReleasePreparationPlan(snapshot) {
     });
     const projectVersion = parseProjectVersion(snapshot.cmakeContents);
     const latestVersion = findLatestReleaseVersion(snapshot.tagNames);
-    validateTargetVersion({ targetVersion: readiness.version, projectVersion, latestVersion });
+    validateTargetVersion({ targetVersion: readiness.version, projectVersion, latestVersion: null });
     validateRequiredChecks({
         masterSha: snapshot.masterSha,
         evaluatedSha: snapshot.evaluatedSha,
@@ -407,6 +423,32 @@ function buildReleasePreparationPlan(snapshot) {
             pullRequests: snapshot.pullRequests,
         }),
     };
+}
+
+function buildReleasePreparationPlan(snapshot) {
+    const plan = buildCommonReleasePlan(snapshot);
+    validateTargetVersion({ targetVersion: plan.version, projectVersion: plan.version, latestVersion: plan.latestVersion });
+    return plan;
+}
+
+function buildReleaseFinalizationPlan(snapshot, releaseCommitSha) {
+    const preparationPlan = buildCommonReleasePlan(snapshot);
+
+    if (releaseCommitSha !== snapshot.masterSha) {
+        throw new Error(`Release commit ${releaseCommitSha} is not latest master commit ${snapshot.masterSha}.`);
+    }
+
+    if (preparationPlan.latestVersion !== null && compareReleaseVersions(preparationPlan.version, preparationPlan.latestVersion) < 0) {
+        throw new Error(`Milestone target ${preparationPlan.version.text} is older than latest release ${preparationPlan.latestVersion.text}.`);
+    }
+
+    const finalizationPlan = planFinalizationArtifacts({
+        version: preparationPlan.version,
+        releaseCommitSha,
+        tags: snapshot.tags,
+        releases: snapshot.releases,
+    });
+    return { preparationPlan, finalizationPlan };
 }
 
 // ------------------------------------------------------------
@@ -469,9 +511,11 @@ function releaseBodyFromNotes(notes) {
 
 function validateReleaseNotesReady(notes) {
     const normalized = String(notes).replace(/\r\n?/g, '\n');
+
     if (normalized.includes('Paste the final validation commands, environment, results, skips, and observed manual UI behavior here')) {
         throw new Error('Release notes still contain the generated validation-evidence placeholder.');
     }
+
     return true;
 }
 
@@ -485,9 +529,11 @@ function parseBoolean(value) {
 
 function splitRepository(nameWithOwner) {
     const [owner, repository] = String(nameWithOwner ?? '').split('/');
+
     if (!owner || !repository) {
         throw new Error(`Invalid repository name: ${nameWithOwner}`);
     }
+
     return { owner, repository };
 }
 
@@ -502,11 +548,13 @@ function readRequiredChecks(value) {
 
 function readReleaseConfiguration(context) {
     const activeMilestone = String(process.env.ACTIVE_MILESTONE ?? '').trim();
+
     if (activeMilestone.length === 0) {
         throw new Error('ACTIVE_MILESTONE must be configured.');
     }
 
     const command = String(process.env.RELEASE_COMMAND ?? 'check').trim();
+
     if (!RELEASE_COMMANDS.has(command)) {
         throw new Error(`Unsupported release command: ${command}`);
     }
@@ -583,8 +631,10 @@ async function listPullRequests(github, owner, repository, masterSha) {
     });
 
     const results = [];
+
     for (const pullRequest of pullRequests) {
         let mergeBaseSha = pullRequest.base.sha;
+
         if (pullRequest.head.repo?.full_name === `${owner}/${repository}`) {
             mergeBaseSha = await mergeBaseForPullRequest(github, owner, repository, masterSha, pullRequest.head.sha);
         }
@@ -612,6 +662,7 @@ async function listReleaseTags(github, owner, repository) {
     });
 
     const tags = [];
+
     for (const ref of refs) {
         const name = ref.ref.replace(/^refs\/tags\//, '');
         const annotated = ref.object.type === 'tag';
@@ -665,6 +716,7 @@ async function readWorkflowChecks(github, owner, repository, masterSha, required
     });
 
     const checks = {};
+
     for (const name of requiredChecks) {
         const matchingRuns = workflowRuns
             .filter((run) => run.name === name && run.head_sha === masterSha)
@@ -686,6 +738,7 @@ async function buildGitHubSnapshot(github, config) {
     const masterSha = await readMasterCommit(github, config.owner, config.repository);
     const milestones = await listMilestones(github, config.owner, config.repository);
     const milestone = milestones.find((candidate) => candidate.title === config.activeMilestone);
+
     if (milestone === undefined) {
         throw new Error(`Active milestone was not found: ${config.activeMilestone}`);
     }
@@ -715,7 +768,7 @@ async function buildGitHubSnapshot(github, config) {
         evaluatedSha: masterSha,
         requiredChecks: config.requiredChecks,
         checks,
-        milestones: milestones.map((candidate) => ({ title: candidate.title })),
+        milestones: milestones.map((candidate) => ({ title: candidate.title, state: candidate.state })),
         branches,
         pullRequests,
     };
@@ -782,9 +835,11 @@ async function getRepositoryFile(github, owner, repository, path, ref) {
             path,
             ref,
         });
+
         if (Array.isArray(file.data) || file.data.type !== 'file') {
             throw new Error(`Expected ${path} to be a file.`);
         }
+
         return file.data;
     } catch (error) {
         if (error.status === 404) {
@@ -819,6 +874,7 @@ async function ensureReleaseNotesFile(github, core, config, plan) {
 
     const path = releaseNotesPath(plan.version);
     const existing = await getRepositoryFile(github, config.owner, config.repository, path, plan.artifacts.branchName);
+
     if (existing !== null) {
         core.info(`${path} already exists on ${plan.artifacts.branchName}; preserving existing content.`);
         return;
@@ -847,6 +903,7 @@ async function ensureReleasePullRequest(github, core, config, plan) {
         core.info(`Release pull request #${plan.artifacts.pullRequestNumber} is already merged.`);
         return;
     }
+
     if (!plan.artifacts.createPullRequest) {
         core.info(`Release pull request #${plan.artifacts.pullRequestNumber} already exists.`);
         return;
@@ -873,17 +930,21 @@ function validateMergedReleasePullRequest(plan, releaseCommitSha) {
     if (!plan.artifacts.pullRequestMerged) {
         throw new Error(`Release pull request ${plan.artifacts.pullRequestTitle} must be merged before finalization.`);
     }
+
     if (plan.artifacts.pullRequestMergeCommitSha !== releaseCommitSha) {
         throw new Error(`Release pull request merge commit ${plan.artifacts.pullRequestMergeCommitSha} is not release commit ${releaseCommitSha}.`);
     }
+
     return true;
 }
 
 function readReleaseNotesForRelease(version) {
     const path = releaseNotesPath(version);
+
     if (!fs.existsSync(path)) {
         throw new Error(`Release notes file is missing: ${path}`);
     }
+
     return fs.readFileSync(path, 'utf8');
 }
 
@@ -911,6 +972,7 @@ async function createAnnotatedReleaseTag(github, config, plan) {
 
 async function ensureGitHubRelease(github, config, finalizationPlan, releaseBody, releases) {
     const existingRelease = releases.find((release) => release.tagName === finalizationPlan.tagName) ?? null;
+
     if (finalizationPlan.createRelease) {
         await github.rest.repos.createRelease({
             owner: config.owner,
@@ -962,17 +1024,7 @@ async function runFinalizationCommand({ github, core, config }) {
     }
 
     const snapshot = await buildGitHubSnapshot(github, config);
-    const preparationPlan = buildReleasePreparationPlan(snapshot);
-    if (config.releaseCommit !== snapshot.masterSha) {
-        throw new Error(`Release commit ${config.releaseCommit} is not latest master commit ${snapshot.masterSha}.`);
-    }
-
-    const finalizationPlan = planFinalizationArtifacts({
-        version: preparationPlan.version,
-        releaseCommitSha: config.releaseCommit,
-        tags: snapshot.tags,
-        releases: snapshot.releases,
-    });
+    const { preparationPlan, finalizationPlan } = buildReleaseFinalizationPlan(snapshot, config.releaseCommit);
     await writeSummary(core, finalizationPlanMarkdown(config, preparationPlan, finalizationPlan));
     validateMergedReleasePullRequest(preparationPlan, config.releaseCommit);
     const releaseNotes = readReleaseNotesForRelease(preparationPlan.version);
@@ -992,6 +1044,7 @@ async function runFinalizationCommand({ github, core, config }) {
 
 async function run({ github, context, core }) {
     const config = readReleaseConfiguration(context);
+
     try {
         if (config.command === 'finalize') {
             await runFinalizationCommand({ github, core, config });
@@ -1015,6 +1068,7 @@ async function run({ github, context, core }) {
 module.exports = {
     DEFAULT_REQUIRED_CHECKS,
     buildReleasePreparationPlan,
+    buildReleaseFinalizationPlan,
     compareReleaseVersions,
     findLatestReleaseVersion,
     parseProjectVersion,

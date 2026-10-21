@@ -3,6 +3,6 @@
 
 #include "desktop/display.h"
 
-static_assert(!GameWIP::Desktop::Types::Display::MonitorId{}.isValid());
+static_assert(!GameWIP::Desktop::Types::Display::MonitorId::invalid().isValid());
 static_assert(GameWIP::Desktop::Types::Display::MonitorId{1}.isValid());
-static_assert(noexcept(GameWIP::Desktop::Display::getModes({})));
+static_assert(noexcept(GameWIP::Desktop::Display::getModes(GameWIP::Desktop::Types::Display::MonitorId::invalid())));

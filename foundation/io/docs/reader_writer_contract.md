@@ -81,8 +81,7 @@ A backend should use `NotSeekable` for stream-position capabilities and `Unsuppo
 
 ## Whole-stream reads
 
-`readAllBytes()` and `readAllText()` start at the reader's current position. `readAllBytes()` is encoding-agnostic. `readAllText()` validates the
-collected range as strict UTF-8 before returning it.
+`readAllBytes()` and `readAllText()` start at the reader's current position. `readAllBytes()` is encoding-agnostic.
 
 ### Known-size path
 
@@ -113,16 +112,7 @@ The scratch buffer is ignored when the reader qualifies for the known-size path.
 
 ### UTF-8 text finalization
 
-`readAllText()` never exposes malformed bytes through its `text` field.
-
-- Completely valid input preserves the ordinary read status and full text.
-- Malformed UTF-8 returns `EncodingFailed` and preserves only the complete valid prefix.
-- An incomplete suffix at a definitive stream end returns `EncodingFailed` and preserves only the complete valid prefix.
-- An incomplete suffix accompanying an existing non-EOF I/O or size-limit failure is trimmed while that existing failure remains primary, because
-  additional continuation bytes may have existed beyond the failed boundary.
-- If a known-size reader reaches end-of-stream early and the produced prefix ends with an incomplete sequence, `EncodingFailed` takes precedence over
-  `PartialRead`.
-- Validation performs no normalization, BOM transformation, replacement, or repair.
+`readAllText()` returns only valid UTF-8 in `text`. Validation, trimming, and `EncodingFailed`/`PartialRead` precedence: @ref io_utf8_policy.
 
 ### Hard byte limits
 
@@ -149,16 +139,15 @@ It:
 - Returns `WriteFailed` if a writer reports an impossible count or successful zero progress.
 - Does not flush or close the writer.
 
-`writeAllText()` first validates the complete string view as strict UTF-8. Malformed or incomplete input returns `EncodingFailed` with `bytesWritten
-== 0` and does not call `Writer::write()`. Valid text then follows the same retry/progress contract as `writeAllBytes()`, including preservation of
-embedded NUL bytes. It performs no normalization, BOM transformation, flush, or close.
+`writeAllText()` first validates the input (@ref io_utf8_policy), then follows the same retry/progress contract as `writeAllBytes()`. It performs no
+flush or close.
 
 ## MemoryReader
 
 `MemoryReader` is a non-owning view over contiguous bytes.
 
 - The source must remain alive and at a stable address while the reader is used.
-- The `std::string_view` constructor treats character storage only as bytes; it performs no encoding interpretation or validation.
+- The `std::string_view` constructor is byte-oriented (@ref io_utf8_policy).
 - Direct temporary `std::string` and byte-vector construction is deleted.
 - Caller-created dangling spans and string views remain the caller's responsibility.
 - Reads use overlap-safe copying, so the destination may overlap the source.
@@ -182,9 +171,8 @@ embedded NUL bytes. It performs no normalization, BOM transformation, flush, or 
 `bytes()` returns a non-owning view into writer-owned storage. Do not retain it across operations that can modify storage or ownership. A write or
 reserve may reallocate; clear, take, move assignment, destruction, and ownership transfer invalidate the prior logical view.
 
-`copyText()` returns a `CopyTextResult` containing an independent strict UTF-8 copy and preserves embedded NUL bytes. Malformed or incomplete
-collected bytes return `EncodingFailed` with empty text. `reserve()` and `copyText()` report allocation, representation-limit, and unexpected failures
-through status.
+`copyText()` returns a `CopyTextResult` with an independent validated copy (@ref io_utf8_policy); invalid collected bytes return `EncodingFailed` with
+empty text. `reserve()` and `copyText()` report allocation, representation-limit, and unexpected failures through status.
 
 ## Exceptions
 

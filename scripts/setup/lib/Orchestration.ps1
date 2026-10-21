@@ -22,46 +22,50 @@ function Get-GameWipSetupActionOptionIds
     param([Parameter(Mandatory = $true)][string]$Action)
 
     $ids = @($SetupActionConfig.Options | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global } | ForEach-Object { [string]$_.Id })
+
     if ($SetupActionConfig.ActionOptions.ContainsKey($Action))
     {
         $ids += @($SetupActionConfig.ActionOptions[$Action])
     }
+
     return @($ids | Select-Object -Unique)
 }
 
 function Assert-GameWipSetupOptionCatalog
 {
     $options = @($SetupActionConfig.Options)
-    $duplicateOptions = @($options | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object Count -gt 1)
-    if ($duplicateOptions.Count -ne 0)
-    {
-        throw "Duplicate setup option IDs: $($duplicateOptions.Name -join ', ')."
-    }
+    Assert-GameWipUniqueId -Items $options -Label 'setup option'
     $optionIds = @{}
+
     foreach ($option in $options)
     {
         $id = [string]$option.Id
+
         if ($id -notmatch '^[A-Za-z][A-Za-z0-9]*$')
         {
             throw "Setup option '$id' has an invalid identifier."
         }
         $optionIds[$id.ToLowerInvariant()] = $id
+
         if ($option.Kind -in @('string', 'integer', 'choice', 'string-list') -and [string]::IsNullOrWhiteSpace([string]$option.ValueName))
         {
             throw "Setup option '$id' must declare valueName."
         }
+
         if ($option.Kind -eq 'choice' -and @($option.Choices).Count -eq 0)
         {
             throw "Setup option '$id' must declare choices."
         }
     }
     $actionIds = @($SetupActionConfig.Actions | ForEach-Object { [string]$_.Id })
+
     foreach ($actionName in $SetupActionConfig.ActionOptions.Keys)
     {
         if ($actionIds -notcontains [string]$actionName)
         {
             throw "Setup option mapping references unknown action '$actionName'."
         }
+
         foreach ($optionId in @($SetupActionConfig.ActionOptions[$actionName]))
         {
             if (-not $optionIds.ContainsKey(([string]$optionId).ToLowerInvariant()))
@@ -70,6 +74,7 @@ function Assert-GameWipSetupOptionCatalog
             }
         }
     }
+
     foreach ($actionId in $actionIds)
     {
         if (-not $SetupActionConfig.ActionOptions.ContainsKey($actionId))
@@ -87,17 +92,21 @@ function Assert-GameWipSetupActionOptions
     )
 
     $allowed = @{}
+
     foreach ($optionId in @(Get-GameWipSetupActionOptionIds -Action $Action))
     {
         $allowed[([string]$optionId).ToLowerInvariant()] = $true
     }
+
     foreach ($boundName in $BoundParameters.Keys)
     {
         $boundOption = @($SetupActionConfig.Options | Where-Object { [string]$_.Id -ieq [string]$boundName })
+
         if ($boundOption.Count -eq 0)
         {
             continue
         }
+
         if (-not $allowed.ContainsKey(([string]$boundName).ToLowerInvariant()))
         {
             throw "Option '-$boundName' is not supported for setup action '$Action'."
@@ -109,56 +118,21 @@ function Assert-GameWipSetupActionCatalog
 {
     $actions = @($SetupActionConfig.Actions)
     Assert-GameWipSetupOptionCatalog
+    Assert-GameWipUniqueId -Items $actions -Label 'setup action'
     $requiredActionIds = @('menu', 'full', 'check', 'update', 'repair', 'deps', 'uninstall', 'tool', 'vs', 'msys2', 'repo', 'profiler', 'editor', 'doc', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
+
     if ((($requiredActionIds | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
         throw "Setup action catalog drift. Required: $($requiredActionIds -join ', '); configured: $($actionIds -join ', ')."
     }
-    $duplicateIds = @($actions | ForEach-Object { [string]$_.Id } | Group-Object | Where-Object Count -gt 1)
-    if ($duplicateIds.Count -ne 0)
-    {
-        throw "Duplicate setup action IDs: $($duplicateIds.Name -join ', ')."
-    }
     $duplicateKeys = @($actions | Where-Object { $_.ContainsKey('Key') } | ForEach-Object { [string]$_.Key } | Group-Object | Where-Object Count -gt 1)
+
     if ($duplicateKeys.Count -ne 0)
     {
         throw "Duplicate setup menu keys: $($duplicateKeys.Name -join ', ')."
     }
-    $actionNames = @{}
-    foreach ($action in $actions)
-    {
-        $canonical = [string]$action.Id
-        $canonicalKey = $canonical.ToLowerInvariant()
-        if ($actionNames.ContainsKey($canonicalKey))
-        {
-            throw "Setup action name '$canonical' is duplicated or collides with an alias."
-        }
-        $actionNames[$canonicalKey] = $canonical
-        $hasAliases = ($action -is [hashtable] -and ($action.ContainsKey('aliases') -or $action.ContainsKey('Aliases'))) -or ($action.PSObject.Properties.Name -contains 'aliases')
-        if (-not $hasAliases -or $null -eq $action.Aliases)
-        {
-            $aliases = @()
-        }
-        else
-        {
-            $aliases = @($action.Aliases)
-        }
-        foreach ($alias in $aliases)
-        {
-            $aliasText = [string]$alias
-            if ($aliasText -notmatch '^[a-z][a-z0-9-]*$')
-            {
-                throw "Setup action '$canonical' has invalid alias '$aliasText'."
-            }
-            $aliasKey = $aliasText.ToLowerInvariant()
-            if ($actionNames.ContainsKey($aliasKey))
-            {
-                throw "Setup action alias '$aliasText' collides with '$($actionNames[$aliasKey])'."
-            }
-            $actionNames[$aliasKey] = $canonical
-        }
-    }
+
     foreach ($toolId in @($SetupActionConfig.BootstrapToolIds))
     {
         if (@($ProjectTools.tools.id) -notcontains $toolId)
@@ -178,23 +152,8 @@ function Resolve-GameWipSetupActionName
         {
             return [string]$action.Id
         }
-        $hasAliases = ($action -is [hashtable] -and ($action.ContainsKey('aliases') -or $action.ContainsKey('Aliases'))) -or ($action.PSObject.Properties.Name -contains 'aliases')
-        if (-not $hasAliases -or $null -eq $action.Aliases)
-        {
-            $aliases = @()
-        }
-        else
-        {
-            $aliases = @($action.Aliases)
-        }
-        foreach ($alias in $aliases)
-        {
-            if ([string]$alias -ieq $Name)
-            {
-                return [string]$action.Id
-            }
-        }
     }
+
     return $null
 }
 
@@ -203,28 +162,22 @@ function Get-GameWipSetupAction
     param([Parameter(Mandatory = $true)][string]$Id)
     $canonicalId = Resolve-GameWipSetupActionName -Name $Id
     $actionMatches = @($SetupActionConfig.Actions | Where-Object { $_.Id -eq $canonicalId })
+
     if ($actionMatches.Count -ne 1)
     {
         throw "Unknown setup action '$Id'. Run 'setup.bat list'."
     }
+
     return $actionMatches[0]
 }
 
 function Show-GameWipSetupActionCatalog
 {
     Write-GameWipSection 'Setup actions'
+
     foreach ($actionInfo in @($SetupActionConfig.Actions))
     {
-        $hasAliases = ($actionInfo -is [hashtable] -and ($actionInfo.ContainsKey('aliases') -or $actionInfo.ContainsKey('Aliases'))) -or ($actionInfo.PSObject.Properties.Name -contains 'aliases')
-        if ($hasAliases -and $null -ne $actionInfo.Aliases -and @($actionInfo.Aliases).Count -gt 0)
-        {
-            $aliases = " (aliases: $(@($actionInfo.Aliases) -join ', '))"
-        }
-        else
-        {
-            $aliases = ''
-        }
-        Write-Host ('  {0,-16} [{1,-11}] {2}{3}' -f $actionInfo.Id, $actionInfo.Risk, $actionInfo.Description, $aliases)
+        Write-Host ('  {0,-16} [{1,-11}] {2}' -f $actionInfo.Id, $actionInfo.Risk, $actionInfo.Description)
     }
 }
 
@@ -260,9 +213,11 @@ function Initialize-GameWipSetupManagedToolRoot
         return
     }
     $root = Get-GameWipManagedToolRoot
+
     if (Test-Path -LiteralPath $root)
     {
         $entries = @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue | Where-Object Name -ne '.gamewip-managed.json')
+
         if (-not (Test-GameWipManagedToolRootOwnership -Root $root) -and $entries.Count -ne 0)
         {
             if ($NonInteractive)
@@ -271,10 +226,12 @@ function Initialize-GameWipSetupManagedToolRoot
             }
             Write-GameWipSection 'Existing managed tool directory'
             Write-Host $root
+
             foreach ($entry in @($entries | Select-Object -First 12))
             {
                 Write-Host "  - $($entry.Name)"
             }
+
             if (-not (Read-GameWipYesNo -Prompt 'Adopt this existing directory as GameWIP-managed?' -Default $false))
             {
                 throw 'Managed tool-root adoption was declined.'
@@ -301,10 +258,12 @@ function Invoke-GameWipSetupMsys2Step
     Write-GameWipSection 'MSYS2 UCRT64 and CLANG64'
     $msys2Tool = Get-GameWipProjectTool -Id msys2
     $bash = Join-Path $ToolConfig.MsysRoot 'usr\bin\bash.exe'
+
     if (-not (Test-Path -LiteralPath $bash))
     {
         $before = (Get-GameWipToolStatus -Tool $msys2Tool).Detected
         Install-GameWipWingetTool -Tool $msys2Tool -Version $null
+
         if (-not $before.Installed)
         {
             Add-GameWipOwnedWingetPackage -Id ([string]$msys2Tool.provider.package)
@@ -333,6 +292,7 @@ function Invoke-GameWipSetupRepositoryStep
     Write-GameWipSection 'Repository'
     $wasZip = -not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git'))
     $alreadyFetched = $false
+
     if ($wasZip)
     {
         Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:(-not $NonInteractive)
@@ -349,10 +309,12 @@ function Invoke-GameWipSetupRepositoryStep
 
         $alreadyFetched = -not [string]::IsNullOrWhiteSpace($Branch) -or $chooseBranch
     }
+
     if ($Update)
     {
         Invoke-GameWipRepositoryUpdate -RepositoryRoot $RepositoryRoot -SkipFetch:$alreadyFetched
     }
+
     if (-not $wasZip -or $Update)
     {
         Initialize-GameWipRepository -RepositoryRoot $RepositoryRoot
@@ -371,6 +333,7 @@ function Invoke-GameWipSetupEditorStep
     param([switch]$Choose, [switch]$Update)
     Write-GameWipSection 'Editor integration'
     $preference = Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot
+
     if ($Choose)
     {
         if (-not (Select-GameWipEditor -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig))
@@ -397,10 +360,12 @@ function Invoke-GameWipSetupTracyStep
 {
     Write-GameWipSection 'Tracy profiler tools'
     Initialize-GameWipSetupManagedToolRoot
+
     try
     {
         Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
     }
+
     catch
     {
         Write-Host '  Tracy source cache is not ready; preparing the shared dependency cache.'
@@ -421,38 +386,46 @@ function Invoke-GameWipSetupEnvironmentCheck
     Write-GameWipSection 'Environment check'
     $failures = [System.Collections.Generic.List[string]]::new()
     $toolchain = Test-GameWipToolchain -DisplayStatus -Indent 4
+
     foreach ($failure in @($toolchain.Failures))
     {
         $failures.Add("Project toolchain: $failure") | Out-Null
     }
     Write-Host '  Checking matching Tracy tools...'
+
     if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
     {
         $failures.Add('Matching Tracy profiler tools are not installed.') | Out-Null
     }
     Write-Host '  Checking repository and editor integration...'
+
     try
     {
         Test-GameWipRepositoryState -RepositoryRoot $RepositoryRoot
     }
+
     catch
     {
         $failures.Add($_.Exception.Message) | Out-Null
     }
     $selected = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
+
     foreach ($failure in @(Get-GameWipEditorFailure -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selected))
     {
         $failures.Add($failure) | Out-Null
     }
     Write-Host '  Checking GameWIP dependency cache...'
+
     try
     {
         Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
     }
+
     catch
     {
         $failures.Add($_.Exception.Message) | Out-Null
     }
+
     if ($failures.Count -ne 0)
     {
         foreach ($failure in $failures)
@@ -471,6 +444,7 @@ function Invoke-GameWipSetupEnvironmentCheck
 function Get-GameWipSetupPlan
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
+
     switch ($SelectedAction)
     {
         'full'
@@ -532,6 +506,7 @@ function Invoke-GameWipCompleteSetup
 {
     param([switch]$Update, [switch]$RefreshMsys2)
     $preference = Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot
+
     if (-not (Test-Path -LiteralPath $preference))
     {
         if ($NonInteractive)
@@ -543,6 +518,7 @@ function Invoke-GameWipCompleteSetup
             throw 'Complete setup was cancelled before editor selection.'
         }
     }
+
     if (Test-Path -LiteralPath (Get-GameWipManagedToolRoot))
     {
         Initialize-GameWipSetupManagedToolRoot
@@ -553,6 +529,7 @@ function Invoke-GameWipCompleteSetup
     Invoke-GameWipSetupDependencyStep
     Invoke-GameWipSetupEditorStep -Update:$Update
     Invoke-GameWipSetupTracyStep
+
     if (-not $SkipDocs)
     {
         Invoke-GameWipSetupDocumentationStep
@@ -563,6 +540,7 @@ function Invoke-GameWipCompleteSetup
 function Invoke-GameWipSetupActionBody
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
+
     switch ($SelectedAction)
     {
         'full'
@@ -655,12 +633,14 @@ function Invoke-GameWipSetupOperation
             Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction
             return
         }
+
         if ($SelectedAction -eq 'uninstall')
         {
             # Uninstall owns its confirmation so inventory is always printed first.
             Invoke-GameWipSetupActionBody -SelectedAction uninstall
             return
         }
+
         if ($SelectedAction -in @('full', 'repair', 'update'))
         {
             Show-GameWipSetupSizeEstimate
@@ -679,6 +659,7 @@ function Show-GameWipSetupMenu
     Assert-GameWipSetupWindows
     Assert-GameWipSetupRepository -RepositoryRoot $RepositoryRoot
     Assert-GameWipSetupActionCatalog
+
     while ($true)
     {
         $menuActions = @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') })
@@ -694,6 +675,7 @@ function Show-GameWipSetupMenu
             -Prompt 'Choose an action:' `
             -Items $menuItems `
             -ExitLabel Exit
+
         if ($choice.Status -eq 'Cancelled')
         {
             return

@@ -49,9 +49,6 @@ duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 | `setup.bat help` | Print setup usage. |
 
 `setup.bat --help`, `setup.bat -h`, and `setup.bat -?` are help aliases.
-The canonical short setup names are `repo`, `tool`, `deps`, `doc`, and `vs`;
-the compatibility aliases `repository`, `tools`, `dependencies`, `docs`, and
-`visual-studio` remain accepted. `ls` aliases `list`, and `h` aliases `help`.
 
 ## Dependency cache and offline builds
 

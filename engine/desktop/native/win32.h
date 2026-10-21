@@ -4,6 +4,7 @@
 #pragma once
 
 #include "io/status.h"
+#include "desktop/result.h"
 #include "desktop/desktop_export.h"
 
 #include <windows.h>
@@ -26,23 +27,16 @@ namespace GameWIP::Desktop::Native::Win32
         HWND window = nullptr;        ///< Owned native top-level window handle.
     };
 
-    /// @brief Result of a native handle query.
-    struct HandleResult
-    {
-        IO::Types::Status status; ///< Success, NotOpen, or ResourceBusy.
-        HandleView handle;        ///< Non-owning handles on success.
-    };
-
     /// @brief Returns non-owning Win32 handles for an open Window on its owner thread.
     /// @param window Window whose native handles are requested.
     /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race Window close.
-    [[nodiscard]] DESKTOP_EXPORT HandleResult getHandle(const GameWIP::Desktop::Window &window) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<HandleView> getHandle(const GameWIP::Desktop::Window &window) noexcept;
 
     /// @brief Returns the borrowed Win32 host handle for an open ChildSurface on its owner thread.
     /// @param surface ChildSurface whose native host handle is requested.
     /// @return Query status and non-owning handles on success.
     /// @warning Native use must not race ChildSurface close. Consumers must not destroy, reparent,
     /// subclass, or overwrite GameWIP-owned state on the returned host HWND.
-    [[nodiscard]] DESKTOP_EXPORT HandleResult getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<HandleView> getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept;
 } // namespace GameWIP::Desktop::Native::Win32

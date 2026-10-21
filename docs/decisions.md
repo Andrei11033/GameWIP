@@ -178,10 +178,9 @@ Installed packages require ABI-compatible C++23 toolchains, standard libraries,
 runtimes, architectures, configurations, and matching GameWIP versions. The
 project does not promise a universal stable C ABI.
 
-Before 1.0, an incorrect public API may be fixed directly instead of retaining
-a deprecated alias unless a real migration requirement justifies one. Umbrella
-headers may remain supported while focused headers are introduced; splitting a
-file does not by itself require a new namespace or package.
+Before 1.0, correct public APIs directly and update affected consumers in the
+same change. Supported umbrella and focused headers expose the same API;
+splitting a file does not by itself require a new namespace or package.
 
 The detailed contracts live in @ref project_public_api_contract and
 @ref project_library_compatibility.

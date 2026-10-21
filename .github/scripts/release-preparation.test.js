@@ -7,6 +7,7 @@ const test = require('node:test');
 
 const {
     buildReleasePreparationPlan,
+    run,
     compareReleaseVersions,
     findLatestReleaseVersion,
     parseProjectVersion,
@@ -39,14 +40,14 @@ function releaseMilestone(overrides = {}) {
     return {
         title: 'R00 - Bootstrap',
         state: 'open',
-        description: ['Release version: `0.0.1`', 'Release issue: `#11`', 'Next milestone: `R01 - Desktop, Input, and Action Foundation`'].join('\n'),
+        description: ['Release version: `0.0.1`', 'Next milestone: `R01 - Desktop, Input, and Action Foundation`'].join('\n'),
         ...overrides,
     };
 }
 
 function milestoneIssues(overrides = []) {
     return [
-        { number: 11, state: 'open', title: 'Complete R00 release' },
+        { number: 11, state: 'open', title: 'release: complete R00 release' },
         { number: 10, state: 'closed', title: 'Completed implementation' },
         ...overrides,
     ];
@@ -83,13 +84,7 @@ test('rejects non-release and malformed versions', () => {
 });
 
 test('parses milestone metadata with an explicit successor', () => {
-    const description = [
-        'Roadmap status: `[-]`',
-        '',
-        'Release version: `0.1.0`',
-        'Release issue: `#11`',
-        'Next milestone: `R02 - Math Foundation`',
-    ].join('\n');
+    const description = ['Roadmap status: `[-]`', '', 'Release version: `0.1.0`', 'Next milestone: `R02 - Math Foundation`'].join('\n');
 
     assert.deepEqual(parseMilestoneReleaseMetadata(description), {
         version: {
@@ -98,7 +93,6 @@ test('parses milestone metadata with an explicit successor', () => {
             minor: 1,
             patch: 0,
         },
-        releaseIssue: 11,
         nextMilestoneTitle: 'R02 - Math Foundation',
     });
 });
@@ -113,7 +107,6 @@ test('parses terminal milestone metadata without an explicit release issue', () 
             minor: 1,
             patch: 0,
         },
-        releaseIssue: null,
         nextMilestoneTitle: null,
     });
 });
@@ -147,19 +140,6 @@ test('requires exactly one valid next milestone line', () => {
 
     for (const nextMilestoneLine of ['Next milestone: none', 'Next milestone: ``', 'Next milestone: `R02 - Math Foundation']) {
         assert.throws(() => parseMilestoneReleaseMetadata([versionLine, nextMilestoneLine].join('\n')), /Invalid Next milestone line/);
-    }
-});
-
-test('rejects duplicate and malformed release issues', () => {
-    const requiredLines = ['Release version: `0.0.1`', 'Next milestone: `none`'];
-
-    assert.throws(
-        () => parseMilestoneReleaseMetadata([...requiredLines, 'Release issue: `#11`', 'Release issue: `#12`'].join('\n')),
-        /Expected at most one Release issue line, found 2/,
-    );
-
-    for (const issueLine of ['Release issue: `#0`', 'Release issue: `11`', 'Release issue: `#abc`']) {
-        assert.throws(() => parseMilestoneReleaseMetadata([...requiredLines, issueLine].join('\n')), /Invalid Release issue line/);
     }
 });
 
@@ -253,7 +233,7 @@ test('accepts only a ready active milestone with one open release issue', () => 
                 activeMilestone: 'R00 - Bootstrap',
                 milestone: releaseMilestone(),
                 issues: [
-                    { number: 11, state: 'closed', title: 'Complete R00 release' },
+                    { number: 11, state: 'closed', title: 'release: complete R00 release' },
                     { number: 10, state: 'closed', title: 'Completed implementation' },
                 ],
             }),
@@ -630,4 +610,124 @@ test('finalization requires the merged release pull request commit', () => {
         () => validateMergedReleasePullRequest({ artifacts: { ...merged, pullRequestMergeCommitSha: masterSha } }, '2222'),
         /is not release commit/,
     );
+});
+
+// Exercise the command adapter as well as the pure planners: GitHub field mapping
+// and retry validation must survive the same path used by the workflow.
+for (const scenario of ['prepare', 'tag-only', 'draft', 'published', 'wrong-tag', 'lightweight', 'newer-release', 'closed-successor']) {
+    test(`command adapter handles ${scenario}`, async (t) => {
+        const fs = require('node:fs');
+        const environment = {
+            ACTIVE_MILESTONE: 'R00 - Bootstrap',
+            GITHUB_REPOSITORY: 'owner/repository',
+            RELEASE_COMMAND: scenario === 'prepare' || scenario === 'closed-successor' ? 'check' : 'finalize',
+            RELEASE_COMMIT: masterSha,
+            DRY_RUN: 'true',
+            ALLOW_NOT_READY: 'false',
+            REQUIRED_CHECKS: requiredChecks.join('\n'),
+        };
+        const previousEnvironment = Object.fromEntries(Object.keys(environment).map((name) => [name, process.env[name]]));
+        Object.assign(process.env, environment);
+        t.after(() => {
+            for (const [name, value] of Object.entries(previousEnvironment)) {
+                if (value === undefined) {
+                    delete process.env[name];
+                } else {
+                    process.env[name] = value;
+                }
+            }
+        });
+        const readFileSync = fs.readFileSync;
+        t.mock.method(fs, 'readFileSync', (path, ...args) => {
+            if (path === 'CMakeLists.txt') {
+                return 'project(GameWIP VERSION 0.0.1 LANGUAGES CXX)';
+            }
+            if (path === 'docs/releases/v0.0.1.md') {
+                return '# GameWIP v0.0.1 release notes\n\nReviewed release evidence.';
+            }
+            return readFileSync(path, ...args);
+        });
+        const existingTag = !['prepare', 'closed-successor'].includes(scenario);
+        const responses = {
+            listMilestones: [
+                { ...releaseMilestone(), number: 1 },
+                { title: 'R01 - Desktop, Input, and Action Foundation', state: scenario === 'closed-successor' ? 'closed' : 'open' },
+            ],
+            listForRepo: milestoneIssues().map((issue) => ({ ...issue, labels: [] })),
+            listBranches: [],
+            list: [
+                {
+                    number: 42,
+                    head: { ref: 'release/v0.0.1', sha: masterSha },
+                    base: { ref: 'master', sha: masterSha },
+                    merge_commit_sha: masterSha,
+                    merged_at: '2026-01-01T00:00:00Z',
+                    state: 'closed',
+                },
+            ],
+            listMatchingRefs: existingTag
+                ? [
+                      {
+                          ref: scenario === 'newer-release' ? 'refs/tags/v0.0.2' : 'refs/tags/v0.0.1',
+                          object: { type: scenario === 'lightweight' ? 'commit' : 'tag', sha: masterSha },
+                      },
+                  ]
+                : [],
+            listReleases: ['draft', 'published'].includes(scenario) ? [{ id: 7, tag_name: 'v0.0.1', draft: scenario === 'draft' }] : [],
+            listWorkflowRunsForRepo: requiredChecks.map((name) => ({
+                name,
+                head_sha: masterSha,
+                created_at: '2026-01-01T00:00:00Z',
+                status: 'completed',
+                conclusion: 'success',
+            })),
+        };
+        const github = {
+            rest: {
+                issues: { listMilestones: 'listMilestones', listForRepo: 'listForRepo' },
+                repos: {
+                    listBranches: 'listBranches',
+                    listReleases: 'listReleases',
+                    getBranch: async () => ({ data: { commit: { sha: masterSha } } }),
+                },
+                pulls: { list: 'list' },
+                git: {
+                    listMatchingRefs: 'listMatchingRefs',
+                    getTag: async () => ({ data: { object: { sha: scenario === 'wrong-tag' ? 'wrong' : masterSha } } }),
+                },
+                actions: { listWorkflowRunsForRepo: 'listWorkflowRunsForRepo' },
+            },
+            paginate: async (method) => {
+                assert.ok(Object.hasOwn(responses, method), `unexpected GitHub read: ${method}`);
+                return responses[method];
+            },
+        };
+        const summaries = [];
+        const command = run({ github, context: {}, core: { info: (message) => summaries.push(message) } });
+        if (['wrong-tag', 'lightweight'].includes(scenario)) {
+            await assert.rejects(command, /immutable annotated release tag/);
+        } else if (scenario === 'newer-release') {
+            await assert.rejects(command, /older than latest release/);
+        } else if (scenario === 'closed-successor') {
+            await assert.rejects(command, /open/);
+        } else {
+            await command;
+            assert.match(summaries.join('\n'), /R01 - Desktop, Input, and Action Foundation/);
+            if (existingTag) {
+                assert.match(summaries.join('\n'), /Reuse tag: `true`/);
+                assert.match(summaries.join('\n'), new RegExp('Publish draft release: `' + (scenario === 'draft') + '`'));
+            }
+        }
+    });
+}
+
+test('obsolete issue metadata cannot override release-issue discovery', () => {
+    const milestone = releaseMilestone();
+    milestone.description += '\nRelease issue: `#99`';
+    const readiness = validateMilestoneReadiness({
+        activeMilestone: milestone.title,
+        milestone,
+        issues: milestoneIssues(),
+    });
+    assert.equal(readiness.releaseIssue.number, 11);
 });

@@ -19,12 +19,20 @@ the `dev` compilation database used by workspace IntelliSense.
 
 ## Configure, build, and run
 
-Configure and build the development preset, then run the executable:
+From PowerShell, use the helper to build the `dev` preset with the configured
+toolchain (see @ref project_build for all presets), then run the executable:
 
 ```powershell
+.\gamewip.bat build dev
+.\build\dev\GameWIP.exe
+```
+
+From MSYS2 UCRT64 Bash, the equivalent direct commands are:
+
+```bash
 cmake --preset dev
 cmake --build --preset dev
-.\build\dev\GameWIP.exe
+./build/dev/GameWIP.exe
 ```
 
 The executable's `--version` option prints the generated build identity. Run it
@@ -35,18 +43,21 @@ then opens a borderless-fullscreen window at the desktop resolution. Press
 `Alt+F4` to close it. See @ref project_game_executable for the complete runtime
 sequence and failure behavior.
 
-The development preset builds the game and compiles embedded tests for explicit
-`--startup-tests` execution. Release builds exclude validation, benchmarks,
-assertions, and Tracy.
-
-Use @ref project_command_line_tools to discover every supported helper and executable command, including safe help invocations that do not start the
-runtime or test suite.
+The `dev` preset also compiles embedded tests for `--startup-tests`. Release
+builds exclude validation, benchmarks, assertions, and Tracy. All commands,
+including safe `--help` forms, are in @ref project_command_line_tools.
 
 ## Run validation
 
-Configure and build the test preset, then run the registered validation suite:
+In PowerShell:
 
 ```powershell
+.\gamewip.bat test test
+```
+
+In MSYS2 UCRT64 Bash:
+
+```bash
 cmake --preset test
 cmake --build --preset test
 ctest --preset test
@@ -56,16 +67,9 @@ The validation architecture, module registration, child-process routing, report
 paths, and startup behavior are documented in @ref project_validation. Test
 authoring rules are documented in @ref project_testing.
 
-## Read the source tree
-
-The ownership map and dependency direction are documented in @ref
-project_structure. Start there before moving code between source areas.
-
 ## What to read next
 
-After the first build and validation run, @ref project_structure explains
-ownership and dependency direction. The build, command-line, validation, testing,
-library, extension, and documentation pages cover the corresponding work in
-more detail. The @ref project_quality_workflows and @ref project_contracts pages
-collect the quality, repository, and release workflows. Contribution and merge
-guidance lives in @ref project_contributing.
+After the first build and validation run, read @ref project_structure before
+moving code between areas. @ref project_quality_workflows and @ref
+project_contracts cover quality, repository, and release workflows; @ref
+project_contributing covers merge guidance.

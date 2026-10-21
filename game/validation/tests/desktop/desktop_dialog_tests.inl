@@ -256,8 +256,8 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     FileDialogs::OpenDescription owned{.owner = &owner};
     static_cast<void>(context.expectEq("closed file-dialog owner is NotOpen", ErrorCode::NotOpen, Desktop::Dialogs::openFile(owned).status.code));
     Desktop::Types::Description ownerDescription;
-    ownerDescription.visible = false;
-    static_cast<void>(context.expectTrue("file-dialog owner opens", owner.open(ownerDescription, 4).ok()));
+    ownerDescription.activation.visible = false;
+    static_cast<void>(context.expectTrue("file-dialog owner opens", owner.open(ownerDescription, Desktop::Events::owned(4)).ok()));
     armFileDialog(FileOperation::OpenFile);
     static_cast<void>(context.expectTrue("current-thread owner is accepted", Desktop::Dialogs::openFile(owned).status.ok()));
     ErrorCode foreignOwnerCode = ErrorCode::Unknown;
@@ -273,63 +273,146 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ownerless file dialog stays on caller thread", Desktop::Dialogs::openFile({}).status.ok()));
 }
 
-void testDialogApartmentContracts(TestSupport::Context &context)
+struct ApartmentObservation
 {
-    HRESULT freshBefore = S_OK;
-    HRESULT freshAfter = S_OK;
-    IO::Types::Status freshStatus;
-    std::thread fresh(
-        [&]
-        {
-            APTTYPE type = APTTYPE_CURRENT;
-            APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
-            freshBefore = CoGetApartmentType(&type, &qualifier);
-            freshStatus = Desktop::TestHooks::testDialogApartment();
-            freshAfter = CoGetApartmentType(&type, &qualifier);
-        });
-    fresh.join();
-    static_cast<void>(context.expectEq("fresh dialog thread starts without COM", CO_E_NOTINITIALIZED, freshBefore));
-    static_cast<void>(context.expectTrue("fresh dialog thread receives compatible STA lease", freshStatus.ok()));
-    static_cast<void>(context.expectEq("Desktop balances only its COM initialization", CO_E_NOTINITIALIZED, freshAfter));
+    HRESULT result = E_FAIL;
+    APTTYPE type = APTTYPE_CURRENT;
+    APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
+};
 
-    IO::Types::Status staStatus;
-    HRESULT staStillInitialized = E_FAIL;
-    std::thread sta(
-        [&]
-        {
-            const HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-            if (SUCCEEDED(initialized))
-            {
-                staStatus = Desktop::TestHooks::testDialogApartment();
-                APTTYPE type = APTTYPE_CURRENT;
-                APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
-                staStillInitialized = CoGetApartmentType(&type, &qualifier);
-                CoUninitialize();
-            }
-        });
-    sta.join();
-    static_cast<void>(context.expectTrue("existing STA is reused", staStatus.ok()));
-    static_cast<void>(context.expectTrue("Desktop does not uninitialize caller STA", SUCCEEDED(staStillInitialized)));
+[[nodiscard]] ApartmentObservation observeApartment() noexcept
+{
+    ApartmentObservation observation;
+    observation.result = CoGetApartmentType(&observation.type, &observation.qualifier);
+    return observation;
+}
 
-    IO::Types::Status mtaStatus;
-    std::thread mta(
-        [&]
+/// @brief Keeps the strictly uninitialized case independent of assistive clients in the parent.
+int runColdApartmentChild()
+{
+    if (observeApartment().result != CO_E_NOTINITIALIZED)
+    {
+        return 2;
+    }
+
+    if (!Desktop::TestHooks::testDialogApartment().ok() || observeApartment().result != CO_E_NOTINITIALIZED)
+    {
+        return 3;
+    }
+
+    return Desktop::TestHooks::testShellApartment().ok() && observeApartment().result == CO_E_NOTINITIALIZED ? 0 : 4;
+}
+
+void testDialogApartmentContracts(TestSupport::Context &context, const std::filesystem::path &executable)
+{
+    TestSupport::Types::Process::Options cold;
+    cold.executablePath = executable;
+    cold.arguments = {"--desktop-test-child=cold-com-apartment"};
+    cold.waitTimeout = std::chrono::seconds{30};
+    const auto coldResult = TestSupport::runChildProcess(cold);
+    static_cast<void>(context.expectTrue("isolated COM probe starts", coldResult.status.ok()));
+    static_cast<void>(context.expectEq("isolated COM probe exits", TestSupport::Types::Process::Outcome::Exited, coldResult.outcome));
+    static_cast<void>(context.expectEq("uninitialized leases balance in a clean process", std::uint32_t{0}, coldResult.exitCode));
+
+    struct MtaUsage
+    {
+        CO_MTA_USAGE_COOKIE cookie = nullptr;
+        HRESULT result = CoIncrementMTAUsage(&cookie);
+        ~MtaUsage()
         {
-            const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-            if (SUCCEEDED(initialized))
+            if (cookie != nullptr)
             {
-                mtaStatus = Desktop::TestHooks::testDialogApartment();
-                CoUninitialize();
+                static_cast<void>(CoDecrementMTAUsage(cookie));
             }
-        });
-    mta.join();
-    static_cast<void>(context.expectEq("incompatible MTA is ResourceBusy", ErrorCode::ResourceBusy, mtaStatus.code));
+        }
+    } mtaUsage;
+
+    if (!context.expectTrue("controlled process MTA is available", SUCCEEDED(mtaUsage.result)))
+    {
+        return;
+    }
+
+    using Probe = IO::Types::Status (*)() noexcept;
+    const std::array probes{
+        std::pair<std::string_view, Probe>{"dialogs", &Desktop::TestHooks::testDialogApartment},
+        std::pair<std::string_view, Probe>{"shell", &Desktop::TestHooks::testShellApartment}};
+
+    for (const auto &[name, probe] : probes)
+    {
+        ApartmentObservation before;
+        ApartmentObservation after;
+        IO::Types::Status leaseStatus;
+        std::thread implicit(
+            [&]
+            {
+                before = observeApartment();
+                leaseStatus = probe();
+                after = observeApartment();
+            });
+        implicit.join();
+        context.info(
+            std::format(
+                "{} implicit COM before: result={} type={} qualifier={}; after: result={} type={} qualifier={}",
+                name,
+                before.result,
+                static_cast<int>(before.type),
+                static_cast<int>(before.qualifier),
+                after.result,
+                static_cast<int>(after.type),
+                static_cast<int>(after.qualifier)));
+        static_cast<void>(context.expectEq(std::format("{} fresh thread sees process MTA", name), S_OK, before.result));
+        static_cast<void>(context.expectEq(std::format("{} MTA is implicit", name), APTTYPEQUALIFIER_IMPLICIT_MTA, before.qualifier));
+        static_cast<void>(context.expectTrue(std::format("{} implicit MTA can acquire STA lease", name), leaseStatus.ok()));
+        static_cast<void>(context.expectEq(std::format("{} balances lease HRESULT", name), before.result, after.result));
+        static_cast<void>(context.expectEq(std::format("{} balances apartment type", name), before.type, after.type));
+        static_cast<void>(context.expectEq(std::format("{} balances apartment qualifier", name), before.qualifier, after.qualifier));
+
+        HRESULT initialized = E_FAIL;
+        std::thread sta(
+            [&]
+            {
+                initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+
+                if (SUCCEEDED(initialized))
+                {
+                    before = observeApartment();
+                    leaseStatus = probe();
+                    after = observeApartment();
+                    CoUninitialize();
+                }
+            });
+        sta.join();
+        static_cast<void>(context.expectTrue(std::format("{} caller STA initializes", name), SUCCEEDED(initialized)));
+        static_cast<void>(context.expectTrue(std::format("{} existing STA is reused", name), leaseStatus.ok()));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller STA initialization", name), S_OK, after.result));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller STA type", name), before.type, after.type));
+
+        initialized = E_FAIL;
+        std::thread mta(
+            [&]
+            {
+                initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+
+                if (SUCCEEDED(initialized))
+                {
+                    leaseStatus = probe();
+                    after = observeApartment();
+                    CoUninitialize();
+                }
+            });
+        mta.join();
+        static_cast<void>(context.expectTrue(std::format("{} caller MTA initializes", name), SUCCEEDED(initialized)));
+        static_cast<void>(context.expectEq(std::format("{} explicit MTA is rejected", name), ErrorCode::ResourceBusy, leaseStatus.code));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller MTA initialization", name), S_OK, after.result));
+        static_cast<void>(context.expectEq(std::format("{} preserves caller MTA type", name), APTTYPE_MTA, after.type));
+        static_cast<void>(context.expectEq(std::format("{} preserves explicit MTA qualifier", name), APTTYPEQUALIFIER_NONE, after.qualifier));
+    }
 }
 
 void testMessageDialogs(TestSupport::Context &context)
 {
-    using Button = MessageDialogs::Button;
-    using Buttons = MessageDialogs::Buttons;
+    using MessageDialogs::Button;
+    using MessageDialogs::Buttons;
 
     struct ButtonSetCase
     {
@@ -409,6 +492,7 @@ void testMessageDialogs(TestSupport::Context &context)
         DialogTypes::Severity::Information,
         DialogTypes::Severity::Warning,
         DialogTypes::Severity::Error};
+
     for (DialogTypes::Severity severity : severities)
     {
         description.severity = severity;
@@ -456,10 +540,10 @@ void testMessageDialogs(TestSupport::Context &context)
 
 void testPromptDialogs(TestSupport::Context &context)
 {
-    using Button = PromptDialogs::Button;
-    using ButtonId = PromptDialogs::ButtonId;
-    using Option = PromptDialogs::Option;
-    using OptionId = PromptDialogs::OptionId;
+    using PromptDialogs::Button;
+    using PromptDialogs::ButtonId;
+    using PromptDialogs::Option;
+    using PromptDialogs::OptionId;
 
     PromptDialogs::Description description;
     static_cast<void>(
@@ -638,8 +722,8 @@ void testPromptDialogs(TestSupport::Context &context)
     description.checkBox.reset();
     Desktop::TestHooks::completeNextPromptDialog({.dismissed = true});
     const auto noSemanticCancel = Desktop::Dialogs::showPrompt(description);
-    static_cast<void>(context.expectFalse("Prompt dismissal without cancel has invalid ID", noSemanticCancel.button.isValid()));
-    static_cast<void>(context.expectFalse("Prompt with no option selection has invalid option", noSemanticCancel.option.isValid()));
+    static_cast<void>(context.expectFalse("Prompt dismissal without cancel has no ID", noSemanticCancel.button.has_value()));
+    static_cast<void>(context.expectFalse("Prompt with no option selection has no option", noSemanticCancel.option.has_value()));
     static_cast<void>(context.expectFalse("Prompt without checkbox returns nullopt", noSemanticCancel.checkBoxChecked.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = description.options.size() + 1, .dismissed = false});
@@ -648,14 +732,14 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "malformed Prompt option leaves every result field defaulted",
         malformedOption.status.code == ErrorCode::NativeFailure && malformedOption.outcome == DialogTypes::Outcome::Cancelled &&
-            !malformedOption.button.isValid() && !malformedOption.option.isValid() && !malformedOption.checkBoxChecked.has_value()));
+            !malformedOption.button.has_value() && !malformedOption.option.has_value() && !malformedOption.checkBoxChecked.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = (std::numeric_limits<std::size_t>::max)(), .dismissed = false});
     const auto maximumMalformedOption = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectTrue(
         "maximum malformed Prompt option leaves every result field defaulted",
         maximumMalformedOption.status.code == ErrorCode::NativeFailure && maximumMalformedOption.outcome == DialogTypes::Outcome::Cancelled &&
-            !maximumMalformedOption.button.isValid() && !maximumMalformedOption.option.isValid() &&
+            !maximumMalformedOption.button.has_value() && !maximumMalformedOption.option.has_value() &&
             !maximumMalformedOption.checkBoxChecked.has_value()));
 
     description.options = options;
@@ -670,14 +754,14 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("Prompt allocation failure maps", ErrorCode::OutOfMemory, failed.status.code));
     static_cast<void>(context.expectTrue(
         "failed Prompt domain fields remain defaulted",
-        failed.outcome == DialogTypes::Outcome::Cancelled && !failed.button.isValid() && !failed.option.isValid() &&
+        failed.outcome == DialogTypes::Outcome::Cancelled && !failed.button.has_value() && !failed.option.has_value() &&
             !failed.checkBoxChecked.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogNativeOperation);
     failed = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("Prompt native failure maps", ErrorCode::NativeFailure, failed.status.code));
-    static_cast<void>(context.expectFalse("native-failed Prompt button remains invalid", failed.button.isValid()));
+    static_cast<void>(context.expectFalse("native-failed Prompt button remains absent", failed.button.has_value()));
 
     Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogResult);

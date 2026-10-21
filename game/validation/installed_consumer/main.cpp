@@ -70,12 +70,11 @@ int main()
     const GameWIP::TestSupport::Types::Process::Result childResult;
     const GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
     const std::string infrastructureText = GameWIP::TestSupport::formatInfrastructureStatus(infrastructureStatus);
-    const GameWIP::Desktop::Types::CapabilitiesResult windowCapabilities = GameWIP::Desktop::getCapabilities();
-    const GameWIP::Desktop::Types::Clipboard::FormatResult clipboardText =
-        GameWIP::Desktop::Clipboard::hasFormat({GameWIP::Desktop::Types::DataTransfer::FormatKind::Text, {}});
-    const GameWIP::Desktop::Types::Cursor::CreateResult invalidCursor =
+    const auto windowCapabilities = GameWIP::Desktop::getCapabilities();
+    const auto clipboardText = GameWIP::Desktop::Clipboard::hasFormat(GameWIP::Desktop::Types::DataTransfer::FormatView::text());
+    const GameWIP::Desktop::Types::Result<GameWIP::Desktop::Cursor> invalidCursor =
         GameWIP::Desktop::createCursor(std::span<const GameWIP::Desktop::Types::Cursor::ImageView>{});
-    const GameWIP::Desktop::Types::Cursor::CreateResult invalidSingleCursor =
+    const GameWIP::Desktop::Types::Result<GameWIP::Desktop::Cursor> invalidSingleCursor =
         GameWIP::Desktop::createCursor(GameWIP::Desktop::Types::Cursor::ImageView{});
     const GameWIP::Desktop::Types::LogicalSize windowSize{640, 360};
     GameWIP::Desktop::Window closedWindow;
@@ -87,7 +86,7 @@ int main()
     const GameWIP::Desktop::Types::DragDrop::Result closedDrag = GameWIP::Desktop::DragDrop::beginDrag(closedWindow, {});
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Desktop::Renderer::attachOcclusionProvider(closedWindow);
     const bool rendererProvider = GameWIP::Desktop::Renderer::hasOcclusionProvider(closedWindow);
-    const GameWIP::Desktop::Types::Display::ColorInfoResult displayColor = GameWIP::Desktop::Display::getColorInfo(closedWindow);
+    const auto displayColor = GameWIP::Desktop::Display::getColorInfo(closedWindow);
 
     // Keep each probe alive through the checks below so this translation unit verifies
     // construction, mutation, and result types rather than only header parsing.
@@ -115,8 +114,8 @@ int main()
                                         childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
                                         childResult.outputBytes.empty() && reportingOptions.writeConsole;
     const bool desktopProbePassed =
-        invalidCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidCursor.cursor.isValid() &&
-        invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidSingleCursor.cursor.isValid() &&
+        invalidCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidCursor.value.has_value() &&
+        invalidSingleCursor.status.code == GameWIP::IO::Types::ErrorCode::InvalidArgument && !invalidSingleCursor.value.has_value() &&
         rendererFeedbackStatus.code == GameWIP::IO::Types::ErrorCode::NotOpen && !rendererProvider &&
         displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && windowSize.width == 640 &&
         loggerConfig.logDirectory == std::string_view{"logs"} && !closedChildSurface.isOpen() && !closedDragDropTarget.isOpen() &&

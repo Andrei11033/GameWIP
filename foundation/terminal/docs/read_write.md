@@ -138,7 +138,7 @@ A `std::stop_token` is a requested-cancellation channel, not an operational fail
 `Types::Input::ReadOutcome::Cancelled` without consuming input. When a read could block and the selected endpoint cannot observe cancellation, a
 stoppable token is rejected as `Unsupported` rather than silently ignored.
 
-Current Win32 named-pipe input supports non-blocking reads, finite deadlines, and cooperative cancellation. Real Win32 console input now uses waitable
+Win32 named-pipe input supports non-blocking reads, finite deadlines, and cooperative cancellation. Real Win32 console input uses waitable
 console handles plus one lazily-created cancellation event, so event, byte/text, and managed line reads support polling, finite total deadlines, and
 requested cancellation without a permanent worker thread or sleep-based polling loop.
 
@@ -157,8 +157,8 @@ operating-system endpoint.
 
 `writeText()` writes exactly the input text. `writeLine()` appends the selected line ending. `print()` and `println()` use compile-time-checked
 `std::format_string` overloads, format before final stream serialization, then write one logical record.
-All Text operations require complete valid UTF-8 independent of the selected endpoint. Validation occurs before style preparation, capability-changing
-output work, or intentional emission; malformed or incomplete text returns `EncodingFailed`.
+All Text operations require valid UTF-8 on every endpoint (@ref terminal_unicode_io). Validation occurs before style preparation, capability-changing
+output work, or intentional emission.
 
 Plain text writes avoid formatting and style-assembly work when those features are not requested; they are not promised to be allocation-free on every
 backend or failure path.
@@ -175,7 +175,7 @@ the full input size while `status` is a failure.
 
 ## Segmented writes
 
-`writeSegments()` validates every Text and StyledText payload as UTF-8 before capability preparation or emission; Bytes payloads remain arbitrary
+`writeSegments()` validates every Text and StyledText payload before capability preparation or emission; Bytes payloads remain arbitrary
 binary. An all-text record uses the text lane, while any record containing a Bytes segment uses the byte lane after text validation. The operation is
 not transactional and does not coordinate with non-Terminal writers. See @ref terminal_segmented_writes.
 
@@ -200,7 +200,7 @@ A failed `flushTo()` preserves the text for retry. Closing or initialization con
 `text()` returns a non-owning view into the internal string. Reserve, append, clear, formatting, move, assignment, or destruction can invalidate it.
 Do not access the same buffer concurrently without external synchronization.
 
-`OutputBuffer` enforces its text-only invariant when text is appended. `appendText()` and `appendLine()` reject malformed or incomplete UTF-8 before
+`OutputBuffer` enforces its text-only invariant when text is appended: `appendText()` and `appendLine()` reject invalid UTF-8 before
 mutation. Formatted appends validate only the newly produced suffix and roll back that complete append on encoding failure, so repeated appends do not
 rescan the already trusted prefix. `text()` therefore always exposes valid UTF-8.
 

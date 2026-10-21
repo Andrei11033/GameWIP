@@ -35,6 +35,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
     void waitAtBlock(HookBlock &block)
     {
         std::unique_lock lock(terminalTestHookState.mutex);
+
         if (!block.enabled)
         {
             return;
@@ -287,6 +288,7 @@ namespace GameWIP::Terminal::TestHooks
         std::lock_guard lock(terminalTestHookState.mutex);
         const std::vector<std::byte> &bytes = terminalTestHookState.outputStreams[outputIndex(stream)].capturedOutput;
         std::string text(bytes.size(), '\0');
+
         if (!bytes.empty())
         {
             std::ranges::transform(
@@ -297,6 +299,7 @@ namespace GameWIP::Terminal::TestHooks
                     return std::to_integer<char>(byte);
                 });
         }
+
         return text;
     }
 

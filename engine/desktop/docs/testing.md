@@ -18,6 +18,31 @@ Shell coverage validates the fixed-capacity `ShellEventQueue`, FIFO sequence and
 validation, one-taskbar-binding enforcement, tray and notification queue borrowing, notification identity lifecycle, and deterministic native-open,
 native-apply, and native-close failure/retry paths. Native shell smoke checks are capability-aware and skip when the current environment cannot
 provide the corresponding taskbar, tray, or notification service.
+Jump-list regression checks inspect the actual native shell-link title, description, quoted
+arguments and icon location, then publish and clear a valid task under an isolated process
+application identity. COM coverage isolates the uninitialized process case and separately
+checks controlled implicit MTA, reused STA and rejected explicit MTA for dialogs and shell calls.
+Native registration checks use isolated current-user targets to verify same-owner replacement,
+exact Unicode owner identity, foreign-owner preservation, foreign and unowned executable-record
+collisions, rollback after a failed write, and cleanup failure propagation with retry. They also
+verify that application records expose `FriendlyAppName` and `SupportedTypes` metadata and that a
+failed cleanup leaves the record available for a subsequent cleanup attempt.
+They also ask Windows to enumerate the file handler for Open with and dispatch
+file/URI commands to a receipt-writing child. File dispatch selects the registered
+ProgID explicitly so the regression never opens a default-app chooser; URI dispatch
+uses the scheme directly. Packed tray callback checks cover mouse and keyboard
+activation, signed screen anchors, duplicate suppression and version restoration
+after icon recreation. Clipboard fixture access has a bounded retry with native
+failure diagnostics; dependent malformed-format checks run only after publication.
+Contention checks hold access through a separate HWND to verify release and timeout.
+The Windows standalone validation executable includes a VERSIONINFO resource with
+its name, publisher and project version. Shell chooser observations use this
+application identity; successful native enumeration does not prove visible chooser
+discovery or a browser's protocol handoff.
+An isolated owner-thread regression verifies `poll()` and `wait()` dispatch
+native messages with only a tray icon or notification center open, that closing
+one of several resources leaves pumping active, and that closing the last
+resource restores the no-op behavior.
 
 Process-isolated shutdown coverage uses routed child processes so failures after a suite function returns remain observable. It verifies exact zero
 exit codes after a standalone color query, a normal `WM_CLOSE` and final-Window close path, owner-thread exit with retained Window state, and
@@ -38,6 +63,24 @@ cmake --build --preset test
 ctest --test-dir build/test -R "validation.tests.desktop|validation.exports.Desktop" --output-on-failure
 ```
 
+Accessibility coverage checks complete-tree validation, recursive owning copies,
+retaining readers, transactional publication, generation/root rules, foreign-thread
+publication, close/publication races, reopen gates, bounded FIFO/coalescing,
+notification collapse, announcement locale support, native provider identity and
+capacity, password redaction, control patterns, grapheme-aware text inspection,
+range-pool pressure, clipped affine geometry, and concurrent provider queries.
+Focused regressions check nested-grid membership independently of node storage
+order, supplied selections without mutation support, absent and explicit carets,
+empty degenerate-range rectangles, consistent Value/Text editability, uniform
+attributes across adjacent annotations, independent overlapping emphasis, and
+unsupported native Link attributes with preserved portable associations.
+Host interaction regressions include a real ProgressDialog owner blocker.
+A process-isolated fixture runs an MTA UIA client thread in the provider process.
+It discovers the real HWND through
+`IUIAutomation::ElementFromHandle`, reads names/text, and invokes a semantic child
+while the owner pumps normally. These checks do not claim Narrator speech or
+mixed-monitor physical observations; those are opt-in manual checks.
+
 ## Public-header isolation
 
 Repository validation compiles each supported Desktop entry header independently:
@@ -49,12 +92,14 @@ Repository validation compiles each supported Desktop entry header independently
 - `desktop/display_info.h`
 - `desktop/cursor.h`
 - `desktop/child_surface.h`
+- `desktop/accessibility.h`
 - `desktop/data_transfer.h`
 - `desktop/drag_drop.h`
 - `desktop/clipboard.h`
 - `desktop/dialogs.h`
 - `desktop/window.h`
 - `desktop/renderer_bridge.h`
+- `desktop/result.h`
 - `desktop/shell.h`
 - `desktop/shell_types.h`
 - `desktop/shell_taskbar.h`
@@ -120,10 +165,16 @@ shell-visible state. See @ref desktop_manual_validation for the observable
 scenarios and expected results.
 
 `--desktop-manual-suite=<name>` accepts `lifecycle`, `multiple-windows`, `custom-chrome`, `layered-pointer`, `dpi`, `cursor`, `child-surface`,
-`files-shell`, `dialogs`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`, `topology`, `hdr`, and `modern`. The `files-shell` suite also covers
+`files-shell`, `files-window`, `shell`, `clipboard`, `dialogs`, `accessibility`, `drag-drop`, `fullscreen`, `borderless`, `exclusive`,
+`topology`, `hdr`, and `modern`.
+The `files-shell` suite also covers
 visible taskbar progress and thumbnail buttons, tray activation and recursive menus, notification appearance and dismissal, Explorer file/URI
 activation, and jump-list ordering. `fullscreen` retains the complete workflow;
 `borderless`, `exclusive`, and `topology` isolate the display-changing portions for safer reproduction. Manual runs flush every report line and
 record before/after mode-transition geometry so evidence survives a driver reset or process interruption.
 
 When manual tests are enabled and Desktop is being configured through the project validation command builder, this selector is exposed there as well.
+Use `--desktop-manual-only` only with `--manual-tests` after an automated run.
+`--desktop-manual-case=<text>` selects scenario names containing the given text;
+unmatched selectors fail. Focused dialog cases are `save-overwrite-dpi` and
+`progress-dpi`. See @ref desktop_manual_validation for commands and fixtures.

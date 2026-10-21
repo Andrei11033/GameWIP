@@ -2,12 +2,15 @@
 /// @brief Focused terminal output correctness suites.
 
 /// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
-void testReentrantFormatting(TestSupport::Context &context, std::string_view executablePath)
+void testReentrantFormatting(TestSupport::Context &context, const std::filesystem::path &executablePath)
 {
+    // CTest can delay a fresh validation child on Windows; the dedicated timeout tests keep
+    // short-deadline coverage separate from this normal-success path.
+    constexpr auto normalChildTimeout = std::chrono::seconds{30};
     TestSupport::Types::Process::Options child;
     child.executablePath = std::filesystem::path(executablePath);
     child.arguments = {std::string(kReentrantFormatChildArgument)};
-    child.timeout = std::chrono::milliseconds{5000};
+    child.waitTimeout = normalChildTimeout;
     child.captureOutput = true;
 
     const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);

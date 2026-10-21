@@ -7,7 +7,7 @@ namespace ProgressTypes = Desktop::Types::Dialogs::Progress;
 [[nodiscard]] bool nativeInteractionEnabled(const Desktop::Window &window)
 {
     const auto handle = Desktop::Native::Win32::getHandle(window);
-    return handle.status.ok() && handle.handle.window != nullptr && IsWindowEnabled(static_cast<HWND>(handle.handle.window)) != FALSE;
+    return handle.status.ok() && handle->window != nullptr && IsWindowEnabled(static_cast<HWND>(handle->window)) != FALSE;
 }
 
 ProgressTypes::Description progressDescription()
@@ -16,7 +16,7 @@ ProgressTypes::Description progressDescription()
         .title = "Progress title",
         .heading = "Progress heading",
         .message = "Progress message",
-        .mode = ProgressTypes::Mode::Determinate,
+        .presentationMode = ProgressTypes::Mode::Determinate,
         .progress = 0.25,
         .cancelable = true,
         .blocksOwner = true};
@@ -40,9 +40,10 @@ void testProgressDialogValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq("closed ProgressDialog value mutation is NotOpen", ErrorCode::NotOpen, progress.setProgress(0.5).code));
 
     auto description = progressDescription();
-    description.mode = static_cast<ProgressTypes::Mode>(255);
+    description.presentationMode = static_cast<ProgressTypes::Mode>(255);
     static_cast<void>(context.expectEq("ProgressDialog rejects invalid Mode", ErrorCode::InvalidArgument, progress.open(description).code));
-    description.mode = ProgressTypes::Mode::Determinate;
+    description.presentationMode = ProgressTypes::Mode::Determinate;
+
     for (const double invalid : {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(), -0.001, 1.001})
     {
         description.progress = invalid;
@@ -98,8 +99,9 @@ void testProgressDialogValidation(TestSupport::Context &context)
     description.owner = &closedOwner;
     static_cast<void>(context.expectEq("ProgressDialog closed owner is NotOpen", ErrorCode::NotOpen, progress.open(description).code));
     Desktop::Types::Description ownerDescription;
-    ownerDescription.visible = false;
-    static_cast<void>(context.expectTrue("ProgressDialog validation owner opens", closedOwner.open(ownerDescription, 4).ok()));
+    ownerDescription.activation.visible = false;
+    static_cast<void>(
+        context.expectTrue("ProgressDialog validation owner opens", closedOwner.open(ownerDescription, Desktop::Events::owned(4)).ok()));
     ErrorCode foreignOwnerCode = ErrorCode::Unknown;
     std::thread foreign(
         [&]
@@ -258,9 +260,9 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
 void testProgressDialogOwnership(TestSupport::Context &context)
 {
     Desktop::Types::Description windowDescription;
-    windowDescription.visible = false;
+    windowDescription.activation.visible = false;
     Desktop::Window owner;
-    static_cast<void>(context.expectTrue("ProgressDialog owner Window opens", owner.open(windowDescription, 8).ok()));
+    static_cast<void>(context.expectTrue("ProgressDialog owner Window opens", owner.open(windowDescription, Desktop::Events::owned(8)).ok()));
     static_cast<void>(context.expectTrue("ProgressDialog owner starts interaction-enabled", nativeInteractionEnabled(owner)));
 
     auto description = progressDescription();
@@ -355,7 +357,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ProgressDialog close remains safe after owner close", first.close().ok()));
 
     Desktop::Window unexpectedOwner;
-    static_cast<void>(context.expectTrue("unexpected-loss owner opens", unexpectedOwner.open(windowDescription, 4).ok()));
+    static_cast<void>(context.expectTrue("unexpected-loss owner opens", unexpectedOwner.open(windowDescription, Desktop::Events::owned(4)).ok()));
     description.owner = &unexpectedOwner;
     static_cast<void>(context.expectTrue("ProgressDialog opens for unexpected owner loss", first.open(description).ok()));
     static_cast<void>(
@@ -430,6 +432,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("foreign thread does not report ProgressDialog open", foreignOpen));
     static_cast<void>(context.expectFalse("foreign thread does not own ProgressDialog", foreignOwned));
     static_cast<void>(context.expectFalse("foreign thread cannot query owner cancellation", foreignCancel));
+
     for (const ErrorCode code : {foreignTitle, foreignHeading, foreignMessage, foreignMode, foreignProgress, foreignClose})
     {
         static_cast<void>(context.expectEq("foreign ProgressDialog operation is ResourceBusy", ErrorCode::ResourceBusy, code));
@@ -440,7 +443,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     auto deferredOne = std::make_unique<Desktop::ProgressDialog>();
     static_cast<void>(context.expectTrue("deferred ProgressDialog opens", deferredOne->open(description).ok()));
     std::thread destroyForeign(
-        [owned = std::move(deferredOne)]() mutable
+        [owned = std::move(deferredOne)] mutable
         {
             owned.reset();
         });
@@ -459,7 +462,7 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("first cleanup-chain ProgressDialog opens", deferredFirst->open(description).ok()));
     static_cast<void>(context.expectTrue("second cleanup-chain ProgressDialog opens", deferredSecond->open(description).ok()));
     std::thread destroyChain(
-        [first = std::move(deferredFirst), second = std::move(deferredSecond)]() mutable
+        [first = std::move(deferredFirst), second = std::move(deferredSecond)] mutable
         {
             first.reset();
             second.reset();

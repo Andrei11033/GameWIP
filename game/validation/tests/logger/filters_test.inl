@@ -1,6 +1,36 @@
 /// @file filters_test.inl
 /// @brief Logger source and level filter correctness and concurrency suites.
 
+void testFilteredFormattedRegisteredSource(TestContext &context)
+{
+    ScopedLoggerShutdown shutdown;
+    std::array sources{Logger::defineSource(TestSource::Core, "Core"), Logger::defineSource(TestSource::Render, "Render")};
+    OwnedLoggerConfig config = makeFileConfig(context, "filtered_formatted_source");
+    config.sources = sources;
+    expectStarted(context, "filtered formatted source init", Logger::init(config.ready()));
+
+    context.expectTrue(
+        "disable formatted test source",
+        Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Render), false).ok());
+    context.expectFalse("formatted test source is filtered", Logger::shouldLog(Logger::Types::Level::Info, TestSource::Render));
+    context.expectTrue("string source remains severity-only", Logger::shouldLog(Logger::Types::Level::Info, std::string_view{"Render"}));
+
+    Logger::resetStats();
+    std::atomic<std::size_t> formatCount{0};
+    const LoggerFormatProbe probe{17, &formatCount};
+    Logger::info(TestSource::Render, "filtered {}", probe);
+    Logger::info(TestSource::Render, Logger::runtimeFormat("{"), 17);
+
+    const Logger::Types::Stats filteredStats = Logger::getStats();
+    context.expectEq("filtered compile-time format is not invoked", formatCount.load(std::memory_order_relaxed), std::size_t{0});
+    context.expectEq("filtered runtime format records no failure", filteredStats.formatFailures, std::size_t{0});
+    context.expectEq("filtered formatted source is not queued", filteredStats.queued, std::size_t{0});
+    context.expectTrue("filtered formatted source flush", flushCompleted(Logger::flush(5s)));
+
+    const Logger::Types::Stats flushedStats = Logger::getStats();
+    context.expectEq("filtered formatted source writes nothing", flushedStats.written, std::size_t{0});
+}
+
 void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOptions &options)
 {
     ScopedLoggerShutdown shutdown;
@@ -26,7 +56,7 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
 
     if (!options.enableStressTests)
     {
-        context.pass("filter concurrency skipped by LoggerTestOptions");
+        context.skip("filter concurrency", "disabled by LoggerTestOptions");
         return;
     }
 
@@ -40,6 +70,7 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
             {
                 std::this_thread::yield();
             }
+
             for (std::size_t i = 0; i < iterations; ++i)
             {
                 Logger::info(TestSource::Core, "producer {}", i);
@@ -52,6 +83,7 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
             {
                 std::this_thread::yield();
             }
+
             for (std::size_t i = 0; i < iterations; ++i)
             {
                 if (!Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Core), (i & 1u) == 0).ok())

@@ -25,6 +25,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def split_command(command: str) -> list[str]:
     """Decode the host shell's quoting without executing the compiler command."""
+
     if os.name != "nt":
         return shlex.split(command)
 
@@ -40,10 +41,13 @@ def split_command(command: str) -> list[str]:
 
     count = ctypes.c_int()
     parsed = parse(command, ctypes.byref(count))
+
     if not parsed:
         raise ctypes.WinError(ctypes.get_last_error())
+
     try:
         return list(parsed[: count.value])
+
     finally:
         kernel.LocalFree(parsed)
 
@@ -51,6 +55,7 @@ def split_command(command: str) -> list[str]:
 def command_arguments(entry: dict[str, object], flags: list[str]) -> list[str]:
     command = entry.get("arguments")
     arguments = [str(value) for value in command] if isinstance(command, list) else split_command(str(entry["command"]))
+
     if not arguments:
         raise ValueError("empty compiler command")
 
@@ -59,11 +64,14 @@ def command_arguments(entry: dict[str, object], flags: list[str]) -> list[str]:
     # unrelated warning as a hard failure.
     filtered: list[str] = [arguments[0]]
     index = 1
+
     while index < len(arguments):
         argument = arguments[index]
+
         if argument in {"-o", "-MF", "-MT", "-MQ"} and index + 1 < len(arguments):
             index += 2
             continue
+
         if argument in {"-c", "-MD", "-MMD", "-MP", "-MG", "-M", "-MM", "-Werror"} or argument.startswith(("-Werror=", "-MF", "-MT", "-MQ")):
             index += 1
             continue
@@ -78,6 +86,7 @@ def main() -> int:
     source_pattern = re.compile(options.source_filter)
     entries = json.loads(options.database.read_text(encoding="utf-8"))
     selected_entries = [entry for entry in entries if source_pattern.search(str(entry.get("file", "")).replace("\\", "/"))]
+
     if not selected_entries:
         print("compiler-warning provider failed: no translation units match the source filter", file=sys.stderr)
         return 1
@@ -85,6 +94,7 @@ def main() -> int:
     def run_entry(entry: dict[str, object]) -> tuple[str, int, str]:
         source = str(entry.get("file", "")).replace("\\", "/")
         directory = Path(str(entry["directory"]))
+
         try:
             result = subprocess.run(
                 command_arguments(entry, options.flag),
@@ -103,9 +113,11 @@ def main() -> int:
     # diagnostics so repeated audits produce stable evidence despite parallel work.
     with ThreadPoolExecutor(max_workers=min(4, max(1, len(selected_entries)))) as executor:
         results = executor.map(run_entry, selected_entries)
+
         for output, returncode, error in results:
             if output:
                 print(output, end="")
+
             if error:
                 print(error, file=sys.stderr, end="")
             failures += int(returncode != 0)

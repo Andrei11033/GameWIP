@@ -64,17 +64,13 @@ class and namespace indexes contain every active helper and passive type.
 
 ## Dependency boundary
 
-TestSupport is installed as the static target `GameWIP::TestSupport`. It
-privately depends on foundational Unicode to implement actual UTF-8 text
-semantics, but does not depend on Logger, Assert, IO, FileSystem, Desktop,
-Terminal, engine systems, or other higher-level GameWIP libraries. Its public
-status/result model is locally owned, and its public headers do not expose
-Unicode types.
+TestSupport is the static target `GameWIP::TestSupport`. It privately depends
+only on Unicode (UTF-8 validation and UTF-8 to UTF-16 conversion); public headers
+are standard-library only and expose no Unicode types. It must not depend on
+Logger, Assert, IO, FileSystem, Desktop, Terminal, or engine libraries, and
+production code never depends on it.
 
-The Win32 environment and child-process backends use GameWIP Unicode for strict UTF-8 to UTF-16 conversion. TestSupport continues to own argument
-validation, process policy, infrastructure failures, and result construction; production code never depends on TestSupport.
-
-TestSupport is intended for test and validation executables. It does not replace production error handling, FileSystem's richer policy/status surface,
-Logger, Assert, a benchmark framework, or a general process-management library.
+It is for test and validation executables, not a replacement for production
+error handling, FileSystem, Logger, Assert, or a benchmark or process library.
 
 See @ref test_support_public_api and @ref test_support_quick_start.

@@ -28,9 +28,9 @@ project_structure.
 
 ## Engine libraries
 
-- @subpage desktop_library - Native desktop-window ownership, events, displays,
-  Clipboard data exchange, coordinates, fullscreen behavior, and
-  renderer/native integration.
+- @subpage desktop_library - Windows, displays, events, clipboard and drag/drop
+  data exchange, dialogs, shell integration, accessibility, and renderer/native
+  integration.
 
 ## Tool libraries
 

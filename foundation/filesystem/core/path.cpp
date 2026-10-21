@@ -16,7 +16,7 @@ namespace GameWIP::FileSystem
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         [[nodiscard]] Types::PathResult pathFailure(IO::Types::Status status) noexcept
         {
@@ -51,6 +51,7 @@ namespace GameWIP::FileSystem
             }
 
             ErrorCode code = fallback;
+
             if (ec == std::errc::no_such_file_or_directory)
             {
                 code = ErrorCode::NotFound;
@@ -95,10 +96,12 @@ namespace GameWIP::FileSystem
             try
             {
                 std::string message = ec.message();
+
                 if (validUtf8(message))
                 {
                     return IO::makeStatus(code, ec.value(), std::move(message));
                 }
+
                 return IO::makeStatus(code, ec.value());
             }
             catch (...)
@@ -110,6 +113,7 @@ namespace GameWIP::FileSystem
         [[nodiscard]] Types::Path pathFromTrustedUtf8(std::string_view utf8Path)
         {
             std::u8string converted(utf8Path.size(), u8'\0');
+
             if (!utf8Path.empty())
             {
                 std::ranges::transform(
@@ -120,6 +124,7 @@ namespace GameWIP::FileSystem
                         return static_cast<char8_t>(byte);
                     });
             }
+
             return Types::Path{converted};
         }
     } // namespace
@@ -134,10 +139,12 @@ namespace GameWIP::FileSystem
         {
             std::error_code ec;
             Types::Path path = std::filesystem::current_path(ec);
+
             if (ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
+
             return {.status = IO::successStatus(), .path = path};
         }
         catch (const std::bad_alloc &)
@@ -326,10 +333,12 @@ namespace GameWIP::FileSystem
 
             std::error_code ec;
             Types::Path result = std::filesystem::absolute(path, ec);
+
             if (ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
+
             return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
@@ -353,10 +362,12 @@ namespace GameWIP::FileSystem
 
             std::error_code ec;
             Types::Path result = std::filesystem::canonical(path, ec);
+
             if (ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
+
             return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
@@ -380,10 +391,12 @@ namespace GameWIP::FileSystem
 
             std::error_code ec;
             Types::Path result = std::filesystem::weakly_canonical(path, ec);
+
             if (ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
+
             return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
@@ -402,10 +415,12 @@ namespace GameWIP::FileSystem
         {
             std::error_code ec;
             Types::Path result = std::filesystem::temp_directory_path(ec);
+
             if (ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
+
             return {.status = IO::successStatus(), .path = result};
         }
         catch (const std::bad_alloc &)
@@ -444,12 +459,37 @@ namespace GameWIP::FileSystem
         }
     }
 
+    Types::PathResult pathFromUtf8(std::u8string_view utf8Path) noexcept
+    {
+        try
+        {
+            std::string bytes(utf8Path.size(), '\0');
+            std::ranges::transform(
+                utf8Path,
+                bytes.begin(),
+                [](char8_t byte)
+                {
+                    return static_cast<char>(byte);
+                });
+            return pathFromUtf8(std::string_view(bytes));
+        }
+        catch (const std::bad_alloc &)
+        {
+            return pathFailure(ErrorCode::OutOfMemory);
+        }
+        catch (...)
+        {
+            return pathFailure(ErrorCode::EncodingFailed);
+        }
+    }
+
     Types::Utf8PathResult pathToUtf8(const Types::Path &path) noexcept
     {
         try
         {
             std::u8string u8String = path.u8string();
             std::string utf8{u8String.begin(), u8String.end()};
+
             if (!validUtf8(utf8))
             {
                 return utf8Failure(ErrorCode::EncodingFailed);

@@ -14,6 +14,7 @@ function Reset-GameWipPresetBuildTree
     $buildRoot = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build'))
     $presetRoot = [IO.Path]::GetFullPath((Join-Path $buildRoot $Name))
     $presetParent = [IO.Path]::GetDirectoryName($presetRoot)
+
     if (-not [string]::Equals($presetParent, $buildRoot, [StringComparison]::OrdinalIgnoreCase))
     {
         throw "Refusing to recreate preset '$Name' outside the repository build root."
@@ -22,11 +23,13 @@ function Reset-GameWipPresetBuildTree
     if (Test-Path -LiteralPath $buildRoot)
     {
         $buildRootItem = Get-Item -LiteralPath $buildRoot -Force
+
         if (($buildRootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
         {
             throw "Refusing to recreate preset '$Name' through reparse-point build root '$buildRoot'."
         }
     }
+
     if (-not (Test-Path -LiteralPath $presetRoot))
     {
         Write-GameWipOperationEvent -Phase plan -Step "fresh-$Name" -Severity info -Message "Preset '$Name' already has no build tree; configuration will create it."
@@ -34,6 +37,7 @@ function Reset-GameWipPresetBuildTree
     }
 
     $presetItem = Get-Item -LiteralPath $presetRoot -Force
+
     if (($presetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
     {
         throw "Refusing to recursively remove reparse-point preset tree '$presetRoot'."
@@ -50,6 +54,7 @@ function Invoke-GameWipConfigurePreset
         [switch]$Offline
     )
     Assert-GameWipValidPreset -Kind 'configure' -Name $Name
+
     if ($Fresh)
     {
         Reset-GameWipPresetBuildTree -Name $Name
@@ -67,6 +72,7 @@ function Invoke-GameWipConfigurePreset
     }
     $arguments += "-DGAMEWIP_DEPENDENCIES_OFFLINE=$offlineValue"
     $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
+
     if ((Test-GameWipWindowsHost) -and (Test-Path -LiteralPath $cache))
     {
         $compilerEntry = Get-Content -LiteralPath $cache | Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } | Select-Object -First 1
@@ -89,11 +95,13 @@ function Invoke-GameWipConfigurePreset
                 -Filter 'CMakeCXXCompiler.cmake' -File -Recurse -ErrorAction SilentlyContinue |
                 Sort-Object LastWriteTimeUtc -Descending |
                 Select-Object -First 1
+
             if ($null -ne $compilerState)
             {
                 $resolvedEntry = Get-Content -LiteralPath $compilerState.FullName |
                     Where-Object { $_ -match '^set\(CMAKE_CXX_COMPILER "(?<path>[^"]+)"\)' } |
                     Select-Object -First 1
+
                 if ($null -ne $resolvedEntry -and $resolvedEntry -match '^set\(CMAKE_CXX_COMPILER "(?<path>[^"]+)"\)')
                 {
                     $configuredCompiler = $Matches.path
@@ -105,6 +113,7 @@ function Invoke-GameWipConfigurePreset
         {
             $configuredCompiler = $configuredCompiler.Replace('/', '\')
             $expectedRoot = ([IO.Path]::GetFullPath($pathPrefix)).TrimEnd('\') + '\'
+
             if (-not $configuredCompiler.StartsWith($expectedRoot, [StringComparison]::OrdinalIgnoreCase))
             {
                 Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "The cached compiler belongs to a different toolchain; CMake will recreate this preset cache."
@@ -125,6 +134,7 @@ function Invoke-GameWipBuildPreset
     Assert-GameWipValidPreset -Kind 'build' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
     $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
+
     if ($Fresh)
     {
         Reset-GameWipPresetBuildTree -Name $Name
@@ -159,18 +169,22 @@ function Resolve-GameWipProjectExecutable
 {
     param([Parameter(Mandatory = $true)]$Command)
     $primary = Join-Path $RepositoryRoot $Command.Executable
+
     if (Test-Path -LiteralPath $primary)
     {
         return $primary
     }
+
     if ($Command.ContainsKey('AlternateExecutable'))
     {
         $alternate = Join-Path $RepositoryRoot $Command.AlternateExecutable
+
         if (Test-Path -LiteralPath $alternate)
         {
             return $alternate
         }
     }
+
     return $primary
 }
 
@@ -178,10 +192,12 @@ function Initialize-GameWipProjectCommandBuild
 {
     param([Parameter(Mandatory = $true)]$Command, [switch]$NoBuild = $Script:NoBuild)
     $executable = Resolve-GameWipProjectExecutable -Command $Command
+
     if (Test-Path -LiteralPath $executable)
     {
         return
     }
+
     if ($NoBuild)
     {
         throw (New-GameWipDiagnosticException `
@@ -205,10 +221,12 @@ function Invoke-GameWipProjectCommand
     )
     $command = Get-GameWipProjectCommand -Id $Id
     $hasArguments = $null -ne $Arguments -and $Arguments.Length -ne 0
+
     if ($hasArguments -and -not [bool]$command.AcceptsExtraArgs)
     {
         throw "Project command '$Id' does not accept extra arguments."
     }
+
     if ($ForceBuild)
     {
         Invoke-GameWipConfigurePreset -Name $command.BuildPreset

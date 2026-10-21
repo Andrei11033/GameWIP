@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <limits>
 #include <span>
 #include <string>
 #include <system_error>
@@ -22,7 +21,7 @@ namespace GameWIP::FileSystem
 
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
 
         /// @brief Builds a failed predicate result with a false payload.
         Types::BoolResult boolFailure(IO::Types::Status status) noexcept
@@ -98,6 +97,7 @@ namespace GameWIP::FileSystem
             case Types::EntryKind::Other:
                 return options.includeOther;
             }
+
             return false;
         }
 
@@ -172,7 +172,9 @@ namespace GameWIP::FileSystem
         /// @brief Rejects file-share bits outside the supported mask.
         [[nodiscard]] bool isValidFileShare(Types::File::Share share) noexcept
         {
-            return (static_cast<std::uint8_t>(share) & ~static_cast<std::uint8_t>(Types::File::Share::All)) == 0;
+            const std::uint32_t shareBits = static_cast<std::uint8_t>(share);
+            const std::uint32_t allowedBits = static_cast<std::uint8_t>(Types::File::Share::All);
+            return (shareBits & ~allowedBits) == 0;
         }
 
         /// @brief Validates symlink-policy enum values crossing the public boundary.
@@ -298,6 +300,7 @@ namespace GameWIP::FileSystem
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed);
             }
+
             if (prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
@@ -310,10 +313,12 @@ namespace GameWIP::FileSystem
         [[nodiscard]] IO::Types::Status validateDirectoryExists(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept
         {
             Detail::Platform::EntryQueryResult result = queryEntry(path, symlinkPolicy);
+
             if (!result.status.ok())
             {
                 return std::move(result.status);
             }
+
             if (result.info.kind != Types::EntryKind::Directory)
             {
                 return IO::makeStatus(ErrorCode::NotDirectory);
@@ -331,6 +336,7 @@ namespace GameWIP::FileSystem
             try
             {
                 const Types::Path parent = path.parent_path();
+
                 if (parent.empty())
                 {
                     return IO::successStatus();
@@ -384,6 +390,7 @@ namespace GameWIP::FileSystem
         [[nodiscard]] Types::Path pathFromTrustedUtf8(std::string_view utf8Path)
         {
             std::u8string converted(utf8Path.size(), u8'\0');
+
             if (!utf8Path.empty())
             {
                 std::ranges::transform(
@@ -394,6 +401,7 @@ namespace GameWIP::FileSystem
                         return static_cast<char8_t>(byte);
                     });
             }
+
             return Types::Path{converted};
         }
 

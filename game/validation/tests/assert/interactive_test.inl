@@ -18,13 +18,15 @@ void testInteractiveIgnoreOnce(TestContext &context)
 {
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "interactive_ignore_once"))
     {
         context.fail("interactive ignore once logger init", "Logger::init failed");
         return;
     }
 
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "ignore_once");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
+
     if (!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
     {
         return;
@@ -49,7 +51,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
         "interactive message was embedded");
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE ignore_once skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE ignore_once", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -58,13 +60,15 @@ void testInteractiveAlwaysIgnore(TestContext &context)
 {
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "interactive_always_ignore"))
     {
         context.fail("interactive always ignore logger init", "Logger::init failed");
         return;
     }
 
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "always_ignore");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
+
     if (!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
     {
         return;
@@ -83,7 +87,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
     context.expectEq("ASSERT_INTERACTIVE always_ignore strips message", countOccurrences(contents, "interactive always ignore test"), std::size_t{0});
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE always_ignore skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE always_ignore", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -91,6 +95,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
 void testVerifyInteractiveEvaluation(TestContext &context)
 {
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "verify_interactive"))
     {
         context.fail("verify interactive logger init", "Logger::init failed");
@@ -102,7 +107,8 @@ void testVerifyInteractiveEvaluation(TestContext &context)
     context.expectEq("VERIFY_INTERACTIVE passing evaluates once", passingEvaluations, 1);
 
     int failingEvaluations = 0;
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "ignore_once");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
+
     if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE action", testAction.status()))
     {
         return;
@@ -136,6 +142,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
 {
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "verify_interactive_always_ignore"))
     {
         context.fail("verify interactive always ignore logger init", "Logger::init failed");
@@ -143,7 +150,8 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     }
 
     int evaluations = 0;
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "always_ignore");
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
+
     if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE always-ignore action", testAction.status()))
     {
         return;
@@ -166,6 +174,6 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
         std::size_t{0});
 #endif
 #else
-    context.pass("VERIFY_INTERACTIVE Always Ignore test skipped because ASSERT_ENABLED=0");
+    context.skip("VERIFY_INTERACTIVE Always Ignore test", "ASSERT_ENABLED=0");
 #endif
 }

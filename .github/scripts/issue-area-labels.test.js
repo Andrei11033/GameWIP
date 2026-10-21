@@ -43,23 +43,15 @@ test('does not let removed HTML comments reform comment openers', () => {
 
 test('maps every current area selection to exactly one canonical label', () => {
     assert.deepEqual([...AREA_LABELS_BY_VALUE], currentMappings);
+
     for (const [value, label] of currentMappings) {
-        assert.equal(targetAreaLabel(`### Area\n${value}`, []), label);
+        assert.equal(targetAreaLabel(`### Area\n${value}`), label);
     }
 });
 
-test('keeps historical body values as read-only aliases', () => {
-    assert.equal(targetAreaLabel('### Area\nBuild and tooling', []), 'area:cmake');
-    assert.equal(targetAreaLabel('### Area\nGameplay roadmap', []), 'area:roadmap');
-    assert.equal(targetAreaLabel('### Area\nTools/developer support', []), 'area:tools');
-    assert.equal(targetAreaLabel('### Area\nGitHub/repository setup', []), 'area:github');
-    assert.equal(targetAreaLabel('### Area\nEngine desktop/input/action', ['area:input']), 'area:input');
-    assert.equal(targetAreaLabel('### Area\nEngine desktop/input/action', []), 'area:engine');
-});
-
 test('keeps Roadmap and Gameplay separate', () => {
-    assert.equal(targetAreaLabel('### Area\nRoadmap / planning', []), 'area:roadmap');
-    assert.equal(targetAreaLabel('### Area\nGameplay', []), 'area:gameplay');
+    assert.equal(targetAreaLabel('### Area\nRoadmap / planning'), 'area:roadmap');
+    assert.equal(targetAreaLabel('### Area\nGameplay'), 'area:gameplay');
 });
 
 test('an issue without a recognized Area field keeps existing area metadata', async () => {
@@ -78,7 +70,7 @@ test('an issue without a recognized Area field keeps existing area metadata', as
         repo: { owner: 'Andrei11033', repo: 'GameWIP' },
     };
 
-    assert.equal(targetAreaLabel(context.payload.issue.body, ['area:roadmap']), undefined);
+    assert.equal(targetAreaLabel(context.payload.issue.body), undefined);
     await applyIssueAreaLabel({ github, context });
     assert.deepEqual(calls, []);
 });

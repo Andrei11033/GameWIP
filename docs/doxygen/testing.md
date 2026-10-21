@@ -56,8 +56,9 @@ startup use.
 
 CTest presets and CI fail when discovery selects zero tests. Project contracts
 have two-minute bounds, ordinary modules have five-minute bounds, and installed
-package consumers have ten-minute bounds for nested configure/build work. These
-limits detect hangs; they are deliberately not performance thresholds.
+package consumers have ten-minute bounds for nested configure/build work. Consumer
+builds use two compile jobs to limit resource spikes. These limits detect hangs;
+they are deliberately not performance thresholds.
 
 Run one module and retain a focused report:
 
@@ -251,7 +252,7 @@ The dedicated `Packages (CMake)` job owns ordinary package compatibility across
 Ninja and Ninja Multi-Config, so `Build and Test` excludes package-labeled CTest
 entries instead of repeating the single-config cases. The `coverage`, `asan`, and
 `ubsan` presets still run their package entries because those executions prove
-that separately instrumented consumers link and run. The root CMake 4.4.2
+that separately instrumented consumers link and run. The root CMake 4.4.4
 requirement is propagated into each independently configured consumer rather
 than copied into consumer source.
 

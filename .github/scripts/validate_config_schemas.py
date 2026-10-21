@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRIES = {
@@ -18,6 +19,9 @@ REGISTRIES = {
     ROOT / "config/quality/file-ownership.json": ROOT / "scripts/schemas/quality-file-ownership.schema.json",
     ROOT / "config/quality/hygiene.json": ROOT / "scripts/schemas/hygiene.schema.json",
 }
+SHARED_SCHEMAS = {
+    ROOT / "scripts/schemas/option.schema.json",
+}
 
 
 def read_json(path: Path) -> object:
@@ -26,22 +30,40 @@ def read_json(path: Path) -> object:
 
 def main() -> int:
     failures: list[str] = []
-    for registry_path, schema_path in REGISTRIES.items():
+    schemas: dict[Path, dict] = {}
+    schema_registry = Registry()
+
+    for schema_path in sorted(set(REGISTRIES.values()) | SHARED_SCHEMAS):
         schema = read_json(schema_path)
+
         if schema.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
             failures.append(f"{schema_path.relative_to(ROOT)}: schema must declare Draft 2020-12")
             continue
         Draft202012Validator.check_schema(schema)
-        validator = Draft202012Validator(schema)
+        schemas[schema_path] = schema
+        schema_id = schema.get("$id")
+
+        if schema_id is not None:
+            schema_registry = schema_registry.with_resource(schema_id, Resource.from_contents(schema))
+
+    for registry_path, schema_path in REGISTRIES.items():
+        schema = schemas.get(schema_path)
+
+        if schema is None:
+            continue
+        validator = Draft202012Validator(schema, registry=schema_registry)
         errors = sorted(validator.iter_errors(read_json(registry_path)), key=lambda error: list(error.absolute_path))
+
         if errors:
             for error in errors:
                 location = ".".join(str(part) for part in error.absolute_path) or "$"
                 failures.append(f"{registry_path.relative_to(ROOT)}:{location}: {error.message}")
         else:
             print(f"Validated {registry_path.relative_to(ROOT)}")
+
     if failures:
         print("Configuration schema validation failed:")
+
         for failure in failures:
             print(f"  - {failure}")
         return 1

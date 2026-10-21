@@ -219,6 +219,7 @@ namespace GameWIP::Debug::Assert::Detail
         __builtin_trap();
 #else
         *static_cast<volatile int *>(nullptr) = 0;
+
         for (;;)
         {
         }

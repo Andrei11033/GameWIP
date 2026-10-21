@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.4.2)
+cmake_minimum_required(VERSION 4.4.4)
 
 project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
 
@@ -82,15 +82,24 @@ if(GAMEWIP_BUILD_TESTS)
     )
     set_tests_properties(validation.version.composition validation.cmake.requirement_propagation PROPERTIES TIMEOUT 120)
 
+    if(WIN32)
+        set(_gamewip_application_validation_name validation.cmake.application_manifest)
+        set(_gamewip_application_runtime_probe ON)
+    else()
+        set(_gamewip_application_validation_name validation.cmake.application_helper)
+        set(_gamewip_application_runtime_probe OFF)
+    endif()
     add_test(
-        NAME validation.cmake.application_manifest
+        NAME ${_gamewip_application_validation_name}
         COMMAND
             "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${PROJECT_BINARY_DIR}/application-manifest-tests"
             "-DMODULE_DIR=${PROJECT_SOURCE_DIR}/cmake" "-DGENERATOR=${CMAKE_GENERATOR}" "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
-            "-DBUILD_TYPE=$<CONFIG>" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}" -P
-            "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
+            "-DBUILD_TYPE=$<CONFIG>" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
+            "-DRUN_RUNTIME_PROBE=${_gamewip_application_runtime_probe}" -P "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
     )
-    set_tests_properties(validation.cmake.application_manifest PROPERTIES LABELS "validation;cmake" TIMEOUT 120)
+    set_tests_properties(${_gamewip_application_validation_name} PROPERTIES LABELS "validation;cmake" TIMEOUT 120)
+    unset(_gamewip_application_validation_name)
+    unset(_gamewip_application_runtime_probe)
 endif()
 
 # ------------------------------------------------------------

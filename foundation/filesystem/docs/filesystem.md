@@ -7,7 +7,7 @@ Include `filesystem/filesystem.h`. Passive values live in `GameWIP::FileSystem::
 
 The focused public headers are `filesystem/path.h`, `filesystem/entry.h`,
 `filesystem/file.h`, and `filesystem/directory.h`.
-`filesystem/filesystem.h` remains the complete convenience include.
+`filesystem/filesystem.h` is the complete convenience include.
 
 ## How the library is organized
 
@@ -68,7 +68,7 @@ pieces compose and which behavior callers can safely build on.
 - Non-atomic write and append helpers preserve accepted payload progress. Atomic helpers expose only the final path-replacement result.
 - Operations that accept `SymlinkPolicy` default to `DoNotFollow`. Requests that cannot be enforced without weakening the selected traversal contract
   return `Unsupported`.
-- Text helpers enforce strict UTF-8 without BOM, normalization, or line-ending transformation; byte helpers remain encoding agnostic. Path-text
+- Text helpers enforce strict UTF-8 (@ref io_utf8_policy). Path-text
   conversion is explicit through `pathFromUtf8()` and `pathToUtf8()`.
 - File operations may block on storage, sharing, locks, metadata, traversal, or durability work. One handle or lock object is not internally
   synchronized.

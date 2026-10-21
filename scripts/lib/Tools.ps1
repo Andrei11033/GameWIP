@@ -26,6 +26,7 @@ function Get-GameWipManagedToolRoot
     {
         return [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
     }
+
     return Resolve-GameWipStoragePath -RelativePath 'build/gamewip/tools'
 }
 
@@ -33,26 +34,31 @@ function Get-GameWipProjectTool
 {
     param([Parameter(Mandatory = $true)][string]$Id)
     $toolMatches = @($ProjectTools.tools | Where-Object { $_.id -eq $Id })
+
     if ($toolMatches.Count -ne 1)
     {
         throw "Project tool '$Id' is not registered exactly once."
     }
+
     return $toolMatches[0]
 }
 
 function Get-GameWipProjectToolSelection
 {
     param([Parameter(Mandatory = $true)][string]$Selector)
+
     if ([string]::IsNullOrWhiteSpace($Selector) -or $Selector -eq 'all')
     {
         return @($ProjectTools.tools)
     }
     $byId = @($ProjectTools.tools | Where-Object { $_.id -eq $Selector })
+
     if ($byId.Count -eq 1)
     {
         return $byId
     }
     $byCategory = @($ProjectTools.tools | Where-Object { $_.category -eq $Selector })
+
     if ($byCategory.Count -ne 0)
     {
         return $byCategory
@@ -63,10 +69,12 @@ function Get-GameWipProjectToolSelection
 function Get-GameWipManagedToolPath
 {
     $root = Get-GameWipManagedToolRoot
+
     if ((Test-Path -LiteralPath $root) -and (Test-GameWipWindowsHost) -and -not (Test-GameWipManagedToolRootOwnership -Root $root))
     {
         return @()
     }
+
     return @(
         (Join-Path $root 'bin'),
         (Join-Path $root 'npm'),
@@ -81,10 +89,12 @@ function Get-GameWipProviderManagedToolPath
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
     $root = Get-GameWipManagedToolRoot
+
     if ((Test-Path -LiteralPath $root) -and (Test-GameWipWindowsHost) -and -not (Test-GameWipManagedToolRootOwnership -Root $root))
     {
         return @()
     }
+
     switch ([string]$Tool.provider.kind)
     {
         'python'
@@ -121,6 +131,7 @@ function Write-GameWipManagedToolShim
     $binRoot = Join-Path $root 'bin'
     New-Item -ItemType Directory -Force -Path $binRoot | Out-Null
     $source = Join-Path $root (Join-Path "tools/$ToolId/$Version" $ExecutableName)
+
     if (Test-GameWipWindowsHost)
     {
         $relativeExecutable = "..\tools\$ToolId\$Version\$ExecutableName"
@@ -129,12 +140,14 @@ function Write-GameWipManagedToolShim
     }
     $destination = Join-Path $binRoot $ToolId
     $temporary = Join-Path $binRoot ('.{0}.{1}.incoming' -f $ToolId, [guid]::NewGuid().ToString('N'))
+
     try
     {
         try
         {
             New-Item -ItemType SymbolicLink -Path $temporary -Target $source | Out-Null
         }
+
         catch
         {
             Copy-Item -LiteralPath $source -Destination $temporary
@@ -143,6 +156,7 @@ function Write-GameWipManagedToolShim
         Set-GameWipMutationStarted
         [IO.File]::Move($temporary, $destination, $true)
     }
+
     finally
     {
         if (Test-Path -LiteralPath $temporary)
@@ -155,37 +169,44 @@ function Write-GameWipManagedToolShim
 function Get-GameWipExecutableNames
 {
     param([Parameter(Mandatory = $true)][string]$Command)
+
     if (Test-GameWipWindowsHost)
     {
         return @("$Command.exe", "$Command.com", "$Command.cmd", "$Command.bat", "$Command.ps1")
     }
+
     return @($Command)
 }
 
 function Get-GameWipToolCandidateVersion
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool, [Parameter(Mandatory = $true)][string]$Path)
+
     if ($Tool.detection.Contains('commandConfigVersionPath'))
     {
         return [string](Resolve-GameWipCommandConfigValue -Path ([string]$Tool.detection.commandConfigVersionPath))
     }
     $environment = @{}
     $managed = @(Get-GameWipManagedToolPath)
+
     if ($managed.Count -ne 0)
     {
         $environment.PATH = (@($managed) + @($env:PATH)) -join [IO.Path]::PathSeparator
     }
     $result = Invoke-GameWipProcess -FilePath $Path -Arguments @($Tool.detection.versionArguments) -Environment $environment -OutputMode LogOnly -TimeoutSeconds 20
+
     if ($result.ExitCode -ne 0)
     {
         return $null
     }
     $output = (@($result.Stdout) + @($result.Stderr)) -join "`n"
     $match = [regex]::Match($output, [string]$Tool.detection.versionPattern)
+
     if ($match.Success)
     {
         return $match.Groups[1].Value
     }
+
     return $null
 }
 
@@ -196,18 +217,22 @@ function Get-GameWipToolCandidateVersion
 function Get-GameWipToolCompatibility
 {
     param([hashtable]$Tool, $Detected)
+
     if (-not $Detected.Installed)
     {
         return 'missing'
     }
+
     if ($Tool.versionPolicy -in @('managed', 'informational'))
     {
         return 'compatible'
     }
+
     if ([string]::IsNullOrWhiteSpace([string]$Detected.Version))
     {
         return 'unknown'
     }
+
     if ($Tool.versionPolicy -eq 'exact')
     {
         return $(if ([string]$Detected.Version -eq [string]$Tool.requiredVersion)
@@ -219,6 +244,7 @@ function Get-GameWipToolCompatibility
                 'mismatch'
             })
     }
+
     try
     {
         return $(if ([version]$Detected.Version -ge [version]$Tool.requiredVersion)
@@ -230,6 +256,7 @@ function Get-GameWipToolCompatibility
                 'outdated'
             })
     }
+
     catch
     {
         return 'unknown'
@@ -270,6 +297,7 @@ function Get-GameWipToolProviderDependencyStatus
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
 
     $dependencies = @(
+
         if ($Tool.provider.Contains('dependencies'))
         {
             @($Tool.provider.dependencies)
@@ -279,6 +307,7 @@ function Get-GameWipToolProviderDependencyStatus
             @()
         }
     )
+
     if ($dependencies.Count -eq 0)
     {
         return @()
@@ -325,6 +354,7 @@ function Get-GameWipToolProviderDependencyStatus
     {
         return @(& $functionName -Tool $Tool)
     }
+
     catch
     {
         $errorMessage = $_.Exception.Message
@@ -390,7 +420,7 @@ function Test-GameWipToolchain
         [switch]$ThrowOnFailure,
         [string]$FailureCode = 'toolchain-incomplete',
         [string]$FailureSummary = 'The declared project toolchain is incomplete.',
-        [string[]]$SuggestedActions = @('.\gamewip.bat tools ensure all -Yes', '.\gamewip.bat tools status'),
+        [string[]]$SuggestedActions = @('.\gamewip.bat tool ensure all -Yes', '.\gamewip.bat tool status'),
         [int]$Indent = 2
     )
 
@@ -402,6 +432,7 @@ function Test-GameWipToolchain
     {
         @($ProjectTools.tools)
     }
+
     if (-not $IncludeInformational)
     {
         $selected = @($selected | Where-Object { $_.versionPolicy -ne 'informational' })
@@ -415,13 +446,16 @@ function Test-GameWipToolchain
     {
         Write-Host "Checking $($selected.Count) declared tool(s)..."
     }
+
     for ($toolIndex = 0; $toolIndex -lt $selected.Count; ++$toolIndex)
     {
         $tool = $selected[$toolIndex]
+
         try
         {
             $status = Get-GameWipToolStatus -Tool $tool
         }
+
         catch
         {
             $status = [pscustomobject]@{
@@ -462,6 +496,7 @@ function Test-GameWipToolchain
             }
             $failures.Add("$($tool.id): $($status.State) ($detail)") | Out-Null
         }
+
         foreach ($dependency in @($status.DependencyFailures))
         {
             $dependencyDetail = if ($dependency.Reason)
@@ -494,6 +529,7 @@ function Test-GameWipToolchain
         Failures = @($failures)
         Tools = $toolPaths
     }
+
     if (-not $result.Ready -and $ThrowOnFailure)
     {
         throw (New-GameWipDiagnosticException `
@@ -502,16 +538,19 @@ function Test-GameWipToolchain
                 -Details ($failures -join "`n") `
                 -SuggestedActions $SuggestedActions)
     }
+
     return $result
 }
 
 function Test-GameWipDetectedToolFromDeclaredProvider
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool, [Parameter(Mandatory = $true)]$Detected)
+
     if (-not $Detected.Installed)
     {
         return $false
     }
+
     switch ([string]$Tool.provider.kind)
     {
         'python'
@@ -575,6 +614,7 @@ function Get-GameWipProviderFunction
             throw "Unsupported tool provider '$($Tool.provider.kind)'."
         }
     }
+
     return $(if ($Operation -eq 'Latest')
         {
             "Get-GameWip${providerName}ToolLatestVersion"
@@ -612,6 +652,7 @@ function Show-GameWipToolList
     Write-GameWipSection 'Project tools'
     Write-Host ('  {0,-20} {1,-27} {2,-16} {3,-18} {4,-13} {5}' -f 'Tool', 'Name', 'Category', 'Provider', 'Policy', 'Capabilities')
     Write-Host ('  {0,-20} {1,-27} {2,-16} {3,-18} {4,-13} {5}' -f ('-' * 20), ('-' * 27), ('-' * 16), ('-' * 18), ('-' * 13), ('-' * 28))
+
     foreach ($toolInfo in @($ProjectTools.tools))
     {
         $capabilities = @('detectInstalled', 'checkLatest', 'update') | Where-Object { [bool]$toolInfo.capabilities[$_] }
@@ -622,14 +663,17 @@ function Show-GameWipToolList
 function Get-GameWipToolchainPathPrefix
 {
     param([Parameter(Mandatory = $true)][string]$PresetName)
+
     if (-not (Test-GameWipWindowsHost))
     {
         return ''
     }
+
     if ($PresetName -in @('asan', 'ubsan'))
     {
         return Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'clang64/bin'
     }
+
     return Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
 }
 
@@ -645,6 +689,7 @@ function Test-GameWipProjectReadiness
             $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
         } | ForEach-Object { [string]$_.id })
     $toolchain = Test-GameWipToolchain -ToolIds $toolIds -DisplayStatus -Indent 2
+
     foreach ($failure in @($toolchain.Failures))
     {
         $failures.Add([string]$failure) | Out-Null
@@ -699,6 +744,7 @@ function Test-GameWipProjectReadiness
 function Confirm-GameWipToolchain
 {
     param([Parameter(Mandatory = $true)][string]$PresetName)
+
     if (-not (Test-GameWipWindowsHost))
     {
         return
@@ -727,13 +773,14 @@ function Confirm-GameWipToolchain
     $missingExecutables = @($requiredExecutables | Where-Object {
             -not (Test-Path -LiteralPath (Join-Path $prefix $_) -PathType Leaf)
         })
+
     if ($missingExecutables.Count -ne 0)
     {
         throw (New-GameWipDiagnosticException `
                 -Code 'preset-toolchain-incomplete' `
                 -Summary "The '$PresetName' preset toolchain is incomplete." `
                 -Details ("Missing from '{0}': {1}" -f $prefix, ($missingExecutables -join ', ')) `
-                -SuggestedActions @('Run .\setup.bat repair.', "Verify the managed MSYS2 environment for the '$PresetName' preset.", 'Run .\gamewip.bat tools status.'))
+                -SuggestedActions @('Run .\setup.bat repair.', "Verify the managed MSYS2 environment for the '$PresetName' preset.", 'Run .\gamewip.bat tool status.'))
     }
 }
 
@@ -741,6 +788,7 @@ function Resolve-GameWipPython
 {
     $candidate = $null
     $source = $null
+
     if (-not [string]::IsNullOrWhiteSpace([string]$PythonPath))
     {
         $candidate = Resolve-GameWipRepositoryPath -Path ([string]$PythonPath); $source = '-PythonPath override'
@@ -752,11 +800,13 @@ function Resolve-GameWipPython
     elseif (Test-GameWipWindowsHost)
     {
         $configured = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin/python.exe'
+
         if (Test-Path -LiteralPath $configured)
         {
             $candidate = $configured; $source = 'GameWIP UCRT64 toolchain'
         }
     }
+
     if ($null -eq $candidate)
     {
         foreach ($name in @('python3', 'python', 'python.exe'))
@@ -767,15 +817,18 @@ function Resolve-GameWipPython
             }
         }
     }
+
     if ($null -eq $candidate -or -not (Test-Path -LiteralPath $candidate))
     {
         throw 'Python is unavailable. Run setup.bat repair on Windows or provision Python on the CI runner.'
     }
     $result = Invoke-GameWipProcess -FilePath $candidate -Arguments @('--version') -OutputMode LogOnly -TimeoutSeconds 20
+
     if ($result.ExitCode -ne 0)
     {
         throw "Python failed to start from '$candidate'."
     }
+
     return [pscustomobject]@{ Path = $candidate; Source = $source; Version = ((@($result.Stdout) + @($result.Stderr)) -join ' ').Trim() }
 }
 
@@ -784,21 +837,27 @@ function Resolve-GameWipPythonProviderHost
     if (-not [string]::IsNullOrWhiteSpace([string]$PythonProviderHostPath))
     {
         $candidate = Resolve-GameWipRepositoryPath -Path ([string]$PythonProviderHostPath)
+
         if (-not (Test-Path -LiteralPath $candidate))
         {
             throw "Python provider host override does not exist: $candidate"
         }
+
         return [pscustomobject]@{ Path = $candidate; Source = '-PythonHostPath override'; Version = 'override' }
     }
+
     if (Test-GameWipWindowsHost)
     {
         $launcher = Get-Command py.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+
         if ($null -ne $launcher)
         {
             $result = Invoke-GameWipProcess -FilePath $launcher.Source -Arguments @('-3.14', '-c', 'import sys; print(sys.executable)') -OutputMode LogOnly -TimeoutSeconds 20
+
             if ($result.ExitCode -eq 0)
             {
                 $path = ($result.Stdout -join "`n").Trim()
+
                 if ($path -notmatch '(?i)[\\/](?:ucrt64|clang64|usr)[\\/]')
                 {
                     return [pscustomobject]@{ Path = $path; Source = 'Windows Python launcher 3.14'; Version = 'Python 3.14' }
@@ -807,10 +866,12 @@ function Resolve-GameWipPythonProviderHost
         }
     }
     $resolved = Resolve-GameWipPython
+
     if ((Test-GameWipWindowsHost) -and $resolved.Path -match '(?i)[\\/](?:ucrt64|clang64|usr)[\\/]')
     {
         throw 'Python provider host must be native CPython, not MSYS2 Python. Run setup.bat tool.'
     }
+
     return $resolved
 }
 
@@ -818,6 +879,7 @@ function Resolve-GameWipClangFormat
 {
     $candidate = $null
     $source = $null
+
     if (-not [string]::IsNullOrWhiteSpace([string]$ClangFormatPath))
     {
         $candidate = Resolve-GameWipRepositoryPath -Path ([string]$ClangFormatPath); $source = '-ClangFormatPath override'
@@ -829,19 +891,23 @@ function Resolve-GameWipClangFormat
     elseif (Test-GameWipWindowsHost)
     {
         $configured = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin/clang-format.exe'
+
         if (Test-Path -LiteralPath $configured)
         {
             $candidate = $configured; $source = 'GameWIP UCRT64 toolchain'
         }
     }
+
     if ($null -eq $candidate)
     {
         $detected = Get-GameWipDetectedTool -Tool (Get-GameWipProjectTool -Id 'clang-format')
+
         if ($detected.Installed)
         {
             $candidate = $detected.Location; $source = $detected.Source
         }
     }
+
     if ($null -eq $candidate)
     {
         throw 'clang-format is unavailable. Run setup.bat repair on Windows or provision it on the CI runner.'

@@ -1,9 +1,8 @@
 @page desktop_library Desktop
 
-`GameWIP::Desktop` provides standalone portable ownership of native top-level
-desktop windows, optional managed child hosts, synchronous Clipboard data
-exchange, native data drag and drop, opt-in native dialogs, and additive shell
-integration. Its API provides checked lifecycle
+`GameWIP::Desktop` owns native top-level windows and provides optional child
+hosts, Clipboard exchange, drag and drop, native dialogs, accessibility
+snapshots, and shell integration. Its API provides checked lifecycle
 and mutation operations, fixed-capacity typed event queues, cached state,
 display discovery and inspection, and an explicit native interoperability
 boundary.
@@ -11,7 +10,7 @@ boundary.
 Desktop is usable without Input, Action, WindowManager, Renderer, UI, or the game executable. It creates no event thread and invokes no user callbacks
 from a native window procedure. Worker or renderer code that needs an
 owner-thread mutation must use an application-owned transport queue and have
-the owner thread perform the Desktop call; Desktop intentionally provides no
+the owner thread perform the Desktop call; Desktop provides no
 hidden worker or generic `post()` facility.
 
 ## How the library is organized
@@ -21,7 +20,7 @@ fixed-capacity event queue. The thread that opens it also mutates it, pumps its
 events, and consumes that queue. Native callbacks first update cached state and
 then publish typed events, allowing getters to remain current even if the queue
 overflows. Display APIs describe monitors and modes independently of a Window;
-opt-in headers expose renderer integration and deliberate native interoperation.
+focused headers expose renderer integration and native interoperation.
 
 ## Consumer manual
 
@@ -45,6 +44,8 @@ opt-in headers expose renderer integration and deliberate native interoperation.
   owner-thread operation progress.
 - @subpage desktop_shell - Publish taskbar, tray, notification, jump-list,
   recent-item, and current-user shell registration state.
+- @subpage desktop_accessibility - Publish immutable application-owned semantics
+  through native providers, bounded actions, and notifications.
 - @subpage desktop_lifecycle_events - Understand thread ownership, dispatch,
   queue overflow, close requests, waits, and native destruction.
 - @subpage desktop_chrome_and_pointer_input - Configure system and custom chrome,
@@ -60,7 +61,7 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 - @subpage desktop_troubleshooting - Diagnose ownership, capabilities, queue
   pressure, display transitions, native destruction, and renderer integration.
 - @subpage desktop_future_extensions - Understand ownership boundaries for future
-  accessibility, UI, and platform extensions.
+  UI and platform extensions.
 
 ## Maintainer validation
 
@@ -75,67 +76,58 @@ opt-in headers expose renderer integration and deliberate native interoperation.
 Use @ref GameWIP::Desktop for library-wide capability operations and the non-copyable, non-movable @ref GameWIP::Desktop::Window owner. Passive values
 live under @ref GameWIP::Desktop::Types, with child-host values under `Types::ChildSurface`, transfer values under `Types::DataTransfer`, drag-and-drop
 values under `Types::DragDrop`, Clipboard results under `Types::Clipboard`, event payloads under `Types::Events`, display values under `Types::Display`,
-shell values under `Types::Shell`, and renderer-bridge values under `Types::Renderer`. Global event pumping lives under `Desktop::Events`, Clipboard operations
-under `Desktop::Clipboard`,
-drag sources under `Desktop::DragDrop`, display inspection under `Desktop::Display`, and renderer integration under `Desktop::Renderer`. Win32 consumers
-use @ref GameWIP::Desktop::Native::Win32 deliberately.
+shell values under `Types::Shell`, accessibility values under `Types::Accessibility`, and renderer-bridge values under `Types::Renderer`.
+
+Global event pumping lives under `Desktop::Events`, Clipboard operations under
+`Desktop::Clipboard`, drag sources under `Desktop::DragDrop`, display inspection
+under `Desktop::Display`, and renderer integration under `Desktop::Renderer`.
+Win32 native handles are exposed through @ref GameWIP::Desktop::Native::Win32.
 
 Dialog values live under `Types::Dialogs`, synchronous one-shot operations
 under `Desktop::Dialogs`, and persistent modeless progress under
 @ref GameWIP::Desktop::ProgressDialog.
 
+Accessibility authoring, immutable inspection, and the non-owning Window façade
+live under `Desktop::Accessibility`. Shell operations live under `Desktop::Shell`;
+focused resource classes remain under `Desktop`.
+
 ## Key behavior
 
-Every successful `open()` creates one process-local `Types::WindowId` and one fixed event queue. `Window` is non-copyable and non-movable, keeping its
-address and thread affinity stable. Cached getters are allocation-free and never query the operating system. By default they remain owner-thread-only.
-The optional renderer bridge can lazily enable atomic publication for the documented presentation subset.
-
-Shell resources follow the same explicit ownership model without becoming Window members. The
-owner thread owns resource mutation and queue consumption; shell resources borrow an
-application-owned queue for typed interaction events, and their destructors perform only
-best-effort native cleanup.
-
-Native callbacks update cached state before inserting events, so queue overflow loses notification history without making current state stale. Close
-requests remain sticky even when their `Types::Events::CloseRequested` payload cannot be retained.
-
-The opening thread owns native mutation, queue consumption, and event pumping. `wakeEventWait()` is always cross-thread-safe. Renderer-facing
-presentation reads become a narrow additional exception only after explicit opt-in. A thread-local dispatcher pumps each owner thread's Windows.
-
-Cross-thread presentation reads do not make concurrent destruction safe. Applications must ensure the `Window` object outlives every renderer read.
-
-Destruction on another thread transfers complete state ownership to that dispatcher without allocation. Dispatcher or thread shutdown closes remaining
-native windows and restores exclusive-mode, cursor, class, and identity resources. Unexpected native destruction retains portable state and a typed
-`Types::Events::NativeDestroyed` payload until controlled owner-thread finalization. Explicit `close()` does not emit that payload.
-
-Public text is valid UTF-8. Desktop uses the foundational Unicode library for
-strict native-boundary conversion instead of maintaining another decoder.
-Embedded U+0000 is invalid in a native Window title because the Win32 title APIs
-are NUL-terminated.
-
-Client-local positions and sizes use logical units. Desktop placement and
-monitor rectangles use physical virtual-screen coordinates, where positions may
-be negative. Framebuffer and display-mode extents use physical pixels. Each
-Window chooses whether a DPI transition preserves its logical client size or
-its physical client pixels.
+- Threads, close, destruction, and queues: see @ref desktop_lifecycle_events.
+- `Window` is non-copyable and non-movable. Cached getters never query the OS
+  or allocate. The renderer bridge is the only opt-in for cross-thread reads
+  (@ref desktop_renderer_integration).
+- Shell resources are not Window members. They borrow an application-owned
+  queue, and the owner thread mutates them.
+- Public text is UTF-8; a Window title may not contain U+0000.
+- Units: see @ref desktop_coordinates_and_dpi.
 
 ## Public header boundary
 
-The normal portable surface is assembled by `desktop/window.h` from focused `desktop/types.h`, `desktop/description.h`, `desktop/events.h`, and
-`desktop/display.h`. Rich monitor/color inspection is opt-in through `desktop/display_info.h`. Renderer integration is opt-in through
-`desktop/renderer_bridge.h`, shell capability queries and the shared shell event queue are opt-in
-through `desktop/shell.h`, shell value types are opt-in through `desktop/shell_types.h`, taskbar
-publication is opt-in through `desktop/shell_taskbar.h`, tray-icon publication and menus are opt-in
-through `desktop/shell_tray.h`, notifications are opt-in through `desktop/shell_notifications.h`,
-jump-list and recent-item publication are opt-in through `desktop/shell_jump_lists.h`, current-user
-shell registration is opt-in through `desktop/shell_registration.h`, custom native cursors are opt-in through
-`desktop/cursor.h`,
-native child hosts are opt-in through
-`desktop/child_surface.h`, shared transfer values and Clipboard are opt-in through `desktop/data_transfer.h` and `desktop/clipboard.h`, native data drag
-and drop is opt-in through `desktop/drag_drop.h`, native dialogs and progress
-are opt-in through `desktop/dialogs.h`, and Win32 interoperability is opt-in
-through `desktop/native/win32.h`.
+The normal portable surface is assembled by `desktop/window.h` from focused
+`desktop/types.h`, `desktop/description.h`, `desktop/events.h`,
+`desktop/result.h`, and `desktop/display.h`. `Types::Result<T>` is the common
+status-plus-optional-value contract for all-or-nothing Desktop queries. Rich
+monitor/color inspection is opt-in through
+`desktop/display_info.h`.
 
-Installed consumers link `GameWIP::Desktop`. Desktop is intentionally built as a shared library: process-local Window and monitor identities, native
+Custom native cursors use `desktop/cursor.h`, native child hosts use
+`desktop/child_surface.h`, and renderer integration uses
+`desktop/renderer_bridge.h`. Semantic accessibility snapshots and their Window
+façade use `desktop/accessibility.h`.
+
+Shared transfer values and Clipboard use `desktop/data_transfer.h` and
+`desktop/clipboard.h`; native data drag and drop uses `desktop/drag_drop.h`.
+Native dialogs and modeless progress use `desktop/dialogs.h`.
+
+Shell capability queries and the shared shell event queue use `desktop/shell.h`;
+passive shell values use `desktop/shell_types.h`. Focused taskbar, tray,
+notification, jump-list/recent-item, and current-user registration APIs use
+`desktop/shell_taskbar.h`, `desktop/shell_tray.h`, `desktop/shell_notifications.h`,
+`desktop/shell_jump_lists.h`, and `desktop/shell_registration.h`, respectively.
+Win32 interoperability uses `desktop/native/win32.h`.
+
+Installed consumers link `GameWIP::Desktop`. Desktop is built as a shared library: process-local Window and monitor identities, native
 class ownership, dispatchers, and registries must remain coherent through one runtime instance rather than being duplicated across statically linked
 modules.
 

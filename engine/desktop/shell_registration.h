@@ -20,15 +20,17 @@ namespace GameWIP::Desktop::Types::Registration
     enum class ConflictPolicy : std::uint8_t
     {
         Report,      ///< Reject any existing target conflict without writing and report it.
-        Coexist,     ///< Install or update this owner without changing foreign ownership and report foreign conflicts.
+        Coexist,     ///< Install or update this owner without changing foreign file/URI ownership and report foreign conflicts; foreign application
+                     ///< records still block default-action registration.
         ReplaceOwned ///< Replace a same-owner registration atomically; reject foreign conflicts.
     };
 
     /// @brief Kind of shell registration target reported by a conflict.
     enum class TargetKind : std::uint8_t
     {
-        FileExtension, ///< Filesystem extension target such as .gamewip.
-        UriScheme      ///< URI scheme target such as gamewip.
+        FileExtension,    ///< Filesystem extension target such as .gamewip.
+        UriScheme,        ///< URI scheme target such as gamewip.
+        ApplicationRecord ///< Executable application record such as GameWIPTests.exe; it can block a default-action registration.
     };
 
     /// @brief One reported pre-existing shell registration conflict.
@@ -37,8 +39,8 @@ namespace GameWIP::Desktop::Types::Registration
     struct Conflict
     {
         TargetKind kind = TargetKind::FileExtension; ///< Conflicting target kind.
-        std::string target;                          ///< Owned normalized extension or URI scheme.
-        std::string ownerKey;                        ///< Owned existing owner identity when available.
+        std::string target;                          ///< Owned normalized extension, URI scheme, or executable basename.
+        std::string ownerKey;                        ///< Existing owner identity when available.
     };
 
     /// @brief Result of one registration or unregistration operation.
@@ -54,8 +56,8 @@ namespace GameWIP::Desktop::Types::Registration
     /// registration operation returns. Launch placeholders expand from the shell-selected target set.
     struct Verb
     {
-        std::string_view name;          ///< Nonempty canonical verb name.
-        std::string_view label;         ///< Nonempty UTF-8 display label.
+        std::string_view name;          ///< Non-empty canonical verb name.
+        std::string_view label;         ///< Non-empty UTF-8 display label.
         Shell::LaunchActionView action; ///< Structured executable and argument launch action.
     };
 
@@ -71,9 +73,9 @@ namespace GameWIP::Desktop::Types::Registration
     /// is normalized without a leading wildcard and normally begins with a period.
     struct FileExtensionDescription
     {
-        std::string_view ownerKey;                               ///< Stable nonempty registration owner key.
-        std::string_view extension;                              ///< Nonempty extension such as .gamewip.
-        std::string_view displayName;                            ///< Nonempty UTF-8 shell display name.
+        std::string_view ownerKey;                               ///< Stable non-empty registration owner key.
+        std::string_view extension;                              ///< Non-empty extension such as .gamewip.
+        std::string_view displayName;                            ///< Non-empty UTF-8 shell display name.
         std::string_view contentType;                            ///< Optional UTF-8 MIME/content-type metadata.
         std::optional<Icon> icon;                                ///< Optional borrowed icon metadata.
         std::optional<Shell::LaunchActionView> defaultAction;    ///< Optional default/open launch action.
@@ -86,9 +88,9 @@ namespace GameWIP::Desktop::Types::Registration
     /// may use target placeholders to receive the selected URI.
     struct UriSchemeDescription
     {
-        std::string_view ownerKey;                               ///< Stable nonempty registration owner key.
-        std::string_view scheme;                                 ///< Nonempty URI scheme without a trailing colon.
-        std::string_view displayName;                            ///< Nonempty UTF-8 shell display name.
+        std::string_view ownerKey;                               ///< Stable non-empty registration owner key.
+        std::string_view scheme;                                 ///< Non-empty URI scheme without a trailing colon.
+        std::string_view displayName;                            ///< Non-empty UTF-8 shell display name.
         std::optional<Icon> icon;                                ///< Optional borrowed icon metadata.
         std::optional<Shell::LaunchActionView> defaultAction;    ///< Optional default/open launch action.
         std::span<const Verb> verbs;                             ///< Optional context-menu verbs.
@@ -117,13 +119,13 @@ namespace GameWIP::Desktop::Registration
     [[nodiscard]] DESKTOP_EXPORT Types::Registration::Result registerUriScheme(const Types::Registration::UriSchemeDescription &description) noexcept;
 
     /// @brief Removes one current-user file-extension registration owned by the supplied key.
-    /// @param ownerKey Stable nonempty owner key used when the registration was created.
+    /// @param ownerKey Stable non-empty owner key used when the registration was created.
     /// @param extension Extension without a wildcard.
     /// @return Operation status and any ownership conflict report.
     [[nodiscard]] DESKTOP_EXPORT Types::Registration::Result unregisterFileExtension(std::string_view ownerKey, std::string_view extension) noexcept;
 
     /// @brief Removes one current-user URI-scheme registration owned by the supplied key.
-    /// @param ownerKey Stable nonempty owner key used when the registration was created.
+    /// @param ownerKey Stable non-empty owner key used when the registration was created.
     /// @param scheme URI scheme without a trailing colon.
     /// @return Operation status and any ownership conflict report.
     [[nodiscard]] DESKTOP_EXPORT Types::Registration::Result unregisterUriScheme(std::string_view ownerKey, std::string_view scheme) noexcept;

@@ -17,5 +17,5 @@ bool consumeDesktopDialogs()
 
     return openDescription.filters.size() == 1 && fileResult.outcome == DialogTypes::Outcome::Cancelled &&
            message.buttons == DialogTypes::Message::Buttons::Ok && buttonId.isValid() &&
-           progressDescription.mode == DialogTypes::Progress::Mode::Indeterminate && !progress.isOpen() && progress.close().ok();
+           progressDescription.presentationMode == DialogTypes::Progress::Mode::Indeterminate && !progress.isOpen() && progress.close().ok();
 }

@@ -16,12 +16,12 @@ and workflow pages describe the behavior inside each area.
 | --- | --- |
 | `foundation/` | Internal Base mechanisms and low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
-| `engine/` | The documented Desktop library plus provisional Input and Action code. Preserved WindowManager code is outside the build. |
+| `engine/` | The maintained Desktop library and retained engine reference code. See the engine section below for build status. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `external/` | CMake integration for optional FetchContent dependencies. |
 | `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |
-| `docs/doxygen/` | Generated project manual pages. |
+| `docs/doxygen/` | Doxygen sources for the project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `.github/` | Pull-request policy, CI, documentation publishing, and repository automation. |
 | `build/gamewip/cache/dependencies/` | Setup-managed locked third-party dependency sources. |
@@ -90,12 +90,12 @@ higher-level GameWIP dependencies. Validation modules depend on TestSupport, not
 the reverse. This keeps `find_package(TestSupport)` independently usable and
 keeps its portable result contracts free of unrelated higher-level dependencies.
 
-## Engine-system status
+## Engine libraries and reference code
 
-Desktop is the supported, documented engine library. Input, Action, and
-WindowManager are deprecated source-tree code and are excluded from
-the supported installed API and generated documentation. WindowManager is
-not compiled.
+Desktop is the maintained engine library. Input, Action, and WindowManager remain
+source-tree reference code excluded from normal builds. These
+reference components are outside the installed API, maintained correctness
+modules and generated manual.
 
 Validation code may use libraries and approved internal hooks. Installed
 consumers must not see internal headers, test-hook headers, source-tree-only

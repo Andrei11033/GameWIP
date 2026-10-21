@@ -16,6 +16,7 @@ namespace GameWIP::TestSupport
     std::string formatInfrastructureStatus(const Types::InfrastructureStatus &status)
     {
         std::string_view errorName = "PlatformFailure";
+
         switch (status.error)
         {
         case Types::InfrastructureError::None:
@@ -56,6 +57,9 @@ namespace GameWIP::TestSupport
             break;
         case Types::InfrastructureError::EnvironmentFailed:
             errorName = "EnvironmentFailed";
+            break;
+        case Types::InfrastructureError::ProcessStateConflict:
+            errorName = "ProcessStateConflict";
             break;
         case Types::InfrastructureError::FileOperationFailed:
             errorName = "FileOperationFailed";

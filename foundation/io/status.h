@@ -132,11 +132,9 @@ namespace GameWIP::IO
     /// @brief Creates an IO status with portable, native, and diagnostic details.
     /// @param code Portable status code used for program decisions.
     /// @param nativeCode Backend-native error code, or zero when unavailable.
-    /// @param message Developer-facing UTF-8 diagnostic text; not stable for machine parsing.
+    /// @param message Diagnostic text; must be valid UTF-8 when non-empty.
     /// @return Status containing code, nativeCode, and message.
-    /// @pre message is valid UTF-8 when non-empty.
-    /// @note The function is non-throwing, but constructing the by-value message argument occurs
-    /// before function entry and may allocate. Code-only calls avoid that allocation.
+    /// @note Non-throwing, but constructing the by-value message happens before entry and may allocate.
     [[nodiscard]] Types::Status makeStatus(Types::ErrorCode code, std::int64_t nativeCode = 0, std::string message = {}) noexcept;
 
     /// @brief Creates a successful IO status.
@@ -146,7 +144,6 @@ namespace GameWIP::IO
     /// @brief Returns the symbolic name of an ErrorCode value.
     /// @param code Error code to name.
     /// @return Stable non-owning string literal for known values, or "Unknown" for unknown enumerators.
-    /// @note Use the name for diagnostics and tests, not as a substitute for an application-owned
-    /// serialized or wire-format error representation.
+    /// @note For diagnostics and tests; do not serialize ErrorCode.
     [[nodiscard]] std::string_view errorCodeName(Types::ErrorCode code) noexcept;
 } // namespace GameWIP::IO

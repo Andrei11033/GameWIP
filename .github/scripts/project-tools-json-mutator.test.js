@@ -125,6 +125,7 @@ assert.strictEqual(mutateProjectToolsSource(source, specification([])), source);
 
 {
     const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gamewip-json-mutator-'));
+
     try {
         const sourcePath = path.join(temporaryRoot, 'source.json');
         const specificationPath = path.join(temporaryRoot, 'mutations.json');

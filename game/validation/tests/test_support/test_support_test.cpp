@@ -5,7 +5,10 @@
 /// manual prompts, temporary resources, and deterministic stress primitives.
 
 #include "validation/tests/test_support/test_support_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
+#include "validation/tests/runner_helpers.h"
 
 #include "test_support/test_support.h"
 
@@ -13,6 +16,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -21,6 +25,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -38,16 +43,18 @@
 namespace
 {
     namespace TestSupport = GameWIP::TestSupport;
-    using TestSupportTestOptions = GameWIP::Test::TestSupportTestOptions;
+    using GameWIP::Test::TestSupportTestOptions;
     using namespace std::chrono_literals;
 
     constexpr std::string_view kEnvironmentChildArgument = "--test-support-test-child=environment";
+    constexpr std::string_view kCurrentPathChildArgument = "--test-support-test-child=current-path";
     constexpr std::string_view kEchoChildArgument = "--test-support-test-child=echo";
     constexpr std::string_view kSleepChildArgument = "--test-support-test-child=sleep";
     constexpr std::string_view kExitCodeChildArgument = "--test-support-test-child=exit-code";
     constexpr std::string_view kOutputChildArgument = "--test-support-test-child=output";
     constexpr std::string_view kDescendantChildArgument = "--test-support-test-child=descendant";
     constexpr std::string_view kHandleInheritanceChildArgument = "--test-support-test-child=handle-inheritance";
+    constexpr std::string_view kStartGateChildArgument = "--test-support-test-child=start-gate";
     constexpr std::string_view kChildSetVariable = "INTERNAL_TEST_SUPPORT_CHILD_SET";
     constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
@@ -60,6 +67,7 @@ namespace
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == argument)
@@ -67,6 +75,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
@@ -74,6 +83,7 @@ namespace
     std::string argumentAfter(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (std::size_t index = 1; index + 1 < arguments.size(); ++index)
         {
             if (arguments[index] != nullptr && std::string_view(arguments[index]) == argument && arguments[index + 1] != nullptr)
@@ -81,6 +91,7 @@ namespace
                 return arguments[index + 1];
             }
         }
+
         return {};
     }
 
@@ -134,8 +145,15 @@ namespace
     // Child-process routes
     // ------------------------------------------------------------
 
+    int runStartGateChild();
+
     int runTestSupportChild(int argc, char **argv)
     {
+        if (hasArgument(argc, argv, kStartGateChildArgument))
+        {
+            return runStartGateChild();
+        }
+
         if (hasArgument(argc, argv, kEnvironmentChildArgument))
         {
             const char *setValue = std::getenv(std::string(kChildSetVariable).c_str());
@@ -144,6 +162,12 @@ namespace
             std::cout << "child-set=" << (setValue != nullptr ? setValue : "<unset>") << '\n';
             std::cout << "child-unset=" << (unsetValue != nullptr ? unsetValue : "<unset>") << '\n';
             return setValue != nullptr && std::string_view(setValue) == "child-value" && unsetValue == nullptr ? 0 : 9;
+        }
+
+        if (hasArgument(argc, argv, kCurrentPathChildArgument))
+        {
+            std::cout << std::filesystem::current_path().generic_string() << '\n';
+            return 0;
         }
 
         if (hasArgument(argc, argv, kEchoChildArgument))
@@ -187,12 +211,24 @@ namespace
         if (hasArgument(argc, argv, kDescendantChildArgument))
         {
 #if defined(_WIN32)
-            std::string commandLine = "\"" + std::string(argv[0]) + "\" " + std::string(kSleepChildArgument);
-            STARTUPINFOA startupInfo{};
+            const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
+            const std::wstring childArgument(kSleepChildArgument.begin(), kSleepChildArgument.end());
+            std::wstring commandLine = L"\"" + executablePath.native() + L"\" " + childArgument;
+            STARTUPINFOW startupInfo{};
             startupInfo.cb = sizeof(startupInfo);
             PROCESS_INFORMATION processInfo{};
-            if (CreateProcessA(nullptr, commandLine.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &processInfo) ==
-                FALSE)
+
+            if (CreateProcessW(
+                    executablePath.c_str(),
+                    commandLine.data(),
+                    nullptr,
+                    nullptr,
+                    TRUE,
+                    CREATE_NO_WINDOW,
+                    nullptr,
+                    nullptr,
+                    &startupInfo,
+                    &processInfo) == FALSE)
             {
                 return 11;
             }
@@ -223,15 +259,17 @@ namespace GameWIP::Test
 
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
-        if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kEchoChildArgument) ||
-            hasArgument(argc, argv, kSleepChildArgument) || hasArgument(argc, argv, kExitCodeChildArgument) ||
-            hasArgument(argc, argv, kOutputChildArgument) || hasArgument(argc, argv, kDescendantChildArgument) ||
-            hasArgument(argc, argv, kHandleInheritanceChildArgument))
+        if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kCurrentPathChildArgument) ||
+            hasArgument(argc, argv, kEchoChildArgument) || hasArgument(argc, argv, kSleepChildArgument) ||
+            hasArgument(argc, argv, kExitCodeChildArgument) || hasArgument(argc, argv, kOutputChildArgument) ||
+            hasArgument(argc, argv, kDescendantChildArgument) || hasArgument(argc, argv, kHandleInheritanceChildArgument) ||
+            hasArgument(argc, argv, kStartGateChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }
 
         const TestSupport::ScopedTemporaryDirectory workspace("test_support_tests");
+
         if (!workspace.status().ok())
         {
             std::cerr << "TestSupport could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';
@@ -239,13 +277,7 @@ namespace GameWIP::Test
         }
         const std::filesystem::path &runRoot = workspace.path();
 
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
-        reportOptions.reportPath = options.reportPath;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("TestSupport library test root: {}", runRoot.string()));
@@ -256,7 +288,7 @@ namespace GameWIP::Test
                 options.enableStressTests,
                 options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
 
-        const std::string executablePath = argc > 0 && argv[0] != nullptr ? argv[0] : "";
+        const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
 
         runner.runSuite("TestSupport core", testSummaryAndTimer);
         runner.runSuite(
@@ -305,14 +337,14 @@ namespace GameWIP::Test
             });
         runner.runSuite(
             "TestSupport stress helpers",
-            [&options](TestSupport::Context &context)
+            [&options, &executablePath](TestSupport::Context &context)
             {
-                testStressHelpers(context, options);
+                testStressHelpers(context, executablePath, options);
             });
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("TestSupport library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
 
-        return runner.exitCode();
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

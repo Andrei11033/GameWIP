@@ -9,7 +9,7 @@ native state.
 
 The focused public headers are `terminal/types.h`, `terminal/style.h`,
 `terminal/input.h`, `terminal/output.h`, and `terminal/session.h`.
-`terminal/terminal.h` remains the complete convenience include.
+`terminal/terminal.h` is the complete convenience include.
 
 ## How the library is organized
 
@@ -60,9 +60,8 @@ immediate key input and line editing.
 Use @ref GameWIP::Terminal for direct operations, `Session`, factories, formatted output, buffers, and output-state RAII scopes. Use @ref
 GameWIP::Terminal::Types for streams, session policies, events, capabilities, styles, options, segments, and result types.
 
-The generated pages contain exact declarations and overloads from the
-`terminal/terminal.h` umbrella and the focused `terminal/style.h` styling
-header. The guides explain how to choose among them and cover endpoint-dependent
+The generated pages contain exact declarations and overloads from the focused
+public headers listed above. The guides explain how to choose among them and cover endpoint-dependent
 behavior, ownership, failures, concurrency, packaging, and caveats.
 
 ## Key behavior
@@ -91,8 +90,7 @@ Capability queries are snapshots; the status returned by the requested operation
 
 ## Dependency boundary
 
-The normal public umbrella is `terminal/terminal.h`; `terminal/style.h` is an independently includable focused styling header and is also included by
-the umbrella. Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
+Installed consumers link `GameWIP::Terminal`; source-tree consumers may link `Terminal`.
 
 Terminal publicly depends on IO for statuses, flush modes, and byte-write
 results. It privately reuses Unicode for strict scalar conversion and grapheme

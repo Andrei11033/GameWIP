@@ -10,6 +10,8 @@
 
 namespace GameWIP::TestSupport
 {
+    class ScopedProcessState;
+
     /// @brief Owns one unique directory beneath the process temporary directory.
     /// @details The validation runner scopes the process temporary directory to its active preset; standalone consumers use the host default.
     /// Construction is non-throwing and leaves an inert guard on failure. Destruction performs best-effort recursive cleanup.
@@ -37,14 +39,13 @@ namespace GameWIP::TestSupport
         Types::InfrastructureStatus status_; ///< Construction status.
     };
 
-    /// @brief Temporarily changes the process current directory and restores it on destruction.
-    /// @note Current-directory state is process-global; callers must coordinate overlapping use.
+    /// @brief Temporarily changes the process current directory under an owned process-state scope.
     class ScopedCurrentPath
     {
     public:
         /// @brief Captures the current directory and attempts to change it to path.
-        explicit ScopedCurrentPath(const std::filesystem::path &path) noexcept;
-        /// @brief Best-effort restores the captured current directory.
+        ScopedCurrentPath(ScopedProcessState &processState, const std::filesystem::path &path) noexcept;
+        /// @brief Restores the captured current directory if it was not changed by another party.
         ~ScopedCurrentPath() noexcept;
 
         ScopedCurrentPath(const ScopedCurrentPath &) = delete;            ///< Ownership cannot be copied.
@@ -56,10 +57,16 @@ namespace GameWIP::TestSupport
         [[nodiscard]] const std::filesystem::path &previousPath() const noexcept;
         /// @brief Returns the construction status; a failed guard performs no restoration.
         [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
+        /// @brief Restores the captured directory and reports failures or concurrent state changes.
+        [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
 
     private:
-        std::filesystem::path previousPath_; ///< Captured process current directory.
-        Types::InfrastructureStatus status_; ///< Construction status.
+        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
+        std::filesystem::path previousPath_;            ///< Captured process current directory.
+        std::filesystem::path expectedPath_;            ///< Directory expected to remain current until restoration.
+        Types::InfrastructureStatus status_;            ///< Construction status.
+        Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
+        bool restored_ = false;                         ///< True once restoration succeeds.
     };
 
     /// @brief Reads one complete file as strict UTF-8 text.

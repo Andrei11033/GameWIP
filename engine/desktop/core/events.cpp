@@ -24,8 +24,8 @@ namespace GameWIP::Desktop::Detail
             return left.index() == right.index() && isCoalescible(left);
         }
 
-        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
-        void discardAt(WindowState &state, std::size_t index) noexcept
+        /// @brief Removes one queued event while preserving FIFO order.
+        void removeAt(WindowState &state, std::size_t index) noexcept
         {
             for (std::size_t current = index; current + 1 < state.eventCount; ++current)
             {
@@ -33,11 +33,28 @@ namespace GameWIP::Desktop::Detail
             }
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
+        }
+
+        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
+        void discardAt(WindowState &state, std::size_t index) noexcept
+        {
+            removeAt(state, index);
             ++state.droppedEvents;
+        }
+
+        /// @brief Extends a queued scale transition to the latest state.
+        /// @return True when the aggregate transition returns to its starting scale and can be removed.
+        bool mergeContentScaleChanged(Types::Events::ContentScaleChanged &queued, const Types::Events::ContentScaleChanged &latest) noexcept
+        {
+            const bool noNetScaleChange = queued.previousScale == latest.scale && queued.previousDpi == latest.dpi;
+            queued.scale = latest.scale;
+            queued.dpi = latest.dpi;
+            queued.framebufferSize = latest.framebufferSize;
+            return noNetScaleChange;
         }
     } // namespace
 
-    /// @brief Returns whether a Window payload may replace a newer payload of the same type.
+    /// @brief Returns whether a Window payload may be superseded by a later payload of the same type.
     bool isCoalescible(const Types::Events::Payload &data) noexcept
     {
         using namespace Types::Events;
@@ -64,12 +81,25 @@ namespace GameWIP::Desktop::Detail
             for (std::size_t offset = state.eventCount; offset > 0; --offset)
             {
                 Types::Event &queued = state.eventStorage[physicalIndex(state, offset - 1)];
+
                 if (!isCoalescible(queued.data))
                 {
                     break;
                 }
+
                 if (sameCoalescibleType(queued.data, data))
                 {
+                    if (auto *queuedScale = std::get_if<Types::Events::ContentScaleChanged>(&queued.data))
+                    {
+                        const auto &latestScale = std::get<Types::Events::ContentScaleChanged>(data);
+
+                        if (mergeContentScaleChanged(*queuedScale, latestScale))
+                        {
+                            removeAt(state, offset - 1);
+                        }
+
+                        return EnqueueResult::Coalesced;
+                    }
                     queued.data = std::move(data);
                     return EnqueueResult::Coalesced;
                 }
@@ -79,6 +109,7 @@ namespace GameWIP::Desktop::Detail
         if (state.eventCount == state.eventStorage.size())
         {
             std::size_t replaceIndex = state.eventCount;
+
             for (std::size_t index = 0; index < state.eventCount; ++index)
             {
                 if (isCoalescible(state.eventStorage[physicalIndex(state, index)].data))
@@ -92,6 +123,7 @@ namespace GameWIP::Desktop::Detail
             {
                 replaceIndex = 0;
             }
+
             if (replaceIndex == state.eventCount)
             {
                 ++state.droppedEvents;
@@ -125,14 +157,17 @@ namespace GameWIP::Desktop::Detail
             return EnqueueResult::Coalesced;
         }
         state.interactiveMoveResizeActive = active;
+
         if (state.presentationPublication != nullptr)
         {
             state.presentationPublication->publishInteractiveMoveResizeActive(active);
         }
+
         if (active)
         {
             return enqueueEvent(state, Types::Events::InteractiveMoveResizeStarted{});
         }
+
         return enqueueEvent(state, Types::Events::InteractiveMoveResizeEnded{});
     }
 } // namespace GameWIP::Desktop::Detail
@@ -154,6 +189,7 @@ namespace GameWIP::Desktop::Events
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
+
         return Detail::Platform::pumpEvents(timeout, true);
     }
 } // namespace GameWIP::Desktop::Events

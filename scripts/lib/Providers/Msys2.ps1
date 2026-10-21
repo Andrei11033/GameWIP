@@ -8,10 +8,12 @@ function Get-GameWipMsys2ToolLatestVersion
 {
     param([hashtable]$Tool)
     $query = Get-GameWipToolLatestQuery -Tool $Tool
+
     if ($query.State -eq 'resolved')
     {
         return [string]$query.Version
     }
+
     return $null
 }
 
@@ -20,12 +22,14 @@ function Get-GameWipMsys2InstalledPackageNames
     param([Parameter(Mandatory = $true)][string]$MsysRoot)
 
     $pacman = Join-Path $MsysRoot 'usr\bin\pacman.exe'
+
     if (-not (Test-Path -LiteralPath $pacman -PathType Leaf))
     {
         return [pscustomobject]@{ State = 'missing'; Packages = @(); Reason = "MSYS2 pacman was not found at '$pacman'." }
     }
 
     $result = Invoke-GameWipProcess -FilePath $pacman -Arguments @('-Qq') -OutputMode LogOnly -TimeoutSeconds 60
+
     if ($result.ExitCode -ne 0)
     {
         return [pscustomobject]@{ State = 'unknown'; Packages = @(); Reason = 'MSYS2 pacman could not enumerate installed packages.' }
@@ -43,6 +47,7 @@ function Get-GameWipMsys2ToolDependencyStatus
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
 
     $installed = Get-GameWipMsys2InstalledPackageNames -MsysRoot ([string]$ProjectConfig.managedEnvironment.msys2Root)
+
     foreach ($dependency in @($Tool.provider.dependencies))
     {
         $package = [string]$dependency.package
@@ -88,6 +93,7 @@ function Install-GameWipMsys2Tool
     param([hashtable]$Tool, [AllowNull()][string]$Version)
     $null = $Version
     $bash = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'usr\bin\bash.exe'
+
     if (-not (Test-Path -LiteralPath $bash))
     {
         throw 'MSYS2 is not installed; run setup.bat repair.'

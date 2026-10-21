@@ -28,6 +28,11 @@ function(gamewip_create_coverage_target)
             "${PROJECT_SOURCE_DIR}"
             --merge-mode-functions
             merge-use-line-min
+            --exclude
+            "${PROJECT_SOURCE_DIR}/external"
+            "${CMAKE_BINARY_DIR}"
+        )
+        set(gamewip_coverage_library_args
             --filter
             "${PROJECT_SOURCE_DIR}/foundation/base"
             --filter
@@ -46,19 +51,24 @@ function(gamewip_create_coverage_target)
             "${PROJECT_SOURCE_DIR}/tools/test_support"
             --filter
             "${PROJECT_SOURCE_DIR}/engine/desktop"
-            --filter
-            "${PROJECT_SOURCE_DIR}/game/validation/tests"
-            --exclude
-            "${PROJECT_SOURCE_DIR}/external"
-            "${CMAKE_BINARY_DIR}"
         )
 
         add_custom_target(
             coverage
             COMMAND ${CMAKE_COMMAND} -E rm -rf "${GAMEWIP_COVERAGE_OUTPUT_DIR}"
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${GAMEWIP_COVERAGE_OUTPUT_DIR}"
-            COMMAND "${GAMEWIP_GCOVR_EXECUTABLE}" ${gamewip_coverage_common_args} --html-details --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/index.html"
-            COMMAND "${GAMEWIP_GCOVR_EXECUTABLE}" ${gamewip_coverage_common_args} --xml-pretty --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/coverage.xml"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${GAMEWIP_COVERAGE_OUTPUT_DIR}/tests"
+            COMMAND
+                "${GAMEWIP_GCOVR_EXECUTABLE}" ${gamewip_coverage_common_args} ${gamewip_coverage_library_args} --html-details --output
+                "${GAMEWIP_COVERAGE_OUTPUT_DIR}/index.html"
+            COMMAND
+                "${GAMEWIP_GCOVR_EXECUTABLE}" ${gamewip_coverage_common_args} ${gamewip_coverage_library_args} --xml-pretty --output
+                "${GAMEWIP_COVERAGE_OUTPUT_DIR}/coverage.xml"
+            COMMAND
+                "${GAMEWIP_GCOVR_EXECUTABLE}" ${gamewip_coverage_common_args} --filter "${PROJECT_SOURCE_DIR}/game/validation/tests" --html-details
+                --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/tests/index.html"
+            COMMAND
+                "${GAMEWIP_GCOVR_EXECUTABLE}" ${gamewip_coverage_common_args} --filter "${PROJECT_SOURCE_DIR}/game/validation/tests" --xml-pretty
+                --output "${GAMEWIP_COVERAGE_OUTPUT_DIR}/tests/coverage.xml"
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
             COMMENT "Generating GameWIP coverage reports"
             VERBATIM

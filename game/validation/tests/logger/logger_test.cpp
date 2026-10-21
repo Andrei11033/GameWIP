@@ -2,10 +2,13 @@
 /// @brief Executable self-tests for the Logger library.
 
 #include "validation/tests/logger/logger_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
+#include "validation/tests/runner_helpers.h"
 #include "test_support/test_support.h"
 #include "unicode/unicode.h"
 
@@ -43,13 +46,34 @@
 #include <windows.h>
 #endif
 
+struct LoggerFormatProbe
+{
+    int value = 0;
+    std::atomic<std::size_t> *formatCount = nullptr;
+};
+
+namespace std
+{
+    template <> struct formatter<LoggerFormatProbe, char> : formatter<int, char>
+    {
+        template <typename FormatContext> auto format(const LoggerFormatProbe &probe, FormatContext &context) const
+        {
+            if (probe.formatCount != nullptr)
+            {
+                probe.formatCount->fetch_add(1, memory_order_relaxed);
+            }
+
+            return formatter<int, char>::format(probe.value, context);
+        }
+    };
+} // namespace std
+
 namespace
 {
     namespace Logger = GameWIP::Logger;
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
-    using LoggerTestOptions = GameWIP::Test::LoggerTestOptions;
-    using Clock = std::chrono::steady_clock;
+    using GameWIP::Test::LoggerTestOptions;
     using namespace std::chrono_literals;
 
     constexpr std::string_view kTestSource = "LoggerTest";
@@ -64,6 +88,15 @@ namespace
         Unknown = 99
     };
 
+    enum class SignedSource : int
+    {
+        Core = 1
+    };
+
+    static_assert(Logger::SourceEnum<TestSource>);
+    static_assert(!Logger::SourceEnum<SignedSource>);
+    static_assert(!Logger::SourceEnum<Logger::Types::Level>);
+
     struct TestContext
     {
         explicit TestContext(TestSupport::Context &context) noexcept
@@ -72,12 +105,18 @@ namespace
         }
 
         TestSupport::Context &testContext;
+        TestSupport::ScopedProcessState processState;
         std::filesystem::path logRoot;
-        std::string executablePath;
+        std::filesystem::path executablePath;
+        TestSupport::Types::Reporting::Summary manualObservations;
 
         void pass(std::string_view name)
         {
             testContext.pass(name);
+        }
+        void skip(std::string_view name, std::string_view reason)
+        {
+            testContext.skip(name, reason);
         }
         void fail(std::string_view name, std::string_view details)
         {
@@ -176,6 +215,7 @@ namespace
     [[nodiscard]] std::filesystem::path loggerLogFilePath(TestContext &context)
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
+
         if (!result.status.ok())
         {
             context.fail(
@@ -183,17 +223,20 @@ namespace
                 std::format("code={} native={}", static_cast<int>(result.status.code), result.status.nativeCode));
             return {};
         }
+
         return pathFromText(result.utf8);
     }
 
     [[nodiscard]] std::string readWholeFile(TestContext &context, const std::filesystem::path &path)
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
+
         if (!result.status.ok())
         {
             context.fail("read Logger log fixture", TestSupport::formatInfrastructureStatus(result.status));
             return {};
         }
+
         return std::move(result.text);
     }
 
@@ -201,10 +244,12 @@ namespace
     {
         std::filesystem::path directory = context.logRoot / std::string(name);
         const auto status = TestSupport::createDirectories(directory);
+
         if (!status.ok())
         {
             context.fail("create Logger test directory", TestSupport::formatInfrastructureStatus(status));
         }
+
         return directory;
     }
 
@@ -267,18 +312,17 @@ namespace GameWIP::Test
 
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {
+        if (hasArgument(argc, argv, "--logger-test-child=report-no-drain"))
+        {
+            return runReportNoDrainChild();
+        }
+
         if (hasArgument(argc, argv, kFatalTerminateChildArgument))
         {
             return runFatalTerminateChild();
         }
 
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
-        reportOptions.reportPath = options.reportPath;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         const TestSupport::Types::Reporting::SuiteResult suite = runner.runSuite(
@@ -286,7 +330,14 @@ namespace GameWIP::Test
             [&](TestSupport::Context &suiteContext)
             {
                 TestContext context(suiteContext);
+
+                if (!context.processState.status().ok())
+                {
+                    context.fail("acquire Logger process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
+                    return;
+                }
                 const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
+
                 if (!workspace.status().ok())
                 {
                     context.fail("create Logger test workspace", TestSupport::formatInfrastructureStatus(workspace.status()));
@@ -294,8 +345,9 @@ namespace GameWIP::Test
                 }
 
                 context.logRoot = workspace.path();
-                context.executablePath = argc > 0 && argv[0] != nullptr ? std::filesystem::absolute(argv[0]).string() : std::string{};
-                const TestSupport::ScopedCurrentPath currentPath(workspace.path());
+                context.executablePath = GameWIP::Validation::currentExecutablePath();
+                const TestSupport::ScopedCurrentPath currentPath(context.processState, workspace.path());
+
                 if (!currentPath.status().ok())
                 {
                     context.fail("set Logger test working directory", TestSupport::formatInfrastructureStatus(currentPath.status()));
@@ -326,6 +378,13 @@ namespace GameWIP::Test
                     });
                 runCase(
                     context,
+                    "filtered formatted registered source",
+                    [&]
+                    {
+                        testFilteredFormattedRegisteredSource(context);
+                    });
+                runCase(
+                    context,
                     "filter statuses and concurrency",
                     [&]
                     {
@@ -343,7 +402,7 @@ namespace GameWIP::Test
                     "report does not drain async backlog",
                     [&]
                     {
-                        testReportDoesNotDrainAsyncBacklog(context);
+                        testReportDoesNotDrainAsyncBacklog(context, options);
                     });
                 runCase(
                     context,
@@ -387,6 +446,16 @@ namespace GameWIP::Test
                     {
                         testManualFatalPopup(context, options);
                     });
+
+                if (options.enableManualTests)
+                {
+                    context.testContext.summary(
+                        std::format(
+                            "Logger manual observations passed={} failed={} skipped={} (excludes setup assertions)",
+                            context.manualObservations.passed,
+                            context.manualObservations.failed,
+                            context.manualObservations.skipped));
+                }
                 static_cast<void>(Logger::shutdown());
             });
 
@@ -398,6 +467,6 @@ namespace GameWIP::Test
                 suite.summary.skipped,
                 suite.elapsedMilliseconds));
         static_cast<void>(Logger::shutdown());
-        return runner.exitCode();
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

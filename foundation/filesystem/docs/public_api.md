@@ -77,6 +77,18 @@ See @ref filesystem_file_open_modes and @ref filesystem_symlink_policies for ope
 
 Unknown enum values and invalid option combinations return `InvalidArgument`.
 
+### Shared option fields
+
+| Field | Meaning (defaults in parentheses) |
+| --- | --- |
+| `maxBytes` | Hard accepted-size limit for whole-file reads, not truncation (`IO::kNoByteLimit`). See @ref filesystem_whole_file_io. |
+| `bufferSize` | Internal transfer-buffer size; must be nonzero; does not limit the result (`IO::kDefaultBufferSize`). |
+| `flushMode` | `IO::Types::FlushMode` requested after the payload and before close; for atomic writes, on the temporary file before commit (`None`; atomic `Data`). |
+| `flushOnClose` | Flush performed by explicit `close()` on handle options; non-`None` requires write access (`None`). |
+| `replaceMode` | `FailIfExists` or `ReplaceExisting` destination conflict policy (copy/move `FailIfExists`; atomic `ReplaceExisting`). |
+| `metadataMode` | `CopyMetadataMode` applied to copy: `None` for contents only, `Basic` for last-write time and read-only state (`None`). |
+| `createParentDirectories` | Creates missing parents of the opened or destination path first (open, copy, move `false`; write, append, atomic `true`). |
+
 ## Metadata and result structures
 
 - `EntryInfo`: `kind`, optional `sizeBytes`/`hasSize`, optional `lastWriteTime`/`hasLastWriteTime`, and portable `readOnly` state.

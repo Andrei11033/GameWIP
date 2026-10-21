@@ -6,7 +6,7 @@ It defines status and result types, abstract reader and writer interfaces, memor
 transfers and strict UTF-8 text transfers. IO does not open operating-system resources and has no platform backend.
 
 The public headers follow those boundaries: `io/status.h`, `io/stream.h`,
-`io/memory.h`, and `io/transfer.h`. `io/io.h` remains the complete convenience
+`io/memory.h`, and `io/transfer.h`. `io/io.h` is the complete convenience
 include. Either form exposes identical contracts and runtime behavior.
 
 ## How the library is organized
@@ -51,13 +51,13 @@ backend implementations must preserve, and which caveats affect callers.
 
 - `Reader` and `Writer` are movable, non-copyable byte-transfer interfaces.
 - Optional capabilities use statuses rather than separate interface hierarchies.
-- `MemoryReader` is a non-owning, seekable view over stable caller-owned storage.
+- `MemoryReader` is a seekable view that borrows stable caller-owned storage.
 - `MemoryWriter` owns append-only storage that can be inspected, reused, or transferred.
 - Checked interface and helper operations are `noexcept`; expected failures are returned through status-bearing results.
 - Whole-stream read helpers optimize readers that report both size and position.
 - Unknown-size reads enforce hard byte limits and support reusable caller-owned scratch storage.
 - Whole-stream write helpers retry successful short writes and preserve progress reported with a later failure.
-- Text helpers enforce strict UTF-8, preserve embedded NUL, and perform no normalization, BOM transformation, or parsing.
+- Text helpers enforce strict UTF-8 (@ref io_utf8_policy).
 
 ## Dependency boundary
 

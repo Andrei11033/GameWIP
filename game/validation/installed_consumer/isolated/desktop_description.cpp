@@ -3,4 +3,4 @@
 
 #include "desktop/description.h"
 
-static_assert(GameWIP::Desktop::Types::ModeRequest{}.mode == GameWIP::Desktop::Types::Mode::Windowed);
+static_assert(std::holds_alternative<GameWIP::Desktop::Types::WindowedModeRequest>(GameWIP::Desktop::Types::WindowModes::windowed()));

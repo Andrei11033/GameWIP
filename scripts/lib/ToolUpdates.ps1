@@ -25,10 +25,12 @@ function Get-GameWipRepositoryRelativePath
         [StringComparison]::Ordinal
     }
     $prefix = $rootPath + [IO.Path]::DirectorySeparatorChar
+
     if ($fullPath.StartsWith($prefix, $comparison))
     {
         return $fullPath.Substring($prefix.Length).Replace('\', '/')
     }
+
     return $fullPath
 }
 
@@ -36,6 +38,7 @@ function Get-GameWipRepositoryRelativePath
 function Get-GameWipToolUpdatePlan
 {
     param([string[]]$ToolId)
+
     if ($null -eq $ToolId -or $ToolId.Count -eq 0 -or ($ToolId.Count -eq 1 -and [string]::IsNullOrWhiteSpace($ToolId[0])))
     {
         $ToolId = @('all')
@@ -45,6 +48,7 @@ function Get-GameWipToolUpdatePlan
     # tool selected twice still belongs to this one update plan only once.
     $selected = [System.Collections.Generic.List[object]]::new()
     $selectedIds = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
     foreach ($selector in $ToolId)
     {
         foreach ($tool in @(Get-GameWipProjectToolSelection -Selector $selector))
@@ -58,6 +62,7 @@ function Get-GameWipToolUpdatePlan
 
     $plan = [System.Collections.Generic.List[object]]::new()
     Write-Host "Checking $($selected.Count) declared tool(s) for upstream versions..."
+
     for ($toolIndex = 0; $toolIndex -lt $selected.Count; ++$toolIndex)
     {
         $toolInfo = $selected[$toolIndex]
@@ -72,12 +77,14 @@ function Get-GameWipToolUpdatePlan
         $query = Get-GameWipToolLatestQuery -Tool $toolInfo
         $dependencyQueries = @{}
         $latestDependencies = @{}
+
         if ($toolInfo.provider.kind -eq 'npm' -and $toolInfo.provider.Contains('dependencies'))
         {
             foreach ($dependency in @($toolInfo.provider.dependencies))
             {
                 $dependencyQuery = Get-GameWipNpmPackageLatestQuery -Package ([string]$dependency.package)
                 $dependencyQueries[[string]$dependency.package] = $dependencyQuery
+
                 if ($dependencyQuery.State -eq 'resolved')
                 {
                     $latestDependencies[[string]$dependency.package] = $dependencyQuery.Version
@@ -95,6 +102,7 @@ function Get-GameWipToolUpdatePlan
                 ReleaseMetadata = $query.Metadata
             }) | Out-Null
     }
+
     return @($plan)
 }
 
@@ -104,6 +112,7 @@ function Show-GameWipToolUpdatePlan
     Write-Host ('  {0,-20} {1,-13} {2,-13} {3,-20} {4}' -f 'Tool', 'Requirement', 'Installed', 'Latest', 'Provider')
     Write-Host ('  {0,-20} {1,-13} {2,-13} {3,-20} {4}' -f ('-' * 20), ('-' * 13), ('-' * 13), ('-' * 20), ('-' * 18))
     $details = [System.Collections.Generic.List[string]]::new()
+
     foreach ($item in $Plan)
     {
         $required = if ($item.Tool.Contains('requiredVersion'))
@@ -132,14 +141,17 @@ function Show-GameWipToolUpdatePlan
         {
             'missing'
         }
+
         if ($required.Length -gt 13)
         {
             $required = $required.Substring(0, 10) + '...'
         }
+
         if ($installedDisplay.Length -gt 13)
         {
             $installedDisplay = $installedDisplay.Substring(0, 10) + '...'
         }
+
         if ($latestDisplay.Length -gt 20)
         {
             $latestDisplay = $latestDisplay.Substring(0, 17) + '...'
@@ -154,6 +166,7 @@ function Show-GameWipToolUpdatePlan
             {
                 -not [string]::IsNullOrWhiteSpace([string]$item.Installed) -and [string]$item.Latest -ne [string]$item.Installed
             }
+
             if ($hasActionableDifference)
             {
                 'Accent'
@@ -173,6 +186,7 @@ function Show-GameWipToolUpdatePlan
         }
 
         Write-Host ('  {0,-20} {1,-13} ' -f $item.Tool.id, $required) -NoNewline
+
         if ($installedDisplay -eq 'missing')
         {
             Write-GameWipSemanticText -Object ('{0,-13}' -f $installedDisplay) -Semantic Failure -NoNewline
@@ -184,6 +198,7 @@ function Show-GameWipToolUpdatePlan
         Write-Host ' ' -NoNewline
         Write-GameWipSemanticText -Object ('{0,-20}' -f $latestDisplay) -Semantic $latestSemantic -NoNewline
         Write-Host (' {0}' -f $item.Tool.provider.kind)
+
         if (-not [string]::IsNullOrWhiteSpace([string]$item.Query.Reason))
         {
             $details.Add("$($item.Tool.id): $($item.Query.Reason)") | Out-Null
@@ -196,6 +211,7 @@ function Show-GameWipToolUpdatePlan
         {
             @()
         }
+
         foreach ($dependency in $dependencies)
         {
             if (-not $dependency.Contains('version'))
@@ -206,10 +222,12 @@ function Show-GameWipToolUpdatePlan
             $details.Add("$($item.Tool.id) dependency $($dependency.package): required=$($dependency.version), latest=$(if ($dependencyQuery.State -eq 'resolved') { $dependencyQuery.Version } else { $dependencyQuery.State })") | Out-Null
         }
     }
+
     if ($details.Count -ne 0)
     {
         Write-Host ''
         Write-Host '  Query details:'
+
         foreach ($detail in $details)
         {
             Write-Host "    - $detail"
@@ -224,14 +242,17 @@ function Show-GameWipToolUpdatePlan
 function Get-GameWipReferenceTexts
 {
     param([hashtable]$Reference, [string]$OldVersion, [string]$NewVersion)
+
     if ($Reference.kind -eq 'path')
     {
         return $null
     }
+
     if ($Reference.kind -eq 'cmakeMinimum')
     {
         return [pscustomobject]@{ Old = "cmake_minimum_required(VERSION $OldVersion)"; New = "cmake_minimum_required(VERSION $NewVersion)" }
     }
+
     if ($Reference.kind -eq 'text')
     {
         $pattern = [string]$Reference.pattern
@@ -252,20 +273,24 @@ function Get-GameWipTrackedToolMutationPlan
     foreach ($item in $Plan)
     {
         $tool = $item.Tool
+
         if (-not $tool.capabilities.update)
         {
             continue
         }
+
         if ($tool.capabilities.checkLatest -and $item.Query.State -notin @('resolved', 'unsupported'))
         {
             throw (New-GameWipDiagnosticException -Code 'tool-query-incomplete' -Summary "Unable to resolve the complete update plan for '$($tool.id)'." -Details "$($item.Query.State): $($item.Query.Reason)" -SuggestedActions @('Retry after restoring provider/network availability.', 'Use tools check-updates to inspect provider state without mutation.'))
         }
+
         if ($tool.capabilities.checkLatest -and $item.Query.State -eq 'unsupported' -and $tool.versionPolicy -eq 'exact')
         {
             throw "Exact-version tool '$($tool.id)' cannot be updated without a resolved latest version."
         }
 
         $registryTool = @($registry.tools | Where-Object { $_.id -eq $tool.id } | Select-Object -First 1)
+
         if ($registryTool.Count -ne 1)
         {
             throw "Tool '$($tool.id)' disappeared from staged project-tools.json."
@@ -276,6 +301,7 @@ function Get-GameWipTrackedToolMutationPlan
         {
             $oldVersion = [string]$tool.requiredVersion
             $newVersion = [string]$item.Latest
+
             foreach ($reference in @($tool.references))
             {
                 if ($reference.kind -eq 'path')
@@ -301,6 +327,7 @@ function Get-GameWipTrackedToolMutationPlan
                     1
                 }
                 $count = [regex]::Matches($current, [regex]::Escape($texts.Old)).Count
+
                 if ($count -ne $expectedCount)
                 {
                     throw "Live version reference '$($reference.path)' expected $expectedCount exact match(es), found $count."
@@ -317,6 +344,7 @@ function Get-GameWipTrackedToolMutationPlan
             $descriptions.Add("scripts/config/project-tools.json: $($tool.id).requiredVersion $oldVersion -> $newVersion") | Out-Null
             $registryTool.requiredVersion = $newVersion
             $updatedToolIds[[string]$tool.id] = $true
+
             if ($tool.provider.kind -eq 'githubRelease')
             {
                 if ($item.Query.State -ne 'resolved' -or $null -eq $item.ReleaseMetadata)
@@ -325,6 +353,7 @@ function Get-GameWipTrackedToolMutationPlan
                 }
                 $oldReleaseTag = [string]$registryTool.provider.releaseTag
                 $newReleaseTag = [string]$item.ReleaseMetadata.Tag
+
                 if ($oldReleaseTag -ne $newReleaseTag)
                 {
                     $registryMutations.Add(@{
@@ -336,17 +365,21 @@ function Get-GameWipTrackedToolMutationPlan
                     $descriptions.Add("scripts/config/project-tools.json: $($tool.id).provider.releaseTag $oldReleaseTag -> $newReleaseTag") | Out-Null
                 }
                 $registryTool.provider.releaseTag = $item.ReleaseMetadata.Tag
+
                 foreach ($key in @($tool.provider.assets.Keys))
                 {
                     $plannedAsset = $item.ReleaseMetadata.Assets[$key]
+
                     if ($null -eq $plannedAsset)
                     {
                         throw "Planned release metadata for '$($tool.id)' is missing '$key'."
                     }
+
                     foreach ($field in @('archive', 'sha256'))
                     {
                         $oldAssetValue = [string]$registryTool.provider.assets[$key][$field]
                         $newAssetValue = [string]$plannedAsset[$field]
+
                         if ($oldAssetValue -ne $newAssetValue)
                         {
                             $registryMutations.Add(@{
@@ -373,11 +406,13 @@ function Get-GameWipTrackedToolMutationPlan
                     continue
                 }
                 $package = [string]$dependency.package
+
                 if (-not $item.LatestDependencies.ContainsKey($package))
                 {
                     continue
                 }
                 $newDependencyVersion = [string]$item.LatestDependencies[$package]
+
                 if ($newDependencyVersion -ne [string]$dependency.version)
                 {
                     $oldDependencyVersion = [string]$dependency.version
@@ -398,6 +433,7 @@ function Get-GameWipTrackedToolMutationPlan
     if ($registryMutations.Count -ne 0)
     {
         $node = Resolve-GameWipToolCommand -Command 'node'
+
         if ([string]::IsNullOrWhiteSpace([string]$node))
         {
             throw 'Node.js is required to stage source-preserving project-tools.json mutations, but node could not be resolved through project-tool discovery.'
@@ -416,6 +452,7 @@ function Get-GameWipTrackedToolMutationPlan
         [IO.File]::WriteAllText($mutationSpecification, (($mutationData | ConvertTo-Json -Depth 30) + "`n"), [Text.UTF8Encoding]::new($false))
         $mutator = Join-Path $ScriptsRoot 'lib\project-tools-json-mutator.js'
         $mutationResult = Invoke-GameWipProcess -FilePath $node -Arguments @($mutator, $ProjectToolsPath, $mutationSpecification, $temporaryRegistry) -OutputMode LogOnly -TimeoutSeconds 60
+
         if ($mutationResult.ExitCode -ne 0)
         {
             throw "The source-preserving project-tools.json mutation failed. See $($mutationResult.LogPath)"
@@ -423,11 +460,13 @@ function Get-GameWipTrackedToolMutationPlan
         $stagedRegistryText = Read-GameWipUtf8Text -Path $temporaryRegistry
         $stagedRegistry = Read-GameWipJsonConfig -Path $temporaryRegistry -Name 'staged project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
         $previousProjectTools = $Script:ProjectTools
+
         try
         {
             $Script:ProjectTools = $stagedRegistry
             Assert-GameWipProjectToolConfig
         }
+
         finally
         {
             $Script:ProjectTools = $previousProjectTools
@@ -454,10 +493,12 @@ function Get-GameWipPlannedInstallTool
     param([Parameter(Mandatory = $true)]$PlanItem, [Parameter(Mandatory = $true)]$TrackedPlan)
     $tool = Copy-GameWipValue -Value $PlanItem.Tool
     $registryTool = @($TrackedPlan.Registry.tools | Where-Object { $_.id -eq $tool.id } | Select-Object -First 1)
+
     if ($registryTool.Count -eq 1)
     {
         return Copy-GameWipValue -Value $registryTool[0]
     }
+
     return $tool
 }
 
@@ -465,20 +506,24 @@ function Test-GameWipToolPlanRequiresInstall
 {
     param([Parameter(Mandatory = $true)]$PlanItem, [Parameter(Mandatory = $true)]$TrackedPlan)
     $toolId = [string]$PlanItem.Tool.id
+
     if ($TrackedPlan.UpdatedToolIds.ContainsKey($toolId))
     {
         return $true
     }
     $installTool = Get-GameWipPlannedInstallTool -PlanItem $PlanItem -TrackedPlan $TrackedPlan
     $currentStatus = Get-GameWipToolStatus -Tool $installTool
+
     if (-not $currentStatus.Ready)
     {
         return $true
     }
+
     if (-not (Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $currentStatus.Detected))
     {
         return $true
     }
+
     return (
         $PlanItem.Query.State -eq 'resolved' -and
         -not [string]::IsNullOrWhiteSpace([string]$PlanItem.Latest) -and
@@ -498,6 +543,7 @@ function Invoke-GameWipToolInstallPlan
         return
     }
     Initialize-GameWipManagedToolRoot
+
     foreach ($item in $InstallPlan)
     {
         Assert-GameWipNotCancelled
@@ -516,6 +562,7 @@ function Invoke-GameWipToolInstallPlan
         $verifiedStatus = Get-GameWipToolStatus -Tool $installTool
         $verified = $verifiedStatus.Detected
         $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified
+
         if (-not $verifiedStatus.Ready -or -not $providerOk)
         {
             $dependencyDetails = @($verifiedStatus.DependencyFailures | ForEach-Object { "$($_.Package): $($_.State)" })
@@ -539,10 +586,12 @@ function Invoke-GameWipTrackedToolMutation
 
     $originalTrackedContent = @{}
     $writtenTrackedPaths = [System.Collections.Generic.List[string]]::new()
+
     foreach ($entry in $TrackedPlan.Files.GetEnumerator())
     {
         $originalTrackedContent[[string]$entry.Key] = Read-GameWipUtf8Text -Path ([string]$entry.Key)
     }
+
     try
     {
         foreach ($entry in $TrackedPlan.Files.GetEnumerator())
@@ -553,6 +602,7 @@ function Invoke-GameWipTrackedToolMutation
             Add-GameWipOperationChange -Message "Updated tracked file $(Get-GameWipRepositoryRelativePath -Path ([string]$entry.Key))"
         }
     }
+
     catch
     {
         # Restore in reverse order so a partial plan leaves the tracked tree as it was.
@@ -568,6 +618,7 @@ function Invoke-GameWipTrackedToolMutation
 function Invoke-GameWipToolUpdate
 {
     param([string[]]$ToolId, [switch]$PreviewOnly)
+
     if ($null -eq $ToolId -or $ToolId.Count -eq 0 -or ($ToolId.Count -eq 1 -and [string]::IsNullOrWhiteSpace($ToolId[0])))
     {
         $ToolId = @('all')
@@ -579,9 +630,11 @@ function Invoke-GameWipToolUpdate
 
     Write-GameWipSection "Tool update plan$(if ($PreviewOnly -or ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)) { ' (preview)' } else { '' })"
     Show-GameWipToolUpdatePlan -Plan $plan
+
     if ($trackedPlan.Descriptions.Count -ne 0)
     {
         Write-Host '  Tracked mutations:'
+
         foreach ($description in $trackedPlan.Descriptions)
         {
             Write-Host "    - $description"
@@ -599,13 +652,15 @@ function Invoke-GameWipToolUpdate
     $installPlan = @($plan | Where-Object {
             $_.Tool.capabilities.update -and (Test-GameWipToolPlanRequiresInstall -PlanItem $_ -TrackedPlan $trackedPlan)
         })
+
     if ($installPlan.Count -eq 0 -and $trackedPlan.Files.Count -eq 0)
     {
         Write-Host 'All selected tools and tracked declarations are already current.'
         return
     }
     Assert-GameWipCleanTrackedTree
-    $planLines = @($installPlan | ForEach-Object { "$($_.Tool.id): install/verify $(if ($_.Latest) { $_.Latest } elseif ($_.Tool.Contains('requiredVersion')) { $_.Tool.requiredVersion } else { 'provider-managed version' })" }) + @($trackedPlan.Descriptions)
+    $planLines = @($installPlan | ForEach-Object { "$($_.Tool.id): install/verify $(if ($_.Latest) { $_.Latest } elseif ($_.Tool.Contains('requiredVersion')) { $_.Tool.requiredVersion } else { 'provider-managed version' })" }) + @($trackedPlan.Descriptions) + @('Format maintained files with the updated tools, then run the quality gate.')
+
     if (-not (Confirm-GameWipMutation -Summary 'Apply the complete project-tool update plan?' -Risk machine -Plan $planLines))
     {
         Write-Host 'Project-tool update cancelled; no changes were made.'
@@ -622,8 +677,8 @@ function Invoke-GameWipToolUpdate
             Assert-GameWipProjectToolConfig
         }
 
-        Write-GameWipOperationEvent -Phase verify -Severity info -Message 'Running the complete quality gate after the update...'
-        Invoke-GameWipQuality -Mode check
+        Write-GameWipOperationEvent -Phase verify -Severity info -Message 'Reformatting with the updated tools, then running the complete quality gate...'
+        Invoke-GameWipQuality -Mode fix
         Invoke-GameWipNative -Name 'git-status-after-tool-update' -FilePath 'git' -Arguments @('-C', $RepositoryRoot, 'status', '--short')
     }
 }
@@ -631,16 +686,19 @@ function Invoke-GameWipToolUpdate
 function Assert-GameWipPinnedToolAvailable
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
     if ($Tool.versionPolicy -ne 'exact' -or -not $Tool.Contains('requiredVersion'))
     {
         return
     }
     $version = [string]$Tool.requiredVersion
+
     switch ([string]$Tool.provider.kind)
     {
         'python'
         {
             $result = Invoke-GameWipHttpJson -Uri "https://pypi.org/pypi/$($Tool.provider.package)/$version/json" -MaxAttempts 3 -TimeoutSeconds 20
+
             if ($result.State -ne 'resolved')
             {
                 throw "Pinned Python package '$($Tool.provider.package)==$version' is unavailable: $($result.Reason)"
@@ -649,15 +707,18 @@ function Assert-GameWipPinnedToolAvailable
         'npm'
         {
             $npm = Resolve-GameWipToolCommand -Command npm
+
             if ($null -eq $npm)
             {
                 throw "npm is unavailable while preflighting '$($Tool.id)'."
             }
             $query = Invoke-GameWipToolQueryProcess -FilePath $npm -Arguments @('view', "$($Tool.provider.package)@$version", 'version') -Provider npm
+
             if ($query.State -ne 'process' -or $query.Output.Trim() -ne $version)
             {
                 throw "Pinned npm package '$($Tool.provider.package)@$version' is unavailable."
             }
+
             foreach ($dependency in $(if ($Tool.provider.Contains('dependencies'))
                     {
                         @($Tool.provider.dependencies)
@@ -668,6 +729,7 @@ function Assert-GameWipPinnedToolAvailable
                     }))
             {
                 $depQuery = Invoke-GameWipToolQueryProcess -FilePath $npm -Arguments @('view', "$($dependency.package)@$($dependency.version)", 'version') -Provider npm
+
                 if ($depQuery.State -ne 'process')
                 {
                     throw "Pinned npm dependency '$($dependency.package)@$($dependency.version)' is unavailable."
@@ -679,11 +741,13 @@ function Assert-GameWipPinnedToolAvailable
             try
             {
                 $versions = @(Get-GameWipPowerShellGalleryVersions -Package ([string]$Tool.provider.package))
+
                 if ($versions -notcontains $version)
                 {
                     throw "Gallery metadata does not list version $version."
                 }
             }
+
             catch
             {
                 throw "Pinned PowerShell Gallery module '$($Tool.provider.package) $version' is unavailable: $($_.Exception.Message)"
@@ -703,15 +767,18 @@ function Invoke-GameWipToolEnsure
 {
     param([string]$Selector = 'all', [switch]$ConsentAlreadyGranted)
     $selected = @(Get-GameWipProjectToolSelection -Selector $Selector)
+
     if (-not (Test-GameWipWindowsHost))
     {
         $hostManaged = @($selected | Where-Object { $_.provider.kind -in @('msys2', 'winget') })
+
         foreach ($tool in $hostManaged)
         {
             Write-Verbose "Skipping Windows-managed provider '$($tool.id)' on this host; the runner/package image owns it."
         }
         $selected = @($selected | Where-Object { $_.provider.kind -notin @('msys2', 'winget') })
     }
+
     foreach ($tool in @($selected | Where-Object { -not $_.capabilities.detectInstalled -or -not $_.capabilities.update }))
     {
         Write-Verbose "Skipping non-installable tool '$($tool.id)' during ensure; its lifecycle is owned by setup, repository state, or an external source."
@@ -730,10 +797,12 @@ function Invoke-GameWipToolEnsure
             -DisplayStatus
     }
     $statuses = @{}
+
     foreach ($status in @($toolchain.Results))
     {
         $statuses[[string]$status.Tool.id] = $status
     }
+
     foreach ($tool in $selected)
     {
         $toolStatus = $statuses[[string]$tool.id]
@@ -759,6 +828,7 @@ function Invoke-GameWipToolEnsure
         }
         $needsInstall = $action -ne 'ready'
         $plan.Add([pscustomobject]@{ Tool = $tool; Status = $toolStatus; Detected = $detected; Compatibility = $compatibility; ProviderOk = $providerOk; Action = $action; NeedsInstall = $needsInstall }) | Out-Null
+
         if ($needsInstall)
         {
             Assert-GameWipPinnedToolAvailable -Tool $tool
@@ -766,6 +836,7 @@ function Invoke-GameWipToolEnsure
     }
 
     Write-GameWipSection "Tool install plan: $Selector"
+
     foreach ($item in $plan)
     {
         $stateSemantic = if ($item.Action -eq 'ready')
@@ -791,12 +862,14 @@ function Invoke-GameWipToolEnsure
         Write-GameWipSemanticText -Object $location -Semantic Muted
     }
     $needed = @($plan | Where-Object { $_.NeedsInstall })
+
     if ($needed.Count -eq 0)
     {
         Write-GameWipSemanticText -Object 'All selected tools' -Semantic Success -NoNewline
         Write-Host ' already satisfy the declared policy.'
         return
     }
+
     if ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)
     {
         return
@@ -810,16 +883,19 @@ function Invoke-GameWipToolEnsure
     {
         'local'
     }
+
     if (-not $ConsentAlreadyGranted -and -not (Confirm-GameWipMutation -Summary "Install/update $($needed.Count) selected tool(s) without changing repository pins?" -Risk $risk -Plan @($needed | ForEach-Object { "$($_.Action) $($_.Tool.id): declared $($_.Tool.versionPolicy) version" })))
     {
         return
     }
     Invoke-GameWipMutationBody -Body {
         Initialize-GameWipManagedToolRoot
+
         foreach ($item in $needed)
         {
             Assert-GameWipNotCancelled
             $tool = $item.Tool
+
             if (-not (Test-GameWipWindowsHost) -and $tool.provider.kind -in @('msys2', 'winget'))
             {
                 throw "Tool '$($tool.id)' uses Windows provider '$($tool.provider.kind)' and must be provisioned by the runner image/package manager."
@@ -836,6 +912,7 @@ function Invoke-GameWipToolEnsure
             & $functionName -Tool $tool -Version $version
             $verifiedStatus = Get-GameWipToolStatus -Tool $tool
             $verified = $verifiedStatus.Detected
+
             if (-not $verifiedStatus.Ready)
             {
                 throw "Tool '$($tool.id)' is '$($verifiedStatus.State)' after ensure: $($verifiedStatus.Failures -join '; ')"

@@ -9,8 +9,20 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
     const std::filesystem::path finalFileLink = root / "symlinks" / "final-file-link";
     const std::filesystem::path intermediateDirectoryLink = root / "symlinks" / "intermediate-directory-link";
 
-    static_cast<void>(context.expectTrue("symlink fixture directory creation succeeds", TestSupport::createDirectories(targetDirectory).ok()));
-    static_cast<void>(context.expectTrue("symlink fixture file write succeeds", TestSupport::writeTextFile(targetFile, "payload").ok()));
+    const auto directorySetup = TestSupport::createDirectories(targetDirectory);
+
+    if (!context.expectTrue("symlink fixture directory creation succeeds", directorySetup.ok()))
+    {
+        context.info(TestSupport::formatInfrastructureStatus(directorySetup));
+        return;
+    }
+    const auto fileSetup = TestSupport::writeTextFile(targetFile, "payload");
+
+    if (!context.expectTrue("symlink fixture file write succeeds", fileSetup.ok()))
+    {
+        context.info(TestSupport::formatInfrastructureStatus(fileSetup));
+        return;
+    }
 
     const auto doNotFollow = queryOptions(FileSystem::Types::SymlinkPolicy::DoNotFollow);
     const auto followFinal = queryOptions(FileSystem::Types::SymlinkPolicy::FollowFinal);
@@ -100,7 +112,11 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
 
     const std::filesystem::path malformedFile = directory / "malformed.bin";
     const auto rawWrite = FileSystem::writeAllBytes(malformedFile, bytesOf(malformed));
-    static_cast<void>(context.expectTrue("byte helper writes malformed fixture bytes", rawWrite.status.ok()));
+
+    if (!expectStatus(context, "byte helper writes malformed fixture bytes", rawWrite.status))
+    {
+        return;
+    }
     const auto malformedRead = FileSystem::readAllText(malformedFile);
     static_cast<void>(context.expectEq("readAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedRead.status.code));
     static_cast<void>(context.expectEq("readAllText preserves valid prefix", std::string{"prefix "}, malformedRead.text));
@@ -113,38 +129,41 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
     static_cast<void>(context.expectTrue("readAllText returns valid multibyte UTF-8", validRead.status.ok()));
     static_cast<void>(context.expectEq("valid text round-trips exactly", validText, validRead.text));
 
-    static_cast<void>(context.expectTrue("restore preservation fixture", FileSystem::writeAllText(file, "preserved").status.ok()));
+    if (!expectStatus(context, "restore preservation fixture", FileSystem::writeAllText(file, "preserved").status))
+    {
+        return;
+    }
     const auto invalidWrite = FileSystem::writeAllText(file, malformed);
     static_cast<void>(context.expectEq("writeAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidWrite.status.code));
     static_cast<void>(context.expectEq("invalid write reports zero progress", std::size_t{0}, invalidWrite.bytesWritten));
-    static_cast<void>(context.expectEq("invalid write preserves existing content", std::string{"preserved"}, FileSystem::readAllText(file).text));
+    expectFileText(context, "invalid write preserves existing content", file, "preserved");
 
     const std::filesystem::path missingWrite = root / "invalid-write-parent" / "file.txt";
     const auto missingInvalidWrite = FileSystem::writeAllText(missingWrite, malformed);
     static_cast<void>(
         context.expectEq("invalid write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidWrite.status.code));
-    static_cast<void>(context.expectFalse("invalid write creates no parent", FileSystem::exists(missingWrite.parent_path()).value));
+    expectPredicate(context, "invalid write creates no parent", FileSystem::exists(missingWrite.parent_path()), false);
 
     const auto invalidAppend = FileSystem::appendText(file, malformed);
     static_cast<void>(context.expectEq("appendText rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidAppend.status.code));
     static_cast<void>(context.expectEq("invalid append reports zero progress", std::size_t{0}, invalidAppend.bytesWritten));
-    static_cast<void>(context.expectEq("invalid append preserves content", std::string{"preserved"}, FileSystem::readAllText(file).text));
+    expectFileText(context, "invalid append preserves content", file, "preserved");
 
     const std::filesystem::path missingAppend = root / "invalid-append-parent" / "file.txt";
     const auto missingInvalidAppend = FileSystem::appendText(missingAppend, malformed);
     static_cast<void>(
         context.expectEq("invalid append to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAppend.status.code));
-    static_cast<void>(context.expectFalse("invalid append creates no parent", FileSystem::exists(missingAppend.parent_path()).value));
+    expectPredicate(context, "invalid append creates no parent", FileSystem::exists(missingAppend.parent_path()), false);
 
     const auto invalidAtomic = FileSystem::writeAllTextAtomic(file, malformed);
     static_cast<void>(context.expectEq("writeAllTextAtomic rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidAtomic.code));
-    static_cast<void>(context.expectEq("invalid atomic write preserves destination", std::string{"preserved"}, FileSystem::readAllText(file).text));
+    expectFileText(context, "invalid atomic write preserves destination", file, "preserved");
 
     const std::filesystem::path missingAtomic = root / "invalid-atomic-parent" / "file.txt";
     const auto missingInvalidAtomic = FileSystem::writeAllTextAtomic(missingAtomic, malformed);
     static_cast<void>(
         context.expectEq("invalid atomic write to missing path is EncodingFailed", ErrorCode::EncodingFailed, missingInvalidAtomic.code));
-    static_cast<void>(context.expectFalse("invalid atomic write creates no parent", FileSystem::exists(missingAtomic.parent_path()).value));
+    expectPredicate(context, "invalid atomic write creates no parent", FileSystem::exists(missingAtomic.parent_path()), false);
 
     FileSystem::Types::File::AtomicWriteOptions unicodePrefixOptions;
     unicodePrefixOptions.temporaryNamePrefix = "tmp_\xD1\x84_";
@@ -156,8 +175,7 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
     const auto malformedPrefixWrite = FileSystem::writeAllTextAtomic(file, "must-not-write", malformedPrefixOptions);
     static_cast<void>(
         context.expectEq("atomic write rejects malformed UTF-8 temporary prefix", ErrorCode::EncodingFailed, malformedPrefixWrite.code));
-    static_cast<void>(
-        context.expectEq("invalid temporary prefix preserves destination", std::string{"unicode-prefix"}, FileSystem::readAllText(file).text));
+    expectFileText(context, "invalid temporary prefix preserves destination", file, "unicode-prefix");
 }
 
 /// @brief Verifies whole-file helpers and reader, writer, and read/write handle contracts.
@@ -184,7 +202,11 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
             .access = FileSystem::Types::File::Access::ReadWrite,
             .mode = FileSystem::Types::File::OpenMode::OpenExisting,
             .initialPosition = FileSystem::Types::File::InitialPosition::End});
-    static_cast<void>(context.expectTrue("File open succeeds", openStatus.ok()));
+
+    if (!expectStatus(context, "File open succeeds", openStatus))
+    {
+        return;
+    }
 
     const IO::Types::PositionResult endPosition = fileHandle.position();
     static_cast<void>(context.expectTrue("File position succeeds", endPosition.status.ok()));
@@ -202,7 +224,11 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
     FileSystem::FileWriter appendWriter;
     const IO::Types::Status appendOpen =
         appendWriter.open(file, FileSystem::Types::File::WriterOpenOptions{.mode = FileSystem::Types::File::WriterMode::AppendExisting});
-    static_cast<void>(context.expectTrue("append writer opens", appendOpen.ok()));
+
+    if (!expectStatus(context, "append writer opens", appendOpen))
+    {
+        return;
+    }
     static_cast<void>(context.expectFalse("append writer is not seekable", appendWriter.canSeek()));
     static_cast<void>(context.expectEq("append writer position is NotSeekable", ErrorCode::NotSeekable, appendWriter.position().status.code));
     static_cast<void>(
@@ -227,7 +253,11 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     const std::filesystem::path tree = directory / "tree";
 
     static_cast<void>(context.expectTrue("create mutation directory", FileSystem::createDirectories(directory).ok()));
-    static_cast<void>(context.expectTrue("write mutation source", FileSystem::writeAllText(source, "abcdef").status.ok()));
+
+    if (!expectStatus(context, "write mutation source", FileSystem::writeAllText(source, "abcdef").status))
+    {
+        return;
+    }
 
     static_cast<void>(context.expectTrue("resizeFile succeeds", FileSystem::resizeFile(source, 3).ok()));
     const IO::Types::ReadAllTextResult resized = FileSystem::readAllText(source);
@@ -250,6 +280,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     const auto copiedLastWrite = FileSystem::getLastWriteTime(metadataCopy);
     static_cast<void>(context.expectTrue("source last-write query succeeds", sourceLastWrite.status.ok()));
     static_cast<void>(context.expectTrue("metadata copy last-write query succeeds", copiedLastWrite.status.ok()));
+
     if (sourceLastWrite.status.ok() && copiedLastWrite.status.ok())
     {
         static_cast<void>(context.expectEq(
@@ -289,6 +320,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
             });
         const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("strict move reaches destination validation pause", movePaused));
+
         if (movePaused)
         {
             std::error_code renameError;
@@ -300,8 +332,8 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
         moveThread.join();
 
         static_cast<void>(context.expectTrue("anchored strict move succeeds", moveRaceStatus.ok()));
-        static_cast<void>(context.expectTrue("anchored move lands in retained parent", FileSystem::exists(parkedParent / "destination.txt").value));
-        static_cast<void>(context.expectFalse("anchored move avoids replacement parent", FileSystem::exists(destination).value));
+        expectPredicate(context, "anchored move lands in retained parent", FileSystem::exists(parkedParent / "destination.txt"), true);
+        expectPredicate(context, "anchored move avoids replacement parent", FileSystem::exists(destination), false);
         FileSystem::Detail::Platform::TestHooks::reset();
     }
 
@@ -319,6 +351,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
             });
         const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("move reaches committed pause", movePaused));
+
         if (movePaused)
         {
             static_cast<void>(
@@ -329,16 +362,20 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
         moveThread.join();
 
         static_cast<void>(context.expectTrue("native commit remains successful after namespace mutation", committedStatus.ok()));
-        static_cast<void>(
-            context.expectEq("recreated source remains caller-visible", std::string{"replacement"}, FileSystem::readAllText(commitSource).text));
-        static_cast<void>(context.expectFalse("concurrently removed destination remains absent", FileSystem::exists(commitDestination).value));
+        expectFileText(context, "recreated source remains caller-visible", commitSource, "replacement");
+        expectPredicate(context, "concurrently removed destination remains absent", FileSystem::exists(commitDestination), false);
         FileSystem::Detail::Platform::TestHooks::reset();
     }
 #endif
 
     static_cast<void>(context.expectTrue("remove metadata copy succeeds", FileSystem::removeFile(metadataCopy).ok()));
     static_cast<void>(context.expectTrue("truncateFile succeeds", FileSystem::truncateFile(source).ok()));
-    static_cast<void>(context.expectEq("truncateFile size is zero", std::uint64_t{0}, FileSystem::getFileSize(source).sizeBytes));
+    const auto truncatedSize = FileSystem::getFileSize(source);
+
+    if (expectStatus(context, "truncateFile size query", truncatedSize.status))
+    {
+        static_cast<void>(context.expectEq("truncateFile size is zero", std::uint64_t{0}, truncatedSize.sizeBytes));
+    }
 
     static_cast<void>(context.expectTrue("removeFile succeeds", FileSystem::removeFile(moved).ok()));
     static_cast<void>(context.expectTrue("create empty directory succeeds", FileSystem::createDirectory(emptyDirectory).ok()));
@@ -353,6 +390,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     const std::filesystem::path deepTree = directory / "deep-tree";
     std::filesystem::path deepest = deepTree;
     constexpr std::uint64_t kDeepDirectoryDepth = 32;
+
     for (std::uint64_t index = 0; index < kDeepDirectoryDepth; ++index)
     {
         deepest /= std::format("level_{}", index);
@@ -371,7 +409,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     const auto zeroLimitRemoval = FileSystem::removeDirectoryTree(zeroLimitTree, FileSystem::Types::Directory::RemoveTreeOptions{.maxEntries = 0});
     static_cast<void>(context.expectEq("zero remove limit reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, zeroLimitRemoval.status.code));
     static_cast<void>(context.expectEq("zero remove limit removes nothing", std::uint64_t{0}, zeroLimitRemoval.removedEntries));
-    static_cast<void>(context.expectTrue("zero remove limit preserves root", FileSystem::isDirectory(zeroLimitTree).value));
+    expectPredicate(context, "zero remove limit preserves root", FileSystem::isDirectory(zeroLimitTree), true);
     static_cast<void>(context.expectTrue("zero remove limit cleanup succeeds", FileSystem::removeDirectoryTree(zeroLimitTree).status.ok()));
 
     const std::filesystem::path exactLimitTree = directory / "exact-limit-tree";
@@ -386,6 +424,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("create wide tree succeeds", FileSystem::createDirectories(wideTree).ok()));
     constexpr std::uint64_t kWideEntryCount = 128;
     bool wideWritesSucceeded = true;
+
     for (std::uint64_t index = 0; index < kWideEntryCount; ++index)
     {
         const bool writeSucceeded = FileSystem::writeAllText(wideTree / std::format("entry_{:03}.txt", index), "x").status.ok();
@@ -397,7 +436,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
         FileSystem::removeDirectoryTree(wideTree, FileSystem::Types::Directory::RemoveTreeOptions{.maxEntries = kPartialRemovalLimit});
     static_cast<void>(context.expectEq("partial tree removal reports SizeLimitExceeded", ErrorCode::SizeLimitExceeded, partialRemoval.status.code));
     static_cast<void>(context.expectEq("partial tree removal honors exact limit", kPartialRemovalLimit, partialRemoval.removedEntries));
-    static_cast<void>(context.expectTrue("partial tree removal preserves root", FileSystem::isDirectory(wideTree).value));
+    expectPredicate(context, "partial tree removal preserves root", FileSystem::isDirectory(wideTree), true);
     static_cast<void>(context.expectTrue("partial tree removal cleanup succeeds", FileSystem::removeDirectoryTree(wideTree).status.ok()));
 }
 
@@ -419,7 +458,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
         "bad",
         FileSystem::Types::File::AtomicWriteOptions{.replaceMode = FileSystem::Types::ReplaceMode::FailIfExists});
     static_cast<void>(context.expectEq("atomic fail-if-exists reports AlreadyExists", ErrorCode::AlreadyExists, atomicFailIfExists.code));
-    static_cast<void>(context.expectEq("atomic fail-if-exists preserves content", std::string{"new"}, FileSystem::readAllText(file).text));
+    expectFileText(context, "atomic fail-if-exists preserves content", file, "new");
 
     FileSystem::File lockFile;
     const IO::Types::Status openStatus = lockFile.open(
@@ -451,7 +490,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
 
     const std::filesystem::path detachedOwnerFile = root / "atomic-locks" / "detached-owner.txt";
     static_cast<void>(context.expectTrue("detached-owner file write succeeds", FileSystem::writeAllText(detachedOwnerFile, "lock").status.ok()));
-    FileSystem::FileLock detachedOwnerLock = [&]()
+    FileSystem::FileLock detachedOwnerLock = [&]
     {
         FileSystem::File owner;
         static_cast<void>(context.expectTrue("detached lock owner opens", owner.open(detachedOwnerFile).ok()));

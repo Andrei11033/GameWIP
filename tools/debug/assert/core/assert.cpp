@@ -29,7 +29,7 @@ namespace
         Check
     };
 
-    using FailureAction = GameWIP::Debug::Assert::FailureAction;
+    using GameWIP::Debug::Assert::FailureAction;
 
     // ------------------------------------------------------------
     // Diagnostic text construction
@@ -53,10 +53,12 @@ namespace
         }
 
         std::size_t boundary = maxBytes;
+
         while (boundary > 0 && isUtf8ContinuationByte(text[boundary]))
         {
             --boundary;
         }
+
         return boundary;
     }
 
@@ -77,6 +79,7 @@ namespace
             }
 
             const std::size_t remainingBytes = storage.size() - usedBytes;
+
             if (text.size() <= remainingBytes)
             {
                 std::ranges::copy(text, std::span{storage}.subspan(usedBytes, text.size()).begin());
@@ -86,6 +89,7 @@ namespace
 
             // Once a fragment is cut, later fragments must not make the diagnostic look complete.
             const std::size_t prefixBytes = utf8PrefixBoundary(text, remainingBytes);
+
             if (prefixBytes > 0)
             {
                 std::ranges::copy(text.substr(0, prefixBytes), std::span{storage}.subspan(usedBytes, prefixBytes).begin());
@@ -207,6 +211,7 @@ namespace
         if (!file.empty() || line > 0 || !function.empty())
         {
             failureMessage.append("\nLocation: ");
+
             if (!file.empty())
             {
                 failureMessage.append(file);
@@ -383,6 +388,7 @@ namespace
                 // This flag suppresses future reports; it does not publish any associated data.
                 alwaysIgnoreFlag->store(true, std::memory_order_relaxed);
             }
+
             return;
         }
 
@@ -475,6 +481,7 @@ namespace GameWIP::Debug::Assert::Detail
 
         // Ordinary fatal assertions break only when debugger detection reports an attached debugger.
         const bool debuggerAttached = Detail::Platform::isDebuggerAttached();
+
         if (debuggerAttached)
         {
             Detail::Platform::debugBreak();

@@ -52,7 +52,7 @@ if(NOT configure_result EQUAL 0)
 endif()
 
 execute_process(
-    COMMAND "${CMAKE_COMMAND}" --build "${project_build_dir}" --config "${BUILD_TYPE}" --parallel
+    COMMAND "${CMAKE_COMMAND}" --build "${project_build_dir}" --config "${BUILD_TYPE}" --parallel 2
     RESULT_VARIABLE build_result
     OUTPUT_VARIABLE build_output
     ERROR_VARIABLE build_error

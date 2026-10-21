@@ -31,6 +31,7 @@ namespace
         {
             const std::lock_guard lock{mutex_};
             const auto key = std::pair{depth, entryCount};
+
             if (const auto existing = directories_.find(key); existing != directories_.end())
             {
                 return existing->second;
@@ -39,6 +40,7 @@ namespace
             if (!workspace_)
             {
                 workspace_ = std::make_unique<TestSupport::ScopedTemporaryDirectory>("filesystem_directory_benchmark");
+
                 if (!workspace_->status().ok())
                 {
                     throw std::runtime_error(
@@ -48,19 +50,23 @@ namespace
                 }
             }
             std::filesystem::path directoryPath = workspace_->path() / ("entries_" + std::to_string(entryCount) + "_depth_" + std::to_string(depth));
+
             for (int level = 0; level < depth; ++level)
             {
                 directoryPath /= "d";
             }
             std::filesystem::create_directories(directoryPath);
+
             for (int index = 0; index < entryCount; ++index)
             {
                 std::ofstream file{directoryPath / ("entry_" + std::to_string(index) + ".txt"), std::ios::binary};
+
                 if (!file)
                 {
                     throw std::runtime_error("Could not create a FileSystem benchmark fixture.");
                 }
             }
+
             return directories_.emplace(key, std::move(directoryPath)).first->second;
         }
 
@@ -96,6 +102,7 @@ namespace
         {
             static_cast<void>(iteration);
             FileSystem::Types::Directory::ListResult listing = FileSystem::listDirectory(*directory);
+
             if (!listing.status.ok() || listing.entries.size() != static_cast<std::size_t>(entryCount))
             {
                 const std::string error = std::format(
@@ -132,6 +139,7 @@ namespace
             static_cast<void>(iteration);
             FileSystem::DirectoryCursor cursor;
             const IO::Types::Status openStatus = cursor.open(*directory);
+
             if (!openStatus.ok())
             {
                 const std::string error = std::format(
@@ -143,9 +151,11 @@ namespace
             }
 
             std::int64_t observedEntries = 0;
+
             for (;;)
             {
                 FileSystem::Types::Directory::CursorNextResult next = cursor.next();
+
                 if (!next.status.ok())
                 {
                     const std::string error = std::format(
@@ -155,6 +165,7 @@ namespace
                     state.SkipWithError(error);
                     break;
                 }
+
                 if (!next.hasEntry)
                 {
                     break;
@@ -162,6 +173,7 @@ namespace
                 ++observedEntries;
                 benchmark::DoNotOptimize(next.entry.info.kind);
             }
+
             if (observedEntries != entryCount)
             {
                 state.SkipWithError("FileSystem DirectoryCursor benchmark returned the wrong entry count.");

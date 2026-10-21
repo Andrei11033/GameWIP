@@ -6,8 +6,8 @@ active only when `gamewip.keybindings.enabled` is true, as it is in
 `GameWIP.code-workspace`, so they do not take over the same keys in unrelated
 workspaces.
 
-The Windows setup script installs this unpacked extension into the current
-user's VS Code extension directory. It also generates a managed block at the
+The Windows setup script packages this extension as a VSIX and installs it
+for the current user. It also generates a managed block at the
 end of the user's `keybindings.json`, where VS Code gives it priority over
 older personal bindings. Every managed rule keeps the repository setting in
 its `when` clause, so it is inactive outside a GameWIP workspace. Setup keeps a

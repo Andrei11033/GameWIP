@@ -11,6 +11,13 @@ prompts, and stress primitives.
 Text-file tests include malformed and incomplete UTF-8, valid-prefix preservation, and validation-before-destructive-write behavior. Child capture
 tests treat stdout/stderr as arbitrary bytes, including truncation and zero-retention cases.
 
+StartGate checks observe workers approaching a closed gate, verify no worker passes before opening, then check repeated opening and future waiters.
+A 30-second child-process timeout bounds synchronization regressions; the closed-gate negative observation lasts 100 ms. Worker tests also cover
+zero workers, indexed and no-argument callables, independent callable copies, and exception propagation after peer joins.
+
+Enum expectation failures show underlying numeric values instead of an unprintable placeholder, including narrow unsigned and negative signed values.
+An existing stream formatter still takes precedence. Nested report fixtures verify the resulting diagnostics and failure counts.
+
 ## Public-header and package validation
 
 The public-header validation compiles each supported entry header independently:

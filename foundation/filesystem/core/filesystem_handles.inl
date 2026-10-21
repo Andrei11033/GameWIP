@@ -17,12 +17,14 @@ IO::Types::Status DirectoryCursor::open(const Types::Path &path, const Types::Di
         {
             return IO::makeStatus(ErrorCode::AlreadyOpen);
         }
+
         if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
 
         Detail::Platform::DirectoryCursorOpenResult opened = Detail::Platform::openDirectoryCursor(path, options.symlinkPolicy);
+
         if (!opened.status.ok())
         {
             return std::move(opened.status);
@@ -57,6 +59,7 @@ Types::Directory::CursorNextResult DirectoryCursor::next() noexcept
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};
         }
+
         if (limitReached_)
         {
             return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
@@ -65,18 +68,22 @@ Types::Directory::CursorNextResult DirectoryCursor::next() noexcept
         while (true)
         {
             Detail::Platform::DirectoryCursorNextResult next = Detail::Platform::readDirectoryCursor(*state_);
+
             if (!next.status.ok())
             {
                 return {.status = next.status};
             }
+
             if (!next.hasEntry)
             {
                 return {.status = IO::successStatus()};
             }
+
             if ((!options_.includeHidden && next.hidden) || !includeDirectoryEntryKind(next.entry.info.kind, options_))
             {
                 continue;
             }
+
             if (emittedEntries_ >= options_.maxEntries)
             {
                 limitReached_ = true;
@@ -137,10 +144,12 @@ IO::Types::Status FileLock::unlock() noexcept
     }
 
     IO::Types::Status status = Detail::Platform::unlockFile(*state_);
+
     if (status.ok())
     {
         state_.reset();
     }
+
     return status;
 }
 
@@ -168,6 +177,7 @@ IO::Types::Status FileReader::open(const Types::Path &path, const Types::File::R
     {
         return IO::makeStatus(ErrorCode::AlreadyOpen);
     }
+
     if (!isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
@@ -175,10 +185,12 @@ IO::Types::Status FileReader::open(const Types::Path &path, const Types::File::R
 
     std::unique_ptr<Detail::FileState> newState;
     IO::Types::Status status = Detail::Platform::openReader(newState, path, options);
+
     if (status.ok())
     {
         state_ = std::move(newState);
     }
+
     return status;
 }
 
@@ -211,10 +223,12 @@ IO::Types::Status FileReader::close() noexcept
     }
 
     IO::Types::Status status = Detail::Platform::closeFile(*state_);
+
     if (status.ok())
     {
         state_.reset();
     }
+
     return status;
 }
 
@@ -256,6 +270,7 @@ Types::Lock::Result FileReader::tryLockShared() noexcept
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Shared);
+
     if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};
@@ -285,6 +300,7 @@ IO::Types::Status FileWriter::open(const Types::Path &path, const Types::File::W
     {
         return IO::makeStatus(ErrorCode::AlreadyOpen);
     }
+
     if (!isValidFileWriterMode(options.mode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
         !IO::isValidFlushMode(options.flushOnClose))
     {
@@ -292,6 +308,7 @@ IO::Types::Status FileWriter::open(const Types::Path &path, const Types::File::W
     }
 
     IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
+
     if (!parentStatus.ok())
     {
         return parentStatus;
@@ -299,10 +316,12 @@ IO::Types::Status FileWriter::open(const Types::Path &path, const Types::File::W
 
     std::unique_ptr<Detail::FileState> newState;
     IO::Types::Status status = Detail::Platform::openWriter(newState, path, options);
+
     if (status.ok())
     {
         state_ = std::move(newState);
     }
+
     return status;
 }
 
@@ -345,10 +364,12 @@ IO::Types::Status FileWriter::close() noexcept
     }
 
     IO::Types::Status status = Detail::Platform::closeFile(*state_);
+
     if (status.ok())
     {
         state_.reset();
     }
+
     return status;
 }
 
@@ -390,6 +411,7 @@ Types::Lock::Result FileWriter::tryLockExclusive() noexcept
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Exclusive);
+
     if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};
@@ -421,21 +443,25 @@ IO::Types::Status File::open(const Types::Path &path, const Types::File::OpenOpt
     {
         return IO::makeStatus(ErrorCode::AlreadyOpen);
     }
+
     if (!isValidFileAccess(options.access) || !isValidFileOpenMode(options.mode) || !isValidInitialPosition(options.initialPosition) ||
         !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) || !IO::isValidFlushMode(options.flushOnClose))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
+
     if (modeRequiresWrite(options.mode) && !opensForWrite(options.access))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
+
     if (options.flushOnClose != IO::Types::FlushMode::None && !opensForWrite(options.access))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
 
     IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
+
     if (!parentStatus.ok())
     {
         return parentStatus;
@@ -443,10 +469,12 @@ IO::Types::Status File::open(const Types::Path &path, const Types::File::OpenOpt
 
     std::unique_ptr<Detail::FileState> newState;
     IO::Types::Status status = Detail::Platform::openFile(newState, path, options);
+
     if (status.ok())
     {
         state_ = std::move(newState);
     }
+
     return status;
 }
 
@@ -504,10 +532,12 @@ IO::Types::Status File::close() noexcept
     }
 
     IO::Types::Status status = Detail::Platform::closeFile(*state_);
+
     if (status.ok())
     {
         state_.reset();
     }
+
     return status;
 }
 
@@ -569,6 +599,7 @@ Types::Lock::Result File::tryLockShared() noexcept
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Shared);
+
     if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};
@@ -588,6 +619,7 @@ Types::Lock::Result File::tryLockExclusive() noexcept
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Exclusive);
+
     if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};

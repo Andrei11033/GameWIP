@@ -88,48 +88,25 @@ jobs:
 
       - name: Configure package validation
         shell: msys2 {0}
-        run: >
-          cmake -S . -B build/package-compatibility
-          -G Ninja
-          -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          -DGAMEWIP_BUILD_GAME=OFF
-          -DGAMEWIP_BUILD_TESTS=ON
-          -DGAMEWIP_BUILD_BENCHMARKS=OFF
-          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
-          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
-          -DGAMEWIP_ENABLE_TRACY=OFF
-          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
-          -DGAMEWIP_ENABLE_ASSERTS=ON
-          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
+        run: cmake --preset ci-package
 
       - name: Build package validation
         shell: msys2 {0}
-        run: cmake --build build/package-compatibility --target GameWIPTests --parallel
+        run: cmake --build --preset ci-package --parallel
 
       - name: Test installed packages
         shell: msys2 {0}
-        run: ctest --test-dir build/package-compatibility -R validation.packages --output-on-failure --no-tests=error
+        run: ctest --test-dir build/ci-package -R validation.packages --output-on-failure --no-tests=error
 
       - name: Configure multi-config package validation
         shell: msys2 {0}
-        run: >
-          cmake -S . -B build/package-multi-config
-          -G "Ninja Multi-Config"
-          -DGAMEWIP_BUILD_GAME=OFF
-          -DGAMEWIP_BUILD_TESTS=ON
-          -DGAMEWIP_BUILD_BENCHMARKS=OFF
-          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
-          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
-          -DGAMEWIP_ENABLE_TRACY=OFF
-          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
-          -DGAMEWIP_ENABLE_ASSERTS=ON
-          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
+        run: cmake --preset ci-package-multi
 
       - name: Test multi-config installed packages
         shell: msys2 {0}
         run: |
-          cmake --build build/package-multi-config --target GameWIPTests --config RelWithDebInfo --parallel
-          ctest --test-dir build/package-multi-config -C RelWithDebInfo -R validation.packages --output-on-failure --no-tests=error
+          cmake --build --preset ci-package-multi --config RelWithDebInfo --parallel
+          ctest --test-dir build/ci-package-multi -C RelWithDebInfo -R validation.packages --output-on-failure --no-tests=error
 
   build-test:
     name: Build and Test
@@ -169,23 +146,11 @@ jobs:
 
       - name: Configure
         shell: msys2 {0}
-        run: >
-          cmake -S . -B build/validation
-          -G Ninja
-          -DCMAKE_BUILD_TYPE=RelWithDebInfo
-          -DGAMEWIP_BUILD_GAME=ON
-          -DGAMEWIP_BUILD_TESTS=ON
-          -DGAMEWIP_BUILD_BENCHMARKS=ON
-          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
-          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
-          -DGAMEWIP_ENABLE_TRACY=OFF
-          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
-          -DGAMEWIP_ENABLE_ASSERTS=ON
-          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
+        run: cmake --preset ci-validation
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build build/validation --parallel
+        run: cmake --build --preset ci-validation --parallel
 
       - name: Enable required symlink scenarios
         shell: powershell
@@ -208,17 +173,17 @@ jobs:
         env:
           GAMEWIP_REQUIRE_SYMLINK_TESTS: '1'
           GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS: '1'
-        run: ctest --test-dir build/validation --output-on-failure --no-tests=error -LE packages
+        run: ctest --test-dir build/ci-validation --output-on-failure --no-tests=error -LE packages
 
       - name: Benchmark smoke test
         shell: msys2 {0}
-        run: ./build/validation/GameWIPBenchmarks.exe --benchmark_dry_run
+        run: ./build/ci-validation/GameWIPBenchmarks.exe --benchmark_dry_run
 
       - name: Static analysis
         shell: msys2 {0}
         run: |
-          cmake --preset analyze -DGAMEWIP_WARNINGS_AS_ERRORS=ON -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
-          cmake --build --preset analyze
+          cmake --preset ci-analyze
+          cmake --build --preset ci-analyze
 
   repository-checks:
     name: Repository Checks
@@ -376,25 +341,25 @@ jobs:
 
       - name: Configure
         shell: msys2 {0}
-        run: cmake --preset coverage -DGAMEWIP_WARNINGS_AS_ERRORS=ON -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
+        run: cmake --preset ci-coverage
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build --preset coverage --parallel
+        run: cmake --build --preset ci-coverage --parallel
 
       - name: Test
         shell: msys2 {0}
-        run: ctest --preset coverage
+        run: ctest --preset ci-coverage
 
       - name: Generate report
         shell: msys2 {0}
-        run: cmake --build build/coverage --target coverage
+        run: cmake --build build/ci-coverage --target coverage
 
       - name: Upload report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-report
-          path: build/coverage/coverage
+          path: build/ci-coverage/coverage
 
   address-sanitizer:
     name: AddressSanitizer
@@ -433,15 +398,15 @@ jobs:
 
       - name: Configure
         shell: msys2 {0}
-        run: cmake --preset asan -DGAMEWIP_WARNINGS_AS_ERRORS=ON -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
+        run: cmake --preset ci-asan
 
       - name: Build
         shell: msys2 {0}
-        run: cmake --build --preset asan --parallel
+        run: cmake --build --preset ci-asan --parallel
 
       - name: Test
         shell: msys2 {0}
-        run: ctest --preset asan
+        run: ctest --preset ci-asan
 
   docs-check:
     name: Docs Check
@@ -480,28 +445,17 @@ jobs:
 
       - name: Configure documentation build
         shell: msys2 {0}
-        run: >
-          cmake -S . -B build/docs
-          -G Ninja
-          -DCMAKE_BUILD_TYPE=Release
-          -DGAMEWIP_BUILD_GAME=OFF
-          -DGAMEWIP_BUILD_TESTS=OFF
-          -DGAMEWIP_ENABLE_STARTUP_TESTS=OFF
-          -DGAMEWIP_RUN_BENCHMARKS_AT_STARTUP=OFF
-          -DGAMEWIP_BUILD_DOCS=ON
-          -DGAMEWIP_ENABLE_TRACY=OFF
-          -DGAMEWIP_DEPENDENCIES_OFFLINE=ON
-          -DGAMEWIP_WARNINGS_AS_ERRORS=ON
+        run: cmake --preset ci-docs
 
       - name: Build documentation
         shell: msys2 {0}
-        run: cmake --build build/docs --target docs --verbose
+        run: cmake --build --preset ci-docs --verbose
 
       - name: Retain validated documentation for Pages
         if: github.event_name == 'push'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: doxygen-pages
-          path: build/docs/docs/doxygen/html
+          path: build/ci-docs/docs/doxygen/html
           if-no-files-found: error
           retention-days: 1

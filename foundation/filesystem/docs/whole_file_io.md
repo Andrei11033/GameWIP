@@ -7,18 +7,13 @@ for incremental protocols, seeking, locks, or caller-controlled lifetime.
 
 `readAllBytes()` and `readAllText()` open a `FileReader`, drain it through the IO whole-stream helper, and close it.
 
-`Types::File::ReadOptions` controls:
-
-- the underlying `Types::File::ReaderOpenOptions`;
-- `maxBytes`, a hard retained-data limit;
-- `bufferSize`, the transfer-buffer size, which must be greater than zero.
+`Types::File::ReadOptions` (fields: @ref filesystem_public_api) controls the underlying `Types::File::ReaderOpenOptions`, `maxBytes`, and `bufferSize`.
 
 `IO::kNoByteLimit` removes only the caller-imposed limit. Allocation, container, address-space, and backend limits still apply.
 
 Reaching `maxBytes` is not successful truncation. A normal `FileReader` supplies size and position, so IO rejects a known remaining size above the
-limit before reading and accepts a size exactly equal to the limit. If size or position is unavailable, IO instead uses its one-byte probe; extra data
-then produces `SizeLimitExceeded` without retaining the probe byte. Size metadata is a snapshot, so concurrent file mutation remains subject to the
-documented filesystem race limitations.
+limit before reading and accepts a size exactly equal to the limit. Otherwise IO's probe applies (@ref io_reader_writer_contract). Size metadata is a
+snapshot, so concurrent file mutation remains subject to the documented filesystem race limitations.
 
 A failure can return collected bytes or text. This includes failures after partial reads and close failures after all data was collected. Inspect the
 status and payload together.
@@ -53,14 +48,11 @@ The helpers preserve accepted payload progress exactly like non-atomic exact-con
 
 ## Text and byte overloads
 
-Text helpers are strict UTF-8 operations. `readAllText()` delegates transfer and incremental validation to `IO::readAllText()`, so malformed or
-incomplete input returns `EncodingFailed` and any returned `text` contains only the complete valid UTF-8 prefix.
+Text helpers are strict UTF-8 operations (@ref io_utf8_policy). `readAllText()` delegates to `IO::readAllText()`.
 
-`writeAllText()` and `appendText()` validate the complete caller string before opening, creating, truncating, or appending to a file. Invalid text
-therefore reports `EncodingFailed` with zero payload progress and performs no filesystem side effect. After validation, FileSystem forwards the
-trusted bytes through IO's byte-transfer helper rather than rescanning the text.
-
-Text helpers do not normalize text, add or remove a BOM, or translate line endings. Byte helpers remain encoding agnostic.
+`writeAllText()` and `appendText()` validate the whole string before opening, creating, truncating, or appending, so invalid text performs no
+filesystem side effect. FileSystem then forwards the trusted bytes without rescanning. No line-ending translation occurs; byte helpers remain
+encoding agnostic.
 
 Vector byte overloads forward to the span overloads. FileSystem does not retain caller spans, string views, or vector storage after a call returns.
 

@@ -16,58 +16,110 @@
     "explanations"
   ],
   "properties": {
-    "schemaVersion": { "const": 1, "description": "Optional-hygiene registry contract version." },
-    "defaultProfile": { "$ref": "#/$defs/id", "description": "Profile selected when quality hygiene runs without an explicit selector." },
-    "analyzePreset": { "$ref": "#/$defs/id", "description": "CMake preset that provides the compile database for analysis checks." },
-    "sourceFilter": { "type": "string", "minLength": 1, "description": "Repository-relative source filter used when selecting analysis inputs." },
-    "headerFilter": { "type": "string", "minLength": 1, "description": "Repository-relative header filter used when selecting analysis inputs." },
-    "excludedHeaderFilter": { "type": "string", "minLength": 1, "description": "Filter for headers excluded from optional analysis." },
+    "schemaVersion": {
+      "const": 1,
+      "description": "Optional-hygiene registry contract version."
+    },
+    "defaultProfile": {
+      "$ref": "#/$defs/id",
+      "description": "Profile selected when quality hygiene runs without an explicit selector."
+    },
+    "analyzePreset": {
+      "$ref": "#/$defs/id",
+      "description": "CMake preset that provides the compile database for analysis checks."
+    },
+    "sourceFilter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repository-relative source filter used when selecting analysis inputs."
+    },
+    "headerFilter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Repository-relative header filter used when selecting analysis inputs."
+    },
+    "excludedHeaderFilter": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Filter for headers excluded from optional analysis."
+    },
     "checks": {
       "type": "array",
       "minItems": 1,
       "description": "Optional checks and the providers that can execute them.",
-      "items": { "$ref": "#/$defs/check" }
+      "items": {
+        "$ref": "#/$defs/check"
+      }
     },
     "profiles": {
       "type": "array",
       "minItems": 1,
       "description": "Named check collections exposed by the hygiene command.",
-      "items": { "$ref": "#/$defs/profile" }
+      "items": {
+        "$ref": "#/$defs/profile"
+      }
     },
     "explanations": {
       "type": "array",
       "description": "Maintainer-reviewed explanations for optional checks and their confidence.",
-      "items": { "$ref": "#/$defs/explanation" }
+      "items": {
+        "$ref": "#/$defs/explanation"
+      }
     }
   },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
     "check": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "title", "description", "provider", "availability", "confidence"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string", "minLength": 1 },
-        "description": { "type": "string", "minLength": 1 },
-        "provider": { "enum": ["clang-tidy", "compiler-warning", "future"] },
-        "availability": { "enum": ["available", "planned"] },
-        "confidence": { "enum": ["PROVEN", "LIKELY", "INFORMATION"] },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "enum": ["clang-tidy", "compiler-warning", "future"]
+        },
+        "availability": {
+          "enum": ["available", "planned"]
+        },
+        "confidence": {
+          "enum": ["PROVEN", "LIKELY", "INFORMATION"]
+        },
         "rules": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "options": {
           "type": "object",
-          "additionalProperties": { "type": "string" }
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "flags": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "description": "Compiler flags passed by a compiler-warning provider."
         }
       }
@@ -77,13 +129,20 @@
       "additionalProperties": false,
       "required": ["id", "title", "checks"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
-        "title": { "type": "string", "minLength": 1 },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
         "checks": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/id" }
+          "items": {
+            "$ref": "#/$defs/id"
+          }
         }
       }
     },
@@ -92,15 +151,25 @@
       "additionalProperties": false,
       "required": ["id", "checks", "pathPattern", "reason"],
       "properties": {
-        "id": { "$ref": "#/$defs/id" },
+        "id": {
+          "$ref": "#/$defs/id"
+        },
         "checks": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/id" }
+          "items": {
+            "$ref": "#/$defs/id"
+          }
         },
-        "pathPattern": { "type": "string", "minLength": 1 },
-        "reason": { "type": "string", "minLength": 1 }
+        "pathPattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     }
   }

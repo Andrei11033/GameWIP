@@ -40,6 +40,9 @@ The Unicode module covers:
 - Every case in the official Unicode 17.0.0 `GraphemeBreakTest.txt`, checked through both stateless traversal directions and the indexed cursor
   boundary sequence.
 
+Scalar classification boundaries are checked at compile time. Repeated encoding/decoding and traversal cases identify their code point, input bytes
+or byte offset in the report. Test fixtures validate encoded lengths before creating views so invalid results become recorded failures.
+
 ## Official conformance data
 
 The correctness test searches for `GraphemeBreakTest.txt` in this order:
@@ -150,7 +153,7 @@ Do not edit the generated table manually or accept a mismatched verification res
 Build benchmark registration and run the Unicode family:
 
 ```powershell
-.\gamewip.bat benchmark
+.\gamewip.bat bench
 .\build\benchmark\GameWIPBenchmarks.exe --benchmark_filter=BM_Unicode
 ```
 
@@ -160,7 +163,7 @@ grapheme-aware suffix deletion on a long combining/emoji/Indic/regional-indicato
 regressions visible; the end-to-end grapheme benchmarks show whether they materially affect callers. Timings are diagnostic and are never correctness
 gates; see @ref project_benchmarking.
 
-For the new traversal benchmarks, compare scaling as fixture size grows. The intended behavior is bounded local work for ordinary stateless queries
+For traversal benchmarks, compare scaling as fixture size grows. The intended behavior is bounded local work for ordinary stateless queries
 where a nearby safe restart exists, and linear-overall repeated cursor traversal/edit work after one linear index build.
 
 ## Final validation
@@ -174,8 +177,8 @@ For a change to the implementation, generated data, tests, or these docs, run:
 .\gamewip.bat asan
 .\gamewip.bat ubsan
 .\gamewip.bat analyze
-.\gamewip.bat benchmark
-.\gamewip.bat docs
+.\gamewip.bat bench
+.\gamewip.bat doc
 ```
 
 Documentation standards, Markdown links, and repository checks remain part of the normal validation workflow. See @ref project_static_analysis and

@@ -15,6 +15,7 @@ function Invoke-GameWipDocumentationBuild
 
     $oldPath = $env:Path
     Push-Location $RepositoryRoot
+
     try
     {
         $ucrtBin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64\bin'
@@ -23,10 +24,12 @@ function Invoke-GameWipDocumentationBuild
         Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--build', '--preset', 'docs', '--parallel') | Out-Null
 
         $warningLog = Join-Path $RepositoryRoot 'build\docs\docs\doxygen\doxygen_warnings.log'
+
         if (-not (Test-Path -LiteralPath $warningLog))
         {
             throw 'Doxygen did not produce its warning log.'
         }
+
         if ((Get-Item -LiteralPath $warningLog).Length -ne 0)
         {
             Get-Content -LiteralPath $warningLog
@@ -34,12 +37,14 @@ function Invoke-GameWipDocumentationBuild
         }
         $index = Join-Path $RepositoryRoot 'build\docs\docs\doxygen\html\index.html'
         Write-Host "  Ready: $index"
+
         if ($Open)
         {
             Start-Process -FilePath $index
             Write-Host '  Opened the generated manual in the default browser.'
         }
     }
+
     finally
     {
         $env:Path = $oldPath

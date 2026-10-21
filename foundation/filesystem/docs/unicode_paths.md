@@ -12,7 +12,9 @@ const auto pathResult = GameWIP::FileSystem::pathFromUtf8(utf8Text);
 const auto textResult = GameWIP::FileSystem::pathToUtf8(pathResult.path);
 ```
 
-`pathFromUtf8()` converts UTF-8 text to the native `Path` representation. `pathToUtf8()` converts a path's stored spelling to UTF-8.
+`pathFromUtf8()` converts UTF-8 text to the native `Path` representation. It accepts both `std::string_view` and explicit `std::u8string_view`,
+so callers carrying `char8_t` text do not need an intermediate platform-dependent narrow conversion. `pathToUtf8()` converts a path's stored spelling
+to UTF-8.
 
 Neither helper makes a path absolute, canonical, or normalized. `pathToUtf8()` does not promise portable separators or a portable path grammar; it
 preserves the representation produced by `std::filesystem::path` for the current platform.
@@ -29,10 +31,8 @@ boundaries.
 
 ## File contents
 
-`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` are strict UTF-8 content operations. Malformed or incomplete text
-returns `EncodingFailed`. Text writes and appends validate before filesystem mutation; byte overloads remain available for arbitrary content.
-
-Content helpers do not normalize text, add or remove a BOM, or convert line endings or encodings.
+`readAllText()`, `writeAllText()`, `appendText()`, and `writeAllTextAtomic()` are strict UTF-8 content operations; see @ref io_utf8_policy. Byte
+overloads remain available for arbitrary content. Content helpers do not convert line endings or encodings.
 
 ## Related pages
 

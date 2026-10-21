@@ -88,6 +88,7 @@ void testCheckOnceLogging(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "check_once"))
     {
         context.fail("CHECK_ONCE logger init", "Logger::init failed");
@@ -95,6 +96,7 @@ void testCheckOnceLogging(TestContext &context)
     }
 
     Logger::resetStats();
+
     for (int index = 0; index < 3; ++index)
     {
         CHECK_ONCE(false);
@@ -106,6 +108,6 @@ void testCheckOnceLogging(TestContext &context)
     context.expectEq("CHECK_ONCE writes one failure synchronously", stats.written, std::size_t{1});
     context.expectTrue("CHECK_ONCE log contains error failure", contents.contains("[ERROR][Check]: Check failed"), "check failure missing from log");
 #else
-    context.pass("CHECK_ONCE logger test skipped because ASSERT_CHECKS_ENABLED=0");
+    context.skip("CHECK_ONCE logger test", "ASSERT_CHECKS_ENABLED=0");
 #endif
 }

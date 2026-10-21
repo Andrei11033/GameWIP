@@ -69,10 +69,10 @@ namespace GameWIP::TestSupport
 
         try
         {
-            for (std::size_t workerIndex = 0; workerIndex < workerCount; ++workerIndex)
+            for (std::size_t index = 0; index < workerCount; ++index)
             {
                 workers.emplace_back(
-                    [workerIndex, worker = workerPrototype, &exceptionMutex, &firstException]() mutable
+                    [worker = workerPrototype, &exceptionMutex, &firstException](std::size_t workerIndex) mutable
                     {
                         try
                         {
@@ -94,12 +94,14 @@ namespace GameWIP::TestSupport
                         catch (...)
                         {
                             std::lock_guard lock(exceptionMutex);
+
                             if (!firstException)
                             {
                                 firstException = std::current_exception();
                             }
                         }
-                    });
+                    },
+                    index);
             }
         }
         catch (...)

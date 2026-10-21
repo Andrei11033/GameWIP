@@ -18,8 +18,8 @@
 
 /// @brief Process-wide asynchronous logging module for runtime diagnostics.
 /// @details Normal logs are filtered, queue-backed, and optimized for the runtime hot path. Reports are
-/// synchronous emergency diagnostics: they bypass filters and queue pressure, try every enabled emergency
-/// channel, flush active normal sinks, and do not drain older asynchronous work.
+/// synchronous emergency diagnostics: they bypass filters and queue pressure, try every eligible sink, enabled
+/// debug output and the fatal popup, flush active normal sinks, and do not drain older asynchronous work.
 namespace GameWIP::Logger
 {
     /// @brief Marks a format string as runtime-provided for Logger formatting overloads.
@@ -97,11 +97,56 @@ namespace GameWIP::Logger
 
     /// @brief Applies current severity and source gates for an enum source.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     bool shouldLog(Types::Level level, Source source) noexcept
     {
         return shouldLog(level, Detail::Core::sourceId(source));
     }
+
+    /// @cond INTERNAL
+    namespace Detail::Core
+    {
+        /// @brief Applies the string-source normal-log gate before compile-time formatting.
+        template <typename... Args>
+        void formatAndLogIfEnabled(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level))
+            {
+                formatAndLog(level, source, format, std::forward<Args>(args)...);
+            }
+        }
+
+        /// @brief Applies the registered-source normal-log gate before compile-time formatting.
+        template <typename... Args>
+        void formatAndLogIfEnabled(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level, source))
+            {
+                formatAndLog(level, source, format, std::forward<Args>(args)...);
+            }
+        }
+
+        /// @brief Applies the string-source normal-log gate before runtime formatting.
+        template <typename... Args>
+        void runtimeFormatAndLogIfEnabled(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level))
+            {
+                runtimeFormatAndLog(level, source, format, args...);
+            }
+        }
+
+        /// @brief Applies the registered-source normal-log gate before runtime formatting.
+        template <typename... Args>
+        void runtimeFormatAndLogIfEnabled(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args) noexcept
+        {
+            if (::GameWIP::Logger::shouldLog(level, source))
+            {
+                runtimeFormatAndLog(level, source, format, args...);
+            }
+        }
+    } // namespace Detail::Core
+    /// @endcond
 
     /// @brief Sets one registered source filter and returns direct operation status.
     LOGGER_EXPORT IO::Types::Status setSourceFilter(Types::SourceId source, bool enabled) noexcept;
@@ -118,7 +163,7 @@ namespace GameWIP::Logger
 
     /// @brief Sets one enum-source filter and returns direct operation status.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     IO::Types::Status setSourceFilter(Source source, bool enabled) noexcept
     {
         return setSourceFilter(Detail::Core::sourceId(source), enabled);
@@ -126,7 +171,7 @@ namespace GameWIP::Logger
 
     /// @brief Resets one enum-source filter to the default enabled state.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     IO::Types::Status resetSourceFilter(Source source) noexcept
     {
         return resetSourceFilter(Detail::Core::sourceId(source));
@@ -148,7 +193,7 @@ namespace GameWIP::Logger
 
     /// @brief Queues a preformatted normal record with an enum source.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     void log(Types::Level level, Source source, std::string_view message) noexcept
     {
         log(level, Detail::Core::sourceId(source), message);
@@ -159,10 +204,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        if (shouldLog(level))
-        {
-            Detail::Core::formatAndLog(level, source, format, std::forward<Args>(args)...);
-        }
+        Detail::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and queues a normal record with a registered source.
@@ -170,15 +212,12 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        if (shouldLog(level, source))
-        {
-            Detail::Core::formatAndLog(level, source, format, std::forward<Args>(args)...);
-        }
+        Detail::Core::formatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and queues a normal record with an enum source.
     template <typename Source, typename... Args>
-        requires(Detail::Core::kIsSourceEnum<Source> && sizeof...(Args) > 0)
+        requires(SourceEnum<Source> && sizeof...(Args) > 0)
     void log(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args) noexcept
     {
         log(level, Detail::Core::sourceId(source), format, std::forward<Args>(args)...);
@@ -189,10 +228,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        if (shouldLog(level))
-        {
-            Detail::Core::runtimeFormatAndLog(level, source, format, args...);
-        }
+        Detail::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and queues a normal record with a registered source.
@@ -200,15 +236,12 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     void log(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        if (shouldLog(level, source))
-        {
-            Detail::Core::runtimeFormatAndLog(level, source, format, args...);
-        }
+        Detail::Core::runtimeFormatAndLogIfEnabled(level, source, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and queues a normal record with an enum source.
     template <typename Source, typename... Args>
-        requires(Detail::Core::kIsSourceEnum<Source> && sizeof...(Args) > 0)
+        requires(SourceEnum<Source> && sizeof...(Args) > 0)
     void log(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
         log(level, Detail::Core::sourceId(source), format, std::forward<Args>(args)...);
@@ -219,7 +252,7 @@ namespace GameWIP::Logger
     LOGGER_EXPORT void name(std::string_view source, std::string_view message) noexcept; \
     LOGGER_EXPORT void name(Types::SourceId source, std::string_view message) noexcept; \
     template <typename Source> \
-        requires(Detail::Core::kIsSourceEnum<Source>) \
+        requires(SourceEnum<Source>) \
     void name(Source source, std::string_view message) noexcept \
     { \
         name(Detail::Core::sourceId(source), message); \
@@ -254,7 +287,7 @@ namespace GameWIP::Logger
     /// @name Synchronous reporting
     /// @{
 
-    /// @brief Synchronously reports a preformatted diagnostic through eligible emergency channels.
+    /// @brief Synchronously reports a preformatted diagnostic through eligible sinks and emergency channels.
     LOGGER_EXPORT Types::Report::Result report(Types::Level level, std::string_view source, std::string_view message) noexcept;
     /// @brief Synchronously reports a preformatted diagnostic under a bounded deadline.
     LOGGER_EXPORT Types::Report::Result report(
@@ -273,7 +306,7 @@ namespace GameWIP::Logger
 
     /// @brief Synchronously reports a preformatted diagnostic with an enum source.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     Types::Report::Result report(Types::Level level, Source source, std::string_view message) noexcept
     {
         return report(level, Detail::Core::sourceId(source), message);
@@ -281,7 +314,7 @@ namespace GameWIP::Logger
 
     /// @brief Synchronously reports an enum-source diagnostic under a bounded deadline.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     Types::Report::Result report(Types::Level level, Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         return report(level, Detail::Core::sourceId(source), timeout, message);
@@ -349,28 +382,28 @@ namespace GameWIP::Logger
 
     /// @brief Synchronously reports a preformatted Error with an enum source.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     Types::Report::Result reportError(Source source, std::string_view message) noexcept
     {
         return reportError(Detail::Core::sourceId(source), message);
     }
     /// @brief Synchronously reports an enum-source Error under a bounded deadline.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     Types::Report::Result reportError(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         return reportError(Detail::Core::sourceId(source), timeout, message);
     }
     /// @brief Synchronously reports a preformatted Fatal diagnostic with an enum source.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     Types::Report::Result reportFatal(Source source, std::string_view message) noexcept
     {
         return reportFatal(Detail::Core::sourceId(source), message);
     }
     /// @brief Synchronously reports an enum-source Fatal diagnostic under a bounded deadline.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     Types::Report::Result reportFatal(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         return reportFatal(Detail::Core::sourceId(source), timeout, message);
@@ -427,14 +460,14 @@ namespace GameWIP::Logger
 
     /// @brief Reports an enum-source Fatal diagnostic and then calls std::terminate().
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     [[noreturn]] void fatalTerminate(Source source, std::string_view message) noexcept
     {
         fatalTerminate(Detail::Core::sourceId(source), message);
     }
     /// @brief Reports an enum-source Fatal diagnostic under a deadline and then terminates.
     template <typename Source>
-        requires(Detail::Core::kIsSourceEnum<Source>)
+        requires(SourceEnum<Source>)
     [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
         fatalTerminate(Detail::Core::sourceId(source), timeout, message);

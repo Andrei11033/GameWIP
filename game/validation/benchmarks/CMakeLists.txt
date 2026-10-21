@@ -2,6 +2,7 @@
 add_library(GameWIPBenchmarkModules OBJECT runner.cpp)
 target_compile_features(GameWIPBenchmarkModules PUBLIC cxx_std_23)
 target_include_directories(GameWIPBenchmarkModules PUBLIC "${PROJECT_SOURCE_DIR}/game")
+target_link_libraries(GameWIPBenchmarkModules PUBLIC GameWIPValidationProcess)
 target_link_libraries(GameWIPBenchmarkModules PUBLIC benchmark::benchmark)
 
 if(GAMEWIP_BUILD_BENCHMARKS)

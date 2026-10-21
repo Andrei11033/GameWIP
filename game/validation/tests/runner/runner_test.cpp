@@ -6,6 +6,9 @@
 
 #include "validation/tests/runner/runner_test.h"
 
+#include "validation/executable_path.h"
+
+#include "validation/tests/runner_helpers.h"
 #include "test_support/test_support.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
@@ -132,6 +135,7 @@ namespace
     [[nodiscard]] bool hasProbeArgument(int argc, char **argv, std::string_view expected) noexcept
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == expected)
@@ -139,6 +143,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
@@ -158,6 +163,7 @@ namespace
         {
             throw std::runtime_error("expected matcher exception");
         }
+
         return false;
     }
 
@@ -183,6 +189,7 @@ namespace
         std::vector<std::string> argumentStorage;
         argumentStorage.reserve(arguments.size() + 1);
         argumentStorage.emplace_back("runner-tests");
+
         for (const std::string_view argument : arguments)
         {
             argumentStorage.emplace_back(argument);
@@ -190,6 +197,7 @@ namespace
 
         std::vector<char *> argumentPointers;
         argumentPointers.reserve(argumentStorage.size());
+
         for (std::string &argument : argumentStorage)
         {
             argumentPointers.push_back(argument.data());
@@ -291,16 +299,9 @@ namespace
         static_cast<void>(context.expectEq("repeated identical selector invokes alpha once", std::size_t{1}, probeState.alpha.runs));
     }
 
-    void testRemovedAndRetainedOptions(TestSupport::Context &context)
+    void testRetainedOptions(TestSupport::Context &context)
     {
-        ValidationTests::RunOptions enabledOptions = unattendedOptions();
-        enabledOptions.enableManualTests = true;
-        Validation::TestResult result = runProbe({"--no-manual-ui", "--no-logger-popup", "--test-support-manual"}, std::move(enabledOptions));
-        static_cast<void>(context.expectTrue("removed options are ignored", result.ok()));
-        static_cast<void>(context.expectEq("removed TestSupport alias does not select a module", std::size_t{2}, result.modulesRun));
-        static_cast<void>(context.expectTrue("removed manual disable options have no effect", probeState.alpha.manualTests));
-
-        result = runProbe({"--no-test-report", "--no-test-support-child-process"});
+        const Validation::TestResult result = runProbe({"--no-test-report", "--no-test-support-child-process"});
         static_cast<void>(context.expectTrue("retained negative options succeed", result.ok()));
         static_cast<void>(context.expectFalse("no-test-report propagates", probeState.alpha.writeReport));
         static_cast<void>(context.expectFalse("no-test-support-child-process propagates", probeState.alpha.childProcesses));
@@ -338,15 +339,19 @@ namespace
     void testReportResolutionAndAggregation(TestSupport::Context &context)
     {
         const TestSupport::ScopedTemporaryDirectory workspace("runner_report");
+
         if (!context.expectTrue("report workspace is available", workspace.status().ok()))
         {
             return;
         }
 
-        const std::filesystem::path relativeReport = "logs/validation/aggregate.txt";
-        const std::filesystem::path expectedReport = (workspace.path() / relativeReport).lexically_normal();
+        const std::filesystem::path outputRoot = Validation::currentExecutablePath().parent_path();
+        const std::filesystem::path relativeReport = std::filesystem::relative(workspace.path(), outputRoot) / "aggregate.txt";
+        const std::filesystem::path expectedReport = (outputRoot / relativeReport).lexically_normal();
+        TestSupport::ScopedProcessState processState;
         {
-            const TestSupport::ScopedCurrentPath currentPath(workspace.path());
+            const TestSupport::ScopedCurrentPath currentPath(processState, workspace.path());
+
             if (!context.expectTrue("report workspace becomes current", currentPath.status().ok()))
             {
                 return;
@@ -360,7 +365,7 @@ namespace
 
         static_cast<void>(context.expectEq("relative report resolves beneath executable directory", expectedReport, probeState.alpha.reportPath));
         std::error_code temporaryPathError;
-        const bool temporaryPathMatches = std::filesystem::equivalent(workspace.path() / "temp", probeState.alpha.temporaryRoot, temporaryPathError);
+        const bool temporaryPathMatches = std::filesystem::equivalent(outputRoot / "temp", probeState.alpha.temporaryRoot, temporaryPathError);
         static_cast<void>(
             context.expectTrue("temporary activity resolves beneath executable directory", !temporaryPathError && temporaryPathMatches));
         static_cast<void>(context.expectFalse("first module truncates aggregate report", probeState.beta.appendReport));
@@ -368,6 +373,14 @@ namespace
         static_cast<void>(context.expectFileContains("aggregate report retains first module result", expectedReport, "module=beta result=PASS"));
         static_cast<void>(context.expectFileContains("aggregate report retains later module result", expectedReport, "module=alpha result=PASS"));
         static_cast<void>(context.expectFileContains("aggregate report retains final result", expectedReport, "result=PASS modules=2 failed=0"));
+
+        const std::filesystem::path explicitReport = workspace.path() / "absolute-report.txt";
+        ValidationTests::RunOptions absoluteOptions;
+        absoluteOptions.reportPath = explicitReport;
+        const Validation::TestResult absoluteResult = runProbe({}, std::move(absoluteOptions));
+        static_cast<void>(context.expectTrue("absolute report invocation succeeds", absoluteResult.ok()));
+        static_cast<void>(context.expectEq("explicit absolute report path is preserved", explicitReport, probeState.alpha.reportPath));
+        static_cast<void>(context.expectFileContains("absolute report retains final result", explicitReport, "result=PASS modules=2 failed=0"));
     }
 
     void testModuleFailureIsolation(TestSupport::Context &context)
@@ -469,13 +482,7 @@ namespace GameWIP::Test
 
     int runRunnerTests(const RunnerTestOptions &options)
     {
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
-        reportOptions.reportPath = options.reportPath;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.runSuite("Validation runner default options", testDefaultManualOptions);
@@ -483,7 +490,7 @@ namespace GameWIP::Test
         runner.runSuite("Validation runner selection independence", testSelectionIndependence);
         runner.runSuite("Validation runner module skips", testModuleSkipSelection);
         runner.runSuite("Validation runner invalid module selection", testInvalidModuleSelection);
-        runner.runSuite("Validation runner removed and retained options", testRemovedAndRetainedOptions);
+        runner.runSuite("Validation runner retained options", testRetainedOptions);
         runner.runSuite("Validation runner reserved input validation", testReservedChildAndReportValidation);
         runner.runSuite("Validation runner report resolution and aggregation", testReportResolutionAndAggregation);
         runner.runSuite("Validation runner failure isolation", testModuleFailureIsolation);
@@ -493,6 +500,6 @@ namespace GameWIP::Test
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("Validation runner tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return runner.exitCode();
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

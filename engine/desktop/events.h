@@ -74,6 +74,8 @@ namespace GameWIP::Desktop::Types::Events
         PresentationState state = PresentationState::Normal; ///< New presentation state.
     };
     /// @brief Reports content-scale, DPI, and framebuffer changes as one transition.
+    /// @details When adjacent transitions coalesce, previousScale/previousDpi come from the earliest
+    /// transition and scale/dpi/framebufferSize come from the latest. A net-zero aggregate is omitted.
     struct ContentScaleChanged
     {
         ContentScale previousScale; ///< Scale before the transition.
@@ -88,17 +90,17 @@ namespace GameWIP::Desktop::Types::Events
         Display::MonitorId previousMonitor; ///< Monitor before the transition.
         Display::MonitorId monitor;         ///< Monitor after the transition.
     };
-    /// @brief Reports a top-level mode transition.
-    struct ModeChanged
+    /// @brief Reports a top-level Window presentation-mode transition.
+    struct WindowModeChanged
     {
-        Mode previousMode = Mode::Windowed; ///< Mode before the transition.
-        Mode mode = Mode::Windowed;         ///< Mode after the transition.
+        WindowMode previous = WindowMode::Windowed; ///< Mode before the transition.
+        WindowMode current = WindowMode::Windowed;  ///< Mode after the transition.
     };
     /// @brief Reports an owner identity transition.
     struct OwnerChanged
     {
-        WindowId previousOwner; ///< Owner before the transition.
-        WindowId owner;         ///< Owner after the transition.
+        std::optional<WindowId> previousOwner; ///< Owner before the transition, or nullopt when unowned.
+        std::optional<WindowId> owner;         ///< Owner after the transition, or nullopt when unowned.
     };
     /// @brief Signals that the desktop display configuration changed.
     struct DisplayConfigurationChanged
@@ -139,7 +141,7 @@ namespace GameWIP::Desktop::Types::Events
         PresentationStateChanged,
         ContentScaleChanged,
         MonitorChanged,
-        ModeChanged,
+        WindowModeChanged,
         OwnerChanged,
         DisplayConfigurationChanged,
         CursorPresenceChanged,
@@ -181,6 +183,42 @@ namespace GameWIP::Desktop::Types
         std::uint64_t sequence = 0; ///< Monotonic sequence within the current open lifetime.
         Events::Payload data;       ///< Tagged event payload.
 
+        /// @brief Stable kind of the stored payload, useful before requesting its exact type.
+        enum class Kind : std::uint8_t
+        {
+            CloseRequested,
+            NativeDestroyed,
+            InteractiveMoveResizeStarted,
+            InteractiveMoveResizeEnded,
+            VisibilityChanged,
+            ClientPositionChanged,
+            ClientSizeChanged,
+            FramebufferSizeChanged,
+            FocusChanged,
+            PresentationStateChanged,
+            ContentScaleChanged,
+            MonitorChanged,
+            WindowModeChanged,
+            OwnerChanged,
+            DisplayConfigurationChanged,
+            CursorPresenceChanged,
+            FilesDropped,
+            OcclusionChanged,
+            RedrawRequested
+        };
+
+        /// @brief Returns the payload kind without exposing variant indexes to callers.
+        [[nodiscard]] constexpr Kind kind() const noexcept
+        {
+            return static_cast<Kind>(data.index());
+        }
+
+        /// @brief Reports whether the payload has the requested exact type.
+        template <typename PayloadType> [[nodiscard]] bool is() const noexcept
+        {
+            return std::holds_alternative<PayloadType>(data);
+        }
+
         /// @brief Returns the mutable payload when it has the requested type.
         /// @tparam PayloadType One alternative in Events::Payload.
         /// @return Pointer to the stored payload, or nullptr when the type does not match.
@@ -199,6 +237,59 @@ namespace GameWIP::Desktop::Types
     };
 } // namespace GameWIP::Desktop::Types
 
+namespace GameWIP::Desktop::Types::Events
+{
+    /// @brief Explicit event-storage policy for one fixed-capacity event queue.
+    /// @tparam EventType Event envelope stored by the queue.
+    template <typename EventType> struct EventQueueConfiguration
+    {
+        /// @brief Window-owned slots.
+        struct Owned
+        {
+            std::size_t capacity = 256;
+        };
+
+        /// @brief Caller-owned slots; must be non-empty and outlive finalization.
+        struct Borrowed
+        {
+            std::span<EventType> storage;
+        };
+
+        /// @brief Active storage policy.
+        std::variant<Owned, Borrowed> storage = Owned{};
+
+        /// @brief Window-owned queue of `capacity` slots.
+        [[nodiscard]] static EventQueueConfiguration owned(std::size_t capacity = 256) noexcept
+        {
+            return EventQueueConfiguration{Owned{capacity}};
+        }
+
+        /// @brief Queue backed by caller storage.
+        [[nodiscard]] static EventQueueConfiguration borrowed(std::span<EventType> eventStorage) noexcept
+        {
+            return EventQueueConfiguration{Borrowed{eventStorage}};
+        }
+    };
+
+    /// @brief Explicit event-storage policy for Window::open().
+    using QueueConfiguration = EventQueueConfiguration<Types::Event>;
+} // namespace GameWIP::Desktop::Types::Events
+
+namespace GameWIP::Desktop::Events
+{
+    /// @brief Shorthand for `Types::Events::QueueConfiguration::owned()`.
+    [[nodiscard]] inline Types::Events::QueueConfiguration owned(std::size_t capacity = 256) noexcept
+    {
+        return Types::Events::QueueConfiguration::owned(capacity);
+    }
+
+    /// @brief Shorthand for `Types::Events::QueueConfiguration::borrowed()`.
+    [[nodiscard]] inline Types::Events::QueueConfiguration borrowed(std::span<Types::Event> storage) noexcept
+    {
+        return Types::Events::QueueConfiguration::borrowed(storage);
+    }
+} // namespace GameWIP::Desktop::Events
+
 /// @brief Calling-thread Window event-pump operations and queue defaults.
 namespace GameWIP::Desktop::Events
 {
@@ -207,9 +298,13 @@ namespace GameWIP::Desktop::Events
     inline constexpr std::chrono::milliseconds kWaitForever{-1}; ///< Unbounded wait sentinel.
 
     /// @brief Pumps pending native events for the calling thread without waiting.
+    /// @details Also dispatches tray and notification messages when no Window is open.
+    /// Shell events remain in their separate ShellEventQueue and are excluded from the returned counts.
     /// @return Pump status and the numbers of events queued and dropped by this call.
     [[nodiscard]] DESKTOP_EXPORT Types::Events::PumpResult poll() noexcept;
     /// @brief Waits for native work, then pumps events for the calling thread.
+    /// @details Remains active for owner-thread tray and notification resources without a Window.
+    /// With no native Desktop resources, returns immediately as a successful no-op.
     /// @param timeout Zero to poll, a positive duration for a bounded wait, or kWaitForever.
     /// @return Pump status, timeout state, and the numbers of events queued and dropped by this call.
     [[nodiscard]] DESKTOP_EXPORT Types::Events::PumpResult wait(std::chrono::milliseconds timeout = kWaitForever) noexcept;

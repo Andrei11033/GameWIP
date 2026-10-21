@@ -133,6 +133,87 @@
         "CMAKE_BUILD_TYPE": "Release",
         "GAMEWIP_BUILD_DOCS": "ON"
       }
+    },
+    {
+      "name": "ci-validation",
+      "displayName": "CI validation",
+      "description": "The complete single-config CI validation build, including game, tests, and standalone benchmarks.",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "GAMEWIP_BUILD_GAME": "ON",
+        "GAMEWIP_BUILD_TESTS": "ON",
+        "GAMEWIP_BUILD_BENCHMARKS": "ON",
+        "GAMEWIP_ENABLE_ASSERTS": "ON",
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-package",
+      "displayName": "CI single-config package validation",
+      "inherits": "test",
+      "cacheVariables": {
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-package-multi",
+      "displayName": "CI multi-config package validation",
+      "generator": "Ninja Multi-Config",
+      "inherits": "base",
+      "cacheVariables": {
+        "GAMEWIP_BUILD_TESTS": "ON",
+        "GAMEWIP_ENABLE_ASSERTS": "ON",
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-coverage",
+      "displayName": "CI coverage",
+      "inherits": "coverage",
+      "cacheVariables": {
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-asan",
+      "displayName": "CI AddressSanitizer",
+      "inherits": "asan",
+      "cacheVariables": {
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-ubsan",
+      "displayName": "CI UndefinedBehaviorSanitizer",
+      "inherits": "ubsan",
+      "cacheVariables": {
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-analyze",
+      "displayName": "CI static analysis",
+      "inherits": "analyze",
+      "cacheVariables": {
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "ci-docs",
+      "displayName": "CI documentation",
+      "inherits": "docs",
+      "cacheVariables": {
+        "GAMEWIP_DEPENDENCIES_OFFLINE": "ON",
+        "GAMEWIP_WARNINGS_AS_ERRORS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -185,6 +266,45 @@
       "name": "docs",
       "configurePreset": "docs",
       "targets": ["docs"]
+    },
+    {
+      "name": "ci-validation",
+      "configurePreset": "ci-validation"
+    },
+    {
+      "name": "ci-package",
+      "configurePreset": "ci-package",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "ci-package-multi",
+      "configurePreset": "ci-package-multi",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "ci-coverage",
+      "configurePreset": "ci-coverage",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "ci-asan",
+      "configurePreset": "ci-asan",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "ci-ubsan",
+      "configurePreset": "ci-ubsan",
+      "targets": ["GameWIPTests"]
+    },
+    {
+      "name": "ci-analyze",
+      "configurePreset": "ci-analyze",
+      "targets": ["static-analysis"]
+    },
+    {
+      "name": "ci-docs",
+      "configurePreset": "ci-docs",
+      "targets": ["docs"]
     }
   ],
   "testPresets": [
@@ -221,6 +341,25 @@
     {
       "name": "ubsan",
       "configurePreset": "ubsan",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" },
+      "environment": { "UBSAN_OPTIONS": "print_stacktrace=1" }
+    },
+    {
+      "name": "ci-coverage",
+      "configurePreset": "ci-coverage",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    },
+    {
+      "name": "ci-asan",
+      "configurePreset": "ci-asan",
+      "output": { "outputOnFailure": true },
+      "execution": { "noTestsAction": "error" }
+    },
+    {
+      "name": "ci-ubsan",
+      "configurePreset": "ci-ubsan",
       "output": { "outputOnFailure": true },
       "execution": { "noTestsAction": "error" },
       "environment": { "UBSAN_OPTIONS": "print_stacktrace=1" }

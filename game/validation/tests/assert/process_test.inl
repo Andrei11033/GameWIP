@@ -12,6 +12,7 @@ int runAssertFailureChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
+
     if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
@@ -35,6 +36,7 @@ int runInteractiveAbortChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
+
     if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
@@ -58,6 +60,7 @@ int runInteractiveBreakChild()
     config.minLevel = Logger::Types::Level::Trace;
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
+
     if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
@@ -91,15 +94,20 @@ int runUnreachableChild()
 }
 
 /// @brief Runs a child process and expects it to exit abnormally.
-void expectAbnormalChildExit(TestContext &context, std::string_view argument, std::string_view testName)
+void expectAbnormalChildExit(TestContext &context, std::string_view argument, std::string_view testName, std::chrono::milliseconds timeout = 30s)
 {
     std::cout.flush();
     std::cerr.flush();
-    const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument);
+    const TestSupport::Types::Process::Result result = runChildProcessResult(context.executablePath, argument, timeout);
     context.expectTrue(
         testName,
         result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode != 0,
-        "child process did not produce a normal nonzero exit");
+        std::format(
+            "{} outcome={} exit={}\n{}",
+            TestSupport::formatInfrastructureStatus(result.status),
+            static_cast<int>(result.outcome),
+            result.exitCode,
+            result.outputBytes));
 }
 
 /// @brief Verifies a failed ASSERT triggers an abnormal child-process exit when assertions are enabled.
@@ -108,17 +116,22 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
 #if ASSERT_ENABLED
     if (!options.enableChildCrashTests)
     {
-        context.pass("ASSERT failure child test disabled by AssertTestOptions");
+        context.skip("ASSERT failure child test", "disabled by AssertTestOptions");
         return;
     }
 
     const std::filesystem::path childLogDirectory = context.logRoot / "assert_child";
+
     if (!requireInfrastructure(context, "create ASSERT child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable suppressPopupOverride(kSuppressPopupEnvironmentVariable, "1");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(
+        context.processState,
+        kChildLogDirectoryEnvironmentVariable,
+        pathText(childLogDirectory));
+    const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
+
     if (!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
     {
@@ -144,7 +157,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
         "child assert message was embedded");
 #endif
 #else
-    context.pass("ASSERT failure child test skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT failure child test", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -154,17 +167,22 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
 #if ASSERT_ENABLED
     if (!options.enableChildCrashTests)
     {
-        context.pass("ASSERT_INTERACTIVE abort child test disabled by AssertTestOptions");
+        context.skip("ASSERT_INTERACTIVE abort child test", "disabled by AssertTestOptions");
         return;
     }
 
     const std::filesystem::path childLogDirectory = context.logRoot / "interactive_abort_child";
+
     if (!requireInfrastructure(context, "create interactive Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "abort");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(
+        context.processState,
+        kChildLogDirectoryEnvironmentVariable,
+        pathText(childLogDirectory));
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "abort");
+
     if (!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
     {
@@ -190,7 +208,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
         "interactive abort child message was embedded");
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE abort child skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE abort child", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -200,17 +218,22 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
 #if ASSERT_ENABLED
     if (!options.enableChildCrashTests)
     {
-        context.pass("ASSERT_INTERACTIVE break child test disabled by AssertTestOptions");
+        context.skip("ASSERT_INTERACTIVE break child test", "disabled by AssertTestOptions");
         return;
     }
 
     const std::filesystem::path childLogDirectory = context.logRoot / "interactive_break_child";
+
     if (!requireInfrastructure(context, "create interactive Break child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
     }
-    const ScopedEnvironmentVariable childLogDirectoryOverride(kChildLogDirectoryEnvironmentVariable, pathText(childLogDirectory));
-    const ScopedEnvironmentVariable testAction(kTestActionEnvironmentVariable, "break");
+    const ScopedEnvironmentVariable childLogDirectoryOverride(
+        context.processState,
+        kChildLogDirectoryEnvironmentVariable,
+        pathText(childLogDirectory));
+    const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "break");
+
     if (!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
         !requireInfrastructure(context, "set interactive Break action", testAction.status()))
     {
@@ -236,7 +259,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
         "interactive break child message was embedded");
 #endif
 #else
-    context.pass("ASSERT_INTERACTIVE break child skipped because ASSERT_ENABLED=0");
+    context.skip("ASSERT_INTERACTIVE break child", "ASSERT_ENABLED=0");
 #endif
 }
 
@@ -250,13 +273,14 @@ void testDebugBreakChild(TestContext &context)
 void testUnreachableChild(TestContext &context)
 {
 #if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
-    const ScopedEnvironmentVariable suppressPopupOverride(kSuppressPopupEnvironmentVariable, "1");
+    const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
+
     if (!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
     {
         return;
     }
     expectAbnormalChildExit(context, kUnreachableChildArgument, "UNREACHABLE child exits abnormally with popup suppressed");
 #else
-    context.pass("UNREACHABLE child test skipped because ASSERT_UNREACHABLE_ASSUME=1");
+    context.skip("UNREACHABLE child test", "ASSERT_UNREACHABLE_ASSUME=1");
 #endif
 }

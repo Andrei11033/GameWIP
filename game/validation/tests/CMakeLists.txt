@@ -2,10 +2,16 @@
 add_library(GameWIPTestModules OBJECT registry.cpp runner.cpp)
 target_compile_features(GameWIPTestModules PUBLIC cxx_std_23)
 target_include_directories(GameWIPTestModules PUBLIC "${PROJECT_SOURCE_DIR}/game")
+target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess)
 
 if(GAMEWIP_BUILD_TESTS)
     # The standalone executable exposes focused module selection to developers and CTest.
     add_executable(GameWIPTests standalone_main.cpp)
+    if(WIN32)
+        # Give shell discovery the same executable identity as an installed application.
+        configure_file(version.rc.in "${CMAKE_CURRENT_BINARY_DIR}/version.rc" @ONLY)
+        target_sources(GameWIPTests PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/version.rc")
+    endif()
     target_compile_features(GameWIPTests PRIVATE cxx_std_23)
     target_link_libraries(GameWIPTests PRIVATE GameWIPTestModules)
     gamewip_attach_application_manifest(TARGET GameWIPTests COMMON_CONTROLS_V6 PER_MONITOR_V2)
@@ -15,7 +21,10 @@ if(GAMEWIP_BUILD_TESTS)
 
     # Help output is a cheap smoke test that also protects the public command-line contract.
     add_test(NAME validation.tests.help COMMAND "$<TARGET_FILE:GameWIPTests>" --help)
-    set_tests_properties(validation.tests.help PROPERTIES PASS_REGULAR_EXPRESSION "Usage:;--test-module=<name>;Registered modules:" TIMEOUT 60)
+    set_tests_properties(
+        validation.tests.help
+        PROPERTIES LABELS "validation" PASS_REGULAR_EXPRESSION "Usage:;--test-module=<name>;Registered modules:" TIMEOUT 60
+    )
 
     add_test(
         NAME validation.packages.installed_consumer
@@ -28,7 +37,8 @@ if(GAMEWIP_BUILD_TESTS)
             "-DMULTI_CONFIG=$<BOOL:${CMAKE_CONFIGURATION_TYPES}>" "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
             "-DCOVERAGE_ENABLED=${GAMEWIP_ENABLE_COVERAGE}" "-DADDRESS_SANITIZER_ENABLED=${GAMEWIP_ENABLE_ADDRESS_SANITIZER}"
             "-DUNDEFINED_BEHAVIOR_SANITIZER_ENABLED=${GAMEWIP_ENABLE_UNDEFINED_BEHAVIOR_SANITIZER}" "-DINSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR}"
-            "-DEXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}" -P "${PROJECT_SOURCE_DIR}/cmake/RunInstalledConsumerValidation.cmake"
+            "-DEXECUTABLE_SUFFIX=${CMAKE_EXECUTABLE_SUFFIX}" "-DRUN_RUNTIME_PROBE=$<BOOL:${WIN32}>" -P
+            "${PROJECT_SOURCE_DIR}/cmake/RunInstalledConsumerValidation.cmake"
     )
     set_tests_properties(
         validation.packages.installed_consumer

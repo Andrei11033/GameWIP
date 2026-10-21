@@ -196,7 +196,7 @@ namespace GameWIP::Terminal
                 /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
                 std::stop_token stopToken{};
 
-                /// @brief Maximum accepted byte count for one available UTF-8 text chunk.
+                /// @brief Maximum accepted byte count for one available UTF-8 text chunk; must be greater than zero.
                 std::uint64_t maxReturnedBytes = kDefaultMaxReturnedTextBytes;
             };
 
@@ -211,7 +211,7 @@ namespace GameWIP::Terminal
                 /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
                 std::stop_token stopToken{};
 
-                /// @brief Maximum accepted byte count for the returned line representation.
+                /// @brief Maximum accepted byte count for the returned line representation; must be greater than zero.
                 std::uint64_t maxReturnedBytes = kDefaultMaxReturnedLineBytes;
 
                 /// @brief Whether an interactive terminal read manages visible echo and editing feedback on the bound output stream.
@@ -497,6 +497,7 @@ namespace GameWIP::Terminal
     [[nodiscard]] TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities() noexcept;
 
     /// @brief Returns capabilities for an input stream.
+    /// @param stream Input stream to inspect.
     [[nodiscard]] TERMINAL_EXPORT Types::Input::CapabilitiesResult getInputCapabilities(Types::Input::Stream stream) noexcept;
 
     /// @name Input

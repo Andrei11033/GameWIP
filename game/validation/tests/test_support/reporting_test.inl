@@ -51,6 +51,8 @@ void testContextReporting(TestSupport::Context &context, const std::filesystem::
 {
     const std::filesystem::path reportPath = root / "context_report.txt";
     TestSupport::Context nested("NestedContext", quietReport(reportPath));
+    static_cast<void>(
+        context.expectEq("Standalone context report starts active", TestSupport::Types::Reporting::SinkState::Active, nested.reportStatus().state));
     nested.info("info line");
     nested.manual("manual line");
     nested.metric("metric line");
@@ -78,6 +80,11 @@ void testContextReporting(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(context.expectTrue("Context ok", nested.ok()));
     static_cast<void>(context.expectEq("Context suite name", std::string("NestedContext"), nested.suiteName()));
 
+    const TestSupport::Types::Reporting::SinkStatus nestedFinalStatus = nested.finalize();
+    static_cast<void>(
+        context.expectEq("Standalone context finalization succeeds", TestSupport::Types::Reporting::SinkState::Finalized, nestedFinalStatus.state));
+    static_cast<void>(context.expectTrue("Standalone context finalization has no failure", nestedFinalStatus.failureStatus.ok()));
+
     const TestSupport::Types::TextResult reportResult = TestSupport::readTextFile(reportPath);
     static_cast<void>(context.expectTrue("Context report read succeeds", reportResult.status.ok()));
     const std::string &report = reportResult.text;
@@ -92,9 +99,24 @@ void testContextReporting(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(failing.expectNear("intentional negative tolerance", 1.0, 1.0, -1.0));
     static_cast<void>(failing.expectNear("intentional outside tolerance", 1.0, 2.0, 0.1));
     static_cast<void>(failing.expectFileContains("intentional missing file", root / "missing.txt", "needle"));
+    static_cast<void>(
+        failing.expectEq("intentional enum mismatch", TestSupport::Types::Process::Outcome::Exited, TestSupport::Types::Process::Outcome::TimedOut));
+    enum class SignedDiagnostic : int
+    {
+        Negative = -7,
+        Positive = 42
+    };
+    static_cast<void>(failing.expectEq("intentional signed enum mismatch", SignedDiagnostic::Negative, SignedDiagnostic::Positive));
     const TestSupport::Types::Reporting::Summary failingSummary = failing.result();
-    static_cast<void>(context.expectEq("Context records failures without throwing", std::size_t{4}, failingSummary.failed));
+    static_cast<void>(context.expectEq("Context records failures without throwing", std::size_t{6}, failingSummary.failed));
+    static_cast<void>(
+        context.expectFileContains("enum mismatch shows narrow numeric values", root / "failing_context_report.txt", "expected 1, got 2"));
+    static_cast<void>(
+        context.expectFileContains("enum mismatch preserves negative values", root / "failing_context_report.txt", "expected -7, got 42"));
     static_cast<void>(context.expectFalse("Failing context not ok", failing.ok()));
+    const TestSupport::Types::Reporting::SinkStatus failingFinalStatus = failing.finalize();
+    static_cast<void>(
+        context.expectEq("Failing context report still finalizes", TestSupport::Types::Reporting::SinkState::Finalized, failingFinalStatus.state));
     context.pass("Context continued after nested failures");
 }
 
@@ -108,6 +130,14 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     noReportOptions.reportPath = noReportPath;
     TestSupport::Context noReport("NoReport", noReportOptions);
     noReport.pass("not written");
+    static_cast<void>(context.expectEq(
+        "Report-disabled sink state is disabled",
+        TestSupport::Types::Reporting::SinkState::Disabled,
+        noReport.reportStatus().state));
+    static_cast<void>(context.expectEq(
+        "Report-disabled finalization remains disabled",
+        TestSupport::Types::Reporting::SinkState::Disabled,
+        noReport.finalize().state));
     const TestSupport::Types::BoolResult noReportExists = TestSupport::fileExists(noReportPath);
     static_cast<void>(context.expectTrue("Report-disabled path inspection succeeds", noReportExists.status.ok()));
     static_cast<void>(context.expectFalse("Report disabled writes no file", noReportExists.value));
@@ -134,11 +164,15 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     firstOptions.appendReport = false;
     TestSupport::Context first("AppendReport", firstOptions);
     first.pass("first line");
+    static_cast<void>(
+        context.expectEq("Append report first sink finalizes", TestSupport::Types::Reporting::SinkState::Finalized, first.finalize().state));
 
     TestSupport::Types::Reporting::Options secondOptions = quietReport(appendPath);
     secondOptions.appendReport = true;
     TestSupport::Context second("AppendReport", secondOptions);
     second.pass("second line");
+    static_cast<void>(
+        context.expectEq("Append report second sink finalizes", TestSupport::Types::Reporting::SinkState::Finalized, second.finalize().state));
 
     const TestSupport::Types::TextResult appendedResult = TestSupport::readTextFile(appendPath);
     static_cast<void>(context.expectTrue("Appended report read succeeds", appendedResult.status.ok()));
@@ -150,6 +184,8 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     truncateOptions.appendReport = false;
     TestSupport::Context truncated("AppendReport", truncateOptions);
     truncated.pass("third line");
+    static_cast<void>(
+        context.expectEq("Truncated report sink finalizes", TestSupport::Types::Reporting::SinkState::Finalized, truncated.finalize().state));
 
     const TestSupport::Types::TextResult truncatedResult = TestSupport::readTextFile(appendPath);
     static_cast<void>(context.expectTrue("Truncated report read succeeds", truncatedResult.status.ok()));
@@ -171,6 +207,19 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("Destructor-flushed report read succeeds", destructionFlushResult.status.ok()));
     static_cast<void>(
         context.expectContains("Report sink destruction flushes buffered output", destructionFlushResult.text, "flushed at destruction"));
+
+    const std::filesystem::path invalidParent = root / "invalid_report_parent";
+    static_cast<void>(context.expectTrue("Invalid report parent fixture writes", TestSupport::writeTextFile(invalidParent, "not a directory").ok()));
+    TestSupport::Types::Reporting::Options invalidReportOptions = quietReport(invalidParent / "child.txt");
+    TestSupport::Context invalidReport("InvalidReport", invalidReportOptions);
+    const TestSupport::Types::Reporting::SinkStatus invalidStatus = invalidReport.reportStatus();
+    static_cast<void>(
+        context.expectEq("Invalid report destination is failed", TestSupport::Types::Reporting::SinkState::Failed, invalidStatus.state));
+    static_cast<void>(context.expectFalse("Invalid report destination exposes failure", invalidStatus.failureStatus.ok()));
+    static_cast<void>(context.expectEq(
+        "Invalid report finalization remains failed",
+        TestSupport::Types::Reporting::SinkState::Failed,
+        invalidReport.finalize().state));
 
     std::string conciseOutput;
     {
@@ -232,6 +281,19 @@ void testPromptManualCheck(TestSupport::Context &context)
         promptWithInput("maybe\nYes\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
     static_cast<void>(
         context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
+    const auto promptReason = [&](std::string_view input, std::string_view expected)
+    {
+        ScopedPromptStreams streams(input);
+        std::string reason = "stale reason";
+        const auto answer = TestSupport::promptManualCheck("reason check", reason);
+        return answer == TestSupport::Types::Reporting::ManualAnswer::Skipped && reason == expected;
+    };
+    static_cast<void>(
+        context.expectTrue("manual prompt preserves tool limitation", promptReason("s tool cannot cross windows\n", "tool cannot cross windows")));
+    static_cast<void>(
+        context.expectTrue("manual prompt preserves scope exclusion", promptReason("skip outside requested scope\n", "outside requested scope")));
+    static_cast<void>(context.expectTrue("manual prompt identifies EOF", promptReason("", "input ended before an answer")));
+    static_cast<void>(context.expectTrue("manual prompt identifies unspecified skip", promptReason("s\n", "no skip reason supplied")));
 }
 
 /// @brief Converts one expected manual response into a pass, skip, or failure.
@@ -242,6 +304,7 @@ void recordExpectedManualAnswer(
     TestSupport::Types::Reporting::ManualAnswer expectedAnswer)
 {
     const TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::promptManualCheck(question);
+
     if (answer == expectedAnswer)
     {
         context.pass(name);
@@ -289,13 +352,15 @@ void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::
     TestSupport::Types::Reporting::Options runnerOptions = quietReport(root / "runner_report.txt");
     runnerOptions.flushReportEachLine = false;
     TestSupport::Runner runner(runnerOptions);
+    bool runnerOwnedContextStayedActive = false;
     const TestSupport::Types::Reporting::SuiteResult first = runner.runSuite(
         "FirstSuite",
-        [](TestSupport::Context &suite)
+        [&runnerOwnedContextStayedActive](TestSupport::Context &suite)
         {
             TestSupport::Section section(suite, "small section");
             suite.pass("suite pass");
             suite.skip("suite skip", "not applicable");
+            runnerOwnedContextStayedActive = suite.finalize().state == TestSupport::Types::Reporting::SinkState::Active;
         });
 
     const TestSupport::Types::Reporting::SuiteResult second = runner.runSuite("SecondSuite", [] {});
@@ -309,6 +374,14 @@ void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(context.expectEq("Runner aggregate failed", std::size_t{0}, runnerSummary.failed));
     static_cast<void>(context.expectTrue("Runner ok", runner.ok()));
     static_cast<void>(context.expectEq("Runner exit code success", 0, runner.exitCode()));
+    static_cast<void>(context.expectTrue("Runner-owned context cannot finalize shared sink", runnerOwnedContextStayedActive));
+    static_cast<void>(context.expectEq("Runner report starts active", TestSupport::Types::Reporting::SinkState::Active, runner.reportStatus().state));
+
+    const TestSupport::Types::Reporting::SinkStatus runnerFinalStatus = runner.finalize();
+    static_cast<void>(context.expectEq("Runner finalization succeeds", TestSupport::Types::Reporting::SinkState::Finalized, runnerFinalStatus.state));
+    static_cast<void>(context.expectTrue("Runner finalization has no failure", runnerFinalStatus.failureStatus.ok()));
+    static_cast<void>(
+        context.expectEq("Runner finalization is idempotent", TestSupport::Types::Reporting::SinkState::Finalized, runner.finalize().state));
 
     const TestSupport::Types::TextResult reportResult = TestSupport::readTextFile(root / "runner_report.txt");
     static_cast<void>(context.expectTrue("Runner report read succeeds", reportResult.status.ok()));
@@ -336,4 +409,8 @@ void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::
     static_cast<void>(context.expectEq("Throwing runner records failure", std::size_t{1}, throwingSummary.failed));
     static_cast<void>(context.expectEq("Throwing runner records later pass", std::size_t{1}, throwingSummary.passed));
     static_cast<void>(context.expectEq("Throwing runner exit code failure", 1, throwingRunner.exitCode()));
+    static_cast<void>(context.expectEq(
+        "Throwing runner finalizes independently",
+        TestSupport::Types::Reporting::SinkState::Finalized,
+        throwingRunner.finalize().state));
 }

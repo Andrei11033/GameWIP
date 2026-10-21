@@ -8,6 +8,7 @@
 
 #include <optional>
 #include <string>
+#include <variant>
 
 namespace GameWIP::Desktop::Types
 {
@@ -28,19 +29,93 @@ namespace GameWIP::Desktop::Types
     };
 
     /// @brief Initial placement request.
+    /// @details A monitor may be supplied only for Centered placement; position is used only for Explicit placement.
     struct Placement
     {
         PlacementKind kind = PlacementKind::PlatformDefault; ///< Placement strategy.
-        Display::MonitorId monitor;                          ///< Target monitor when applicable.
-        ScreenPosition position;                             ///< Explicit position when requested.
+        std::optional<Display::MonitorId> monitor; ///< Target monitor for Centered placement; nullopt selects the primary monitor. Ignored otherwise.
+        ScreenPosition position;                   ///< Explicit position when requested.
     };
 
-    /// @brief Requested top-level mode and optional exclusive display mode.
-    struct ModeRequest
+    /// @brief Initial/restored logical windowed geometry.
+    /// @details This geometry is independent from any physical monitor mode requested by fullscreen.
+    struct WindowedGeometry
     {
-        Mode mode = Mode::Windowed;               ///< Requested top-level mode.
-        Display::MonitorId monitor;               ///< Target fullscreen monitor.
-        std::optional<Display::Mode> displayMode; ///< Optional exclusive physical mode.
+        LogicalSize clientSize{1280, 720}; ///< Initial and restored logical client extent; must satisfy ResizePolicy::limits.
+        Placement placement;               ///< Initial desktop placement used for the windowed state.
+    };
+
+    /// @brief Requests a normal windowed presentation.
+    struct WindowedModeRequest
+    {
+    };
+
+    /// @brief Requests borderless fullscreen, optionally on a specific monitor.
+    struct BorderlessFullscreenRequest
+    {
+        std::optional<Display::MonitorId> targetMonitor; ///< Nullopt chooses the current/nearest monitor.
+    };
+
+    /// @brief Requests exclusive fullscreen, optionally selecting a monitor and physical mode.
+    struct ExclusiveFullscreenRequest
+    {
+        std::optional<Display::MonitorId> targetMonitor; ///< Nullopt chooses the current/nearest monitor.
+        std::optional<Display::Mode> displayMode;        ///< Nullopt keeps the selected monitor's current physical mode.
+    };
+
+    /// @brief Type-safe request for a Window presentation mode; build it with WindowModes.
+    using WindowModeRequest = std::variant<WindowedModeRequest, BorderlessFullscreenRequest, ExclusiveFullscreenRequest>;
+
+    /// @brief Named constructors for the valid WindowModeRequest combinations.
+    /// @details Omitted monitor means the current/nearest monitor; omitted display mode keeps that
+    /// monitor's current physical mode. Fullscreen requests never change Description::windowed,
+    /// which is only the restore size.
+    namespace WindowModes
+    {
+        /// @brief Normal windowed presentation using Description::windowed.
+        [[nodiscard]] constexpr WindowModeRequest windowed() noexcept
+        {
+            return WindowedModeRequest{};
+        }
+
+        /// @brief Borderless fullscreen on the current/nearest monitor; the physical display mode is unchanged.
+        [[nodiscard]] constexpr WindowModeRequest borderlessFullscreen() noexcept
+        {
+            return BorderlessFullscreenRequest{};
+        }
+
+        /// @brief Borderless fullscreen on @p monitor; the physical display mode is unchanged.
+        [[nodiscard]] constexpr WindowModeRequest borderlessFullscreen(Display::MonitorId monitor) noexcept
+        {
+            return BorderlessFullscreenRequest{monitor};
+        }
+
+        /// @brief Exclusive fullscreen on the current/nearest monitor, keeping its current physical mode.
+        [[nodiscard]] constexpr WindowModeRequest exclusiveFullscreen() noexcept
+        {
+            return ExclusiveFullscreenRequest{};
+        }
+
+        /// @brief Exclusive fullscreen on the current/nearest monitor, switching it to @p displayMode.
+        /// @details The monitor's previous mode is restored when fullscreen ends.
+        [[nodiscard]] constexpr WindowModeRequest exclusiveFullscreen(Display::Mode displayMode) noexcept
+        {
+            return ExclusiveFullscreenRequest{std::nullopt, displayMode};
+        }
+
+        /// @brief Exclusive fullscreen on @p monitor, switching it to @p displayMode.
+        [[nodiscard]] constexpr WindowModeRequest exclusiveFullscreen(Display::MonitorId monitor, Display::Mode displayMode) noexcept
+        {
+            return ExclusiveFullscreenRequest{monitor, displayMode};
+        }
+    } // namespace WindowModes
+
+    /// @brief Startup visibility, focus, and activation policy.
+    struct ActivationPolicy
+    {
+        bool visible = false;      ///< Whether the native Window is shown after opening; required by requestFocus.
+        bool focusable = true;     ///< Whether the Window may receive keyboard focus; required by requestFocus.
+        bool requestFocus = false; ///< Requests activation; requires visible=true and focusable=true.
     };
 
     /// @brief Availability of standard system Window controls.
@@ -50,6 +125,15 @@ namespace GameWIP::Desktop::Types
         bool minimizable = true; ///< Whether the minimize control is enabled.
         bool maximizable = true; ///< Whether the maximize control is enabled.
         friend constexpr bool operator==(Controls, Controls) noexcept = default;
+    };
+
+    /// @brief User-resizing policy and constraints.
+    struct ResizePolicy
+    {
+        bool enabled = true;                    ///< Whether user resizing is enabled; false requires controls.maximizable=false.
+        Controls controls;                      ///< Standard controls; controls.maximizable requires enabled=true.
+        SizeLimits limits;                      ///< Initial logical client-size limits.
+        std::optional<AspectRatio> aspectRatio; ///< Optional logical client aspect-ratio constraint.
     };
 
     /// @brief Behavior applied when the effective monitor DPI changes.
@@ -109,31 +193,29 @@ namespace GameWIP::Desktop::Types
     };
 
     /// @brief Complete initial top-level Window description.
+    /// @details requestFocus requires activation.visible and activation.focusable. A hidden Window
+    /// must use Normal presentation. resizing.enabled=false requires resizing.controls.maximizable=false.
+    /// windowed.clientSize must satisfy resizing.limits. Region and HitMask pointer modes require
+    /// runtime layout/publication and cannot be selected at open.
     struct Description
     {
-        std::string title = "GameWIP";     ///< UTF-8; embedded U+0000 is rejected by native title operations.
-        LogicalSize clientSize{1280, 720}; ///< Initial logical client extent.
+        std::string title = "GameWIP"; ///< UTF-8; embedded U+0000 is rejected by native title operations.
+        WindowedGeometry windowed;     ///< Initial/restored logical windowed geometry; independent of physical display mode.
         DpiResizePolicy dpiResizePolicy = DpiResizePolicy::PreserveLogicalClientSize; ///< DPI resize behavior.
-        Placement placement;                                                          ///< Initial desktop placement.
-        ModeRequest mode;                                                             ///< Initial top-level mode.
-        PresentationState presentation = PresentationState::Normal;                   ///< Initial presentation state.
-        DecorationMode decoration = DecorationMode::System;                           ///< Initial decoration policy.
-        Controls controls;                                                            ///< Initial standard-control availability.
-        SizeLimits sizeLimits;                                                        ///< Initial logical size limits.
-        std::optional<AspectRatio> aspectRatio;                                       ///< Optional client aspect-ratio constraint.
-        WindowId owner;                                                               ///< Optional owner Window identity.
-        CursorMode cursorMode = CursorMode::Normal;                                   ///< Initial cursor mode.
-        CursorShape cursorShape = CursorShape::Arrow;                                 ///< Initial cursor shape.
-        PointerInputMode pointerInputMode = PointerInputMode::Normal;                 ///< Initial pointer hit-test policy.
-        BackdropEffect backdropEffect = BackdropEffect::None;                         ///< Initial backdrop treatment.
-        float opacity = 1.0F;                                                         ///< Initial opacity in [0, 1].
-        bool visible = false;                                                         ///< Whether to show after opening.
-        bool requestFocus = false;                                                    ///< Whether to request activation after opening.
-        bool resizable = true;                                                        ///< Whether user resizing is enabled.
-        bool focusable = true;                                                        ///< Whether the Window can receive focus.
-        bool userInteractionEnabled = true;                                           ///< Whether user interaction is enabled.
-        bool alwaysOnTop = false;                                                     ///< Whether topmost ordering is requested.
-        bool fileDropEnabled = false;                                                 ///< Whether portable file-drop events are enabled.
-        bool transparentFramebuffer = false;                                          ///< Whether framebuffer alpha reaches the desktop.
+        WindowModeRequest initialWindowMode = WindowModes::windowed(); ///< Initial presentation request; separate from windowed geometry.
+        PresentationState presentation = PresentationState::Normal;    ///< Initial presentation state.
+        DecorationMode decoration = DecorationMode::System;            ///< Initial decoration policy.
+        ActivationPolicy activation;                                   ///< Visibility and focus policy; contradictory combinations are rejected.
+        ResizePolicy resizing;                      ///< Resizing, controls, limits, and aspect-ratio policy; contradictory combinations are rejected.
+        std::optional<WindowId> owner;              ///< Optional owner Window identity; nullopt means no owner.
+        CursorMode cursorMode = CursorMode::Normal; ///< Initial cursor mode.
+        CursorShape cursorShape = CursorShape::Arrow;                 ///< Initial cursor shape.
+        PointerInputMode pointerInputMode = PointerInputMode::Normal; ///< Initial pointer hit-test policy.
+        BackdropEffect backdropEffect = BackdropEffect::None;         ///< Initial backdrop treatment.
+        float opacity = 1.0F;                                         ///< Initial opacity in [0, 1].
+        bool userInteractionEnabled = true;                           ///< Whether user interaction is enabled.
+        bool alwaysOnTop = false;                                     ///< Whether topmost ordering is requested.
+        bool fileDropEnabled = false;                                 ///< Whether portable file-drop events are enabled.
+        bool transparentFramebuffer = false;                          ///< Whether framebuffer alpha reaches the desktop.
     };
 } // namespace GameWIP::Desktop::Types

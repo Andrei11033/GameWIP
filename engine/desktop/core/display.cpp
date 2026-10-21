@@ -11,17 +11,17 @@ namespace GameWIP::Desktop::Display
     // Display-mode queries
     // ------------------------------------------------------------
 
-    Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept
+    Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept
     {
         return Detail::Platform::getModes(monitor);
     }
 
-    Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept
+    Types::Result<Types::Display::Mode> getCurrentMode(Types::Display::MonitorId monitor) noexcept
     {
         return Detail::Platform::getCurrentMode(monitor);
     }
 
-    Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept
+    Types::Result<Types::Display::Mode> getPreferredMode(Types::Display::MonitorId monitor) noexcept
     {
         return Detail::Platform::getPreferredMode(monitor);
     }

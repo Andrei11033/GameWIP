@@ -35,10 +35,12 @@ namespace GameWIP::Desktop::Dialogs
                 return IO::successStatus();
             }
             Detail::WindowState *state = Detail::WindowAccess::state(*owner);
+
             if (state == nullptr || !Detail::Platform::hasLiveNativeWindow(*state))
             {
                 return error(ErrorCode::NotOpen);
             }
+
             return Detail::Platform::ownedByCurrentThread(*state) ? IO::successStatus() : error(ErrorCode::ResourceBusy);
         }
 
@@ -64,40 +66,46 @@ namespace GameWIP::Desktop::Dialogs
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             for (const Types::Dialogs::File::Filter &filter : filters)
             {
                 IO::Types::Status status = validateText(filter.name);
+
                 if (!status.ok())
                 {
                     return status;
                 }
+
                 for (std::string_view extension : filter.extensions)
                 {
                     status = validateText(extension);
+
                     if (!status.ok())
                     {
                         return status;
                     }
+
                     if (!validFilterExtensionSyntax(extension))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
                 }
             }
+
             return IO::successStatus();
         }
 
         /// @brief Validates the portable severity values accepted by every dialog backend.
         [[nodiscard]] bool validSeverity(Types::Dialogs::Severity severity) noexcept
         {
-            using Severity = Types::Dialogs::Severity;
+            using Types::Dialogs::Severity;
             return severity == Severity::None || severity == Severity::Information || severity == Severity::Warning || severity == Severity::Error;
         }
 
         /// @brief Validates the supported message-button combinations.
         [[nodiscard]] bool validMessageButtons(Types::Dialogs::Message::Buttons buttons) noexcept
         {
-            using Buttons = Types::Dialogs::Message::Buttons;
+            using Types::Dialogs::Message::Buttons;
             return buttons == Buttons::Ok || buttons == Buttons::OkCancel || buttons == Buttons::YesNo || buttons == Buttons::YesNoCancel ||
                    buttons == Buttons::RetryCancel;
         }
@@ -105,8 +113,9 @@ namespace GameWIP::Desktop::Dialogs
         /// @brief Returns whether a message-button set contains the requested result.
         [[nodiscard]] bool messageContainsButton(Types::Dialogs::Message::Buttons buttons, Types::Dialogs::Message::Button button) noexcept
         {
-            using Button = Types::Dialogs::Message::Button;
-            using Buttons = Types::Dialogs::Message::Buttons;
+            using Types::Dialogs::Message::Button;
+            using Types::Dialogs::Message::Buttons;
+
             switch (buttons)
             {
             case Buttons::Ok:
@@ -120,6 +129,7 @@ namespace GameWIP::Desktop::Dialogs
             case Buttons::RetryCancel:
                 return button == Button::Retry || button == Button::Cancel;
             }
+
             return false;
         }
 
@@ -133,6 +143,7 @@ namespace GameWIP::Desktop::Dialogs
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -146,6 +157,7 @@ namespace GameWIP::Desktop::Dialogs
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -161,6 +173,7 @@ namespace GameWIP::Desktop::Dialogs
                  {description.title, description.heading, description.message, description.details, description.supplementalText})
             {
                 IO::Types::Status status = validateText(text);
+
                 if (!status.ok())
                 {
                     return status;
@@ -170,10 +183,12 @@ namespace GameWIP::Desktop::Dialogs
             for (std::size_t index = 0; index < description.buttons.size(); ++index)
             {
                 const auto &button = description.buttons[index];
+
                 if (!button.id.isValid() || button.label.empty())
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
+
                 for (std::size_t previous = 0; previous < index; ++previous)
                 {
                     if (description.buttons[previous].id == button.id)
@@ -181,9 +196,11 @@ namespace GameWIP::Desktop::Dialogs
                         return error(ErrorCode::InvalidArgument);
                     }
                 }
+
                 for (std::string_view text : {button.label, button.description})
                 {
                     IO::Types::Status status = validateText(text);
+
                     if (!status.ok())
                     {
                         return status;
@@ -194,10 +211,12 @@ namespace GameWIP::Desktop::Dialogs
             for (std::size_t index = 0; index < description.options.size(); ++index)
             {
                 const auto &option = description.options[index];
+
                 if (!option.id.isValid() || option.label.empty())
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
+
                 for (std::size_t previous = 0; previous < index; ++previous)
                 {
                     if (description.options[previous].id == option.id)
@@ -206,18 +225,20 @@ namespace GameWIP::Desktop::Dialogs
                     }
                 }
                 IO::Types::Status status = validateText(option.label);
+
                 if (!status.ok())
                 {
                     return status;
                 }
             }
 
-            if ((description.defaultButton.isValid() && !containsButton(description.buttons, description.defaultButton)) ||
-                (description.cancelButton.isValid() && !containsButton(description.buttons, description.cancelButton)) ||
-                (description.defaultOption.isValid() && !containsOption(description.options, description.defaultOption)))
+            if ((description.defaultButton && !containsButton(description.buttons, *description.defaultButton)) ||
+                (description.cancelButton && !containsButton(description.buttons, *description.cancelButton)) ||
+                (description.defaultOption && !containsOption(description.options, *description.defaultOption)))
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             if (description.checkBox)
             {
                 if (description.checkBox->label.empty())
@@ -225,11 +246,13 @@ namespace GameWIP::Desktop::Dialogs
                     return error(ErrorCode::InvalidArgument);
                 }
                 IO::Types::Status status = validateText(description.checkBox->label);
+
                 if (!status.ok())
                 {
                     return status;
                 }
             }
+
             return IO::successStatus();
         }
     } // namespace
@@ -244,14 +267,17 @@ namespace GameWIP::Desktop::Dialogs
         try
         {
             result.status = validateOwner(description.owner);
+
             if (result.status.ok())
             {
                 result.status = validateText(description.title);
             }
+
             if (result.status.ok())
             {
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
+
             return result.status.ok() ? Detail::Platform::openFile(description) : result;
         }
         catch (const std::bad_alloc &)
@@ -262,6 +288,7 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = error(ErrorCode::Unknown);
         }
+
         return result;
     }
 
@@ -271,14 +298,17 @@ namespace GameWIP::Desktop::Dialogs
         try
         {
             result.status = validateOwner(description.owner);
+
             if (result.status.ok())
             {
                 result.status = validateText(description.title);
             }
+
             if (result.status.ok())
             {
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
+
             return result.status.ok() ? Detail::Platform::openFiles(description) : result;
         }
         catch (const std::bad_alloc &)
@@ -289,6 +319,7 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = error(ErrorCode::Unknown);
         }
+
         return result;
     }
 
@@ -298,26 +329,32 @@ namespace GameWIP::Desktop::Dialogs
         try
         {
             result.status = validateOwner(description.owner);
+
             if (result.status.ok())
             {
                 result.status = validateText(description.title);
             }
+
             if (result.status.ok())
             {
                 result.status = validateText(description.suggestedFileName);
             }
+
             if (result.status.ok())
             {
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
+
             if (result.status.ok() && !description.suggestedExtension.empty())
             {
                 result.status = validateText(description.suggestedExtension);
+
                 if (result.status.ok() && !validExtensionSyntax(description.suggestedExtension))
                 {
                     result.status = error(ErrorCode::InvalidArgument);
                 }
             }
+
             return result.status.ok() ? Detail::Platform::saveFile(description) : result;
         }
         catch (const std::bad_alloc &)
@@ -328,6 +365,7 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = error(ErrorCode::Unknown);
         }
+
         return result;
     }
 
@@ -337,10 +375,12 @@ namespace GameWIP::Desktop::Dialogs
         try
         {
             result.status = validateOwner(description.owner);
+
             if (result.status.ok())
             {
                 result.status = validateText(description.title);
             }
+
             return result.status.ok() ? Detail::Platform::selectFolder(description) : result;
         }
         catch (const std::bad_alloc &)
@@ -351,6 +391,7 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = error(ErrorCode::Unknown);
         }
+
         return result;
     }
 
@@ -360,10 +401,12 @@ namespace GameWIP::Desktop::Dialogs
         try
         {
             result.status = validateOwner(description.owner);
+
             if (result.status.ok())
             {
                 result.status = validateText(description.title);
             }
+
             return result.status.ok() ? Detail::Platform::selectFolders(description) : result;
         }
         catch (const std::bad_alloc &)
@@ -374,6 +417,7 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = error(ErrorCode::Unknown);
         }
+
         return result;
     }
 
@@ -387,20 +431,24 @@ namespace GameWIP::Desktop::Dialogs
         try
         {
             result.status = validateOwner(description.owner);
+
             if (result.status.ok() && (!validSeverity(description.severity) || !validMessageButtons(description.buttons) ||
                                        (description.defaultButton != Types::Dialogs::Message::Button::None &&
                                         !messageContainsButton(description.buttons, description.defaultButton))))
             {
                 result.status = error(ErrorCode::InvalidArgument);
             }
+
             if (result.status.ok())
             {
                 result.status = validateText(description.title);
             }
+
             if (result.status.ok())
             {
                 result.status = validateText(description.message);
             }
+
             return result.status.ok() ? Detail::Platform::showMessage(description) : result;
         }
         catch (const std::bad_alloc &)
@@ -411,6 +459,7 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = error(ErrorCode::Unknown);
         }
+
         return result;
     }
 
@@ -420,10 +469,12 @@ namespace GameWIP::Desktop::Dialogs
         try
         {
             result.status = validateOwner(description.owner);
+
             if (result.status.ok())
             {
                 result.status = validatePrompt(description);
             }
+
             return result.status.ok() ? Detail::Platform::showPrompt(description) : result;
         }
         catch (const std::bad_alloc &)
@@ -434,6 +485,7 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = error(ErrorCode::Unknown);
         }
+
         return result;
     }
 } // namespace GameWIP::Desktop::Dialogs

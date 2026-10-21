@@ -15,9 +15,10 @@ namespace GameWIP::Desktop::Types::JumpLists
     /// @brief One caller-defined jump-list task.
     /// @details The title, description, and launch action are borrowed until publish returns.
     /// Launch actions must not contain target-substitution placeholders.
+    /// The Win32 backend requires at least one launch argument and uses the executable's first icon.
     struct Task
     {
-        std::string_view title;         ///< Nonempty UTF-8 task title.
+        std::string_view title;         ///< Non-empty UTF-8 task title.
         std::string_view description;   ///< Optional UTF-8 task description.
         Shell::LaunchActionView action; ///< Structured executable and argument launch action.
     };
@@ -26,8 +27,8 @@ namespace GameWIP::Desktop::Types::JumpLists
     /// @details The category label and task span are borrowed until publish returns.
     struct Category
     {
-        std::string_view label;      ///< Nonempty UTF-8 category label.
-        std::span<const Task> tasks; ///< Nonempty category task set.
+        std::string_view label;      ///< Non-empty UTF-8 category label.
+        std::span<const Task> tasks; ///< Non-empty category task set.
     };
 
     /// @brief Complete borrowed jump-list publication snapshot.
@@ -36,7 +37,7 @@ namespace GameWIP::Desktop::Types::JumpLists
     struct Description
     {
         std::span<const Task> tasks;                    ///< Application-defined tasks.
-        std::span<const Category> categories;           ///< Nonempty categories with copied task sets.
+        std::span<const Category> categories;           ///< Non-empty categories with copied task sets.
         std::span<const Shell::TargetView> recentItems; ///< Filesystem paths or URIs for recent-item publication.
     };
 } // namespace GameWIP::Desktop::Types::JumpLists

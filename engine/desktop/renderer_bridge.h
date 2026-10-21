@@ -4,6 +4,7 @@
 #pragma once
 
 #include "io/status.h"
+#include "desktop/result.h"
 #include "desktop/types.h"
 #include "desktop/desktop_export.h"
 
@@ -29,12 +30,6 @@ namespace GameWIP::Desktop::Types::Renderer
         std::size_t requiredWordCount = 0; ///< Exact packed-word count required for publication.
     };
 
-    /// @brief Status and publication target for beginning a pointer hit-mask update.
-    struct PointerHitMaskResult
-    {
-        IO::Types::Status status;    ///< Begin-update status.
-        PointerHitMaskTarget target; ///< Publication target on success.
-    };
 } // namespace GameWIP::Desktop::Types::Renderer
 
 /// @brief Optional Window and renderer presentation integration.
@@ -86,18 +81,27 @@ namespace GameWIP::Desktop::Renderer
     /// @{
 
     /// @brief Computes the packed-word count for a framebuffer-sized one-bit mask.
+    /// @details Each row occupies ceil(width / 32) words, including its own padding.
     /// @param framebufferSize Physical mask extent in pixels.
-    /// @return Required 32-bit word count, or zero when the dimensions overflow.
+    /// @return Required 32-bit word count, or zero for an empty extent or size overflow.
     [[nodiscard]] DESKTOP_EXPORT std::size_t requiredPointerHitMaskWords(Types::PixelSize framebufferSize) noexcept;
     /// @brief Begins an update against the Window's current framebuffer generation.
+    /// @details Requires PointerHitMask capability. Each successful begin invalidates any
+    /// previous uncommitted target; successful publication consumes the returned target.
     /// @param window Open Window to inspect on its owner thread.
-    /// @return Status plus the generation, framebuffer size, and exact required word count.
-    [[nodiscard]] DESKTOP_EXPORT Types::Renderer::PointerHitMaskResult beginPointerHitMaskUpdate(Window &window) noexcept;
+    /// @return Status plus the generation, framebuffer size, and exact required word count;
+    /// Unsupported when the backend does not advertise pointer-mask routing.
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(Window &window) noexcept;
     /// @brief Publishes an exact-size packed mask for a previously returned generation.
+    /// @details Owner-thread operation; copies words before return. Rows run from top to bottom.
+    /// Pixel (x, y) uses bit x % 32 in word y * ceil(width / 32) + x / 32, least-significant bit first.
+    /// Unused high bits at the end of every row must be zero. Failed publication preserves the
+    /// current mask; a successful publication consumes the target generation.
     /// @param window Window that produced the update target.
     /// @param generation Generation returned by beginPointerHitMaskUpdate().
     /// @param words Exact-size packed mask; bit one accepts the corresponding pixel.
-    /// @return Success, or the validation, stale-generation, open-state, thread, or allocation failure.
+    /// @return Success; Interrupted for a stale, zero, or consumed generation; InvalidArgument
+    /// for wrong size or nonzero padding; otherwise the open-state, thread, or allocation failure.
     [[nodiscard]] DESKTOP_EXPORT IO::Types::Status publishPointerHitMask(
         Window &window,
         std::uint64_t generation,

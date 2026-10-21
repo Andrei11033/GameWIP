@@ -27,7 +27,8 @@ project-wide rule; silence is not an exception.
   semantics.
 - Names must describe actual semantics rather than historical implementation. Event names identify the changed property or observed occurrence. The
   accepted Win32 adapter is the one deliberate exception to the general plural-collection rule: `Desktop::Native::Win32::HandleView`,
-  `HandleResult`, and `getHandle(...)` describe one coherent native-handle view/result even though the view contains both `HINSTANCE` and `HWND`.
+   `Types::Result<HandleView>`, and `getHandle(...)` describe one coherent native-handle
+   view/result even though the view contains both `HINSTANCE` and `HWND`.
 
 ## Text and bytes
 
@@ -140,8 +141,7 @@ traffic, hidden state, or background work.
 
 ## Compatibility and ABI
 
-GameWIP is pre-1.0. Public APIs may be corrected directly instead of carrying deprecated aliases when consumers can migrate in the same planned
-change. Preserve an old name only when an explicit compatibility requirement justifies the cost.
+GameWIP is pre-1.0. Correct public APIs directly, update affected consumers in the same change, and remove replaced names and forwarding aliases.
 
 Installed libraries expose C++23 APIs and assume an ABI-compatible compiler, standard library, runtime, architecture, build configuration, and exact
 GameWIP package version. They do not promise a universal stable C ABI or binary compatibility across incompatible toolchains or package versions.

@@ -15,7 +15,7 @@ A segment is valid by construction. Its payload accessors are interpreted accord
 - `style()` is meaningful for `StyledText`;
 - `bytes()` is meaningful for `Bytes`.
 
-`Types::Style::Request` is copied into a styled segment. Text and byte payloads are non-owning views. Copying a segment copies those views, not the
+`Types::Style::Request` is copied into a styled segment. Text and byte payloads are borrowed views. Copying a segment copies those views, not the
 referenced storage.
 
 The source storage must remain alive and unchanged until `writeSegments()` returns. Factory overloads delete common temporary-owning-string and

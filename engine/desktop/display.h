@@ -5,6 +5,7 @@
 
 #include "io/status.h"
 #include "desktop/types.h"
+#include "desktop/result.h"
 #include "desktop/desktop_export.h"
 
 #include <cstdint>
@@ -16,6 +17,12 @@ namespace GameWIP::Desktop::Types::Display
     struct MonitorId
     {
         std::uint64_t value = 0; ///< Opaque identity, or zero when invalid.
+
+        /// @brief Returns the explicit no-monitor identity.
+        [[nodiscard]] static constexpr MonitorId invalid() noexcept
+        {
+            return {};
+        }
 
         /// @brief Reports whether this identity is usable.
         [[nodiscard]] constexpr bool isValid() const noexcept
@@ -36,19 +43,6 @@ namespace GameWIP::Desktop::Types::Display
         friend constexpr bool operator==(Mode, Mode) noexcept = default;
     };
 
-    /// @brief Materialized display-mode enumeration result.
-    struct ModesResult
-    {
-        IO::Types::Status status; ///< Query status.
-        std::vector<Mode> modes;  ///< Materialized modes on success.
-    };
-
-    /// @brief Single display-mode query result.
-    struct ModeResult
-    {
-        IO::Types::Status status; ///< Query status.
-        Mode mode;                ///< Selected mode on success.
-    };
 } // namespace GameWIP::Desktop::Types::Display
 
 /// @brief Stateless desktop-display operations.
@@ -58,16 +52,16 @@ namespace GameWIP::Desktop::Display
     /// @{
 
     /// @brief Enumerates materialized physical modes for a currently known monitor.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and the monitor's available physical modes on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns the monitor's active physical mode.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and active physical mode on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Mode> getCurrentMode(Types::Display::MonitorId monitor) noexcept;
     /// @brief Returns the operating system's preferred physical mode for the monitor.
-    /// @param monitor Monitor identity returned by the current Window runtime.
+    /// @param monitor Identity of a currently known monitor.
     /// @return Query status and preferred physical mode on success.
-    [[nodiscard]] DESKTOP_EXPORT Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Display::Mode> getPreferredMode(Types::Display::MonitorId monitor) noexcept;
     /// @}
 } // namespace GameWIP::Desktop::Display

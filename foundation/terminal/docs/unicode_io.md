@@ -1,21 +1,19 @@
 @page terminal_unicode_io Unicode and byte I/O
 
-Terminal presents UTF-8 text at its public boundary and preserves a separate raw-byte path for endpoints and callers that need arbitrary bytes.
+Terminal presents UTF-8 text at its public boundary and keeps a separate raw-byte path. UTF-8 rules (strictness, `EncodingFailed`, no BOM or
+normalization) are defined once in @ref io_utf8_policy; this page covers only Terminal-specific behavior.
 
 ## Public text contract
 
-Text arguments supplied to `writeText()`, `writeLine()`, formatted output, styled segments, titles, and `OutputBuffer` are expected to contain UTF-8.
-
-Text and line reads return complete UTF-8 code points. Invalid input observed by text helpers returns `EncodingFailed`. Byte operations perform no
-UTF-8 validation.
+Text arguments to `writeText()`, `writeLine()`, formatted output, styled segments, titles, and `OutputBuffer` must be complete valid UTF-8 on every
+endpoint. Text and line reads return complete UTF-8 code points. Byte operations perform no UTF-8 validation.
 
 ## Real Windows console
 
-Real-console output converts public UTF-8 to UTF-16 and uses the native Unicode console API. Invalid UTF-8 can therefore fail conversion with
-`EncodingFailed` before the requested text is written.
+Output converts public UTF-8 to UTF-16 and uses the native Unicode console API.
 
-Real-console input converts native Unicode input to UTF-8. An incomplete native surrogate sequence can be retained until a later read completes it;
-end-of-stream with an incomplete sequence returns `EncodingFailed`.
+Input converts native Unicode input to UTF-8. An incomplete native surrogate sequence can be retained until a later read completes it; end-of-stream
+with an incomplete sequence returns `EncodingFailed`.
 
 Arbitrary `writeBytes()` and byte segments are unsupported for a real Win32 console because raw bytes do not define console text.
 
@@ -23,18 +21,16 @@ Arbitrary `writeBytes()` and byte segments are unsupported for a real Win32 cons
 
 Redirected stdin/stdout/stderr remain byte-oriented.
 
-- Text output writes supplied bytes without independent UTF-8 validation by the redirection path.
+- Text output writes the already-validated UTF-8 bytes unchanged.
 - Byte output preserves arbitrary bytes.
 - Text and line input validate redirected bytes as UTF-8.
 - Byte input returns bytes unchanged.
 
-Therefore invalid UTF-8 may pass through a redirected text write even though the same text would fail on a real-console conversion path. Applications
-requiring validation independent of endpoint kind must validate before calling Terminal.
-
 ## Buffers and segments
 
-`OutputBuffer` and segment factories capture or append text without eagerly validating UTF-8. Text payload lifetime rules are separate from encoding
-validity. Validation/conversion occurs only when required by the selected output backend.
+`OutputBuffer::appendText()` and `appendLine()` validate before mutation, so `text()` is always valid UTF-8. `writeSegments()` validates every Text and
+StyledText payload before emission. Segment factories only capture views; payload lifetime rules are separate from encoding validity (@ref
+terminal_segmented_writes).
 
 ## Limits and truncation
 

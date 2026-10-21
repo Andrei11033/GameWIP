@@ -7,6 +7,7 @@
 #include "desktop/desktop_export.h"
 #include "desktop/shell.h"
 #include "desktop/shell_types.h"
+#include "desktop/result.h"
 #include "io/status.h"
 
 #include <chrono>
@@ -34,7 +35,7 @@ namespace GameWIP::Desktop::Types::Notifications
     struct Action
     {
         Shell::CommandId id;    ///< Unique nonzero action identity within one notification.
-        std::string_view label; ///< Nonempty UTF-8 action label.
+        std::string_view label; ///< Non-empty UTF-8 action label.
     };
 
     /// @brief One caller-defined notification text-input field.
@@ -57,6 +58,21 @@ namespace GameWIP::Desktop::Types::Notifications
     /// @brief Borrowed notification media source.
     /// @details The image alternative reuses the shared RGBA8 data-transfer image contract.
     using MediaView = std::variant<DataTransfer::ImageView, UriMediaView>;
+
+    /// @brief Named constructors for notification media alternatives.
+    namespace Media
+    {
+        /// @brief Image media; borrows the pixel data.
+        [[nodiscard]] inline MediaView image(DataTransfer::ImageView value) noexcept
+        {
+            return value;
+        }
+        /// @brief URI media; borrows `value`.
+        [[nodiscard]] inline MediaView uri(std::string_view value) noexcept
+        {
+            return UriMediaView{value};
+        }
+    } // namespace Media
 
     /// @brief Notification sound policy.
     enum class Sound : std::uint8_t
@@ -83,6 +99,21 @@ namespace GameWIP::Desktop::Types::Notifications
         std::chrono::sys_time<std::chrono::milliseconds> firstDisplayUtc; ///< First UTC display time.
         std::chrono::milliseconds repeatInterval{};                       ///< Positive interval for recurrence, or zero for one-time delivery.
         std::uint32_t occurrenceCount = 1;                                ///< Total finite occurrence count, including the first display.
+
+        /// @brief One-time delivery at `first`.
+        [[nodiscard]] static Schedule once(std::chrono::sys_time<std::chrono::milliseconds> first) noexcept
+        {
+            return {first, {}, 1};
+        }
+
+        /// @brief `count` deliveries (including the first) every `interval`.
+        [[nodiscard]] static Schedule recurring(
+            std::chrono::sys_time<std::chrono::milliseconds> first,
+            std::chrono::milliseconds interval,
+            std::uint32_t count) noexcept
+        {
+            return {first, interval, count};
+        }
     };
 
     /// @brief Complete borrowed notification content and presentation policy.
@@ -90,7 +121,7 @@ namespace GameWIP::Desktop::Types::Notifications
     /// publish or update returns. Action and input identities must be unique within this snapshot.
     struct Description
     {
-        std::string_view title;                  ///< Nonempty UTF-8 notification title.
+        std::string_view title;                  ///< Non-empty UTF-8 notification title.
         std::string_view body;                   ///< Optional UTF-8 notification body.
         std::span<const Action> actions;         ///< Optional caller-defined actions.
         std::span<const Input> inputs;           ///< Optional text-input fields.
@@ -103,12 +134,6 @@ namespace GameWIP::Desktop::Types::Notifications
         std::optional<Shell::Progress> progress; ///< Optional normalized notification progress.
     };
 
-    /// @brief Result of publishing one notification.
-    struct PublishResult
-    {
-        IO::Types::Status status; ///< Publication status.
-        Shell::NotificationId id; ///< Generated notification identity on success.
-    };
 } // namespace GameWIP::Desktop::Types::Notifications
 
 namespace GameWIP::Desktop
@@ -169,7 +194,7 @@ namespace GameWIP::Desktop
         /// A failed publication leaves no usable notification identity.
         /// @param description Borrowed complete notification content and policy.
         /// @return Publication status and generated identity on success.
-        [[nodiscard]] Types::Notifications::PublishResult publish(const Types::Notifications::Description &description) noexcept;
+        [[nodiscard]] Types::Result<Types::Shell::NotificationId> publish(const Types::Notifications::Description &description) noexcept;
 
         /// @brief Replaces a previously published notification snapshot.
         /// @details The notification identity remains unchanged. A description containing actions

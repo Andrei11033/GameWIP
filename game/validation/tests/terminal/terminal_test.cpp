@@ -5,7 +5,10 @@
 /// reentrant child execution, state restoration, and opt-in manual tests.
 
 #include "validation/tests/terminal/terminal_test.h"
+
+#include "validation/executable_path.h"
 #include "validation/process_arguments.h"
+#include "validation/tests/runner_helpers.h"
 
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
@@ -27,6 +30,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <iostream>
 #include <latch>
 #include <limits>
 #include <optional>
@@ -108,10 +112,12 @@ template <> struct std::formatter<TerminalReentrantFormat>
     template <typename FormatContext> auto format(const TerminalReentrantFormat &, FormatContext &context) const
     {
         const GameWIP::IO::Types::Status status = GameWIP::Terminal::writeText("inner");
+
         if (!status.ok())
         {
             throw std::runtime_error("terminal reentrant formatter write failed");
         }
+
         return std::format_to(context.out(), "outer");
     }
 };
@@ -126,10 +132,12 @@ template <> struct std::formatter<TerminalSessionReentrantFormat>
     template <typename FormatContext> auto format(const TerminalSessionReentrantFormat &value, FormatContext &context) const
     {
         const GameWIP::IO::Types::Status status = value.useGlobalOutput ? GameWIP::Terminal::writeText("global") : value.session->writeText("inner");
+
         if (!status.ok())
         {
             throw std::runtime_error("terminal Session reentrant formatter write failed");
         }
+
         return std::format_to(context.out(), "outer");
     }
 };
@@ -170,8 +178,8 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
     namespace PlatformHooks = GameWIP::Terminal::Detail::Platform::TestHooks;
 
-    using ErrorCode = IO::Types::ErrorCode;
-    using TerminalTestOptions = GameWIP::Test::TerminalTestOptions;
+    using GameWIP::Test::TerminalTestOptions;
+    using IO::Types::ErrorCode;
 
     inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
     inline constexpr std::string_view kSessionReentrantFormatChildArgument = "--terminal-test-child=session-reentrant-format";
@@ -211,6 +219,7 @@ namespace
     [[nodiscard]] bool hasArgument(int argc, char **argv, std::string_view expected)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::string_view(value) == expected)
@@ -218,6 +227,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 
@@ -241,10 +251,12 @@ namespace
         sessionOptions.deliveryMode = Terminal::Types::Input::DeliveryMode::Stream;
 
         Terminal::Session session;
+
         if (!session.open(sessionOptions).ok())
         {
             return 1;
         }
+
         if (!session.print("{}", TerminalSessionReentrantFormat{.session = &session}).ok())
         {
             return 2;
@@ -252,21 +264,25 @@ namespace
 
         Terminal::Types::Output::LineOptions lineOptions;
         lineOptions.lineEnding = Terminal::Types::Output::LineEnding::Lf;
+
         if (!session.println(lineOptions, "{}", TerminalSessionReentrantFormat{.session = &session}).ok())
         {
             return 3;
         }
+
         if (!session.print("{}", TerminalSessionReentrantFormat{.session = &session, .useGlobalOutput = true}).ok())
         {
             return 4;
         }
 
         ErrorCode closeCode = ErrorCode::Unknown;
+
         if (!session.print("{}", TerminalSessionCloseFormat{.session = &session, .closeCode = &closeCode}).ok() ||
             closeCode != ErrorCode::ResourceBusy || !session.isOpen())
         {
             return 5;
         }
+
         return session.close().ok() ? 0 : 6;
     }
 
@@ -275,20 +291,29 @@ namespace
     // Manual test reporting
     // ------------------------------------------------------------
 
-    void recordManualAnswer(TestSupport::Context &context, std::string_view name, TestSupport::Types::Reporting::ManualAnswer answer)
+    thread_local TestSupport::Types::Reporting::Summary manualObservations;
+
+    void recordManualAnswer(
+        TestSupport::Context &context,
+        std::string_view name,
+        TestSupport::Types::Reporting::ManualAnswer answer,
+        std::string_view skipReason)
     {
         switch (answer)
         {
         case TestSupport::Types::Reporting::ManualAnswer::Yes:
+            ++manualObservations.passed;
             context.pass(name);
             return;
 
         case TestSupport::Types::Reporting::ManualAnswer::No:
+            ++manualObservations.failed;
             context.fail(name, "manual check rejected by user");
             return;
 
         case TestSupport::Types::Reporting::ManualAnswer::Skipped:
-            context.skip(name, "manual check skipped by user");
+            ++manualObservations.skipped;
+            context.skip(name, skipReason);
             return;
         }
     }
@@ -296,7 +321,9 @@ namespace
     /// @brief Prompts for and records one human-observed Terminal result.
     void recordManualCheck(TestSupport::Context &context, std::string_view name, std::string_view question)
     {
-        recordManualAnswer(context, name, TestSupport::promptManualCheck(question));
+        std::string skipReason;
+        const auto answer = TestSupport::promptManualCheck(question, skipReason);
+        recordManualAnswer(context, name, answer, skipReason);
     }
 
     /// @brief Reports one failed Terminal operation and returns whether it succeeded.
@@ -312,6 +339,7 @@ namespace
         }
 
         std::string reason = std::format("{} failed with {}", operation, IO::errorCodeName(status.code));
+
         if (!status.message.empty())
         {
             reason += std::format(": {}", status.message);
@@ -437,7 +465,7 @@ namespace
 #endif
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
-    void testReentrantFormatting(TestSupport::Context &context, std::string_view executablePath);
+    void testReentrantFormatting(TestSupport::Context &context, const std::filesystem::path &executablePath);
     void testManualUnicodeOutput(TestSupport::Context &context);
     void testManualBasicColorOutput(TestSupport::Context &context, const Terminal::Types::Style::Capabilities &capabilities);
     void testManualRgbColorOutput(TestSupport::Context &context, const Terminal::Types::Style::Capabilities &capabilities);
@@ -480,7 +508,7 @@ namespace
 #if TERMINAL_INTERNAL_TEST_HOOKS
 #if defined(_WIN32)
     void testInputEndpointReplacement(TestSupport::Context &context);
-    void testCancellationSignalFailure(TestSupport::Context &context, std::string_view executablePath);
+    void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath);
     void testCancellationResetFailure(TestSupport::Context &context);
 #endif
 #endif
@@ -515,6 +543,7 @@ namespace GameWIP::Test
         {
             return runReentrantFormatChild();
         }
+
         if (hasArgument(argc, argv, kSessionReentrantFormatChildArgument))
         {
             return runSessionReentrantFormatChild();
@@ -526,13 +555,7 @@ namespace GameWIP::Test
         }
 #endif
 
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
-        reportOptions.reportPath = options.reportPath;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(
@@ -546,9 +569,10 @@ namespace GameWIP::Test
             "Terminal reentrant formatting",
             [&](TestSupport::Context &context)
             {
-                testReentrantFormatting(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
+                testReentrantFormatting(context, GameWIP::Validation::currentExecutablePath());
             });
 
+        manualObservations = {};
         runner.runSuite(
             "Terminal manual tests",
             [&options](TestSupport::Context &context)
@@ -570,7 +594,7 @@ namespace GameWIP::Test
             "Terminal cancellation signal failure",
             [&](TestSupport::Context &context)
             {
-                testCancellationSignalFailure(context, argc > 0 && argv[0] != nullptr ? argv[0] : "");
+                testCancellationSignalFailure(context, GameWIP::Validation::currentExecutablePath());
             });
         runner.runSuite("Terminal cancellation reset failure", testCancellationResetFailure);
 #endif
@@ -580,7 +604,17 @@ namespace GameWIP::Test
 #endif
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
+
+        if (options.enableManualTests)
+        {
+            runner.summary(
+                std::format(
+                    "Terminal manual observations passed={} failed={} skipped={} (excludes setup assertions)",
+                    manualObservations.passed,
+                    manualObservations.failed,
+                    manualObservations.skipped));
+        }
         runner.summary(std::format("Terminal library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return runner.exitCode();
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

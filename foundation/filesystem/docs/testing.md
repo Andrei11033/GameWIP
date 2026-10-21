@@ -24,6 +24,11 @@ Run the FileSystem-focused module through the project validation workflow in
 Scenarios validate `DoNotFollow`, `FollowFinal`, and `FollowAll` for final and intermediate links. A host without symbolic-link creation capability
 records skips rather than failing unrelated coverage. Complete Windows proof therefore requires Developer Mode or create-symbolic-link privilege.
 
+Only missing capability or privilege is a symlink skip. Unexpected fixture errors fail, and `GAMEWIP_REQUIRE_SYMLINK_TESTS=1` makes
+capability skips fail too.
+Whole-file and predicate queries check status before payload comparisons and preserve native diagnostics. Cursor tests check move ownership
+and repeated exhaustion.
+
 Backend tests cover native path conversion, strict traversal, sharing, read-only metadata, directory cursors, lock ownership, directory flushing, and
 native error mapping.
 

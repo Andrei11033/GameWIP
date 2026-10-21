@@ -19,7 +19,8 @@ String views passed to a call need remain valid only for that call; retained tex
 String sources use severity filtering only. Registered `SourceId` values additionally support source filters. Unknown runtime IDs are written as
 `UnknownSource` and counted. Source definitions must have unique IDs, non-empty valid UTF-8 names, and initial filters must refer to registered IDs.
 
-Source enums use an unsigned underlying type no wider than `SourceId`; `defineSource()` only creates a definition, while `Config::sources` performs
+Source enums use an unsigned underlying type no wider than `SourceId`; the public `Logger::SourceEnum` concept rejects signed, wide, and Logger-owned
+enums at overload resolution, before deeper source assertions. `defineSource()` only creates a definition, while `Config::sources` performs
 registration at init.
 
 ## Message forms
@@ -27,6 +28,10 @@ registration at init.
 Preformatted text, compile-time checked `std::format_string`, and explicit `runtimeFormat()` forms are supported. Formatting happens on the caller
 thread. Invalid runtime formatting is contained; normal logging records a format-failure statistic and skips the record, while synchronous report
 formatting returns a direct failed `Types::Report::Result`.
+
+Formatted normal-log calls apply their filter before caller-thread formatting. Calls using a registered `SourceId` or source enum apply both the
+severity and source filters; calls using a string source apply the severity filter only. The enqueue path rechecks registered-source filters to
+handle concurrent filter changes before a record is accepted.
 
 Use `LOGGER_*` or `shouldLog()` around expensive arguments because C++ evaluates direct function arguments before Logger can filter them.
 

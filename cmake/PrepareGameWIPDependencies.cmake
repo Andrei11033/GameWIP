@@ -51,6 +51,18 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
         file(REMOVE_RECURSE "${_dependency_staging_directory}")
         file(MAKE_DIRECTORY "${_dependency_staging_directory}")
 
+        # Stale FetchContent stamps from an interrupted run make it skip the clone and leave nothing to validate.
+        file(
+            REMOVE_RECURSE
+            "${_fetchcontent_root}/${_cache_directory}-stamp"
+            "${_fetchcontent_root}/${_cache_directory}-tmp"
+            "${_fetchcontent_root}/${_cache_directory}-build"
+        )
+
+        if(NOT EXISTS "${_final_source_directory}/CMakeLists.txt")
+            file(REMOVE_RECURSE "${_final_source_directory}")
+        endif()
+
         FetchContent_Populate(
             "${gamewip_dependency}"
             GIT_REPOSITORY "${_repository}"

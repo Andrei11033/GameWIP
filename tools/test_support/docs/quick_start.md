@@ -52,7 +52,11 @@ int main()
             static_cast<void>(context.expectEq("one plus one", 2, 1 + 1));
         });
 
-    return runner.exitCode();
+    const int exitCode = runner.exitCode();
+    const auto reportStatus = runner.finalize();
+    // Emit an infrastructure diagnostic for SinkState::Failed separately.
+    static_cast<void>(reportStatus);
+    return exitCode;
 }
 ```
 
@@ -70,8 +74,9 @@ domain outcome is not an infrastructure launch failure.
 Text-file helpers accept and return strict UTF-8. Child `outputBytes` remains
 arbitrary captured data unless the child protocol independently guarantees an
 encoding. Filesystem, current-directory, and environment guards restore state
-on a best-effort basis and require caller coordination around process-global
-state.
+on a best-effort basis. Keep a `ScopedProcessState` alive for the complete
+process-global guard lifetime and inspect explicit `restore()` results when
+cleanup must be verified.
 
 ## Where to go next
 

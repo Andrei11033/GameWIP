@@ -1,6 +1,6 @@
 @page logger_macros Macros
 
-`logger/logger_macros.h` provides optional global lazy shortcuts. The namespace API remains the primary public surface.
+`logger/logger_macros.h` provides optional global lazy shortcuts. The namespace API is the primary public surface.
 
 ## Macro families
 

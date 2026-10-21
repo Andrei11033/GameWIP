@@ -5,6 +5,7 @@
 
 #include "desktop/desktop_export.h"
 #include "desktop/events.h"
+#include "desktop/result.h"
 #include "desktop/shell_types.h"
 #include "io/status.h"
 
@@ -68,12 +69,6 @@ namespace GameWIP::Desktop::Types::Shell
         }
     };
 
-    /// @brief Status and cached backend shell capability snapshot.
-    struct CapabilitiesResult
-    {
-        IO::Types::Status status;  ///< Capability-query status.
-        Capabilities capabilities; ///< Cached capability values on success.
-    };
 } // namespace GameWIP::Desktop::Types::Shell
 
 namespace GameWIP::Desktop
@@ -104,15 +99,10 @@ namespace GameWIP::Desktop
         /// @return Success, or a status explaining why the queue was not opened.
         [[nodiscard]] IO::Types::Status open() noexcept;
 
-        /// @brief Opens with an internally owned fixed event capacity.
-        /// @param capacity Number of event slots; must be greater than zero.
+        /// @brief Opens with an explicit owned-or-borrowed storage policy.
+        /// @param queue Explicit event storage ownership and capacity policy.
         /// @return Success, or a status explaining why the queue was not opened.
-        [[nodiscard]] IO::Types::Status open(std::size_t capacity) noexcept;
-
-        /// @brief Opens while borrowing caller-owned event storage until close.
-        /// @param eventStorage Non-empty storage that must remain alive and unmoved until close.
-        /// @return Success, or a status explaining why the queue was not opened.
-        [[nodiscard]] IO::Types::Status open(std::span<Types::Shell::Event> eventStorage) noexcept;
+        [[nodiscard]] IO::Types::Status open(Types::Shell::QueueConfiguration queue) noexcept;
 
         /// @brief Reports whether the queue is open for event publication and consumption.
         [[nodiscard]] bool isOpen() const noexcept;
@@ -162,7 +152,7 @@ namespace GameWIP::Desktop::Shell
 {
 
     /// @brief Returns cached backend and environment shell capabilities.
-    [[nodiscard]] DESKTOP_EXPORT Types::Shell::CapabilitiesResult getCapabilities() noexcept;
+    [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept;
 
     /// @brief Reports whether the backend advertises the requested shell capability.
     [[nodiscard]] DESKTOP_EXPORT bool supports(Types::Shell::Capability capability) noexcept;

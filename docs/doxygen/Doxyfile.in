@@ -45,6 +45,8 @@ TOC_INCLUDE_HEADINGS   = 0
 AUTOLINK_SUPPORT       = YES
 EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
+# Private Desktop declarations required by public headers are implementation details.
+EXCLUDE_SYMBOLS        = GameWIP::Desktop::Detail::*
 EXTRACT_STATIC         = NO
 HIDE_UNDOC_MEMBERS     = NO
 WARN_IF_UNDOCUMENTED   = YES

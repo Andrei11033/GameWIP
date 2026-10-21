@@ -35,8 +35,7 @@ depending on policy.
 
 ### Copy
 
-`copyFile()` applies the selected policy while resolving the source and destination path. It copies one regular file, not a symbolic link object and
-not a directory tree.
+`copyFile()` applies the policy to source and destination resolution; it copies one regular file, never a link object or tree.
 
 ### Move and removal
 
@@ -48,8 +47,7 @@ With `DoNotFollow`, operations act on the link-like entry itself where that oper
 
 ### Tree removal
 
-`removeDirectoryTree()` applies the selected policy only to the initial path. During traversal it never follows symlinked directories discovered below
-the root; those link entries are removed rather than traversed.
+The policy applies to the initial path only; discovered links are removed, not followed. See @ref filesystem_directory_operations.
 
 ### Atomic replacement
 

@@ -30,8 +30,7 @@ namespace GameWIP::Desktop::Detail
         std::optional<Types::LogicalRect> rect;
         std::vector<Types::DataTransfer::Format> formats;
         std::vector<std::uint32_t> nativeFormats;
-        Types::DragDrop::Effect allowedEffects = Types::DragDrop::Effect::Copy;
-        Types::DragDrop::Effect preferredEffect = Types::DragDrop::Effect::Copy;
+        Types::DragDrop::EffectPolicy effects = Types::DragDrop::EffectPolicy::copy();
     };
 
     /// @brief Stable owner-thread DragDrop target state and indexed event storage.

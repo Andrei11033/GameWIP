@@ -1,7 +1,6 @@
 @page terminal_input_modes Sessions and managed input ownership
 
-Terminal no longer exposes public native input-mode mutation. `Session` is the public persistent ownership/configuration boundary; direct reads use
-the same managed mechanism temporarily.
+`Session` owns persistent input configuration and native mode restoration. Direct reads acquire the same managed ownership temporarily.
 
 ## Session lifecycle
 
@@ -25,11 +24,8 @@ Opening an already-open object returns `AlreadyOpen`. A second session or a dire
 `close()` first restores persistent output state explicitly owned by the Session in reverse activation order, then restores the exact captured native
 input state before releasing ownership. Closing an already-closed session succeeds. If explicit restoration fails, `close()` returns that failure
 while the session remains open and retains ownership so cleanup can be retried. Successfully completed restoration steps are not repeated on retry.
-Destruction instead attempts each pending output restoration once in reverse order, then attempts input restoration and releases bookkeeping;
-destructor-time failures cannot be reported or retried after the object is gone.
-
-The destructor is `noexcept` and makes best-effort output and input restoration attempts. Because no caller remains to retry afterward, destruction
-releases process-wide input ownership even if restoration fails.
+The `noexcept` destructor attempts each pending output restoration once in reverse order, then attempts input restoration and releases process-wide
+ownership even if restoration fails. Destructor-time failures cannot be reported or retried after the object is gone.
 
 ## Delivery mode
 

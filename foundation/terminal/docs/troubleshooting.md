@@ -24,7 +24,7 @@ Terminal assembles a logical styled record, but platform writes are not transact
 
 ## Text reads fail with `EncodingFailed`
 
-Text and line reads require complete valid UTF-8. Use `readBytes()` for arbitrary redirected input. Incomplete UTF-8 at end-of-stream also fails.
+Text and line reads require valid UTF-8 (@ref io_utf8_policy). Use `readBytes()` for arbitrary redirected input.
 
 ## A small read limit returns `SizeLimitExceeded`
 
@@ -50,7 +50,7 @@ are intentionally not serialized into arbitrary escape sequences. Use `Types::In
 
 ## An `OutputBuffer` mutation returned a failure
 
-`OutputBuffer` no longer throws for reserve, append, line-policy, or formatting failures. Inspect the returned status. Failed append/format operations
+`OutputBuffer` returns status for reserve, append, line-policy, and formatting failures. Failed append/format operations
 preserve the previous complete buffer contents; a failed `flushTo()` preserves the buffered text for retry.
 
 ## `flushTo()` did not force an OS flush
@@ -71,8 +71,8 @@ A requested flush can fail after all bytes were accepted. Inspect both `status` 
 `AlreadyOpen` means that same `Session` object is already open. `ResourceBusy` means another persistent session or direct managed input operation owns
 stdin.
 
-Close the existing owner explicitly before opening another one. Do not reintroduce availability-check-then-read logic; ownership is intentionally
-acquired by the operation itself.
+Close the existing owner explicitly before opening another one. The read or open operation acquires ownership atomically; a separate availability
+query cannot reserve it.
 
 ## `Session::close()` failed and `isOpen()` is still true
 
@@ -111,10 +111,9 @@ responsibility so state ownership is not silently lost.
 Terminal serializes only calls made through Terminal. Use one output abstraction for records that must not interleave, and flush foreign buffers
 through their owning APIs before switching.
 
-## Redirected text accepted invalid UTF-8
+## Redirected text is rejected for invalid UTF-8
 
-Redirected output is byte-oriented and may preserve supplied bytes without validation. Real-console conversion is stricter. Validate independently
-when endpoint-invariant UTF-8 rejection is required.
+Text output validates UTF-8 on every endpoint, including redirected ones, before emission. Use `writeBytes()` for arbitrary data.
 
 ## A capability result no longer matches behavior
 

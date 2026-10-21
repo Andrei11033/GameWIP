@@ -39,6 +39,7 @@ namespace GameWIP::Desktop::Detail
             pointerHitMaskTargetGeneration = 0;
             pointerHitMaskTargetSize = {};
             pointerHitMaskTargetWordCount = 0;
+
             if (pointerHitMaskGeneration == std::numeric_limits<std::uint64_t>::max())
             {
                 pointerHitMaskGenerationExhausted = true;

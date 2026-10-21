@@ -13,8 +13,8 @@ namespace GameWIP::Desktop::Detail
             return (state.eventHead + logicalIndex) % state.eventStorage.size();
         }
 
-        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
-        void discardAt(ChildSurfaceState &state, std::size_t index) noexcept
+        /// @brief Removes one queued event while preserving FIFO order.
+        void removeAt(ChildSurfaceState &state, std::size_t index) noexcept
         {
             for (std::size_t current = index; current + 1 < state.eventCount; ++current)
             {
@@ -22,7 +22,26 @@ namespace GameWIP::Desktop::Detail
             }
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
+        }
+
+        /// @brief Removes one queued event while preserving FIFO order and accounting for loss.
+        void discardAt(ChildSurfaceState &state, std::size_t index) noexcept
+        {
+            removeAt(state, index);
             ++state.droppedEvents;
+        }
+
+        /// @brief Extends a queued scale transition to the latest state.
+        /// @return True when the aggregate transition returns to its starting scale and can be removed.
+        bool mergeContentScaleChanged(
+            Types::ChildSurface::Events::ContentScaleChanged &queued,
+            const Types::ChildSurface::Events::ContentScaleChanged &latest) noexcept
+        {
+            const bool noNetScaleChange = queued.previousScale == latest.scale && queued.previousDpi == latest.dpi;
+            queued.scale = latest.scale;
+            queued.dpi = latest.dpi;
+            queued.pixelSize = latest.pixelSize;
+            return noNetScaleChange;
         }
     } // namespace
 
@@ -41,6 +60,7 @@ namespace GameWIP::Desktop::Detail
         {
             return ChildSurfaceEnqueueResult::Coalesced;
         }
+
         if (state.eventStorage.empty())
         {
             ++state.droppedEvents;
@@ -52,12 +72,25 @@ namespace GameWIP::Desktop::Detail
             for (std::size_t offset = state.eventCount; offset > 0; --offset)
             {
                 auto &queued = state.eventStorage[physicalIndex(state, offset - 1)];
+
                 if (!isChildSurfaceEventCoalescible(queued.data))
                 {
                     break;
                 }
+
                 if (queued.data.index() == data.index())
                 {
+                    if (auto *queuedScale = std::get_if<Types::ChildSurface::Events::ContentScaleChanged>(&queued.data))
+                    {
+                        const auto &latestScale = std::get<Types::ChildSurface::Events::ContentScaleChanged>(data);
+
+                        if (mergeContentScaleChanged(*queuedScale, latestScale))
+                        {
+                            removeAt(state, offset - 1);
+                        }
+
+                        return ChildSurfaceEnqueueResult::Coalesced;
+                    }
                     queued.data = data;
                     return ChildSurfaceEnqueueResult::Coalesced;
                 }
@@ -67,6 +100,7 @@ namespace GameWIP::Desktop::Detail
         if (state.eventCount == state.eventStorage.size())
         {
             std::size_t replaceIndex = state.eventCount;
+
             for (std::size_t index = 0; index < state.eventCount; ++index)
             {
                 if (isChildSurfaceEventCoalescible(state.eventStorage[physicalIndex(state, index)].data))
@@ -75,10 +109,12 @@ namespace GameWIP::Desktop::Detail
                     break;
                 }
             }
+
             if (replaceIndex == state.eventCount && std::holds_alternative<Types::ChildSurface::Events::NativeDestroyed>(data))
             {
                 replaceIndex = 0;
             }
+
             if (replaceIndex == state.eventCount)
             {
                 ++state.droppedEvents;

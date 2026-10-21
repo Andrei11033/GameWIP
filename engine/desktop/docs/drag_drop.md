@@ -24,14 +24,14 @@ owner holds stable heap state used by the native target registration. At most
 one full target may be open for each open top-level `Window`; child surfaces are
 not supported.
 
-`open()` inherits the Window owner thread and offers the same queue-storage
-choices as other Desktop resource owners:
+`open()` runs on the Window owner thread and takes the queue storage choices
+from @ref desktop_lifecycle_events.
 
 | Overload | Storage |
 | --- | --- |
-| `open(window, description)` | Internal default-capacity queue. |
-| `open(window, description, capacity)` | Internal queue with nonzero requested capacity. |
-| `open(window, description, eventStorage)` | Nonempty caller-owned storage borrowed until close. |
+| `open(window, description)` | Owned, default capacity. |
+| `open(window, description, QueueConfiguration::owned(capacity))` | Owned, requested capacity. |
+| `open(window, description, QueueConfiguration::borrowed(eventStorage))` | Caller storage, borrowed through finalization. |
 
 Descriptions, regions, format names, and source data are copied. Caller views
 are never retained. No drag-and-drop allocation, OLE initialization, native
@@ -72,16 +72,16 @@ Every region has:
 - a nonzero unique `RegionId`;
 - an optional logical client rectangle;
 - an ordered list of accepted `DataTransfer::FormatView` values;
-- a nonempty `allowedEffects` bitmask;
-- one `preferredEffect` contained in that mask.
+- an `EffectPolicy` whose `allowed` mask is non-empty;
+- a `preferred` effect contained in that mask.
 
 An absent rectangle means the whole client and follows Window resize
 automatically. Explicit rectangles use logical Window-client coordinates.
 Regions may overlap; the last supplied matching region wins. A position outside
-all accepting regions has invalid `RegionId{}` and `Effect::None`.
+all accepting regions has `std::nullopt` for its region and `Effect::None`.
 
 Standard formats require an empty custom name. Custom formats require a
-nonempty strict UTF-8 native name without embedded U+0000. Duplicate accepted
+non-empty strict UTF-8 native name without embedded U+0000. Duplicate accepted
 formats within one region are invalid. A region may accept several formats; a
 successful drop materializes every accepted format that the source offers, in
 the region's declared order.
@@ -92,14 +92,14 @@ Portable negotiation is deterministic and ignores Ctrl, Shift, Alt, and native
 key-state fields:
 
 ```text
-candidates = source allowedEffects & target allowedEffects
+candidates = source.effects.allowed & target.effects.allowed
 ```
 
 | Candidates | Selected effect |
 | --- | --- |
 | None | `Effect::None`; the target rejects. |
 | Exactly one | That candidate. |
-| Several and preferred is present | The target's `preferredEffect`. |
+| Several and preferred is present | The target's `effects.preferred`. |
 | Several without preferred | First available in Copy, Move, Link order. |
 
 A source can force an operation by advertising one effect. GameWIP never
@@ -160,8 +160,8 @@ namespace DD = GameWIP::Desktop::Types::DragDrop;
 namespace Transfer = GameWIP::Desktop::Types::DataTransfer;
 
 std::array accepted{
-    Transfer::FormatView{Transfer::FormatKind::Text, {}},
-    Transfer::FormatView{Transfer::FormatKind::FileList, {}}};
+    Transfer::FormatView::text(),
+    Transfer::FormatView::files()};
 
 std::array regions{
     DD::RegionDescription{
@@ -195,9 +195,9 @@ queue; no separate DragDrop pump exists.
 ## Source operation
 
 `DragDrop::beginDrag(source, description)` requires an open source Window owned
-by the calling thread. `Description` supplies a nonempty ordered item list,
-nonempty valid allowed-effects mask, and explicit `TriggerButton::{Left, Right,
-Middle}`.
+by the calling thread. `Description` supplies a non-empty ordered item list,
+an `EffectPolicy` with a non-empty allowed mask, and explicit
+`TriggerButton::{Left, Right, Middle}`.
 
 The configured button must already be down when the function begins; Desktop
 does not infer it. Before entering native ownership, the function validates all
@@ -223,7 +223,7 @@ std::array<Transfer::ItemView, 1> items{text};
 
 DD::Description description{
     items,
-    DD::Effect::Copy,
+    DD::EffectPolicy::source(DD::Effect::Copy),
     DD::TriggerButton::Left};
 
 const DD::Result result = Desktop::DragDrop::beginDrag(window, description);
@@ -238,10 +238,10 @@ Cancellation is not an IO error: it returns successful status,
 successful status, `Outcome::Dropped`, and the performed effect. Setup,
 conversion, allocation, OLE, and native failures use failed status.
 
-## Lightweight file-drop migration
+## Choosing a file-drop API
 
-The existing `Window::fileDropEnabled` mode and `Types::Events::FilesDropped`
-remain the small path-only API. It uses different native registration and is
+`Types::Description::fileDropEnabled` and `Types::Events::FilesDropped`
+provide the small path-only API. It uses different native registration and is
 mutually exclusive with a full target:
 
 - opening `DragDropTarget` while lightweight mode is enabled returns
@@ -250,7 +250,7 @@ mutually exclusive with a full target:
 - neither operation silently disables the other.
 
 Applications needing effects, regions, text, images, custom formats, or source
-dragging should disable lightweight mode explicitly, open `DragDropTarget`, and
+dragging should call `window.setFileDropEnabled(false)`, open `DragDropTarget`, and
 consume its typed queue.
 
 ## Win32 OLE and format mapping

@@ -42,6 +42,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         output.clear();
         nativeCode = ERROR_SUCCESS;
+
         if (text.empty())
         {
             return true;
@@ -56,11 +57,13 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+
         if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
             nativeCode = ERROR_INSUFFICIENT_BUFFER;
             return false;
         }
+
         if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             nativeCode = ERROR_NO_UNICODE_TRANSLATION;
@@ -69,6 +72,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const GameWIP::Unicode::Types::Utf8::ToUtf16Result conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+
         if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             nativeCode = nativeCodeForConversion(conversion.outcome);
@@ -76,10 +80,12 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         output.resize(conversion.codeUnitsWritten);
+
         for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
         {
             output[index] = static_cast<wchar_t>(converted[index]);
         }
+
         return true;
     }
 
@@ -88,23 +94,27 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         output.clear();
         nativeCode = ERROR_SUCCESS;
+
         if (text.empty())
         {
             return true;
         }
 
         std::vector<char16_t> source(text.size());
+
         for (std::size_t index = 0; index < text.size(); ++index)
         {
             source[index] = static_cast<char16_t>(text[index]);
         }
 
         const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(source);
+
         if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
             nativeCode = ERROR_INSUFFICIENT_BUFFER;
             return false;
         }
+
         if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             nativeCode = ERROR_NO_UNICODE_TRANSLATION;
@@ -113,6 +123,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         output.resize(measurement.requiredBytes);
         const GameWIP::Unicode::Types::Utf16::ToUtf8Result conversion = GameWIP::Unicode::Utf16::convertToUtf8(source, output);
+
         if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             nativeCode = nativeCodeForConversion(conversion.outcome);

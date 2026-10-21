@@ -6,18 +6,30 @@ suites without hiding infrastructure errors.
 
 ## Runner and suite completion
 
-`Runner` owns a shared sink and aggregates a suite only when `runSuite()` completes. Concurrent suite completion order is therefore not deterministic.
+`Runner` owns a shared sink and aggregates a suite after its callable returns or its exception is recorded. Concurrent suite completion and report
+order are not deterministic.
 
 A suite callable may accept `Context&` or no arguments. If it throws, TestSupport records one failed check named `uncaught exception`, returns a
 normal `SuiteResult`, and allows later suites to run.
 
+That exception conversion covers the suite callable. Context construction, failure formatting, result construction, and report output can still
+throw. A report-output exception can escape after aggregate counts have been updated; it does not roll those counts back.
+
 `Runner::result()` is the aggregate of completed suites. `Runner::exitCode()` returns one when at least one failure was recorded and zero otherwise,
 including skipped-only and empty runs.
+
+`Runner::exitCode()` remains assertion-only. Inspect `Runner::finalize()` or
+`reportStatus()` separately when report-file delivery matters; a `Failed` sink
+is an infrastructure/artifact result, not an assertion failure.
 
 ## Context and counted outcomes
 
 `Context::pass()`, `fail()`, and `skip()` each increment exactly one counter and write one categorized line. Informational methods do not alter
 counts.
+
+Context recording, runner aggregation, and report writes each use internal synchronization. A count snapshot is coherent, but count updates and
+their report lines are separate operations. Keep contexts and runners alive until all calls and suite workers have finished; caller-owned values,
+formatters, and suite state require their own synchronization. A suite callable must join workers that borrow its Context before returning.
 
 `Summary::ok()` checks only the failure count. A skip is not a failure.
 
@@ -41,7 +53,9 @@ abort.
 
 ## Value formatting
 
-`expectEq()` and `expectNe()` use stream insertion when the value type supports it. A non-streamable value is displayed as `<unprintable>`.
+`expectEq()` and `expectNe()` use stream insertion when the value type supports it. Otherwise, an enum is displayed as its numeric underlying value;
+other non-streamable values are displayed as `<unprintable>`. A custom stream formatter takes precedence over enum formatting.
+Boolean values are displayed as `true` or `false`.
 
 Comparison, `operator<<`, `std::ostringstream`, allocation, or report formatting can throw before a failure is fully recorded. Use a domain-specific
 check and explicit reason when formatting a value has side effects or requires a stronger diagnostic.

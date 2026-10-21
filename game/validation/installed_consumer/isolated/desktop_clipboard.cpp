@@ -5,6 +5,6 @@
 
 void consumeWindowClipboard()
 {
-    const auto result = GameWIP::Desktop::Clipboard::hasFormat({GameWIP::Desktop::Types::DataTransfer::FormatKind::Text, {}});
+    const auto result = GameWIP::Desktop::Clipboard::hasFormat(GameWIP::Desktop::Types::DataTransfer::FormatView::text());
     static_cast<void>(result);
 }

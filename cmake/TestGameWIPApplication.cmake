@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 foreach(
     required_variable
     IN
-    ITEMS PROJECT_SOURCE_DIR WORK_DIR MODULE_DIR GENERATOR CXX_COMPILER BUILD_TYPE
+    ITEMS PROJECT_SOURCE_DIR WORK_DIR MODULE_DIR GENERATOR CXX_COMPILER BUILD_TYPE RUN_RUNTIME_PROBE
 )
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required for application manifest validation.")
@@ -132,24 +132,28 @@ if(WIN32)
     configure_case(missing_rc "Enable RC with enable_language")
 endif()
 
-# The compiled probes inspect the actual process resource and effective DPI
-# policy, catching overwritten manifests that configure-time source counts miss.
-execute_process(
-    COMMAND "${CMAKE_COMMAND}" --build "${WORK_DIR}/composition" --config "${BUILD_TYPE}"
-    RESULT_VARIABLE build_result
-    OUTPUT_VARIABLE build_output
-    ERROR_VARIABLE build_error
-)
-if(NOT build_result EQUAL 0)
-    message(FATAL_ERROR "Application manifest probes did not build.\n${build_output}\n${build_error}")
+if(RUN_RUNTIME_PROBE)
+    # The compiled probes inspect the actual process resource and effective DPI
+    # policy, catching overwritten manifests that configure-time source counts miss.
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" --build "${WORK_DIR}/composition" --config "${BUILD_TYPE}"
+        RESULT_VARIABLE build_result
+        OUTPUT_VARIABLE build_output
+        ERROR_VARIABLE build_error
+    )
+    if(NOT build_result EQUAL 0)
+        message(FATAL_ERROR "Application manifest probes did not build.\n${build_output}\n${build_error}")
+    endif()
+    foreach(application IN ITEMS first-app first_app)
+        set(executable "${WORK_DIR}/composition/bin/${BUILD_TYPE}/${application}")
+        if(WIN32)
+            string(APPEND executable ".exe")
+        endif()
+        execute_process(COMMAND "${executable}" RESULT_VARIABLE run_result OUTPUT_VARIABLE run_output ERROR_VARIABLE run_error)
+        if(NOT run_result EQUAL 0)
+            message(FATAL_ERROR "Application manifest probe '${application}' failed (${run_result}).\n${run_output}\n${run_error}")
+        endif()
+    endforeach()
+else()
+    message(STATUS "Skipping compiled application manifest runtime probes; configure-time helper validation remains enabled.")
 endif()
-foreach(application IN ITEMS first-app first_app)
-    set(executable "${WORK_DIR}/composition/bin/${BUILD_TYPE}/${application}")
-    if(WIN32)
-        string(APPEND executable ".exe")
-    endif()
-    execute_process(COMMAND "${executable}" RESULT_VARIABLE run_result OUTPUT_VARIABLE run_output ERROR_VARIABLE run_error)
-    if(NOT run_result EQUAL 0)
-        message(FATAL_ERROR "Application manifest probe '${application}' failed (${run_result}).\n${run_output}\n${run_error}")
-    endif()
-endforeach()

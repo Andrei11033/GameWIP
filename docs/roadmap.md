@@ -48,7 +48,12 @@ vertically and continue changing after their first foundation slice.
 | `[~]` | In progress or waiting for review. |
 | `[!]` | Blocked. |
 | `[ ]` | Required before the concrete milestone is complete. |
-| `[TBD]` | A near-term decision belongs in the milestone but is not settled yet. |
+| `[TBD]` | A decision belongs in the milestone but is not settled yet; it may be active now or remain open until that milestone is promoted. |
+
+The R01 `[TBD]` item is the active near-term decision. The `[TBD]` items in
+R02–R05 record later design choices without making them current blockers; their
+evidence, owners, and exit criteria remain in GitHub issues and become active
+when the corresponding milestone is promoted.
 
 ## Development principles and cross-cutting concerns
 

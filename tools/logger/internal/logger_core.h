@@ -55,18 +55,18 @@ namespace GameWIP::Logger::Detail::Core
 
     using FlushDeadline = std::chrono::steady_clock::time_point;
     using LogLevel = Types::Level;
-    using OutputMode = Types::OutputMode;
-    using FormatPolicy = Types::FormatPolicy;
-    using SourceDefinition = Types::SourceDefinition;
-    using SourceFilter = Types::SourceFilter;
-    using LevelFilter = Types::LevelFilter;
-    using SourceId = Types::SourceId;
-    using QueueLimits = Types::QueueLimits;
+    using Types::FormatPolicy;
+    using Types::LevelFilter;
+    using Types::OutputMode;
+    using Types::QueueLimits;
+    using Types::SourceDefinition;
+    using Types::SourceFilter;
+    using Types::SourceId;
     using LoggerStats = Types::Stats;
     using LoggerMemoryStats = Types::MemoryStats;
-    using Status = IO::Types::Status;
-    using ErrorCode = IO::Types::ErrorCode;
-    using FileWriter = FileSystem::FileWriter;
+    using FileSystem::FileWriter;
+    using IO::Types::ErrorCode;
+    using IO::Types::Status;
     using FilePath = FileSystem::Types::Path;
 
     constexpr std::size_t kInlineSourceCapacity = 64;
@@ -102,6 +102,7 @@ namespace GameWIP::Logger::Detail::Core
         while (lead > 0 && continuationCount < 3)
         {
             const auto value = static_cast<unsigned char>(text[lead]);
+
             if ((value & 0xC0u) != 0x80u)
             {
                 break;
@@ -113,6 +114,7 @@ namespace GameWIP::Logger::Detail::Core
 
         const auto first = static_cast<unsigned char>(text[lead]);
         std::size_t expected = 1;
+
         if (first >= 0xC2u && first <= 0xDFu)
         {
             expected = 2;
@@ -478,6 +480,7 @@ namespace GameWIP::Logger::Detail::Core
                 name = other.name;
                 enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
             }
+
             return *this;
         }
         RegisteredSource &operator=(RegisteredSource &&other) noexcept
@@ -488,6 +491,7 @@ namespace GameWIP::Logger::Detail::Core
                 name = std::move(other.name);
                 enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
             }
+
             return *this;
         }
     };

@@ -103,10 +103,12 @@ def source_paths(ucd_directory: Path) -> SourcePaths:
 
 
 def require_source(path: Path, accepted_version_markers: Iterable[str]) -> None:
+
     if not path.is_file():
         raise FileNotFoundError(f"required Unicode data file is missing: {path}")
 
     header = "\n".join(path.read_text(encoding="utf-8").splitlines()[:40])
+
     if not any(marker in header for marker in accepted_version_markers):
         markers = ", ".join(repr(marker) for marker in accepted_version_markers)
         raise ValueError(f"{path} does not declare the expected version marker ({markers})")
@@ -116,16 +118,19 @@ def records(path: Path) -> Iterator[tuple[str, ...]]:
     with path.open("r", encoding="utf-8") as source:
         for line_number, line in enumerate(source, start=1):
             payload = line.split("#", maxsplit=1)[0].strip()
+
             if not payload:
                 continue
 
             fields = tuple(field.strip() for field in payload.split(";"))
+
             if len(fields) < 2:
                 raise ValueError(f"malformed record at {path}:{line_number}: {line.rstrip()}")
             yield fields
 
 
 def code_points(field: str) -> range:
+
     if ".." in field:
         first_text, last_text = field.split("..", maxsplit=1)
         first = int(first_text, 16)
@@ -145,36 +150,45 @@ def code_points(field: str) -> range:
 
 
 def apply_grapheme_break(data: bytearray, path: Path) -> None:
+
     for fields in records(path):
         property_name = fields[1]
+
         if property_name not in GCB_VALUES:
             raise ValueError(f"unsupported Grapheme_Cluster_Break value {property_name!r} in {path}")
 
         packed_value = GCB_VALUES[property_name]
+
         for code_point in code_points(fields[0]):
             data[code_point] = (data[code_point] & ~GCB_MASK) | packed_value
 
 
 def apply_indic_conjunct_break(data: bytearray, path: Path) -> None:
+
     for fields in records(path):
         if fields[1] != "InCB":
             continue
+
         if len(fields) < 3:
             raise ValueError(f"missing Indic_Conjunct_Break value in {path}: {'; '.join(fields)}")
 
         property_name = fields[2]
+
         if property_name not in INCB_VALUES:
             raise ValueError(f"unsupported Indic_Conjunct_Break value {property_name!r} in {path}")
 
         packed_value = INCB_VALUES[property_name] << 4
+
         for code_point in code_points(fields[0]):
             data[code_point] = (data[code_point] & ~INCB_MASK) | packed_value
 
 
 def apply_extended_pictographic(data: bytearray, path: Path) -> None:
+
     for fields in records(path):
         if fields[1] != "Extended_Pictographic":
             continue
+
         for code_point in code_points(fields[0]):
             data[code_point] |= EXTENDED_PICTOGRAPHIC_MASK
 
@@ -204,6 +218,7 @@ def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
     for block_start in range(0, high_start, block_size):
         block = bytes(data[block_start : block_start + block_size])
         block_id = block_ids.get(block)
+
         if block_id is None:
             block_id = len(unique_blocks)
             block_ids[block] = block_id
@@ -212,6 +227,7 @@ def build_trie(data: bytearray, block_shift: int) -> GeneratedTrie:
 
     if len(unique_blocks) <= 0x100:
         index_type = "std::uint8_t"
+
     elif len(unique_blocks) <= 0x10000:
         index_type = "std::uint16_t"
     else:
@@ -249,6 +265,7 @@ def select_trie(data: bytearray) -> tuple[GeneratedTrie, tuple[GeneratedTrie, ..
 def formatted_values(values: Iterable[int], per_line: int, hexadecimal: bool = False) -> str:
     rendered = [f"0x{value:02X}" if hexadecimal else str(value) for value in values]
     lines = []
+
     for start in range(0, len(rendered), per_line):
         lines.append("        " + ", ".join(rendered[start : start + per_line]) + ",")
     return "\n".join(lines)
@@ -319,6 +336,7 @@ def main() -> None:
     print(f"{'High start:':<17}U+{trie.high_start:06X}")
     print()
     print("Block size | Index width | Index bytes | Unique blocks | Block bytes | Total bytes | Selection")
+
     for candidate in candidates:
         block_size = 1 << candidate.block_shift
         candidate_index_bytes = len(candidate.indexes) * index_width(candidate)

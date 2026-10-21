@@ -12,62 +12,62 @@ namespace GameWIP::Desktop::Clipboard
     // Format and read operations
     // ------------------------------------------------------------
 
-    Types::Clipboard::FormatResult hasFormat(Types::DataTransfer::FormatView format) noexcept
+    Types::Result<bool> hasFormat(Types::DataTransfer::FormatView format) noexcept
     {
         return hasFormat(format, kDefaultAccessTimeout);
     }
 
-    Types::Clipboard::FormatResult hasFormat(Types::DataTransfer::FormatView format, std::chrono::milliseconds timeout) noexcept
+    Types::Result<bool> hasFormat(Types::DataTransfer::FormatView format, std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardHasFormat(format, timeout);
     }
 
-    Types::Clipboard::FormatsResult getFormats() noexcept
+    Types::Result<std::vector<Types::DataTransfer::Format>> getFormats() noexcept
     {
         return getFormats(kDefaultAccessTimeout);
     }
 
-    Types::Clipboard::FormatsResult getFormats(std::chrono::milliseconds timeout) noexcept
+    Types::Result<std::vector<Types::DataTransfer::Format>> getFormats(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardGetFormats(timeout);
     }
 
-    Types::Clipboard::TextResult readText() noexcept
+    Types::Result<std::string> readText() noexcept
     {
         return readText(kDefaultAccessTimeout);
     }
 
-    Types::Clipboard::TextResult readText(std::chrono::milliseconds timeout) noexcept
+    Types::Result<std::string> readText(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardReadText(timeout);
     }
 
-    Types::Clipboard::FileListResult readFiles() noexcept
+    Types::Result<std::vector<FileSystem::Types::Path>> readFiles() noexcept
     {
         return readFiles(kDefaultAccessTimeout);
     }
 
-    Types::Clipboard::FileListResult readFiles(std::chrono::milliseconds timeout) noexcept
+    Types::Result<std::vector<FileSystem::Types::Path>> readFiles(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardReadFiles(timeout);
     }
 
-    Types::Clipboard::ImageResult readImage() noexcept
+    Types::Result<Types::DataTransfer::Image> readImage() noexcept
     {
         return readImage(kDefaultAccessTimeout);
     }
 
-    Types::Clipboard::ImageResult readImage(std::chrono::milliseconds timeout) noexcept
+    Types::Result<Types::DataTransfer::Image> readImage(std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardReadImage(timeout);
     }
 
-    Types::Clipboard::CustomDataResult readCustomData(std::string_view formatName) noexcept
+    Types::Result<std::vector<std::byte>> readCustomData(std::string_view formatName) noexcept
     {
         return readCustomData(formatName, kDefaultAccessTimeout);
     }
 
-    Types::Clipboard::CustomDataResult readCustomData(std::string_view formatName, std::chrono::milliseconds timeout) noexcept
+    Types::Result<std::vector<std::byte>> readCustomData(std::string_view formatName, std::chrono::milliseconds timeout) noexcept
     {
         return Detail::Platform::clipboardReadCustomData(formatName, timeout);
     }

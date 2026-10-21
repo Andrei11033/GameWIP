@@ -2,6 +2,10 @@
 target_sources(
     Desktop
     PRIVATE
+        "${CMAKE_CURRENT_LIST_DIR}/win32_accessibility.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/win32_accessibility_text.cpp"
+        "${CMAKE_CURRENT_LIST_DIR}/internal/win32_accessibility_provider.h"
+        "${CMAKE_CURRENT_LIST_DIR}/internal/win32_accessibility.h"
         "${CMAKE_CURRENT_LIST_DIR}/win32_clipboard.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_child_surface.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/win32_controls.cpp"
@@ -31,7 +35,7 @@ target_sources(
 
 target_link_libraries(
     Desktop
-    PRIVATE advapi32 comctl32 dwmapi dxgi dxguid gdi32 ole32 shell32 shcore user32 uuid
+    PRIVATE advapi32 comctl32 dwmapi dxgi dxguid gdi32 ole32 oleaut32 shell32 shcore user32 uuid uiautomationcore
 )
 
 if(MINGW)

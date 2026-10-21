@@ -31,6 +31,23 @@ namespace GameWIP::TestSupport
             Full,    ///< Every report category, including passes and diagnostics.
         };
 
+        /// @brief Lifecycle state of a requested report-file sink.
+        enum class SinkState
+        {
+            Disabled,  ///< Report output was not requested or has no destination.
+            Active,    ///< The report destination is open and accepting output.
+            Failed,    ///< Opening, writing, flushing, or closing the destination failed.
+            Finalized, ///< The destination was flushed and closed successfully.
+        };
+
+        /// @brief Structured report-sink lifecycle and destination status.
+        struct SinkStatus
+        {
+            SinkState state = SinkState::Disabled; ///< Current report-sink lifecycle state.
+            std::filesystem::path reportPath;      ///< Requested report destination, when supplied.
+            InfrastructureStatus failureStatus;    ///< First report-sink infrastructure failure, if any.
+        };
+
         /// @brief Runtime report-output settings shared by test suites.
         struct Options
         {
@@ -92,6 +109,11 @@ namespace GameWIP::TestSupport
                 stream << value;
                 return stream.str();
             }
+            else if constexpr (std::is_enum_v<Value>)
+            {
+                // to_string promotes narrow underlying types instead of rendering them as characters.
+                return std::to_string(std::to_underlying(value));
+            }
             else
             {
                 return "<unprintable>";
@@ -106,6 +128,8 @@ namespace GameWIP::TestSupport
 
     /// @brief Monotonic elapsed-time helper for test diagnostics.
     /// @note Timer uses std::chrono::steady_clock and is not benchmark-grade measurement.
+    /// @thread_safety Externally synchronize access when any call resets this timer.
+    /// @endthread_safety
     class Timer
     {
     public:
@@ -126,13 +150,17 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     /// @brief Test context that records outcomes and routes categorized report lines.
+    /// @note Names, messages, and formatted values must be valid UTF-8; reporting does not validate or repair their encoding.
+    /// @thread_safety Recording and count queries are internally synchronized. Count changes and report output are separate operations;
+    /// caller-owned values and formatters require their own synchronization. Destruction requires all calls to have finished.
+    /// @endthread_safety
     class Context
     {
     public:
         /// @brief Creates a standalone context with its own report sink.
         Context(std::string_view suiteName, const Types::Reporting::Options &options);
         /// @brief Releases this context and its shared report-sink ownership.
-        ~Context();
+        ~Context() noexcept;
 
         Context(const Context &) = delete;            ///< Context synchronization/sink ownership cannot be copied.
         Context &operator=(const Context &) = delete; ///< Context synchronization/sink ownership cannot be copy-assigned.
@@ -212,6 +240,10 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::Reporting::Summary result() const noexcept;
         /// @brief Reports whether this context has recorded no failed checks.
         [[nodiscard]] bool ok() const noexcept;
+        /// @brief Returns the current report-sink lifecycle status.
+        [[nodiscard]] Types::Reporting::SinkStatus reportStatus() const;
+        /// @brief Finalizes a standalone context's sink; runner-owned contexts leave the shared sink to Runner.
+        [[nodiscard]] Types::Reporting::SinkStatus finalize();
 
     private:
         friend class Runner;
@@ -220,6 +252,7 @@ namespace GameWIP::TestSupport
 
         std::string suiteName_;
         std::shared_ptr<Detail::ReportSink> reportSink_;
+        bool ownsReportLifecycle_ = true;
         mutable std::mutex mutex_;
         Types::Reporting::Summary summary_;
 
@@ -232,18 +265,23 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     /// @brief Runs named suites and aggregates one shared report.
+    /// @thread_safety Suite execution, reporting, and count queries may run concurrently. The caller coordinates shared suite state and
+    /// keeps the runner alive until every call and worker has finished.
+    /// @endthread_safety
     class Runner
     {
     public:
         /// @brief Creates a runner with one shared report sink.
         explicit Runner(Types::Reporting::Options options);
         /// @brief Releases the runner's ownership of its shared report sink.
-        ~Runner();
+        ~Runner() noexcept;
 
         Runner(const Runner &) = delete;            ///< Runner ownership cannot be copied.
         Runner &operator=(const Runner &) = delete; ///< Runner ownership cannot be copy-assigned.
 
         /// @brief Runs a named suite and converts an uncaught suite exception into one failed check.
+        /// @note Join workers borrowing the suite's Context before the callable returns. Allocation, formatting, and reporting failures
+        /// outside the callable's exception boundary can propagate.
         template <typename SuiteFunction> Types::Reporting::SuiteResult runSuite(std::string_view suiteName, SuiteFunction &&function);
 
         /// @brief Writes a run-level informational line.
@@ -257,6 +295,11 @@ namespace GameWIP::TestSupport
         [[nodiscard]] bool ok() const noexcept;
         /// @brief Returns zero when no failures were recorded, otherwise one.
         [[nodiscard]] int exitCode() const noexcept;
+        /// @brief Returns the current report-sink lifecycle status.
+        [[nodiscard]] Types::Reporting::SinkStatus reportStatus() const;
+        /// @brief Flushes and closes the shared report sink, returning its final status.
+        /// @details Repeated calls are idempotent. A report failure does not change assertion counts or exitCode().
+        [[nodiscard]] Types::Reporting::SinkStatus finalize();
 
     private:
         std::shared_ptr<Detail::ReportSink> reportSink_;
@@ -271,6 +314,7 @@ namespace GameWIP::TestSupport
     // ------------------------------------------------------------
 
     /// @brief RAII helper that reports a named section and its elapsed time.
+    /// @note Borrows its Context; the context must outlive this section and its destructor's reporting call.
     class Section
     {
     public:
@@ -291,6 +335,8 @@ namespace GameWIP::TestSupport
     /// @brief Repeatedly prompts for a recognized yes/no/skip line.
     /// @return Selected answer, or Skipped on end-of-input.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question);
+    /// @brief Prompts for a manual answer and preserves an optional "s <reason>" or end-of-input reason.
+    Types::Reporting::ManualAnswer promptManualCheck(std::string_view question, std::string &skipReason);
 
     // ------------------------------------------------------------
     // Template implementations

@@ -27,11 +27,13 @@ namespace GameWIP::Desktop
             if (callingThreadToken == 0)
             {
                 callingThreadToken = nextThreadToken.fetch_add(1, std::memory_order_relaxed);
+
                 if (callingThreadToken == 0)
                 {
                     callingThreadToken = nextThreadToken.fetch_add(1, std::memory_order_relaxed);
                 }
             }
+
             return callingThreadToken;
         }
 
@@ -60,10 +62,12 @@ namespace GameWIP::Desktop
             {
                 return error(ErrorCode::NotOpen);
             }
+
             if (!owned)
             {
                 return error(ErrorCode::ResourceBusy);
             }
+
             return state->nativeDestroyedPendingFinalize || !state->platform ? error(ErrorCode::NotOpen) : IO::successStatus();
         }
     } // namespace
@@ -108,7 +112,9 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
-        if (!validMode(description.mode) || !std::isfinite(description.progress) || description.progress < 0.0 || description.progress > 1.0)
+
+        if (!validMode(description.presentationMode) || !std::isfinite(description.progress) || description.progress < 0.0 ||
+            description.progress > 1.0)
         {
             return error(ErrorCode::InvalidArgument);
         }
@@ -116,6 +122,7 @@ namespace GameWIP::Desktop
         for (std::string_view text : {description.title, description.heading, description.message})
         {
             IO::Types::Status status = validateText(text);
+
             if (!status.ok())
             {
                 return status;
@@ -123,13 +130,16 @@ namespace GameWIP::Desktop
         }
 
         Detail::WindowState *ownerState = nullptr;
+
         if (description.owner != nullptr)
         {
             ownerState = Detail::WindowAccess::state(*description.owner);
+
             if (ownerState == nullptr || !Detail::Platform::hasLiveNativeWindow(*ownerState))
             {
                 return error(ErrorCode::NotOpen);
             }
+
             if (!Detail::Platform::ownedByCurrentThread(*ownerState))
             {
                 return error(ErrorCode::ResourceBusy);
@@ -145,13 +155,14 @@ namespace GameWIP::Desktop
             auto candidate = std::make_unique<Detail::ProgressDialogState>();
             candidate->ownerToken = currentThreadToken();
             candidate->ownerId = ownerState != nullptr ? ownerState->id : Types::WindowId{};
-            candidate->mode = description.mode;
+            candidate->mode = description.presentationMode;
             candidate->progress = description.progress;
             candidate->cancelable = description.cancelable;
             candidate->blocksOwner = description.blocksOwner;
             candidate->cancelRequested = false;
 
             IO::Types::Status status = Detail::Platform::openProgress(*candidate, description);
+
             if (!status.ok())
             {
                 if (!Detail::Platform::closeProgressBestEffort(*candidate))
@@ -161,6 +172,7 @@ namespace GameWIP::Desktop
                     // not complete synchronously.
                     static_cast<void>(Detail::Platform::deferProgressCleanupToOwner(candidate));
                 }
+
                 return status;
             }
 
@@ -197,6 +209,7 @@ namespace GameWIP::Desktop
     IO::Types::Status ProgressDialog::setTitle(std::string_view title) noexcept
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
+
         if (!status.ok())
         {
             return status;
@@ -208,6 +221,7 @@ namespace GameWIP::Desktop
     IO::Types::Status ProgressDialog::setHeading(std::string_view heading) noexcept
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
+
         if (!status.ok())
         {
             return status;
@@ -219,6 +233,7 @@ namespace GameWIP::Desktop
     IO::Types::Status ProgressDialog::setMessage(std::string_view message) noexcept
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
+
         if (!status.ok())
         {
             return status;
@@ -230,38 +245,46 @@ namespace GameWIP::Desktop
     IO::Types::Status ProgressDialog::setMode(Types::Dialogs::Progress::Mode mode) noexcept
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
+
         if (!status.ok())
         {
             return status;
         }
+
         if (!validMode(mode))
         {
             return error(ErrorCode::InvalidArgument);
         }
         status = Detail::Platform::setProgressMode(*state_, mode);
+
         if (status.ok())
         {
             state_->mode = mode;
         }
+
         return status;
     }
 
     IO::Types::Status ProgressDialog::setProgress(double progress) noexcept
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
+
         if (!status.ok())
         {
             return status;
         }
+
         if (!std::isfinite(progress) || progress < 0.0 || progress > 1.0)
         {
             return error(ErrorCode::InvalidArgument);
         }
         status = Detail::Platform::setProgressValue(*state_, progress);
+
         if (status.ok())
         {
             state_->progress = progress;
         }
+
         return status;
     }
 
@@ -284,10 +307,12 @@ namespace GameWIP::Desktop
         {
             return IO::successStatus();
         }
+
         if (!ownedByCurrentThread())
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         if (!state_->platform)
         {
             state_.reset();
@@ -296,11 +321,13 @@ namespace GameWIP::Desktop
         }
 
         const Detail::Platform::ProgressCloseResult result = Detail::Platform::closeProgress(*state_);
+
         if (result.resourceClosed)
         {
             state_.reset();
             ownerThreadToken_.store(0, std::memory_order_release);
         }
+
         return result.status;
     }
 } // namespace GameWIP::Desktop

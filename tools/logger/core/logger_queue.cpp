@@ -27,6 +27,7 @@ namespace GameWIP::Logger::Detail::Core
     bool allocateMessageArena(std::size_t entryCount, std::size_t inlineMessageCapacity, std::unique_ptr<char[]> &arena)
     {
         arena.reset();
+
         if (entryCount == 0 || inlineMessageCapacity == 0)
         {
             return true;
@@ -69,6 +70,7 @@ namespace GameWIP::Logger::Detail::Core
             ring = std::make_unique<QueueSlot[]>(hardLimit);
             ringSize = hardLimit;
             batch.resize(workerBatchSize);
+
             if (!allocateMessageArena(ringSize, inlineMessageCapacity, ringArena) ||
                 !allocateMessageArena(batch.size(), inlineMessageCapacity, batchArena))
             {
@@ -123,6 +125,7 @@ namespace GameWIP::Logger::Detail::Core
     void clearQueueUnlocked()
     {
         const bool releaseHeapCapacity = loggerState().releaseMessageMemoryAfterWrite;
+
         for (std::size_t index = 0; index < loggerState().logRingSize; ++index)
         {
             QueueSlot &slot = loggerState().logRingView[index];
@@ -181,6 +184,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         constexpr std::string_view suffix = "... [truncated]";
         outTruncated = false;
+
         if (message.size() <= maxMessageLength)
         {
             entry.message.assign(message);
@@ -188,6 +192,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         outTruncated = true;
+
         if (maxMessageLength == 0)
         {
             entry.message.clear();
@@ -209,6 +214,7 @@ namespace GameWIP::Logger::Detail::Core
         destination.level = source.level;
         destination.usesRegisteredSource = source.usesRegisteredSource;
         destination.sourceId = source.sourceId;
+
         if (source.usesRegisteredSource)
         {
             destination.sourceText.clear();
@@ -235,6 +241,7 @@ namespace GameWIP::Logger::Detail::Core
         destination.level = source.level;
         destination.usesRegisteredSource = source.usesRegisteredSource;
         destination.sourceId = source.sourceId;
+
         if (source.usesRegisteredSource)
         {
             destination.sourceText.clear();
@@ -254,6 +261,7 @@ namespace GameWIP::Logger::Detail::Core
     EnqueueStatus reserveQueueDepth(const PendingLogEntry &entry, std::size_t &outPreviousDepth)
     {
         std::size_t depth = loggerState().queueDepth.load(std::memory_order_acquire);
+
         while (true)
         {
             if (depth >= loggerState().hardQueueSize)
@@ -296,6 +304,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         outNotifyWorker = false;
         const std::size_t capacity = loggerState().logRingSize;
+
         if (capacity == 0)
         {
             loggerState().queueDepth.fetch_sub(1, std::memory_order_acq_rel);
@@ -332,6 +341,7 @@ namespace GameWIP::Logger::Detail::Core
         std::size_t batchCount = 0;
         const std::size_t capacity = loggerState().logRingSize;
         const std::size_t batchLimit = batch.empty() ? capacity : batch.size();
+
         if (capacity == 0 || batchLimit == 0)
         {
             return 0;
@@ -341,6 +351,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             const std::size_t ticket = loggerState().dequeueTicket.load(std::memory_order_relaxed);
             QueueSlot &slot = loggerState().logRingView[ticket % capacity];
+
             if (slot.sequence.load(std::memory_order_acquire) != ticket + 1)
             {
                 break;
@@ -373,6 +384,7 @@ namespace GameWIP::Logger::Detail::Core
         [[nodiscard]] bool queueHeadIsPublished() noexcept
         {
             const std::size_t capacity = loggerState().logRingSize;
+
             if (capacity == 0)
             {
                 return false;
@@ -415,6 +427,7 @@ namespace GameWIP::Logger::Detail::Core
             }
 
             batchCount = drainQueueBatch(loggerState().workerBatch);
+
             if (batchCount == 0)
             {
                 {
@@ -431,12 +444,14 @@ namespace GameWIP::Logger::Detail::Core
 
             std::size_t writtenCount = 0;
             std::size_t filePendingCount = 0;
+
             for (std::size_t index = 0; index < batchCount; ++index)
             {
                 const QueuedLogEntry &entry = loggerState().workerBatch[index];
                 try
                 {
                     const SinkWriteResult writeResult = writeLogEntry(entry, timestampCache, lineScratch, fileBatchScratch);
+
                     if (writeResult.acceptedImmediateSink)
                     {
                         ++writtenCount;
@@ -466,6 +481,7 @@ namespace GameWIP::Logger::Detail::Core
             {
                 writtenCount += filePendingCount;
             }
+
             for (std::size_t index = 0; index < batchCount; ++index)
             {
                 clearLogEntry(loggerState().workerBatch[index]);
@@ -501,12 +517,14 @@ namespace GameWIP::Logger::Detail::Core
     {
         EnqueueOutcome result;
         ProducerActivity producer;
+
         if (!producer.enter())
         {
             return result;
         }
 
         const FilterDecision filterCheck = checkPendingEntryAcceptedUnlocked(entry);
+
         if (!filterCheck.accepted)
         {
             return result;
@@ -514,6 +532,7 @@ namespace GameWIP::Logger::Detail::Core
 
         std::size_t previousDepth = 0;
         const EnqueueStatus reserveStatus = reserveQueueDepth(entry, previousDepth);
+
         if (reserveStatus == EnqueueStatus::DroppedHard)
         {
             if (countDrops)
@@ -537,6 +556,7 @@ namespace GameWIP::Logger::Detail::Core
         bool entryWasTruncated = false;
         bool notifyWorker = false;
         const EnqueueStatus publishStatus = publishReservedQueueEntry(entry, entryWasTruncated, notifyWorker);
+
         if (publishStatus == EnqueueStatus::AllocationFailure)
         {
             if (countDrops)
@@ -559,6 +579,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         loggerState().stats.queued.fetch_add(1, std::memory_order_relaxed);
+
         if (entryWasTruncated)
         {
             loggerState().stats.truncated.fetch_add(1, std::memory_order_relaxed);

@@ -1,10 +1,11 @@
 /// @file desktop_test_hooks.h
-/// @brief Source-tree-only deterministic hooks for Window validation.
+/// @brief Source-tree-only deterministic hooks for Desktop validation.
 /// @warning This header is not installed and must not be used by production consumers.
 
 #pragma once
 
 #include "desktop/child_surface.h"
+#include "desktop/accessibility.h"
 #include "desktop/internal/desktop_test_export.h"
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
@@ -15,6 +16,7 @@
 #include "desktop/events.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/shell.h"
+#include "desktop/shell_jump_lists.h"
 #include "desktop/shell_notifications.h"
 #include "desktop/shell_taskbar.h"
 #include "desktop/shell_tray.h"
@@ -222,10 +224,19 @@ namespace GameWIP::Desktop::TestHooks
         WindowCreationCallback,
         ShellNativeOpen,
         ShellNativeApply,
-        ShellNativeClose
+        ShellNativeClose,
+        ShellRegistryDelete
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    /// @brief Submits through the real bounded action transport.
+    [[nodiscard]] DESKTOP_TEST_EXPORT Types::Accessibility::ActionResult submitAccessibilityAction(
+        Window &window,
+        Types::Accessibility::ActionRequest request) noexcept;
+    /// @brief Removes one owner-thread pending notification without invoking native clients.
+    [[nodiscard]] DESKTOP_TEST_EXPORT bool popAccessibilityNotification(Window &window, Types::Accessibility::Notification &out) noexcept;
+    /// @brief Returns one AddRef'd IRawElementProviderSimple as void*, or nullptr. Caller must Release it.
+    [[nodiscard]] DESKTOP_TEST_EXPORT void *accessibilityProvider(Window &window, Types::Accessibility::NodeId node) noexcept;
     DESKTOP_TEST_EXPORT void failNext(FailurePoint point) noexcept;
     DESKTOP_TEST_EXPORT void resetFailures() noexcept;
     DESKTOP_TEST_EXPORT void completeNextFileDialog(FileDialogOperation operation, FileDialogResponse response) noexcept;
@@ -235,6 +246,9 @@ namespace GameWIP::Desktop::TestHooks
     DESKTOP_TEST_EXPORT void completeNextPromptDialog(PromptDialogResponse response) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT const PromptDialogSnapshot &lastPromptDialogSnapshot() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDialogApartment() noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testShellApartment() noexcept;
+    /// @brief Returns an owned IShellLinkW as void* for native metadata inspection. Caller must Release it.
+    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept;
@@ -251,6 +265,7 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::Events::PumpResult pumpReentrantly() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
+    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept;
     /// @brief Applies renderer-facing test state and mirrors it when concurrent reads are enabled.
     DESKTOP_TEST_EXPORT void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept;

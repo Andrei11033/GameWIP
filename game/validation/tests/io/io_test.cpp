@@ -7,12 +7,14 @@
 #include "validation/tests/io/io_test.h"
 
 #include "io/io.h"
+#include "validation/tests/runner_helpers.h"
 #include "test_support/test_support.h"
 
 #include <algorithm>
 #include <array>
 #include <cstddef>
 #include <format>
+#include <iostream>
 #include <initializer_list>
 #include <limits>
 #include <span>
@@ -27,8 +29,8 @@ namespace
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
 
-    using IOTestOptions = GameWIP::Test::IOTestOptions;
-    using ErrorCode = IO::Types::ErrorCode;
+    using GameWIP::Test::IOTestOptions;
+    using IO::Types::ErrorCode;
 
     /// @brief Converts integer literals into a byte vector for readable fixtures.
     [[nodiscard]] std::vector<std::byte> makeBytes(std::initializer_list<unsigned int> values)
@@ -465,6 +467,8 @@ namespace
         /// @brief Accepts one bounded chunk and appends it to retained fixture bytes.
         [[nodiscard]] IO::Types::WriteResult write(std::span<const std::byte> bytes) noexcept override
         {
+            ++writeCalls_;
+
             if (bytes.empty())
             {
                 return {.status = {}, .bytesWritten = 0};
@@ -487,8 +491,15 @@ namespace
             return bytes_;
         }
 
+        /// @brief Counts every write attempt, including empty requests.
+        [[nodiscard]] std::size_t writeCalls() const noexcept
+        {
+            return writeCalls_;
+        }
+
     private:
         std::size_t maxChunkSize_ = 0;
+        std::size_t writeCalls_ = 0;
         std::vector<std::byte> bytes_;
     };
 
@@ -622,13 +633,7 @@ namespace GameWIP::Test
 
     int runIOTests([[maybe_unused]] int argc, [[maybe_unused]] char **argv, const IOTestOptions &options)
     {
-        TestSupport::Types::Reporting::Options reportOptions;
-        reportOptions.writeConsole = true;
-        reportOptions.consoleVerbosity =
-            options.verboseConsole ? TestSupport::Types::Reporting::ConsoleVerbosity::Full : TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
-        reportOptions.writeReport = options.writeReport;
-        reportOptions.appendReport = options.appendReport;
-        reportOptions.reportPath = options.reportPath;
+        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("IO test options: report={}", options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));
@@ -645,6 +650,6 @@ namespace GameWIP::Test
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("IO library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));
-        return runner.exitCode();
+        return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);
     }
 } // namespace GameWIP::Test

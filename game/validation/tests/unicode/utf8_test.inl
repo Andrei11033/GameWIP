@@ -4,18 +4,10 @@
 /// @brief Verifies standard-version reporting and scalar/surrogate classification boundaries.
 void testVersionAndScalarPredicates(TestSupport::Context &context)
 {
-    const Unicode::Types::UnicodeVersion version = Unicode::getStandardVersion();
+    const Unicode::Types::Version version = Unicode::getStandardVersion();
     static_cast<void>(context.expectEq("Unicode major version", std::uint8_t{17}, version.major));
     static_cast<void>(context.expectEq("Unicode minor version", std::uint8_t{0}, version.minor));
     static_cast<void>(context.expectEq("Unicode patch version", std::uint8_t{0}, version.patch));
-
-    static_cast<void>(context.expectTrue("U+0000 is a scalar", Unicode::isScalarValue(U'\0')));
-    static_cast<void>(context.expectTrue("U+D7FF is a scalar", Unicode::isScalarValue(static_cast<char32_t>(0xD7FF))));
-    static_cast<void>(context.expectFalse("U+D800 is not a scalar", Unicode::isScalarValue(static_cast<char32_t>(0xD800))));
-    static_cast<void>(context.expectFalse("U+DFFF is not a scalar", Unicode::isScalarValue(static_cast<char32_t>(0xDFFF))));
-    static_cast<void>(context.expectTrue("U+E000 is a scalar", Unicode::isScalarValue(static_cast<char32_t>(0xE000))));
-    static_cast<void>(context.expectTrue("U+10FFFF is a scalar", Unicode::isScalarValue(static_cast<char32_t>(0x10FFFF))));
-    static_cast<void>(context.expectFalse("U+110000 is not a scalar", Unicode::isScalarValue(static_cast<char32_t>(0x110000))));
 
     static_cast<void>(context.expectFalse("D7FF is not a high surrogate", Unicode::Utf16::isHighSurrogate(static_cast<char16_t>(0xD7FF))));
     static_cast<void>(context.expectTrue("D800 is a high surrogate", Unicode::Utf16::isHighSurrogate(static_cast<char16_t>(0xD800))));
@@ -76,7 +68,13 @@ void testUtf8CodecAndValidation(TestSupport::Context &context)
              bytes({0xF4, 0x90, 0x80, 0x80}),
          })
     {
-        expectUtf8Decode(context, "strict-invalid UTF-8", input, DecodeOutcome::InvalidEncoding);
+        std::string name = "strict-invalid UTF-8";
+
+        for (const char value : input)
+        {
+            name += std::format(" {:02X}", static_cast<unsigned char>(value));
+        }
+        expectUtf8Decode(context, name, input, DecodeOutcome::InvalidEncoding);
     }
 
     expectUtf8Decode(context, "decoder stops after first scalar", bytes({0x41, 0xFF}), DecodeOutcome::Decoded, U'A', 1);
@@ -96,24 +94,28 @@ void testUtf8CodecAndValidation(TestSupport::Context &context)
         EncodeCase{static_cast<char32_t>(0x10000), bytes({0xF0, 0x90, 0x80, 0x80})},
         EncodeCase{static_cast<char32_t>(0x10FFFF), bytes({0xF4, 0x8F, 0xBF, 0xBF})},
     };
+
     for (const EncodeCase &testCase : encodeCases)
     {
-        const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(testCase.scalar);
-        static_cast<void>(context.expectEq("UTF-8 encode succeeds", EncodeOutcome::Encoded, encoded.outcome));
-        static_cast<void>(context.expectEq("UTF-8 encode byte count", testCase.expected.size(), static_cast<std::size_t>(encoded.byteCount)));
-        static_cast<void>(context.expectEq("UTF-8 encode bytes", std::string_view(testCase.expected), encodedBytes(encoded)));
+        const std::string name = std::format("UTF-8 encode U+{:04X}", static_cast<std::uint32_t>(testCase.scalar));
+        const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(testCase.scalar);
+        static_cast<void>(context.expectEq(name + " outcome", EncodeOutcome::Encoded, encoded.outcome));
+        static_cast<void>(context.expectEq(name + " byte count", testCase.expected.size(), static_cast<std::size_t>(encoded.byteCount)));
+        static_cast<void>(context.expectEq(name + " bytes", std::string_view(testCase.expected), encodedBytes(encoded)));
     }
+
     for (const char32_t invalidScalar : {
              static_cast<char32_t>(0xD800),
              static_cast<char32_t>(0xDFFF),
              static_cast<char32_t>(0x110000),
          })
     {
-        const Unicode::Types::Utf8EncodeResult encoded = Unicode::Utf8::encodeScalar(invalidScalar);
-        static_cast<void>(context.expectEq("invalid scalar UTF-8 outcome", EncodeOutcome::InvalidScalar, encoded.outcome));
-        static_cast<void>(context.expectEq("invalid scalar UTF-8 byte count", std::uint8_t{0}, encoded.byteCount));
+        const std::string name = std::format("invalid scalar UTF-8 U+{:04X}", static_cast<std::uint32_t>(invalidScalar));
+        const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(invalidScalar);
+        static_cast<void>(context.expectEq(name + " outcome", EncodeOutcome::InvalidScalar, encoded.outcome));
+        static_cast<void>(context.expectEq(name + " byte count", std::uint8_t{0}, encoded.byteCount));
         static_cast<void>(context.expectTrue(
-            "invalid scalar UTF-8 storage remains zero",
+            name + " storage remains zero",
             std::ranges::all_of(
                 encoded.bytes,
                 [](char value)
@@ -123,21 +125,21 @@ void testUtf8CodecAndValidation(TestSupport::Context &context)
     }
 
     const std::string validText = bytes({0x00, 0x41, 0xC2, 0x80, 0xE2, 0x82, 0xAC, 0xF0, 0x9F, 0x98, 0x80});
-    const Unicode::Types::Utf8ValidationResult valid = Unicode::Utf8::validate(validText);
+    const Unicode::Types::Utf8::ValidationResult valid = Unicode::Utf8::validate(validText);
     static_cast<void>(context.expectEq("valid UTF-8 range outcome", ValidationOutcome::Valid, valid.outcome));
     static_cast<void>(context.expectEq("valid UTF-8 range prefix", validText.size(), valid.validPrefixBytes));
 
-    const Unicode::Types::Utf8ValidationResult empty = Unicode::Utf8::validate({});
+    const Unicode::Types::Utf8::ValidationResult empty = Unicode::Utf8::validate({});
     static_cast<void>(context.expectEq("empty UTF-8 range outcome", ValidationOutcome::Valid, empty.outcome));
     static_cast<void>(context.expectEq("empty UTF-8 range prefix", std::size_t{0}, empty.validPrefixBytes));
 
     const std::string incompleteText = std::string("A") + bytes({0xE2, 0x82});
-    const Unicode::Types::Utf8ValidationResult incomplete = Unicode::Utf8::validate(incompleteText);
+    const Unicode::Types::Utf8::ValidationResult incomplete = Unicode::Utf8::validate(incompleteText);
     static_cast<void>(context.expectEq("incomplete UTF-8 validation outcome", ValidationOutcome::Incomplete, incomplete.outcome));
     static_cast<void>(context.expectEq("incomplete UTF-8 validation prefix", std::size_t{1}, incomplete.validPrefixBytes));
 
     const std::string invalidText = std::string("A") + bytes({0xE2, 0x28, 0xA1});
-    const Unicode::Types::Utf8ValidationResult invalid = Unicode::Utf8::validate(invalidText);
+    const Unicode::Types::Utf8::ValidationResult invalid = Unicode::Utf8::validate(invalidText);
     static_cast<void>(context.expectEq("invalid UTF-8 validation outcome", ValidationOutcome::InvalidEncoding, invalid.outcome));
     static_cast<void>(context.expectEq("invalid UTF-8 validation prefix", std::size_t{1}, invalid.validPrefixBytes));
 }
@@ -154,55 +156,55 @@ void testConversions(TestSupport::Context &context)
         static_cast<char16_t>(0xDE00),
     };
 
-    const Unicode::Types::Utf8ToUtf16MeasureResult toUtf16Measure = Unicode::Utf8::measureToUtf16(utf8);
+    const Unicode::Types::Utf8::ToUtf16MeasureResult toUtf16Measure = Unicode::Utf8::measureToUtf16(utf8);
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 measurement outcome", MeasureOutcome::Measured, toUtf16Measure.outcome));
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 measurement source", utf8.size(), toUtf16Measure.sourceBytesProcessed));
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 measurement destination", utf16.size(), toUtf16Measure.requiredCodeUnits));
 
-    const Unicode::Types::Utf16ToUtf8MeasureResult toUtf8Measure = Unicode::Utf16::measureToUtf8(utf16);
+    const Unicode::Types::Utf16::ToUtf8MeasureResult toUtf8Measure = Unicode::Utf16::measureToUtf8(utf16);
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 measurement outcome", MeasureOutcome::Measured, toUtf8Measure.outcome));
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 measurement source", utf16.size(), toUtf8Measure.sourceCodeUnitsProcessed));
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 measurement destination", utf8.size(), toUtf8Measure.requiredBytes));
 
-    const Unicode::Types::Utf8ToUtf16MeasureResult emptyToUtf16Measure = Unicode::Utf8::measureToUtf16({});
-    const Unicode::Types::Utf16ToUtf8MeasureResult emptyToUtf8Measure = Unicode::Utf16::measureToUtf8({});
+    const Unicode::Types::Utf8::ToUtf16MeasureResult emptyToUtf16Measure = Unicode::Utf8::measureToUtf16({});
+    const Unicode::Types::Utf16::ToUtf8MeasureResult emptyToUtf8Measure = Unicode::Utf16::measureToUtf8({});
     static_cast<void>(context.expectEq("empty UTF-8 measurement outcome", MeasureOutcome::Measured, emptyToUtf16Measure.outcome));
     static_cast<void>(context.expectEq("empty UTF-8 measurement size", std::size_t{0}, emptyToUtf16Measure.requiredCodeUnits));
     static_cast<void>(context.expectEq("empty UTF-16 measurement outcome", MeasureOutcome::Measured, emptyToUtf8Measure.outcome));
     static_cast<void>(context.expectEq("empty UTF-16 measurement size", std::size_t{0}, emptyToUtf8Measure.requiredBytes));
 
     const std::string incompleteUtf8 = std::string("A") + bytes({0xE2, 0x82});
-    const Unicode::Types::Utf8ToUtf16MeasureResult incompleteUtf8Measure = Unicode::Utf8::measureToUtf16(incompleteUtf8);
+    const Unicode::Types::Utf8::ToUtf16MeasureResult incompleteUtf8Measure = Unicode::Utf8::measureToUtf16(incompleteUtf8);
     static_cast<void>(context.expectEq("incomplete UTF-8 measurement outcome", MeasureOutcome::Incomplete, incompleteUtf8Measure.outcome));
     static_cast<void>(context.expectEq("incomplete UTF-8 measurement source progress", std::size_t{1}, incompleteUtf8Measure.sourceBytesProcessed));
     static_cast<void>(context.expectEq("incomplete UTF-8 measurement destination progress", std::size_t{1}, incompleteUtf8Measure.requiredCodeUnits));
 
     const std::string invalidUtf8 = std::string("A") + bytes({0xE2, 0x28});
-    const Unicode::Types::Utf8ToUtf16MeasureResult invalidUtf8Measure = Unicode::Utf8::measureToUtf16(invalidUtf8);
+    const Unicode::Types::Utf8::ToUtf16MeasureResult invalidUtf8Measure = Unicode::Utf8::measureToUtf16(invalidUtf8);
     static_cast<void>(context.expectEq("invalid UTF-8 measurement outcome", MeasureOutcome::InvalidEncoding, invalidUtf8Measure.outcome));
     static_cast<void>(context.expectEq("invalid UTF-8 measurement source progress", std::size_t{1}, invalidUtf8Measure.sourceBytesProcessed));
     static_cast<void>(context.expectEq("invalid UTF-8 measurement destination progress", std::size_t{1}, invalidUtf8Measure.requiredCodeUnits));
 
     const std::array<char16_t, 2> incompleteUtf16{u'A', static_cast<char16_t>(0xD800)};
-    const Unicode::Types::Utf16ToUtf8MeasureResult incompleteUtf16Measure = Unicode::Utf16::measureToUtf8(incompleteUtf16);
+    const Unicode::Types::Utf16::ToUtf8MeasureResult incompleteUtf16Measure = Unicode::Utf16::measureToUtf8(incompleteUtf16);
     static_cast<void>(context.expectEq("incomplete UTF-16 measurement outcome", MeasureOutcome::Incomplete, incompleteUtf16Measure.outcome));
     static_cast<void>(
         context.expectEq("incomplete UTF-16 measurement source progress", std::size_t{1}, incompleteUtf16Measure.sourceCodeUnitsProcessed));
     static_cast<void>(context.expectEq("incomplete UTF-16 measurement destination progress", std::size_t{1}, incompleteUtf16Measure.requiredBytes));
 
     const std::array<char16_t, 3> invalidUtf16{u'A', static_cast<char16_t>(0xD800), u'B'};
-    const Unicode::Types::Utf16ToUtf8MeasureResult invalidUtf16Measure = Unicode::Utf16::measureToUtf8(invalidUtf16);
+    const Unicode::Types::Utf16::ToUtf8MeasureResult invalidUtf16Measure = Unicode::Utf16::measureToUtf8(invalidUtf16);
     static_cast<void>(context.expectEq("invalid UTF-16 measurement outcome", MeasureOutcome::InvalidEncoding, invalidUtf16Measure.outcome));
     static_cast<void>(context.expectEq("invalid UTF-16 measurement source progress", std::size_t{1}, invalidUtf16Measure.sourceCodeUnitsProcessed));
     static_cast<void>(context.expectEq("invalid UTF-16 measurement destination progress", std::size_t{1}, invalidUtf16Measure.requiredBytes));
 
     std::array<char16_t, 5> exactUtf16Destination{};
-    const Unicode::Types::Utf8ToUtf16Result exactToUtf16 = Unicode::Utf8::convertToUtf16(utf8, exactUtf16Destination);
+    const Unicode::Types::Utf8::ToUtf16Result exactToUtf16 = Unicode::Utf8::convertToUtf16(utf8, exactUtf16Destination);
     static_cast<void>(context.expectEq("exact UTF-8 to UTF-16 conversion outcome", ConversionOutcome::Converted, exactToUtf16.outcome));
     static_cast<void>(context.expectTrue("exact UTF-8 to UTF-16 payload", std::equal(utf16.begin(), utf16.end(), exactUtf16Destination.begin())));
 
     std::array<char, 10> exactUtf8Destination{};
-    const Unicode::Types::Utf16ToUtf8Result exactToUtf8 = Unicode::Utf16::convertToUtf8(utf16, exactUtf8Destination);
+    const Unicode::Types::Utf16::ToUtf8Result exactToUtf8 = Unicode::Utf16::convertToUtf8(utf16, exactUtf8Destination);
     static_cast<void>(context.expectEq("exact UTF-16 to UTF-8 conversion outcome", ConversionOutcome::Converted, exactToUtf8.outcome));
     static_cast<void>(context.expectEq(
         "exact UTF-16 to UTF-8 payload",
@@ -211,7 +213,7 @@ void testConversions(TestSupport::Context &context)
 
     std::array<char16_t, 7> utf16Destination;
     utf16Destination.fill(static_cast<char16_t>(0xCAFE));
-    const Unicode::Types::Utf8ToUtf16Result toUtf16 = Unicode::Utf8::convertToUtf16(utf8, utf16Destination);
+    const Unicode::Types::Utf8::ToUtf16Result toUtf16 = Unicode::Utf8::convertToUtf16(utf8, utf16Destination);
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 conversion outcome", ConversionOutcome::Converted, toUtf16.outcome));
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 source progress", utf8.size(), toUtf16.sourceBytesConsumed));
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 destination progress", utf16.size(), toUtf16.codeUnitsWritten));
@@ -221,7 +223,7 @@ void testConversions(TestSupport::Context &context)
 
     std::array<char, 12> utf8Destination;
     utf8Destination.fill(static_cast<char>(0x5A));
-    const Unicode::Types::Utf16ToUtf8Result toUtf8 = Unicode::Utf16::convertToUtf8(utf16, utf8Destination);
+    const Unicode::Types::Utf16::ToUtf8Result toUtf8 = Unicode::Utf16::convertToUtf8(utf16, utf8Destination);
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 conversion outcome", ConversionOutcome::Converted, toUtf8.outcome));
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 source progress", utf16.size(), toUtf8.sourceCodeUnitsConsumed));
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 destination progress", utf8.size(), toUtf8.bytesWritten));
@@ -233,7 +235,7 @@ void testConversions(TestSupport::Context &context)
     const std::string scalarBoundaryUtf8 = std::string("A") + bytes({0xF0, 0x9F, 0x98, 0x80}) + "B";
     std::array<char16_t, 4> smallUtf16;
     smallUtf16.fill(static_cast<char16_t>(0xBEEF));
-    const Unicode::Types::Utf8ToUtf16Result smallToUtf16 =
+    const Unicode::Types::Utf8::ToUtf16Result smallToUtf16 =
         Unicode::Utf8::convertToUtf16(scalarBoundaryUtf8, std::span<char16_t>(smallUtf16).first(2));
     static_cast<void>(
         context.expectEq("UTF-8 conversion stops before partial surrogate pair", ConversionOutcome::DestinationTooSmall, smallToUtf16.outcome));
@@ -245,7 +247,7 @@ void testConversions(TestSupport::Context &context)
     const std::array<char16_t, 4> scalarBoundaryUtf16{u'A', static_cast<char16_t>(0xD83D), static_cast<char16_t>(0xDE00), u'B'};
     std::array<char, 8> smallUtf8;
     smallUtf8.fill(static_cast<char>(0x66));
-    const Unicode::Types::Utf16ToUtf8Result smallToUtf8 = Unicode::Utf16::convertToUtf8(scalarBoundaryUtf16, std::span<char>(smallUtf8).first(4));
+    const Unicode::Types::Utf16::ToUtf8Result smallToUtf8 = Unicode::Utf16::convertToUtf8(scalarBoundaryUtf16, std::span<char>(smallUtf8).first(4));
     static_cast<void>(
         context.expectEq("UTF-16 conversion stops before partial UTF-8 scalar", ConversionOutcome::DestinationTooSmall, smallToUtf8.outcome));
     static_cast<void>(context.expectEq("UTF-16 conversion partial source progress", std::size_t{1}, smallToUtf8.sourceCodeUnitsConsumed));
@@ -255,7 +257,7 @@ void testConversions(TestSupport::Context &context)
 
     std::array<char16_t, 4> incompleteUtf16Destination;
     incompleteUtf16Destination.fill(static_cast<char16_t>(0x3333));
-    const Unicode::Types::Utf8ToUtf16Result incompleteUtf8Conversion = Unicode::Utf8::convertToUtf16(incompleteUtf8, incompleteUtf16Destination);
+    const Unicode::Types::Utf8::ToUtf16Result incompleteUtf8Conversion = Unicode::Utf8::convertToUtf16(incompleteUtf8, incompleteUtf16Destination);
     static_cast<void>(context.expectEq("incomplete UTF-8 conversion outcome", ConversionOutcome::Incomplete, incompleteUtf8Conversion.outcome));
     static_cast<void>(context.expectEq("incomplete UTF-8 conversion source progress", std::size_t{1}, incompleteUtf8Conversion.sourceBytesConsumed));
     static_cast<void>(
@@ -267,7 +269,7 @@ void testConversions(TestSupport::Context &context)
 
     std::array<char, 8> incompleteUtf8Destination;
     incompleteUtf8Destination.fill(static_cast<char>(0x33));
-    const Unicode::Types::Utf16ToUtf8Result incompleteUtf16Conversion = Unicode::Utf16::convertToUtf8(incompleteUtf16, incompleteUtf8Destination);
+    const Unicode::Types::Utf16::ToUtf8Result incompleteUtf16Conversion = Unicode::Utf16::convertToUtf8(incompleteUtf16, incompleteUtf8Destination);
     static_cast<void>(context.expectEq("incomplete UTF-16 conversion outcome", ConversionOutcome::Incomplete, incompleteUtf16Conversion.outcome));
     static_cast<void>(
         context.expectEq("incomplete UTF-16 conversion source progress", std::size_t{1}, incompleteUtf16Conversion.sourceCodeUnitsConsumed));
@@ -277,7 +279,7 @@ void testConversions(TestSupport::Context &context)
 
     std::array<char16_t, 4> malformedUtf16Destination;
     malformedUtf16Destination.fill(static_cast<char16_t>(0x4444));
-    const Unicode::Types::Utf8ToUtf16Result invalidUtf8Conversion = Unicode::Utf8::convertToUtf16(invalidUtf8, malformedUtf16Destination);
+    const Unicode::Types::Utf8::ToUtf16Result invalidUtf8Conversion = Unicode::Utf8::convertToUtf16(invalidUtf8, malformedUtf16Destination);
     static_cast<void>(context.expectEq("invalid UTF-8 conversion outcome", ConversionOutcome::InvalidEncoding, invalidUtf8Conversion.outcome));
     static_cast<void>(context.expectEq("invalid UTF-8 conversion source progress", std::size_t{1}, invalidUtf8Conversion.sourceBytesConsumed));
     static_cast<void>(context.expectEq("invalid UTF-8 conversion destination progress", std::size_t{1}, invalidUtf8Conversion.codeUnitsWritten));
@@ -286,7 +288,7 @@ void testConversions(TestSupport::Context &context)
 
     std::array<char, 8> malformedUtf8Destination;
     malformedUtf8Destination.fill(static_cast<char>(0x44));
-    const Unicode::Types::Utf16ToUtf8Result invalidUtf16Conversion = Unicode::Utf16::convertToUtf8(invalidUtf16, malformedUtf8Destination);
+    const Unicode::Types::Utf16::ToUtf8Result invalidUtf16Conversion = Unicode::Utf16::convertToUtf8(invalidUtf16, malformedUtf8Destination);
     static_cast<void>(context.expectEq("invalid UTF-16 conversion outcome", ConversionOutcome::InvalidEncoding, invalidUtf16Conversion.outcome));
     static_cast<void>(context.expectEq("invalid UTF-16 conversion source progress", std::size_t{1}, invalidUtf16Conversion.sourceCodeUnitsConsumed));
     static_cast<void>(context.expectEq("invalid UTF-16 conversion destination progress", std::size_t{1}, invalidUtf16Conversion.bytesWritten));
@@ -294,13 +296,13 @@ void testConversions(TestSupport::Context &context)
         context.expectEq("invalid UTF-16 conversion preserves destination after prefix", static_cast<char>(0x44), malformedUtf8Destination[1]));
 
     std::array<char16_t, 1> emptyUtf16Destination{static_cast<char16_t>(0x7777)};
-    const Unicode::Types::Utf8ToUtf16Result emptyToUtf16 = Unicode::Utf8::convertToUtf16({}, emptyUtf16Destination);
+    const Unicode::Types::Utf8::ToUtf16Result emptyToUtf16 = Unicode::Utf8::convertToUtf16({}, emptyUtf16Destination);
     static_cast<void>(context.expectEq("empty UTF-8 conversion outcome", ConversionOutcome::Converted, emptyToUtf16.outcome));
     static_cast<void>(context.expectEq("empty UTF-8 conversion writes nothing", std::size_t{0}, emptyToUtf16.codeUnitsWritten));
     static_cast<void>(context.expectEq("empty UTF-8 conversion preserves destination", static_cast<char16_t>(0x7777), emptyUtf16Destination[0]));
 
     std::array<char, 1> emptyUtf8Destination{static_cast<char>(0x77)};
-    const Unicode::Types::Utf16ToUtf8Result emptyToUtf8 = Unicode::Utf16::convertToUtf8({}, emptyUtf8Destination);
+    const Unicode::Types::Utf16::ToUtf8Result emptyToUtf8 = Unicode::Utf16::convertToUtf8({}, emptyUtf8Destination);
     static_cast<void>(context.expectEq("empty UTF-16 conversion outcome", ConversionOutcome::Converted, emptyToUtf8.outcome));
     static_cast<void>(context.expectEq("empty UTF-16 conversion writes nothing", std::size_t{0}, emptyToUtf8.bytesWritten));
     static_cast<void>(context.expectEq("empty UTF-16 conversion preserves destination", static_cast<char>(0x77), emptyUtf8Destination[0]));
@@ -312,7 +314,7 @@ void testConversions(TestSupport::Context &context)
         static_cast<char16_t>(0x4444),
     };
     const std::string_view overlappingUtf8(reinterpret_cast<const char *>(overlapStorage.data()), 4);
-    const Unicode::Types::Utf8ToUtf16Result overlapToUtf16 = Unicode::Utf8::convertToUtf16(overlappingUtf8, overlapStorage);
+    const Unicode::Types::Utf8::ToUtf16Result overlapToUtf16 = Unicode::Utf8::convertToUtf16(overlappingUtf8, overlapStorage);
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 overlap outcome", ConversionOutcome::OverlappingRanges, overlapToUtf16.outcome));
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 overlap consumes nothing", std::size_t{0}, overlapToUtf16.sourceBytesConsumed));
     static_cast<void>(context.expectEq("UTF-8 to UTF-16 overlap writes nothing", std::size_t{0}, overlapToUtf16.codeUnitsWritten));
@@ -328,7 +330,7 @@ void testConversions(TestSupport::Context &context)
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif
-    const Unicode::Types::Utf16ToUtf8Result overlapToUtf8 = Unicode::Utf16::convertToUtf8(reverseOverlapStorage, overlappingUtf8Destination);
+    const Unicode::Types::Utf16::ToUtf8Result overlapToUtf8 = Unicode::Utf16::convertToUtf8(reverseOverlapStorage, overlappingUtf8Destination);
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 overlap outcome", ConversionOutcome::OverlappingRanges, overlapToUtf8.outcome));
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 overlap consumes nothing", std::size_t{0}, overlapToUtf8.sourceCodeUnitsConsumed));
     static_cast<void>(context.expectEq("UTF-16 to UTF-8 overlap writes nothing", std::size_t{0}, overlapToUtf8.bytesWritten));
@@ -338,21 +340,25 @@ void testConversions(TestSupport::Context &context)
 void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
 {
     std::size_t testedScalars = 0;
+
     for (std::uint32_t value = 0; value <= 0x10FFFFU; ++value)
     {
         const char32_t scalar = static_cast<char32_t>(value);
+
         if (!Unicode::isScalarValue(scalar))
         {
             continue;
         }
 
-        const Unicode::Types::Utf8EncodeResult utf8 = Unicode::Utf8::encodeScalar(scalar);
+        const Unicode::Types::Utf8::EncodeResult utf8 = Unicode::Utf8::encodeScalar(scalar);
+
         if (utf8.outcome != EncodeOutcome::Encoded)
         {
             context.fail("exhaustive UTF-8 encode", std::format("U+{:06X} did not encode", value));
             return;
         }
-        const Unicode::Types::Utf8DecodeResult utf8Decoded = Unicode::Utf8::decodeScalar(encodedBytes(utf8));
+        const Unicode::Types::Utf8::DecodeResult utf8Decoded = Unicode::Utf8::decodeScalar(encodedBytes(utf8));
+
         if (utf8Decoded.outcome != DecodeOutcome::Decoded || utf8Decoded.scalar != scalar || utf8Decoded.bytesConsumed != utf8.byteCount)
         {
             context.fail("exhaustive UTF-8 round trip", std::format("U+{:06X} did not decode back exactly", value));
@@ -361,7 +367,8 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
 
         for (std::size_t split = 1; split < static_cast<std::size_t>(utf8.byteCount); ++split)
         {
-            const Unicode::Types::Utf8DecodeResult prefix = Unicode::Utf8::decodeScalar(std::string_view(utf8.bytes.data(), split));
+            const Unicode::Types::Utf8::DecodeResult prefix = Unicode::Utf8::decodeScalar(std::string_view(utf8.bytes.data(), split));
+
             if (prefix.outcome != DecodeOutcome::Incomplete || prefix.scalar != U'\0' || prefix.bytesConsumed != 0)
             {
                 context.fail(
@@ -371,13 +378,15 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
             }
         }
 
-        const Unicode::Types::Utf16EncodeResult utf16 = Unicode::Utf16::encodeScalar(scalar);
+        const Unicode::Types::Utf16::EncodeResult utf16 = Unicode::Utf16::encodeScalar(scalar);
+
         if (utf16.outcome != EncodeOutcome::Encoded)
         {
             context.fail("exhaustive UTF-16 encode", std::format("U+{:06X} did not encode", value));
             return;
         }
-        const Unicode::Types::Utf16DecodeResult utf16Decoded = Unicode::Utf16::decodeScalar(encodedCodeUnits(utf16));
+        const Unicode::Types::Utf16::DecodeResult utf16Decoded = Unicode::Utf16::decodeScalar(encodedCodeUnits(utf16));
+
         if (utf16Decoded.outcome != DecodeOutcome::Decoded || utf16Decoded.scalar != scalar || utf16Decoded.codeUnitsConsumed != utf16.codeUnitCount)
         {
             context.fail("exhaustive UTF-16 round trip", std::format("U+{:06X} did not decode back exactly", value));
@@ -385,7 +394,8 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
         }
 
         std::array<char16_t, Unicode::Utf16::kMaximumScalarCodeUnits> convertedUtf16{};
-        const Unicode::Types::Utf8ToUtf16Result toUtf16 = Unicode::Utf8::convertToUtf16(encodedBytes(utf8), convertedUtf16);
+        const Unicode::Types::Utf8::ToUtf16Result toUtf16 = Unicode::Utf8::convertToUtf16(encodedBytes(utf8), convertedUtf16);
+
         if (toUtf16.outcome != ConversionOutcome::Converted || toUtf16.sourceBytesConsumed != utf8.byteCount ||
             toUtf16.codeUnitsWritten != utf16.codeUnitCount ||
             !std::ranges::equal(std::span{utf16.codeUnits}.first(utf16.codeUnitCount), std::span{convertedUtf16}.first(utf16.codeUnitCount)))
@@ -395,7 +405,8 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
         }
 
         std::array<char, Unicode::Utf8::kMaximumScalarBytes> convertedUtf8{};
-        const Unicode::Types::Utf16ToUtf8Result toUtf8 = Unicode::Utf16::convertToUtf8(encodedCodeUnits(utf16), convertedUtf8);
+        const Unicode::Types::Utf16::ToUtf8Result toUtf8 = Unicode::Utf16::convertToUtf8(encodedCodeUnits(utf16), convertedUtf8);
+
         if (toUtf8.outcome != ConversionOutcome::Converted || toUtf8.sourceCodeUnitsConsumed != utf16.codeUnitCount ||
             toUtf8.bytesWritten != utf8.byteCount ||
             !std::ranges::equal(std::span{utf8.bytes}.first(utf8.byteCount), std::span{convertedUtf8}.first(utf8.byteCount)))
@@ -417,55 +428,59 @@ void testCodePointBoundaries(TestSupport::Context &context)
     const std::string text = bytes({0x41, 0xC2, 0xA2, 0xE2, 0x82, 0xAC, 0xF0, 0x9F, 0x98, 0x80});
     const std::array<std::size_t, 5> offsets{0, 1, 3, 6, 10};
 
-    const Unicode::Types::Utf8BoundaryResult emptyNext = Unicode::Utf8::nextCodePointBoundary({}, 0);
-    const Unicode::Types::Utf8BoundaryResult emptyPrevious = Unicode::Utf8::previousCodePointBoundary({}, 0);
+    const Unicode::Types::Utf8::BoundaryResult emptyNext = Unicode::Utf8::nextCodePointBoundary({}, 0);
+    const Unicode::Types::Utf8::BoundaryResult emptyPrevious = Unicode::Utf8::previousCodePointBoundary({}, 0);
     static_cast<void>(context.expectEq("empty next code-point outcome", BoundaryOutcome::AtEnd, emptyNext.outcome));
     static_cast<void>(context.expectEq("empty previous code-point outcome", BoundaryOutcome::AtBeginning, emptyPrevious.outcome));
 
     for (std::size_t index = 0; index + 1 < offsets.size(); ++index)
     {
-        const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offsets[index]);
-        static_cast<void>(context.expectEq("next code-point boundary outcome", BoundaryOutcome::Found, next.outcome));
-        static_cast<void>(context.expectEq("next code-point boundary offset", offsets[index + 1], next.byteOffset));
+        const std::string name = std::format("next code-point boundary at byte {}", offsets[index]);
+        const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offsets[index]);
+        static_cast<void>(context.expectEq(name + " outcome", BoundaryOutcome::Found, next.outcome));
+        static_cast<void>(context.expectEq(name + " offset", offsets[index + 1], next.byteOffset));
     }
-    const Unicode::Types::Utf8BoundaryResult nextEnd = Unicode::Utf8::nextCodePointBoundary(text, text.size());
+    const Unicode::Types::Utf8::BoundaryResult nextEnd = Unicode::Utf8::nextCodePointBoundary(text, text.size());
     static_cast<void>(context.expectEq("next code-point boundary at end outcome", BoundaryOutcome::AtEnd, nextEnd.outcome));
     static_cast<void>(context.expectEq("next code-point boundary at end offset", text.size(), nextEnd.byteOffset));
 
-    const Unicode::Types::Utf8BoundaryResult previousBeginning = Unicode::Utf8::previousCodePointBoundary(text, 0);
+    const Unicode::Types::Utf8::BoundaryResult previousBeginning = Unicode::Utf8::previousCodePointBoundary(text, 0);
     static_cast<void>(context.expectEq("previous code-point boundary at beginning outcome", BoundaryOutcome::AtBeginning, previousBeginning.outcome));
     static_cast<void>(context.expectEq("previous code-point boundary at beginning offset", std::size_t{0}, previousBeginning.byteOffset));
+
     for (std::size_t index = 1; index < offsets.size(); ++index)
     {
-        const Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offsets[index]);
-        static_cast<void>(context.expectEq("previous code-point boundary outcome", BoundaryOutcome::Found, previous.outcome));
-        static_cast<void>(context.expectEq("previous code-point boundary offset", offsets[index - 1], previous.byteOffset));
+        const std::string name = std::format("previous code-point boundary at byte {}", offsets[index]);
+        const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offsets[index]);
+        static_cast<void>(context.expectEq(name + " outcome", BoundaryOutcome::Found, previous.outcome));
+        static_cast<void>(context.expectEq(name + " offset", offsets[index - 1], previous.byteOffset));
     }
 
     for (const std::size_t misaligned : {std::size_t{2}, std::size_t{4}, std::size_t{5}, std::size_t{7}, std::size_t{8}, std::size_t{9}})
     {
-        const Unicode::Types::Utf8BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, misaligned);
-        const Unicode::Types::Utf8BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, misaligned);
-        static_cast<void>(context.expectEq("misaligned next code-point offset outcome", BoundaryOutcome::InvalidOffset, next.outcome));
-        static_cast<void>(context.expectEq("misaligned next code-point preserves offset", misaligned, next.byteOffset));
-        static_cast<void>(context.expectEq("misaligned previous code-point offset outcome", BoundaryOutcome::InvalidOffset, previous.outcome));
-        static_cast<void>(context.expectEq("misaligned previous code-point preserves offset", misaligned, previous.byteOffset));
+        const std::string name = std::format("misaligned code-point boundary at byte {}", misaligned);
+        const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, misaligned);
+        const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, misaligned);
+        static_cast<void>(context.expectEq(name + " next outcome", BoundaryOutcome::InvalidOffset, next.outcome));
+        static_cast<void>(context.expectEq(name + " next preserves offset", misaligned, next.byteOffset));
+        static_cast<void>(context.expectEq(name + " previous outcome", BoundaryOutcome::InvalidOffset, previous.outcome));
+        static_cast<void>(context.expectEq(name + " previous preserves offset", misaligned, previous.byteOffset));
     }
 
-    const Unicode::Types::Utf8BoundaryResult beyondNext = Unicode::Utf8::nextCodePointBoundary(text, text.size() + 1);
-    const Unicode::Types::Utf8BoundaryResult beyondPrevious = Unicode::Utf8::previousCodePointBoundary(text, text.size() + 1);
+    const Unicode::Types::Utf8::BoundaryResult beyondNext = Unicode::Utf8::nextCodePointBoundary(text, text.size() + 1);
+    const Unicode::Types::Utf8::BoundaryResult beyondPrevious = Unicode::Utf8::previousCodePointBoundary(text, text.size() + 1);
     static_cast<void>(context.expectEq("beyond-end next code-point outcome", BoundaryOutcome::InvalidOffset, beyondNext.outcome));
     static_cast<void>(context.expectEq("beyond-end previous code-point outcome", BoundaryOutcome::InvalidOffset, beyondPrevious.outcome));
 
     const std::string incomplete = bytes({0xC2});
-    const Unicode::Types::Utf8BoundaryResult incompleteNext = Unicode::Utf8::nextCodePointBoundary(incomplete, 0);
-    const Unicode::Types::Utf8BoundaryResult incompletePrevious = Unicode::Utf8::previousCodePointBoundary(incomplete, 1);
+    const Unicode::Types::Utf8::BoundaryResult incompleteNext = Unicode::Utf8::nextCodePointBoundary(incomplete, 0);
+    const Unicode::Types::Utf8::BoundaryResult incompletePrevious = Unicode::Utf8::previousCodePointBoundary(incomplete, 1);
     static_cast<void>(context.expectEq("incomplete next code-point outcome", BoundaryOutcome::InvalidEncoding, incompleteNext.outcome));
     static_cast<void>(context.expectEq("incomplete previous code-point outcome", BoundaryOutcome::InvalidEncoding, incompletePrevious.outcome));
 
     const std::string malformed = std::string("A") + bytes({0xFF});
-    const Unicode::Types::Utf8BoundaryResult malformedNext = Unicode::Utf8::nextCodePointBoundary(malformed, 1);
-    const Unicode::Types::Utf8BoundaryResult malformedPrevious = Unicode::Utf8::previousCodePointBoundary(malformed, 2);
+    const Unicode::Types::Utf8::BoundaryResult malformedNext = Unicode::Utf8::nextCodePointBoundary(malformed, 1);
+    const Unicode::Types::Utf8::BoundaryResult malformedPrevious = Unicode::Utf8::previousCodePointBoundary(malformed, 2);
     static_cast<void>(context.expectEq("malformed next code-point outcome", BoundaryOutcome::InvalidEncoding, malformedNext.outcome));
     static_cast<void>(context.expectEq("malformed previous code-point outcome", BoundaryOutcome::InvalidEncoding, malformedPrevious.outcome));
 }
@@ -474,8 +489,8 @@ void testCodePointBoundaries(TestSupport::Context &context)
 void testGeneratedPropertyData(TestSupport::Context &context)
 {
     namespace Generated = Unicode::Internal::Generated;
-    using GraphemeBreakClass = Unicode::Internal::GraphemeBreakClass;
-    using IndicConjunctBreakClass = Unicode::Internal::IndicConjunctBreakClass;
+    using Unicode::Internal::GraphemeBreakClass;
+    using Unicode::Internal::IndicConjunctBreakClass;
 
     static_cast<void>(context.expectEq("generated major version", std::uint8_t{17}, Generated::kUnicodeVersionMajor));
     static_cast<void>(context.expectEq("generated minor version", std::uint8_t{0}, Generated::kUnicodeVersionMinor));
@@ -494,6 +509,7 @@ void testGeneratedPropertyData(TestSupport::Context &context)
 
     const std::size_t blockCount = Generated::kPropertyBlocks.size() / Generated::kBlockSize;
     bool indexesValid = true;
+
     for (const Generated::BlockIndex blockIndex : Generated::kBlockIndexes)
     {
         if (static_cast<std::size_t>(blockIndex) >= blockCount)
@@ -505,6 +521,7 @@ void testGeneratedPropertyData(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("every generated block index is in range", indexesValid));
 
     bool packedValuesValid = true;
+
     for (const std::uint8_t packed : Generated::kPropertyBlocks)
     {
         if ((packed & 0x80U) != 0 || (packed & 0x0FU) > 13U)

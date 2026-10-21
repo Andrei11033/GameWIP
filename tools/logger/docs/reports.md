@@ -4,15 +4,17 @@ Reports are Logger's synchronous emergency path for assertions, fatal failures, 
 async-signal-safe.
 
 Each report bypasses normal filters and queue pressure, builds the diagnostic on the caller thread, attempts every eligible normal sink, mirrors to
-debug output when enabled, flushes active normal sinks, and for `reportFatal()` attempts the fatal popup when enabled. One failed channel never
-prevents attempts to remaining eligible channels.
+debug output when enabled, flushes active normal sinks, and for `reportFatal()` attempts the fatal popup when enabled. One failed sink or channel never
+prevents attempts at the remaining eligible ones.
 
 Reports intentionally do **not** drain older asynchronous queue entries. Use `flush()` separately when preserving the backlog is desired.
 
 Timed overloads take `std::chrono::milliseconds` before message/format text. `0ms` is no-wait, positive values bound Logger-owned waits, and negative
 durations return `InvalidArgument`. Native operations already entered cannot be cancelled.
 
-`Types::Report::Result::delivery` describes enabled emergency channels: `None`, `Partial`, or `Complete`. Delivery and flush completion are separate:
+`Types::Report::Result::delivery` counts accepting targets among the eligible normal sinks, debug
+output, and fatal popup: `None`, `Partial`, or `Complete`. Delivery and flush completion are
+separate:
 a report can be delivered and then encounter a flush failure. A successful flush reports only the guarantee provided by the underlying IO flush mode;
 it does not claim physical-media durability. `status` carries the first real operation failure while other channels are still attempted. `outcome`
 independently reports `Completed` or `TimedOut`.

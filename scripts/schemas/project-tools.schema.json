@@ -5,12 +5,17 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "tools"],
   "properties": {
-    "schemaVersion": { "const": 1, "description": "Registry schema version." },
+    "schemaVersion": {
+      "const": 1,
+      "description": "Registry schema version."
+    },
     "tools": {
       "type": "array",
       "minItems": 1,
       "description": "Canonical tool declarations consumed by setup, discovery, quality, and update workflows.",
-      "items": { "$ref": "#/$defs/tool" }
+      "items": {
+        "$ref": "#/$defs/tool"
+      }
     }
   },
   "$defs": {
@@ -19,32 +24,80 @@
       "additionalProperties": false,
       "required": ["id", "name", "category", "provider", "versionPolicy", "detection", "capabilities", "references"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
-        "name": { "type": "string", "minLength": 1 },
-        "category": { "type": "string", "minLength": 1 },
-        "provider": { "$ref": "#/$defs/provider" },
-        "versionPolicy": { "enum": ["exact", "minimum", "managed", "informational"] },
-        "requiredVersion": { "type": "string", "minLength": 1 },
-        "detection": { "$ref": "#/$defs/detection" },
-        "capabilities": { "$ref": "#/$defs/capabilities" },
-        "references": { "type": "array", "items": { "$ref": "#/$defs/reference" } }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provider": {
+          "$ref": "#/$defs/provider"
+        },
+        "versionPolicy": {
+          "enum": ["exact", "minimum", "managed", "informational"]
+        },
+        "requiredVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detection": {
+          "$ref": "#/$defs/detection"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/capabilities"
+        },
+        "references": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/reference"
+          }
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "versionPolicy": { "enum": ["exact", "minimum"] } }, "required": ["versionPolicy"] },
-          "then": { "required": ["requiredVersion"] }
+          "if": {
+            "properties": {
+              "versionPolicy": {
+                "enum": ["exact", "minimum"]
+              }
+            },
+            "required": ["versionPolicy"]
+          },
+          "then": {
+            "required": ["requiredVersion"]
+          }
         }
       ]
     },
     "provider": {
       "oneOf": [
-        { "$ref": "#/$defs/providerMsys2" },
-        { "$ref": "#/$defs/providerNpm" },
-        { "$ref": "#/$defs/providerPython" },
-        { "$ref": "#/$defs/providerPowerShellGallery" },
-        { "$ref": "#/$defs/providerGitHubRelease" },
-        { "$ref": "#/$defs/providerWinget" },
-        { "$ref": "#/$defs/providerExternal" }
+        {
+          "$ref": "#/$defs/providerMsys2"
+        },
+        {
+          "$ref": "#/$defs/providerNpm"
+        },
+        {
+          "$ref": "#/$defs/providerPython"
+        },
+        {
+          "$ref": "#/$defs/providerPowerShellGallery"
+        },
+        {
+          "$ref": "#/$defs/providerGitHubRelease"
+        },
+        {
+          "$ref": "#/$defs/providerWinget"
+        },
+        {
+          "$ref": "#/$defs/providerExternal"
+        }
       ]
     },
     "providerMsys2": {
@@ -52,10 +105,22 @@
       "additionalProperties": false,
       "required": ["kind", "environment", "package"],
       "properties": {
-        "kind": { "const": "msys2" },
-        "environment": { "enum": ["common", "ucrt64", "clang64"] },
-        "package": { "type": "string", "minLength": 1 },
-        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/providerPackage" } }
+        "kind": {
+          "const": "msys2"
+        },
+        "environment": {
+          "enum": ["common", "ucrt64", "clang64"]
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/providerPackage"
+          }
+        }
       }
     },
     "providerNpm": {
@@ -63,9 +128,19 @@
       "additionalProperties": false,
       "required": ["kind", "package"],
       "properties": {
-        "kind": { "const": "npm" },
-        "package": { "type": "string", "minLength": 1 },
-        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/providerPackage" } }
+        "kind": {
+          "const": "npm"
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/providerPackage"
+          }
+        }
       }
     },
     "providerPython": {
@@ -73,9 +148,19 @@
       "additionalProperties": false,
       "required": ["kind", "package"],
       "properties": {
-        "kind": { "const": "python" },
-        "package": { "type": "string", "minLength": 1 },
-        "dependencies": { "type": "array", "items": { "$ref": "#/$defs/providerPackage" } }
+        "kind": {
+          "const": "python"
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/providerPackage"
+          }
+        }
       }
     },
     "providerPowerShellGallery": {
@@ -83,8 +168,13 @@
       "additionalProperties": false,
       "required": ["kind", "package"],
       "properties": {
-        "kind": { "const": "powershellGallery" },
-        "package": { "type": "string", "minLength": 1 }
+        "kind": {
+          "const": "powershellGallery"
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "providerGitHubRelease": {
@@ -92,11 +182,28 @@
       "additionalProperties": false,
       "required": ["kind", "repository", "releaseTag", "assets"],
       "properties": {
-        "kind": { "const": "githubRelease" },
-        "repository": { "type": "string", "minLength": 1 },
-        "releaseTag": { "type": "string", "minLength": 1 },
-        "archiveName": { "type": "string", "minLength": 1 },
-        "assets": { "type": "object", "minProperties": 1, "additionalProperties": { "$ref": "#/$defs/asset" } }
+        "kind": {
+          "const": "githubRelease"
+        },
+        "repository": {
+          "type": "string",
+          "minLength": 1
+        },
+        "releaseTag": {
+          "type": "string",
+          "minLength": 1
+        },
+        "archiveName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/asset"
+          }
+        }
       }
     },
     "providerWinget": {
@@ -104,10 +211,23 @@
       "additionalProperties": false,
       "required": ["kind", "package"],
       "properties": {
-        "kind": { "const": "winget" },
-        "package": { "type": "string", "minLength": 1 },
-        "managedPath": { "type": "string", "minLength": 1 },
-        "installArguments": { "type": "array", "items": { "type": "string" } }
+        "kind": {
+          "const": "winget"
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "managedPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "installArguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
     "providerExternal": {
@@ -115,8 +235,14 @@
       "additionalProperties": false,
       "required": ["kind", "homepage"],
       "properties": {
-        "kind": { "const": "external" },
-        "homepage": { "type": "string", "minLength": 1, "format": "uri" }
+        "kind": {
+          "const": "external"
+        },
+        "homepage": {
+          "type": "string",
+          "minLength": 1,
+          "format": "uri"
+        }
       }
     },
     "providerPackage": {
@@ -124,9 +250,17 @@
       "additionalProperties": false,
       "required": ["package"],
       "properties": {
-        "package": { "type": "string", "minLength": 1 },
-        "version": { "type": "string", "minLength": 1 },
-        "environment": { "enum": ["common", "ucrt64", "clang64"] }
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment": {
+          "enum": ["common", "ucrt64", "clang64"]
+        }
       }
     },
     "asset": {
@@ -134,9 +268,17 @@
       "additionalProperties": false,
       "required": ["archive", "sha256"],
       "properties": {
-        "archive": { "type": "string", "minLength": 1 },
-        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "format": { "enum": ["archive", "executable"] }
+        "archive": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "format": {
+          "enum": ["archive", "executable"]
+        }
       }
     },
     "detection": {
@@ -144,12 +286,35 @@
       "additionalProperties": false,
       "required": ["command", "versionArguments", "versionPattern"],
       "properties": {
-        "command": { "type": "string", "minLength": 1 },
-        "aliases": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "versionArguments": { "type": "array", "items": { "type": "string" } },
-        "versionPattern": { "type": "string", "minLength": 1 },
-        "repositoryPath": { "type": "string", "minLength": 1 },
-        "commandConfigVersionPath": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$" }
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "versionArguments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "versionPattern": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repositoryPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "commandConfigVersionPath": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$"
+        }
       }
     },
     "capabilities": {
@@ -157,9 +322,15 @@
       "additionalProperties": false,
       "required": ["detectInstalled", "checkLatest", "update"],
       "properties": {
-        "detectInstalled": { "type": "boolean" },
-        "checkLatest": { "type": "boolean" },
-        "update": { "type": "boolean" }
+        "detectInstalled": {
+          "type": "boolean"
+        },
+        "checkLatest": {
+          "type": "boolean"
+        },
+        "update": {
+          "type": "boolean"
+        }
       }
     },
     "reference": {
@@ -170,8 +341,13 @@
           "additionalProperties": false,
           "required": ["path", "kind"],
           "properties": {
-            "path": { "type": "string", "minLength": 1 },
-            "kind": { "const": "path" }
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "path"
+            }
           }
         },
         {
@@ -179,14 +355,22 @@
           "additionalProperties": false,
           "required": ["path", "kind", "pattern"],
           "properties": {
-            "path": { "type": "string", "minLength": 1 },
-            "kind": { "const": "text" },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "text"
+            },
             "pattern": {
               "type": "string",
               "minLength": 1,
               "description": "Literal version template containing exactly one {version} token; not a regular expression."
             },
-            "expectedCount": { "type": "integer", "minimum": 1 }
+            "expectedCount": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         },
         {
@@ -194,9 +378,17 @@
           "additionalProperties": false,
           "required": ["path", "kind"],
           "properties": {
-            "path": { "type": "string", "minLength": 1 },
-            "kind": { "const": "cmakeMinimum" },
-            "expectedCount": { "type": "integer", "minimum": 1 }
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "const": "cmakeMinimum"
+            },
+            "expectedCount": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         }
       ]

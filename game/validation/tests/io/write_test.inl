@@ -66,12 +66,12 @@ void testWriteAllText(TestSupport::Context &context)
     const IO::Types::WriteResult malformedResult = IO::writeAllText(malformedWriter, malformedText);
     static_cast<void>(context.expectEq("writeAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedResult.status.code));
     static_cast<void>(context.expectEq("writeAllText malformed UTF-8 reports zero progress", std::size_t{0}, malformedResult.bytesWritten));
-    static_cast<void>(context.expectTrue("writeAllText validates before calling writer", malformedWriter.bytes().empty()));
+    static_cast<void>(context.expectEq("writeAllText malformed UTF-8 never calls writer", std::size_t{0}, malformedWriter.writeCalls()));
 
     const std::string incompleteText = makeStringBytes({0x6f, 0x6b, 0xe2, 0x82});
     ChunkedWriter incompleteWriter(2);
     const IO::Types::WriteResult incompleteResult = IO::writeAllText(incompleteWriter, incompleteText);
     static_cast<void>(context.expectEq("writeAllText rejects incomplete UTF-8", ErrorCode::EncodingFailed, incompleteResult.status.code));
     static_cast<void>(context.expectEq("writeAllText incomplete UTF-8 reports zero progress", std::size_t{0}, incompleteResult.bytesWritten));
-    static_cast<void>(context.expectTrue("writeAllText incomplete UTF-8 never reaches writer", incompleteWriter.bytes().empty()));
+    static_cast<void>(context.expectEq("writeAllText incomplete UTF-8 never calls writer", std::size_t{0}, incompleteWriter.writeCalls()));
 }

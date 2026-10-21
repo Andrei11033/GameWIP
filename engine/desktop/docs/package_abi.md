@@ -1,21 +1,14 @@
 @page desktop_package_abi Package and ABI contract
 
-Desktop is intentionally built as a **shared C++23 library**. The Win32 implementation owns process-local Window IDs, the native-window registry,
-class-registration state, and per-thread dispatcher registry. A shared module gives those facilities one coherent runtime instance across
-executable/DLL boundaries. Static Desktop linkage is not advertised; supporting it would first require a runtime design that cannot duplicate process
-identity/state per consuming module.
+Desktop is a **shared C++23 library**. The Win32 implementation owns process-local Window IDs, the native-window registry,
+class-registration state, and the per-thread dispatcher registry; a shared module gives these one runtime instance across
+executable/DLL boundaries. Static linkage is not advertised: it would need a runtime design that cannot duplicate process
+state per consuming module.
 
-The exported `Window` object keeps a pImpl boundary. Public C++ types remain part of the exact-version package contract and are not a stable
-cross-version C ABI.
-
-`DragDropTarget` uses the same exported pImpl resource boundary. The passive
-`Types::DragDrop` aggregates and variants are exact-version C++ package types;
-changing their layout, alternatives, enum representation, or field types is an
-ABI change. `DragDrop::beginDrag()` is an exported free operation in the same
-shared library.
-
-Shell resource declarations, shell value aggregates, and exported shell service
-operations are also part of the exact-version C++ package and ABI contract.
+All public C++ types are exact-version package contract, not a stable cross-version C ABI. `Window` and `DragDropTarget` are exported pImpl resources;
+changing layout, alternatives, enum representation, or field types of passive `Types::DragDrop` aggregates and variants is an ABI change.
+`DragDrop::beginDrag()` is an exported free operation. Shell resources, values, and services and the accessibility values, builders, readers, and
+non-owning Window façade follow the same contract; native providers and COM types stay private.
 
 ## Installed headers
 
@@ -28,12 +21,14 @@ The supported public headers are:
 - `desktop/display_info.h`
 - `desktop/cursor.h`
 - `desktop/child_surface.h`
+- `desktop/accessibility.h`
 - `desktop/data_transfer.h`
 - `desktop/drag_drop.h`
 - `desktop/clipboard.h`
 - `desktop/window.h`
 - `desktop/dialogs.h`
 - `desktop/renderer_bridge.h`
+- `desktop/result.h`
 - `desktop/shell.h`
 - `desktop/shell_types.h`
 - `desktop/shell_taskbar.h`
@@ -49,34 +44,29 @@ Internal headers and test hooks are source-tree-only. Every supported entry head
 `DESKTOP_EXPORT` marks installed production/runtime ABI. `DESKTOP_TEST_EXPORT`
 is limited to source-tree validation hooks and is never installed.
 
-`desktop/window.h` intentionally includes the normal shared vocabulary, description, fundamental display-mode surface, and events. Rich display
-inspection, custom cursor resources, native child hosts, Clipboard/data transfer, native drag and drop, renderer integration, and native interop remain
-explicit opt-in includes.
+`desktop/window.h` includes the shared vocabulary, description, display-mode surface, and events. Rich display
+inspection, cursors, child hosts, accessibility, Clipboard/data transfer, drag and drop, dialogs, shell, renderer
+integration, and native interop are explicit opt-in includes.
 
 ## Dependencies
 
-`IO` and `FileSystem` are public package dependencies because installed public types expose their contracts. Unicode is a private implementation
-dependency used by the shared Desktop library for strict native text conversion; no Unicode type leaks through Desktop public headers.
+`IO` and `FileSystem` are public package dependencies because public types expose their contracts. Unicode is a private
+dependency for strict native text conversion; no Unicode type appears in public headers.
 
-The package remains exact-version matched. Applications using Desktop must call
+The package is exact-version matched. Applications must call
 `gamewip_attach_application_manifest(TARGET <executable> PER_MONITOR_V2)` from the
-shared `GameWIPApplication` package. Desktop never propagates an executable
-resource through its library target.
-
-`find_package(Desktop)` loads the helper through its exact-version
+shared `GameWIPApplication` package; Desktop never propagates an executable
+resource through its library target. `find_package(Desktop)` loads the helper through its exact-version
 `GameWIPApplication` dependency. Attach the manifest to the final executable,
 including when a separate library links Desktop. See @ref desktop_quick_start
-for both consumption paths and @ref project_cmake_infrastructure for shared
-manifest requirements and composition.
+and @ref project_cmake_infrastructure.
 
-Native Win32 dependencies remain private implementation details. The Win32 backend
-links `ole32` for OLE/COM functionality and `comctl32` for Common Controls
-functionality; neither is a consumer-facing link requirement, and consumers do not
-need to link `comctl32` manually through the Desktop package contract. Linking
-`comctl32` does not activate Common Controls v6: that remains application/executable
-manifest policy owned by the shared `GameWIPApplication` CMake infrastructure.
-Public and installed headers expose no COM interfaces, HRESULT values, or raw
-drag/drop handles.
+Native Win32 dependencies are private: the backend
+links `ole32`, `oleaut32` (Automation values), `uiautomationcore` (accessibility providers), and `comctl32`;
+none is a consumer link requirement. Linking `comctl32` does not activate Common Controls v6; that is executable
+manifest policy owned by `GameWIPApplication`.
+Public headers expose no COM interfaces, HRESULT values, or raw
+drag/drop or accessibility-provider handles.
 
 ## Internal definitions
 

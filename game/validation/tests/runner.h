@@ -31,7 +31,7 @@ namespace GameWIP::Validation::Tests
         bool enableManualTests = false;
         /// @brief Mirrors all suite report categories to stdout instead of minimal actionable output.
         bool verboseConsole = false;
-        /// @brief Worker count shared by stress scenarios.
+        /// @brief Worker count for Assert stress scenarios.
         std::size_t stressThreadCount = 8;
         /// @brief Per-worker operation count for Logger stress scenarios.
         std::size_t loggerStressIterationsPerThread = 20'000;

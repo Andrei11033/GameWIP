@@ -9,25 +9,20 @@ Set-StrictMode -Version Latest
 function Show-GameWipProjectCatalog
 {
     Write-GameWipSection 'Project helper actions'
+
     foreach ($group in @('development', 'validation', 'quality', 'tools', 'repository', 'maintenance', 'navigation'))
     {
         $items = @($CommandConfig.Actions | Where-Object { $_.Visible -and $_.Group -eq $group })
+
         if ($items.Count -eq 0)
         {
             continue
         }
         Write-Host "  $((Get-Culture).TextInfo.ToTitleCase($group)):"
+
         foreach ($action in $items)
         {
-            if ($null -ne $action.Aliases -and @($action.Aliases).Count -gt 0)
-            {
-                $aliases = " (aliases: $(@($action.Aliases) -join ', '))"
-            }
-            else
-            {
-                $aliases = ''
-            }
-            Write-Host ('    {0,-12} [{1,-11}] {2}{3}' -f $action.Id, $action.Risk, $action.Description, $aliases)
+            Write-Host ('    {0,-12} [{1,-11}] {2}' -f $action.Id, $action.Risk, $action.Description)
         }
     }
 
@@ -40,21 +35,26 @@ function Show-GameWipProjectCatalog
     Write-Host '  all'
     @(Get-GameWipValidationModuleName) | ForEach-Object { Write-Host "  $_" }
     $builderModules = [System.Collections.Generic.List[object]]::new()
+
     foreach ($moduleName in @(Get-GameWipValidationModuleName))
     {
         $module = Get-GameWipValidationModule -Name $moduleName
         $options = @(Get-GameWipValidationBuilderOptions -ModuleName $moduleName -CommonCapabilities @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report'))
+
         if ($options.Count -gt 0)
         {
             $builderModules.Add($module) | Out-Null
         }
     }
+
     if ($builderModules.Count -gt 0)
     {
         Write-GameWipSection 'Validation builder options'
+
         foreach ($module in $builderModules)
         {
             Write-Host "  $($module.Id)"
+
             foreach ($option in $module.BuilderOptions)
             {
                 Write-Host ('    {0,-16} [{1}] {2}' -f $option.Id, $option.Kind, $option.Title)
@@ -62,26 +62,31 @@ function Show-GameWipProjectCatalog
         }
     }
     Write-GameWipSection 'Project commands'
+
     foreach ($command in $CommandConfig.ProjectCommands)
     {
         Write-Host ("  {0,-24} {1}" -f $command.Id, $command.Name)
     }
     Write-GameWipSection 'Bundles'
+
     foreach ($bundleInfo in $CommandConfig.Bundles)
     {
         Write-Host ("  {0,-24} {1}" -f $bundleInfo.Id, $bundleInfo.Name)
     }
     Write-GameWipSection 'Benchmark profiles'
+
     foreach ($benchmarkProfile in $CommandConfig.BenchmarkProfiles)
     {
         Write-Host ("  {0,-12} {1}" -f $benchmarkProfile.Id, $benchmarkProfile.Name)
     }
     Write-GameWipSection 'Hygiene profiles'
+
     foreach ($hygieneProfile in $HygieneConfig.Profiles)
     {
         Write-Host ("  {0,-12} {1}" -f $hygieneProfile.Id, $hygieneProfile.Title)
     }
     Write-GameWipSection 'Hygiene checks'
+
     foreach ($check in $HygieneConfig.Checks)
     {
         Write-Host ("  {0,-24} [{1,-9}] {2}" -f $check.Id, $check.Availability, $check.Title)
@@ -126,19 +131,23 @@ function Show-GameWipActionFailure
     Write-Host ''
     Write-GameWipHost "Action failed [$code]" -ForegroundColor Red
     Write-GameWipHost $exception.Message -ForegroundColor Red
+
     if (-not [string]::IsNullOrWhiteSpace($details))
     {
         Write-Host $details
     }
+
     if (-not [string]::IsNullOrWhiteSpace($logPath))
     {
         Write-Host "Log: $logPath"
     }
+
     if ($suggestions.Count -eq 0)
     {
         $suggestions = @('Inspect the retained run/step log.', 'Rerun the smallest focused GameWIP command that reproduces the failure.')
     }
     Write-GameWipHost 'What to do next:' -ForegroundColor Cyan
+
     foreach ($suggestion in $suggestions)
     {
         Write-Host "  - $suggestion"
@@ -155,16 +164,19 @@ function Show-GameWipOptionDefinitions
     foreach ($optionId in $OptionIds)
     {
         $option = @($OptionDefinitions | Where-Object { [string]$_.Id -ieq $optionId }) | Select-Object -First 1
+
         if ($null -eq $option)
         {
             continue
         }
         $signature = "-$($option.Id)"
+
         if ($option.Kind -ne 'switch')
         {
             $signature += " <$($option.ValueName)>"
         }
         $description = [string]$option.Description
+
         if ($option.Kind -eq 'choice')
         {
             $description += " Choices: $(@($option.Choices) -join '|')."
@@ -181,12 +193,14 @@ function Show-GameWipCommonControlHelp
     )
 
     Write-Host 'Common control options:'
+
     if ($OptionDefinitions.Count -eq 0 -and $null -ne (Get-Variable -Name CommandConfig -ErrorAction SilentlyContinue))
     {
         $OptionDefinitions = @($CommandConfig.Options)
     }
     $globalOptions = @($OptionDefinitions | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global } | ForEach-Object { [string]$_.Id })
     Show-GameWipOptionDefinitions -OptionDefinitions $OptionDefinitions -OptionIds $globalOptions
+
     foreach ($option in $AdditionalOptions)
     {
         Write-Host $option
@@ -222,18 +236,14 @@ function Show-GameWipHelp
     Write-Host '  history list [all] | history show [latest|run-name] | history clean [run-name|all]'
     Write-Host '  list | help'
     Write-Host ''
-    Write-Host 'Short and compatibility aliases:'
-    foreach ($action in @($CommandConfig.Actions | Where-Object { $null -ne $_.Aliases -and @($_.Aliases).Count -gt 0 }))
-    {
-        Write-Host "  $($action.Id): $(@($action.Aliases) -join ', ')"
-    }
-    Write-Host ''
     Show-GameWipCommonControlHelp -OptionDefinitions $CommandConfig.Options
     Write-Host ''
     Write-Host 'Action-specific options:'
+
     foreach ($action in @($CommandConfig.Actions | Where-Object { $CommandConfig.ActionOptions.ContainsKey([string]$_.Id) }))
     {
         $specific = @($CommandConfig.ActionOptions[[string]$action.Id] | Where-Object { @($CommandConfig.Options | Where-Object Id -eq $_ | Where-Object { $_.ContainsKey('Global') -and [bool]$_.Global }).Count -eq 0 })
+
         if ($specific.Count -eq 0)
         {
             continue

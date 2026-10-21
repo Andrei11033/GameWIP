@@ -1,6 +1,6 @@
 @page logger_public_api Public API
 
-Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` remains the normal umbrella.
+Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` is the normal umbrella.
 `logger/types.h` and `logger/config.h` are supported focused entry headers; `logger/logger_macros.h` is opt-in.
 
 ## Types
@@ -22,24 +22,21 @@ Include `logger/logger.h` and link `GameWIP::Logger`. `logger/logger.h` remains 
 `init()`, `initDefault()`, `initConsole()`, and `initFile()` return `Types::Init::Result`. Calling init while an active Logger exists is rejected with
 `IO::Types::ErrorCode::AlreadyOpen` and leaves the existing runtime untouched.
 
-`flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt)` is the single complete drain/flush operation. `std::nullopt` waits
-indefinitely, zero is a poll/no-wait deadline, positive values are finite, and negative values return `InvalidArgument`.
+`flush(std::optional<std::chrono::milliseconds> timeout = std::nullopt)`: `nullopt` waits indefinitely, zero polls, negative returns `InvalidArgument`
+(see `logger.h`).
 
-`shutdown()` returns `IO::Types::Status`, performs best-effort draining/flushing/close, and always leaves Logger disabled.
+`shutdown()` returns `IO::Types::Status`, drains/flushes/closes best effort, and always leaves Logger
+disabled. `running()` reports whether the worker accepts normal records.
 
-`running()` reports whether the worker accepts normal log records.
-
-All state and statistics queries are non-throwing. `getMinLevel()`,
-`getOutput()`, `getQueueLimits()`, `getHealth()`, `getStats()`, and
-`getMemoryStats()` return bounded snapshots or safe defaults when a query cannot
-complete. `getLogFilePath()` returns `Types::LogFilePathResult` so an owning
-string allocation or path conversion failure is reported through the operation
-result instead of an exception or an ambiguous empty path.
+All queries are non-throwing and return bounded snapshots or safe defaults on failure.
+`getLogFilePath()` returns `Types::LogFilePathResult` so allocation or conversion failure is a
+status, not an exception or an ambiguous empty path.
 
 ## Runtime filters
 
 `setSourceFilter`, `resetSourceFilter`, `resetSourceFilters`, `setLevelFilter`, `resetLevelFilter`, and `resetLevelFilters` return
-`IO::Types::Status`. `shouldLog()` is a lightweight boolean query.
+`IO::Types::Status`. `shouldLog()` is a lightweight boolean query with three forms: `(level)` and `(level, std::string_view)` apply severity
+filtering only; `(level, SourceId)` and enum-source forms also apply the registered-source filter.
 
 ## Normal logging
 
@@ -57,8 +54,9 @@ status.
 
 ## Diagnostics
 
-Use `getHealth()` for coherent current sink/platform health and `getStats()` for relaxed resettable counters. Direct synchronous operations carry
-their own status; there is no process-wide mutable last-operation result.
+Use `getHealth()` for coherent current sink/platform health and `getStats()` for relaxed resettable counters. `resetStats()` clears those
+counters without changing health; `getLifetimeDroppedLogCount()` is the process-lifetime queue-drop total and survives `resetStats()`. Direct
+synchronous operations carry their own status; there is no process-wide mutable last-operation result.
 
 @ref logger_configuration
 @ref logger_lifecycle

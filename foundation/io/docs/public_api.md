@@ -25,7 +25,7 @@ The `GameWIP::IO::Types` namespace contains passive value types:
 | Type | Contract |
 | --- | --- |
 | `ErrorCode` | Portable status category shared by IO and resource-owning libraries. |
-| `Status` | Fields `code`, `nativeCode`, and UTF-8 diagnostic `message`; `ok()` is true only for `Success`. |
+| `Status` | Fields `code`, `nativeCode`, and diagnostic `message`; `ok()` is true only for `Success`. |
 | `SeekOrigin` | `Begin`, `Current`, or `End` origin for signed seek offsets. |
 | `FlushMode` | `None`, `Data`, or `DataAndMetadataBestEffort`. |
 | `ReadResult` | Fields `status`, `bytesRead`, and independent `endOfStream` state. |
@@ -33,11 +33,12 @@ The `GameWIP::IO::Types` namespace contains passive value types:
 | `PositionResult` | Fields `status` and current byte `position`. |
 | `SizeResult` | Fields `status` and total byte count `sizeBytes`. |
 | `ReadAllBytesResult` | Fields `status` and collected binary `bytes`. |
-| `ReadAllTextResult` | Fields `status` and valid UTF-8 `text`; failures preserve only a complete valid prefix. |
-| `CopyTextResult` | Fields `status` and an owning validated UTF-8 `text` copy. |
+| `ReadAllTextResult` | Fields `status` and `text`; see @ref io_utf8_policy. |
+| `CopyTextResult` | Fields `status` and an owned `text` copy. |
 
-A nonzero transfer count may accompany a failure status. `ReadResult::endOfStream` is independent of `bytesRead` and may be true on the final
-non-empty read.
+A nonzero transfer count may accompany a failure status. `ReadResult::endOfStream`
+is independent of `bytesRead` and may be true on the final non-empty read
+(@ref io_error_model).
 
 ## Status helpers
 
@@ -61,9 +62,8 @@ virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
 The base class supplies defaults for `isOpen()`, `canSeek()`, `close()`, `position()`, `size()`, and `seek()`. This lets a stateless streaming adapter
 implement only `read()` while resource-owning readers override the capabilities they support.
 
-`MemoryReader` is the provided concrete reader. It accepts a byte span, character-backed string view, or lvalue byte vector; rejects direct temporary
-string/vector construction; supports bounded seeking while open; and never owns or modifies its source. The string-view constructor is still
-byte-oriented and performs no encoding interpretation.
+`MemoryReader` is the provided concrete reader. It borrows its source (byte span, character-backed string view, or lvalue byte vector; temporaries
+are rejected) and supports bounded seeking while open. See @ref io_reader_writer_contract.
 
 ## Writer interface
 
@@ -79,8 +79,8 @@ The base class supplies defaults for `isOpen()`, `canSeek()`, `flush()`, `close(
 
 - Span and vector write overloads.
 - Checked capacity reservation and reuse through `reserve()`.
-- Non-owning byte inspection through `bytes()`.
-- Checked owning UTF-8 copies through `copyText()`.
+- Borrowed byte inspection through `bytes()`.
+- Checked owned text copies through `copyText()`.
 - Ownership transfer through `takeBytes()`.
 - `size()`, `capacity()`, `empty()`, and `clear()` state access.
 
@@ -94,12 +94,11 @@ failures into statuses and must not let exceptions escape an override.
 | API | Overloads | Behavior |
 | --- | --- | --- |
 | `readAllBytes()` | Internal buffer or caller-owned scratch buffer. | Drains a reader into `std::vector<std::byte>` with a hard accepted-size limit. |
-| `readAllText()` | Internal buffer or caller-owned scratch buffer. | Drains a reader into valid UTF-8 `std::string`, returning `EncodingFailed` for malformed or definitively incomplete input. |
+| `readAllText()` | Internal buffer or caller-owned scratch buffer. | Like `readAllBytes()`, returning validated text (@ref io_utf8_policy). |
 | `writeAllBytes()` | Span or byte vector. | Retries successful short writes until complete or failed. |
-| `writeAllText()` | String view. | Validates the complete UTF-8 input before the first write, then writes all bytes including embedded NUL. |
+| `writeAllText()` | String view. | Validates all input before the first write (@ref io_utf8_policy), then writes all bytes. |
 
-The scratch buffer is used only for unknown-size readers. When both size and position are available, read-all helpers allocate the final output
-directly and do not use the scratch storage.
+The scratch buffer is used only for unknown-size readers; it is borrowed for the call and not retained.
 
 @ref io_reader_writer_contract owns exact transfer and failure behavior. @ref io_runtime_performance owns allocation and limit details.
 

@@ -35,7 +35,7 @@ using namespace std::chrono_literals;
 const auto report = GameWIP::Logger::reportFatal("Renderer", 250ms, "device lost: {}", code);
 if (report.delivery != GameWIP::Logger::Types::Report::Delivery::Complete)
 {
-    // At least one enabled emergency channel did not receive the report.
+    // At least one eligible report target did not receive the report.
 }
 ```
 

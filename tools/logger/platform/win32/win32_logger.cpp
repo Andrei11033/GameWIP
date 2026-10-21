@@ -44,10 +44,12 @@ namespace
         }
 
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+
         if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
         }
+
         if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
@@ -55,10 +57,12 @@ namespace
 
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+
         if (conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
         }
+
         if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
@@ -154,15 +158,18 @@ namespace
     FormatScratchStorage &formatScratchStorageForThreadFls()
     {
         const DWORD slot = formatScratchSlot();
+
         if (slot == FLS_OUT_OF_INDEXES)
         {
             throw std::bad_alloc();
         }
 
         auto *storage = static_cast<FormatScratchStorage *>(FlsGetValue(slot));
+
         if (!storage)
         {
             storage = new FormatScratchStorage();
+
             if (!FlsSetValue(slot, storage))
             {
                 delete storage;
@@ -205,6 +212,7 @@ namespace GameWIP::Logger::Detail::Platform
     void releaseFormatScratchForThread() noexcept
     {
         FormatScratchStorage &storage = formatScratchStorageForThread();
+
         if (storage.depth == 0)
         {
             return;
@@ -230,6 +238,7 @@ namespace GameWIP::Logger::Detail::Platform
         {
             std::wstring output;
             IO::Types::Status status = utf8ToWide(line, output);
+
             if (!status.ok())
             {
                 return status;
@@ -259,6 +268,7 @@ namespace GameWIP::Logger::Detail::Platform
         {
             std::wstring messageText;
             IO::Types::Status status = utf8ToWide(message, messageText);
+
             if (!status.ok())
             {
                 return status;
@@ -295,6 +305,7 @@ namespace GameWIP::Logger::Detail::Platform
         outText.clear();
         std::tm timeInfo{};
         const int localTimeResult = localtime_s(&timeInfo, &time);
+
         if (localTimeResult != 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, localTimeResult);
@@ -306,6 +317,7 @@ namespace GameWIP::Logger::Detail::Platform
         }
 
         char formatBuffer[64]{};
+
         if (!timeFormat.empty())
         {
             std::ranges::copy(timeFormat, formatBuffer);
@@ -353,10 +365,12 @@ namespace GameWIP::Logger::Detail::Platform
     {
         PROCESS_MEMORY_COUNTERS_EX counters{};
         counters.cb = sizeof(counters);
+
         if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&counters), sizeof(counters)) == 0)
         {
             return {};
         }
+
         return {static_cast<std::size_t>(counters.WorkingSetSize), static_cast<std::size_t>(counters.PrivateUsage), true};
     }
 } // namespace GameWIP::Logger::Detail::Platform

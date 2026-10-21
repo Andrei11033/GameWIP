@@ -48,13 +48,16 @@ The `coverage` target uses `gcovr` to write:
 ```text
 build/coverage/coverage/index.html
 build/coverage/coverage/coverage.xml
+build/coverage/coverage/tests/index.html
+build/coverage/coverage/tests/coverage.xml
 ```
 
 The report includes maintained implementation sources for Base, Unicode, IO,
-FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop, plus modular
-correctness-test sources under `game/validation/tests`. Header-only Base code
+FileSystem, Terminal, Logger, Assert, TestSupport, and Desktop. The separate
+`tests/` report contains modular correctness-test sources under `game/validation/tests`;
+test code does not inflate implementation coverage. Header-only Base code
 contributes where tests or consumers instantiate it. Third-party sources under
-`external/`, generated build output, and deprecated engine code are excluded.
+`external/`, generated build output, and retained engine reference code are excluded.
 Coverage data is read only from the active coverage build tree, so archived or
 neighboring instrumented builds cannot contaminate the report.
 

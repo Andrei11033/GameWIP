@@ -19,7 +19,13 @@ runner.runSuite(
     {
         static_cast<void>(context.expectTrue("ready", true));
     });
-return runner.exitCode();
+const int exitCode = runner.exitCode();
+const auto reportStatus = runner.finalize();
+if (reportStatus.state == TS::Types::Reporting::SinkState::Failed)
+{
+    // Emit an infrastructure diagnostic; do not turn it into an assertion failure.
+}
+return exitCode;
 ```
 
 ## UTF-8 fixture
@@ -43,6 +49,8 @@ the destination.
 TS::Types::Process::Options options;
 options.executablePath = executable;
 options.arguments = {"--child"};
+options.waitTimeout = std::chrono::seconds{5}; // std::nullopt waits indefinitely; negative values are invalid.
+options.workingDirectory = workspace.path(); // Child-only; the parent current directory is unchanged.
 options.environmentOverrides = {
     TS::Types::Process::EnvironmentOverride{"MODE", std::string{"test"}},
     TS::Types::Process::EnvironmentOverride{"REMOVE_ME", std::nullopt},
@@ -76,6 +84,10 @@ TS::ScopedTemporaryDirectory workspace("fixture");
 if (!workspace.status().ok())
     return;
 
+TS::ScopedProcessState processState;
+if (!processState.status().ok())
+    return;
+
 const auto path = workspace.path() / "sample.txt";
 if (!TS::writeTextFile(path, "alpha beta alpha").ok())
     return;
@@ -85,7 +97,7 @@ static_cast<void>(context.expectTrue("sample exists", exists.status.ok() && exis
 static_cast<void>(context.expectFileOccurrenceCount("alpha count", path, "alpha", 2));
 
 {
-    TS::ScopedCurrentPath currentPath(workspace.path());
+    TS::ScopedCurrentPath currentPath(processState, workspace.path());
     if (currentPath.status().ok())
         static_cast<void>(TS::writeTextFile("relative.txt", "fixture"));
 }
@@ -97,19 +109,20 @@ The current directory is process-global; use `ScopedCurrentPath` only while the 
 
 ```cpp
 {
-    TS::ScopedEnvironmentVariable value("GAMEWIP_TEST_MODE", "enabled");
+    TS::ScopedEnvironmentVariable value(processState, "GAMEWIP_TEST_MODE", "enabled");
     if (!value.status().ok())
         return;
 }
 
 {
-    TS::ScopedUnsetEnvironmentVariable unset("GAMEWIP_TEST_MODE");
+    TS::ScopedUnsetEnvironmentVariable unset(processState, "GAMEWIP_TEST_MODE");
     if (!unset.status().ok())
         return;
 }
 ```
 
-Environment state is process-global. Overlapping guard lifetimes require caller coordination.
+Environment and current-directory state are process-global. Keep one `ScopedProcessState` alive for the complete guard lifetime; use `restore()` when
+the restoration status must be observed before scope exit.
 
 ## Manual checks and section timing
 
@@ -129,20 +142,30 @@ if (answer == TS::Types::Reporting::ManualAnswer::No)
 ## Stress coordination
 
 ```cpp
+std::atomic_size_t visits{0};
 TS::StartGate gate;
-TS::StopFlag stop;
+
+std::jthread coordinator([&gate]
+{
+    gate.open();
+});
+
 TS::runWorkers(
     4,
     [&](std::size_t)
     {
         gate.wait();
-        while (!stop.stopRequested())
-            std::this_thread::yield();
+        visits.fetch_add(1, std::memory_order_relaxed);
     });
 ```
 
-`runWorkers()` gives every worker its own callable copy, joins every successfully started thread, and rethrows one captured worker exception only
-after all workers have joined. Shared references captured by those callable copies still require their own synchronization.
+This finite example uses a coordinator to open the gate while `runWorkers()` is
+starting and joining its workers. `runWorkers()` gives every worker its own
+callable copy,
+joins every successfully started thread, and rethrows one captured worker
+exception only after all workers have joined. Shared references captured by
+those callable copies still require their own synchronization. See
+@ref test_support_timing_stress for `StopFlag` and more advanced coordination.
 
 ```cpp
 try

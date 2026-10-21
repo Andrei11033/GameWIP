@@ -82,14 +82,9 @@ The successor only needs to exist when the current milestone is ready for releas
 and handoff. Capability ideas stay in the roadmap until they have a concrete
 milestone target.
 
-The release issue can be resolved in either of these ways:
-
-- Preferred for new milestones: exactly one issue in the milestone uses `type:release` as its only type or has a title beginning with `release:`.
-- Explicit compatibility form: the milestone description contains:
-
-```text
-Release issue: `#N`
-```
+Exactly one issue in the milestone must use `type:release` as its only type or
+have a title beginning with `release:`. Automation discovers that issue from
+the milestone's issues; an issue number in the description does not select it.
 
 The release issue must stay open during readiness checks and release-preparation pull-request creation. It closes only after finalization has created
 the immutable tag and GitHub release and the milestone handoff is complete.
@@ -116,7 +111,7 @@ The check verifies that:
 - The selected milestone matches `ACTIVE_MILESTONE`.
 - The milestone has explicit `Release version:` metadata.
 - The milestone has exactly one valid `Next milestone:` value, and any named successor resolves to exactly one different open milestone.
-- The milestone has exactly one release issue, resolved from a `type:release` label, a `release:` title, or explicit milestone metadata.
+- The milestone has exactly one release issue, resolved from a `type:release` label or a `release:` title.
 - The root CMake project version matches the milestone release version.
 - The milestone has no open implementation issues except its release issue.
 - The target version is newer than the latest immutable release tag.

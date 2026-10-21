@@ -32,6 +32,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         std::size_t bytes = 0;
+
         if (loggerState().ringMessageArena)
         {
             bytes += loggerState().logRingSize * loggerState().inlineMessageCapacity;
@@ -60,6 +61,7 @@ namespace GameWIP::Logger::Detail::Core
         std::size_t bytes = sizeof(SourceRegistry) + registry->sources.capacity() * sizeof(RegisteredSource) +
                             registry->directSourceLookup.capacity() * sizeof(std::size_t);
         const std::size_t emptyCapacity = std::string{}.capacity();
+
         for (const auto &source : registry->sources)
         {
             if (source.name.capacity() > emptyCapacity)
@@ -99,6 +101,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         std::size_t bytes = 0;
+
         for (std::size_t i = 0; i < loggerState().logRingSize; ++i)
         {
             bytes += entryTextHeapCapacityBytes(loggerState().logRingView[i].entry);
@@ -174,10 +177,12 @@ GameWIP::Logger::Types::OutputMode GameWIP::Logger::getOutput() noexcept
     try
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
+
         if (!runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
         {
             return Types::OutputMode::None;
         }
+
         return loggerState().mode;
     }
     catch (...)
@@ -191,6 +196,7 @@ GameWIP::Logger::Types::LogFilePathResult GameWIP::Logger::getLogFilePath() noex
     try
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
+
         if (loggerState().logFilePath.empty())
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};

@@ -279,11 +279,12 @@ GameWIP::IO::Types::Status temporarilySelectDirectory(
         return status;
     }
 
-    // All threads now resolve relative paths from directory.
+    // The current directory is process-global: every thread resolves relative paths from it.
 
     const auto restore = GameWIP::FileSystem::setCurrentDirectory(previous.path);
     return restore;
 }
 ```
 
-Avoid this pattern in concurrent application code unless process-wide coordination is explicit.
+Avoid this pattern in concurrent code: nothing synchronizes other threads' relative-path use or
+other `chdir` callers. Prefer absolute paths.

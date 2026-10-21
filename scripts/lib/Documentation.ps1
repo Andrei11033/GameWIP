@@ -7,6 +7,7 @@
 function Invoke-GameWipMarkdownLink
 {
     $checker = Join-Path $RepositoryRoot '.github\scripts\check_markdown_links.py'
+
     if (-not (Test-Path -LiteralPath $checker))
     {
         throw "Markdown-link checker is missing: $checker"

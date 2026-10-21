@@ -8,11 +8,17 @@ categories. Report-file output receives the complete report while enabled.
 `Context` owns per-suite counts and expectations. `Runner` aggregates completed suites. `Types::Reporting::Summary` contains passed/failed/skipped
 counts, and `Types::Reporting::SuiteResult` adds the suite name and elapsed milliseconds.
 
-Report-file setup/write/flush failures disable only that sink and do not rewrite test pass/fail counts. Formatting and stream operations that are not
-documented `noexcept` may still propagate as before.
+`Types::Reporting::SinkStatus` reports the requested report path, `SinkState`
+(`Disabled`, `Active`, `Failed`, or `Finalized`), and the separate
+`failureStatus`. A standalone `Context` or `Runner` should call `finalize()`
+when its report must be proven complete; finalization is idempotent. A
+runner-owned suite context cannot finalize the shared sink independently.
 
-Report files are text. TestSupport-generated report lines are valid UTF-8 by contract, and `readTextFile()` validates report fixtures when tests read
-them back.
+Ordinary report-file setup/write/flush failures disable only that sink and do not rewrite test pass/fail counts. Formatting and stream operations
+that are not documented `noexcept` can throw; see @ref test_support_expectations for the suite exception boundary.
+
+Provide valid UTF-8 for suite/check names, messages, and values produced by custom formatters. Reporting writes this text without encoding validation
+or repair; use a hexadecimal or another text representation for arbitrary bytes. `readTextFile()` validates report fixtures when tests read them back.
 
 @ref test_support_public_api
 @ref test_support_expectations

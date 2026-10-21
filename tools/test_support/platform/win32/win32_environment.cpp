@@ -12,7 +12,6 @@
 #endif
 #include <windows.h>
 
-#include <cstdlib>
 #include <new>
 #include <stdexcept>
 #include <string>
@@ -57,13 +56,16 @@ namespace GameWIP::TestSupport::Detail::Platform
             // so clear the thread error before the zero-size probe.
             SetLastError(ERROR_SUCCESS);
             const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
+
             if (requiredSize == 0)
             {
                 const DWORD readError = GetLastError();
+
                 if (readError == ERROR_ENVVAR_NOT_FOUND)
                 {
                     return result;
                 }
+
                 if (readError == ERROR_SUCCESS)
                 {
                     result.value = std::string{};
@@ -76,6 +78,7 @@ namespace GameWIP::TestSupport::Detail::Platform
             std::wstring value(requiredSize, L'\0');
             SetLastError(ERROR_SUCCESS);
             const DWORD copied = GetEnvironmentVariableW(nameText.c_str(), value.data(), requiredSize);
+
             if (copied == 0 || copied >= requiredSize)
             {
                 result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, GetLastError());

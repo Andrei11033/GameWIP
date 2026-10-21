@@ -162,12 +162,12 @@ namespace GameWIP::Logger::Types
             TimedOut   ///< The deadline expired while report delivery or flushing was still pending.
         };
 
-        /// @brief Fraction of eligible emergency channels that accepted a report.
+        /// @brief Share of eligible report targets (normal sinks, debug output, fatal popup) that accepted a report.
         enum class Delivery : std::uint8_t
         {
-            None,    ///< No eligible emergency channel accepted the report.
-            Partial, ///< At least one but not every eligible channel accepted the report.
-            Complete ///< Every eligible emergency channel accepted the report.
+            None,    ///< No eligible target accepted the report.
+            Partial, ///< At least one but not every eligible target accepted the report.
+            Complete ///< Every eligible target accepted the report.
         };
 
         /// @brief Result of a synchronous emergency report attempt.
@@ -175,7 +175,7 @@ namespace GameWIP::Logger::Types
         {
             IO::Types::Status status;             ///< First real operation failure, if any.
             Outcome outcome = Outcome::Completed; ///< Independent deadline outcome.
-            Delivery delivery = Delivery::None;   ///< Delivery across eligible channels.
+            Delivery delivery = Delivery::None;   ///< Delivery across eligible targets.
         };
     } // namespace Report
 

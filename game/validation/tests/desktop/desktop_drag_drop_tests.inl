@@ -62,11 +62,11 @@ void testDragDrop(TestSupport::Context &context)
 
     // Validate source payloads before opening a native target, including encoding and allocation failures.
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
-    DD::Description validSource{validTextItems, DD::Effect::Copy, DD::TriggerButton::Left};
+    DD::Description validSource{validTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left};
     static_cast<void>(context.expectTrue("valid source data prepares", Desktop::TestHooks::prepareDragDropSource(validSource).ok()));
     static_cast<void>(context.expectEq("empty source is invalid", ErrorCode::InvalidArgument, Desktop::TestHooks::prepareDragDropSource({}).code));
     DD::Description invalidSourceEffects = validSource;
-    invalidSourceEffects.allowedEffects = static_cast<DD::Effect>(0x80);
+    invalidSourceEffects.effects.allowed = static_cast<DD::Effect>(0x80);
     static_cast<void>(context.expectEq(
         "invalid source effect bits are rejected",
         ErrorCode::InvalidArgument,
@@ -81,56 +81,56 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "duplicate native source formats are rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({duplicateTextItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({duplicateTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> malformedTextItems{{Transfer::TextView{std::string_view{"\xC3", 1}}}};
     static_cast<void>(context.expectEq(
         "malformed source UTF-8 is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({malformedTextItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({malformedTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> nulTextItems{{Transfer::TextView{std::string_view{"a\0b", 3}}}};
     static_cast<void>(context.expectEq(
         "source text embedded NUL is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({nulTextItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({nulTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<std::byte, 1> oneByte{std::byte{1}};
     std::array<Transfer::ItemView, 1> malformedCustomItems{{Transfer::CustomView{std::string_view{"\xC3", 1}, oneByte}}};
     static_cast<void>(context.expectEq(
         "malformed source custom name is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({malformedCustomItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({malformedCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> nulCustomItems{{Transfer::CustomView{std::string_view{"a\0b", 3}, oneByte}}};
     static_cast<void>(context.expectEq(
         "source custom name embedded NUL is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({nulCustomItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({nulCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> emptyCustomItems{{Transfer::CustomView{"GameWIP.Empty", {}}}};
     static_cast<void>(context.expectEq(
         "zero-byte custom source is unsupported",
         ErrorCode::Unsupported,
-        Desktop::TestHooks::prepareDragDropSource({emptyCustomItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({emptyCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<std::byte, 3> invalidImageBytes{};
-    std::array<Transfer::ItemView, 1> invalidImageItems{{Transfer::ImageView{{1, 1}, 0, invalidImageBytes}}};
+    std::array<Transfer::ItemView, 1> invalidImageItems{{Transfer::ImageView::strided({1, 1}, 0, invalidImageBytes)}};
     static_cast<void>(context.expectEq(
         "invalid image extent is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({invalidImageItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
-    std::array<Transfer::ItemView, 1> zeroImageItems{{Transfer::ImageView{{0, 1}, 0, {}}}};
+        Desktop::TestHooks::prepareDragDropSource({invalidImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+    std::array<Transfer::ItemView, 1> zeroImageItems{{Transfer::ImageView::strided({0, 1}, 0, {})}};
     static_cast<void>(context.expectEq(
         "zero image dimension is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({zeroImageItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({zeroImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<std::byte, 4> onePixel{};
-    std::array<Transfer::ItemView, 1> invalidStrideItems{{Transfer::ImageView{{1, 1}, 3, onePixel}}};
+    std::array<Transfer::ItemView, 1> invalidStrideItems{{Transfer::ImageView::strided({1, 1}, 3, onePixel)}};
     static_cast<void>(context.expectEq(
         "undersized image stride is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({invalidStrideItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({invalidStrideItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<GameWIP::FileSystem::Types::Path, 1> relativePaths{{L"relative.txt"}};
     std::array<Transfer::ItemView, 1> relativeFileItems{{Transfer::FileListView{relativePaths}}};
     static_cast<void>(context.expectEq(
         "relative source file path is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({relativeFileItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({relativeFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::wstring malformedNativePath = L"C:\\";
     malformedNativePath.push_back(static_cast<wchar_t>(0xD800));
     std::array<GameWIP::FileSystem::Types::Path, 1> malformedPaths{{malformedNativePath}};
@@ -138,7 +138,7 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "malformed native Unicode source path is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({malformedFileItems, DD::Effect::Copy, DD::TriggerButton::Left}).code));
+        Desktop::TestHooks::prepareDragDropSource({malformedFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropPreparation);
     static_cast<void>(context.expectEq(
         "source preparation failure is deterministic",
@@ -155,10 +155,12 @@ void testDragDrop(TestSupport::Context &context)
         [&]
         {
             const HRESULT initialized = OleInitialize(nullptr);
+
             if (initialized == S_OK || initialized == S_FALSE)
             {
                 compatiblePreinitialized = Desktop::TestHooks::testDragDropOleInitialization().code;
             }
+
             if (initialized == S_OK || initialized == S_FALSE)
             {
                 OleUninitialize();
@@ -170,10 +172,12 @@ void testDragDrop(TestSupport::Context &context)
         [&]
         {
             const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+
             if (initialized == S_OK || initialized == S_FALSE)
             {
                 incompatibleApartment = Desktop::TestHooks::testDragDropOleInitialization().code;
             }
+
             if (initialized == S_OK || initialized == S_FALSE)
             {
                 CoUninitialize();
@@ -201,77 +205,76 @@ void testDragDrop(TestSupport::Context &context)
 
     Desktop::Types::Description windowDescription;
     windowDescription.title = "DragDrop validation target";
-    windowDescription.clientSize = {320, 200};
-    windowDescription.visible = false;
+    windowDescription.windowed.clientSize = {320, 200};
+    windowDescription.activation.visible = false;
     Desktop::Window window;
-    if (!context.expectTrue("DragDrop Window opens", window.open(windowDescription, 8).ok()))
+
+    if (!context.expectTrue("DragDrop Window opens", window.open(windowDescription, Desktop::Events::owned(8)).ok()))
     {
         return;
     }
 
-    std::array<Transfer::FormatView, 1> textFormat{{{Transfer::FormatKind::Text, {}}}};
+    std::array<Transfer::FormatView, 1> textFormat{{Transfer::FormatView::text()}};
     static_cast<void>(
         context.expectEq("empty target region list is rejected", ErrorCode::InvalidArgument, target.open(window, DD::TargetDescription{}).code));
-    std::array<DD::RegionDescription, 1> emptyFormatRegion{{{DD::RegionId{1}, std::nullopt, {}, DD::Effect::Copy, DD::Effect::Copy}}};
+    std::array<DD::RegionDescription, 1> emptyFormatRegion{{{DD::RegionId{1}, std::nullopt, {}, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "empty accepted format list is rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{emptyFormatRegion}).code));
     std::array<DD::RegionDescription, 2> duplicateRegions{
-        {{DD::RegionId{1}, std::nullopt, textFormat, DD::Effect::Copy, DD::Effect::Copy},
-         {DD::RegionId{1}, Desktop::Types::LogicalRect{{0, 0}, {10, 10}}, textFormat, DD::Effect::Copy, DD::Effect::Copy}}};
+        {{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::copy()},
+         {DD::RegionId{1}, Desktop::Types::LogicalRect{{0, 0}, {10, 10}}, textFormat, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "duplicate region IDs are rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{duplicateRegions}).code));
-    std::array<DD::RegionDescription, 1> invalidPreferred{{{DD::RegionId{1}, std::nullopt, textFormat, DD::Effect::Copy, DD::Effect::Move}}};
+    std::array<DD::RegionDescription, 1> invalidPreferred{
+        {{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::allow(DD::Effect::Copy, DD::Effect::Move)}}};
     static_cast<void>(context.expectEq(
         "preferred effect must be allowed",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{invalidPreferred}).code));
-    std::array<Transfer::FormatView, 1> malformedFormat{{{Transfer::FormatKind::Custom, std::string_view{"\xC3", 1}}}};
-    std::array<DD::RegionDescription, 1> malformedRegion{{{DD::RegionId{1}, std::nullopt, malformedFormat, DD::Effect::Copy, DD::Effect::Copy}}};
+    std::array<Transfer::FormatView, 1> malformedFormat{{Transfer::FormatView::custom(std::string_view{"\xC3", 1})}};
+    std::array<DD::RegionDescription, 1> malformedRegion{{{DD::RegionId{1}, std::nullopt, malformedFormat, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "malformed custom format name is rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{malformedRegion}).code));
-    std::array<Transfer::FormatView, 1> nulFormat{{{Transfer::FormatKind::Custom, std::string_view{"a\0b", 3}}}};
-    std::array<DD::RegionDescription, 1> nulFormatRegion{{{DD::RegionId{1}, std::nullopt, nulFormat, DD::Effect::Copy, DD::Effect::Copy}}};
+    std::array<Transfer::FormatView, 1> nulFormat{{Transfer::FormatView::custom(std::string_view{"a\0b", 3})}};
+    std::array<DD::RegionDescription, 1> nulFormatRegion{{{DD::RegionId{1}, std::nullopt, nulFormat, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "custom format embedded NUL is rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{nulFormatRegion}).code));
-    std::array<Transfer::FormatView, 2> duplicateStandard{{{Transfer::FormatKind::Text, {}}, {Transfer::FormatKind::Text, {}}}};
-    std::array<DD::RegionDescription, 1> duplicateStandardRegion{
-        {{DD::RegionId{1}, std::nullopt, duplicateStandard, DD::Effect::Copy, DD::Effect::Copy}}};
+    std::array<Transfer::FormatView, 2> duplicateStandard{{Transfer::FormatView::text(), Transfer::FormatView::text()}};
+    std::array<DD::RegionDescription, 1> duplicateStandardRegion{{{DD::RegionId{1}, std::nullopt, duplicateStandard, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "duplicate standard target formats are rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{duplicateStandardRegion}).code));
-    std::array<Transfer::FormatView, 2> duplicateCustom{
-        {{Transfer::FormatKind::Custom, "GameWIP.Same"}, {Transfer::FormatKind::Custom, "GameWIP.Same"}}};
-    std::array<DD::RegionDescription, 1> duplicateCustomRegion{
-        {{DD::RegionId{1}, std::nullopt, duplicateCustom, DD::Effect::Copy, DD::Effect::Copy}}};
+    std::array<Transfer::FormatView, 2> duplicateCustom{{Transfer::FormatView::custom("GameWIP.Same"), Transfer::FormatView::custom("GameWIP.Same")}};
+    std::array<DD::RegionDescription, 1> duplicateCustomRegion{{{DD::RegionId{1}, std::nullopt, duplicateCustom, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "duplicate custom target formats are rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{duplicateCustomRegion}).code));
     std::array<Transfer::FormatView, 2> duplicateNativeCustom{
-        {{Transfer::FormatKind::Custom, "GameWIP.CaseIdentity"}, {Transfer::FormatKind::Custom, "gamewip.caseidentity"}}};
+        {Transfer::FormatView::custom("GameWIP.CaseIdentity"), Transfer::FormatView::custom("gamewip.caseidentity")}};
     std::array<DD::RegionDescription, 1> duplicateNativeCustomRegion{
-        {{DD::RegionId{1}, std::nullopt, duplicateNativeCustom, DD::Effect::Copy, DD::Effect::Copy}}};
+        {{DD::RegionId{1}, std::nullopt, duplicateNativeCustom, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "duplicate native custom identity is rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{duplicateNativeCustomRegion}).code));
     std::array<DD::RegionDescription, 1> invalidEffectRegion{
-        {{DD::RegionId{1}, std::nullopt, textFormat, static_cast<DD::Effect>(0x80), DD::Effect::Copy}}};
+        {{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::allow(static_cast<DD::Effect>(0x80), DD::Effect::Copy)}}};
     static_cast<void>(context.expectEq(
         "invalid target effect bits are rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{invalidEffectRegion}).code));
     std::array<DD::RegionDescription, 1> combinedPreferredRegion{
-        {{DD::RegionId{1}, std::nullopt, textFormat, all, DD::Effect::Copy | DD::Effect::Move}}};
+        {{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::allow(all, DD::Effect::Copy | DD::Effect::Move)}}};
     static_cast<void>(context.expectEq(
         "combined preferred target effect is rejected",
         ErrorCode::InvalidArgument,
@@ -280,43 +283,46 @@ void testDragDrop(TestSupport::Context &context)
         {{DD::RegionId{1},
           Desktop::Types::LogicalRect{{std::numeric_limits<std::int32_t>::max(), 0}, {1, 1}},
           textFormat,
-          DD::Effect::Copy,
-          DD::Effect::Copy}}};
+          DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "overflowing target rectangle is rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{overflowingRectRegion}).code));
     std::array<DD::RegionDescription, 1> emptyRectRegion{
-        {{DD::RegionId{1}, Desktop::Types::LogicalRect{{0, 0}, {0, 1}}, textFormat, DD::Effect::Copy, DD::Effect::Copy}}};
+        {{DD::RegionId{1}, Desktop::Types::LogicalRect{{0, 0}, {0, 1}}, textFormat, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "empty target rectangle is rejected",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{emptyRectRegion}).code));
-    static_cast<void>(context.expectEq("zero event capacity is invalid", ErrorCode::InvalidArgument, target.open(window, {}, 0).code));
+    static_cast<void>(context.expectEq(
+        "zero event capacity is invalid",
+        ErrorCode::InvalidArgument,
+        target.open(window, {}, DD::QueueConfiguration::owned(0)).code));
 
     std::array<DD::RegionDescription, 2> regions{
-        {{DD::RegionId{1}, std::nullopt, textFormat, all, DD::Effect::Move},
-         {DD::RegionId{2}, Desktop::Types::LogicalRect{{20, 20}, {80, 60}}, textFormat, DD::Effect::Copy, DD::Effect::Copy}}};
+        {{DD::RegionId{1}, std::nullopt, textFormat, DD::EffectPolicy::allow(all, DD::Effect::Move)},
+         {DD::RegionId{2}, Desktop::Types::LogicalRect{{20, 20}, {80, 60}}, textFormat, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectEq(
         "impossible internal queue capacity is invalid",
         ErrorCode::InvalidArgument,
-        target.open(window, DD::TargetDescription{regions}, std::numeric_limits<std::size_t>::max()).code));
+        target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(std::numeric_limits<std::size_t>::max())).code));
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropOleInitialization);
     static_cast<void>(context.expectEq(
         "target OLE initialization failure is deterministic",
         ErrorCode::OpenFailed,
-        target.open(window, DD::TargetDescription{regions}, 3).code));
+        target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3)).code));
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropRegistration);
     static_cast<void>(context.expectEq(
         "native registration failure rolls back",
         ErrorCode::OpenFailed,
-        target.open(window, DD::TargetDescription{regions}, 3).code));
+        target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3)).code));
     static_cast<void>(context.expectFalse("failed registration leaves target closed", target.isOpen()));
     static_cast<void>(
         context.expectEq("failed registration removes its active registry entry", std::size_t{0}, Desktop::TestHooks::activeDragDropTargetCount()));
     static_cast<void>(context.expectTrue("failed registration leaves the Window usable", window.isOpen()));
     static_cast<void>(context.expectFalse("failed registration preserves lightweight mode", window.fileDropEnabled()));
-    const auto open = target.open(window, DD::TargetDescription{regions}, 3);
+    const auto open = target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3));
+
     if (!open.ok())
     {
         context.skip("native OLE target lifecycle", "the test thread has an incompatible OLE apartment");
@@ -339,8 +345,8 @@ void testDragDrop(TestSupport::Context &context)
         "open publishes a copy independent of caller region storage",
         DD::RegionId{2},
         Desktop::TestHooks::matchDragDropRegion(target, {30, 30}, textFormat)));
-    regions[1] = {DD::RegionId{2}, Desktop::Types::LogicalRect{{20, 20}, {80, 60}}, textFormat, DD::Effect::Copy, DD::Effect::Copy};
-    std::array<Transfer::FormatView, 1> filesOnly{{{Transfer::FormatKind::FileList, {}}}};
+    regions[1] = {DD::RegionId{2}, Desktop::Types::LogicalRect{{20, 20}, {80, 60}}, textFormat, DD::EffectPolicy::copy()};
+    std::array<Transfer::FormatView, 1> filesOnly{{Transfer::FormatView::files()}};
     static_cast<void>(context.expectEq(
         "unaccepted metadata produces no region",
         DD::RegionId{},
@@ -356,9 +362,11 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq("lightweight mode cannot replace full target", ErrorCode::ResourceBusy, window.setFileDropEnabled(true).code));
 
     const auto formats = std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Text, {}}});
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{1}, {}, {1}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {1, 1}, {1}, {1}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {2, 2}, {1}, {2}, DD::Effect::Copy, formats}));
+    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{1}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {1, 1}, DD::RegionId{1}, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {2, 2}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("compatible movement coalesces", std::size_t{2}, target.eventQueueInfo().pendingEvents));
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Left{{1}}));
     static_cast<void>(context.expectEq("queue is full before terminal insertion", std::size_t{3}, target.eventQueueInfo().pendingEvents));
@@ -391,34 +399,43 @@ void testDragDrop(TestSupport::Context &context)
     target.clearDroppedEventCount();
     static_cast<void>(context.expectEq("dropped counter clears", std::uint64_t{0}, target.eventQueueInfo().droppedEvents));
 
-    const auto pumpQueued = Desktop::TestHooks::routeDragDropDuringPump(target, DDEvents::Entered{{2}, {}, {1}, DD::Effect::Copy, formats});
+    const auto pumpQueued =
+        Desktop::TestHooks::routeDragDropDuringPump(target, DDEvents::Entered{{2}, {}, DD::RegionId{1}, DD::Effect::Copy, formats});
     static_cast<void>(context.expectEq("pump counts queued DragDrop event", std::uint64_t{1}, pumpQueued.eventsQueued));
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Left{{2}}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{3}, {}, {1}, DD::Effect::Copy, formats}));
+    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{3}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
     const auto pumpDropped = Desktop::TestHooks::routeDragDropDuringPump(target, DDEvents::Left{{3}});
     static_cast<void>(context.expectEq("pump counts dropped DragDrop event", std::uint64_t{1}, pumpDropped.eventsDropped));
     target.clearEvents();
     static_cast<void>(context.expectEq("clear releases all retained queue entries", std::size_t{0}, target.eventQueueInfo().pendingEvents));
 
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, {1}, {2}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, {2}, {3}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{2}, DD::RegionId{3}, DD::Effect::Copy, formats}));
     DD::Event coalescedMove;
     static_cast<void>(context.expectTrue("coalesced movement pops", target.popEvent(coalescedMove)));
     const auto *coalesced = coalescedMove.getIf<DDEvents::Moved>();
     static_cast<void>(context.expectTrue("coalesced movement keeps its payload type", coalesced != nullptr));
+
     if (coalesced != nullptr)
     {
-        static_cast<void>(context.expectEq("coalescing preserves earliest previous region", DD::RegionId{1}, coalesced->previousRegion));
+        static_cast<void>(context.expectEq(
+            "coalescing preserves earliest previous region",
+            std::optional<DD::RegionId>{DD::RegionId{1}},
+            coalesced->previousRegion));
     }
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, {}, {1}, DD::Effect::Copy, formats}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, {}, {1}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(
+        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("unrelated session moves do not coalesce", std::size_t{2}, target.eventQueueInfo().pendingEvents));
     target.clearEvents();
 
     auto releasableFormats =
         std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Custom, std::string(2048, 'x')}});
     std::weak_ptr<const std::vector<Transfer::Format>> releasedFormats = releasableFormats;
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{7}, {}, {}, DD::Effect::None, releasableFormats}));
+    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{7}, {}, std::nullopt, DD::Effect::None, releasableFormats}));
     releasableFormats.reset();
     DD::Event releasedEvent;
     static_cast<void>(context.expectTrue("retained event pops", target.popEvent(releasedEvent)));
@@ -427,17 +444,17 @@ void testDragDrop(TestSupport::Context &context)
     auto clearableFormats =
         std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Custom, std::string(2048, 'y')}});
     std::weak_ptr<const std::vector<Transfer::Format>> clearedFormats = clearableFormats;
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{8}, {}, {}, DD::Effect::None, clearableFormats}));
+    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{8}, {}, std::nullopt, DD::Effect::None, clearableFormats}));
     clearableFormats.reset();
     target.clearEvents();
     static_cast<void>(context.expectTrue("clear releases retained slot storage", clearedFormats.expired()));
 
     std::string copiedCustomName = "GameWIP.FormatAlpha";
-    std::array<Transfer::FormatView, 1> copiedCustomFormat{{{Transfer::FormatKind::Custom, copiedCustomName}}};
-    std::array<DD::RegionDescription, 1> copiedRegions{{{DD::RegionId{9}, std::nullopt, copiedCustomFormat, DD::Effect::Copy, DD::Effect::Copy}}};
+    std::array<Transfer::FormatView, 1> copiedCustomFormat{{Transfer::FormatView::custom(copiedCustomName)}};
+    std::array<DD::RegionDescription, 1> copiedRegions{{{DD::RegionId{9}, std::nullopt, copiedCustomFormat, DD::EffectPolicy::copy()}}};
     static_cast<void>(context.expectTrue("setRegions copies caller views", target.setRegions(copiedRegions).ok()));
     copiedCustomName.assign("GameWIP.FormatBravo");
-    std::array<Transfer::FormatView, 1> originalCustomFormat{{{Transfer::FormatKind::Custom, "GameWIP.FormatAlpha"}}};
+    std::array<Transfer::FormatView, 1> originalCustomFormat{{Transfer::FormatView::custom("GameWIP.FormatAlpha")}};
     static_cast<void>(context.expectEq(
         "published custom identity is independent of caller storage",
         DD::RegionId{9},
@@ -454,10 +471,11 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("target closes on revocation retry", target.close().ok()));
     static_cast<void>(context.expectTrue("lightweight mode enables after target close", window.setFileDropEnabled(true).ok()));
     static_cast<void>(context.expectEq("full target conflicts with lightweight mode", ErrorCode::ResourceBusy, target.open(window, {}).code));
-    static_cast<void>(context.expectTrue("lightweight mode disables for migration", window.setFileDropEnabled(false).ok()));
+    static_cast<void>(context.expectTrue("lightweight mode disables before full target registration", window.setFileDropEnabled(false).ok()));
     std::array<DD::Event, 2> externalStorage;
-    static_cast<void>(
-        context.expectTrue("target reopens with external queue", target.open(window, DD::TargetDescription{regions}, externalStorage).ok()));
+    static_cast<void>(context.expectTrue(
+        "target reopens with external queue",
+        target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::borrowed(externalStorage)).ok()));
     static_cast<void>(
         context.expectEq("external queue ownership is reported", Desktop::Types::Events::StorageKind::External, target.eventQueueInfo().storage));
     ErrorCode wrongThreadClose = ErrorCode::Unknown;
@@ -492,20 +510,22 @@ void testDragDrop(TestSupport::Context &context)
 
     Desktop::Window deferredWindowA;
     Desktop::Window deferredWindowB;
-    if (context.expectTrue("first deferred-cleanup Window opens", deferredWindowA.open(windowDescription, 4).ok()) &&
-        context.expectTrue("second deferred-cleanup Window opens", deferredWindowB.open(windowDescription, 4).ok()))
+
+    if (context.expectTrue("first deferred-cleanup Window opens", deferredWindowA.open(windowDescription, Desktop::Events::owned(4)).ok()) &&
+        context.expectTrue("second deferred-cleanup Window opens", deferredWindowB.open(windowDescription, Desktop::Events::owned(4)).ok()))
     {
         auto deferredTargetA = std::make_unique<Desktop::DragDropTarget>();
         auto deferredTargetB = std::make_unique<Desktop::DragDropTarget>();
+
         if (context.expectTrue(
                 "first deferred-cleanup target opens",
-                deferredTargetA->open(deferredWindowA, DD::TargetDescription{regions}, 2).ok()) &&
+                deferredTargetA->open(deferredWindowA, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok()) &&
             context.expectTrue(
                 "second deferred-cleanup target opens",
-                deferredTargetB->open(deferredWindowB, DD::TargetDescription{regions}, 2).ok()))
+                deferredTargetB->open(deferredWindowB, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok()))
         {
             std::thread destroyOnWrongThread(
-                [first = std::move(deferredTargetA), second = std::move(deferredTargetB)]() mutable
+                [first = std::move(deferredTargetA), second = std::move(deferredTargetB)] mutable
                 {
                     first.reset();
                     second.reset();

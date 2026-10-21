@@ -20,9 +20,11 @@ namespace GameWIP::Desktop::Detail::Platform
         void synchronizeVisibility(WindowState &state) noexcept
         {
             const bool visible = IsWindowVisible(state.platform->handle) != FALSE;
+
             if (visible != state.visible)
             {
                 state.visible = visible;
+
                 if (state.presentationPublication != nullptr)
                 {
                     state.presentationPublication->publishVisible(visible);
@@ -37,9 +39,11 @@ namespace GameWIP::Desktop::Detail::Platform
             const Types::PresentationState value = IsIconic(state.platform->handle)   ? Types::PresentationState::Minimized
                                                    : IsZoomed(state.platform->handle) ? Types::PresentationState::Maximized
                                                                                       : Types::PresentationState::Normal;
+
             if (value != state.presentation)
             {
                 state.presentation = value;
+
                 if (state.presentationPublication != nullptr)
                 {
                     state.presentationPublication->publishPresentationState(value);
@@ -59,16 +63,19 @@ namespace GameWIP::Desktop::Detail::Platform
             const Value previous = destination;
             destination = value;
             IO::Types::Status status = applyStyle(state);
+
             if (status.ok())
             {
                 status = apply();
             }
+
             if (!status.ok())
             {
                 destination = previous;
                 IO::Types::Status rollback = applyStyle(state);
                 return rollback.ok() ? std::move(status) : std::move(rollback);
             }
+
             return status;
         }
     } // namespace
@@ -97,23 +104,28 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
+
         if (IsWindowVisible(state.platform->handle) == FALSE)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         if (IsIconic(state.platform->handle) != FALSE)
         {
             ShowWindow(state.platform->handle, SW_RESTORE);
         }
         const HWND previous = SetFocus(state.platform->handle);
+
         if (GetFocus() != state.platform->handle && SetForegroundWindow(state.platform->handle) == FALSE)
         {
             if (previous != nullptr)
             {
                 SetFocus(previous);
             }
+
             return IO::makeStatus(IO::Types::ErrorCode::PermissionDenied);
         }
+
         return IO::successStatus();
     }
 
@@ -210,6 +222,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     SetFocus(nullptr);
                 }
+
                 return IO::successStatus();
             });
     }
@@ -222,6 +235,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         const bool effectiveEnabled = enabled && !windowHasBlockingProgressDialog(state);
         EnableWindow(state.platform->handle, effectiveEnabled ? TRUE : FALSE);
+
         if ((IsWindowEnabled(state.platform->handle) != FALSE) != effectiveEnabled)
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow");
@@ -247,20 +261,24 @@ namespace GameWIP::Desktop::Detail::Platform
         const float previous = state.opacity;
         state.opacity = opacity;
         IO::Types::Status status = applyStyle(state);
+
         if (status.ok() && (opacity < 1.0F || state.pointerInputMode == Types::PointerInputMode::ClickThrough))
         {
             const BYTE alpha = static_cast<BYTE>(std::lround(std::clamp(opacity, 0.0F, 1.0F) * 255.0F));
+
             if (SetLayeredWindowAttributes(state.platform->handle, 0, alpha, LWA_ALPHA) == FALSE)
             {
                 status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetLayeredWindowAttributes");
             }
         }
+
         if (!status.ok())
         {
             state.opacity = previous;
             IO::Types::Status rollback = applyStyle(state);
             return rollback.ok() ? std::move(status) : std::move(rollback);
         }
+
         return status;
     }
 
@@ -271,12 +289,14 @@ namespace GameWIP::Desktop::Detail::Platform
             state.backdrop = effect;
             return IO::successStatus();
         }
+
         if (!supportsSystemBackdrop())
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
 
         DWM_SYSTEMBACKDROP_TYPE nativeEffect = DWMSBT_NONE;
+
         switch (effect)
         {
         case Types::BackdropEffect::None:
@@ -296,6 +316,7 @@ namespace GameWIP::Desktop::Detail::Platform
             break;
         }
         const HRESULT result = DwmSetWindowAttribute(state.platform->handle, DWMWA_SYSTEMBACKDROP_TYPE, &nativeEffect, sizeof(nativeEffect));
+
         if (FAILED(result))
         {
             return IO::makeStatus(
@@ -331,18 +352,22 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status setPointerInputLayout(WindowState &state) noexcept
     {
         IO::Types::Status status = applyStyle(state);
+
         if (!status.ok())
         {
             return status;
         }
+
         if (state.pointerInputMode == Types::PointerInputMode::ClickThrough || state.opacity < 1.0F)
         {
             const BYTE alpha = static_cast<BYTE>(std::lround(std::clamp(state.opacity, 0.0F, 1.0F) * 255.0F));
+
             if (SetLayeredWindowAttributes(state.platform->handle, 0, alpha, LWA_ALPHA) == FALSE)
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetLayeredWindowAttributes pointer policy");
             }
         }
+
         return IO::successStatus();
     }
 
@@ -358,12 +383,14 @@ namespace GameWIP::Desktop::Detail::Platform
         const Types::CursorMode previous = state.cursorMode;
         state.cursorMode = mode;
         IO::Types::Status status = applyCursorState(state);
+
         if (!status.ok())
         {
             state.cursorMode = previous;
             static_cast<void>(applyCursorState(state));
             return status;
         }
+
         if (state.cursorInside)
         {
             SetCursor(
@@ -371,17 +398,20 @@ namespace GameWIP::Desktop::Detail::Platform
                     ? nullptr
                     : state.platform->cursor);
         }
+
         return IO::successStatus();
     }
 
     IO::Types::Status setCursorShape(WindowState &state, Types::CursorShape shape) noexcept
     {
         HCURSOR cursor = loadCursor(shape);
+
         if (cursor == nullptr)
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "LoadCursorW");
         }
         IO::Types::Status status = replaceCustomCursorWithSystem(state, cursor);
+
         if (!status.ok())
         {
             return status;
@@ -394,6 +424,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const UINT dpi = dpiForWindow(state.platform->handle);
         POINT point{};
+
         if (!logicalToPhysicalChecked(position.x, dpi, point.x) || !logicalToPhysicalChecked(position.y, dpi, point.y))
         {
             return IO::makeStatus(
@@ -401,29 +432,34 @@ namespace GameWIP::Desktop::Detail::Platform
                 ERROR_ARITHMETIC_OVERFLOW,
                 "logical cursor position exceeds Win32 range at the effective DPI");
         }
+
         if (ClientToScreen(state.platform->handle, &point) == FALSE)
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ClientToScreen cursor");
         }
+
         if (SetCursorPos(point.x, point.y) == FALSE)
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetCursorPos");
         }
+
         return IO::successStatus();
     }
 
-    Types::LogicalPositionResult cursorPosition(const WindowState &state) noexcept
+    Types::Result<Types::LogicalPosition> cursorPosition(const WindowState &state) noexcept
     {
         POINT point{};
+
         if (GetCursorPos(&point) == FALSE)
         {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "GetCursorPos")};
         }
+
         if (ScreenToClient(state.platform->handle, &point) == FALSE)
         {
             return {.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "ScreenToClient cursor")};
         }
         const UINT dpi = dpiForWindow(state.platform->handle);
-        return {.status = IO::successStatus(), .position = {physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
+        return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
 } // namespace GameWIP::Desktop::Detail::Platform

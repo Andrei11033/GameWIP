@@ -46,15 +46,15 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Process, display, and event services
     // ------------------------------------------------------------
-    [[nodiscard]] Types::CapabilitiesResult getCapabilities() noexcept;
+    [[nodiscard]] Types::Result<Types::Capabilities> getCapabilities() noexcept;
     [[nodiscard]] Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept;
-    [[nodiscard]] Types::Display::MonitorsResult getMonitors() noexcept;
-    [[nodiscard]] Types::Display::InfoResult getPrimaryMonitor() noexcept;
-    [[nodiscard]] Types::Display::InfoResult getMonitor(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ModesResult getModes(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ModeResult getCurrentMode(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ModeResult getPreferredMode(Types::Display::MonitorId monitor) noexcept;
-    [[nodiscard]] Types::Display::ColorInfoResult getColorInfo(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept;
+    [[nodiscard]] Types::Result<Types::Display::Info> getPrimaryMonitor() noexcept;
+    [[nodiscard]] Types::Result<Types::Display::Info> getMonitor(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Result<Types::Display::Mode> getCurrentMode(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Result<Types::Display::Mode> getPreferredMode(Types::Display::MonitorId monitor) noexcept;
+    [[nodiscard]] Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept;
     [[nodiscard]] Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept;
     [[nodiscard]] bool consumeDisplayColorConfigurationChange() noexcept;
     /// @brief Releases display-color resources retained by the calling thread.
@@ -89,8 +89,8 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status centerOn(WindowState &state, Types::Display::MonitorId monitor) noexcept;
     [[nodiscard]] IO::Types::Status setSizeLimits(WindowState &state, const Types::SizeLimits &limits) noexcept;
     [[nodiscard]] IO::Types::Status setAspectRatio(WindowState &state, std::optional<Types::AspectRatio> ratio) noexcept;
-    [[nodiscard]] Types::ScreenPositionResult clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept;
-    [[nodiscard]] Types::LogicalPositionResult screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept;
+    [[nodiscard]] Types::Result<Types::ScreenPosition> clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept;
+    [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept;
 
     // ------------------------------------------------------------
     // Visibility, mode, style, and cursor controls
@@ -102,7 +102,7 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status minimize(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status maximize(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status restore(WindowState &state) noexcept;
-    [[nodiscard]] IO::Types::Status setMode(WindowState &state, const Types::ModeRequest &request) noexcept;
+    [[nodiscard]] IO::Types::Status setWindowMode(WindowState &state, const Types::WindowModeRequest &request) noexcept;
     [[nodiscard]] IO::Types::Status setResizable(WindowState &state, bool resizable) noexcept;
     [[nodiscard]] IO::Types::Status setDecorationMode(WindowState &state, Types::DecorationMode mode) noexcept;
     [[nodiscard]] IO::Types::Status setControls(WindowState &state, const Types::Controls &controls) noexcept;
@@ -117,5 +117,5 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status setCursorMode(WindowState &state, Types::CursorMode mode) noexcept;
     [[nodiscard]] IO::Types::Status setCursorShape(WindowState &state, Types::CursorShape shape) noexcept;
     [[nodiscard]] IO::Types::Status setCursorPosition(WindowState &state, Types::LogicalPosition position) noexcept;
-    [[nodiscard]] Types::LogicalPositionResult cursorPosition(const WindowState &state) noexcept;
+    [[nodiscard]] Types::Result<Types::LogicalPosition> cursorPosition(const WindowState &state) noexcept;
 } // namespace GameWIP::Desktop::Detail::Platform

@@ -19,6 +19,7 @@ namespace
     bool handlesChildArguments(int argc, char **argv)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value == nullptr)
@@ -26,6 +27,7 @@ namespace
                 continue;
             }
             const std::string_view argument(value);
+
             if (argument == "--terminal-test-child=reentrant-format" || argument == "--terminal-test-child=session-reentrant-format")
             {
                 return true;
@@ -37,6 +39,7 @@ namespace
             }
 #endif
         }
+
         return false;
     }
 

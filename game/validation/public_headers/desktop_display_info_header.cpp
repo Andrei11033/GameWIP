@@ -4,4 +4,4 @@
 #include "desktop/display_info.h"
 
 static_assert(noexcept(GameWIP::Desktop::Display::getMonitors()));
-static_assert(noexcept(GameWIP::Desktop::Display::getColorInfo(GameWIP::Desktop::Types::Display::MonitorId{})));
+static_assert(noexcept(GameWIP::Desktop::Display::getColorInfo(GameWIP::Desktop::Types::Display::MonitorId::invalid())));

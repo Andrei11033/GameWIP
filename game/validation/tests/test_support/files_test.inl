@@ -4,6 +4,9 @@
 /// @brief Verifies text helpers and scoped temporary/current-directory lifetime behavior.
 void testFileHelpers(TestSupport::Context &context, const std::filesystem::path &root)
 {
+    TestSupport::ScopedProcessState processState;
+    static_cast<void>(context.expectTrue("Process-state scope construction succeeds", processState.status().ok()));
+
     const std::filesystem::path path = root / "files" / "sample.txt";
     static_cast<void>(context.expectTrue("writeTextFile succeeds", TestSupport::writeTextFile(path, "alpha beta alpha beta").ok()));
     const std::filesystem::path existingDirectory = root / "files" / "existing";
@@ -80,12 +83,30 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
 
     const std::filesystem::path originalCurrentPath = std::filesystem::current_path();
     {
-        const TestSupport::ScopedCurrentPath temporaryCurrentPath(root);
+        TestSupport::ScopedCurrentPath temporaryCurrentPath(processState, root);
         static_cast<void>(context.expectTrue("ScopedCurrentPath construction succeeds", temporaryCurrentPath.status().ok()));
         static_cast<void>(context.expectEq("ScopedCurrentPath stores the previous path", originalCurrentPath, temporaryCurrentPath.previousPath()));
         static_cast<void>(context.expectEq("ScopedCurrentPath changes the process path", root, std::filesystem::current_path()));
+        static_cast<void>(context.expectTrue("Explicit current-path restoration succeeds", temporaryCurrentPath.restore().ok()));
+        static_cast<void>(
+            context.expectEq("Explicit current-path restoration restores the previous path", originalCurrentPath, std::filesystem::current_path()));
     }
     static_cast<void>(context.expectEq("ScopedCurrentPath restores the process path", originalCurrentPath, std::filesystem::current_path()));
+
+    {
+        TestSupport::ScopedProcessState conflictProcessState;
+        {
+            TestSupport::ScopedCurrentPath destructorOnly(conflictProcessState, root);
+            static_cast<void>(context.expectTrue("Destructor-only current-path conflict setup succeeds", destructorOnly.status().ok()));
+            std::error_code error;
+            std::filesystem::current_path(originalCurrentPath, error);
+            static_cast<void>(context.expectFalse("Destructor-only current-path conflict setup has no filesystem error", error.value() != 0));
+        }
+        static_cast<void>(context.expectEq(
+            "Destructor-only current-path restoration conflict is recorded",
+            TestSupport::Types::InfrastructureError::ProcessStateConflict,
+            conflictProcessState.restorationStatus().error));
+    }
 }
 
 /// @brief Verifies strict UTF-8 reads/writes, valid-prefix preservation, and preflight rejection.

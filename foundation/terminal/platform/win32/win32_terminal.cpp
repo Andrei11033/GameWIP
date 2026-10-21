@@ -42,11 +42,11 @@ namespace GameWIP::Terminal::Detail::Platform
 {
     namespace
     {
-        using ErrorCode = IO::Types::ErrorCode;
+        using IO::Types::ErrorCode;
         using InputStream = Terminal::Types::Input::Stream;
         using OutputStream = Terminal::Types::Output::Stream;
-        using ReadOutcome = Terminal::Types::Input::ReadOutcome;
-        using StreamKind = Terminal::Types::StreamKind;
+        using Terminal::Types::StreamKind;
+        using Terminal::Types::Input::ReadOutcome;
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
         namespace HookDetail = GameWIP::Terminal::Detail::TestHooks;
@@ -171,6 +171,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 {
                     CloseHandle(endpointIdentity);
                 }
+
                 if (cancellationEvent != nullptr && cancellationEvent != INVALID_HANDLE_VALUE)
                 {
                     CloseHandle(cancellationEvent);
@@ -249,13 +250,15 @@ namespace GameWIP::Terminal::Detail::Platform
         [[nodiscard]] auto compareObjectHandlesFunction() noexcept
         {
             using Function = BOOL(WINAPI *)(HANDLE, HANDLE);
-            static const Function function = []() noexcept -> Function
+            static const Function function = [] noexcept -> Function
             {
                 HMODULE module = GetModuleHandleW(L"kernelbase.dll");
+
                 if (module == nullptr)
                 {
                     module = GetModuleHandleW(L"kernel32.dll");
                 }
+
                 return GameWIP::Base::Win32::loadProcedure<Function>(module, "CompareObjectHandles");
             }();
             return function;
@@ -277,16 +280,20 @@ namespace GameWIP::Terminal::Detail::Platform
                 {
                     return EndpointRelation::Replaced;
                 }
+
                 return state.endpointIdentityStatus.ok() ? EndpointRelation::Same : EndpointRelation::ProbeRequired;
             }
+
             if (state.endpointIdentityState != InputState::EndpointIdentityState::Confirmed || !isUsableHandle(state.endpointIdentity))
             {
                 return EndpointRelation::ProbeRequired;
             }
+
             if (const auto compare = compareObjectHandlesFunction())
             {
                 return compare(state.endpointIdentity, currentHandle) != FALSE ? EndpointRelation::Same : EndpointRelation::Replaced;
             }
+
             return state.endpointHandleValue == currentHandle ? EndpointRelation::Same : EndpointRelation::Replaced;
         }
 
@@ -307,9 +314,11 @@ namespace GameWIP::Terminal::Detail::Platform
             if (isUsableHandle(currentHandle))
             {
                 HANDLE duplicate = nullptr;
+
                 if (DuplicateHandle(GetCurrentProcess(), currentHandle, GetCurrentProcess(), &duplicate, 0, FALSE, DUPLICATE_SAME_ACCESS) == FALSE)
                 {
                     const DWORD error = GetLastError();
+
                     if (state.endpointIdentityState != InputState::EndpointIdentityState::Confirmed)
                     {
                         state.endpointHandleValue = currentHandle;
@@ -317,6 +326,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     state.endpointIdentityStatus = IO::makeStatus(ErrorCode::NativeFailure, static_cast<std::int64_t>(error));
                     return false;
                 }
+
                 if (isUsableHandle(state.endpointIdentity))
                 {
                     CloseHandle(state.endpointIdentity);
@@ -350,6 +360,7 @@ namespace GameWIP::Terminal::Detail::Platform
             InputState &stdinState = inputStateStorage();
             const HANDLE currentHandle = inputHandle(stream);
             const EndpointRelation relation = inputEndpointRelation(stdinState, currentHandle);
+
             if (relation == EndpointRelation::Same)
             {
                 // A previously failed probe may have been for a replacement that is no longer
@@ -363,6 +374,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 stdinState.nextNativeRecord = 0;
                 stdinState.nativeRecordCount = 0;
             }
+
             return stdinState;
         }
 
@@ -378,6 +390,7 @@ namespace GameWIP::Terminal::Detail::Platform
         void releaseLargeConversionBuffer(OutputConversionState &state) noexcept
         {
             state.wideText.clear();
+
             if (state.wideText.capacity() > kRetainedConversionLimit)
             {
                 std::wstring{}.swap(state.wideText);
@@ -436,11 +449,13 @@ namespace GameWIP::Terminal::Detail::Platform
             for (const char character : text)
             {
                 const auto byte = static_cast<unsigned char>(character);
+
                 if (byte == '\r')
                 {
                     state.cursorRenderingPosition.column = 0;
                     continue;
                 }
+
                 if (byte == '\n')
                 {
                     ++state.cursorRenderingPosition.row;
@@ -457,6 +472,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
 
                 ++state.cursorRenderingPosition.column;
+
                 if (state.cursorRenderingPosition.column >= columns)
                 {
                     state.cursorRenderingPosition.column = 0;
@@ -475,6 +491,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             const std::uint32_t oldColumns = state.terminalSizeOverride.columns;
+
             if (oldColumns > 0)
             {
                 const std::uint64_t cursorLinear =
@@ -491,6 +508,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
             state.terminalSizeOverrideEnabled = true;
             state.terminalSizeOverride = size;
+
             if (state.cursorRenderingPosition.row >= state.cursorRenderingViewportOrigin.row + size.rows)
             {
                 state.cursorRenderingViewportOrigin.row = state.cursorRenderingPosition.row - size.rows + 1;
@@ -507,6 +525,7 @@ namespace GameWIP::Terminal::Detail::Platform
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
 
             HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+
             if (!state.inputBytesOverrideEnabled)
             {
                 return std::nullopt;
@@ -613,6 +632,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             const DWORD type = fileType(handle);
+
             if (type == FILE_TYPE_UNKNOWN && GetLastError() != ERROR_SUCCESS)
             {
                 return StreamKind::Detached;
@@ -634,6 +654,7 @@ namespace GameWIP::Terminal::Detail::Platform
         [[nodiscard]] bool outputVirtualTerminalEnabled(HANDLE handle) noexcept
         {
             DWORD mode = 0;
+
             if (GetConsoleMode(handle, &mode) == FALSE)
             {
                 return false;
@@ -659,6 +680,7 @@ namespace GameWIP::Terminal::Detail::Platform
         [[nodiscard]] IO::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
         {
             outText.clear();
+
             if (text.empty())
             {
                 return IO::successStatus();
@@ -667,6 +689,7 @@ namespace GameWIP::Terminal::Detail::Platform
             try
             {
                 const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
+
                 if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
                 {
                     return IO::makeStatus(
@@ -674,12 +697,14 @@ namespace GameWIP::Terminal::Detail::Platform
                         ERROR_INSUFFICIENT_BUFFER,
                         "Terminal UTF-8 to UTF-16 conversion exceeded the Unicode conversion size limit.");
                 }
+
                 if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION, "Terminal UTF-8 to UTF-16 conversion failed.");
                 }
                 std::vector<char16_t> converted(measurement.requiredCodeUnits);
                 const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
+
                 if (conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
                 {
                     return IO::makeStatus(
@@ -687,11 +712,13 @@ namespace GameWIP::Terminal::Detail::Platform
                         ERROR_INSUFFICIENT_BUFFER,
                         "Terminal UTF-8 to UTF-16 conversion exceeded the Unicode conversion size limit.");
                 }
+
                 if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION, "Terminal UTF-8 to UTF-16 conversion failed.");
                 }
                 outText.resize(conversion.codeUnitsWritten);
+
                 for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
                 {
                     outText[index] = static_cast<wchar_t>(converted[index]);
@@ -719,6 +746,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 const std::wstring_view remaining = text.substr(totalWritten);
                 const auto chunkCharacters = static_cast<DWORD>(std::min<std::size_t>(remaining.size(), std::numeric_limits<DWORD>::max()));
                 DWORD written = 0;
+
                 if (WriteConsoleW(handle, remaining.data(), chunkCharacters, &written, nullptr) == FALSE)
                 {
                     const DWORD error = GetLastError();
@@ -746,6 +774,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 const std::span remaining = bytes.subspan(totalWritten);
                 const auto chunkBytes = static_cast<DWORD>(std::min<std::size_t>(remaining.size(), std::numeric_limits<DWORD>::max()));
                 DWORD written = 0;
+
                 if (WriteFile(handle, remaining.data(), chunkBytes, &written, nullptr) == FALSE)
                 {
                     const DWORD error = GetLastError();
@@ -783,6 +812,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             const auto maxWait = static_cast<std::chrono::milliseconds::rep>(std::numeric_limits<DWORD>::max() - 1);
+
             if (timeout.count() > maxWait)
             {
                 return std::numeric_limits<DWORD>::max() - 1;
@@ -802,6 +832,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
+
             if (elapsed >= timeout)
             {
                 return std::chrono::milliseconds{0};
@@ -844,11 +875,13 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             state.cancellationEvent = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+
             if (state.cancellationEvent == nullptr)
             {
                 const DWORD error = GetLastError();
                 return statusFromWin32(ErrorCode::NativeFailure, error, "CreateEventW failed for terminal input cancellation.");
             }
+
             return IO::successStatus();
         }
 
@@ -865,9 +898,11 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             DWORD waitResult = WAIT_FAILED;
+
             if (stopToken.stop_possible())
             {
                 IO::Types::Status cancellationStatus = ensureCancellationEvent(state);
+
                 if (!cancellationStatus.ok())
                 {
                     return {.status = std::move(cancellationStatus), .outcome = ReadOutcome::Completed, .bytes = {}};
@@ -876,6 +911,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 bool forcedResetFailure = false;
 #if TERMINAL_INTERNAL_TEST_HOOKS
                 forcedResetFailure = HookDetail::consumeFailure(HookDetail::terminalTestHookState.nextCancellationResetFailure).has_value();
+
                 if (forcedResetFailure)
                 {
                     SetLastError(ERROR_GEN_FAILURE);
@@ -896,6 +932,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 const bool infinite = timeout.count() < 0;
                 const auto waitStart = std::chrono::steady_clock::now();
                 bool firstWait = true;
+
                 while (true)
                 {
                     if (stopToken.stop_requested())
@@ -904,9 +941,11 @@ namespace GameWIP::Terminal::Detail::Platform
                     }
 
                     DWORD nativeTimeout = static_cast<DWORD>(kCancellationObservationInterval.count());
+
                     if (!infinite)
                     {
                         const auto remaining = remainingTimeout(waitStart, timeout);
+
                         if (remaining.count() == 0)
                         {
                             if (!firstWait)
@@ -928,6 +967,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     consoleWaitCalls.fetch_add(1, std::memory_order_relaxed);
 #endif
                     waitResult = WaitForMultipleObjects(static_cast<DWORD>(handles.size()), handles.data(), FALSE, nativeTimeout);
+
                     if (waitResult == WAIT_FAILED)
                     {
                         const DWORD error = GetLastError();
@@ -936,22 +976,27 @@ namespace GameWIP::Terminal::Detail::Platform
                             .outcome = ReadOutcome::Completed,
                             .bytes = {}};
                     }
+
                     if (waitResult == WAIT_OBJECT_0 + 1)
                     {
                         return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
                     }
+
                     if (waitResult != WAIT_TIMEOUT)
                     {
                         break;
                     }
+
                     if (timeout.count() == 0)
                     {
                         return {.status = IO::successStatus(), .outcome = ReadOutcome::WouldBlock, .bytes = {}};
                     }
+
                     if (stopToken.stop_requested())
                     {
                         return {.status = IO::successStatus(), .outcome = ReadOutcome::Cancelled, .bytes = {}};
                     }
+
                     if (!infinite && remainingTimeout(waitStart, timeout).count() == 0)
                     {
                         return {
@@ -967,6 +1012,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 consoleWaitCalls.fetch_add(1, std::memory_order_relaxed);
 #endif
                 waitResult = WaitForSingleObject(handle, waitMilliseconds(timeout));
+
                 if (waitResult == WAIT_FAILED)
                 {
                     const DWORD error = GetLastError();
@@ -981,6 +1027,7 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 return {};
             }
+
             if (waitResult == WAIT_TIMEOUT)
             {
                 return {
@@ -1015,6 +1062,7 @@ namespace GameWIP::Terminal::Detail::Platform
             const std::stop_token &stopToken)
         {
             ReadChunk wait = waitForConsoleRecord(state, handle, timeout, stopToken);
+
             if (!wait.status.ok() || wait.outcome != ReadOutcome::Completed)
             {
                 return wait;
@@ -1026,6 +1074,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             DWORD recordsRead = 0;
+
             if (ReadConsoleInputW(handle, state.nativeRecords.data(), static_cast<DWORD>(state.nativeRecords.size()), &recordsRead) == FALSE)
             {
                 const DWORD error = GetLastError();
@@ -1049,11 +1098,13 @@ namespace GameWIP::Terminal::Detail::Platform
             result.status = IO::successStatus();
 
             InputState &state = inputState(stream);
+
             if (!state.endpointIdentityStatus.ok())
             {
                 result.status = state.endpointIdentityStatus;
                 return result;
             }
+
             if (std::optional<Terminal::Types::Event> pending = Win32Events::takePendingEvent(state.eventDecoder))
             {
                 result.event = std::move(*pending);
@@ -1074,6 +1125,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 if (state.nextNativeRecord >= state.nativeRecordCount)
                 {
                     const std::chrono::milliseconds timeout = remainingTimeout(start, requestedTimeout);
+
                     if (requestedTimeout.count() > 0 && timeout.count() == 0)
                     {
                         result.outcome = ReadOutcome::TimedOut;
@@ -1081,17 +1133,20 @@ namespace GameWIP::Terminal::Detail::Platform
                     }
 
                     ReadChunk filled = fillNativeConsoleRecords(state, inputHandle(stream), timeout, options.stopToken);
+
                     if (!filled.status.ok())
                     {
                         result.status = std::move(filled.status);
                         result.outcome = filled.outcome;
                         return result;
                     }
+
                     if (filled.outcome != ReadOutcome::Completed)
                     {
                         result.outcome = filled.outcome;
                         return result;
                     }
+
                     if (state.nativeRecordCount == 0)
                     {
                         continue;
@@ -1099,6 +1154,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
 
                 const INPUT_RECORD record = state.nativeRecords[state.nextNativeRecord++];
+
                 switch (record.EventType)
                 {
                 case KEY_EVENT:
@@ -1110,6 +1166,7 @@ namespace GameWIP::Terminal::Detail::Platform
                         result.status = std::move(decoded.status);
                         return result;
                     }
+
                     if (decoded.disposition == Win32Events::KeyDecodeDisposition::Produced)
                     {
                         result.event = std::move(decoded.event);
@@ -1128,6 +1185,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     }
 
                     const Terminal::Types::SizeResult size = getTerminalSize(*outputStream);
+
                     if (!size.status.ok())
                     {
                         result.status = size.status;
@@ -1188,6 +1246,7 @@ namespace GameWIP::Terminal::Detail::Platform
             case Terminal::Types::Events::NamedKey::Menu:
                 return {};
             }
+
             return {};
         }
 
@@ -1205,10 +1264,12 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             destination.reserve(destination.size() + bytes.size() * static_cast<std::size_t>(count));
+
             for (std::uint32_t index = 0; index < count; ++index)
             {
                 destination.append(bytes);
             }
+
             return IO::successStatus();
         }
 
@@ -1223,12 +1284,15 @@ namespace GameWIP::Terminal::Detail::Platform
             chunk.status = IO::successStatus();
 
             const auto start = std::chrono::steady_clock::now();
+
             while (true)
             {
                 Terminal::Types::Input::EventOptions eventOptions;
+
                 if (timeout.count() >= 0)
                 {
                     const std::chrono::milliseconds remaining = remainingTimeout(start, timeout);
+
                     if (timeout.count() > 0 && remaining.count() == 0)
                     {
                         chunk.outcome = ReadOutcome::TimedOut;
@@ -1239,12 +1303,14 @@ namespace GameWIP::Terminal::Detail::Platform
                 eventOptions.stopToken = stopToken;
 
                 Terminal::Types::Input::EventResult eventResult = readConsoleEvent(stream, std::nullopt, eventOptions);
+
                 if (!eventResult.status.ok())
                 {
                     chunk.status = std::move(eventResult.status);
                     chunk.outcome = eventResult.outcome;
                     return chunk;
                 }
+
                 if (eventResult.outcome != ReadOutcome::Completed || !eventResult.event.has_value())
                 {
                     chunk.outcome = eventResult.outcome;
@@ -1252,6 +1318,7 @@ namespace GameWIP::Terminal::Detail::Platform
                 }
 
                 const Terminal::Types::Events::Key *keyEvent = eventResult.event->getIf<Terminal::Types::Events::Key>();
+
                 if (keyEvent == nullptr || keyEvent->action == Terminal::Types::Events::KeyAction::Release)
                 {
                     continue;
@@ -1281,6 +1348,7 @@ namespace GameWIP::Terminal::Detail::Platform
                     else
                     {
                         const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(character->value);
+
                         if (encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
                         {
                             chunk.status = IO::makeStatus(ErrorCode::EncodingFailed);
@@ -1328,9 +1396,11 @@ namespace GameWIP::Terminal::Detail::Platform
             std::size_t requestedBytesHint)
         {
             const DWORD type = fileType(handle);
+
             if (type == FILE_TYPE_PIPE && (timeout.count() >= 0 || stopToken.stop_possible()))
             {
                 const auto start = std::chrono::steady_clock::now();
+
                 while (true)
                 {
                     if (stopToken.stop_requested())
@@ -1340,6 +1410,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
                     DWORD availableBytes = 0;
                     DWORD error = ERROR_SUCCESS;
+
                     if (!peekPipeBytes(handle, availableBytes, error))
                     {
                         if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF)
@@ -1376,9 +1447,11 @@ namespace GameWIP::Terminal::Detail::Platform
             std::array<char, 4096> byteBuffer{};
 
             DWORD bytesRead = 0;
+
             if (ReadFile(handle, byteBuffer.data(), static_cast<DWORD>(requestedBytes), &bytesRead, nullptr) == FALSE)
             {
                 const DWORD error = GetLastError();
+
                 if (error == ERROR_BROKEN_PIPE || error == ERROR_HANDLE_EOF)
                 {
                     return {.status = IO::successStatus(), .outcome = ReadOutcome::EndOfStream, .bytes = {}};
@@ -1404,6 +1477,7 @@ namespace GameWIP::Terminal::Detail::Platform
             {
                 chunk.status = IO::makeStatus(ErrorCode::OutOfMemory);
             }
+
             return chunk;
         }
 
@@ -1435,6 +1509,7 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
             const HANDLE handle = inputHandle(stream);
+
             if (!isUsableHandle(handle))
             {
                 return {
@@ -1473,11 +1548,13 @@ namespace GameWIP::Terminal::Detail::Platform
                     result.incomplete = true;
                     return result;
                 }
+
                 if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     result.valid = false;
                     return result;
                 }
+
                 if (decoded.bytesConsumed > maxBytes - std::min(maxBytes, result.bytes))
                 {
                     result.stoppedByMax = true;
@@ -1542,6 +1619,7 @@ namespace GameWIP::Terminal::Detail::Platform
         [[nodiscard]] IO::Types::Status copyTruncatedUtf8Prefix(std::string &outText, PendingInputBuffer &pendingBytes, std::size_t maxBytes)
         {
             const Utf8Prefix prefix = utf8Prefix(pendingBytes.view(), maxBytes);
+
             if (!prefix.valid)
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal input is not valid UTF-8.");
@@ -1574,6 +1652,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
             std::string line(pendingBytes.data(), ending.offset);
             std::size_t returnedLineEndingBytes = 0;
+
             switch (lineEndingMode)
             {
             case Terminal::Types::Input::LineEndingMode::Strip:
@@ -1658,6 +1737,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+
             if (state.capabilitiesOverrideEnabled)
             {
                 result.capabilities = state.capabilitiesOverride;
@@ -1696,12 +1776,14 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         const DWORD type = fileType(handle);
+
         if (type == FILE_TYPE_PIPE)
         {
             result.capabilities.supportsNonBlockingReads = true;
             result.capabilities.supportsFiniteTimeouts = true;
             result.capabilities.supportsCancellation = true;
         }
+
         return result;
     }
 
@@ -1721,6 +1803,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.capabilitiesOverrideEnabled)
             {
                 result.capabilities =
@@ -1774,6 +1857,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.capabilitiesOverrideEnabled)
             {
                 if (state.capabilitiesOverride.kind == StreamKind::Detached)
@@ -1791,15 +1875,18 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
         Terminal::Types::Output::CapabilitiesResult result = getOutputCapabilities(stream);
+
         if (!result.status.ok())
         {
             return result;
         }
+
         if (result.capabilities.kind == StreamKind::Detached)
         {
             result.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
             return result;
         }
+
         if (result.capabilities.kind != StreamKind::Terminal || outputVirtualTerminalEnabled(outputHandle(stream)))
         {
             return result;
@@ -1807,6 +1894,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
         const HANDLE handle = outputHandle(stream);
         DWORD mode = 0;
+
         if (GetConsoleMode(handle, &mode) == FALSE)
         {
             const DWORD error = GetLastError();
@@ -1835,6 +1923,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal cursor movement exceeds the Win32 VT parameter limit.");
         }
+
         return IO::successStatus();
     }
 
@@ -1844,6 +1933,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal cursor position exceeds the Win32 VT coordinate limit.");
         }
+
         return IO::successStatus();
     }
 
@@ -1853,6 +1943,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal scroll amount exceeds the Win32 VT parameter limit.");
         }
+
         return IO::successStatus();
     }
 
@@ -1862,6 +1953,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Terminal title exceeds the Win32 VT title limit.");
         }
+
         return IO::successStatus();
     }
 
@@ -1880,6 +1972,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+
             if (state.inputModeOverrideEnabled)
             {
                 result.status = IO::successStatus();
@@ -1911,6 +2004,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         DWORD mode = 0;
+
         if (GetConsoleMode(handle, &mode) == FALSE)
         {
             const DWORD error = GetLastError();
@@ -1942,6 +2036,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+
             if (state.inputModeOverrideEnabled)
             {
                 state.lineBuffered = mode.lineBuffered;
@@ -1956,6 +2051,7 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
         const HANDLE handle = inputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached.");
@@ -1967,6 +2063,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         DWORD consoleMode = 0;
+
         if (GetConsoleMode(handle, &consoleMode) == FALSE)
         {
             const DWORD error = GetLastError();
@@ -2021,6 +2118,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+
             if (state.inputModeOverrideEnabled)
             {
                 state.lineBuffered = snapshot.mode.lineBuffered;
@@ -2035,6 +2133,7 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
         const HANDLE handle = inputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached.");
@@ -2078,6 +2177,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.terminalSizeOverrideEnabled)
             {
                 result.status = IO::successStatus();
@@ -2102,6 +2202,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         CONSOLE_SCREEN_BUFFER_INFO info{};
+
         if (GetConsoleScreenBufferInfo(handle, &info) == FALSE)
         {
             const DWORD error = GetLastError();
@@ -2133,6 +2234,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.cursorRenderingSimulationEnabled)
             {
                 result.status = IO::successStatus();
@@ -2144,6 +2246,7 @@ namespace GameWIP::Terminal::Detail::Platform
                                           : 0;
                 return result;
             }
+
             if (state.cursorPositionOverrideEnabled)
             {
                 result.status = IO::successStatus();
@@ -2168,6 +2271,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         CONSOLE_SCREEN_BUFFER_INFO info{};
+
         if (GetConsoleScreenBufferInfo(handle, &info) == FALSE)
         {
             const DWORD error = GetLastError();
@@ -2199,12 +2303,14 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.cursorRenderingSimulationEnabled)
             {
                 result.status = IO::successStatus();
                 result.position = state.cursorRenderingPosition;
                 return result;
             }
+
             if (state.cursorPositionOverrideEnabled)
             {
                 result.status = IO::successStatus();
@@ -2215,11 +2321,13 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
         const HANDLE handle = outputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             result.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
             return result;
         }
+
         if (!isConsoleHandle(handle))
         {
             result.status = IO::makeStatus(ErrorCode::Unsupported, 0, "Managed line rendering requires a real console output stream.");
@@ -2227,6 +2335,7 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         CONSOLE_SCREEN_BUFFER_INFO info{};
+
         if (GetConsoleScreenBufferInfo(handle, &info) == FALSE)
         {
             const DWORD error = GetLastError();
@@ -2246,16 +2355,19 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.cursorRenderingSimulationEnabled)
             {
                 state.cursorRenderingPosition = position;
                 state.cursorRenderingSetHistory.push_back(position);
+
                 if (state.terminalSizeOverride.rows > 0 &&
                     state.cursorRenderingPosition.row >= state.cursorRenderingViewportOrigin.row + state.terminalSizeOverride.rows)
                 {
                     state.cursorRenderingViewportOrigin.row = state.cursorRenderingPosition.row - state.terminalSizeOverride.rows + 1;
                     state.cursorRenderingViewportOrigin.column = 0;
                 }
+
                 return IO::successStatus();
             }
         }
@@ -2268,21 +2380,25 @@ namespace GameWIP::Terminal::Detail::Platform
         }
 
         const HANDLE handle = outputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
         }
+
         if (!isConsoleHandle(handle))
         {
             return IO::makeStatus(ErrorCode::Unsupported, 0, "Managed line rendering requires a real console output stream.");
         }
 
         const COORD nativePosition{static_cast<SHORT>(position.column), static_cast<SHORT>(position.row)};
+
         if (SetConsoleCursorPosition(handle, nativePosition) == FALSE)
         {
             const DWORD error = GetLastError();
             return statusFromWin32(ErrorCode::NativeFailure, error, "SetConsoleCursorPosition failed for managed line rendering.");
         }
+
         return IO::successStatus();
     }
 
@@ -2314,17 +2430,20 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             HookDetail::InputHookState &state = HookDetail::terminalTestHookState.inputStreams[HookDetail::inputIndex(stream)];
+
             if (state.inputEventsOverrideEnabled)
             {
                 if (state.nextInputEvent < state.inputEvents.size())
                 {
                     result.event = state.inputEvents[state.nextInputEvent++];
+
                     if (const auto *resize = result.event->getIf<Terminal::Types::Events::Resize>())
                     {
                         HookDetail::OutputHookState &outputState =
                             HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(outputStream)];
                         resizeCursorRenderingSimulation(outputState, resize->size);
                     }
+
                     return result;
                 }
 
@@ -2336,17 +2455,20 @@ namespace GameWIP::Terminal::Detail::Platform
                 {
                     result.outcome = options.timeout.has_value() && options.timeout->count() > 0 ? ReadOutcome::TimedOut : ReadOutcome::WouldBlock;
                 }
+
                 return result;
             }
         }
 #endif
 
         const HANDLE handle = inputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             result.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal input stream is detached.");
             return result;
         }
+
         if (!isConsoleHandle(handle))
         {
             result.status = IO::makeStatus(ErrorCode::Unsupported, 0, "Structured event input requires a real Win32 console input stream.");
@@ -2371,6 +2493,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
         const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
+
         if (!state.endpointIdentityStatus.ok())
         {
             result.status = state.endpointIdentityStatus;
@@ -2400,6 +2523,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             const std::chrono::milliseconds timeout = remainingTimeout(start, requestedTimeout);
+
             if (requestedTimeout.count() > 0 && timeout.count() == 0)
             {
                 result.outcome = ReadOutcome::TimedOut;
@@ -2407,6 +2531,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             ReadChunk chunk = readInputChunk(stream, timeout, options.stopToken, outputBuffer.size() - result.bytesRead);
+
             if (!chunk.status.ok())
             {
                 result.status = chunk.status;
@@ -2440,6 +2565,7 @@ namespace GameWIP::Terminal::Detail::Platform
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
         const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
+
         if (!state.endpointIdentityStatus.ok())
         {
             result.status = state.endpointIdentityStatus;
@@ -2452,6 +2578,7 @@ namespace GameWIP::Terminal::Detail::Platform
             if (!state.pendingBytes.empty())
             {
                 const Utf8Prefix prefix = utf8Prefix(state.pendingBytes.view(), maxBytes);
+
                 if (!prefix.valid)
                 {
                     result.status = IO::makeStatus(ErrorCode::EncodingFailed, 0, "Terminal input is not valid UTF-8.");
@@ -2477,6 +2604,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             const std::chrono::milliseconds timeout = remainingTimeout(start, requestedTimeout);
+
             if (requestedTimeout.count() > 0 && timeout.count() == 0)
             {
                 result.outcome = ReadOutcome::TimedOut;
@@ -2485,6 +2613,7 @@ namespace GameWIP::Terminal::Detail::Platform
 
             const std::size_t requestBytes = maxBytes >= 4096 ? 4096 : std::min<std::size_t>(maxBytes + std::min<std::size_t>(4, maxBytes), 4096);
             ReadChunk chunk = readInputChunk(stream, timeout, options.stopToken, requestBytes);
+
             if (!chunk.status.ok())
             {
                 result.status = chunk.status;
@@ -2523,6 +2652,7 @@ namespace GameWIP::Terminal::Detail::Platform
         const std::size_t maxBytes = clampedMaxBytes(options.maxReturnedBytes);
         const std::chrono::milliseconds requestedTimeout = backendTimeout(options.timeout);
         InputState &state = inputState(stream);
+
         if (!state.endpointIdentityStatus.ok())
         {
             result.status = state.endpointIdentityStatus;
@@ -2535,6 +2665,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             const std::string_view pending = state.pendingBytes.view();
             LineEndingMatch ending = findLineEnding(pending, scanOffset, false);
+
             if (ending.found)
             {
                 completeLineFromPending(result, state.pendingBytes, ending, options.lineEndingMode, maxBytes);
@@ -2551,9 +2682,11 @@ namespace GameWIP::Terminal::Detail::Platform
             scanOffset = !pending.empty() && pending.back() == '\r' ? pending.size() - 1 : pending.size();
 
             const std::chrono::milliseconds timeout = remainingTimeout(start, requestedTimeout);
+
             if (requestedTimeout.count() > 0 && timeout.count() == 0)
             {
                 ending = findLineEnding(state.pendingBytes.view(), scanOffset, true);
+
                 if (ending.found)
                 {
                     completeLineFromPending(result, state.pendingBytes, ending, options.lineEndingMode, maxBytes);
@@ -2577,6 +2710,7 @@ namespace GameWIP::Terminal::Detail::Platform
             }
 
             ReadChunk chunk = readInputChunk(stream, timeout, options.stopToken, 4096);
+
             if (!chunk.status.ok())
             {
                 result.status = chunk.status;
@@ -2587,6 +2721,7 @@ namespace GameWIP::Terminal::Detail::Platform
             if (chunk.bytes.empty())
             {
                 ending = findLineEnding(state.pendingBytes.view(), scanOffset, true);
+
                 if (ending.found)
                 {
                     completeLineFromPending(result, state.pendingBytes, ending, options.lineEndingMode, maxBytes);
@@ -2631,6 +2766,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.captureEnabled || state.cursorRenderingSimulationEnabled)
             {
                 if (state.captureEnabled)
@@ -2644,6 +2780,7 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
         const HANDLE handle = outputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
@@ -2653,6 +2790,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             OutputConversionState &state = outputConversionState(stream);
             IO::Types::Status status = utf8ToWide(utf8Text, state.wideText);
+
             if (!status.ok())
             {
                 releaseLargeConversionBuffer(state);
@@ -2679,6 +2817,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.captureEnabled)
             {
                 appendCapturedOutput(stream, bytes);
@@ -2688,6 +2827,7 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
         const HANDLE handle = outputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached."), .bytesWritten = 0};
@@ -2709,6 +2849,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             return IO::makeStatus(ErrorCode::InvalidArgument, 0, "Unknown IO flush mode.");
         }
+
         if (mode == IO::Types::FlushMode::None)
         {
             return IO::successStatus();
@@ -2724,6 +2865,7 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             std::lock_guard lock(HookDetail::terminalTestHookState.mutex);
             const HookDetail::OutputHookState &state = HookDetail::terminalTestHookState.outputStreams[HookDetail::outputIndex(stream)];
+
             if (state.captureEnabled)
             {
                 return IO::successStatus();
@@ -2732,6 +2874,7 @@ namespace GameWIP::Terminal::Detail::Platform
 #endif
 
         const HANDLE handle = outputHandle(stream);
+
         if (!isUsableHandle(handle))
         {
             return IO::makeStatus(ErrorCode::NotOpen, 0, "Terminal output stream is detached.");
@@ -2770,10 +2913,12 @@ namespace GameWIP::Terminal::Detail::Platform
         {
             consoleWaitCalls.store(0, std::memory_order_relaxed);
             InputState &state = inputStateStorage();
+
             if (state.endpointIdentity != nullptr && state.endpointIdentity != INVALID_HANDLE_VALUE)
             {
                 CloseHandle(state.endpointIdentity);
             }
+
             if (state.cancellationEvent != nullptr && state.cancellationEvent != INVALID_HANDLE_VALUE)
             {
                 CloseHandle(state.cancellationEvent);
@@ -2802,6 +2947,7 @@ namespace GameWIP::Terminal::Detail::Platform
         Win32ConsoleWaitResult waitForConsoleRecordForTest(std::chrono::milliseconds timeout, const std::stop_token &stopToken)
         {
             HANDLE syntheticInput = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+
             if (syntheticInput == nullptr)
             {
                 return {

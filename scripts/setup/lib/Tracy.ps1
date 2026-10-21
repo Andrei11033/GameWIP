@@ -13,19 +13,23 @@ Set-StrictMode -Version Latest
 function Get-GameWipTracySourcePath
 {
     $status = @(Get-GameWipDependencyCacheStatus | Where-Object Id -eq 'tracy')
+
     if ($status.Count -ne 1)
     {
         throw "The Tracy dependency is not declared in scripts/config/dependencies.json."
     }
+
     if (-not $status[0].Ready)
     {
         throw "The locked Tracy source is not ready at $($status[0].SourcePath). Run 'setup.bat deps' first."
     }
     $sourcePath = [IO.Path]::GetFullPath([string]$status[0].SourcePath)
+
     if (-not (Test-Path -LiteralPath (Join-Path $sourcePath 'CMakeLists.txt') -PathType Leaf))
     {
         throw "The cached Tracy source is incomplete: $sourcePath"
     }
+
     return $sourcePath
 }
 
@@ -34,6 +38,7 @@ function Get-GameWipTracyVersion
     $tracyRoot = Get-GameWipTracySourcePath
 
     $header = Join-Path $tracyRoot 'public\common\TracyVersion.hpp'
+
     if (-not (Test-Path -LiteralPath $header))
     {
         throw "The cached Tracy source is missing its version header: $header"
@@ -43,12 +48,14 @@ function Get-GameWipTracyVersion
     $parts = foreach ($name in @('Major', 'Minor', 'Patch'))
     {
         $match = [regex]::Match($text, "(?m)^\s*constexpr\s+int\s+$name\s*=\s*(\d+)\s*;")
+
         if (-not $match.Success)
         {
             throw "Could not read Tracy $name version from $header."
         }
         $match.Groups[1].Value
     }
+
     return $parts -join '.'
 }
 
@@ -85,20 +92,24 @@ function Test-GameWipTracyToolSet
     }
 
     $versionFile = Join-Path $ToolRoot 'version.txt'
+
     if (-not (Test-Path -LiteralPath $versionFile))
     {
         # Executable presence alone cannot prove that the tools match the
         # locked client. Rebuild once to establish a trustworthy marker.
         return $false
     }
+
     try
     {
         $expected = "source-$(Get-GameWipTracyVersion)"
     }
+
     catch
     {
         return $false
     }
+
     return (Get-Content -LiteralPath $versionFile -Raw).Trim() -eq $expected
 }
 
@@ -113,6 +124,7 @@ function Copy-GameWipTracyRuntimeDependency
 
     $objdump = Join-Path $UcrtBin 'objdump.exe'
     $pending = [System.Collections.Generic.Queue[string]]::new()
+
     if ($null -eq $Visited)
     {
         $Visited = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -121,20 +133,24 @@ function Copy-GameWipTracyRuntimeDependency
     $inspected = 0
     Write-Host "  Inspecting runtime dependency closure: $([IO.Path]::GetFileName($Executable))"
     $pending.Enqueue($Executable)
+
     while ($pending.Count -ne 0)
     {
         $binary = $pending.Dequeue()
         $inspection = Invoke-GameWipProcess -FilePath $objdump -Arguments @('-p', $binary) -OutputMode LogOnly -TimeoutSeconds 30
         ++$inspected
+
         if ($inspectionClock.Elapsed.TotalSeconds -ge 15)
         {
             Write-GameWipHost "  Runtime dependency inspection is still running ($inspected inspected, $($pending.Count) queued)..." -ForegroundColor DarkGray
             $inspectionClock.Restart()
         }
+
         if ($inspection.ExitCode -ne 0)
         {
             throw "Could not inspect runtime dependencies for $binary (exit $($inspection.ExitCode))."
         }
+
         foreach ($line in @($inspection.Stdout))
         {
             if ($line -notmatch '^\s*DLL Name:\s*(.+?)\s*$')
@@ -142,16 +158,19 @@ function Copy-GameWipTracyRuntimeDependency
                 continue
             }
             $dllName = $Matches[1]
+
             if (-not $Visited.Add($dllName))
             {
                 continue
             }
             $ucrtDll = Join-Path $UcrtBin $dllName
+
             if (-not (Test-Path -LiteralPath $ucrtDll))
             {
                 continue
             }
             $stagedDll = Join-Path $StageRoot $dllName
+
             if (-not (Test-Path -LiteralPath $stagedDll))
             {
                 Copy-Item -LiteralPath $ucrtDll -Destination $stagedDll
@@ -182,6 +201,7 @@ function Write-GameWipTracyCompilerCompatibilityHeader
 inline void* memmem(const void* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize)
 {
     auto remaining = std::ptrdiff_t(haystackSize) - std::ptrdiff_t(needleSize);
+
     while (remaining >= 0)
     {
         if (std::memcmp(haystack, needle, needleSize) == 0)
@@ -191,6 +211,7 @@ inline void* memmem(const void* haystack, std::size_t haystackSize, const char* 
         haystack = static_cast<const char*>(haystack) + 1;
         --remaining;
     }
+
     return nullptr;
 }
 #endif
@@ -207,6 +228,7 @@ function Invoke-GameWipTracyToolBuild
     )
 
     $version = Get-GameWipTracyVersion
+
     if (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot)
     {
         Write-Host "  Ready: complete Tracy tool set for locked client $version"
@@ -215,6 +237,7 @@ function Invoke-GameWipTracyToolBuild
 
     $ucrtBin = Join-Path $MsysRoot 'ucrt64\bin'
     $cmake = Join-Path $ucrtBin 'cmake.exe'
+
     if (-not (Test-Path -LiteralPath $cmake))
     {
         throw "UCRT64 CMake is required to build Tracy tools: $cmake"
@@ -226,6 +249,7 @@ function Invoke-GameWipTracyToolBuild
         (Join-Path $ucrtBin 'ninja.exe'),
         (Join-Path $ucrtBin 'objdump.exe')
     )
+
     foreach ($compiler in $compilers)
     {
         if (-not (Test-Path -LiteralPath $compiler))
@@ -268,6 +292,7 @@ function Invoke-GameWipTracyToolBuild
     $previousGitConfigCount = $env:GIT_CONFIG_COUNT
     $previousGitConfigKey = $env:GIT_CONFIG_KEY_0
     $previousGitConfigValue = $env:GIT_CONFIG_VALUE_0
+
     try
     {
         # Configure and build each locked Tracy project in dependency order.
@@ -278,11 +303,13 @@ function Invoke-GameWipTracyToolBuild
         $env:GIT_CONFIG_VALUE_0 = $tracyRoot.Replace('\', '/')
         $cmakeUcrtBin = $ucrtBin.Replace('\', '/')
         $cmakeCompilerCompatibilityHeader = $compilerCompatibilityHeader.Replace('\', '/')
+
         foreach ($project in $projects)
         {
             Write-Host "Building Tracy $($project.Name) $version from the locked dependency source..."
             $source = Join-Path $tracyRoot $project.Source
             $build = Join-Path $buildRoot $project.Name
+
             if (Test-Path -LiteralPath $build)
             {
                 Invoke-GameWipOwnedTreeRemoval -Path $build -OwnedRoot $buildRoot
@@ -309,6 +336,7 @@ function Invoke-GameWipTracyToolBuild
                 $ninjaText = Get-Content -LiteralPath $ninjaFile.FullName -Raw
                 $updatedNinjaText = $ninjaText.Replace('-flto=auto', '')
                 $updatedNinjaText = $updatedNinjaText.Replace('-fno-fat-lto-objects', '')
+
                 if ($updatedNinjaText -ne $ninjaText)
                 {
                     [IO.File]::WriteAllText(
@@ -326,6 +354,7 @@ function Invoke-GameWipTracyToolBuild
             {
                 $built = Get-ChildItem -LiteralPath $build -Recurse -Filter $output |
                     Select-Object -First 1
+
                 if (-not $built)
                 {
                     throw "Tracy $($project.Name) build did not produce $output."
@@ -339,6 +368,7 @@ function Invoke-GameWipTracyToolBuild
             }
         }
     }
+
     finally
     {
         $env:CPM_SOURCE_CACHE = $previousCache
@@ -360,18 +390,22 @@ function Invoke-GameWipTracyToolBuild
     New-Item -ItemType Directory -Path $destinationParent -Force | Out-Null
     $incoming = Join-Path $destinationParent ('.tracy.{0}.incoming' -f [guid]::NewGuid().ToString('N'))
     $backup = $null
+
     try
     {
         New-Item -ItemType Directory -Path $incoming | Out-Null
+
         foreach ($file in Get-ChildItem -LiteralPath $stageRoot -File)
         {
             Copy-Item -LiteralPath $file.FullName -Destination $incoming -Force
         }
         Write-GameWipTextAtomic -Path (Join-Path $incoming 'version.txt') -Content "source-$version`n"
+
         if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot -ToolRoot $incoming))
         {
             throw 'The staged Tracy tool set failed final verification. Existing managed tools were not replaced.'
         }
+
         if (Test-Path -LiteralPath $destination)
         {
             $backup = Join-Path $destinationParent ('.tracy.{0}.backup' -f [guid]::NewGuid().ToString('N'))
@@ -382,11 +416,13 @@ function Invoke-GameWipTracyToolBuild
         {
             Set-GameWipMutationStarted
         }
+
         try
         {
             Move-Item -LiteralPath $incoming -Destination $destination
             $incoming = $null
         }
+
         catch
         {
             if ($null -ne $backup -and (Test-Path -LiteralPath $backup) -and -not (Test-Path -LiteralPath $destination))
@@ -398,6 +434,7 @@ function Invoke-GameWipTracyToolBuild
         }
         Add-GameWipOperationChange -Message "Installed verified Tracy tools for locked client $version."
     }
+
     finally
     {
         if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
@@ -431,6 +468,7 @@ function Invoke-GameWipTracyToolBuild
         Invoke-GameWipOwnedTreeRemoval -Path $backup -OwnedRoot $destinationParent
         $backup = $null
     }
+
     foreach ($file in Get-ChildItem -LiteralPath $destination -File)
     {
         Write-Host "  Installed: $($file.FullName)"

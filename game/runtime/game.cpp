@@ -39,6 +39,7 @@ namespace
     [[nodiscard]] constexpr std::string_view colorSpaceName(GameWIP::Desktop::Types::Display::ColorSpace colorSpace) noexcept
     {
         using GameWIP::Desktop::Types::Display::ColorSpace;
+
         switch (colorSpace)
         {
         case ColorSpace::Srgb:
@@ -61,18 +62,20 @@ namespace
         return GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
     }
 
-    [[nodiscard]] GameWIP::Desktop::Types::Display::MonitorsResult inspectDisplays()
+    [[nodiscard]] GameWIP::Desktop::Types::Result<std::vector<GameWIP::Desktop::Types::Display::Info>> inspectDisplays()
     {
-        GameWIP::Desktop::Types::Display::MonitorsResult monitors;
+        GameWIP::Desktop::Types::Result<std::vector<GameWIP::Desktop::Types::Display::Info>> monitors;
         {
 #if GAMEWIP_TRACY_ENABLED
             ZoneScopedNC("Enumerate displays, display modes, and HDR state", ProfileZoneColor::Initialization);
 #endif
             monitors = GameWIP::Desktop::Display::getMonitors();
-            if (monitors.status.ok())
+
+            if (monitors.ok())
             {
-                GameWIP::Logger::info("Startup", "Enumerated {} connected display(s)", monitors.monitors.size());
-                for (const GameWIP::Desktop::Types::Display::Info &monitor : monitors.monitors)
+                GameWIP::Logger::info("Startup", "Enumerated {} connected display(s)", monitors->size());
+
+                for (const GameWIP::Desktop::Types::Display::Info &monitor : *monitors)
                 {
                     const auto activeMode = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
                     const auto supportedModes = GameWIP::Desktop::Display::getModes(monitor.id);
@@ -81,64 +84,76 @@ namespace
                     std::string displayReport;
                     std::format_to(
                         std::back_inserter(displayReport),
-                        "Display '{}'{} at ({}, {}) has {} supported mode(s)",
+                        "Display '{}'{} at ({}, {})",
                         monitor.name,
                         monitor.primary ? " [primary]" : "",
                         monitor.bounds.position.x,
-                        monitor.bounds.position.y,
-                        supportedModes.modes.size());
+                        monitor.bounds.position.y);
 
-                    if (activeMode.status.ok())
+                    if (supportedModes.ok())
+                    {
+                        std::format_to(std::back_inserter(displayReport), " has {} supported mode(s)", supportedModes->size());
+                    }
+                    else
+                    {
+                        std::format_to(std::back_inserter(displayReport), "\n  mode query failed: {}", supportedModes.status.message);
+                    }
+
+                    if (activeMode.ok())
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
                             "\n  active: {}x{} @ {}.{:03} Hz, {} bpp{}",
-                            activeMode.mode.resolution.width,
-                            activeMode.mode.resolution.height,
-                            activeMode.mode.refreshRateMillihertz / 1000,
-                            activeMode.mode.refreshRateMillihertz % 1000,
-                            activeMode.mode.bitsPerPixel,
-                            activeMode.mode.interlaced ? ", interlaced" : "");
+                            activeMode->resolution.width,
+                            activeMode->resolution.height,
+                            activeMode->refreshRateMillihertz / 1000,
+                            activeMode->refreshRateMillihertz % 1000,
+                            activeMode->bitsPerPixel,
+                            activeMode->interlaced ? ", interlaced" : "");
                     }
 
-                    if (colorInfo.status.ok())
+                    if (colorInfo.ok())
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
                             "\n  color: {}, HDR supported={}, HDR enabled={}, WCG supported={}, {} bits/channel, "
                             "luminance min/peak/full-frame={:.3f}/{:.1f}/{:.1f} nits, SDR white={:.1f} nits",
-                            colorSpaceName(colorInfo.info.activeColorSpace),
-                            colorInfo.info.hdrSupported,
-                            colorInfo.info.hdrEnabled,
-                            colorInfo.info.wideColorGamutSupported,
-                            colorInfo.info.bitsPerColorChannel,
-                            colorInfo.info.minimumLuminanceNits,
-                            colorInfo.info.maximumLuminanceNits,
-                            colorInfo.info.maximumFullFrameLuminanceNits,
-                            colorInfo.info.sdrWhiteLevelNits);
+                            colorSpaceName(colorInfo->activeColorSpace),
+                            colorInfo->hdrSupported,
+                            colorInfo->hdrEnabled,
+                            colorInfo->wideColorGamutSupported,
+                            colorInfo->bitsPerColorChannel.value_or(0),
+                            colorInfo->minimumLuminanceNits.value_or(0.0F),
+                            colorInfo->maximumLuminanceNits.value_or(0.0F),
+                            colorInfo->maximumFullFrameLuminanceNits.value_or(0.0F),
+                            colorInfo->sdrWhiteLevelNits.value_or(0.0F));
                     }
                     else
                     {
                         std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
 
-                    for (const auto &mode : supportedModes.modes)
+                    if (supportedModes.ok())
                     {
-                        std::format_to(
-                            std::back_inserter(displayReport),
-                            "\n  mode: {}x{} @ {}.{:03} Hz, {} bpp{}",
-                            mode.resolution.width,
-                            mode.resolution.height,
-                            mode.refreshRateMillihertz / 1000,
-                            mode.refreshRateMillihertz % 1000,
-                            mode.bitsPerPixel,
-                            mode.interlaced ? ", interlaced" : "");
+                        for (const auto &mode : *supportedModes)
+                        {
+                            std::format_to(
+                                std::back_inserter(displayReport),
+                                "\n  mode: {}x{} @ {}.{:03} Hz, {} bpp{}",
+                                mode.resolution.width,
+                                mode.resolution.height,
+                                mode.refreshRateMillihertz / 1000,
+                                mode.refreshRateMillihertz % 1000,
+                                mode.bitsPerPixel,
+                                mode.interlaced ? ", interlaced" : "");
+                        }
                     }
 
                     GameWIP::Logger::info("Startup", "{}", displayReport);
                 }
             }
         }
+
         return monitors;
     }
 
@@ -146,16 +161,16 @@ namespace
     {
         GameWIP::Desktop::Types::Description description;
         description.title = "GameWIP borderless fullscreen (Alt+F4 to exit)";
-        description.mode.mode = GameWIP::Desktop::Types::Mode::BorderlessFullscreen;
-        description.visible = true;
-        description.requestFocus = true;
+        description.initialWindowMode = GameWIP::Desktop::Types::WindowModes::borderlessFullscreen();
+        description.activation.visible = true;
+        description.activation.requestFocus = true;
         return description;
     }
 
     [[nodiscard]] GameWIP::IO::Types::Status openRuntimeWindow(GameWIP::Desktop::Window &window)
     {
 #if GAMEWIP_TRACY_ENABLED
-        ZoneScopedNC("Open borderless-fullscreen window", ProfileZoneColor::Initialization);
+        ZoneScopedNC("Open borderless fullscreen window", ProfileZoneColor::Initialization);
 #endif
         return window.open(runtimeWindowDescription());
     }
@@ -174,6 +189,7 @@ namespace
 #endif
                 events = GameWIP::Desktop::Events::wait(std::chrono::milliseconds(16));
             }
+
             if (!events.status.ok())
             {
 #if GAMEWIP_TRACY_ENABLED
@@ -192,19 +208,21 @@ namespace
 #endif
                     static_cast<void>(window.close());
                 }
+
                 return false;
             }
 #if GAMEWIP_TRACY_ENABLED
             FrameMark;
 #endif
         }
+
         return true;
     }
 
     [[nodiscard]] GameWIP::IO::Types::Status closeRuntimeWindow(GameWIP::Desktop::Window &window)
     {
 #if GAMEWIP_TRACY_ENABLED
-        ZoneScopedNC("Close borderless-fullscreen window", ProfileZoneColor::Shutdown);
+        ZoneScopedNC("Close borderless fullscreen window", ProfileZoneColor::Shutdown);
 #endif
         return window.close();
     }
@@ -216,11 +234,13 @@ namespace
 #endif
 
         const GameWIP::IO::Types::Status shutdownStatus = GameWIP::Logger::shutdown();
+
         if (primaryExitCode == EXIT_SUCCESS && !shutdownStatus.ok())
         {
             std::fputs("GameWIP: Logger shutdown failed.\n", stderr);
             return EXIT_FAILURE;
         }
+
         return primaryExitCode;
     }
 } // namespace
@@ -232,66 +252,74 @@ namespace GameWIP::Game
 #if GAMEWIP_TRACY_ENABLED
         ZoneScopedNC("Game runtime", ProfileZoneColor::Runtime);
 #endif
+
         // Initialize logging first so every later startup failure has a diagnostic sink.
         const Logger::Types::Init::Result loggerInit = initializeLogger();
+
         if (!loggerInit.status.ok() || loggerInit.outcome != Logger::Types::Init::Outcome::Started)
         {
             std::fputs("GameWIP: Logger initialization failed.\n", stderr);
             return EXIT_FAILURE;
         }
+
         Logger::info("Startup", "Logger initialized");
 
-        // Capture display topology and color capabilities before creating the fullscreen window.
-        const Desktop::Types::Display::MonitorsResult monitors = inspectDisplays();
-        if (!monitors.status.ok())
+        // Display inspection must precede window creation so it logs the pre-fullscreen topology.
+        const auto monitors = inspectDisplays();
+
+        if (!monitors.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(monitors.status.message.c_str(), monitors.status.message.size());
 #endif
+
             Logger::error("Window", "Failed to enumerate displays: {}", monitors.status.message);
             return finishRuntime(EXIT_FAILURE);
         }
 
-        // Request a borderless fullscreen window without changing the desktop display mode.
         Desktop::Window window;
         const IO::Types::Status openStatus = openRuntimeWindow(window);
+
         if (!openStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(openStatus.message.c_str(), openStatus.message.size());
 #endif
-            Logger::error("Window", "Failed to open borderless-fullscreen window: {}", openStatus.message);
+
+            Logger::error("Window", "Failed to open borderless fullscreen window: {}", openStatus.message);
             return finishRuntime(EXIT_FAILURE);
         }
 #if GAMEWIP_TRACY_ENABLED
-        TracyMessageL("Borderless-fullscreen window opened");
+        TracyMessageL("Borderless fullscreen window opened");
 #endif
 
-        Logger::info("Startup", "Borderless-fullscreen window is active; desktop resolution is unchanged; press Alt+F4 to exit");
+        Logger::info("Startup", "Borderless fullscreen window is active; press Alt+F4 to exit");
 
-        // Keep the process responsive while the native event pump owns timing and delivery.
         if (!pumpRuntimeEvents(window))
         {
             return finishRuntime(EXIT_FAILURE);
         }
 
-        // Close the window before shutting down logging so the final lifecycle result is recorded.
+        // Close before logger shutdown so the final lifecycle result is recorded.
         const IO::Types::Status closeStatus = closeRuntimeWindow(window);
+
         if (!closeStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(closeStatus.message.c_str(), closeStatus.message.size());
 #endif
-            Logger::error("Window", "Failed to close borderless-fullscreen window: {}", closeStatus.message);
+
+            Logger::error("Window", "Failed to close borderless fullscreen window: {}", closeStatus.message);
             return finishRuntime(EXIT_FAILURE);
         }
-        Logger::info("Window", "Borderless-fullscreen window closed");
+        Logger::info("Window", "Borderless fullscreen window closed");
 #if GAMEWIP_TRACY_ENABLED
-        TracyMessageL("Borderless-fullscreen window closed");
+        TracyMessageL("Borderless fullscreen window closed");
 #endif
 
         static_cast<void>(argc);
         static_cast<void>(argv);
+
         Logger::warn("Shutdown", "Logger shutting down");
         return finishRuntime(EXIT_SUCCESS);
     }

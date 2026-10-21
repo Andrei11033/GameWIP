@@ -30,6 +30,9 @@ The focused suite covers:
 - Whole-stream write retries, final-call progress, empty input, pre-write UTF-8 validation, and invalid writer behavior.
 - Compile-time proof that public checked Reader and Writer operations are `noexcept`.
 
+Memory-stream cases check state after rejected seeks/reserves and after close, and continue reading through a moved reader. Text-write fixtures count
+backend calls to prove malformed input is rejected before invoking the writer. Prerequisite operations and lengths are checked before dependent views.
+
 ## Public and package validation
 
 The repository validation also checks:

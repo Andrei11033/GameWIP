@@ -110,10 +110,12 @@ startup wiring into runtime composition.
 1. Initialize Logger console output at Debug severity.
 2. Enumerate connected displays and query each display's active mode, supported
    modes, and HDR/color information. Emit one report per display containing
-   its inventory, available modes, and color capabilities.
-3. Open a visible, focused borderless-fullscreen window on the default display.
-   Borderless fullscreen uses the desktop resolution and does not change the
-   system display mode.
+   its inventory, available modes, and color capabilities. If querying supported
+   modes fails, the display report includes the diagnostic and startup continues
+   without the mode list.
+3. Open a visible, focused fullscreen window on the default display,
+   using the mode request configured in `runtimeWindowDescription()`.
+   Desktop owns mode application and restoration; see @ref desktop_fullscreen_monitors.
 4. Report that the window is active and describe the manual exit path.
 5. Wait for and pump window events at intervals of up to 16 milliseconds until
    the window receives a close request. On Windows, `Alt+F4` is the expected

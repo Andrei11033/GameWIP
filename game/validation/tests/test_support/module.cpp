@@ -16,14 +16,17 @@ namespace
     {
         constexpr std::string_view selectors[] = {
             "--test-support-test-child=environment",
+            "--test-support-test-child=current-path",
             "--test-support-test-child=echo",
             "--test-support-test-child=sleep",
             "--test-support-test-child=exit-code",
             "--test-support-test-child=output",
             "--test-support-test-child=descendant",
             "--test-support-test-child=handle-inheritance",
+            "--test-support-test-child=start-gate",
         };
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
+
         for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if (value != nullptr && std::ranges::find(selectors, std::string_view(value)) != std::end(selectors))
@@ -31,6 +34,7 @@ namespace
                 return true;
             }
         }
+
         return false;
     }
 

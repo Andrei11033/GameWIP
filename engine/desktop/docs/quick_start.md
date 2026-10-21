@@ -16,7 +16,11 @@ Include `desktop/display_info.h`, `desktop/cursor.h`, `desktop/child_surface.h`,
 `desktop/clipboard.h`, `desktop/drag_drop.h`, `desktop/renderer_bridge.h`, or `desktop/native/win32.h`
 only when using rich display inspection, custom native cursors, native child
 hosts, Clipboard/data transfer, native drag and drop, renderer integration, or
-Win32 interop. Include `desktop/shell.h`, `desktop/shell_types.h`, and the
+Win32 interop.
+
+Include `desktop/dialogs.h` for native dialogs and modeless progress, or
+`desktop/accessibility.h` for semantic snapshots and the Window accessibility
+façade. Include `desktop/shell.h`, `desktop/shell_types.h`, and the
 focused `desktop/shell_taskbar.h`, `desktop/shell_tray.h`,
 `desktop/shell_notifications.h`, `desktop/shell_jump_lists.h`, or
 `desktop/shell_registration.h` headers only when using shell capability queries,
@@ -54,8 +58,8 @@ ownership.
 
 ## Minimal usage
 
-This complete owner-thread example opens a window, pumps events until a sticky
-close request is observed, and closes the native resource:
+This complete owner-thread example opens a window, pumps events until a close
+request or native destruction, and finalizes the lifetime explicitly:
 
 ```cpp
 #include "desktop/window.h"
@@ -66,7 +70,7 @@ int main()
 {
     GameWIP::Desktop::Types::Description description;
     description.title = "GameWIP";
-    description.visible = true;
+    description.activation.visible = true;
 
     GameWIP::Desktop::Window window;
     if (!window.open(description).ok())
@@ -74,7 +78,7 @@ int main()
         return 1;
     }
 
-    while (!window.hasCloseRequest())
+    while (window.isOpen() && !window.hasCloseRequest())
     {
         const auto pump =
             GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
@@ -95,22 +99,26 @@ int main()
 }
 ```
 
-`Window` is non-copyable and non-movable. Keep it in stable storage for its
-entire open lifetime, and perform lifecycle/event operations on its owner
-thread. Public text is UTF-8. File-drop paths use `FileSystem::Types::Path` and
-are not flattened into text.
+Keep the non-movable `Window` in stable storage and use it on the opening
+thread (@ref desktop_lifecycle_events).
 
 ## Failure handling
 
-Window operations return direct `IO::Types::Status` values or result structures
-containing a `status`. Inspect the status before consuming the associated
-payload. A failed event wait or pump does not close an open window
+Window operations return direct `IO::Types::Status` values or typed
+`Types::Result<T>`/operation-result structures. For query results, inspect
+`ok()` before consuming the optional `value`. Dereference and arrow access terminate
+the process if either the status failed or the value is absent; `value_or()` returns
+the supplied fallback in either case. Operation-specific results document their
+own progress fields. A failed event wait or pump does not close an open window
 automatically. Call `close()` and handle its status; destruction performs only
 best-effort cleanup.
 
 The close request is sticky even if the corresponding queue event is coalesced
 or dropped. Use `hasCloseRequest()` for lifecycle policy and `popEvent()` for
 individual event payloads.
+
+Keep `isOpen()` in the loop condition: unexpected native destruction does not
+set close intent. `close()` also finalizes that retained exceptional lifetime.
 
 ## Where to go next
 
@@ -119,8 +127,10 @@ individual event payloads.
 - @ref desktop_coordinates_and_dpi explains logical and pixel coordinate contracts.
 - @ref desktop_custom_cursors explains custom images, DPI variants, and shared lifetime.
 - @ref desktop_child_surfaces explains native child hosting and external descendant ownership.
+- @ref desktop_accessibility explains optional snapshots, native providers, and bounded action delivery.
 - @ref desktop_clipboard explains service calls that work with no Window open.
 - @ref desktop_drag_drop explains native target regions, effects, events, and synchronous source dragging.
+- @ref desktop_dialogs explains native choices, cancellation, progress, and manifest requirements.
 - @ref desktop_shell explains shell capabilities, resources, queue ownership, and manual validation.
 - @ref desktop_examples provides focused display, shell, renderer, and native examples.
 - @ref desktop_troubleshooting maps common failures to their owning contract.

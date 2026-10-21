@@ -13,9 +13,8 @@ A default `ChildSurface` is closed. It is non-copyable and non-movable, so its a
 top-level parent and runs on that parent's owner thread. A successful lifetime inherits that thread and caches the parent's `Types::WindowId`; `parentId()`
 continues to report that identity during exceptional finalization even if the parent lifetime has ended.
 
-Explicit `close()` synchronously destroys the host on the owner thread and does not report `NativeDestroyed`. A wrong-thread explicit close returns
-`ResourceBusy`; wrong-thread destruction transfers complete cleanup to the existing owner-thread dispatcher, which retains ownership until it can
-release the native resources.
+Explicit `close()` destroys the host synchronously and emits no `NativeDestroyed`. Wrong-thread close and destruction follow
+@ref desktop_lifecycle_events.
 
 Win32 naturally destroys child HWNDs when their parent is destroyed. If the parent closes first, or the host is unexpectedly destroyed,
 `isOpen()` becomes false, native handle access returns `NotOpen`, and `lifetimeState()` becomes `NativeDestroyedPendingFinalize`. One
@@ -53,10 +52,18 @@ contexts can be hosted without permanently changing owner-thread policy.
 ## Events and pumping
 
 Each successful open lifetime has its own fixed-capacity queue and sequence beginning at one. The default overload uses
-`Desktop::Events::kDefaultQueueCapacity`; other overloads allocate a requested capacity or borrow caller-owned
-`std::span<Types::ChildSurface::Event>` storage until close.
+`Desktop::Events::kDefaultQueueCapacity`; pass
+`Types::ChildSurface::QueueConfiguration::owned(capacity)` to choose an explicit
+owned capacity, or `Types::ChildSurface::QueueConfiguration::borrowed(storage)`
+to borrow caller-owned `std::span<Types::ChildSurface::Event>` storage through finalization. Native
+destruction and wrong-thread C++ destruction do not release that borrow until
+the retained or deferred lifetime is finalized. Close on the owner thread
+before releasing external storage.
 
-`PositionChanged`, `SizeChanged`, `PixelSizeChanged`, and `ContentScaleChanged` may coalesce across adjacent compatible observations.
+`PositionChanged`, `SizeChanged`, `PixelSizeChanged`, and `ContentScaleChanged` may coalesce across adjacent compatible observations. A coalesced
+`ContentScaleChanged` retains the earliest previous scale/DPI and the latest scale/DPI/pixel size, so a sequence such as `96 → 120 → 144`
+is delivered as one `96 → 144` transition. If the aggregate returns to its starting scale and DPI, such as `96 → 120 → 96`, the event is
+removed without incrementing the dropped-event count.
 `VisibilityChanged` remains non-coalescible. Full queues prefer evicting an older coalescible event, and preserve terminal `NativeDestroyed` even when
 that requires evicting the oldest retained entry. `Types::Events::QueueInfo` and `StorageKind` are shared with top-level Window queues.
 

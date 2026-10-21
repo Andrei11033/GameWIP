@@ -52,7 +52,7 @@ declared packages. Repair reapplies missing state without requesting ordinary
 upgrades. Update fetches and fast-forwards the current branch from its configured
 upstream, performs complete `pacman -Syu` passes, and applies the newest
 compatible environment/provider releases while keeping CMake at the declared
-minimum `4.4.2` or newer and retaining dependency revisions recorded by the
+minimum `4.4.4` or newer and retaining dependency revisions recorded by the
 updated checkout. It refuses dirty trees, missing upstreams, and
 non-fast-forward merges. WinGet is used for MSYS2 only for the first installation
 at the explicit `C:\MSYS2` root.

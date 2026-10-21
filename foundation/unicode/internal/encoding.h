@@ -4,7 +4,6 @@
 #pragma once
 
 #include "unicode/unicode.h"
-#include "unicode/internal/type_aliases.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -26,7 +25,7 @@ namespace GameWIP::Unicode::Internal
     }
 
     /// @brief Decodes one strict UTF-8 scalar without allocation or external state.
-    [[nodiscard]] inline Types::Utf8DecodeResult decodeUtf8Scalar(std::string_view bytes) noexcept
+    [[nodiscard]] inline Types::Utf8::DecodeResult decodeUtf8Scalar(std::string_view bytes) noexcept
     {
         if (bytes.empty())
         {
@@ -57,6 +56,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t second = byteValue(bytes[1]);
+
             if ((second & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -89,6 +89,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t third = byteValue(bytes[2]);
+
             if ((third & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -121,6 +122,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t third = byteValue(bytes[2]);
+
             if ((third & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -132,6 +134,7 @@ namespace GameWIP::Unicode::Internal
             }
 
             const std::uint8_t fourth = byteValue(bytes[3]);
+
             if ((fourth & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -152,14 +155,17 @@ namespace GameWIP::Unicode::Internal
         {
             return 1;
         }
+
         if (scalar <= static_cast<char32_t>(0x7FF))
         {
             return 2;
         }
+
         if (scalar <= static_cast<char32_t>(0xFFFF))
         {
             return 3;
         }
+
         return 4;
     }
 
@@ -196,7 +202,7 @@ namespace GameWIP::Unicode::Internal
     }
 
     /// @brief Decodes one strict UTF-16 scalar without allocation or external state.
-    [[nodiscard]] inline Types::Utf16DecodeResult decodeUtf16Scalar(std::span<const char16_t> codeUnits) noexcept
+    [[nodiscard]] inline Types::Utf16::DecodeResult decodeUtf16Scalar(std::span<const char16_t> codeUnits) noexcept
     {
         if (codeUnits.empty())
         {
@@ -204,6 +210,7 @@ namespace GameWIP::Unicode::Internal
         }
 
         const char16_t first = codeUnits[0];
+
         if (!Utf16::isSurrogate(first))
         {
             return {
@@ -224,6 +231,7 @@ namespace GameWIP::Unicode::Internal
         }
 
         const char16_t second = codeUnits[1];
+
         if (!Utf16::isLowSurrogate(second))
         {
             return {.outcome = Types::DecodeOutcome::InvalidEncoding};
@@ -249,6 +257,7 @@ namespace GameWIP::Unicode::Internal
     inline void encodeUtf16Unchecked(char32_t scalar, std::span<char16_t> destination) noexcept
     {
         const std::uint32_t value = static_cast<std::uint32_t>(scalar);
+
         if (value <= 0xFFFFU)
         {
             destination[0] = static_cast<char16_t>(value);
@@ -263,7 +272,7 @@ namespace GameWIP::Unicode::Internal
     /// @brief Result of decoding the complete scalar immediately before a byte offset.
     struct PreviousUtf8ScalarResult
     {
-        Types::Utf8DecodeResult decoded{};
+        Types::Utf8::DecodeResult decoded{};
         std::size_t startOffset = 0;
     };
 
@@ -276,13 +285,14 @@ namespace GameWIP::Unicode::Internal
         }
 
         std::size_t startOffset = byteOffset - 1;
+
         while (startOffset > 0 && isContinuationByte(text[startOffset]))
         {
             --startOffset;
         }
 
         const std::size_t encodedLength = byteOffset - startOffset;
-        const Types::Utf8DecodeResult decoded = decodeUtf8Scalar(text.substr(startOffset, encodedLength));
+        const Types::Utf8::DecodeResult decoded = decodeUtf8Scalar(text.substr(startOffset, encodedLength));
 
         if (decoded.outcome != Types::DecodeOutcome::Decoded || decoded.bytesConsumed != encodedLength)
         {

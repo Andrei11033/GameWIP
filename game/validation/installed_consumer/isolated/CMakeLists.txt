@@ -41,6 +41,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
         GameWIPIsolatedConsumer
         PRIVATE
             desktop_types.cpp
+            desktop_accessibility.cpp
             desktop_clipboard.cpp
             desktop_data_transfer.cpp
             desktop_child_surface.cpp
@@ -50,6 +51,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
             desktop_events.cpp
             desktop_display.cpp
             desktop_display_info.cpp
+            desktop_drag_drop.cpp
             desktop_window.cpp
             desktop_renderer_bridge.cpp
             desktop_shell.cpp

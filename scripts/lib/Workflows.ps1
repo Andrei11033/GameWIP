@@ -10,10 +10,12 @@ function Get-GameWipWorkflow
 {
     param([Parameter(Mandatory = $true)][string]$Id)
     $workflowInfo = @($CommandConfig.ManualWorkflows | Where-Object { $_.Id -eq $Id } | Select-Object -First 1)
+
     if ($workflowInfo.Count -eq 0)
     {
         throw "Unknown manual workflow '$Id'. Run '.\gamewip.bat workflow list'."
     }
+
     return $workflowInfo[0]
 }
 
@@ -22,6 +24,7 @@ function Show-GameWipWorkflowCatalog
     Write-GameWipSection 'Manual GitHub workflows'
     Write-Host "Repository: $($ProjectConfig.repository)"
     Write-Host "Dispatch ref: $($ProjectConfig.defaultBranch) (fixed)"
+
     foreach ($workflowInfo in $CommandConfig.ManualWorkflows)
     {
         Write-Host ('  {0,-27} [{1,-8}] {2}' -f $workflowInfo.Id, $workflowInfo.Safety, $workflowInfo.Name)
@@ -35,6 +38,7 @@ function Assert-GameWipGitHubCli
         throw "GitHub CLI is unavailable. Run '.\setup.bat repair', then 'gh auth login'."
     }
     $auth = Invoke-GameWipProcess -FilePath gh -Arguments @('auth', 'status', '--hostname', 'github.com') -OutputMode LogOnly -TimeoutSeconds 20
+
     if ($auth.ExitCode -ne 0)
     {
         throw (New-GameWipDiagnosticException -Code 'github-auth' -Summary 'GitHub CLI authentication is unavailable.' -Details (($auth.Stderr + $auth.Stdout) -join "`n") -SuggestedActions @('Run gh auth login.', 'Run gh auth status --hostname github.com.'))
@@ -45,15 +49,18 @@ function Invoke-GameWipGhJson
 {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
     $result = Invoke-GameWipProcess -FilePath gh -Arguments $Arguments -OutputMode LogOnly -TimeoutSeconds 30
+
     if ($result.ExitCode -ne 0)
     {
         throw "GitHub CLI query failed: gh $($Arguments -join ' ')"
     }
     $json = ($result.Stdout -join "`n").Trim()
+
     if ([string]::IsNullOrWhiteSpace($json))
     {
         return @()
     }
+
     return @($json | ConvertFrom-Json)
 }
 
@@ -63,6 +70,7 @@ function Resolve-GameWipWorkflowArgument
     $workflowInfo = Get-GameWipWorkflow -Id $WorkflowId
     $arguments = [Collections.Generic.List[string]]::new()
     @('workflow', 'run', $workflowInfo.File, '--repo', $ProjectConfig.repository, '--ref', $ProjectConfig.defaultBranch) | ForEach-Object { $arguments.Add($_) | Out-Null }
+
     if ($WorkflowId -like 'project-*')
     {
         if ($ItemKind -ne 'all' -and $ItemNumber -le 0)
@@ -70,12 +78,14 @@ function Resolve-GameWipWorkflowArgument
             throw "Project kind '$ItemKind' requires -ItemNumber with a positive issue or pull-request number."
         }
         @('-f', "kind=$ItemKind") | ForEach-Object { $arguments.Add($_) | Out-Null }
+
         if ($ItemKind -ne 'all')
         {
             @('-f', "number=$ItemNumber") | ForEach-Object { $arguments.Add($_) | Out-Null }
         }
         @('-f', "dry_run=$(if ($WorkflowId -eq 'project-dry-run') { 'true' } else { 'false' })") | ForEach-Object { $arguments.Add($_) | Out-Null }
     }
+
     if ($WorkflowId -like 'release-*')
     {
         $command = if ($WorkflowId -eq 'release-check')
@@ -99,6 +109,7 @@ function Resolve-GameWipWorkflowArgument
             'true'
         }
         @('-f', "command=$command", '-f', "dry_run=$dryRun") | ForEach-Object { $arguments.Add($_) | Out-Null }
+
         if ($WorkflowId -like 'release-finalize*')
         {
             if ($Commit -notmatch '^[0-9a-fA-F]{40}$')
@@ -108,6 +119,7 @@ function Resolve-GameWipWorkflowArgument
             @('-f', "release_commit=$Commit") | ForEach-Object { $arguments.Add($_) | Out-Null }
         }
     }
+
     return [pscustomobject]@{ Definition = $workflowInfo; Arguments = $arguments.ToArray(); ReleaseCommit = $Commit }
 }
 
@@ -126,6 +138,7 @@ function Wait-GameWipWorkflowRun
         [Parameter(Mandatory = $true)][datetime]$DispatchedAfter
     )
     $threshold = $DispatchedAfter.ToUniversalTime().AddSeconds(-2)
+
     for ($attempt = 1; $attempt -le 15; ++$attempt)
     {
         Assert-GameWipNotCancelled
@@ -156,6 +169,7 @@ function Wait-GameWipWorkflowRun
         }
         Write-Verbose "Waiting for dispatched workflow to appear ($attempt/15)."
     }
+
     return $null
 }
 
@@ -165,6 +179,7 @@ function Show-GameWipWorkflowVerification
     Write-GameWipSection 'Verification commands'
     Write-Host (ConvertTo-GameWipNativeCommandLine -FilePath gh -Arguments @('run', 'view', $RunId, '--repo', $ProjectConfig.repository))
     Write-Host (ConvertTo-GameWipNativeCommandLine -FilePath gh -Arguments @('run', 'view', $RunId, '--repo', $ProjectConfig.repository, '--log-failed'))
+
     if ($WorkflowId -eq 'release-finalize')
     {
         Write-Host (ConvertTo-GameWipNativeCommandLine -FilePath gh -Arguments @('release', 'list', '--repo', $ProjectConfig.repository, '--limit', '5'))
@@ -184,9 +199,11 @@ function Invoke-GameWipManualWorkflow
     Write-Host $dispatchCommand
 
     $phrase = ''
+
     if (@('write', 'deploy', 'finalize') -contains $workflowInfo.Safety)
     {
         $phrase = "$WorkflowId $($ProjectConfig.defaultBranch)"
+
         if ($WorkflowId -eq 'release-finalize')
         {
             $phrase = "$phrase $($resolved.ReleaseCommit)"
@@ -199,12 +216,14 @@ function Invoke-GameWipManualWorkflow
         $dispatchState.DispatchedAfter = (Get-Date).ToUniversalTime()
         Invoke-GameWipNative -Name "workflow-dispatch-$WorkflowId" -FilePath gh -Arguments $resolved.Arguments
     }
+
     if (-not $applied)
     {
         return
     }
 
     $run = Wait-GameWipWorkflowRun -WorkflowFile $workflowInfo.File -PreviousIds $dispatchState.PreviousIds -DispatchedAfter $dispatchState.DispatchedAfter
+
     if ($null -eq $run)
     {
         Add-GameWipOperationWarning -Message 'Dispatch succeeded, but the new run was not visible within 30 seconds.'; return
@@ -214,10 +233,12 @@ function Invoke-GameWipManualWorkflow
     Write-Host ' ' -NoNewline
     Write-GameWipSemanticText -Object ([string]$run.url) -Semantic Muted
     $watch = $true
+
     if ($null -eq $Script:OperationContext -or -not $Script:OperationContext.NonInteractive)
     {
         $watch = Read-GameWipYesNo -Prompt 'Watch this run until it finishes?' -Default $true
     }
+
     if ($watch)
     {
         Invoke-GameWipNative -Name "workflow-watch-$runId" -FilePath gh -Arguments @('run', 'watch', $runId, '--repo', $ProjectConfig.repository, '--exit-status')
@@ -234,6 +255,7 @@ function Show-GameWipWorkflowStatus
 function Invoke-GameWipWorkflowAction
 {
     param([Parameter(Mandatory = $true)][ValidateSet('list', 'status', 'run')][string]$Name, [string]$WorkflowId)
+
     switch ($Name)
     {
         list

@@ -20,6 +20,7 @@ namespace
     void BM_Assert_Passing(benchmark::State &state)
     {
         bool condition = passingCondition(state);
+
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -32,6 +33,7 @@ namespace
     void BM_Check_Passing(benchmark::State &state)
     {
         bool condition = passingCondition(state);
+
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -44,6 +46,7 @@ namespace
     void BM_Verify_Passing(benchmark::State &state)
     {
         bool condition = passingCondition(state);
+
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -56,6 +59,7 @@ namespace
     void BM_AssertInteractive_Passing(benchmark::State &state)
     {
         bool condition = passingCondition(state);
+
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -68,6 +72,7 @@ namespace
     void BM_VerifyInteractive_Passing(benchmark::State &state)
     {
         bool condition = passingCondition(state);
+
         for (auto iteration : state)
         {
             static_cast<void>(iteration);
@@ -80,6 +85,7 @@ namespace
     void BM_Ensure_Passing(benchmark::State &state)
     {
         bool condition = passingCondition(state);
+
         for (auto iteration : state)
         {
             static_cast<void>(iteration);

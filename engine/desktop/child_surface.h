@@ -52,6 +52,8 @@ namespace GameWIP::Desktop::Types::ChildSurface
             bool visible = false; ///< New visibility state.
         };
         /// @brief Reports an effective-DPI transition while preserving logical geometry.
+        /// @details When adjacent transitions coalesce, previousScale/previousDpi come from the earliest
+        /// transition and scale/dpi/pixelSize come from the latest. A net-zero aggregate is omitted.
         struct ContentScaleChanged
         {
             ContentScale previousScale; ///< Scale before the transition.
@@ -71,6 +73,29 @@ namespace GameWIP::Desktop::Types::ChildSurface
         std::uint64_t sequence = 0; ///< Monotonic sequence within the current open lifetime.
         Events::Payload data;       ///< Tagged event payload.
 
+        /// @brief Payload alternatives, in `Events::Payload` order.
+        enum class Kind : std::uint8_t
+        {
+            NativeDestroyed,
+            PositionChanged,
+            SizeChanged,
+            PixelSizeChanged,
+            VisibilityChanged,
+            ContentScaleChanged
+        };
+
+        /// @brief Active payload alternative.
+        [[nodiscard]] constexpr Kind kind() const noexcept
+        {
+            return static_cast<Kind>(data.index());
+        }
+
+        /// @brief Reports whether the payload holds `PayloadType`.
+        template <typename PayloadType> [[nodiscard]] bool is() const noexcept
+        {
+            return std::holds_alternative<PayloadType>(data);
+        }
+
         /// @brief Returns the mutable payload when it has the requested type.
         /// @tparam PayloadType One alternative in Events::Payload.
         /// @return Pointer to the stored payload, or nullptr when the type does not match.
@@ -87,6 +112,9 @@ namespace GameWIP::Desktop::Types::ChildSurface
             return std::get_if<PayloadType>(&data);
         }
     };
+
+    /// @brief Explicit owned-or-borrowed storage policy for ChildSurface events.
+    using QueueConfiguration = ::GameWIP::Desktop::Types::Events::EventQueueConfiguration<Event>;
 } // namespace GameWIP::Desktop::Types::ChildSurface
 
 namespace GameWIP::Desktop
@@ -124,24 +152,16 @@ namespace GameWIP::Desktop
         /// @param description Initial logical geometry, visibility, and interaction state.
         /// @return Success, or a status explaining why no native host was opened.
         [[nodiscard]] IO::Types::Status open(Window &parent, const Types::ChildSurface::Description &description = {}) noexcept;
-        /// @brief Opens with a requested number of internally owned event slots.
+        /// @brief Opens with an explicit owned-or-borrowed event-queue policy.
         /// @param parent Open top-level Window whose owner thread and client origin are inherited.
         /// @param description Initial logical geometry, visibility, and interaction state.
-        /// @param eventQueueCapacity Number of event slots to allocate; must be greater than zero.
+        /// @param queue Explicit storage ownership and capacity policy.
+        /// @details Borrowed storage remains retained during native-loss finalization and deferred owner-thread cleanup.
         /// @return Success, or a status explaining why no native host was opened.
         [[nodiscard]] IO::Types::Status open(
             Window &parent,
             const Types::ChildSurface::Description &description,
-            std::size_t eventQueueCapacity) noexcept;
-        /// @brief Opens while borrowing caller-owned event storage until close.
-        /// @param parent Open top-level Window whose owner thread and client origin are inherited.
-        /// @param description Initial logical geometry, visibility, and interaction state.
-        /// @param eventStorage Non-empty storage that must remain alive and unmoved until close.
-        /// @return Success, or a status explaining why no native host was opened.
-        [[nodiscard]] IO::Types::Status open(
-            Window &parent,
-            const Types::ChildSurface::Description &description,
-            std::span<Types::ChildSurface::Event> eventStorage) noexcept;
+            Types::ChildSurface::QueueConfiguration queue) noexcept;
         /// @brief Reports whether native operations are available for the host.
         [[nodiscard]] bool isOpen() const noexcept;
         /// @brief Returns the complete portable native-resource lifecycle state.
@@ -254,11 +274,11 @@ namespace GameWIP::Desktop
         /// @brief Converts a ChildSurface-local logical position to physical virtual-screen coordinates.
         /// @param position Logical position relative to the ChildSurface client origin.
         /// @return Conversion status and physical screen position.
-        [[nodiscard]] Types::ScreenPositionResult clientToScreen(Types::LogicalPosition position) const noexcept;
+        [[nodiscard]] Types::Result<Types::ScreenPosition> clientToScreen(Types::LogicalPosition position) const noexcept;
         /// @brief Converts a physical virtual-screen position to ChildSurface-local logical coordinates.
         /// @param position Physical virtual-screen position.
         /// @return Conversion status and logical client-local position.
-        [[nodiscard]] Types::LogicalPositionResult screenToClient(Types::ScreenPosition position) const noexcept;
+        [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
         /// @}
 
         // ------------------------------------------------------------

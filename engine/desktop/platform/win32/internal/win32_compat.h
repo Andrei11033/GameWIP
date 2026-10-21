@@ -1,5 +1,5 @@
 /// @file win32_compat.h
-/// @brief Private compatibility declarations for modern Windows SDK additions.
+/// @brief Private Windows SDK declarations with runtime capability checks.
 
 #pragma once
 
@@ -12,8 +12,8 @@
 namespace GameWIP::Desktop::Detail::Platform::Compat
 {
     /// Official DWMWA_REDIRECTIONBITMAP_ALPHA for DwmSetWindowAttribute.
-    /// It requires Windows 11 version 24H2 (build 26100). Older supported SDKs
-    /// and MinGW omit the enumerator; value 39 is from the current Windows SDK
+    /// It requires Windows 11 version 24H2 (build 26100). Supported SDKs
+    /// can omit the enumerator; value 39 is from the Windows SDK
     /// dwmapi.h. Declaration availability does not replace runtime build gating.
 #if defined(_MSC_VER) && defined(NTDDI_WIN11_GE)
     inline constexpr DWMWINDOWATTRIBUTE kRedirectionBitmapAlpha = DWMWA_REDIRECTIONBITMAP_ALPHA;
@@ -23,9 +23,9 @@ namespace GameWIP::Desktop::Detail::Platform::Compat
 #endif
 
     /// Documented Windows 11 advanced-color query declarations.
-    /// Current MinGW headers contain these declarations but hide them when the
-    /// target NTDDI baseline remains Windows 10. The query is still selected at
-    /// runtime and safely falls back to the Windows 10 advanced-color query.
+    /// MinGW can hide these declarations behind NTDDI guards. Runtime selection
+    /// uses this query when available and DISPLAYCONFIG_GET_ADVANCED_COLOR_INFO
+    /// otherwise.
     enum class AdvancedColorMode : std::uint32_t
     {
         Sdr = 0,            ///< Standard dynamic range.
@@ -45,7 +45,7 @@ namespace GameWIP::Desktop::Detail::Platform::Compat
 
     /// @brief Numeric query type used when the SDK omits its named enumerator.
     inline constexpr DISPLAYCONFIG_DEVICE_INFO_TYPE kGetAdvancedColorInfo2 = static_cast<DISPLAYCONFIG_DEVICE_INFO_TYPE>(15);
-    /// @brief Windows 10 advanced-color-active flag.
+    /// @brief Native advanced-color-active flag.
     inline constexpr std::uint32_t kAdvancedColorActive = std::uint32_t{1} << 1U;
     /// @brief Windows 11 HDR-support flag.
     inline constexpr std::uint32_t kHighDynamicRangeSupported = std::uint32_t{1} << 4U;

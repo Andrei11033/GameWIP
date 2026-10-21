@@ -26,12 +26,14 @@ int main()
 #if defined(_WIN32)
     const HMODULE module = GetModuleHandleW(nullptr);
     unsigned int manifestCount = 0;
+
     if (!EnumResourceNamesW(module, MAKEINTRESOURCEW(24), countManifest, reinterpret_cast<LONG_PTR>(&manifestCount)) || manifestCount != 1)
     {
         return 1;
     }
 
     const HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(1), MAKEINTRESOURCEW(24));
+
     if (resource == nullptr)
     {
         return 2;
@@ -39,6 +41,7 @@ int main()
 
     const HGLOBAL loaded = LoadResource(module, resource);
     const auto *data = static_cast<const char *>(LockResource(loaded));
+
     if (data == nullptr)
     {
         return 3;
@@ -46,6 +49,7 @@ int main()
 
     const std::string_view manifest(data, SizeofResource(module, resource));
     const bool commonControls = manifest.contains("Microsoft.Windows.Common-Controls");
+
     if (commonControls != (EXPECT_COMMON_CONTROLS != 0) || !manifest.contains("PerMonitorV2"))
     {
         return 4;

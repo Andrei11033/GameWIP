@@ -9,17 +9,20 @@ Set-StrictMode -Version Latest
 function Initialize-GameWipTestPresetBuild
 {
     param([Parameter(Mandatory = $true)][string]$Name, [switch]$NoBuild, [switch]$Fresh)
+
     if ($NoBuild -and $Fresh)
     {
         throw '-CleanBuild cannot be combined with -SkipBuild because a recreated preset must be configured and built.'
     }
     $testFile = Join-Path $RepositoryRoot "build\$Name\CTestTestfile.cmake"
+
     if ($NoBuild)
     {
         if (-not (Test-Path -LiteralPath $testFile))
         {
             throw (New-GameWipDiagnosticException -Code 'prerequisite-build-disabled' -Summary "CTest preset '$Name' has no configured test tree." -SuggestedActions @("Run '.\gamewip.bat build $Name'.", 'Rerun without -SkipBuild.'))
         }
+
         return
     }
 
@@ -43,11 +46,13 @@ function Invoke-GameWipValidationModule
     Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
     $executable = Resolve-GameWipProjectExecutable -Command $command
     $testArguments = [System.Collections.Generic.List[string]]::new()
+
     if ($Name -ne 'all')
     {
         $testArguments.Add("--test-module=$Name") | Out-Null
     }
     $testArguments.Add('--no-test-report') | Out-Null
+
     foreach ($argument in $Arguments)
     {
         $testArguments.Add($argument) | Out-Null
@@ -72,6 +77,7 @@ function Invoke-GameWipStressModule
         [switch]$StopOnFailure
     )
     Assert-GameWipValidModule -Name $Name
+
     if (@($Arguments) -contains '--manual-tests')
     {
         throw "Manual tests cannot run through 'stress' because stress launches concurrent validation processes. Use 'wizard' or 'module' instead."
@@ -81,11 +87,13 @@ function Invoke-GameWipStressModule
     Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
     $executable = Resolve-GameWipProjectExecutable -Command $command
     $baseArguments = [System.Collections.Generic.List[string]]::new()
+
     if ($Name -ne 'all')
     {
         $baseArguments.Add("--test-module=$Name") | Out-Null
     }
     $baseArguments.Add('--no-test-report') | Out-Null
+
     foreach ($argument in $Arguments)
     {
         $baseArguments.Add($argument) | Out-Null
@@ -107,6 +115,7 @@ function Invoke-GameWipStressModule
     $stopLaunching = $false
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $lastProgress = -2000.0
+
     try
     {
         if (-not $NoWorkspaceTemp)
@@ -114,9 +123,11 @@ function Invoke-GameWipStressModule
             $env:TEMP = $Script:OperationContext.Temp
             $env:TMP = $Script:OperationContext.Temp
         }
+
         while ((-not $stopLaunching -and $nextRun -le $RunCount) -or $active.Count -gt 0)
         {
             Assert-GameWipNotCancelled
+
             while (-not $stopLaunching -and $nextRun -le $RunCount -and $active.Count -lt $MaxParallel)
             {
                 $runName = 'stress-{0:D4}' -f $nextRun
@@ -124,10 +135,12 @@ function Invoke-GameWipStressModule
                 $step = Initialize-GameWipToolRunStep -Run $Script:OperationContext.Run -Name $runName -CommandLine $commandLine
                 $stdout = $step.LogPath
                 $stderr = Join-Path $Script:OperationContext.Run.Logs "$runName.err.log"
+
                 try
                 {
                     $process = Start-GameWipOwnedProcess -FilePath $executable -Arguments $baseArguments.ToArray() -WorkingDirectory $RepositoryRoot -RedirectStandardOutput $stdout -RedirectStandardError $stderr
                 }
+
                 catch
                 {
                     Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $step -ExitCode -1 -Status failed
@@ -145,9 +158,11 @@ function Invoke-GameWipStressModule
                 Write-Host (" completed={0}/{1} active={2} launched={3} failed={4}" -f $completed, $RunCount, $active.Count, ($nextRun - 1), $failed)
                 $lastProgress = $clock.Elapsed.TotalMilliseconds
             }
+
             for ($index = $active.Count - 1; $index -ge 0; --$index)
             {
                 $entry = $active[$index]
+
                 if (-not $entry.Process.HasExited)
                 {
                     continue
@@ -163,6 +178,7 @@ function Invoke-GameWipStressModule
                     'failed'
                 }
                 Complete-GameWipToolRunStep -Run $Script:OperationContext.Run -Step $entry.Step -ExitCode $code -Status $status
+
                 if ($code -eq 0)
                 {
                     Write-Verbose ("Run {0}: PASS ({1}/{2} complete)" -f $entry.Run, $completed, $RunCount)
@@ -176,6 +192,7 @@ function Invoke-GameWipStressModule
                     Write-GameWipSemanticText -Object ([string]$entry.Stdout) -Semantic Muted -NoNewline
                     Write-Host ' stderr=' -NoNewline
                     Write-GameWipSemanticText -Object ([string]$entry.Stderr) -Semantic Muted
+
                     if ($StopOnFailure)
                     {
                         $stopLaunching = $true
@@ -184,16 +201,19 @@ function Invoke-GameWipStressModule
                 Remove-GameWipOwnedProcessRegistration -Process $entry.Process
                 $active.RemoveAt($index)
             }
+
             if ($active.Count -gt 0)
             {
                 Start-Sleep -Milliseconds 150
             }
         }
     }
+
     finally
     {
         $env:TEMP = $previousTemp
         $env:TMP = $previousTmp
+
         foreach ($entry in @($active))
         {
             Stop-GameWipOwnedProcess -Process $entry.Process
@@ -209,6 +229,7 @@ function Invoke-GameWipStressModule
             Remove-GameWipOwnedProcessRegistration -Process $entry.Process
         }
     }
+
     if ($failed -ne 0)
     {
         $launched = $nextRun - 1
@@ -221,10 +242,12 @@ function Invoke-GameWipStressModule
 function Split-GameWipExtraArgument
 {
     param([AllowEmptyString()][string]$Text)
+
     if ([string]::IsNullOrWhiteSpace($Text))
     {
         return @()
     }
+
     return @($Text -split ' ' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 }
 
@@ -232,22 +255,27 @@ function Get-GameWipValidationBuilderCapabilities
 {
     param([bool]$VerboseTests, [bool]$ManualTests, [bool]$ChildProcesses, [bool]$WriteReport)
     $capabilities = [System.Collections.Generic.List[string]]::new()
+
     if ($VerboseTests)
     {
         $capabilities.Add('verbose-tests') | Out-Null
     }
+
     if ($ManualTests)
     {
         $capabilities.Add('manual-tests') | Out-Null
     }
+
     if ($ChildProcesses)
     {
         $capabilities.Add('test-support-child-process') | Out-Null
     }
+
     if ($WriteReport)
     {
         $capabilities.Add('report') | Out-Null
     }
+
     return $capabilities.ToArray()
 }
 
@@ -264,6 +292,7 @@ function Get-GameWipValidationBuilderOptions
             @()
         })
     $applicable = [System.Collections.Generic.List[object]]::new()
+
     foreach ($option in $options)
     {
         $required = @(if ($option -is [hashtable] -and $option.ContainsKey('requiresCommon'))
@@ -275,6 +304,7 @@ function Get-GameWipValidationBuilderOptions
                 @()
             })
         $isApplicable = $true
+
         foreach ($capability in $required)
         {
             if ($CommonCapabilities -notcontains [string]$capability)
@@ -282,25 +312,30 @@ function Get-GameWipValidationBuilderOptions
                 $isApplicable = $false
             }
         }
+
         if ($isApplicable)
         {
             $applicable.Add($option) | Out-Null
         }
     }
+
     return $applicable.ToArray()
 }
 
 function ConvertTo-GameWipValidationBuilderArguments
 {
     param([Parameter(Mandatory = $true)]$Option, [Parameter(Mandatory = $true)]$Value)
+
     if ($Option.Kind -eq 'boolean')
     {
         return @($Option.Arguments | Where-Object { [bool]$Value } | ForEach-Object { [string]$_ })
     }
+
     if ($Option.OmitDefault -and ([string]$Value -eq [string]$Option.Default))
     {
         return @()
     }
+
     return @($Option.Arguments | ForEach-Object { ([string]$_).Replace('{value}', [string]$Value) })
 }
 
@@ -308,6 +343,7 @@ function Read-GameWipValidationBuilderOptionResult
 {
     param([Parameter(Mandatory = $true)]$Option)
     Write-GameWipSemanticText -Object $Option.Description -Semantic Muted
+
     switch ([string]$Option.Kind)
     {
         'boolean'
@@ -317,10 +353,12 @@ function Read-GameWipValidationBuilderOptionResult
         'choice'
         {
             $choiceResult = Read-GameWipMenuChoiceResult -Prompt $Option.Title -Choices ([string[]]$Option.Choices) -Default ([string]$Option.Default)
+
             if ($choiceResult.Status -eq 'Cancelled')
             {
                 return New-GameWipChoiceResult -Status Cancelled -Value $null
             }
+
             return $choiceResult.Value
         }
         'integer'
@@ -340,6 +378,7 @@ function Invoke-GameWipValidationCommandWizard
     Write-GameWipSection 'Validation command builder'
     $moduleNames = @(Get-GameWipValidationModuleName)
     $moduleResult = Read-GameWipMenuChoiceResult -Prompt 'Module selection' -Choices (@('all') + $moduleNames) -Default 'all'
+
     if ($moduleResult.Status -eq 'Cancelled')
     {
         return
@@ -347,9 +386,11 @@ function Invoke-GameWipValidationCommandWizard
     $selectedModule = [string]$moduleResult.Value
 
     $skippedModules = @()
+
     if ($selectedModule -eq 'all')
     {
         $skipResult = Read-GameWipMultiChoiceResult -Prompt 'Modules to skip' -Choices $moduleNames
+
         if ($skipResult.Status -eq 'Cancelled')
         {
             return
@@ -378,27 +419,33 @@ function Invoke-GameWipValidationCommandWizard
         {
             @($selectedModule)
         })
+
     if ($candidateModules.Count -gt 0)
     {
         $configurableModules = @($candidateModules | Where-Object { @(Get-GameWipValidationBuilderOptions -ModuleName $_ -CommonCapabilities $capabilities).Count -gt 0 })
+
         if ($selectedModule -eq 'all' -and $configurableModules.Count -gt 0)
         {
             $configureResult = Read-GameWipMultiChoiceResult -Prompt 'Modules with additional options' -Choices $configurableModules
+
             if ($configureResult.Status -eq 'Cancelled')
             {
                 return
             }
             $candidateModules = @($configureResult.Value)
         }
+
         foreach ($moduleName in $candidateModules)
         {
             foreach ($option in @(Get-GameWipValidationBuilderOptions -ModuleName $moduleName -CommonCapabilities $capabilities))
             {
                 $value = Read-GameWipValidationBuilderOptionResult -Option $option
+
                 if ($value -is [psobject] -and $value.PSObject.Properties.Name -contains 'Status' -and $value.Status -eq 'Cancelled')
                 {
                     return
                 }
+
                 if ($null -ne $value)
                 {
                     foreach ($argument in @(ConvertTo-GameWipValidationBuilderArguments -Option $option -Value $value))
@@ -413,26 +460,32 @@ function Invoke-GameWipValidationCommandWizard
     $extraText = Read-GameWipTextValue -Prompt 'Extra validation args, space-separated' -Default ''
 
     $arguments = [System.Collections.Generic.List[string]]::new()
+
     if ($selectedModule -ne 'all')
     {
         $arguments.Add("--test-module=$selectedModule") | Out-Null
     }
+
     foreach ($item in $skippedModules)
     {
         $arguments.Add("--skip-test-module=$item") | Out-Null
     }
+
     if ($verboseTests)
     {
         $arguments.Add('--verbose-tests') | Out-Null
     }
+
     if ($manualTests)
     {
         $arguments.Add('--manual-tests') | Out-Null
     }
+
     if (-not $childProcesses)
     {
         $arguments.Add('--no-test-support-child-process') | Out-Null
     }
+
     if ($writeReport)
     {
         $arguments.Add("--test-report=$reportPath") | Out-Null
@@ -441,10 +494,12 @@ function Invoke-GameWipValidationCommandWizard
     {
         $arguments.Add('--no-test-report') | Out-Null
     }
+
     foreach ($argument in $builderArguments)
     {
         $arguments.Add($argument) | Out-Null
     }
+
     foreach ($argument in (Split-GameWipExtraArgument -Text $extraText))
     {
         $arguments.Add($argument) | Out-Null
@@ -454,11 +509,13 @@ function Invoke-GameWipValidationCommandWizard
     $executable = Resolve-GameWipProjectExecutable -Command $command
     Write-GameWipSection 'Built command'
     Write-Host (ConvertTo-GameWipNativeCommandLine -FilePath $executable -Arguments $arguments.ToArray())
+
     if ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)
     {
         Write-GameWipSemanticText -Object 'Preview: validation command will not be built or executed.' -Semantic Accent
         return
     }
+
     if (Read-GameWipYesNo -Prompt 'Run this command now?' -Default $true)
     {
         Invoke-GameWipMutation -Summary 'Run the composed validation command.' -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', 'Execute the composed correctness command.') -Body {

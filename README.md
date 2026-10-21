@@ -13,13 +13,11 @@ contracts, ownership, builds, and validation deliberately strict.
 
 GameWIP supports Windows 11 and is pre-1.0. Active work is tracked
 in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
-and the [roadmap](docs/roadmap.md). The latest published baseline is
-[v0.0.1](docs/releases/v0.0.1.md).
+and the [roadmap](docs/roadmap.md).
 
 ## Development approach
 
-I write the implementation myself. I only use AI for research, review and
-to help me make sure the documentation and comments are correct.
+I develop and document the project, using AI to support me in research, review, testing, and maintenance.
 
 ## Start here
 
@@ -29,39 +27,37 @@ From a fresh checkout or extracted ZIP, run the repository bootstrap utility:
 .\setup.bat
 ```
 
-Setup prepares the selected development environment, pinned dependencies, and
-profiler tools. It is also the supported update, repair, and ownership-aware
-uninstall entry point. See the [development environment guide](docs/doxygen/environment_setup.md)
-for the setup actions and their boundaries.
+Setup prepares the development environment, pinned dependencies, and profiler
+tools, and handles updates, repair, and uninstall. See the
+[development environment guide](docs/doxygen/environment_setup.md).
 
-Open `GameWIP.code-workspace`, then configure, build, and run the development
-preset:
+Open `GameWIP.code-workspace`, then build and run the `dev` preset. In PowerShell,
+use the helper to select the configured toolchain:
 
 ```powershell
-cmake --preset dev
-cmake --build --preset dev
-.\build\dev\GameWIP.exe --version
+.\gamewip.bat build dev
 .\build\dev\GameWIP.exe
 ```
 
-The [getting started guide](docs/doxygen/getting_started.md) explains the
-first-checkout path. Use the [command-line tools reference](docs/doxygen/command_line_tools.md)
-for setup, project-helper, game, test, and benchmark commands.
+Or use CMake directly from MSYS2 UCRT64 Bash:
+
+```bash
+cmake --preset dev
+cmake --build --preset dev
+./build/dev/GameWIP.exe
+```
+
+See the [getting started guide](docs/doxygen/getting_started.md), the
+[build guide](docs/doxygen/build.md) (all presets, including `docs`), and the
+[command-line tools reference](docs/doxygen/command_line_tools.md).
 
 ## Documentation
 
-Generated API documentation and the developer manual are published at the
-[GameWIP documentation site](https://andrei11033.github.io/GameWIP/). Start
-with the [manual index](docs/doxygen/index.md) for architecture,
-subsystem workflows, API contracts, and engineering decisions.
-
-Public headers keep important contracts discoverable through IntelliSense;
-manual pages explain how the surrounding subsystem fits together. The
-[documentation system guide](docs/doxygen/documentation.md) defines that
-division of responsibility.
-
-To build the manual locally, use the `docs` preset described in the
-[build guide](docs/doxygen/build.md).
+The API reference and developer manual are on the
+[documentation site](https://andrei11033.github.io/GameWIP/); the
+[manual index](docs/doxygen/index.md) is the entry point. Public headers carry
+short contracts for IntelliSense; manual pages cover the surrounding design (see
+the [documentation guide](docs/doxygen/documentation.md)).
 
 ## Project links
 
@@ -76,7 +72,7 @@ To build the manual locally, use the `docs` preset described in the
 
 ```text
 foundation/   Reusable low-level libraries.
-engine/       Supported Desktop plus deprecated Input, Action, and WindowManager code.
+engine/       Engine libraries and retained reference code.
 tools/        Diagnostics, logging, assertions, and test support.
 game/         Game executable and source-tree validation.
 cmake/        Project build and validation infrastructure.
@@ -85,8 +81,10 @@ docs/         Product direction and developer documentation.
 build/        Setup-managed dependency caches and generated build output.
 ```
 
-The root entry points stay short; detailed subsystem contracts and workflows
-live in the [developer manual](docs/doxygen/index.md).
+`engine/desktop` is the supported, maintained engine library. `engine/input` and
+`engine/action`, along with `engine/window_manager`, are retained reference
+sources excluded from normal builds. None of these legacy components
+should be used for new code; see the [engine boundary in the developer manual](docs/doxygen/project_structure.md#engine-libraries-and-reference-code).
 
 ## License
 

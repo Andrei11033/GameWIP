@@ -283,6 +283,7 @@ namespace GameWIP::IO
         const std::span source = bytes_.subspan(position_, count);
         const std::span target = destination.first(count);
         const std::less<const std::byte *> pointerLess;
+
         if (pointerLess(source.data(), target.data()) && pointerLess(target.data(), std::to_address(source.end())))
         {
             std::ranges::copy_backward(source, target.end());
@@ -415,6 +416,7 @@ namespace GameWIP::IO
             {
                 const auto sourceOffset = static_cast<std::size_t>(inputBegin - ownBegin);
                 Types::Status appendStatus = appendAliasedBytes(bytes_, sourceOffset, bytes.size());
+
                 if (!appendStatus.ok())
                 {
                     return {.status = std::move(appendStatus), .bytesWritten = 0};
@@ -507,6 +509,7 @@ namespace GameWIP::IO
     {
         Types::CopyTextResult result;
         const auto view = bytes();
+
         if (view.empty())
         {
             return result;
@@ -519,6 +522,7 @@ namespace GameWIP::IO
         }
 
         const std::string_view textView(reinterpret_cast<const char *>(view.data()), view.size());
+
         if (Unicode::Utf8::validate(textView).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             result.status = makeStatus(Types::ErrorCode::EncodingFailed);

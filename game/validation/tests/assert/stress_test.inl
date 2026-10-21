@@ -13,11 +13,12 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
 #if ASSERT_CHECKS_ENABLED
     if (!options.enableStressTests)
     {
-        context.pass("CHECK_ONCE thread stress skipped by AssertTestOptions");
+        context.skip("CHECK_ONCE thread stress", "disabled by AssertTestOptions");
         return;
     }
 
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "check_once_thread_stress"))
     {
         context.fail("CHECK_ONCE thread stress logger init", "Logger::init failed");
@@ -43,6 +44,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
     }
 
     start.store(true, std::memory_order_release);
+
     for (std::thread &worker : workers)
     {
         worker.join();
@@ -56,6 +58,6 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
     context.expectEq("CHECK_ONCE thread stress logs generic once", countOccurrences(contents, "[ERROR][Check]: Check failed"), std::size_t{1});
 #endif
 #else
-    context.pass("CHECK_ONCE thread stress skipped because ASSERT_CHECKS_ENABLED=0");
+    context.skip("CHECK_ONCE thread stress", "ASSERT_CHECKS_ENABLED=0");
 #endif
 }

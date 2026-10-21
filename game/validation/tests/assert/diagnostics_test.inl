@@ -6,6 +6,7 @@ void testDiagnosticConfiguration(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "diagnostics"))
     {
         context.fail("diagnostics logger init", "Logger::init failed");
@@ -27,7 +28,7 @@ void testDiagnosticConfiguration(TestContext &context)
     context.expectTrue("diagnostics stripped location", !contents.contains("diagnostics_test.inl"), "location text was embedded");
 #endif
 #else
-    context.pass("diagnostic logger test skipped because ASSERT_CHECKS_ENABLED=0");
+    context.skip("diagnostic logger test", "ASSERT_CHECKS_ENABLED=0");
 #endif
 }
 
@@ -36,6 +37,7 @@ void testDiagnosticMessageEvaluation(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "diagnostic_message_evaluation"))
     {
         context.fail("diagnostic message evaluation logger init", "Logger::init failed");
@@ -57,7 +59,7 @@ void testDiagnosticMessageEvaluation(TestContext &context)
         "diagnostic message was embedded");
 #endif
 #else
-    context.pass("diagnostic message evaluation skipped because ASSERT_CHECKS_ENABLED=0");
+    context.skip("diagnostic message evaluation", "ASSERT_CHECKS_ENABLED=0");
 #endif
 }
 
@@ -72,7 +74,7 @@ void testCompiledOutMessageEvaluation(TestContext &context)
     VERIFY_INTERACTIVE_MSG(false, makeDiagnosticMessage(assertMessageEvaluations));
     context.expectEq("compiled-out assert messages skipped", assertMessageEvaluations, 0);
 #else
-    context.pass("compiled-out assert message test skipped because ASSERT_ENABLED=1");
+    context.skip("compiled-out assert message test", "ASSERT_ENABLED=1");
 #endif
 
 #if !ASSERT_CHECKS_ENABLED
@@ -82,7 +84,7 @@ void testCompiledOutMessageEvaluation(TestContext &context)
     (void)ENSURE_MSG(false, makeDiagnosticMessage(checkMessageEvaluations));
     context.expectEq("compiled-out check messages skipped", checkMessageEvaluations, 0);
 #else
-    context.pass("compiled-out check message test skipped because ASSERT_CHECKS_ENABLED=1");
+    context.skip("compiled-out check message test", "ASSERT_CHECKS_ENABLED=1");
 #endif
 }
 
@@ -91,6 +93,7 @@ void testUtf8DiagnosticTruncation(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED && ASSERT_DIAGNOSTICS
     ScopedLoggerShutdown loggerShutdown;
+
     if (!initFileLogger(context, "utf8_truncation"))
     {
         context.fail("UTF-8 truncation logger init", "Logger::init failed");
@@ -99,6 +102,7 @@ void testUtf8DiagnosticTruncation(TestContext &context)
 
     std::string message;
     message.reserve(1'600);
+
     for (int index = 0; index < 400; ++index)
     {
         message += "\xF0\x9F\x98\x80";
@@ -110,13 +114,14 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     const TestSupport::Types::TextResult logText = TestSupport::readTextFile(loggerLogFilePath(context));
     const std::string statusText = TestSupport::formatInfrastructureStatus(logText.status);
     context.expectTrue("truncated diagnostic remains valid UTF-8", logText.status.ok(), statusText);
+
     if (!logText.status.ok())
     {
         return;
     }
     context.expectContains("truncated diagnostic has visible suffix", logText.text, "... [truncated]");
 #else
-    context.pass("UTF-8 diagnostic truncation skipped because checks or diagnostics are disabled");
+    context.skip("UTF-8 diagnostic truncation", "checks or diagnostics are disabled");
 #endif
 }
 
@@ -128,6 +133,6 @@ void testDiagnosticPreparationEmergencyPath(TestContext &context)
         "diagnostic preparation failure reaches static emergency popup path",
         GameWIP::Debug::Assert::TestHooks::runDiagnosticPreparationEmergencyPathForTest());
 #else
-    context.pass("diagnostic preparation emergency path skipped because Assert test hooks are disabled");
+    context.skip("diagnostic preparation emergency path", "Assert test hooks are disabled");
 #endif
 }

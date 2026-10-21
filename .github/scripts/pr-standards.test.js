@@ -85,11 +85,11 @@ test('rejects missing and duplicate primary metadata', () => {
     );
 });
 
-test('rejects retired or unsupported metadata values', () => {
-    const tooling = valid.labels.map((label) => (label.name === 'type:task' ? { name: 'type:tooling' } : label));
-    assert.ok(validatePullRequest({ ...valid, labels: tooling }).some((error) => error.includes('type:tooling')));
+test('rejects unsupported metadata values', () => {
+    const unknownType = valid.labels.map((label) => (label.name === 'type:task' ? { name: 'type:unknown' } : label));
+    assert.ok(validatePullRequest({ ...valid, labels: unknownType }).some((error) => error.includes('type:unknown')));
 
-    const underscoreArea = valid.labels.map((label) => (label.name === 'area:github' ? { name: 'area:test_support' } : label));
+    const underscoreArea = valid.labels.map((label) => (label.name === 'area:github' ? { name: 'area:invalid_area' } : label));
     assert.ok(validatePullRequest({ ...valid, labels: underscoreArea }).some((error) => error.includes('not canonical')));
 
     const unsupportedPriority = valid.labels.map((label) => (label.name === 'priority:normal' ? { name: 'priority:urgent' } : label));

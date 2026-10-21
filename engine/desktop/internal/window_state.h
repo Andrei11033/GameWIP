@@ -26,6 +26,8 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Detail
 {
+    /// @brief Mirrors owner-thread cached geometry into an active accessibility bridge.
+    void publishAccessibilityGeometry(WindowState &window) noexcept;
     struct TaskbarItemState;
 
     /// @brief Outcome of inserting one Window event into fixed-capacity storage.
@@ -83,8 +85,8 @@ namespace GameWIP::Desktop::Detail
         Types::Dpi dpi;
         Types::DpiResizePolicy dpiResizePolicy = Types::DpiResizePolicy::PreserveLogicalClientSize;
         Types::Display::MonitorId monitor;
-        Types::Mode mode = Types::Mode::Windowed;
-        Types::FullscreenInfo fullscreen;
+        Types::WindowMode mode = Types::WindowMode::Windowed;
+        Types::FullscreenState fullscreen;
         Types::PresentationState presentation = Types::PresentationState::Normal;
         Types::DecorationMode decoration = Types::DecorationMode::System;
         Types::Controls controls;
@@ -118,6 +120,10 @@ namespace GameWIP::Desktop::Detail
         bool suppressEvents = false;                 ///< Suppresses construction-time native callbacks.
         bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
         TaskbarItemState *taskbarItem = nullptr;
+        AccessibilityState *accessibility = nullptr;
+        // A foreign-thread Window destructor transfers this optional owner with deferred native state.
+        // Keep the callback pointer stable and readable until the owner destroys the HWND.
+        std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> deferredAccessibilityOwner;
     };
 
     /// @brief Returns whether a Window payload may replace a newer payload of the same type.
@@ -145,6 +151,8 @@ namespace GameWIP::Desktop::Detail
     /// @brief Publishes cached presentation values when concurrent reads are enabled.
     inline void publishCachedPresentationState(WindowState &state) noexcept
     {
+        publishAccessibilityGeometry(state);
+
         if (state.presentationPublication != nullptr)
         {
             publishCachedPresentationState(*state.presentationPublication, state);
@@ -173,6 +181,7 @@ namespace GameWIP::Desktop::Detail
     [[nodiscard]] inline bool pointerHitMaskAccepts(const WindowState &state, Types::LogicalPosition position) noexcept
     {
         const RendererIntegrationState *renderer = state.rendererIntegration;
+
         if (renderer == nullptr || renderer->pointerHitMask.empty() || renderer->pointerHitMaskActiveGeneration == 0 ||
             renderer->pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 ||
             position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
@@ -183,6 +192,7 @@ namespace GameWIP::Desktop::Detail
 
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
+
         if (x >= state.framebufferSize.width || y >= state.framebufferSize.height)
         {
             return true;
@@ -192,6 +202,7 @@ namespace GameWIP::Desktop::Detail
         const std::uint64_t width = state.framebufferSize.width;
         const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
         const std::uint64_t word = y * wordsPerRow + x / bitsPerWord;
+
         if (word >= renderer->pointerHitMask.size())
         {
             return true;
@@ -202,6 +213,14 @@ namespace GameWIP::Desktop::Detail
 
     struct WindowAccess
     {
+        [[nodiscard]] static AccessibilityState *accessibilityState(const Window &window) noexcept
+        {
+            return window.accessibilityState_.get();
+        }
+        [[nodiscard]] static std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> &accessibilityStateOwner(Window &window) noexcept
+        {
+            return window.accessibilityState_;
+        }
         [[nodiscard]] static WindowState *state(Window &window) noexcept
         {
             return window.state_.get();
@@ -228,10 +247,12 @@ namespace GameWIP::Desktop::Detail
             {
                 window.rendererIntegration_ = std::make_unique<RendererIntegrationState>();
             }
+
             if (window.state_)
             {
                 window.state_->rendererIntegration = window.rendererIntegration_.get();
             }
+
             return window.rendererIntegration_.get();
         }
 

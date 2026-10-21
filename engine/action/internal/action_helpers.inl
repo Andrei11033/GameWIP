@@ -219,6 +219,7 @@ namespace GameWIP::Action
             }
 
             const float scaledValue = value * binding.valueMapping.scale;
+
             switch (binding.valueMapping.component)
             {
             case ActionComponent::Scalar:
@@ -473,6 +474,7 @@ namespace GameWIP::Action
         inline void applyCurve2D(float &x, float &y, float curveExponent)
         {
             const float length = getVectorLength(x, y);
+
             if (length == 0.0f)
             {
                 return;
@@ -488,6 +490,7 @@ namespace GameWIP::Action
         inline void clampVectorLength(float &x, float &y, float maximumLength)
         {
             const float length = getVectorLength(x, y);
+
             if (length <= maximumLength || length == 0.0f)
             {
                 return;

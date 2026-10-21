@@ -28,9 +28,21 @@ static_assert(noexcept(GameWIP::TestSupport::runChildProcess(std::declval<const 
 static_assert(std::is_nothrow_destructible_v<GameWIP::TestSupport::Types::Process::Result>);
 static_assert(std::is_nothrow_constructible_v<GameWIP::TestSupport::ScopedTemporaryDirectory, std::string_view>);
 static_assert(std::is_nothrow_destructible_v<GameWIP::TestSupport::ScopedTemporaryDirectory>);
-static_assert(std::is_nothrow_constructible_v<GameWIP::TestSupport::ScopedCurrentPath, const std::filesystem::path &>);
+static_assert(std::is_nothrow_constructible_v<GameWIP::TestSupport::ScopedProcessState>);
+static_assert(std::is_nothrow_destructible_v<GameWIP::TestSupport::ScopedProcessState>);
+static_assert(std::is_nothrow_constructible_v<
+              GameWIP::TestSupport::ScopedCurrentPath,
+              GameWIP::TestSupport::ScopedProcessState &,
+              const std::filesystem::path &>);
 static_assert(std::is_nothrow_destructible_v<GameWIP::TestSupport::ScopedCurrentPath>);
-static_assert(std::is_nothrow_constructible_v<GameWIP::TestSupport::ScopedEnvironmentVariable, std::string_view, std::string_view>);
+static_assert(std::is_nothrow_constructible_v<
+              GameWIP::TestSupport::ScopedEnvironmentVariable,
+              GameWIP::TestSupport::ScopedProcessState &,
+              std::string_view,
+              std::string_view>);
 static_assert(std::is_nothrow_destructible_v<GameWIP::TestSupport::ScopedEnvironmentVariable>);
-static_assert(std::is_nothrow_constructible_v<GameWIP::TestSupport::ScopedUnsetEnvironmentVariable, std::string_view>);
+static_assert(std::is_nothrow_constructible_v<
+              GameWIP::TestSupport::ScopedUnsetEnvironmentVariable,
+              GameWIP::TestSupport::ScopedProcessState &,
+              std::string_view>);
 static_assert(std::is_nothrow_destructible_v<GameWIP::TestSupport::ScopedUnsetEnvironmentVariable>);

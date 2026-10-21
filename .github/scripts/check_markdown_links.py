@@ -40,6 +40,7 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def normalized_relative_path(path: Path, root: Path) -> Path | None:
+
     try:
         return path.resolve().relative_to(root.resolve())
     except ValueError:
@@ -62,15 +63,19 @@ def iter_markdown_files(root: Path) -> list[Path]:
 
     for file_path in root.glob("*.md"):
         relative_file_path = normalized_relative_path(file_path, root)
+
         if relative_file_path is not None and not is_excluded(relative_file_path):
             markdown_files.add(file_path)
 
     for directory in SCANNED_MARKDOWN_DIRS:
         absolute_directory = root / directory
+
         if not absolute_directory.is_dir():
             continue
+
         for file_path in absolute_directory.rglob("*.md"):
             relative_file_path = normalized_relative_path(file_path, root)
+
             if relative_file_path is not None and not is_excluded(relative_file_path):
                 markdown_files.add(file_path)
 
@@ -84,23 +89,28 @@ def remove_fenced_code_blocks(markdown: str) -> str:
 def iter_link_targets(markdown: str) -> list[str]:
     content = remove_fenced_code_blocks(markdown)
     targets: list[str] = []
+
     for pattern in (INLINE_LINK_PATTERN, IMAGE_LINK_PATTERN, REFERENCE_DEFINITION_PATTERN):
         targets.extend(match.group(1).strip() for match in pattern.finditer(content))
     return targets
 
 
 def strip_markdown_title(target: str) -> str:
+
     if not target:
         return target
+
     if target[0] in {'"', "'"}:
         return target
     match = re.match(r"([^\s]+)(?:\s+['\"(].*)?$", target)
+
     if match:
         return match.group(1)
     return target
 
 
 def is_local_relative_target(target: str) -> bool:
+
     if not target or target.startswith("#"):
         return False
 
@@ -110,17 +120,20 @@ def is_local_relative_target(target: str) -> bool:
 
 def resolve_target(markdown_file: Path, target: str, root: Path) -> Path | None:
     cleaned_target = strip_markdown_title(target).strip("<>")
+
     if not is_local_relative_target(cleaned_target):
         return None
 
     split_target = urlsplit(cleaned_target)
     target_path = unquote(split_target.path)
+
     if not target_path:
         return None
 
     resolved_path = root / target_path.lstrip("/") if Path(target_path).is_absolute() else markdown_file.parent / target_path
 
     relative_resolved_path = normalized_relative_path(resolved_path, root)
+
     if relative_resolved_path is None:
         return None
 
@@ -135,15 +148,19 @@ def main() -> int:
     for markdown_file in iter_markdown_files(root):
         markdown = markdown_file.read_text(encoding="utf-8")
         relative_markdown_file = normalized_relative_path(markdown_file, root) or markdown_file
+
         for target in iter_link_targets(markdown):
             resolved_target = resolve_target(markdown_file, target, root)
+
             if resolved_target is None:
                 continue
+
             if not resolved_target.exists():
                 failures.append(f"{relative_markdown_file}: broken local Markdown link: {target}")
 
     if failures:
         print("Broken local Markdown links found:", file=sys.stderr)
+
         for failure in failures:
             print(f"- {failure}", file=sys.stderr)
         return 1

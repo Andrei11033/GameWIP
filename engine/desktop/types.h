@@ -25,6 +25,12 @@ namespace GameWIP::Desktop
         {
             std::uint64_t value = 0; ///< Opaque identity, or zero when invalid.
 
+            /// @brief Returns the explicit no-owner identity.
+            [[nodiscard]] static constexpr WindowId invalid() noexcept
+            {
+                return {};
+            }
+
             /// @brief Reports whether this identity is usable.
             [[nodiscard]] constexpr bool isValid() const noexcept
             {
@@ -34,8 +40,8 @@ namespace GameWIP::Desktop
             friend constexpr bool operator==(WindowId, WindowId) noexcept = default;
         };
 
-        /// @brief Top-level Window mode.
-        enum class Mode
+        /// @brief Top-level Window presentation mode.
+        enum class WindowMode
         {
             Windowed,             ///< Positioned desktop Window with normal windowed behavior.
             BorderlessFullscreen, ///< Borderless Window covering one monitor without changing its display mode.

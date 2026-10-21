@@ -81,6 +81,7 @@ namespace GameWIP
 
         auto window = std::make_unique<Window>();
         WindowResult createResult = window->create(description);
+
         if (createResult != WindowResult::Success)
         {
             return createResult;
@@ -88,6 +89,7 @@ namespace GameWIP
 
         Window *createdWindow = window.get();
         HWND handle = toNativeHandle(*createdWindow);
+
         if (handle == nullptr)
         {
             createdWindow->destroy();
@@ -136,6 +138,7 @@ namespace GameWIP
 
         Window *windowPtr = windowIt->get();
         HWND handle = toNativeHandle(*windowPtr);
+
         if (handle != nullptr)
         {
             nativeManager->windowsByHandle.erase(handle);
@@ -158,6 +161,7 @@ namespace GameWIP
         }
 
         bool destroyingMainWindow = nativeManager->mainWindow == windowPtr;
+
         if (destroyingMainWindow)
         {
             nativeManager->mainWindow = nullptr;
@@ -184,6 +188,7 @@ namespace GameWIP
         {
             unsigned long rawInputError = 0;
             HWND rawInputHandle = toNativeHandle(*nativeManager->rawInputWindow);
+
             if (!Win32Input::registerInputDevices(rawInputHandle, inputDevices, rawInputError))
             {
                 nativeManager->quitRequested = true;
@@ -196,6 +201,7 @@ namespace GameWIP
 
         std::vector<Window *> pendingDestroy = std::move(nativeManager->pendingDestroy);
         nativeManager->pendingDestroy.clear();
+
         for (Window *window : pendingDestroy)
         {
             if (window != nullptr && window != nativeManager->mainWindow && containsWindow(nativeManager->windows, window))
@@ -205,6 +211,7 @@ namespace GameWIP
         }
 
         MSG message{};
+
         while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
         {
             if (message.message == WM_QUIT)
@@ -215,6 +222,7 @@ namespace GameWIP
 
             Window *targetWindow = nullptr;
             auto targetIt = nativeManager->windowsByHandle.find(message.hwnd);
+
             if (targetIt != nativeManager->windowsByHandle.end())
             {
                 targetWindow = targetIt->second;
@@ -296,6 +304,7 @@ namespace GameWIP
         for (const std::unique_ptr<Window> &window : nativeManager->windows)
         {
             Window *windowPtr = window.get();
+
             if (windowPtr != nativeManager->mainWindow && windowPtr->shouldClose())
             {
                 if (std::find(nativeManager->pendingDestroy.begin(), nativeManager->pendingDestroy.end(), windowPtr) ==
@@ -338,6 +347,7 @@ namespace GameWIP
         }
 
         outWindows.reserve(nativeManager->windows.size());
+
         for (const std::unique_ptr<Window> &window : nativeManager->windows)
         {
             outWindows.push_back(window.get());
