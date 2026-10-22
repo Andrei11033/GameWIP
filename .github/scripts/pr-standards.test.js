@@ -10,7 +10,7 @@ const { hasMeaningfulContent, validatePullRequest } = require('./pr-standards.js
 
 const valid = {
     title: 'github: standardize repository policy',
-    body: '## Summary\nStandardizes policy.\n## Linked Issues\nNo linked issue: maintenance\n## Validation\nRan tests.\n## Merge Message\nTitle: github: standardize repository policy\nBody: Keep policy tested.\n## Checklist\n- [x] Done',
+    body: '## Summary\nStandardizes policy.\n## Validation\nRan tests.',
     labels: [{ name: 'area:github' }, { name: 'type:task' }, { name: 'priority:normal' }],
 };
 
@@ -20,31 +20,29 @@ test('accepts optional compat:breaking', () => {
     assert.deepEqual(validatePullRequest({ ...valid, labels: [...valid.labels, { name: 'compat:breaking' }] }), []);
 });
 
-test('accepts a merge message without an optional body', () => {
-    const body = valid.body.replace('Body: Keep policy tested.\n', '');
+test('accepts optional issue and implementation sections', () => {
+    const body = `${valid.body}\n## Linked Issues\nNo linked issue: maintenance\n## Implementation Notes\nKeep the policy focused.`;
     assert.deepEqual(validatePullRequest({ ...valid, body }), []);
 });
 
-test('rejects an explicitly supplied empty merge-message body', () => {
-    const body = valid.body.replace('Body: Keep policy tested.', 'Body:');
-    assert.ok(validatePullRequest({ ...valid, body }).some((error) => error.includes('when provided')));
-});
-
-test('accepts a meaningful merge-message body on following lines', () => {
-    const body = valid.body.replace('Body: Keep policy tested.', 'Body:\nKeep policy tested.');
+test('accepts an empty optional issue section', () => {
+    const body = `${valid.body}\n## Linked Issues\n<!-- None for this maintenance change. -->`;
     assert.deepEqual(validatePullRequest({ ...valid, body }), []);
 });
 
-test('accepts the actual PR template shape without an optional merge-message body', () => {
+test('rejects a malformed populated issue section', () => {
+    const body = `${valid.body}\n## Linked Issues\nIssue discussed elsewhere.`;
+    assert.ok(validatePullRequest({ ...valid, body }).some((error) => error.includes('Closes #123')));
+});
+
+test('accepts the actual PR template shape', () => {
     const template = fs.readFileSync(path.join(__dirname, '..', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');
     const body = template
-        .replace('<!-- Describe what is different after this change. -->', 'Standardizes the repository policy.')
-        .replace('- Closes #', 'No linked issue: maintenance')
         .replace(
-            '<!-- Record checks you actually ran and their results. GitHub reports required CI separately. -->',
+            '<!-- Record checks you ran and their results. -->',
             '`gamewip.bat quality check` passed.',
         )
-        .replace('- Title: `area: imperative summary`', '- Title: `github: standardize repository policy`');
+        .replace('<!-- Briefly describe what changed and why. -->', 'Standardizes the repository policy.');
     assert.deepEqual(validatePullRequest({ ...valid, body }), []);
 });
 
@@ -53,6 +51,10 @@ test('rejects the untouched PR template placeholders', () => {
     const errors = validatePullRequest({ ...valid, body: template });
     assert.ok(errors.includes('`## Summary` must contain meaningful content.'));
     assert.ok(errors.includes('`## Validation` must contain meaningful content.'));
+});
+
+test('does not require removed convenience sections', () => {
+    assert.deepEqual(validatePullRequest(valid), []);
 });
 
 test('accepts every canonical type and priority', () => {
@@ -102,9 +104,9 @@ test('rejects unsupported metadata values', () => {
     );
 });
 
-test('rejects placeholders while preserving normal body validation', () => {
-    const body = valid.body.replace('github: standardize repository policy', 'area: imperative summary');
-    assert.ok(validatePullRequest({ ...valid, body }).some((error) => error.includes('concrete')));
+test('rejects a placeholder pull-request title', () => {
+    const errors = validatePullRequest({ ...valid, title: 'area: imperative summary' });
+    assert.ok(errors.some((error) => error.includes('PR title must use')));
 });
 
 test('does not let removed HTML comments reform comment openers', () => {

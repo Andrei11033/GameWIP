@@ -24,7 +24,7 @@ required evidence without requiring contributors to dispatch duplicate runs:
 
 | Required check | Owns |
 | --- | --- |
-| `PR Standards / Check PR Standards` | Ready-for-review title, body, linked issue, merge message, and labels. |
+| `PR Standards / Check PR Standards` | Ready-for-review title, concise body, optional issue reference, and labels. |
 | `Validation / Build and Test` | Main configure/build path, non-package CTest contracts, benchmark registration, clang-tidy, and clang-format. |
 | `Validation / Packages (CMake)` | Ordinary installed-package consumers with single- and multi-config generators. |
 | `Validation / Repository Checks` | Automation/script tests, structured files, docs, links, Action pins, job policy, and public files. |
@@ -53,7 +53,7 @@ only to save a small runner startup:
 | --- | --- | --- |
 | `Issue Area Labels` | Built-in `issues: write` token. | Maps an issue-form choice to one area label. |
 | `Project Automation` | Dedicated project token. | Reconciles status and linked issue/PR metadata, including missed events. |
-| `PR Standards` | Read-only pull-request metadata. | Enforces title, body, issue link, merge message, and labels without running contributor code. |
+| `PR Standards` | Read-only pull-request metadata. | Enforces title, concise body, optional issue link, and labels without running contributor code. |
 | `Validation` | Read-only contents plus artifact upload. | Produces build, test, analysis, docs, and repository evidence once. |
 | `Release Preparation` | Dedicated project/release token. | Computes readiness automatically; writes occur only through guarded manual operations. |
 | `Doxygen Docs` | Pages deployment permissions. | Reuses validated HTML after a successful `master` push; only guarded manual recovery rebuilds it. |

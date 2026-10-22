@@ -138,15 +138,16 @@ Use this format for pull request titles:
 area: imperative summary
 ```
 
-Final squash commit subjects should keep GitHub's generated pull request
-suffix:
+Use the pull request title as the squash commit subject. GitHub adds the pull
+request suffix automatically:
 
 ```text
 area: imperative summary (#123)
 ```
 
 The pull request title uses the primary area. Issue titles use their work type.
-Keeping the suffix links the squash commit in `master` to the pull request.
+The pull request title becomes the squash commit subject; do not duplicate it
+in a separate body section.
 
 The pull request body should include:
 
@@ -155,15 +156,14 @@ The pull request body should include:
 - The validation commands or inspections performed.
 - Important implementation discoveries, corrected assumptions, platform
   surprises, or changes from the original direction.
-- Required confirmations from the pull-request template.
-- The intended squash merge title, plus a body when additional context is useful.
+- A linked issue when applicable.
 
 Use `Draft` only while the pull request is not ready for final review or merge.
 
 ## Required pull-request metadata
 
 Ready-for-review pull requests must pass the `PR Standards` workflow. It checks
-the title, required body sections, linked issue or explanation, merge message,
+the title, concise summary and validation sections, optional issue reference,
 and primary labels. Its policy is read from the trusted base branch.
 
 Draft pull requests may be incomplete while work is still moving.
