@@ -458,4 +458,4 @@ jobs:
           name: doxygen-pages
           path: build/ci-docs/docs/doxygen/html
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
