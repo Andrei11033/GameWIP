@@ -9,3 +9,6 @@ contact_links:
   - name: Generated documentation
     url: https://andrei11033.github.io/GameWIP/
     about: Browse the generated Doxygen documentation published through GitHub Pages.
+  - name: Security reporting
+    url: https://github.com/Andrei11033/GameWIP/blob/master/SECURITY.md
+    about: Read how to report vulnerabilities privately instead of opening a public issue.

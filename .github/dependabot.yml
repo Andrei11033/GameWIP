@@ -9,6 +9,10 @@ updates:
       time: '09:00'
       timezone: 'Europe/Bucharest'
     open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - '*'
     labels:
       - 'area:github'
       - 'priority:normal'

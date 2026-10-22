@@ -189,9 +189,11 @@ If a check was not run, say so directly and explain why.
 ## Understand the automated checks
 
 The `Validation` workflow runs on pull requests into `master`, pushes to
-`master`, and manual dispatch. It owns the build, tests, package checks,
-sanitizers, coverage, documentation, and repository checks. The exact jobs and
-branch-protection requirements are maintained in
+`master`, and manual dispatch. It first classifies the change as fast, docs, or
+deep. Fast changes run repository checks, documentation changes add the docs
+build, and source/build changes run the full package, test, sanitizer, and
+coverage suite. The `Gate` check summarizes the selected path. The exact jobs
+and branch-protection requirements are maintained in
 @ref project_repository_maintenance. Use @ref project_static_analysis for
 local quality commands.
 
