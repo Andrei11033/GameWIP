@@ -70,7 +70,12 @@ function validatePullRequest(pr) {
     }
     const linked = sectionText(body, 'Linked Issues');
 
-    if (linked !== undefined && hasMeaningfulContent(linked) && !/\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#\d+\b/i.test(linked) && !/\bno linked issue\s*:\s*\S/i.test(linked)) {
+    if (
+        linked !== undefined &&
+        hasMeaningfulContent(linked) &&
+        !/\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#\d+\b/i.test(linked) &&
+        !/\bno linked issue\s*:\s*\S/i.test(linked)
+    ) {
         errors.push('`## Linked Issues` must contain `Closes #123` or `No linked issue: reason`.');
     }
     const labels = (pr.labels || []).map((label) => label.name);

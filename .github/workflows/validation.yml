@@ -644,8 +644,11 @@ jobs:
           [[ "$SCOPE_RESULT" == success ]] || failures+=("Change Scope: $SCOPE_RESULT")
           [[ "$REPOSITORY_RESULT" == success ]] || failures+=("Repository Checks: $REPOSITORY_RESULT")
 
-          if [[ "$NEEDS_DEEP" == true ]]; then
+          if [[ "$NEEDS_DEEP" == true || "$NEEDS_DOCS" == true ]]; then
             [[ "$PREPARE_RESULT" == success ]] || failures+=("Prepare dependency cache: $PREPARE_RESULT")
+          fi
+
+          if [[ "$NEEDS_DEEP" == true ]]; then
             [[ "$PACKAGE_RESULT" == success ]] || failures+=("Packages (CMake): $PACKAGE_RESULT")
             [[ "$BUILD_RESULT" == success ]] || failures+=("Build and Test: $BUILD_RESULT")
             [[ "$COVERAGE_RESULT" == success ]] || failures+=("Coverage: $COVERAGE_RESULT")
@@ -653,7 +656,6 @@ jobs:
           fi
 
           if [[ "$NEEDS_DOCS" == true ]]; then
-            [[ "$PREPARE_RESULT" == success ]] || failures+=("Prepare dependency cache: $PREPARE_RESULT")
             [[ "$DOCS_RESULT" == success ]] || failures+=("Docs Check: $DOCS_RESULT")
           fi
 

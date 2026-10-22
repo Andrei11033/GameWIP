@@ -43,10 +43,10 @@ the deep path, which retains package, runtime, coverage, and sanitizer
 validation. Pushes to `master` and manual validation dispatches always use the
 deep path so release-facing evidence remains complete.
 
-The `Doxygen Docs` workflow publishes the `Docs Check` artifact after the full
-`Validation` workflow succeeds on a `master` push. It does not rebuild the same
-source and is not another pull-request check. Manual deployment is a separate
-recovery path, so it performs its own build.
+`Validation` publishes the `Docs Check` artifact after a successful `master`
+push, and `Doxygen Docs` consumes it. It does not rebuild the same source and
+is not another pull-request check. Manual deployment is a separate recovery
+path, so it performs its own build.
 
 The base package cases run only in `Packages (CMake)`. Coverage and
 AddressSanitizer intentionally retain their package entries because those runs
@@ -86,13 +86,10 @@ reconciliation or validation by hand.
 
 ## Required, change-driven, and release validation
 
-The protected `master` branch should require `PR Standards / Check PR Standards`
-and `Validation / Gate`. The individual Validation jobs remain visible evidence
-and can be required during a transition, but the Gate is the stable policy
-boundary when validation tiers evolve.
-
-The protected Gate and PR Standards checks are required for every non-draft
-pull request.
+The protected `master` branch requires `PR Standards / Check PR Standards` and
+`Validation / Gate` for every non-draft pull request. The individual Validation
+jobs remain visible evidence and can be required during a transition, but the
+Gate is the stable policy boundary when validation tiers evolve.
 Contributors should also run the narrow local command that covers the changed
 area before pushing. Formatting, focused tests, Markdown links, workflow/script
 tests, or a local docs build are examples of change-driven checks.

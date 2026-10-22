@@ -75,7 +75,10 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Include the relevant platform, compiler, build generator, branch, and commit when applicable. Use Not applicable for documentation-only or workflow-only reports.
+      description: >-
+        Include the relevant platform, compiler, build generator, branch, and
+        commit when applicable. Use Not applicable for documentation-only or
+        workflow-only reports.
       value: |
         - OS:
         - Compiler/toolchain:

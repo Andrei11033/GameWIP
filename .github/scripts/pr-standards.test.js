@@ -38,10 +38,7 @@ test('rejects a malformed populated issue section', () => {
 test('accepts the actual PR template shape', () => {
     const template = fs.readFileSync(path.join(__dirname, '..', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');
     const body = template
-        .replace(
-            '<!-- Record checks you ran and their results. -->',
-            '`gamewip.bat quality check` passed.',
-        )
+        .replace('<!-- Record checks you ran and their results. -->', '`gamewip.bat quality check` passed.')
         .replace('<!-- Briefly describe what changed and why. -->', 'Standardizes the repository policy.');
     assert.deepEqual(validatePullRequest({ ...valid, body }), []);
 });

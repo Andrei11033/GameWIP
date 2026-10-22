@@ -517,12 +517,12 @@ header rather than only in a manual page or parameter names.
 
 ## GitHub Pages deployment
 
-`Validation / Docs Check` builds the manual for documentation-relevant and deep
-pull requests, plus every `master` push. Fast metadata-only pull requests skip
-the documentation build. A successful `master` push retains that validated
-HTML for fourteen days; the `Doxygen Docs` workflow consumes the artifact and
-deploys it without a second Doxygen build. Failed validation never publishes
-documentation.
+`Validation / Docs Check` builds the manual when documentation-relevant files
+change and on every `master` push. Fast metadata-only and source-only pull
+requests skip the documentation build. A successful `master` push retains the
+validated HTML for fourteen days; the `Doxygen Docs` workflow consumes that
+artifact and deploys it without a second Doxygen build. Failed validation never
+publishes documentation.
 
 Manual `Doxygen Docs` dispatch is the recovery and deliberate-republication
 path. Because it has no preceding validation artifact, it builds and verifies

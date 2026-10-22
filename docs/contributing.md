@@ -156,7 +156,6 @@ The pull request body should include:
 - The validation commands or inspections performed.
 - Important implementation discoveries, corrected assumptions, platform
   surprises, or changes from the original direction.
-- A linked issue when applicable.
 
 Use `Draft` only while the pull request is not ready for final review or merge.
 
