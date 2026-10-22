@@ -65,7 +65,7 @@ jobs:
             fi
 
             case "$path" in
-              .github/*|docs/*|*.md|*.markdown|README.md|CONTRIBUTING.md|SECURITY.md|LICENSE|NOTICE|.editorconfig|.gitignore)
+              .github/*|docs/*|*.md|*.markdown|LICENSE|NOTICE|.editorconfig|.gitignore)
                 ;;
               *)
                 needs_deep=true
