@@ -20,5 +20,5 @@ surprises, or deviations from the original direction. -->
 <!-- Optional quick review; -->
 
 - [ ] Focused change
-- [ ] Validation recorded above
 - [ ] Docs or configuration updated where needed
+- [ ] Follow-up work is captured in an issue or note

@@ -149,13 +149,11 @@ The pull request title uses the primary area. Issue titles use their work type.
 The pull request title becomes the squash commit subject; do not duplicate it
 in a separate body section.
 
-The pull request body should include:
-
-- What changed.
-- Linked issue numbers when applicable.
-- The validation commands or inspections performed.
-- Important implementation discoveries, corrected assumptions, platform
-  surprises, or changes from the original direction.
+Use the repository pull-request template. Keep `Summary` focused on what
+changed and why, record checks and results under `Validation`, add `Linked
+Issues` when this pull request closes one, and use `Implementation Notes` for
+discoveries or deviations that reviewers need. The review prompts are optional
+quick-review aids, not another required gate.
 
 Use `Draft` only while the pull request is not ready for final review or merge.
 
