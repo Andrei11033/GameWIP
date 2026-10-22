@@ -48,12 +48,14 @@ REQUIRED_CHECK_NAMES = {
     "validation.yml": (
         "Validation",
         (
+            "Change Scope",
             "Packages (CMake)",
             "Build and Test",
             "Repository Checks",
             "Coverage",
             "AddressSanitizer",
             "Docs Check",
+            "Gate",
         ),
     ),
 }

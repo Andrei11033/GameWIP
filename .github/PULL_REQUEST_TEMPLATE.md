@@ -1,29 +1,24 @@
 ## Summary
 
-<!-- Describe what is different after this change. -->
-
-## Implementation Notes
-
-<!-- Record useful discoveries, corrected assumptions, platform surprises,
-or deviations from the original direction. Remove this section if none apply. -->
-
-## Linked Issues
-
-- Closes #
+<!-- Briefly describe what changed and why. -->
 
 ## Validation
 
-<!-- Record checks you actually ran and their results. GitHub reports required CI separately. -->
+<!-- Record checks you ran and their results. -->
 
-## Merge Message
+## Linked Issues
 
-- Title: `area: imperative summary`
-<!-- Add `- Body: ...` only when the subject needs additional context. -->
+<!-- Optional. Add `Closes #123` when this PR completes an issue. -->
+
+## Implementation Notes
+
+<!-- Optional. Record useful discoveries, corrected assumptions, platform
+surprises, or deviations from the original direction. -->
 
 ## Checklist
 
-- [ ] Updated the owning code, configuration, and documentation where applicable.
-- [ ] Recorded the relevant local or manual validation above.
-- [ ] Checked generated documentation and links when documentation or public API changed.
-- [ ] Added or updated correctness coverage for behavior changes where practical.
-- [ ] Kept platform-specific and internal-only behavior behind the documented boundaries where applicable.
+<!-- Optional quick review; -->
+
+- [ ] Focused change
+- [ ] Docs or configuration updated where needed
+- [ ] Follow-up work is captured in an issue or note

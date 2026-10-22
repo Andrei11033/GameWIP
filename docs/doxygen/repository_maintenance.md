@@ -20,22 +20,33 @@ platforms, finished gameplay, stable APIs, or production readiness.
 ## Validation ownership
 
 Pull requests into `master` run one `Validation` workflow. Its jobs divide the
-required evidence without requiring contributors to dispatch duplicate runs:
+required evidence without requiring contributors to dispatch duplicate runs.
+`Change Scope` selects the smallest safe validation tier, and `Gate` reports the
+final result while the individual checks remain visible for diagnosis:
 
-| Required check | Owns |
+| Check | Owns |
 | --- | --- |
-| `PR Standards / Check PR Standards` | Ready-for-review title, body, linked issue, merge message, and labels. |
+| `PR Standards / Check PR Standards` | Ready-for-review title, concise body, optional issue reference, and labels. |
+| `Validation / Change Scope` | Classifies the change as fast, docs, or deep. |
 | `Validation / Build and Test` | Main configure/build path, non-package CTest contracts, benchmark registration, clang-tidy, and clang-format. |
 | `Validation / Packages (CMake)` | Ordinary installed-package consumers with single- and multi-config generators. |
 | `Validation / Repository Checks` | Automation/script tests, structured files, docs, links, Action pins, job policy, and public files. |
 | `Validation / Coverage` | Instrumented tests and report generation; no percentage threshold. |
 | `Validation / AddressSanitizer` | CLANG64 sanitizer configure, build, and tests. |
 | `Validation / Docs Check` | Doxygen build with no unexpected warnings for the pull-request source. |
+| `Validation / Gate` | Confirms that the selected fast, docs, or deep path completed successfully. |
 
-The `Doxygen Docs` workflow publishes the `Docs Check` artifact after the full
-`Validation` workflow succeeds on a `master` push. It does not rebuild the same
-source and is not another pull-request check. Manual deployment is a separate
-recovery path, so it performs its own build.
+The fast path covers repository metadata, GitHub configuration, and ordinary
+Markdown changes. The docs path adds the Doxygen build when documentation is
+affected. Source, build-system, dependency, and other executable changes use
+the deep path, which retains package, runtime, coverage, and sanitizer
+validation. Pushes to `master` and manual validation dispatches always use the
+deep path so release-facing evidence remains complete.
+
+`Validation` publishes the `Docs Check` artifact after a successful `master`
+push, and `Doxygen Docs` consumes it. It does not rebuild the same source and
+is not another pull-request check. Manual deployment is a separate recovery
+path, so it performs its own build.
 
 The base package cases run only in `Packages (CMake)`. Coverage and
 AddressSanitizer intentionally retain their package entries because those runs
@@ -53,7 +64,7 @@ only to save a small runner startup:
 | --- | --- | --- |
 | `Issue Area Labels` | Built-in `issues: write` token. | Maps an issue-form choice to one area label. |
 | `Project Automation` | Dedicated project token. | Reconciles status and linked issue/PR metadata, including missed events. |
-| `PR Standards` | Read-only pull-request metadata. | Enforces title, body, issue link, merge message, and labels without running contributor code. |
+| `PR Standards` | Read-only pull-request metadata. | Enforces title, concise body, optional issue link, and labels without running contributor code. |
 | `Validation` | Read-only contents plus artifact upload. | Produces build, test, analysis, docs, and repository evidence once. |
 | `Release Preparation` | Dedicated project/release token. | Computes readiness automatically; writes occur only through guarded manual operations. |
 | `Doxygen Docs` | Pages deployment permissions. | Reuses validated HTML after a successful `master` push; only guarded manual recovery rebuilds it. |
@@ -75,7 +86,10 @@ reconciliation or validation by hand.
 
 ## Required, change-driven, and release validation
 
-The protected checks above are required for every non-draft pull request.
+The protected `master` branch requires `PR Standards / Check PR Standards` and
+`Validation / Gate` for every non-draft pull request. The individual Validation
+jobs remain visible evidence and can be required during a transition, but the
+Gate is the stable policy boundary when validation tiers evolve.
 Contributors should also run the narrow local command that covers the changed
 area before pushing. Formatting, focused tests, Markdown links, workflow/script
 tests, or a local docs build are examples of change-driven checks.
@@ -121,14 +135,14 @@ dispatch `docs-deploy`; the push event already publishes the documentation.
 
 ## Protected `master` settings
 
-The protected branch requires the seven checks listed under **Validation
-ownership**, and it must be up to date before merging. It also requires pull
-requests, linear history, and resolved review conversations. Allow branch
-updates so contributors can satisfy the up-to-date check without a maintainer
-repeating the update. Disable force pushes and branch deletion, and enforce the
-rules for administrators. Squash merging is the normal merge method. Avoid
-merge commits; use rebase merging only when preserving individual commits is
-intentional.
+The protected branch requires the `PR Standards / Check PR Standards` and
+`Validation / Gate` checks, and it must be up to date before merging. It also
+requires pull requests, linear history, and resolved review conversations.
+Allow branch updates so contributors can satisfy the up-to-date check without
+a maintainer repeating the update. Disable force pushes and branch deletion,
+and enforce the rules for administrators. Squash merging is the normal merge
+method. Avoid merge commits; use rebase merging only when preserving
+individual commits is intentional.
 
 Check names are an interface with branch protection. Rename a workflow or job
 only when the branch-protection context is updated in the same maintenance
@@ -198,7 +212,8 @@ The public repository must preserve these conditions:
 4. The README description, topics, homepage, latest release, roadmap,
    contribution entry point, code of conduct, security policy, issue forms, and
    `CODEOWNERS` routing remain accurate.
-5. Branch protection and all seven required checks remain enabled for `master`.
+5. Branch protection and the PR Standards plus Validation Gate checks remain
+   enabled for `master`.
 6. Project and release dry runs, guarded-command previews, and Pages publication
    from `master` continue to succeed.
 7. Collaborators, deploy keys, webhooks, installed apps, Actions secrets and

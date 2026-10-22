@@ -75,15 +75,16 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Include the relevant platform, compiler, build generator, branch, and commit.
+      description: >-
+        Include the relevant platform, compiler, build generator, branch, and
+        commit when applicable. Use Not applicable for documentation-only or
+        workflow-only reports.
       value: |
         - OS:
         - Compiler/toolchain:
         - CMake generator:
         - Branch:
         - Commit:
-    validations:
-      required: true
 
   - type: textarea
     id: logs

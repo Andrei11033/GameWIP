@@ -138,32 +138,29 @@ Use this format for pull request titles:
 area: imperative summary
 ```
 
-Final squash commit subjects should keep GitHub's generated pull request
-suffix:
+Use the pull request title as the squash commit subject. GitHub adds the pull
+request suffix automatically:
 
 ```text
 area: imperative summary (#123)
 ```
 
 The pull request title uses the primary area. Issue titles use their work type.
-Keeping the suffix links the squash commit in `master` to the pull request.
+The pull request title becomes the squash commit subject; do not duplicate it
+in a separate body section.
 
-The pull request body should include:
-
-- What changed.
-- Linked issue numbers when applicable.
-- The validation commands or inspections performed.
-- Important implementation discoveries, corrected assumptions, platform
-  surprises, or changes from the original direction.
-- Required confirmations from the pull-request template.
-- The intended squash merge title, plus a body when additional context is useful.
+Use the repository pull-request template. Keep `Summary` focused on what
+changed and why, record checks and results under `Validation`, add `Linked
+Issues` when this pull request closes one, and use `Implementation Notes` for
+discoveries or deviations that reviewers need. The review prompts are optional
+quick-review aids, not another required gate.
 
 Use `Draft` only while the pull request is not ready for final review or merge.
 
 ## Required pull-request metadata
 
 Ready-for-review pull requests must pass the `PR Standards` workflow. It checks
-the title, required body sections, linked issue or explanation, merge message,
+the title, concise summary and validation sections, optional issue reference,
 and primary labels. Its policy is read from the trusted base branch.
 
 Draft pull requests may be incomplete while work is still moving.
@@ -189,9 +186,11 @@ If a check was not run, say so directly and explain why.
 ## Understand the automated checks
 
 The `Validation` workflow runs on pull requests into `master`, pushes to
-`master`, and manual dispatch. It owns the build, tests, package checks,
-sanitizers, coverage, documentation, and repository checks. The exact jobs and
-branch-protection requirements are maintained in
+`master`, and manual dispatch. It first classifies the change as fast, docs, or
+deep. Fast changes run repository checks, documentation changes add the docs
+build, and source/build changes run the full package, test, sanitizer, and
+coverage suite. The `Gate` check summarizes the selected path. The exact jobs
+and branch-protection requirements are maintained in
 @ref project_repository_maintenance. Use @ref project_static_analysis for
 local quality commands.
 

@@ -5,7 +5,10 @@ contact_links:
     about: Ask usage questions or discuss an idea before turning it into a focused issue.
   - name: Contributor workflow
     url: https://github.com/Andrei11033/GameWIP/blob/master/docs/contributing.md
-    about: Read the issue, branch, pull request, validation, and merge-message standards.
+    about: Read the issue, branch, pull request, and validation standards.
   - name: Generated documentation
     url: https://andrei11033.github.io/GameWIP/
     about: Browse the generated Doxygen documentation published through GitHub Pages.
+  - name: Security reporting
+    url: https://github.com/Andrei11033/GameWIP/blob/master/SECURITY.md
+    about: Read how to report vulnerabilities privately instead of opening a public issue.

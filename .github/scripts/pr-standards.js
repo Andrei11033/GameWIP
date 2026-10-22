@@ -3,7 +3,7 @@
 'use strict';
 
 const TITLE_PATTERN = /^[a-z][a-z0-9_-]*: [a-z0-9][^\r\n]*$/;
-const REQUIRED_SECTIONS = ['Summary', 'Linked Issues', 'Validation', 'Merge Message', 'Checklist'];
+const REQUIRED_SECTIONS = ['Summary', 'Validation'];
 const ALLOWED_TYPE_LABELS = new Set(['type:bug', 'type:feature', 'type:task', 'type:decision', 'type:release']);
 const ALLOWED_PRIORITY_LABELS = new Set(['priority:high', 'priority:normal', 'priority:low']);
 const ALLOWED_COMPATIBILITY_LABELS = new Set(['compat:breaking']);
@@ -46,7 +46,7 @@ function hasMeaningfulContent(text) {
 function validatePullRequest(pr) {
     const errors = [];
 
-    if (!TITLE_PATTERN.test(pr.title)) {
+    if (!TITLE_PATTERN.test(pr.title) || pr.title === 'area: imperative summary') {
         errors.push('PR title must use `area: imperative summary`.');
     }
 
@@ -70,23 +70,13 @@ function validatePullRequest(pr) {
     }
     const linked = sectionText(body, 'Linked Issues');
 
-    if (linked !== undefined && !/\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#\d+\b/i.test(linked) && !/\bno linked issue\s*:\s*\S/i.test(linked)) {
+    if (
+        linked !== undefined &&
+        hasMeaningfulContent(linked) &&
+        !/\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+#\d+\b/i.test(linked) &&
+        !/\bno linked issue\s*:\s*\S/i.test(linked)
+    ) {
         errors.push('`## Linked Issues` must contain `Closes #123` or `No linked issue: reason`.');
-    }
-    const merge = sectionText(body, 'Merge Message');
-
-    if (merge !== undefined) {
-        const title = /^(?:-\s*)?Title:\s*`?([^`\r\n]+)`?\s*$/im.exec(merge)?.[1]?.trim();
-
-        if (!title || title === 'area: imperative summary' || !TITLE_PATTERN.test(title)) {
-            errors.push('Merge message title must be concrete and use `area: imperative summary`.');
-        }
-        const mergeBodyMatch = /^(?:-\s*)?Body:\s*(.*)$/im.exec(merge);
-        const mergeBody = mergeBodyMatch ? `${mergeBodyMatch[1]}\n${merge.slice(mergeBodyMatch.index + mergeBodyMatch[0].length)}` : undefined;
-
-        if (mergeBodyMatch && !hasMeaningfulContent(mergeBody)) {
-            errors.push('Merge message `Body:` must contain meaningful content when provided.');
-        }
     }
     const labels = (pr.labels || []).map((label) => label.name);
     const areaLabels = labels.filter((label) => label.startsWith('area:'));
