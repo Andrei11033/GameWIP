@@ -633,9 +633,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] std::string rawDeviceName(HANDLE nativeDevice);
     [[nodiscard]] bool hidDeviceInfo(HANDLE nativeDevice, RID_DEVICE_INFO &outInfo) noexcept;
     [[nodiscard]] bool hidPreparsedData(HANDLE nativeDevice, std::vector<std::byte> &outPreparsedData, HIDP_CAPS &outCaps) noexcept;
-    [[nodiscard]] bool addHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice);
-    [[nodiscard]] bool addOpaqueHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice);
-    [[nodiscard]] bool enumerateNativeDevices(System::Impl &state, Attachment::Impl &attachment);
     [[nodiscard]] std::optional<Types::StandardId> standardFromHid(
         USAGE usagePage,
         USAGE usage,
