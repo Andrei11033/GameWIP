@@ -219,7 +219,9 @@ function Get-GameWipEditorFailure
         {
             'vscode'
             {
-                if (-not (Test-GameWipSetupCommand -Name $option.Command))
+                $codePath = Resolve-GameWipSetupCommand -Name $option.Command
+
+                if ($null -eq $codePath)
                 {
                     $failures.Add('Selected editor Visual Studio Code is missing.')
                     continue
@@ -239,7 +241,7 @@ function Get-GameWipEditorFailure
                 }
                 $workflowPackage = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'scripts\setup\editor\gamewip-workflows\package.json') -Raw | ConvertFrom-Json
                 $expectedWorkflowExtension = "$($workflowPackage.publisher).$($workflowPackage.name)@$($workflowPackage.version)"
-                $extensionQuery = Invoke-GameWipProcess -FilePath 'code' -Arguments @('--list-extensions', '--show-versions') -OutputMode LogOnly -TimeoutSeconds 30
+                $extensionQuery = Invoke-GameWipProcess -FilePath $codePath -Arguments @('--list-extensions', '--show-versions') -OutputMode LogOnly -TimeoutSeconds 30
 
                 if ($extensionQuery.ExitCode -ne 0)
                 {
@@ -505,7 +507,9 @@ function Install-GameWipEditorIntegration
         [Parameter(Mandatory = $true)][string[]]$Extensions
     )
 
-    if (-not (Test-GameWipSetupCommand -Name 'code'))
+    $codePath = Resolve-GameWipSetupCommand -Name 'code'
+
+    if ($null -eq $codePath)
     {
         throw 'Visual Studio Code was not found after installation.'
     }
@@ -513,14 +517,14 @@ function Install-GameWipEditorIntegration
     foreach ($extension in $Extensions)
     {
         Write-Host "  Checking Visual Studio Code extension: $extension"
-        $extensionQuery = Invoke-GameWipProcess -FilePath 'code' -Arguments @('--list-extensions') -OutputMode LogOnly -TimeoutSeconds 30
+        $extensionQuery = Invoke-GameWipProcess -FilePath $codePath -Arguments @('--list-extensions') -OutputMode LogOnly -TimeoutSeconds 30
 
         if ($extensionQuery.ExitCode -ne 0)
         {
             throw "Visual Studio Code extension discovery failed with exit code $($extensionQuery.ExitCode)."
         }
         $installedBefore = @($extensionQuery.Stdout) -contains $extension
-        Invoke-GameWipSetupNative -FilePath 'code' -ArgumentList @('--install-extension', $extension, '--force') | Out-Null
+        Invoke-GameWipSetupNative -FilePath $codePath -ArgumentList @('--install-extension', $extension, '--force') | Out-Null
 
         if (-not $installedBefore)
         {
@@ -539,8 +543,8 @@ function Install-GameWipEditorIntegration
     Invoke-GameWipVsCodeExtensionPackaging -ExtensionSource $source -Destination $vsixPath
     $extensionId = "$($package.publisher).$($package.name)"
     Write-Host "  Installing Visual Studio Code extension package: $vsixPath"
-    Invoke-GameWipSetupNative -FilePath 'code' -ArgumentList @('--install-extension', $vsixPath, '--force') | Out-Null
-    $extensionQuery = Invoke-GameWipProcess -FilePath 'code' -Arguments @('--list-extensions', '--show-versions') -OutputMode LogOnly -TimeoutSeconds 30
+    Invoke-GameWipSetupNative -FilePath $codePath -ArgumentList @('--install-extension', $vsixPath, '--force') | Out-Null
+    $extensionQuery = Invoke-GameWipProcess -FilePath $codePath -Arguments @('--list-extensions', '--show-versions') -OutputMode LogOnly -TimeoutSeconds 30
 
     if ($extensionQuery.ExitCode -ne 0)
     {

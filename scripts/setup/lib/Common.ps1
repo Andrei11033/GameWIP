@@ -80,10 +80,23 @@ function Initialize-GameWipSetupProcessPath
     Update-GameWipProcessPath
 }
 
+function Resolve-GameWipSetupCommand
+{
+    param([Parameter(Mandatory = $true)][string]$Name)
+    $command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+
+    if ($null -eq $command)
+    {
+        return $null
+    }
+    return [string]$command.Source
+}
+
 function Test-GameWipSetupCommand
 {
     param([Parameter(Mandatory = $true)][string]$Name)
-    return $null -ne (Get-Command $Name -ErrorAction SilentlyContinue)
+    return $null -ne (Resolve-GameWipSetupCommand -Name $Name)
 }
 
 function Invoke-GameWipSetupNative
