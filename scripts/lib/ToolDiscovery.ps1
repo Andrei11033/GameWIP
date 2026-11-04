@@ -289,8 +289,8 @@ function Get-GameWipDetectedTool
 
     if ($usesPackageQueryHost -and $null -eq $version)
     {
-        # The executables are only package-query hosts (for example, Python
-        # used to query jsonschema), not evidence that the package exists.
+        # The executables are only package-query hosts, not evidence that the
+        # provider package exists.
         return [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; SelectionReason = $null; Candidates = $candidates }
     }
 

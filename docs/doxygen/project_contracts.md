@@ -49,16 +49,16 @@ exception for validation helpers whose contract is to throw on failure; a
 
 Exact version-sensitive quality-tool pins are declared centrally:
 
-| Tool | Exact version | Provider |
+| Tool | Registry version | Provider |
 | --- | --- | --- |
-| Ruff | 0.17.1 | Python |
+| Ruff | 0.17.1 | MSYS2 |
 | ESLint | 10.13.0 | npm |
 | Prettier | 3.9.10 | npm |
 | prettier-plugin-powershell | 2.2.0 | npm dependency of Prettier |
 | Gersemi | 0.29.2 | verified GitHub release |
 | markdownlint-cli2 | 0.24.0 | npm |
 | yamllint | 1.38.0 | Python |
-| jsonschema | 4.26.0 | Python |
+| jsonschema | 4.26.0 | MSYS2 |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
 | actionlint | 1.7.12 | verified GitHub release |
 

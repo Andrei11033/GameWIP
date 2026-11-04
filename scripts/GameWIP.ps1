@@ -11,7 +11,6 @@ param(
     [Parameter(Position = 1)][string]$Command,
     [Parameter(Position = 2)][string]$Target,
     [string]$PythonPath,
-    [string]$PythonHostPath,
     [string]$ClangFormatPath,
     [string]$UnicodeDataPath,
     [switch]$RefreshUnicodeData,
@@ -57,7 +56,6 @@ $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 
 # Map command-line values to the operation helpers' shared context.
-$PythonProviderHostPath = $PythonHostPath
 $UnicodeDataRoot = $UnicodeDataPath
 $WorkflowNumber = $ItemNumber
 $Filter = $NameFilter

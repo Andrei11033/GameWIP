@@ -28,7 +28,6 @@ Update-GameWipProcessPath
 
 foreach ($defaultVariable in @{
         PythonPath = ''
-        PythonProviderHostPath = ''
         ClangFormatPath = ''
         UnicodeDataRoot = ''
         RefreshUnicodeData = $false

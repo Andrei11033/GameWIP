@@ -28,7 +28,7 @@ Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
 
-foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'ChangedOnly', 'FailOnFindings', 'UseCallerTemp', 'PythonHostPath', 'UnicodeDataPath', 'ItemNumber'))
+foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'ChangedOnly', 'FailOnFindings', 'UseCallerTemp', 'UnicodeDataPath', 'ItemNumber'))
 {
     if (@($CommandConfig.Options | Where-Object Id -eq $requiredOption).Count -ne 1)
     {
@@ -674,7 +674,7 @@ else
 }
 $expectedPythonPath = if (Test-GameWipWindowsHost)
 {
-    'C:\gamewip-python-path-test\Scripts\python.exe'
+    'C:\gamewip-python-path-test\bin\python.exe'
 }
 else
 {
@@ -690,7 +690,7 @@ $detectedJsonSchema = Get-GameWipDetectedTool -Tool $jsonSchemaTool
 
 if ((Get-GameWipToolCompatibility -Tool $jsonSchemaTool -Detected $detectedJsonSchema) -ne 'compatible')
 {
-    throw 'Python package discovery did not select an interpreter containing jsonschema.'
+    throw 'jsonschema discovery did not select an interpreter containing the package.'
 }
 
 $actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })

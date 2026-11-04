@@ -26,17 +26,11 @@ gamewip_generate_export_header(
 
 target_sources(
     Input
-    PRIVATE
-        core/frame.cpp
-        core/synthetic.cpp
-        core/system.cpp
-        core/value.cpp
+    PRIVATE core/frame.cpp core/synthetic.cpp core/system.cpp core/value.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
-            BASE_DIRS
-                "${CMAKE_CURRENT_SOURCE_DIR}/.."
-                "${INPUT_GENERATED_INCLUDE_DIR}"
+            BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${INPUT_GENERATED_INCLUDE_DIR}"
             FILES
                 "${CMAKE_CURRENT_SOURCE_DIR}/frame.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/input.h"

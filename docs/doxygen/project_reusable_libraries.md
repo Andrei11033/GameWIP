@@ -28,6 +28,8 @@ project_structure.
 
 ## Engine libraries
 
+- @subpage input_library - Portable frame capture, device discovery, raw
+  controls, and platform attachments.
 - @subpage desktop_library - Windows, displays, events, clipboard and drag/drop
   data exchange, dialogs, shell integration, accessibility, and renderer/native
   integration.

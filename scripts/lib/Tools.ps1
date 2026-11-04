@@ -80,7 +80,6 @@ function Get-GameWipManagedToolPath
         (Join-Path $root 'npm'),
         (Join-Path $root 'npm/bin'),
         (Join-Path $root 'python/bin'),
-        (Join-Path $root 'python/Scripts'),
         (Join-Path $root 'powershell')
     )
 }
@@ -99,7 +98,7 @@ function Get-GameWipProviderManagedToolPath
     {
         'python'
         {
-            return @((Join-Path $root 'python/bin'), (Join-Path $root 'python/Scripts'))
+            return @((Join-Path $root 'python/bin'))
         }
         'npm'
         {
@@ -830,49 +829,6 @@ function Resolve-GameWipPython
     }
 
     return [pscustomobject]@{ Path = $candidate; Source = $source; Version = ((@($result.Stdout) + @($result.Stderr)) -join ' ').Trim() }
-}
-
-function Resolve-GameWipPythonProviderHost
-{
-    if (-not [string]::IsNullOrWhiteSpace([string]$PythonProviderHostPath))
-    {
-        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$PythonProviderHostPath)
-
-        if (-not (Test-Path -LiteralPath $candidate))
-        {
-            throw "Python provider host override does not exist: $candidate"
-        }
-
-        return [pscustomobject]@{ Path = $candidate; Source = '-PythonHostPath override'; Version = 'override' }
-    }
-
-    if (Test-GameWipWindowsHost)
-    {
-        $launcher = Get-Command py.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-
-        if ($null -ne $launcher)
-        {
-            $result = Invoke-GameWipProcess -FilePath $launcher.Source -Arguments @('-3.14', '-c', 'import sys; print(sys.executable)') -OutputMode LogOnly -TimeoutSeconds 20
-
-            if ($result.ExitCode -eq 0)
-            {
-                $path = ($result.Stdout -join "`n").Trim()
-
-                if ($path -notmatch '(?i)[\\/](?:ucrt64|clang64|usr)[\\/]')
-                {
-                    return [pscustomobject]@{ Path = $path; Source = 'Windows Python launcher 3.14'; Version = 'Python 3.14' }
-                }
-            }
-        }
-    }
-    $resolved = Resolve-GameWipPython
-
-    if ((Test-GameWipWindowsHost) -and $resolved.Path -match '(?i)[\\/](?:ucrt64|clang64|usr)[\\/]')
-    {
-        throw 'Python provider host must be native CPython, not MSYS2 Python. Run setup.bat tool.'
-    }
-
-    return $resolved
 }
 
 function Resolve-GameWipClangFormat
