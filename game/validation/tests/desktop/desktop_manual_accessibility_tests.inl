@@ -2,7 +2,7 @@
 /// @brief Opt-in assistive-client validation over a renderer-independent semantic fixture.
 void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
-    if (!beginManualSuite(context, options, "Desktop accessibility UI Automation"))
+    if(!beginManualSuite(context, options, "Desktop accessibility UI Automation"))
     {
         return;
     }
@@ -14,13 +14,13 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     description.activation.requestFocus = true;
     description.windowed.clientSize = {800, 450};
 
-    if (!requireManualStatus(context, "accessibility demo opens", window.open(description)))
+    if(!requireManualStatus(context, "accessibility demo opens", window.open(description)))
     {
         return;
     }
     auto bridge = window.accessibility();
 
-    if (!requireManualStatus(context, "accessibility demo enables", bridge.enable()))
+    if(!requireManualStatus(context, "accessibility demo enables", bridge.enable()))
     {
         return;
     }
@@ -55,7 +55,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     nodes[3].geometry = A::Geometry{{24, 180, 180, 40}};
     A::Generation generation = 1;
 
-    if (!requireManualStatus(context, "accessibility semantic fixture publishes", bridge.publish({generation, 1, nodes})))
+    if(!requireManualStatus(context, "accessibility semantic fixture publishes", bridge.publish({generation, 1, nodes})))
     {
         return;
     }
@@ -65,32 +65,32 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     {
         A::ActionRequest request;
 
-        while (bridge.popAction(request))
+        while(bridge.popAction(request))
         {
-            if (request.node != 2)
+            if(request.node != 2)
             {
                 continue;
             }
 
-            if (request.action == A::ActionKind::Focus)
+            if(request.action == A::ActionKind::Focus)
             {
                 static_cast<void>(window.requestFocus());
             }
 
-            if (request.action == A::ActionKind::Invoke)
+            if(request.action == A::ActionKind::Invoke)
             {
                 count = std::format("Invoked {} times", ++invocations);
                 nodes[1].description = count;
                 static_cast<void>(bridge.publish({++generation, 1, nodes}));
 
-                if (bridge.features().supports(A::Feature::Announcements))
+                if(bridge.features().supports(A::Feature::Announcements))
                 {
                     static_cast<void>(bridge.announce({2, "Accessibility action received", "en-US"}));
                 }
             }
         }
 
-        if (manualStatusWindow)
+        if(manualStatusWindow)
         {
             manualStatusWindow->setObservation(
                 std::format("Semantic-only fixture over the renderer-free host; invoke requests received={}", invocations));
@@ -126,7 +126,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
         "to its client area?",
         observe);
 
-    if (!requireManualStatus(context, "accessibility demo disables", bridge.disable()))
+    if(!requireManualStatus(context, "accessibility demo disables", bridge.disable()))
     {
         return;
     }

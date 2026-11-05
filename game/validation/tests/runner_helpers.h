@@ -34,7 +34,7 @@ namespace GameWIP::Test::RunnerHelpers
         const int exitCode = runner.exitCode();
         const TestSupport::Types::Reporting::SinkStatus reportStatus = runner.finalize();
 
-        if (!reportStatus.failureStatus.ok())
+        if(!reportStatus.failureStatus.ok())
         {
             std::cerr << "[TEST INFRA] report sink failed: " << TestSupport::formatInfrastructureStatus(reportStatus.failureStatus) << '\n';
         }

@@ -11,14 +11,14 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
 
     const auto directorySetup = TestSupport::createDirectories(targetDirectory);
 
-    if (!context.expectTrue("symlink fixture directory creation succeeds", directorySetup.ok()))
+    if(!context.expectTrue("symlink fixture directory creation succeeds", directorySetup.ok()))
     {
         context.info(TestSupport::formatInfrastructureStatus(directorySetup));
         return;
     }
     const auto fileSetup = TestSupport::writeTextFile(targetFile, "payload");
 
-    if (!context.expectTrue("symlink fixture file write succeeds", fileSetup.ok()))
+    if(!context.expectTrue("symlink fixture file write succeeds", fileSetup.ok()))
     {
         context.info(TestSupport::formatInfrastructureStatus(fileSetup));
         return;
@@ -28,7 +28,7 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
     const auto followFinal = queryOptions(FileSystem::Types::SymlinkPolicy::FollowFinal);
     const auto followAll = queryOptions(FileSystem::Types::SymlinkPolicy::FollowAll);
 
-    if (createFileSymlink(context, targetFile, finalFileLink))
+    if(createFileSymlink(context, targetFile, finalFileLink))
     {
         const auto finalNoFollow = FileSystem::isSymlink(finalFileLink, doNotFollow);
         static_cast<void>(context.expectTrue("DoNotFollow final symlink query succeeds", finalNoFollow.status.ok()));
@@ -70,7 +70,7 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
         static_cast<void>(context.expectTrue("unsupported final symlink mutation preserves link", finalLinkStillExists.value));
     }
 
-    if (createDirectorySymlink(context, targetDirectory, intermediateDirectoryLink))
+    if(createDirectorySymlink(context, targetDirectory, intermediateDirectoryLink))
     {
         const std::filesystem::path pathThroughIntermediate = intermediateDirectoryLink / "file.txt";
 
@@ -113,7 +113,7 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
     const std::filesystem::path malformedFile = directory / "malformed.bin";
     const auto rawWrite = FileSystem::writeAllBytes(malformedFile, bytesOf(malformed));
 
-    if (!expectStatus(context, "byte helper writes malformed fixture bytes", rawWrite.status))
+    if(!expectStatus(context, "byte helper writes malformed fixture bytes", rawWrite.status))
     {
         return;
     }
@@ -129,7 +129,7 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
     static_cast<void>(context.expectTrue("readAllText returns valid multibyte UTF-8", validRead.status.ok()));
     static_cast<void>(context.expectEq("valid text round-trips exactly", validText, validRead.text));
 
-    if (!expectStatus(context, "restore preservation fixture", FileSystem::writeAllText(file, "preserved").status))
+    if(!expectStatus(context, "restore preservation fixture", FileSystem::writeAllText(file, "preserved").status))
     {
         return;
     }
@@ -203,7 +203,7 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
             .mode = FileSystem::Types::File::OpenMode::OpenExisting,
             .initialPosition = FileSystem::Types::File::InitialPosition::End});
 
-    if (!expectStatus(context, "File open succeeds", openStatus))
+    if(!expectStatus(context, "File open succeeds", openStatus))
     {
         return;
     }
@@ -225,7 +225,7 @@ void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::fi
     const IO::Types::Status appendOpen =
         appendWriter.open(file, FileSystem::Types::File::WriterOpenOptions{.mode = FileSystem::Types::File::WriterMode::AppendExisting});
 
-    if (!expectStatus(context, "append writer opens", appendOpen))
+    if(!expectStatus(context, "append writer opens", appendOpen))
     {
         return;
     }
@@ -254,7 +254,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
 
     static_cast<void>(context.expectTrue("create mutation directory", FileSystem::createDirectories(directory).ok()));
 
-    if (!expectStatus(context, "write mutation source", FileSystem::writeAllText(source, "abcdef").status))
+    if(!expectStatus(context, "write mutation source", FileSystem::writeAllText(source, "abcdef").status))
     {
         return;
     }
@@ -281,7 +281,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("source last-write query succeeds", sourceLastWrite.status.ok()));
     static_cast<void>(context.expectTrue("metadata copy last-write query succeeds", copiedLastWrite.status.ok()));
 
-    if (sourceLastWrite.status.ok() && copiedLastWrite.status.ok())
+    if(sourceLastWrite.status.ok() && copiedLastWrite.status.ok())
     {
         static_cast<void>(context.expectEq(
             "metadata copy preserves last-write time",
@@ -321,7 +321,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
         const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("strict move reaches destination validation pause", movePaused));
 
-        if (movePaused)
+        if(movePaused)
         {
             std::error_code renameError;
             std::filesystem::rename(validatedParent, parkedParent, renameError);
@@ -352,7 +352,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
         const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
         static_cast<void>(context.expectTrue("move reaches committed pause", movePaused));
 
-        if (movePaused)
+        if(movePaused)
         {
             static_cast<void>(
                 context.expectTrue("source can be recreated after commit", FileSystem::writeAllText(commitSource, "replacement").status.ok()));
@@ -372,7 +372,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("truncateFile succeeds", FileSystem::truncateFile(source).ok()));
     const auto truncatedSize = FileSystem::getFileSize(source);
 
-    if (expectStatus(context, "truncateFile size query", truncatedSize.status))
+    if(expectStatus(context, "truncateFile size query", truncatedSize.status))
     {
         static_cast<void>(context.expectEq("truncateFile size is zero", std::uint64_t{0}, truncatedSize.sizeBytes));
     }
@@ -391,7 +391,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     std::filesystem::path deepest = deepTree;
     constexpr std::uint64_t kDeepDirectoryDepth = 32;
 
-    for (std::uint64_t index = 0; index < kDeepDirectoryDepth; ++index)
+    for(std::uint64_t index = 0; index < kDeepDirectoryDepth; ++index)
     {
         deepest /= std::format("level_{}", index);
     }
@@ -425,7 +425,7 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     constexpr std::uint64_t kWideEntryCount = 128;
     bool wideWritesSucceeded = true;
 
-    for (std::uint64_t index = 0; index < kWideEntryCount; ++index)
+    for(std::uint64_t index = 0; index < kWideEntryCount; ++index)
     {
         const bool writeSucceeded = FileSystem::writeAllText(wideTree / std::format("entry_{:03}.txt", index), "x").status.ok();
         wideWritesSucceeded = wideWritesSucceeded && writeSucceeded;

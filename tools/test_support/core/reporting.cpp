@@ -31,16 +31,16 @@ namespace GameWIP::TestSupport
             {
                 status_.reportPath = options_.reportPath;
 
-                if (options_.writeReport && !options_.reportPath.empty())
+                if(options_.writeReport && !options_.reportPath.empty())
                 {
                     const std::filesystem::path parentPath = options_.reportPath.parent_path();
 
-                    if (!parentPath.empty())
+                    if(!parentPath.empty())
                     {
                         std::error_code error;
                         std::filesystem::create_directories(parentPath, error);
 
-                        if (error)
+                        if(error)
                         {
                             disableReport(
                                 std::string("could not create the report directory: ") + error.message(),
@@ -53,7 +53,7 @@ namespace GameWIP::TestSupport
                     const std::ios::openmode mode = options_.appendReport ? (std::ios::out | std::ios::app) : (std::ios::out | std::ios::trunc);
                     report_.open(options_.reportPath, mode);
 
-                    if (!report_.is_open())
+                    if(!report_.is_open())
                     {
                         disableReport("could not open the report file", {.error = Types::InfrastructureError::FileOperationFailed});
                         return;
@@ -68,7 +68,7 @@ namespace GameWIP::TestSupport
                 {
                     static_cast<void>(finalize());
                 }
-                catch (...)
+                catch(...)
                 {
                     // Destruction is fallback cleanup and cannot report through exceptions.
                     return;
@@ -85,12 +85,12 @@ namespace GameWIP::TestSupport
                 std::ostringstream line;
                 line << '[' << category << ']';
 
-                if (!suiteName.empty())
+                if(!suiteName.empty())
                 {
                     line << " [" << suiteName << ']';
                 }
 
-                if (!message.empty())
+                if(!message.empty())
                 {
                     line << ' ' << message;
                 }
@@ -98,21 +98,21 @@ namespace GameWIP::TestSupport
                 const std::string text = line.str();
                 std::lock_guard lock(mutex_);
 
-                if (shouldWriteToConsole(category))
+                if(shouldWriteToConsole(category))
                 {
                     std::cout << text << '\n';
                 }
 
-                if (status_.state == Types::Reporting::SinkState::Active)
+                if(status_.state == Types::Reporting::SinkState::Active)
                 {
                     report_ << text << '\n';
 
-                    if (options_.flushReportEachLine)
+                    if(options_.flushReportEachLine)
                     {
                         report_.flush();
                     }
 
-                    if (!report_ || !report_.is_open())
+                    if(!report_ || !report_.is_open())
                     {
                         disableReport("report output failed while writing", {.error = Types::InfrastructureError::FileOperationFailed});
                     }
@@ -135,19 +135,19 @@ namespace GameWIP::TestSupport
             {
                 std::lock_guard lock(mutex_);
 
-                if (status_.state != Types::Reporting::SinkState::Active)
+                if(status_.state != Types::Reporting::SinkState::Active)
                 {
                     return status_;
                 }
 
-                if (!flushLocked())
+                if(!flushLocked())
                 {
                     return status_;
                 }
 
                 report_.close();
 
-                if (!report_)
+                if(!report_)
                 {
                     disableReport("report output failed while closing", {.error = Types::InfrastructureError::FileOperationFailed});
                     return status_;
@@ -160,19 +160,19 @@ namespace GameWIP::TestSupport
         private:
             [[nodiscard]] bool shouldWriteToConsole(std::string_view category) const noexcept
             {
-                if (!options_.writeConsole)
+                if(!options_.writeConsole)
                 {
                     return false;
                 }
 
-                if (options_.consoleVerbosity == Types::Reporting::ConsoleVerbosity::Full)
+                if(options_.consoleVerbosity == Types::Reporting::ConsoleVerbosity::Full)
                 {
                     return true;
                 }
 
                 const bool isActionable = category == "FAIL" || category == "SKIP" || category == "MANUAL";
 
-                if (options_.consoleVerbosity == Types::Reporting::ConsoleVerbosity::Minimal)
+                if(options_.consoleVerbosity == Types::Reporting::ConsoleVerbosity::Minimal)
                 {
                     return isActionable;
                 }
@@ -182,14 +182,14 @@ namespace GameWIP::TestSupport
 
             bool flushLocked()
             {
-                if (status_.state != Types::Reporting::SinkState::Active)
+                if(status_.state != Types::Reporting::SinkState::Active)
                 {
                     return status_.state != Types::Reporting::SinkState::Failed;
                 }
 
                 report_.flush();
 
-                if (!report_)
+                if(!report_)
                 {
                     disableReport("report output failed while flushing", {.error = Types::InfrastructureError::FileOperationFailed});
                     return false;
@@ -204,7 +204,7 @@ namespace GameWIP::TestSupport
                 status_.failureStatus = failure;
                 report_.close();
 
-                if (!reportFailureReported_)
+                if(!reportFailureReported_)
                 {
                     std::cerr << "[TEST REPORT] " << reason << ": " << options_.reportPath.string() << '\n';
                     reportFailureReported_ = true;
@@ -277,13 +277,13 @@ namespace GameWIP::TestSupport
 
     Context::~Context() noexcept
     {
-        if (ownsReportLifecycle_)
+        if(ownsReportLifecycle_)
         {
             try
             {
                 static_cast<void>(finalize());
             }
-            catch (...)
+            catch(...)
             {
                 // Destruction is fallback cleanup and cannot report through exceptions.
                 return;
@@ -345,7 +345,7 @@ namespace GameWIP::TestSupport
 
     bool Context::expectTrue(std::string_view name, bool value, std::source_location location)
     {
-        if (value)
+        if(value)
         {
             pass(name);
             return true;
@@ -356,7 +356,7 @@ namespace GameWIP::TestSupport
 
     bool Context::expectFalse(std::string_view name, bool value, std::source_location location)
     {
-        if (!value)
+        if(!value)
         {
             pass(name);
             return true;
@@ -367,13 +367,13 @@ namespace GameWIP::TestSupport
 
     bool Context::expectNear(std::string_view name, double expected, double actual, double tolerance, std::source_location location)
     {
-        if (tolerance < 0.0)
+        if(tolerance < 0.0)
         {
             fail(name, "tolerance must be non-negative", location);
             return false;
         }
 
-        if (std::fabs(expected - actual) <= tolerance)
+        if(std::fabs(expected - actual) <= tolerance)
         {
             pass(name);
             return true;
@@ -387,7 +387,7 @@ namespace GameWIP::TestSupport
 
     bool Context::expectContains(std::string_view name, std::string_view text, std::string_view expectedSubstring, std::source_location location)
     {
-        if (text.contains(expectedSubstring))
+        if(text.contains(expectedSubstring))
         {
             pass(name);
             return true;
@@ -407,7 +407,7 @@ namespace GameWIP::TestSupport
     {
         const Types::BoolResult result = fileContains(path, expectedSubstring);
 
-        if (result.status.ok() && result.value)
+        if(result.status.ok() && result.value)
         {
             pass(name);
             return true;
@@ -416,7 +416,7 @@ namespace GameWIP::TestSupport
         std::ostringstream reason;
         reason << "expected file '" << path.string() << "' to contain '" << expectedSubstring << "'";
 
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
         }
@@ -433,7 +433,7 @@ namespace GameWIP::TestSupport
     {
         const Types::CountResult result = countFileOccurrences(path, text);
 
-        if (result.status.ok() && result.count == expectedCount)
+        if(result.status.ok() && result.count == expectedCount)
         {
             pass(name);
             return true;
@@ -442,7 +442,7 @@ namespace GameWIP::TestSupport
         std::ostringstream reason;
         reason << "expected " << expectedCount << " occurrences of '" << text << "' in file '" << path.string() << "', got " << result.count;
 
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             reason << ", infrastructure error " << formatInfrastructureStatus(result.status);
         }
@@ -473,7 +473,7 @@ namespace GameWIP::TestSupport
 
     Types::Reporting::SinkStatus Context::finalize()
     {
-        if (!ownsReportLifecycle_)
+        if(!ownsReportLifecycle_)
         {
             return reportStatus();
         }
@@ -508,7 +508,7 @@ namespace GameWIP::TestSupport
         {
             static_cast<void>(finalize());
         }
-        catch (...)
+        catch(...)
         {
             // Destruction is fallback cleanup and cannot report through exceptions.
             return;
@@ -552,7 +552,7 @@ namespace GameWIP::TestSupport
         {
             return reportSink_->finalize();
         }
-        catch (...)
+        catch(...)
         {
             Types::Reporting::SinkStatus status = reportSink_->status();
             status.state = Types::Reporting::SinkState::Failed;
@@ -596,7 +596,7 @@ namespace GameWIP::TestSupport
             message << "section " << name_ << " elapsedMs=" << elapsedMilliseconds;
             context_.metric(message.str());
         }
-        catch (...) // NOLINT(bugprone-empty-catch) -- Diagnostic-only destructor cannot propagate.
+        catch(...) // NOLINT(bugprone-empty-catch) -- Diagnostic-only destructor cannot propagate.
         {
         }
     }
@@ -615,28 +615,28 @@ namespace GameWIP::TestSupport
     {
         skipReason.clear();
 
-        for (;;)
+        for(;;)
         {
             std::cout << "[MANUAL] " << question << " [y/n/s reason]: ";
             std::string answer;
 
-            if (!std::getline(std::cin, answer))
+            if(!std::getline(std::cin, answer))
             {
                 skipReason = "input ended before an answer";
                 return Types::Reporting::ManualAnswer::Skipped;
             }
 
-            if (answer == "y" || answer == "Y" || answer == "yes" || answer == "Yes")
+            if(answer == "y" || answer == "Y" || answer == "yes" || answer == "Yes")
             {
                 return Types::Reporting::ManualAnswer::Yes;
             }
 
-            if (answer == "n" || answer == "N" || answer == "no" || answer == "No")
+            if(answer == "n" || answer == "N" || answer == "no" || answer == "No")
             {
                 return Types::Reporting::ManualAnswer::No;
             }
 
-            if (answer == "s" || answer == "S" || answer == "skip" || answer == "Skip")
+            if(answer == "s" || answer == "S" || answer == "skip" || answer == "Skip")
             {
                 skipReason = "no skip reason supplied";
                 return Types::Reporting::ManualAnswer::Skipped;
@@ -644,7 +644,7 @@ namespace GameWIP::TestSupport
             const std::size_t separator = answer.find(' ');
             const std::string_view command = std::string_view{answer}.substr(0, separator);
 
-            if (separator != std::string::npos && (command == "s" || command == "S" || command == "skip" || command == "Skip"))
+            if(separator != std::string::npos && (command == "s" || command == "S" || command == "skip" || command == "Skip"))
             {
                 const std::size_t reasonStart = answer.find_first_not_of(" \t", separator);
                 skipReason = reasonStart == std::string::npos ? "no skip reason supplied" : answer.substr(reasonStart);

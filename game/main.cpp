@@ -44,7 +44,7 @@ namespace
     /// @brief Returns whether the process was invoked only to print command-line help.
     bool requestsHelp(GameWIP::Validation::ProcessArguments arguments) noexcept
     {
-        if (arguments.size() != 2 || arguments[1] == nullptr)
+        if(arguments.size() != 2 || arguments[1] == nullptr)
         {
             return false;
         }
@@ -90,13 +90,13 @@ int main(int argc, char **argv)
     // smoke-test scripts can query metadata from any build configuration.
     const GameWIP::Validation::ProcessArguments arguments = GameWIP::Validation::processArguments(argc, argv);
 
-    if (requestsVersion(arguments))
+    if(requestsVersion(arguments))
     {
         std::cout << GameWIP::Version::productDisplay << '\n';
         return EXIT_SUCCESS;
     }
 
-    if (requestsHelp(arguments))
+    if(requestsHelp(arguments))
     {
         printHelp();
         return EXIT_SUCCESS;
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
     // must not continue into benchmarks or the runtime.
     GameWIP::Validation::TestResult tests;
 
-    if (GameWIP::Validation::shouldRunTests(argc, argv))
+    if(GameWIP::Validation::shouldRunTests(argc, argv))
     {
 #if GAMEWIP_TRACY_ENABLED
         FrameMark;
@@ -116,12 +116,12 @@ int main(int argc, char **argv)
         tests = GameWIP::Validation::runTests(argc, argv);
     }
 
-    if (tests.handledChildInvocation)
+    if(tests.handledChildInvocation)
     {
         return tests.exitCode;
     }
 
-    if (!tests.ok())
+    if(!tests.ok())
     {
         return tests.exitCode == 0 ? EXIT_FAILURE : tests.exitCode;
     }
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
         benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
     }
 
-    if (!benchmarks.ok())
+    if(!benchmarks.ok())
     {
         return EXIT_FAILURE;
     }

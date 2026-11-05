@@ -19,11 +19,11 @@
     do \
     { \
         auto &&loggerSource_ = (sourceValue); \
-        if (::GameWIP::Logger::shouldLog((levelValue), loggerSource_)) \
+        if(::GameWIP::Logger::shouldLog((levelValue), loggerSource_)) \
         { \
             ::GameWIP::Logger::callName(loggerSource_, __VA_ARGS__); \
         } \
-    } while (false)
+    } while(false)
 /// @endcond
 
 /// @name Lazy logger macros
@@ -67,5 +67,5 @@
     do \
     { \
         ::GameWIP::Logger::fatalTerminate(source, __VA_ARGS__); \
-    } while (false)
+    } while(false)
 /// @}

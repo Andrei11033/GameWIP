@@ -18,10 +18,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
     // ------------------------------------------------------------
     void invalidateFocus(System::Impl &state, Attachment::Impl &attachment) noexcept
     {
-        for (std::size_t bindingIndex = 0; bindingIndex < attachment.devices.size(); ++bindingIndex)
+        for(std::size_t bindingIndex = 0; bindingIndex < attachment.devices.size(); ++bindingIndex)
         {
             DeviceBinding &device = attachment.devices[bindingIndex];
-            if (!device.connected)
+            if(!device.connected)
             {
                 continue;
             }
@@ -32,19 +32,19 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 {
                     return candidate.connected && candidate.id == device.id;
                 });
-            if (alreadyProcessed)
+            if(alreadyProcessed)
             {
                 continue;
             }
             const std::size_t deviceIndex = state.findDeviceIndex(device.id);
-            if (deviceIndex == state.devices.size())
+            if(deviceIndex == state.devices.size())
             {
                 continue;
             }
-            for (const Types::ElementInfo &element : state.devices[deviceIndex].elements)
+            for(const Types::ElementInfo &element : state.devices[deviceIndex].elements)
             {
-                if (Types::ElementState *elementState = findState(state, element.id);
-                    elementState != nullptr && elementState->validity == Types::ValueValidity::Valid)
+                if(Types::ElementState *elementState = findState(state, element.id);
+                   elementState != nullptr && elementState->validity == Types::ValueValidity::Valid)
                 {
                     elementState->validity = Types::ValueValidity::Unavailable;
                     state.appendEvent({
@@ -80,13 +80,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
     {
         Types::ElementState *elementState = findState(state, id);
         Types::ElementInfo *element = findElement(state, id);
-        if (elementState == nullptr || element == nullptr)
+        if(elementState == nullptr || element == nullptr)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
             return;
         }
-        if (Internal::valueKind(value) != element->kind)
+        if(Internal::valueKind(value) != element->kind)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
@@ -96,10 +96,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const bool previousKnown = elementState->validity == Types::ValueValidity::Valid;
         const Types::Value previous = elementState->value;
         Types::Value next = value;
-        if (relative)
+        if(relative)
         {
             next = previousKnown ? previous : zeroFor(*element);
-            if (!Internal::addRelative(next, value))
+            if(!Internal::addRelative(next, value))
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
@@ -108,21 +108,21 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
         }
 
-        if (previousKnown && !relative && previous == next)
+        if(previousKnown && !relative && previous == next)
         {
             ++elementState->repeatCount;
             elementState->lastObservation = timestamp.receivedAt == Types::Clock::time_point{} ? now() : timestamp;
             return;
         }
 
-        if (const bool *nextBool = std::get_if<bool>(&next); nextBool != nullptr)
+        if(const bool *nextBool = std::get_if<bool>(&next); nextBool != nullptr)
         {
             const bool *previousBool = previousKnown ? std::get_if<bool>(&previous) : nullptr;
-            if (*nextBool && (previousBool == nullptr || !*previousBool))
+            if(*nextBool && (previousBool == nullptr || !*previousBool))
             {
                 ++elementState->becameTrueCount;
             }
-            else if (previousBool != nullptr && *previousBool && !*nextBool)
+            else if(previousBool != nullptr && *previousBool && !*nextBool)
             {
                 ++elementState->becameFalseCount;
             }
@@ -140,13 +140,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] static std::uint32_t keyboardUsage(unsigned int scanCode, bool extended, bool extendedPause, unsigned int virtualKey) noexcept
     {
-        if (virtualKey == VK_PAUSE || extendedPause)
+        if(virtualKey == VK_PAUSE || extendedPause)
         {
             return 0x48;
         }
-        if (extended)
+        if(extended)
         {
-            switch (scanCode)
+            switch(scanCode)
             {
             case 0x1C:
                 return 0x58;
@@ -194,14 +194,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
             0x0C, 0x12, 0x13, 0x2F, 0x30, 0x28, 0xE0, 0x04, 0x16, 0x07, 0x09, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x33, 0x34, 0x35, 0x2C, 0xE1, 0x31, 0x1D,
             0x1B, 0x06, 0x19, 0x05, 0x11, 0x10, 0x36, 0x37, 0x38, 0xE2, 0x55, 0xE6, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43,
             0x44, 0x45, 0x53, 0x47, 0x5F, 0x60, 0x61, 0x5C, 0x5D, 0x5E, 0x59, 0x5A, 0x5B, 0x62, 0x63, 0x54, 0x55, 0x56, 0x57, 0x58};
-        if (scanCode < scanToUsage.size())
+        if(scanCode < scanToUsage.size())
         {
             return scanToUsage[scanCode];
         }
-        if (virtualKey != 0)
+        if(virtualKey != 0)
         {
             const UINT mapped = MapVirtualKeyW(virtualKey, MAPVK_VK_TO_VSC_EX);
-            if (mapped != 0 && mapped != scanCode)
+            if(mapped != 0 && mapped != scanCode)
             {
                 return keyboardUsage(mapped & 0xFFU, (mapped & 0xFF00U) == 0xE000U, false, virtualKey);
             }
@@ -211,7 +211,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] std::uint32_t rawKeyboardUsage(const RAWKEYBOARD &keyboard) noexcept
     {
-        if (keyboard.MakeCode != 0)
+        if(keyboard.MakeCode != 0)
         {
             return keyboardUsage(
                 static_cast<unsigned int>(keyboard.MakeCode) & 0xFFU,
@@ -221,7 +221,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
 
         const UINT mapped = MapVirtualKeyW(keyboard.VKey, MAPVK_VK_TO_VSC_EX);
-        if (mapped == 0)
+        if(mapped == 0)
         {
             return 0;
         }
@@ -240,7 +240,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void releaseXInput(Attachment::Impl &attachment) noexcept
     {
-        if (attachment.xinputModule != nullptr)
+        if(attachment.xinputModule != nullptr)
         {
             FreeLibrary(attachment.xinputModule);
             attachment.xinputModule = nullptr;
@@ -254,21 +254,21 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void loadXInput(Attachment::Impl &attachment) noexcept
     {
-        if (attachment.xinputLoadAttempted)
+        if(attachment.xinputLoadAttempted)
         {
             return;
         }
         attachment.xinputLoadAttempted = true;
         constexpr std::array<const wchar_t *, 3> libraries{L"xinput1_4.dll", L"xinput1_3.dll", L"xinput9_1_0.dll"};
-        for (const wchar_t *name : libraries)
+        for(const wchar_t *name : libraries)
         {
             HMODULE module = LoadLibraryW(name);
-            if (module == nullptr)
+            if(module == nullptr)
             {
                 continue;
             }
             const auto function = GameWIP::Base::Win32::loadProcedure<Attachment::Impl::XInputGetStateFunction>(module, "XInputGetState");
-            if (function != nullptr)
+            if(function != nullptr)
             {
                 attachment.xinputModule = module;
                 attachment.xinputGetState = function;
@@ -285,11 +285,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
         Types::BackendKind backend,
         std::span<const std::byte> bytes) noexcept
     {
-        if (!configuration.captureRawReports)
+        if(!configuration.captureRawReports)
         {
             return;
         }
-        if (state.pendingRawReports.size() >= configuration.rawReportCapacity)
+        if(state.pendingRawReports.size() >= configuration.rawReportCapacity)
         {
             state.pendingDiscontinuity = true;
             return;
@@ -305,13 +305,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
             };
             report.bytes.assign(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(count));
             state.pendingRawReports.push_back(std::move(report));
-            if (count != bytes.size())
+            if(count != bytes.size())
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
             }
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             state.pendingDiscontinuity = true;
         }
@@ -331,11 +331,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
         std::size_t selectionLengthBytes,
         bool canceled) noexcept
     {
-        if (!state.textEnabled)
+        if(!state.textEnabled)
         {
             return;
         }
-        if (GameWIP::Unicode::Utf8::validate(utf8).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
+        if(GameWIP::Unicode::Utf8::validate(utf8).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
@@ -343,8 +343,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
 
         const bool committed = kind == Types::EventKind::TextCommitted;
-        if (committed && (state.pendingTextUtf8.size() > state.configuration.maximumPendingTextBytes ||
-                          utf8.size() > state.configuration.maximumPendingTextBytes - state.pendingTextUtf8.size()))
+        if(committed && (state.pendingTextUtf8.size() > state.configuration.maximumPendingTextBytes ||
+                         utf8.size() > state.configuration.maximumPendingTextBytes - state.pendingTextUtf8.size()))
         {
             state.pendingDiscontinuity = true;
             return;
@@ -367,16 +367,16 @@ namespace GameWIP::Input::Platform::Win32::Detail
             };
             const std::uint64_t droppedEvents = state.pendingDroppedEvents;
             state.appendEvent(std::move(event));
-            if (state.pendingDroppedEvents != droppedEvents)
+            if(state.pendingDroppedEvents != droppedEvents)
             {
                 return;
             }
-            if (committed)
+            if(committed)
             {
                 state.pendingTextUtf8.append(utf8);
             }
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             state.pendingDiscontinuity = true;
         }
@@ -384,7 +384,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void appendText(System::Impl &state, Attachment::Impl &attachment, char32_t scalar) noexcept
     {
-        if (!validScalar(scalar))
+        if(!validScalar(scalar))
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
@@ -392,7 +392,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
 
         const auto encoded = GameWIP::Unicode::Utf8::encodeScalar(scalar);
-        if (encoded.outcome != GameWIP::Unicode::Types::EncodeOutcome::Encoded)
+        if(encoded.outcome != GameWIP::Unicode::Types::EncodeOutcome::Encoded)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
@@ -410,7 +410,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         LONG cursorPosition) noexcept
     {
         const LONG byteCount = ImmGetCompositionStringW(context, compositionFlag, nullptr, 0);
-        if (byteCount < 0 || (byteCount % static_cast<LONG>(sizeof(wchar_t))) != 0)
+        if(byteCount < 0 || (byteCount % static_cast<LONG>(sizeof(wchar_t))) != 0)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
@@ -421,7 +421,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             const std::size_t codeUnitCount = static_cast<std::size_t>(byteCount) / sizeof(wchar_t);
             std::vector<char16_t> codeUnits(codeUnitCount);
-            if (byteCount != 0 && ImmGetCompositionStringW(context, compositionFlag, codeUnits.data(), static_cast<DWORD>(byteCount)) != byteCount)
+            if(byteCount != 0 && ImmGetCompositionStringW(context, compositionFlag, codeUnits.data(), static_cast<DWORD>(byteCount)) != byteCount)
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
@@ -429,14 +429,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
 
             const std::span<const char16_t> text(codeUnits.data(), codeUnits.size());
-            if (GameWIP::Unicode::Utf16::validate(text).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
+            if(GameWIP::Unicode::Utf16::validate(text).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
                 return;
             }
             const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(text);
-            if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+            if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
@@ -445,7 +445,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
             std::string utf8(measurement.requiredBytes, '\0');
             const auto conversion = GameWIP::Unicode::Utf16::convertToUtf8(text, std::span<char>(utf8.data(), utf8.size()));
-            if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+            if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
@@ -453,18 +453,18 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
 
             std::size_t selectionStartBytes = 0;
-            if (cursorPosition > 0)
+            if(cursorPosition > 0)
             {
                 const std::size_t cursor = std::min<std::size_t>(static_cast<std::size_t>(cursorPosition), codeUnits.size());
                 const auto prefix = GameWIP::Unicode::Utf16::measureToUtf8(text.first(cursor));
-                if (prefix.outcome == GameWIP::Unicode::Types::MeasureOutcome::Measured)
+                if(prefix.outcome == GameWIP::Unicode::Types::MeasureOutcome::Measured)
                 {
                     selectionStartBytes = prefix.requiredBytes;
                 }
             }
             appendTextUtf8(state, attachment, utf8, kind, selectionStartBytes);
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             state.pendingDiscontinuity = true;
         }
@@ -473,9 +473,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
     {
         const bool high = codeUnit >= 0xD800 && codeUnit <= 0xDBFF;
         const bool low = codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
-        if (high)
+        if(high)
         {
-            if (attachment.pendingHighSurrogate != 0)
+            if(attachment.pendingHighSurrogate != 0)
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
@@ -483,9 +483,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
             attachment.pendingHighSurrogate = codeUnit;
             return;
         }
-        if (low)
+        if(low)
         {
-            if (attachment.pendingHighSurrogate == 0)
+            if(attachment.pendingHighSurrogate == 0)
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
@@ -498,7 +498,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             appendText(state, attachment, scalar);
             return;
         }
-        if (attachment.pendingHighSurrogate != 0)
+        if(attachment.pendingHighSurrogate != 0)
         {
             attachment.pendingHighSurrogate = 0;
             ++state.health.totalInvalidReports;

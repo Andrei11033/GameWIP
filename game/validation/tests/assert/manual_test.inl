@@ -22,7 +22,7 @@ void manualInteractiveBreakSite()
 /// @brief Runs opt-in human checks for real action dialogs, fallback UI, and debugger breaks.
 void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
 {
-    if (!options.enableManualTests)
+    if(!options.enableManualTests)
     {
         context.skip("manual assert UI tests", "disabled by AssertTestOptions");
         return;
@@ -31,7 +31,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "manual_assert_ui"))
+    if(!initFileLogger(context, "manual_assert_ui"))
     {
         context.fail("manual assert UI logger init", "Logger::init failed");
         return;
@@ -40,8 +40,8 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     const ScopedClearedEnvironmentVariable clearTestAction(context.processState, kTestActionEnvironmentVariable);
     const ScopedClearedEnvironmentVariable clearSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
 
-    if (!requireInfrastructure(context, "clear manual test action", clearTestAction.status()) ||
-        !requireInfrastructure(context, "clear manual popup suppression", clearSuppressPopup.status()))
+    if(!requireInfrastructure(context, "clear manual test action", clearTestAction.status()) ||
+       !requireInfrastructure(context, "clear manual popup suppression", clearSuppressPopup.status()))
     {
         return;
     }
@@ -56,7 +56,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     context.manualCheck("manual assert UI Always Ignore", "Did Always Ignore dismiss the first dialog and suppress the second call's dialog?");
 
 #if defined(_WIN32)
-    if (IsDebuggerPresent() != FALSE)
+    if(IsDebuggerPresent() != FALSE)
     {
         context.emit("[MANUAL] Assert UI Break: click Break, let the debugger stop, then continue execution.\n");
         manualInteractiveBreakSite();
@@ -70,11 +70,11 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     context.skip("manual assert UI Break", "this manual check is Windows-only");
 #endif
 
-    if (options.enableChildCrashTests)
+    if(options.enableChildCrashTests)
     {
         const std::filesystem::path childLogDirectory = context.logRoot / "manual_interactive_abort_child";
 
-        if (!requireInfrastructure(context, "create manual Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
+        if(!requireInfrastructure(context, "create manual Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
         {
             return;
         }
@@ -85,9 +85,9 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         const ScopedClearedEnvironmentVariable clearChildTestAction(context.processState, kTestActionEnvironmentVariable);
         const ScopedClearedEnvironmentVariable clearChildSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
 
-        if (!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
-            !requireInfrastructure(context, "clear manual Abort child action", clearChildTestAction.status()) ||
-            !requireInfrastructure(context, "clear manual Abort child popup suppression", clearChildSuppressPopup.status()))
+        if(!requireInfrastructure(context, "set manual Abort child log directory", childLogDirectoryOverride.status()) ||
+           !requireInfrastructure(context, "clear manual Abort child action", clearChildTestAction.status()) ||
+           !requireInfrastructure(context, "clear manual Abort child popup suppression", clearChildSuppressPopup.status()))
         {
             return;
         }

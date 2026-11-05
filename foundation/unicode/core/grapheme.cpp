@@ -38,7 +38,7 @@ namespace GameWIP::Unicode::Utf8
             /// @brief Incorporates one decoded scalar into the rule context.
             void consume(const Internal::UnicodeProperties &properties) noexcept
             {
-                switch (properties.indicConjunctBreak)
+                switch(properties.indicConjunctBreak)
                 {
                 case Internal::IndicConjunctBreakClass::Consonant:
                     indic = IndicSequenceState::Consonant;
@@ -53,15 +53,15 @@ namespace GameWIP::Unicode::Utf8
                     break;
                 }
 
-                if (properties.extendedPictographic)
+                if(properties.extendedPictographic)
                 {
                     emoji = EmojiSequenceState::ExtendedPictographic;
                 }
-                else if (properties.graphemeBreak == Internal::GraphemeBreakClass::Extend && emoji == EmojiSequenceState::ExtendedPictographic)
+                else if(properties.graphemeBreak == Internal::GraphemeBreakClass::Extend && emoji == EmojiSequenceState::ExtendedPictographic)
                 {
                     // GB11 permits any number of Extend scalars before the ZWJ.
                 }
-                else if (properties.graphemeBreak == Internal::GraphemeBreakClass::ZWJ && emoji == EmojiSequenceState::ExtendedPictographic)
+                else if(properties.graphemeBreak == Internal::GraphemeBreakClass::ZWJ && emoji == EmojiSequenceState::ExtendedPictographic)
                 {
                     emoji = EmojiSequenceState::ExtendedPictographicZwj;
                 }
@@ -70,7 +70,7 @@ namespace GameWIP::Unicode::Utf8
                     emoji = EmojiSequenceState::None;
                 }
 
-                if (properties.graphemeBreak == Internal::GraphemeBreakClass::RegionalIndicator)
+                if(properties.graphemeBreak == Internal::GraphemeBreakClass::RegionalIndicator)
                 {
                     ++regionalIndicatorCount;
                 }
@@ -97,70 +97,70 @@ namespace GameWIP::Unicode::Utf8
             using Class = Internal::GraphemeBreakClass;
 
             // GB3
-            if (previous.graphemeBreak == Class::CR && current.graphemeBreak == Class::LF)
+            if(previous.graphemeBreak == Class::CR && current.graphemeBreak == Class::LF)
             {
                 return false;
             }
 
             // GB4 and GB5
-            if (isControlClass(previous.graphemeBreak) || isControlClass(current.graphemeBreak))
+            if(isControlClass(previous.graphemeBreak) || isControlClass(current.graphemeBreak))
             {
                 return true;
             }
 
             // GB6
-            if (previous.graphemeBreak == Class::L && (current.graphemeBreak == Class::L || current.graphemeBreak == Class::V ||
-                                                       current.graphemeBreak == Class::LV || current.graphemeBreak == Class::LVT))
+            if(previous.graphemeBreak == Class::L && (current.graphemeBreak == Class::L || current.graphemeBreak == Class::V ||
+                                                      current.graphemeBreak == Class::LV || current.graphemeBreak == Class::LVT))
             {
                 return false;
             }
 
             // GB7
-            if ((previous.graphemeBreak == Class::LV || previous.graphemeBreak == Class::V) &&
-                (current.graphemeBreak == Class::V || current.graphemeBreak == Class::T))
+            if((previous.graphemeBreak == Class::LV || previous.graphemeBreak == Class::V) &&
+               (current.graphemeBreak == Class::V || current.graphemeBreak == Class::T))
             {
                 return false;
             }
 
             // GB8
-            if ((previous.graphemeBreak == Class::LVT || previous.graphemeBreak == Class::T) && current.graphemeBreak == Class::T)
+            if((previous.graphemeBreak == Class::LVT || previous.graphemeBreak == Class::T) && current.graphemeBreak == Class::T)
             {
                 return false;
             }
 
             // GB9
-            if (current.graphemeBreak == Class::Extend || current.graphemeBreak == Class::ZWJ)
+            if(current.graphemeBreak == Class::Extend || current.graphemeBreak == Class::ZWJ)
             {
                 return false;
             }
 
             // GB9a
-            if (current.graphemeBreak == Class::SpacingMark)
+            if(current.graphemeBreak == Class::SpacingMark)
             {
                 return false;
             }
 
             // GB9b
-            if (previous.graphemeBreak == Class::Prepend)
+            if(previous.graphemeBreak == Class::Prepend)
             {
                 return false;
             }
 
             // GB9c
-            if (current.indicConjunctBreak == Internal::IndicConjunctBreakClass::Consonant && state.indic == IndicSequenceState::Linked)
+            if(current.indicConjunctBreak == Internal::IndicConjunctBreakClass::Consonant && state.indic == IndicSequenceState::Linked)
             {
                 return false;
             }
 
             // GB11
-            if (current.extendedPictographic && state.emoji == EmojiSequenceState::ExtendedPictographicZwj)
+            if(current.extendedPictographic && state.emoji == EmojiSequenceState::ExtendedPictographicZwj)
             {
                 return false;
             }
 
             // GB12 and GB13
-            if (previous.graphemeBreak == Class::RegionalIndicator && current.graphemeBreak == Class::RegionalIndicator &&
-                (state.regionalIndicatorCount & 1U) != 0)
+            if(previous.graphemeBreak == Class::RegionalIndicator && current.graphemeBreak == Class::RegionalIndicator &&
+               (state.regionalIndicatorCount & 1U) != 0)
             {
                 return false;
             }
@@ -174,19 +174,19 @@ namespace GameWIP::Unicode::Utf8
         {
             const std::uint8_t current = Internal::byteValue(text[byteOffset]);
 
-            if (current >= 0x80U)
+            if(current >= 0x80U)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
             }
 
             const bool previousIsAscii = byteOffset == 0 || Internal::byteValue(text[byteOffset - 1]) < 0x80U;
 
-            if (!previousIsAscii)
+            if(!previousIsAscii)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
             }
 
-            if (current == 0x0DU && byteOffset + 1 < text.size() && text[byteOffset + 1] == '\n')
+            if(current == 0x0DU && byteOffset + 1 < text.size() && text[byteOffset + 1] == '\n')
             {
                 return {.byteOffset = byteOffset + 2, .outcome = Types::Utf8::BoundaryOutcome::Found};
             }
@@ -194,7 +194,7 @@ namespace GameWIP::Unicode::Utf8
             const bool currentIsControl = current <= 0x1FU || current == 0x7FU;
             const bool nextIsAscii = byteOffset + 1 == text.size() || Internal::byteValue(text[byteOffset + 1]) < 0x80U;
 
-            if (currentIsControl || nextIsAscii)
+            if(currentIsControl || nextIsAscii)
             {
                 return {.byteOffset = byteOffset + 1, .outcome = Types::Utf8::BoundaryOutcome::Found};
             }
@@ -208,19 +208,19 @@ namespace GameWIP::Unicode::Utf8
             const std::size_t previousOffset = byteOffset - 1;
             const std::uint8_t previous = Internal::byteValue(text[previousOffset]);
 
-            if (previous >= 0x80U)
+            if(previous >= 0x80U)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
             }
 
-            if (previous == 0x0AU && previousOffset > 0 && text[previousOffset - 1] == '\r')
+            if(previous == 0x0AU && previousOffset > 0 && text[previousOffset - 1] == '\r')
             {
                 return {.byteOffset = previousOffset - 1, .outcome = Types::Utf8::BoundaryOutcome::Found};
             }
 
             const bool beforePreviousIsAscii = previousOffset == 0 || Internal::byteValue(text[previousOffset - 1]) < 0x80U;
 
-            if (beforePreviousIsAscii)
+            if(beforePreviousIsAscii)
             {
                 return {.byteOffset = previousOffset, .outcome = Types::Utf8::BoundaryOutcome::Found};
             }
@@ -233,42 +233,42 @@ namespace GameWIP::Unicode::Utf8
         {
             using Class = Internal::GraphemeBreakClass;
 
-            if (previous.graphemeBreak == Class::CR && current.graphemeBreak == Class::LF)
+            if(previous.graphemeBreak == Class::CR && current.graphemeBreak == Class::LF)
             {
                 return false;
             }
 
-            if (isControlClass(previous.graphemeBreak) || isControlClass(current.graphemeBreak))
+            if(isControlClass(previous.graphemeBreak) || isControlClass(current.graphemeBreak))
             {
                 return true;
             }
 
-            if (previous.graphemeBreak == Class::L && (current.graphemeBreak == Class::L || current.graphemeBreak == Class::V ||
-                                                       current.graphemeBreak == Class::LV || current.graphemeBreak == Class::LVT))
+            if(previous.graphemeBreak == Class::L && (current.graphemeBreak == Class::L || current.graphemeBreak == Class::V ||
+                                                      current.graphemeBreak == Class::LV || current.graphemeBreak == Class::LVT))
             {
                 return false;
             }
 
-            if ((previous.graphemeBreak == Class::LV || previous.graphemeBreak == Class::V) &&
-                (current.graphemeBreak == Class::V || current.graphemeBreak == Class::T))
+            if((previous.graphemeBreak == Class::LV || previous.graphemeBreak == Class::V) &&
+               (current.graphemeBreak == Class::V || current.graphemeBreak == Class::T))
             {
                 return false;
             }
 
-            if ((previous.graphemeBreak == Class::LVT || previous.graphemeBreak == Class::T) && current.graphemeBreak == Class::T)
+            if((previous.graphemeBreak == Class::LVT || previous.graphemeBreak == Class::T) && current.graphemeBreak == Class::T)
             {
                 return false;
             }
 
-            if (current.graphemeBreak == Class::Extend || current.graphemeBreak == Class::ZWJ || current.graphemeBreak == Class::SpacingMark ||
-                previous.graphemeBreak == Class::Prepend)
+            if(current.graphemeBreak == Class::Extend || current.graphemeBreak == Class::ZWJ || current.graphemeBreak == Class::SpacingMark ||
+               previous.graphemeBreak == Class::Prepend)
             {
                 return false;
             }
 
             // GB9c, GB11, GB12, and GB13 depend on state preceding this pair.
-            if (current.indicConjunctBreak == Internal::IndicConjunctBreakClass::Consonant || current.extendedPictographic ||
-                (previous.graphemeBreak == Class::RegionalIndicator && current.graphemeBreak == Class::RegionalIndicator))
+            if(current.indicConjunctBreak == Internal::IndicConjunctBreakClass::Consonant || current.extendedPictographic ||
+               (previous.graphemeBreak == Class::RegionalIndicator && current.graphemeBreak == Class::RegionalIndicator))
             {
                 return false;
             }
@@ -287,18 +287,18 @@ namespace GameWIP::Unicode::Utf8
         {
             std::size_t currentOffset = scalarOffset;
 
-            while (currentOffset > 0)
+            while(currentOffset > 0)
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
 
-                if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
+                if(currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = scalarOffset, .valid = false};
                 }
 
                 const Internal::PreviousUtf8ScalarResult previousDecoded = Internal::decodePreviousUtf8Scalar(text, currentOffset);
 
-                if (previousDecoded.decoded.outcome != Types::DecodeOutcome::Decoded)
+                if(previousDecoded.decoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = scalarOffset, .valid = false};
                 }
@@ -306,7 +306,7 @@ namespace GameWIP::Unicode::Utf8
                 const Internal::UnicodeProperties previousProperties = Internal::unicodeProperties(previousDecoded.decoded.scalar);
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
 
-                if (isGuaranteedBreak(previousProperties, currentProperties))
+                if(isGuaranteedBreak(previousProperties, currentProperties))
                 {
                     return {.byteOffset = currentOffset};
                 }
@@ -322,7 +322,7 @@ namespace GameWIP::Unicode::Utf8
         {
             visitor(std::size_t{0});
 
-            if (text.empty())
+            if(text.empty())
             {
                 return true;
             }
@@ -330,7 +330,7 @@ namespace GameWIP::Unicode::Utf8
             std::size_t currentOffset = 0;
             Types::Utf8::DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text);
 
-            if (previousDecoded.outcome != Types::DecodeOutcome::Decoded)
+            if(previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return false;
             }
@@ -340,18 +340,18 @@ namespace GameWIP::Unicode::Utf8
             state.consume(previousProperties);
             currentOffset += previousDecoded.bytesConsumed;
 
-            while (currentOffset < text.size())
+            while(currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
 
-                if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
+                if(currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return false;
                 }
 
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
 
-                if (shouldBreak(previousProperties, currentProperties, state))
+                if(shouldBreak(previousProperties, currentProperties, state))
                 {
                     visitor(currentOffset);
                 }
@@ -370,7 +370,7 @@ namespace GameWIP::Unicode::Utf8
         {
             Types::Utf8::DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text.substr(restartOffset));
 
-            if (previousDecoded.outcome != Types::DecodeOutcome::Decoded)
+            if(previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
@@ -380,18 +380,18 @@ namespace GameWIP::Unicode::Utf8
             state.consume(previousProperties);
             std::size_t currentOffset = restartOffset + previousDecoded.bytesConsumed;
 
-            while (currentOffset < text.size())
+            while(currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
 
-                if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
+                if(currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
                 }
 
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
 
-                if (shouldBreak(previousProperties, currentProperties, state) && currentOffset > targetOffset)
+                if(shouldBreak(previousProperties, currentProperties, state) && currentOffset > targetOffset)
                 {
                     return {.byteOffset = currentOffset, .outcome = Types::Utf8::BoundaryOutcome::Found};
                 }
@@ -413,7 +413,7 @@ namespace GameWIP::Unicode::Utf8
             std::size_t previousBoundary = restartOffset;
             Types::Utf8::DecodeResult previousDecoded = Internal::decodeUtf8Scalar(text.substr(restartOffset));
 
-            if (previousDecoded.outcome != Types::DecodeOutcome::Decoded)
+            if(previousDecoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
@@ -423,20 +423,20 @@ namespace GameWIP::Unicode::Utf8
             state.consume(previousProperties);
             std::size_t currentOffset = restartOffset + previousDecoded.bytesConsumed;
 
-            while (currentOffset < text.size())
+            while(currentOffset < text.size())
             {
                 const Types::Utf8::DecodeResult currentDecoded = Internal::decodeUtf8Scalar(text.substr(currentOffset));
 
-                if (currentDecoded.outcome != Types::DecodeOutcome::Decoded)
+                if(currentDecoded.outcome != Types::DecodeOutcome::Decoded)
                 {
                     return {.byteOffset = targetOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
                 }
 
                 const Internal::UnicodeProperties currentProperties = Internal::unicodeProperties(currentDecoded.scalar);
 
-                if (shouldBreak(previousProperties, currentProperties, state))
+                if(shouldBreak(previousProperties, currentProperties, state))
                 {
-                    if (currentOffset >= targetOffset)
+                    if(currentOffset >= targetOffset)
                     {
                         return {.byteOffset = previousBoundary, .outcome = Types::Utf8::BoundaryOutcome::Found};
                     }
@@ -459,19 +459,19 @@ namespace GameWIP::Unicode::Utf8
         std::size_t requiredBoundaryCount = 0;
         auto recordBoundary = [&](std::size_t byteOffset) noexcept
         {
-            if (requiredBoundaryCount < boundaryStorage.size())
+            if(requiredBoundaryCount < boundaryStorage.size())
             {
                 boundaryStorage[requiredBoundaryCount] = byteOffset;
             }
             ++requiredBoundaryCount;
         };
 
-        if (!visitGraphemeBoundaries(text, recordBoundary))
+        if(!visitGraphemeBoundaries(text, recordBoundary))
         {
             return {.outcome = Types::Utf8::GraphemeIndexOutcome::InvalidEncoding};
         }
 
-        if (requiredBoundaryCount > boundaryStorage.size())
+        if(requiredBoundaryCount > boundaryStorage.size())
         {
             return {
                 .requiredBoundaryCount = requiredBoundaryCount,
@@ -510,14 +510,14 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::BoundaryResult GraphemeCursor::seek(std::size_t byteOffset) noexcept
     {
-        if (!ready())
+        if(!ready())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
         const auto found = std::lower_bound(boundaries_.begin(), boundaries_.end(), byteOffset);
 
-        if (found == boundaries_.end() || *found != byteOffset)
+        if(found == boundaries_.end() || *found != byteOffset)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
@@ -528,12 +528,12 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::BoundaryResult GraphemeCursor::next() noexcept
     {
-        if (!ready())
+        if(!ready())
         {
             return {.outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (currentBoundaryIndex_ + 1 >= boundaries_.size())
+        if(currentBoundaryIndex_ + 1 >= boundaries_.size())
         {
             return {.byteOffset = byteOffset(), .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
         }
@@ -544,12 +544,12 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::BoundaryResult GraphemeCursor::previous() noexcept
     {
-        if (!ready())
+        if(!ready())
         {
             return {.outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (currentBoundaryIndex_ == 0)
+        if(currentBoundaryIndex_ == 0)
         {
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
         }
@@ -560,7 +560,7 @@ namespace GameWIP::Unicode::Utf8
 
     void GraphemeCursor::discardAfterCurrent() noexcept
     {
-        if (ready())
+        if(ready())
         {
             boundaries_ = boundaries_.first(currentBoundaryIndex_ + 1);
         }
@@ -568,21 +568,21 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::BoundaryResult nextGraphemeBoundary(std::string_view text, std::size_t byteOffset) noexcept
     {
-        if (byteOffset > text.size())
+        if(byteOffset > text.size())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
+        if(byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset == text.size())
+        if(byteOffset == text.size())
         {
             const Types::Utf8::ValidationResult validation = validate(text);
 
-            if (validation.outcome != Types::ValidationOutcome::Valid)
+            if(validation.outcome != Types::ValidationOutcome::Valid)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
@@ -590,11 +590,11 @@ namespace GameWIP::Unicode::Utf8
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
         }
 
-        if (Internal::byteValue(text[byteOffset]) < 0x80U)
+        if(Internal::byteValue(text[byteOffset]) < 0x80U)
         {
             const Types::Utf8::BoundaryResult ascii = nextAsciiBoundary(text, byteOffset);
 
-            if (ascii.outcome == Types::Utf8::BoundaryOutcome::Found)
+            if(ascii.outcome == Types::Utf8::BoundaryOutcome::Found)
             {
                 return ascii;
             }
@@ -602,7 +602,7 @@ namespace GameWIP::Unicode::Utf8
 
         const RestartResult restart = findSafeRestart(text, byteOffset);
 
-        if (!restart.valid)
+        if(!restart.valid)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
@@ -612,26 +612,26 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::BoundaryResult previousGraphemeBoundary(std::string_view text, std::size_t byteOffset) noexcept
     {
-        if (byteOffset > text.size())
+        if(byteOffset > text.size())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
+        if(byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset == 0)
+        if(byteOffset == 0)
         {
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
         }
 
-        if (Internal::byteValue(text[byteOffset - 1]) < 0x80U)
+        if(Internal::byteValue(text[byteOffset - 1]) < 0x80U)
         {
             const Types::Utf8::BoundaryResult ascii = previousAsciiBoundary(text, byteOffset);
 
-            if (ascii.outcome == Types::Utf8::BoundaryOutcome::Found)
+            if(ascii.outcome == Types::Utf8::BoundaryOutcome::Found)
             {
                 return ascii;
             }
@@ -639,14 +639,14 @@ namespace GameWIP::Unicode::Utf8
 
         const Internal::PreviousUtf8ScalarResult previousScalar = Internal::decodePreviousUtf8Scalar(text, byteOffset);
 
-        if (previousScalar.decoded.outcome != Types::DecodeOutcome::Decoded)
+        if(previousScalar.decoded.outcome != Types::DecodeOutcome::Decoded)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
 
         const RestartResult restart = findSafeRestart(text, previousScalar.startOffset);
 
-        if (!restart.valid)
+        if(!restart.valid)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }

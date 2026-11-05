@@ -5,7 +5,7 @@ IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types:
 {
     try
     {
-        if (options.bufferSize == 0)
+        if(options.bufferSize == 0)
         {
             return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
         }
@@ -13,7 +13,7 @@ IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types:
         FileReader reader;
         IO::Types::Status openStatus = reader.open(path, options.open);
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return {.status = std::move(openStatus)};
         }
@@ -21,18 +21,18 @@ IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types:
         IO::Types::ReadAllBytesResult result = IO::readAllBytes(reader, options.maxBytes, options.bufferSize);
         IO::Types::Status closeStatus = reader.close();
 
-        if (result.status.ok() && !closeStatus.ok())
+        if(result.status.ok() && !closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
 
         return result;
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
     }
-    catch (...)
+    catch(...)
     {
         return {.status = IO::makeStatus(ErrorCode::Unknown)};
     }
@@ -42,7 +42,7 @@ IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::F
 {
     try
     {
-        if (options.bufferSize == 0)
+        if(options.bufferSize == 0)
         {
             return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
         }
@@ -50,7 +50,7 @@ IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::F
         FileReader reader;
         IO::Types::Status openStatus = reader.open(path, options.open);
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return {.status = std::move(openStatus)};
         }
@@ -58,18 +58,18 @@ IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::F
         IO::Types::ReadAllTextResult result = IO::readAllText(reader, options.maxBytes, options.bufferSize);
         IO::Types::Status closeStatus = reader.close();
 
-        if (result.status.ok() && !closeStatus.ok())
+        if(result.status.ok() && !closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
 
         return result;
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
     }
-    catch (...)
+    catch(...)
     {
         return {.status = IO::makeStatus(ErrorCode::Unknown)};
     }
@@ -79,14 +79,14 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
 {
     try
     {
-        if (!IO::isValidFlushMode(options.flushMode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
+        if(!IO::isValidFlushMode(options.flushMode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
         {
             return writeFailure(ErrorCode::InvalidArgument);
         }
 
         Types::File::WriterMode writerMode = Types::File::WriterMode::CreateOrTruncate;
 
-        switch (options.mode)
+        switch(options.mode)
         {
         case Types::File::WriteMode::CreateNew:
             writerMode = Types::File::WriterMode::CreateNew;
@@ -111,14 +111,14 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
                 .createParentDirectories = options.createParentDirectories,
                 .flushOnClose = IO::Types::FlushMode::None});
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return writeFailure(std::move(openStatus));
         }
 
         IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
 
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             // The payload failure is authoritative; cleanup is best effort and a close failure must not replace it.
             static_cast<void>(writer.close());
@@ -127,7 +127,7 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
 
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
 
-        if (!flushStatus.ok())
+        if(!flushStatus.ok())
         {
             result.status = std::move(flushStatus);
             return result;
@@ -135,18 +135,18 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
 
         IO::Types::Status closeStatus = writer.close();
 
-        if (!closeStatus.ok())
+        if(!closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
 
         return result;
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return writeFailure(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return writeFailure(ErrorCode::Unknown);
     }
@@ -154,7 +154,7 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
 
 IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view utf8Text, const Types::File::WriteOptions &options) noexcept
 {
-    if (!validUtf8(utf8Text))
+    if(!validUtf8(utf8Text))
     {
         return writeFailure(ErrorCode::EncodingFailed);
     }
@@ -166,14 +166,14 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
 {
     try
     {
-        if (!IO::isValidFlushMode(options.flushMode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
+        if(!IO::isValidFlushMode(options.flushMode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
         {
             return writeFailure(ErrorCode::InvalidArgument);
         }
 
         Types::File::WriterMode writerMode = Types::File::WriterMode::AppendOrCreate;
 
-        switch (options.mode)
+        switch(options.mode)
         {
         case Types::File::AppendMode::AppendOrCreate:
             writerMode = Types::File::WriterMode::AppendOrCreate;
@@ -195,14 +195,14 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
                 .createParentDirectories = options.createParentDirectories,
                 .flushOnClose = IO::Types::FlushMode::None});
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return writeFailure(std::move(openStatus));
         }
 
         IO::Types::WriteResult result = IO::writeAllBytes(writer, bytes);
 
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             // The payload failure is authoritative; cleanup is best effort and a close failure must not replace it.
             static_cast<void>(writer.close());
@@ -211,7 +211,7 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
 
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
 
-        if (!flushStatus.ok())
+        if(!flushStatus.ok())
         {
             result.status = std::move(flushStatus);
             return result;
@@ -219,18 +219,18 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
 
         IO::Types::Status closeStatus = writer.close();
 
-        if (!closeStatus.ok())
+        if(!closeStatus.ok())
         {
             result.status = std::move(closeStatus);
         }
 
         return result;
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return writeFailure(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return writeFailure(ErrorCode::Unknown);
     }
@@ -238,7 +238,7 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
 
 IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8Text, const Types::File::AppendOptions &options) noexcept
 {
-    if (!validUtf8(utf8Text))
+    if(!validUtf8(utf8Text))
     {
         return writeFailure(ErrorCode::EncodingFailed);
     }
@@ -253,22 +253,22 @@ IO::Types::Status writeAllBytesAtomic(
 {
     try
     {
-        if (path.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
-            !IO::isValidFlushMode(options.flushMode))
+        if(path.empty() || !isValidReplaceMode(options.replaceMode) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
+           !IO::isValidFlushMode(options.flushMode))
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
 
         IO::Types::Status prefixStatus = validateAtomicTemporaryPrefix(options.temporaryNamePrefix);
 
-        if (!prefixStatus.ok())
+        if(!prefixStatus.ok())
         {
             return prefixStatus;
         }
 
         Types::Path parent = path.parent_path();
 
-        if (parent.empty())
+        if(parent.empty())
         {
             parent = ".";
         }
@@ -278,24 +278,24 @@ IO::Types::Status writeAllBytesAtomic(
                 ? createDirectories(parent, Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = options.symlinkPolicy})
                 : validateDirectoryExists(parent, options.symlinkPolicy);
 
-        if (!parentStatus.ok())
+        if(!parentStatus.ok())
         {
             return parentStatus;
         }
 
         Detail::Platform::EntryQueryResult destination = queryEntry(path, options.symlinkPolicy);
 
-        if (destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
+        if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
         {
             return IO::makeStatus(ErrorCode::AlreadyExists);
         }
 
-        if (!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
+        if(!destination.status.ok() && destination.status.code != ErrorCode::NotFound)
         {
             return std::move(destination.status);
         }
 
-        if (destination.status.ok() && options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+        if(destination.status.ok() && options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
         {
             return IO::makeStatus(ErrorCode::Unsupported);
         }
@@ -306,7 +306,7 @@ IO::Types::Status writeAllBytesAtomic(
         // Until movePath() succeeds, every failure below is pre-commit. Cleanup is best effort: it may retain this
         // uniquely named temporary but cannot publish the replacement.
         // Bound collision retries so a hostile or exhausted directory cannot make temporary-name creation loop indefinitely.
-        for (std::uint64_t attempt = 0; attempt < 64 && openStatus.code == ErrorCode::AlreadyExists; ++attempt)
+        for(std::uint64_t attempt = 0; attempt < 64 && openStatus.code == ErrorCode::AlreadyExists; ++attempt)
         {
             temporaryPath = uniqueAtomicTemporaryPath(parent, options.temporaryNamePrefix, attempt);
             openStatus = writer.open(
@@ -319,14 +319,14 @@ IO::Types::Status writeAllBytesAtomic(
                     .flushOnClose = IO::Types::FlushMode::None});
         }
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return openStatus;
         }
 
         IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, bytes);
 
-        if (!writeResult.status.ok())
+        if(!writeResult.status.ok())
         {
             static_cast<void>(writer.close());
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
@@ -335,7 +335,7 @@ IO::Types::Status writeAllBytesAtomic(
 
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
 
-        if (!flushStatus.ok())
+        if(!flushStatus.ok())
         {
             static_cast<void>(writer.close());
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
@@ -344,7 +344,7 @@ IO::Types::Status writeAllBytesAtomic(
 
         IO::Types::Status closeStatus = writer.close();
 
-        if (!closeStatus.ok())
+        if(!closeStatus.ok())
         {
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
             return closeStatus;
@@ -352,18 +352,18 @@ IO::Types::Status writeAllBytesAtomic(
 
         IO::Types::Status commitStatus = Detail::Platform::movePath(temporaryPath, path, options.replaceMode, options.symlinkPolicy);
 
-        if (!commitStatus.ok())
+        if(!commitStatus.ok())
         {
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
             return commitStatus;
         }
 
         // Commit already succeeded; a failure below is a late durability failure and must not be reported as a pre-commit rollback.
-        if (options.flushParentDirectory)
+        if(options.flushParentDirectory)
         {
             IO::Types::Status parentFlushStatus = Detail::Platform::flushDirectory(parent);
 
-            if (!parentFlushStatus.ok())
+            if(!parentFlushStatus.ok())
             {
                 return parentFlushStatus;
             }
@@ -371,11 +371,11 @@ IO::Types::Status writeAllBytesAtomic(
 
         return IO::successStatus();
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return IO::makeStatus(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return IO::makeStatus(ErrorCode::Unknown);
     }
@@ -383,7 +383,7 @@ IO::Types::Status writeAllBytesAtomic(
 
 IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view utf8Text, const Types::File::AtomicWriteOptions &options) noexcept
 {
-    if (!validUtf8(utf8Text))
+    if(!validUtf8(utf8Text))
     {
         return IO::makeStatus(ErrorCode::EncodingFailed);
     }

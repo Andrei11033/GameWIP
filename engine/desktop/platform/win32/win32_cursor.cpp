@@ -71,7 +71,7 @@ namespace GameWIP::Desktop::Detail::Platform
             SetLastError(ERROR_SUCCESS);
             HDC screen = GetDC(nullptr);
 
-            if (screen == nullptr)
+            if(screen == nullptr)
             {
                 return nativeCursorFailure(GetLastError(), "GetDC custom cursor");
             }
@@ -81,9 +81,9 @@ namespace GameWIP::Desktop::Detail::Platform
             const DWORD colorError = GetLastError();
             ReleaseDC(nullptr, screen);
 
-            if (color == nullptr || pixels == nullptr)
+            if(color == nullptr || pixels == nullptr)
             {
-                if (color != nullptr)
+                if(color != nullptr)
                 {
                     DeleteObject(color);
                 }
@@ -101,12 +101,12 @@ namespace GameWIP::Desktop::Detail::Platform
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif
-            for (std::size_t row = 0; row < image.size.height; ++row)
+            for(std::size_t row = 0; row < image.size.height; ++row)
             {
                 const std::size_t sourceOffset = row * sourceStride;
                 const std::size_t destinationOffset = row * packedRowBytes;
 
-                for (std::size_t column = 0; column < packedRowBytes; column += 4)
+                for(std::size_t column = 0; column < packedRowBytes; column += 4)
                 {
                     destination[destinationOffset + column] = image.rgba8[sourceOffset + column + 2];
                     destination[destinationOffset + column + 1] = image.rgba8[sourceOffset + column + 1];
@@ -118,7 +118,7 @@ namespace GameWIP::Desktop::Detail::Platform
             SetLastError(ERROR_SUCCESS);
             HBITMAP mask = CreateBitmap(static_cast<int>(image.size.width), static_cast<int>(image.size.height), 1, 1, nullptr);
 
-            if (mask == nullptr)
+            if(mask == nullptr)
             {
                 const DWORD maskError = GetLastError();
                 DeleteObject(color);
@@ -128,14 +128,14 @@ namespace GameWIP::Desktop::Detail::Platform
             HDC maskDc = CreateCompatibleDC(nullptr);
             HGDIOBJ previousMask = maskDc != nullptr ? SelectObject(maskDc, mask) : nullptr;
 
-            if (maskDc == nullptr || previousMask == nullptr ||
-                PatBlt(maskDc, 0, 0, static_cast<int>(image.size.width), static_cast<int>(image.size.height), BLACKNESS) == FALSE)
+            if(maskDc == nullptr || previousMask == nullptr ||
+               PatBlt(maskDc, 0, 0, static_cast<int>(image.size.width), static_cast<int>(image.size.height), BLACKNESS) == FALSE)
             {
                 const DWORD maskFillError = GetLastError();
 
-                if (maskDc != nullptr)
+                if(maskDc != nullptr)
                 {
-                    if (previousMask != nullptr)
+                    if(previousMask != nullptr)
                     {
                         SelectObject(maskDc, previousMask);
                     }
@@ -160,7 +160,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DeleteObject(mask);
             DeleteObject(color);
 
-            if (cursor == nullptr)
+            if(cursor == nullptr)
             {
                 return nativeCursorFailure(cursorError, "CreateIconIndirect custom cursor");
             }
@@ -174,9 +174,9 @@ namespace GameWIP::Desktop::Detail::Platform
         std::span<const Types::Cursor::ImageView> images,
         std::vector<NativeCursorVariant> &variants) noexcept
     {
-        for (const Types::Cursor::ImageView &image : images)
+        for(const Types::Cursor::ImageView &image : images)
         {
-            if (Detail::consumeCursorNativeCreationFailure())
+            if(Detail::consumeCursorNativeCreationFailure())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor creation failure");
             }
@@ -184,7 +184,7 @@ namespace GameWIP::Desktop::Detail::Platform
             HCURSOR cursor = nullptr;
             IO::Types::Status status = createNativeCursor(image, cursor);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -199,9 +199,9 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     void destroyNativeCursorVariants(std::span<const NativeCursorVariant> variants) noexcept
     {
-        for (const NativeCursorVariant &variant : variants)
+        for(const NativeCursorVariant &variant : variants)
         {
-            if (variant.handle != nullptr)
+            if(variant.handle != nullptr)
             {
                 static_cast<void>(DestroyCursor(static_cast<HCURSOR>(variant.handle)));
                 Detail::recordCustomCursorDestroyed();
@@ -219,45 +219,45 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::uint32_t dpi = dpiForWindow(window.platform->handle);
             const NativeCursorVariant &variant = cursor->variantForDpi(dpi);
 
-            if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
             {
                 throw std::bad_alloc{};
             }
             auto replacement = std::make_unique<CursorBinding>(CursorBinding{std::move(cursor), variant.intendedDpi});
             CursorBinding *previous = cursorBinding(window.platform->handle);
 
-            if (Detail::consumeFailure(TestHooks::FailurePoint::CursorBinding))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::CursorBinding))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor binding failure");
             }
             SetLastError(ERROR_SUCCESS);
 
-            if (SetPropW(window.platform->handle, kCursorBindingProperty, replacement.get()) == FALSE)
+            if(SetPropW(window.platform->handle, kCursorBindingProperty, replacement.get()) == FALSE)
             {
                 return nativeCursorFailure(GetLastError(), "SetPropW custom cursor binding");
             }
 
             window.platform->cursor = static_cast<HCURSOR>(variant.handle);
 
-            if (cursorVisible(window))
+            if(cursorVisible(window))
             {
                 SetCursor(window.platform->cursor);
             }
             CursorBinding *published = replacement.release();
             delete previous;
 
-            if (published == nullptr)
+            if(published == nullptr)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unknown);
             }
 
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
         }
@@ -276,13 +276,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
     void releaseCustomCursorBinding(HWND window) noexcept
     {
-        if (window == nullptr)
+        if(window == nullptr)
         {
             return;
         }
         CursorBinding *binding = cursorBinding(window);
 
-        if (binding == nullptr)
+        if(binding == nullptr)
         {
             return;
         }
@@ -294,7 +294,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         CursorBinding *binding = cursorBinding(state.platform->handle);
 
-        if (binding == nullptr)
+        if(binding == nullptr)
         {
             return;
         }
@@ -302,7 +302,7 @@ namespace GameWIP::Desktop::Detail::Platform
         binding->selectedDpi = variant.intendedDpi;
         state.platform->cursor = static_cast<HCURSOR>(variant.handle);
 
-        if (cursorVisible(state))
+        if(cursorVisible(state))
         {
             SetCursor(state.platform->cursor);
         }
@@ -312,16 +312,16 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         CursorBinding *binding = cursorBinding(state.platform->handle);
 
-        if (binding != nullptr)
+        if(binding != nullptr)
         {
-            if (Detail::consumeFailure(TestHooks::FailurePoint::CursorBinding))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::CursorBinding))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor removal failure");
             }
             SetLastError(ERROR_SUCCESS);
             HANDLE removed = RemovePropW(state.platform->handle, kCursorBindingProperty);
 
-            if (removed != binding)
+            if(removed != binding)
             {
                 return nativeCursorFailure(GetLastError(), "RemovePropW custom cursor binding");
             }
@@ -329,7 +329,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         state.platform->cursor = cursor;
 
-        if (cursorVisible(state))
+        if(cursorVisible(state))
         {
             SetCursor(cursor);
         }
@@ -344,7 +344,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         ICONINFO info{};
 
-        if (variant.handle == nullptr || GetIconInfo(static_cast<HCURSOR>(variant.handle), &info) == FALSE)
+        if(variant.handle == nullptr || GetIconInfo(static_cast<HCURSOR>(variant.handle), &info) == FALSE)
         {
             return {};
         }
@@ -356,8 +356,8 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             BITMAP bitmap{};
 
-            if (info.hbmColor != nullptr && GetObjectW(info.hbmColor, sizeof(bitmap), &bitmap) == sizeof(bitmap) && bitmap.bmWidth > 0 &&
-                bitmap.bmHeight > 0)
+            if(info.hbmColor != nullptr && GetObjectW(info.hbmColor, sizeof(bitmap), &bitmap) == sizeof(bitmap) && bitmap.bmWidth > 0 &&
+               bitmap.bmHeight > 0)
             {
                 BITMAPV5HEADER header{};
                 header.bV5Size = sizeof(header);
@@ -379,29 +379,29 @@ namespace GameWIP::Desktop::Detail::Platform
                                                          DIB_RGB_COLORS)
                                                    : 0;
 
-                if (screen != nullptr)
+                if(screen != nullptr)
                 {
                     ReleaseDC(nullptr, screen);
                 }
 
-                if (rows == bitmap.bmHeight)
+                if(rows == bitmap.bmHeight)
                 {
                     std::copy_n(pixels.begin(), snapshot.firstBgraPixel.size(), snapshot.firstBgraPixel.begin());
                     snapshot.valid = true;
                 }
             }
         }
-        catch (...)
+        catch(...)
         {
             snapshot.valid = false;
         }
 
-        if (info.hbmMask != nullptr)
+        if(info.hbmMask != nullptr)
         {
             DeleteObject(info.hbmMask);
         }
 
-        if (info.hbmColor != nullptr)
+        if(info.hbmColor != nullptr)
         {
             DeleteObject(info.hbmColor);
         }

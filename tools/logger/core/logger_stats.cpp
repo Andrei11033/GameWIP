@@ -26,19 +26,19 @@ namespace GameWIP::Logger::Detail::Core
 
     std::size_t messageArenaBytesUnlocked()
     {
-        if (loggerState().inlineMessageCapacity == 0)
+        if(loggerState().inlineMessageCapacity == 0)
         {
             return 0;
         }
 
         std::size_t bytes = 0;
 
-        if (loggerState().ringMessageArena)
+        if(loggerState().ringMessageArena)
         {
             bytes += loggerState().logRingSize * loggerState().inlineMessageCapacity;
         }
 
-        if (loggerState().batchMessageArena)
+        if(loggerState().batchMessageArena)
         {
             bytes += loggerState().workerBatch.size() * loggerState().inlineMessageCapacity;
         }
@@ -53,7 +53,7 @@ namespace GameWIP::Logger::Detail::Core
 
     std::size_t sourceRegistryBytes(const SourceRegistry *registry)
     {
-        if (!registry)
+        if(!registry)
         {
             return 0;
         }
@@ -62,9 +62,9 @@ namespace GameWIP::Logger::Detail::Core
                             registry->directSourceLookup.capacity() * sizeof(std::size_t);
         const std::size_t emptyCapacity = std::string{}.capacity();
 
-        for (const auto &source : registry->sources)
+        for(const auto &source : registry->sources)
         {
-            if (source.name.capacity() > emptyCapacity)
+            if(source.name.capacity() > emptyCapacity)
             {
                 bytes += source.name.capacity();
             }
@@ -93,7 +93,7 @@ namespace GameWIP::Logger::Detail::Core
 
     std::size_t entryTextHeapCapacityBytesUnlocked()
     {
-        if (!entryTextHeapCapacityAvailableUnlocked())
+        if(!entryTextHeapCapacityAvailableUnlocked())
         {
             // Queue text storage can move between producer slots and the worker batch;
             // report it only when no thread can mutate those capacities.
@@ -102,14 +102,14 @@ namespace GameWIP::Logger::Detail::Core
 
         std::size_t bytes = 0;
 
-        for (std::size_t i = 0; i < loggerState().logRingSize; ++i)
+        for(std::size_t i = 0; i < loggerState().logRingSize; ++i)
         {
             bytes += entryTextHeapCapacityBytes(loggerState().logRingView[i].entry);
         }
 
-        if (!loggerState().workerBusy)
+        if(!loggerState().workerBusy)
         {
-            for (const auto &entry : loggerState().workerBatch)
+            for(const auto &entry : loggerState().workerBatch)
             {
                 bytes += entryTextHeapCapacityBytes(entry);
             }
@@ -166,7 +166,7 @@ GameWIP::Logger::Types::Level GameWIP::Logger::getMinLevel() noexcept
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         return loggerState().minLevel;
     }
-    catch (...)
+    catch(...)
     {
         return Types::Level::Info;
     }
@@ -178,14 +178,14 @@ GameWIP::Logger::Types::OutputMode GameWIP::Logger::getOutput() noexcept
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
 
-        if (!runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
+        if(!runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
         {
             return Types::OutputMode::None;
         }
 
         return loggerState().mode;
     }
-    catch (...)
+    catch(...)
     {
         return Types::OutputMode::None;
     }
@@ -197,7 +197,7 @@ GameWIP::Logger::Types::LogFilePathResult GameWIP::Logger::getLogFilePath() noex
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
 
-        if (loggerState().logFilePath.empty())
+        if(loggerState().logFilePath.empty())
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};
         }
@@ -205,11 +205,11 @@ GameWIP::Logger::Types::LogFilePathResult GameWIP::Logger::getLogFilePath() noex
         auto result = FileSystem::pathToUtf8(loggerState().logFilePath);
         return {.status = std::move(result.status), .utf8 = std::move(result.utf8)};
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
     }
-    catch (...)
+    catch(...)
     {
         return {.status = IO::makeStatus(ErrorCode::Unknown)};
     }
@@ -228,7 +228,7 @@ GameWIP::Logger::Types::QueueLimits GameWIP::Logger::getQueueLimits() noexcept
             loggerState().inlineMessageCapacity,
             loggerState().workerBatchSize};
     }
-    catch (...)
+    catch(...)
     {
         return {};
     }
@@ -252,7 +252,7 @@ GameWIP::Logger::Types::Health::Snapshot GameWIP::Logger::getHealth() noexcept
             loggerState().lastHealthNativeCode,
             loggerState().healthFailureCount};
     }
-    catch (...)
+    catch(...)
     {
         return {};
     }
@@ -264,7 +264,7 @@ GameWIP::Logger::Types::Stats GameWIP::Logger::getStats() noexcept
     {
         return snapshotStats();
     }
-    catch (...)
+    catch(...)
     {
         return {};
     }
@@ -292,7 +292,7 @@ GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats() noexcept
         memory.processMemoryAvailable = process.available;
         return memory;
     }
-    catch (...)
+    catch(...)
     {
         return {};
     }
@@ -305,7 +305,7 @@ void GameWIP::Logger::resetStats() noexcept
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         resetAtomicStats(loggerState().queueDepth.load(std::memory_order_acquire));
     }
-    catch (...)
+    catch(...)
     {
         // Statistics reset is best effort at this noexcept diagnostic boundary.
         return;

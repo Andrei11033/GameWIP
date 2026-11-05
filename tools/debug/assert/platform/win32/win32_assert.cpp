@@ -54,7 +54,7 @@ namespace
     void presentErrorPopup(const wchar_t *title, const wchar_t *message) noexcept
     {
 #if ASSERT_INTERNAL_TEST_HOOKS
-        if (suppressNativePresentationForTest)
+        if(suppressNativePresentationForTest)
         {
             return;
         }
@@ -72,7 +72,7 @@ namespace
         std::wstring output;
         output.reserve(text.size());
 
-        for (char ch : text)
+        for(char ch : text)
         {
             const unsigned char value = static_cast<unsigned char>(ch);
             output.push_back(value >= 0x20 && value < 0x80 ? static_cast<wchar_t>(value) : L'?');
@@ -86,19 +86,19 @@ namespace
     std::wstring utf8ToWide(std::string_view text)
     {
 #if ASSERT_INTERNAL_TEST_HOOKS
-        if (nextDiagnosticPreparationFailure.exchange(false, std::memory_order_acq_rel))
+        if(nextDiagnosticPreparationFailure.exchange(false, std::memory_order_acq_rel))
         {
             throw std::bad_alloc{};
         }
 #endif
-        if (text.empty())
+        if(text.empty())
         {
             return {};
         }
 
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
 
-        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return asciiFallbackToWide(text);
         }
@@ -106,14 +106,14 @@ namespace
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
 
-        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+        if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return asciiFallbackToWide(text);
         }
 
         std::wstring output(conversion.codeUnitsWritten, L'\0');
 
-        for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+        for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
         {
             // Native dialogs stop at NUL; replacement keeps the following text visible.
             const char16_t codeUnit = converted[index];
@@ -138,12 +138,12 @@ namespace
     /// @brief Returns a UTF-16 prefix boundary that never separates a surrogate pair.
     std::size_t utf16PrefixBoundary(std::wstring_view text, std::size_t maxCodeUnits) noexcept
     {
-        if (maxCodeUnits >= text.size())
+        if(maxCodeUnits >= text.size())
         {
             return text.size();
         }
 
-        if (maxCodeUnits > 0 && isHighSurrogate(text[maxCodeUnits - 1]) && isLowSurrogate(text[maxCodeUnits]))
+        if(maxCodeUnits > 0 && isHighSurrogate(text[maxCodeUnits - 1]) && isLowSurrogate(text[maxCodeUnits]))
         {
             return maxCodeUnits - 1;
         }
@@ -154,14 +154,14 @@ namespace
     /// @brief Bounds popup text after strict UTF-8 conversion without splitting a UTF-16 scalar.
     void truncateWideForPopup(std::wstring &text, std::size_t maxCodeUnits) noexcept
     {
-        if (text.size() <= maxCodeUnits)
+        if(text.size() <= maxCodeUnits)
         {
             return;
         }
 
         constexpr std::wstring_view suffix = L"... [truncated]";
 
-        if (maxCodeUnits <= suffix.size())
+        if(maxCodeUnits <= suffix.size())
         {
             text.resize(utf16PrefixBoundary(text, maxCodeUnits));
             return;
@@ -171,7 +171,7 @@ namespace
         const std::size_t prefixLimit = maxCodeUnits - suffix.size();
         const std::size_t prefixSize = utf16PrefixBoundary(text, prefixLimit);
 
-        for (std::size_t index = 0; index < suffix.size(); ++index)
+        for(std::size_t index = 0; index < suffix.size(); ++index)
         {
             text[prefixSize + index] = suffix[index];
         }
@@ -213,7 +213,7 @@ namespace
     /// @brief Maps an Assert failure action to a stable TaskDialog custom-button id.
     int buttonIdForAction(FailureAction action) noexcept
     {
-        switch (action)
+        switch(action)
         {
         case FailureAction::Break:
             return kBreakButtonId;
@@ -231,7 +231,7 @@ namespace
     /// @brief Maps TaskDialog output back to an Assert action with a safe fallback.
     FailureAction actionForButtonId(int buttonId, FailureAction defaultAction) noexcept
     {
-        switch (buttonId)
+        switch(buttonId)
         {
         case kBreakButtonId:
             return FailureAction::Break;
@@ -254,12 +254,12 @@ namespace
     {
         HMODULE commonControls = GetModuleHandleW(L"comctl32.dll");
 
-        if (commonControls == nullptr)
+        if(commonControls == nullptr)
         {
             commonControls = LoadLibraryW(L"comctl32.dll");
         }
 
-        if (commonControls == nullptr)
+        if(commonControls == nullptr)
         {
             return nullptr;
         }
@@ -276,7 +276,7 @@ namespace
         // MessageBox uses fixed labels: Retry maps to Break, and Ignore affects this failure only.
         const int result = MessageBoxW(nullptr, message, title, MB_ABORTRETRYIGNORE | MB_ICONERROR | MB_TASKMODAL | MB_SETFOREGROUND);
 
-        switch (result)
+        switch(result)
         {
         case IDABORT:
             return FailureAction::Abort;
@@ -313,7 +313,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 {
     void showErrorPopup(std::string_view title, std::string_view message) noexcept
     {
-        if (popupsSuppressed())
+        if(popupsSuppressed())
         {
             return;
         }
@@ -322,7 +322,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
             const PopupText text = preparePopupText(title, message);
             presentErrorPopup(text.title.c_str(), text.message.c_str());
         }
-        catch (...)
+        catch(...)
         {
             presentErrorPopup(L"GameWIP Assert", L"Assertion failure.");
         }
@@ -356,11 +356,11 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 
             int selectedButton = buttonIdForAction(defaultAction);
 
-            if (const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
+            if(const TaskDialogIndirectFn taskDialogIndirect = loadTaskDialogIndirect())
             {
                 const HRESULT result = taskDialogIndirect(&config, &selectedButton, nullptr, nullptr);
 
-                if (SUCCEEDED(result))
+                if(SUCCEEDED(result))
                 {
                     return actionForButtonId(selectedButton, defaultAction);
                 }
@@ -368,7 +368,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 
             return fallbackMessageBoxAction(text.title.c_str(), text.message.c_str(), defaultAction);
         }
-        catch (...)
+        catch(...)
         {
             // This emergency path must not allocate or convert: use static UTF-16 literals only.
             return fallbackMessageBoxAction(L"GameWIP Assert", L"Assertion failure.", defaultAction);

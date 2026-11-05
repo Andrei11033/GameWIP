@@ -28,7 +28,7 @@ void testChildSurfaces(TestSupport::Context &context)
     Desktop::Window parent;
     static_cast<void>(context.expectTrue("ChildSurface parent opens", parent.open(parentDescription, Desktop::Events::owned(32)).ok()));
 
-    if (!parent.isOpen())
+    if(!parent.isOpen())
     {
         return;
     }
@@ -46,7 +46,7 @@ void testChildSurfaces(TestSupport::Context &context)
     Desktop::ChildSurface surface;
     static_cast<void>(context.expectTrue("default zero-sized ChildSurface description opens", surface.open(parent).ok()));
 
-    if (!surface.isOpen())
+    if(!surface.isOpen())
     {
         static_cast<void>(parent.close());
         return;
@@ -72,7 +72,7 @@ void testChildSurfaces(TestSupport::Context &context)
     const auto childHandle = Desktop::Native::Win32::getHandle(surface);
     static_cast<void>(context.expectTrue("ChildSurface exposes a borrowed native host", childHandle.status.ok() && childHandle->window != nullptr));
 
-    if (childHandle.status.ok())
+    if(childHandle.status.ok())
     {
         static_cast<void>(context.expectEq("native host is directly parented", parentHandle->window, GetParent(childHandle->window)));
         const DWORD style = static_cast<DWORD>(GetWindowLongPtrW(childHandle->window, GWL_STYLE));
@@ -110,7 +110,7 @@ void testChildSurfaces(TestSupport::Context &context)
     bool foundPixelSizeEvent = false;
     ChildEvent geometryEvent;
 
-    while (surface.popEvent(geometryEvent))
+    while(surface.popEvent(geometryEvent))
     {
         foundPositionEvent = foundPositionEvent || geometryEvent.getIf<ChildEvents::PositionChanged>() != nullptr;
         foundSizeEvent = foundSizeEvent || geometryEvent.getIf<ChildEvents::SizeChanged>() != nullptr;
@@ -161,7 +161,7 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("show updates visibility cache", surface.visible()));
     bool foundVisibilityEvent = false;
 
-    while (surface.popEvent(geometryEvent))
+    while(surface.popEvent(geometryEvent))
     {
         foundVisibilityEvent = foundVisibilityEvent || geometryEvent.getIf<ChildEvents::VisibilityChanged>() != nullptr;
     }
@@ -221,7 +221,7 @@ void testChildSurfaces(TestSupport::Context &context)
     const auto *position = event.getIf<ChildEvents::PositionChanged>();
     static_cast<void>(context.expectTrue("coalesced event has PositionChanged payload", position != nullptr));
 
-    if (position != nullptr)
+    if(position != nullptr)
     {
         static_cast<void>(context.expectEq("coalesced position retains latest value", Desktop::Types::LogicalPosition{20, 20}, position->position));
     }
@@ -267,7 +267,7 @@ void testChildSurfaces(TestSupport::Context &context)
     const auto *scale = scaleEvent.getIf<ChildEvents::ContentScaleChanged>();
     static_cast<void>(context.expectTrue("coalesced ChildSurface scale has payload", scale != nullptr));
 
-    if (scale != nullptr)
+    if(scale != nullptr)
     {
         static_cast<void>(
             context.expectEq("ChildSurface scale keeps earliest predecessor", Desktop::Types::ContentScale{1.0F, 1.0F}, scale->previousScale));
@@ -301,7 +301,7 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectEq("reopen before finalization is rejected", ErrorCode::AlreadyOpen, surface.open(parent).code));
     bool foundNativeDestroyed = false;
 
-    while (surface.popEvent(event))
+    while(surface.popEvent(event))
     {
         foundNativeDestroyed = foundNativeDestroyed || event.getIf<ChildEvents::NativeDestroyed>() != nullptr;
     }
@@ -376,14 +376,14 @@ void testChildSurfaces(TestSupport::Context &context)
 /// @brief Visually validates a real Win32 descendant hosted below a ChildSurface HWND.
 void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
-    if (!beginManualSuite(context, options, "Window native child surface"))
+    if(!beginManualSuite(context, options, "Window native child surface"))
     {
         return;
     }
 
     Desktop::Window parent;
 
-    if (!openManualWindow(context, parent, "GameWIP ChildSurface native-host validation"))
+    if(!openManualWindow(context, parent, "GameWIP ChildSurface native-host validation"))
     {
         return;
     }
@@ -392,10 +392,10 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
     description.rect = {{180, 140}, {600, 260}};
     description.visible = true;
 
-    if (!requireManualStatus(
-            context,
-            "manual ChildSurface opens",
-            surface.open(parent, description, Desktop::Types::ChildSurface::QueueConfiguration::owned(32))))
+    if(!requireManualStatus(
+           context,
+           "manual ChildSurface opens",
+           surface.open(parent, description, Desktop::Types::ChildSurface::QueueConfiguration::owned(32))))
     {
         static_cast<void>(parent.close());
         return;
@@ -404,7 +404,7 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
     const auto native = Desktop::Native::Win32::getHandle(surface);
     HWND button = nullptr;
 
-    if (native.status.ok())
+    if(native.status.ok())
     {
         button = CreateWindowExW(
             0,
@@ -422,7 +422,7 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
     }
     static_cast<void>(context.expectTrue("manual native descendant is created", button != nullptr));
 
-    if (button != nullptr)
+    if(button != nullptr)
     {
         recordManualCheck(
             context,

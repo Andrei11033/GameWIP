@@ -49,9 +49,9 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
-            if (!eventStorage.empty())
+            if(!eventStorage.empty())
             {
-                for (std::size_t index = 0; index < eventCount; ++index)
+                for(std::size_t index = 0; index < eventCount; ++index)
                 {
                     eventStorage[(eventHead + index) % eventStorage.size()] = {};
                 }
@@ -153,7 +153,7 @@ namespace GameWIP::Desktop::Detail
     {
         publishAccessibilityGeometry(state);
 
-        if (state.presentationPublication != nullptr)
+        if(state.presentationPublication != nullptr)
         {
             publishCachedPresentationState(*state.presentationPublication, state);
         }
@@ -162,7 +162,7 @@ namespace GameWIP::Desktop::Detail
     /// @brief Resets stable presentation publication values for a new native lifetime.
     inline void resetPresentationPublication(WindowState &state) noexcept
     {
-        if (state.presentationPublication != nullptr)
+        if(state.presentationPublication != nullptr)
         {
             state.presentationPublication->reset();
         }
@@ -171,7 +171,7 @@ namespace GameWIP::Desktop::Detail
     /// @brief Invalidates renderer hit-mask state when Window geometry changes.
     inline void invalidatePointerHitMask(WindowState &state) noexcept
     {
-        if (state.rendererIntegration != nullptr)
+        if(state.rendererIntegration != nullptr)
         {
             state.rendererIntegration->invalidatePointerHitMask();
         }
@@ -182,10 +182,10 @@ namespace GameWIP::Desktop::Detail
     {
         const RendererIntegrationState *renderer = state.rendererIntegration;
 
-        if (renderer == nullptr || renderer->pointerHitMask.empty() || renderer->pointerHitMaskActiveGeneration == 0 ||
-            renderer->pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 ||
-            position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
-            static_cast<std::uint32_t>(position.y) >= state.clientSize.height)
+        if(renderer == nullptr || renderer->pointerHitMask.empty() || renderer->pointerHitMaskActiveGeneration == 0 ||
+           renderer->pointerHitMaskSize != state.framebufferSize || state.clientSize.width == 0 || state.clientSize.height == 0 || position.x < 0 ||
+           position.y < 0 || static_cast<std::uint32_t>(position.x) >= state.clientSize.width ||
+           static_cast<std::uint32_t>(position.y) >= state.clientSize.height)
         {
             return true;
         }
@@ -193,7 +193,7 @@ namespace GameWIP::Desktop::Detail
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
 
-        if (x >= state.framebufferSize.width || y >= state.framebufferSize.height)
+        if(x >= state.framebufferSize.width || y >= state.framebufferSize.height)
         {
             return true;
         }
@@ -203,7 +203,7 @@ namespace GameWIP::Desktop::Detail
         const std::uint64_t wordsPerRow = width / bitsPerWord + (width % bitsPerWord != 0 ? 1U : 0U);
         const std::uint64_t word = y * wordsPerRow + x / bitsPerWord;
 
-        if (word >= renderer->pointerHitMask.size())
+        if(word >= renderer->pointerHitMask.size())
         {
             return true;
         }
@@ -243,12 +243,12 @@ namespace GameWIP::Desktop::Detail
 
         [[nodiscard]] static RendererIntegrationState *ensureRendererIntegration(Window &window)
         {
-            if (!window.rendererIntegration_)
+            if(!window.rendererIntegration_)
             {
                 window.rendererIntegration_ = std::make_unique<RendererIntegrationState>();
             }
 
-            if (window.state_)
+            if(window.state_)
             {
                 window.state_->rendererIntegration = window.rendererIntegration_.get();
             }

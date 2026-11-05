@@ -78,7 +78,7 @@ namespace GameWIP::IO
     /// @return True for None, Data, and DataAndMetadataBestEffort; otherwise false.
     [[nodiscard]] constexpr bool isValidFlushMode(Types::FlushMode mode) noexcept
     {
-        switch (mode)
+        switch(mode)
         {
         case Types::FlushMode::None:
         case Types::FlushMode::Data:

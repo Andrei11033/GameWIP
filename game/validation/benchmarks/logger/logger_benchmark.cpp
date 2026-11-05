@@ -60,14 +60,14 @@ namespace
         {
             static_cast<void>(Logger::shutdown());
 
-            if (!directoryName.empty())
+            if(!directoryName.empty())
             {
                 try
                 {
                     workspace_ =
                         std::make_unique<TestSupport::ScopedTemporaryDirectory>(std::string("logger_benchmark_") + std::string(directoryName));
 
-                    if (!workspace_->status().ok())
+                    if(!workspace_->status().ok())
                     {
                         const std::string error = std::format(
                             "Could not create Logger benchmark workspace: {}.",
@@ -79,7 +79,7 @@ namespace
                     directoryText_ = workspace_->path().string();
                     config.logDirectory = directoryText_;
                 }
-                catch (const std::exception &exception)
+                catch(const std::exception &exception)
                 {
                     state.SkipWithError(exception.what());
                     return false;
@@ -89,7 +89,7 @@ namespace
             const Logger::Types::Init::Result initResult = Logger::init(config);
             initialized_ = initResult.status.ok() && initResult.outcome == Logger::Types::Init::Outcome::Started;
 
-            if (!initialized_)
+            if(!initialized_)
             {
                 const std::string error = std::format(
                     "Logger initialization failed (status={}, native={}, outputStatus={}, outputNative={}).",
@@ -105,7 +105,7 @@ namespace
 
         void TearDown(benchmark::State &state) override
         {
-            if (initialized_)
+            if(initialized_)
             {
                 const Logger::Types::FlushResult flushResult = Logger::flush(std::chrono::seconds{10});
                 const Logger::Types::Stats stats = Logger::getStats();
@@ -116,7 +116,7 @@ namespace
                 state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
                 state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
 
-                if (!flushCompleted(flushResult))
+                if(!flushCompleted(flushResult))
                 {
                     state.SkipWithError("Logger flush failed or timed out.");
                 }
@@ -143,7 +143,7 @@ namespace
             // Disabled output is a successful configuration but intentionally does not start a worker.
             const auto init = Logger::init(config);
 
-            if (!init.status.ok() || init.outcome != Logger::Types::Init::Outcome::Disabled)
+            if(!init.status.ok() || init.outcome != Logger::Types::Init::Outcome::Disabled)
             {
                 state.SkipWithError("Logger disabled initialization failed.");
                 return;
@@ -154,12 +154,12 @@ namespace
 
     BENCHMARK_DEFINE_F(OutputDisabledFixture, Producer)(benchmark::State &state)
     {
-        if (!initialized_)
+        if(!initialized_)
         {
             return;
         }
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Logger::info(kSource, kMessage);
@@ -183,13 +183,13 @@ namespace
 
     BENCHMARK_DEFINE_F(FilteredFormattedFixture, Producer)(benchmark::State &state)
     {
-        if (!initialized_)
+        if(!initialized_)
         {
             return;
         }
         std::size_t value = 0;
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Logger::info(kSource, "filtered {} {}", value, value + 1);
@@ -214,12 +214,12 @@ namespace
 
     BENCHMARK_DEFINE_F(EnabledFileFixture, Producer)(benchmark::State &state)
     {
-        if (!initialized_)
+        if(!initialized_)
         {
             return;
         }
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Logger::info(kSource, kMessage);
@@ -244,12 +244,12 @@ namespace
 
     BENCHMARK_DEFINE_F(RegisteredSourceFixture, Producer)(benchmark::State &state)
     {
-        if (!initialized_)
+        if(!initialized_)
         {
             return;
         }
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Logger::info(kRegisteredSource, kMessage);
@@ -268,14 +268,14 @@ namespace
         {
             const std::lock_guard lock{lifecycleMutex};
 
-            if (activeThreads == 0)
+            if(activeThreads == 0)
             {
                 static_cast<void>(Logger::shutdown());
                 try
                 {
                     workspace = std::make_unique<TestSupport::ScopedTemporaryDirectory>("logger_benchmark_multi_producer");
 
-                    if (!workspace->status().ok())
+                    if(!workspace->status().ok())
                     {
                         state.SkipWithError(
                             std::format(
@@ -296,7 +296,7 @@ namespace
                         initialized = init.status.ok() && init.outcome == Logger::Types::Init::Outcome::Started;
                     }
                 }
-                catch (const std::exception &exception)
+                catch(const std::exception &exception)
                 {
                     state.SkipWithError(exception.what());
                     initialized = false;
@@ -305,13 +305,13 @@ namespace
             ++activeThreads;
         }
 
-        if (!initialized)
+        if(!initialized)
         {
             state.SkipWithError("Logger initialization failed.");
         }
         else
         {
-            for (auto iteration : state)
+            for(auto iteration : state)
             {
                 static_cast<void>(iteration);
                 Logger::info(kRegisteredSource, kMessage);
@@ -323,7 +323,7 @@ namespace
             const std::lock_guard lock{lifecycleMutex};
             --activeThreads;
 
-            if (activeThreads == 0)
+            if(activeThreads == 0)
             {
                 const bool flushed = initialized && flushCompleted(Logger::flush(std::chrono::seconds{10}));
                 const Logger::Types::Stats stats = Logger::getStats();
@@ -336,7 +336,7 @@ namespace
                 state.counters["queue_drops"] = static_cast<double>(stats.queueDropsSoft + stats.queueDropsHard);
                 state.counters["peak_queue"] = static_cast<double>(stats.peakQueueDepth);
 
-                if (!flushed)
+                if(!flushed)
                 {
                     state.SkipWithError("Logger flush failed or timed out.");
                 }

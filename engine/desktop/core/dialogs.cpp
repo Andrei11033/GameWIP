@@ -30,13 +30,13 @@ namespace GameWIP::Desktop::Dialogs
         /// @brief Validates optional Window ownership and enforces owner-thread dialog calls.
         [[nodiscard]] IO::Types::Status validateOwner(Window *owner) noexcept
         {
-            if (owner == nullptr)
+            if(owner == nullptr)
             {
                 return IO::successStatus();
             }
             Detail::WindowState *state = Detail::WindowAccess::state(*owner);
 
-            if (state == nullptr || !Detail::Platform::hasLiveNativeWindow(*state))
+            if(state == nullptr || !Detail::Platform::hasLiveNativeWindow(*state))
             {
                 return error(ErrorCode::NotOpen);
             }
@@ -62,30 +62,30 @@ namespace GameWIP::Desktop::Dialogs
             std::span<const Types::Dialogs::File::Filter> filters,
             std::optional<std::size_t> preferredFilterIndex) noexcept
         {
-            if (preferredFilterIndex && *preferredFilterIndex >= filters.size())
+            if(preferredFilterIndex && *preferredFilterIndex >= filters.size())
             {
                 return error(ErrorCode::InvalidArgument);
             }
 
-            for (const Types::Dialogs::File::Filter &filter : filters)
+            for(const Types::Dialogs::File::Filter &filter : filters)
             {
                 IO::Types::Status status = validateText(filter.name);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
 
-                for (std::string_view extension : filter.extensions)
+                for(std::string_view extension : filter.extensions)
                 {
                     status = validateText(extension);
 
-                    if (!status.ok())
+                    if(!status.ok())
                     {
                         return status;
                     }
 
-                    if (!validFilterExtensionSyntax(extension))
+                    if(!validFilterExtensionSyntax(extension))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
@@ -116,7 +116,7 @@ namespace GameWIP::Desktop::Dialogs
             using Types::Dialogs::Message::Button;
             using Types::Dialogs::Message::Buttons;
 
-            switch (buttons)
+            switch(buttons)
             {
             case Buttons::Ok:
                 return button == Button::Ok;
@@ -136,9 +136,9 @@ namespace GameWIP::Desktop::Dialogs
         /// @brief Returns whether a prompt button identifier is unique within the description.
         [[nodiscard]] bool containsButton(std::span<const Types::Dialogs::Prompt::Button> buttons, Types::Dialogs::Prompt::ButtonId id) noexcept
         {
-            for (const auto &button : buttons)
+            for(const auto &button : buttons)
             {
-                if (button.id == id)
+                if(button.id == id)
                 {
                     return true;
                 }
@@ -150,9 +150,9 @@ namespace GameWIP::Desktop::Dialogs
         /// @brief Returns whether a prompt option identifier is unique within the description.
         [[nodiscard]] bool containsOption(std::span<const Types::Dialogs::Prompt::Option> options, Types::Dialogs::Prompt::OptionId id) noexcept
         {
-            for (const auto &option : options)
+            for(const auto &option : options)
             {
-                if (option.id == id)
+                if(option.id == id)
                 {
                     return true;
                 }
@@ -164,90 +164,90 @@ namespace GameWIP::Desktop::Dialogs
         /// @brief Validates prompt text, identifiers, defaults, and optional checkbox state.
         [[nodiscard]] IO::Types::Status validatePrompt(const Types::Dialogs::Prompt::Description &description) noexcept
         {
-            if (!validSeverity(description.severity) || description.buttons.empty())
+            if(!validSeverity(description.severity) || description.buttons.empty())
             {
                 return error(ErrorCode::InvalidArgument);
             }
 
-            for (std::string_view text :
-                 {description.title, description.heading, description.message, description.details, description.supplementalText})
+            for(std::string_view text :
+                {description.title, description.heading, description.message, description.details, description.supplementalText})
             {
                 IO::Types::Status status = validateText(text);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
             }
 
-            for (std::size_t index = 0; index < description.buttons.size(); ++index)
+            for(std::size_t index = 0; index < description.buttons.size(); ++index)
             {
                 const auto &button = description.buttons[index];
 
-                if (!button.id.isValid() || button.label.empty())
+                if(!button.id.isValid() || button.label.empty())
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                for (std::size_t previous = 0; previous < index; ++previous)
+                for(std::size_t previous = 0; previous < index; ++previous)
                 {
-                    if (description.buttons[previous].id == button.id)
+                    if(description.buttons[previous].id == button.id)
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
                 }
 
-                for (std::string_view text : {button.label, button.description})
+                for(std::string_view text : {button.label, button.description})
                 {
                     IO::Types::Status status = validateText(text);
 
-                    if (!status.ok())
+                    if(!status.ok())
                     {
                         return status;
                     }
                 }
             }
 
-            for (std::size_t index = 0; index < description.options.size(); ++index)
+            for(std::size_t index = 0; index < description.options.size(); ++index)
             {
                 const auto &option = description.options[index];
 
-                if (!option.id.isValid() || option.label.empty())
+                if(!option.id.isValid() || option.label.empty())
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                for (std::size_t previous = 0; previous < index; ++previous)
+                for(std::size_t previous = 0; previous < index; ++previous)
                 {
-                    if (description.options[previous].id == option.id)
+                    if(description.options[previous].id == option.id)
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
                 }
                 IO::Types::Status status = validateText(option.label);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
             }
 
-            if ((description.defaultButton && !containsButton(description.buttons, *description.defaultButton)) ||
-                (description.cancelButton && !containsButton(description.buttons, *description.cancelButton)) ||
-                (description.defaultOption && !containsOption(description.options, *description.defaultOption)))
+            if((description.defaultButton && !containsButton(description.buttons, *description.defaultButton)) ||
+               (description.cancelButton && !containsButton(description.buttons, *description.cancelButton)) ||
+               (description.defaultOption && !containsOption(description.options, *description.defaultOption)))
             {
                 return error(ErrorCode::InvalidArgument);
             }
 
-            if (description.checkBox)
+            if(description.checkBox)
             {
-                if (description.checkBox->label.empty())
+                if(description.checkBox->label.empty())
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
                 IO::Types::Status status = validateText(description.checkBox->label);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
@@ -268,23 +268,23 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = validateOwner(description.owner);
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.title);
             }
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
 
             return result.status.ok() ? Detail::Platform::openFile(description) : result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             result.status = error(ErrorCode::Unknown);
         }
@@ -299,23 +299,23 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = validateOwner(description.owner);
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.title);
             }
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
 
             return result.status.ok() ? Detail::Platform::openFiles(description) : result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             result.status = error(ErrorCode::Unknown);
         }
@@ -330,26 +330,26 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = validateOwner(description.owner);
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.title);
             }
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.suggestedFileName);
             }
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
 
-            if (result.status.ok() && !description.suggestedExtension.empty())
+            if(result.status.ok() && !description.suggestedExtension.empty())
             {
                 result.status = validateText(description.suggestedExtension);
 
-                if (result.status.ok() && !validExtensionSyntax(description.suggestedExtension))
+                if(result.status.ok() && !validExtensionSyntax(description.suggestedExtension))
                 {
                     result.status = error(ErrorCode::InvalidArgument);
                 }
@@ -357,11 +357,11 @@ namespace GameWIP::Desktop::Dialogs
 
             return result.status.ok() ? Detail::Platform::saveFile(description) : result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             result.status = error(ErrorCode::Unknown);
         }
@@ -376,18 +376,18 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = validateOwner(description.owner);
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.title);
             }
 
             return result.status.ok() ? Detail::Platform::selectFolder(description) : result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             result.status = error(ErrorCode::Unknown);
         }
@@ -402,18 +402,18 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = validateOwner(description.owner);
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.title);
             }
 
             return result.status.ok() ? Detail::Platform::selectFolders(description) : result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             result.status = error(ErrorCode::Unknown);
         }
@@ -432,30 +432,30 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = validateOwner(description.owner);
 
-            if (result.status.ok() && (!validSeverity(description.severity) || !validMessageButtons(description.buttons) ||
-                                       (description.defaultButton != Types::Dialogs::Message::Button::None &&
-                                        !messageContainsButton(description.buttons, description.defaultButton))))
+            if(result.status.ok() && (!validSeverity(description.severity) || !validMessageButtons(description.buttons) ||
+                                      (description.defaultButton != Types::Dialogs::Message::Button::None &&
+                                       !messageContainsButton(description.buttons, description.defaultButton))))
             {
                 result.status = error(ErrorCode::InvalidArgument);
             }
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.title);
             }
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validateText(description.message);
             }
 
             return result.status.ok() ? Detail::Platform::showMessage(description) : result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             result.status = error(ErrorCode::Unknown);
         }
@@ -470,18 +470,18 @@ namespace GameWIP::Desktop::Dialogs
         {
             result.status = validateOwner(description.owner);
 
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status = validatePrompt(description);
             }
 
             return result.status.ok() ? Detail::Platform::showPrompt(description) : result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             result.status = error(ErrorCode::Unknown);
         }

@@ -15,13 +15,13 @@ namespace GameWIP::Desktop::Detail::Platform
         Dispatcher &current = dispatcher();
         Types::Events::PumpResult result;
 
-        if (current.pumping)
+        if(current.pumping)
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
             return result;
         }
 
-        if (Detail::consumeFailure(TestHooks::FailurePoint::EventPump))
+        if(Detail::consumeFailure(TestHooks::FailurePoint::EventPump))
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             return result;
@@ -30,7 +30,7 @@ namespace GameWIP::Desktop::Detail::Platform
         current.pumping = true;
         current.activeResult = &result;
 
-        if (current.deferredPumpFailure)
+        if(current.deferredPumpFailure)
         {
             result.status = std::move(*current.deferredPumpFailure);
             current.deferredPumpFailure.reset();
@@ -38,15 +38,15 @@ namespace GameWIP::Desktop::Detail::Platform
         pruneAbandonedStates(current);
         // Callback/deferred cleanup failures are already the result of this pump; never
         // enter a blocking wait after an error is ready to return.
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             current.activeResult = nullptr;
             current.pumping = false;
             return result;
         }
 
-        if (current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
-            !hasShellMessageWindows())
+        if(current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
+           !hasShellMessageWindows())
         {
             current.activeResult = nullptr;
             current.pumping = false;
@@ -54,13 +54,13 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         bool accessibilityPending = false;
 
-        for (const WindowState *state : current.windows)
+        for(const WindowState *state : current.windows)
         {
-            if (state && state->accessibility)
+            if(state && state->accessibility)
             {
                 const auto runtime = state->accessibility->runtime.load();
 
-                if (runtime && runtime->live.load())
+                if(runtime && runtime->live.load())
                 {
                     std::scoped_lock lock(runtime->actionMutex, runtime->notificationMutex);
                     accessibilityPending = accessibilityPending || runtime->actionCount != 0 || runtime->notificationCount != 0;
@@ -68,18 +68,18 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
-        if (wait && !accessibilityPending)
+        if(wait && !accessibilityPending)
         {
             DWORD milliseconds = INFINITE;
 
-            if (timeout != Events::kWaitForever)
+            if(timeout != Events::kWaitForever)
             {
                 const auto maximum = static_cast<std::int64_t>(INFINITE - 1);
                 milliseconds = static_cast<DWORD>(std::min<std::int64_t>(timeout.count(), maximum));
             }
             const DWORD waitResult = MsgWaitForMultipleObjectsEx(0, nullptr, milliseconds, QS_ALLINPUT, MWMO_INPUTAVAILABLE);
 
-            if (waitResult == WAIT_TIMEOUT)
+            if(waitResult == WAIT_TIMEOUT)
             {
                 result.timedOut = true;
                 current.activeResult = nullptr;
@@ -87,7 +87,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return result;
             }
 
-            if (waitResult == WAIT_FAILED)
+            if(waitResult == WAIT_FAILED)
             {
                 result.status = statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "MsgWaitForMultipleObjectsEx");
                 current.activeResult = nullptr;
@@ -100,18 +100,18 @@ namespace GameWIP::Desktop::Detail::Platform
         MSG message{};
         const UINT wake = wakeMessage();
 
-        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != FALSE)
+        while(PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE) != FALSE)
         {
-            if (wake != 0 && message.message == wake)
+            if(wake != 0 && message.message == wake)
             {
                 continue;
             }
 
-            if (message.message == WM_QUIT)
+            if(message.message == WM_QUIT)
             {
-                for (WindowState *state : current.windows)
+                for(WindowState *state : current.windows)
                 {
-                    if (state != nullptr)
+                    if(state != nullptr)
                     {
                         static_cast<void>(Detail::requestClose(*state, Types::Events::CloseRequestSource::System));
                     }
@@ -119,7 +119,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 continue;
             }
 
-            if (message.message == WM_DISPLAYCHANGE)
+            if(message.message == WM_DISPLAYCHANGE)
             {
                 receivedDisplayChange = true;
             }
@@ -129,30 +129,30 @@ namespace GameWIP::Desktop::Detail::Platform
 
         const bool displayColorChanged = consumeDisplayColorConfigurationChange();
 
-        if (!receivedDisplayChange && displayColorChanged)
+        if(!receivedDisplayChange && displayColorChanged)
         {
-            for (WindowState *state : current.windows)
+            for(WindowState *state : current.windows)
             {
-                if (state != nullptr)
+                if(state != nullptr)
                 {
                     routeEvent(*state, Types::Events::DisplayConfigurationChanged{});
                 }
             }
         }
 
-        for (WindowState *state : current.windows)
+        for(WindowState *state : current.windows)
         {
-            if (state != nullptr)
+            if(state != nullptr)
             {
                 publishAccessibilityGeometry(*state);
                 drainAccessibilityNotifications(*state);
             }
 
-            if (state != nullptr && state->platform && state->cursorMode == Types::CursorMode::Relative && state->focused)
+            if(state != nullptr && state->platform && state->cursorMode == Types::CursorMode::Relative && state->focused)
             {
                 IO::Types::Status cursorStatus = applyCursorState(*state);
 
-                if (!cursorStatus.ok() && result.status.ok())
+                if(!cursorStatus.ok() && result.status.ok())
                 {
                     result.status = std::move(cursorStatus);
                 }

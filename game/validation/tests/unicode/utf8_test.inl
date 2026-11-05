@@ -37,40 +37,40 @@ void testUtf8CodecAndValidation(TestSupport::Context &context)
     expectUtf8Decode(context, "U+10000 UTF-8", bytes({0xF0, 0x90, 0x80, 0x80}), DecodeOutcome::Decoded, static_cast<char32_t>(0x10000), 4);
     expectUtf8Decode(context, "U+10FFFF UTF-8", bytes({0xF4, 0x8F, 0xBF, 0xBF}), DecodeOutcome::Decoded, static_cast<char32_t>(0x10FFFF), 4);
 
-    for (const std::string &input : {
-             bytes({0xC2}),
-             bytes({0xE0}),
-             bytes({0xE0, 0xA0}),
-             bytes({0xED, 0x9F}),
-             bytes({0xF0}),
-             bytes({0xF0, 0x90}),
-             bytes({0xF0, 0x90, 0x80}),
-             bytes({0xF4, 0x8F, 0xBF}),
-         })
+    for(const std::string &input : {
+            bytes({0xC2}),
+            bytes({0xE0}),
+            bytes({0xE0, 0xA0}),
+            bytes({0xED, 0x9F}),
+            bytes({0xF0}),
+            bytes({0xF0, 0x90}),
+            bytes({0xF0, 0x90, 0x80}),
+            bytes({0xF4, 0x8F, 0xBF}),
+        })
     {
         expectUtf8Decode(context, "valid incomplete UTF-8 prefix", input, DecodeOutcome::Incomplete);
     }
 
-    for (const std::string &input : {
-             bytes({0x80}),
-             bytes({0xBF}),
-             bytes({0xC0}),
-             bytes({0xC1}),
-             bytes({0xF5}),
-             bytes({0xFF}),
-             bytes({0xC2, 0x20}),
-             bytes({0xE2, 0x28, 0xA1}),
-             bytes({0xF0, 0x9F, 0x28, 0x80}),
-             bytes({0xC0, 0x80}),
-             bytes({0xE0, 0x80, 0x80}),
-             bytes({0xED, 0xA0, 0x80}),
-             bytes({0xF0, 0x80, 0x80, 0x80}),
-             bytes({0xF4, 0x90, 0x80, 0x80}),
-         })
+    for(const std::string &input : {
+            bytes({0x80}),
+            bytes({0xBF}),
+            bytes({0xC0}),
+            bytes({0xC1}),
+            bytes({0xF5}),
+            bytes({0xFF}),
+            bytes({0xC2, 0x20}),
+            bytes({0xE2, 0x28, 0xA1}),
+            bytes({0xF0, 0x9F, 0x28, 0x80}),
+            bytes({0xC0, 0x80}),
+            bytes({0xE0, 0x80, 0x80}),
+            bytes({0xED, 0xA0, 0x80}),
+            bytes({0xF0, 0x80, 0x80, 0x80}),
+            bytes({0xF4, 0x90, 0x80, 0x80}),
+        })
     {
         std::string name = "strict-invalid UTF-8";
 
-        for (const char value : input)
+        for(const char value : input)
         {
             name += std::format(" {:02X}", static_cast<unsigned char>(value));
         }
@@ -95,7 +95,7 @@ void testUtf8CodecAndValidation(TestSupport::Context &context)
         EncodeCase{static_cast<char32_t>(0x10FFFF), bytes({0xF4, 0x8F, 0xBF, 0xBF})},
     };
 
-    for (const EncodeCase &testCase : encodeCases)
+    for(const EncodeCase &testCase : encodeCases)
     {
         const std::string name = std::format("UTF-8 encode U+{:04X}", static_cast<std::uint32_t>(testCase.scalar));
         const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(testCase.scalar);
@@ -104,11 +104,11 @@ void testUtf8CodecAndValidation(TestSupport::Context &context)
         static_cast<void>(context.expectEq(name + " bytes", std::string_view(testCase.expected), encodedBytes(encoded)));
     }
 
-    for (const char32_t invalidScalar : {
-             static_cast<char32_t>(0xD800),
-             static_cast<char32_t>(0xDFFF),
-             static_cast<char32_t>(0x110000),
-         })
+    for(const char32_t invalidScalar : {
+            static_cast<char32_t>(0xD800),
+            static_cast<char32_t>(0xDFFF),
+            static_cast<char32_t>(0x110000),
+        })
     {
         const std::string name = std::format("invalid scalar UTF-8 U+{:04X}", static_cast<std::uint32_t>(invalidScalar));
         const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(invalidScalar);
@@ -341,35 +341,35 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
 {
     std::size_t testedScalars = 0;
 
-    for (std::uint32_t value = 0; value <= 0x10FFFFU; ++value)
+    for(std::uint32_t value = 0; value <= 0x10FFFFU; ++value)
     {
         const char32_t scalar = static_cast<char32_t>(value);
 
-        if (!Unicode::isScalarValue(scalar))
+        if(!Unicode::isScalarValue(scalar))
         {
             continue;
         }
 
         const Unicode::Types::Utf8::EncodeResult utf8 = Unicode::Utf8::encodeScalar(scalar);
 
-        if (utf8.outcome != EncodeOutcome::Encoded)
+        if(utf8.outcome != EncodeOutcome::Encoded)
         {
             context.fail("exhaustive UTF-8 encode", std::format("U+{:06X} did not encode", value));
             return;
         }
         const Unicode::Types::Utf8::DecodeResult utf8Decoded = Unicode::Utf8::decodeScalar(encodedBytes(utf8));
 
-        if (utf8Decoded.outcome != DecodeOutcome::Decoded || utf8Decoded.scalar != scalar || utf8Decoded.bytesConsumed != utf8.byteCount)
+        if(utf8Decoded.outcome != DecodeOutcome::Decoded || utf8Decoded.scalar != scalar || utf8Decoded.bytesConsumed != utf8.byteCount)
         {
             context.fail("exhaustive UTF-8 round trip", std::format("U+{:06X} did not decode back exactly", value));
             return;
         }
 
-        for (std::size_t split = 1; split < static_cast<std::size_t>(utf8.byteCount); ++split)
+        for(std::size_t split = 1; split < static_cast<std::size_t>(utf8.byteCount); ++split)
         {
             const Unicode::Types::Utf8::DecodeResult prefix = Unicode::Utf8::decodeScalar(std::string_view(utf8.bytes.data(), split));
 
-            if (prefix.outcome != DecodeOutcome::Incomplete || prefix.scalar != U'\0' || prefix.bytesConsumed != 0)
+            if(prefix.outcome != DecodeOutcome::Incomplete || prefix.scalar != U'\0' || prefix.bytesConsumed != 0)
             {
                 context.fail(
                     "exhaustive UTF-8 split point",
@@ -380,14 +380,14 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
 
         const Unicode::Types::Utf16::EncodeResult utf16 = Unicode::Utf16::encodeScalar(scalar);
 
-        if (utf16.outcome != EncodeOutcome::Encoded)
+        if(utf16.outcome != EncodeOutcome::Encoded)
         {
             context.fail("exhaustive UTF-16 encode", std::format("U+{:06X} did not encode", value));
             return;
         }
         const Unicode::Types::Utf16::DecodeResult utf16Decoded = Unicode::Utf16::decodeScalar(encodedCodeUnits(utf16));
 
-        if (utf16Decoded.outcome != DecodeOutcome::Decoded || utf16Decoded.scalar != scalar || utf16Decoded.codeUnitsConsumed != utf16.codeUnitCount)
+        if(utf16Decoded.outcome != DecodeOutcome::Decoded || utf16Decoded.scalar != scalar || utf16Decoded.codeUnitsConsumed != utf16.codeUnitCount)
         {
             context.fail("exhaustive UTF-16 round trip", std::format("U+{:06X} did not decode back exactly", value));
             return;
@@ -396,9 +396,9 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
         std::array<char16_t, Unicode::Utf16::kMaximumScalarCodeUnits> convertedUtf16{};
         const Unicode::Types::Utf8::ToUtf16Result toUtf16 = Unicode::Utf8::convertToUtf16(encodedBytes(utf8), convertedUtf16);
 
-        if (toUtf16.outcome != ConversionOutcome::Converted || toUtf16.sourceBytesConsumed != utf8.byteCount ||
-            toUtf16.codeUnitsWritten != utf16.codeUnitCount ||
-            !std::ranges::equal(std::span{utf16.codeUnits}.first(utf16.codeUnitCount), std::span{convertedUtf16}.first(utf16.codeUnitCount)))
+        if(toUtf16.outcome != ConversionOutcome::Converted || toUtf16.sourceBytesConsumed != utf8.byteCount ||
+           toUtf16.codeUnitsWritten != utf16.codeUnitCount ||
+           !std::ranges::equal(std::span{utf16.codeUnits}.first(utf16.codeUnitCount), std::span{convertedUtf16}.first(utf16.codeUnitCount)))
         {
             context.fail("exhaustive UTF-8 to UTF-16 conversion", std::format("U+{:06X} did not convert exactly", value));
             return;
@@ -407,9 +407,9 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
         std::array<char, Unicode::Utf8::kMaximumScalarBytes> convertedUtf8{};
         const Unicode::Types::Utf16::ToUtf8Result toUtf8 = Unicode::Utf16::convertToUtf8(encodedCodeUnits(utf16), convertedUtf8);
 
-        if (toUtf8.outcome != ConversionOutcome::Converted || toUtf8.sourceCodeUnitsConsumed != utf16.codeUnitCount ||
-            toUtf8.bytesWritten != utf8.byteCount ||
-            !std::ranges::equal(std::span{utf8.bytes}.first(utf8.byteCount), std::span{convertedUtf8}.first(utf8.byteCount)))
+        if(toUtf8.outcome != ConversionOutcome::Converted || toUtf8.sourceCodeUnitsConsumed != utf16.codeUnitCount ||
+           toUtf8.bytesWritten != utf8.byteCount ||
+           !std::ranges::equal(std::span{utf8.bytes}.first(utf8.byteCount), std::span{convertedUtf8}.first(utf8.byteCount)))
         {
             context.fail("exhaustive UTF-16 to UTF-8 conversion", std::format("U+{:06X} did not convert exactly", value));
             return;
@@ -433,7 +433,7 @@ void testCodePointBoundaries(TestSupport::Context &context)
     static_cast<void>(context.expectEq("empty next code-point outcome", BoundaryOutcome::AtEnd, emptyNext.outcome));
     static_cast<void>(context.expectEq("empty previous code-point outcome", BoundaryOutcome::AtBeginning, emptyPrevious.outcome));
 
-    for (std::size_t index = 0; index + 1 < offsets.size(); ++index)
+    for(std::size_t index = 0; index + 1 < offsets.size(); ++index)
     {
         const std::string name = std::format("next code-point boundary at byte {}", offsets[index]);
         const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offsets[index]);
@@ -448,7 +448,7 @@ void testCodePointBoundaries(TestSupport::Context &context)
     static_cast<void>(context.expectEq("previous code-point boundary at beginning outcome", BoundaryOutcome::AtBeginning, previousBeginning.outcome));
     static_cast<void>(context.expectEq("previous code-point boundary at beginning offset", std::size_t{0}, previousBeginning.byteOffset));
 
-    for (std::size_t index = 1; index < offsets.size(); ++index)
+    for(std::size_t index = 1; index < offsets.size(); ++index)
     {
         const std::string name = std::format("previous code-point boundary at byte {}", offsets[index]);
         const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offsets[index]);
@@ -456,7 +456,7 @@ void testCodePointBoundaries(TestSupport::Context &context)
         static_cast<void>(context.expectEq(name + " offset", offsets[index - 1], previous.byteOffset));
     }
 
-    for (const std::size_t misaligned : {std::size_t{2}, std::size_t{4}, std::size_t{5}, std::size_t{7}, std::size_t{8}, std::size_t{9}})
+    for(const std::size_t misaligned : {std::size_t{2}, std::size_t{4}, std::size_t{5}, std::size_t{7}, std::size_t{8}, std::size_t{9}})
     {
         const std::string name = std::format("misaligned code-point boundary at byte {}", misaligned);
         const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, misaligned);
@@ -510,9 +510,9 @@ void testGeneratedPropertyData(TestSupport::Context &context)
     const std::size_t blockCount = Generated::kPropertyBlocks.size() / Generated::kBlockSize;
     bool indexesValid = true;
 
-    for (const Generated::BlockIndex blockIndex : Generated::kBlockIndexes)
+    for(const Generated::BlockIndex blockIndex : Generated::kBlockIndexes)
     {
-        if (static_cast<std::size_t>(blockIndex) >= blockCount)
+        if(static_cast<std::size_t>(blockIndex) >= blockCount)
         {
             indexesValid = false;
             break;
@@ -522,9 +522,9 @@ void testGeneratedPropertyData(TestSupport::Context &context)
 
     bool packedValuesValid = true;
 
-    for (const std::uint8_t packed : Generated::kPropertyBlocks)
+    for(const std::uint8_t packed : Generated::kPropertyBlocks)
     {
-        if ((packed & 0x80U) != 0 || (packed & 0x0FU) > 13U)
+        if((packed & 0x80U) != 0 || (packed & 0x0FU) > 13U)
         {
             packedValuesValid = false;
             break;

@@ -40,7 +40,7 @@ namespace GameWIP::Validation::Tests
         /// @brief Records one requested module and detects incompatible selectors.
         void requestModule(Selection &selection, std::string module)
         {
-            if (selection.module && *selection.module != module)
+            if(selection.module && *selection.module != module)
             {
                 selection.conflictingModules = true;
                 return;
@@ -51,9 +51,9 @@ namespace GameWIP::Validation::Tests
         /// @brief Returns whether the process arguments contain one exact option.
         [[nodiscard]] bool hasArgument(ProcessArguments arguments, std::string_view argument)
         {
-            for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+            for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
-                if (value != nullptr && std::string_view(value) == argument)
+                if(value != nullptr && std::string_view(value) == argument)
                 {
                     return true;
                 }
@@ -65,16 +65,16 @@ namespace GameWIP::Validation::Tests
         /// @brief Returns the value following a matched argument prefix.
         [[nodiscard]] std::optional<std::string> argumentValue(ProcessArguments arguments, std::string_view prefix)
         {
-            for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+            for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
-                if (value == nullptr)
+                if(value == nullptr)
                 {
                     continue;
                 }
 
                 const std::string_view argument(value);
 
-                if (argument.starts_with(prefix))
+                if(argument.starts_with(prefix))
                 {
                     return std::string(argument.substr(prefix.size()));
                 }
@@ -88,9 +88,9 @@ namespace GameWIP::Validation::Tests
         {
             Selection selection;
 
-            for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+            for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
             {
-                if (value == nullptr)
+                if(value == nullptr)
                 {
                     continue;
                 }
@@ -98,7 +98,7 @@ namespace GameWIP::Validation::Tests
                 const std::string_view argument(value);
                 constexpr std::string_view modulePrefix = "--test-module=";
 
-                if (argument.starts_with(modulePrefix))
+                if(argument.starts_with(modulePrefix))
                 {
                     requestModule(selection, std::string(argument.substr(modulePrefix.size())));
                     continue;
@@ -106,33 +106,33 @@ namespace GameWIP::Validation::Tests
 
                 constexpr std::string_view skipModulePrefix = "--skip-test-module=";
 
-                if (argument.starts_with(skipModulePrefix))
+                if(argument.starts_with(skipModulePrefix))
                 {
                     selection.excludedModules.emplace(argument.substr(skipModulePrefix.size()));
                 }
             }
 
-            if (const auto reportPath = argumentValue(arguments, "--test-report="))
+            if(const auto reportPath = argumentValue(arguments, "--test-report="))
             {
                 options.reportPath = *reportPath;
             }
 
-            if (hasArgument(arguments, "--no-test-report"))
+            if(hasArgument(arguments, "--no-test-report"))
             {
                 options.writeReport = false;
             }
 
-            if (hasArgument(arguments, "--verbose-tests"))
+            if(hasArgument(arguments, "--verbose-tests"))
             {
                 options.verboseConsole = true;
             }
 
-            if (hasArgument(arguments, "--manual-tests"))
+            if(hasArgument(arguments, "--manual-tests"))
             {
                 options.enableManualTests = true;
             }
 
-            if (hasArgument(arguments, "--no-test-support-child-process"))
+            if(hasArgument(arguments, "--no-test-support-child-process"))
             {
                 options.enableTestSupportChildProcessTests = false;
             }
@@ -144,12 +144,12 @@ namespace GameWIP::Validation::Tests
         /// @details Invalid or empty paths disable file reporting without changing test execution.
         void resolveReportOutput(const std::filesystem::path &outputRoot, RunOptions &options)
         {
-            if (!options.writeReport)
+            if(!options.writeReport)
             {
                 return;
             }
 
-            if (options.reportPath.empty())
+            if(options.reportPath.empty())
             {
                 std::cerr << "[VALIDATION] report disabled: the requested path is empty.\n";
                 options.writeReport = false;
@@ -158,17 +158,17 @@ namespace GameWIP::Validation::Tests
 
             try
             {
-                if (!options.reportPath.is_absolute())
+                if(!options.reportPath.is_absolute())
                 {
-                    if (options.reportPath.has_root_name() || options.reportPath.has_root_directory())
+                    if(options.reportPath.has_root_name() || options.reportPath.has_root_directory())
                     {
                         throw std::invalid_argument("relative report paths cannot contain a root name or root directory");
                     }
                     const std::filesystem::path normalized = options.reportPath.lexically_normal();
 
-                    for (const std::filesystem::path &component : normalized)
+                    for(const std::filesystem::path &component : normalized)
                     {
-                        if (component == "..")
+                        if(component == "..")
                         {
                             throw std::invalid_argument("relative report paths cannot contain '..'");
                         }
@@ -180,7 +180,7 @@ namespace GameWIP::Validation::Tests
                     options.reportPath = options.reportPath.lexically_normal();
                 }
             }
-            catch (const std::exception &exception)
+            catch(const std::exception &exception)
             {
                 std::cerr << "[VALIDATION] report disabled: " << exception.what() << '\n';
                 options.writeReport = false;
@@ -190,7 +190,7 @@ namespace GameWIP::Validation::Tests
         /// @brief Appends runner-owned aggregation output to the retained validation report.
         void appendValidationLine(const RunOptions &options, std::string_view line) noexcept
         {
-            if (!options.writeReport)
+            if(!options.writeReport)
             {
                 return;
             }
@@ -199,12 +199,12 @@ namespace GameWIP::Validation::Tests
             {
                 const std::filesystem::path parentPath = options.reportPath.parent_path();
 
-                if (!parentPath.empty())
+                if(!parentPath.empty())
                 {
                     std::error_code error;
                     std::filesystem::create_directories(parentPath, error);
 
-                    if (error)
+                    if(error)
                     {
                         std::cerr << "[VALIDATION] could not create report directory: " << error.message() << '\n';
                         return;
@@ -213,23 +213,23 @@ namespace GameWIP::Validation::Tests
 
                 std::ofstream report(options.reportPath, std::ios::out | std::ios::app);
 
-                if (!report.is_open())
+                if(!report.is_open())
                 {
                     std::cerr << "[VALIDATION] could not append to report: " << options.reportPath.string() << '\n';
                     return;
                 }
                 report << line << '\n';
 
-                if (!report)
+                if(!report)
                 {
                     std::cerr << "[VALIDATION] report append failed: " << options.reportPath.string() << '\n';
                 }
             }
-            catch (const std::exception &exception)
+            catch(const std::exception &exception)
             {
                 std::cerr << "[VALIDATION] report append failed: " << exception.what() << '\n';
             }
-            catch (...)
+            catch(...)
             {
                 std::cerr << "[VALIDATION] report append failed with an unknown error.\n";
             }
@@ -254,15 +254,15 @@ namespace GameWIP::Validation::Tests
         {
             std::set<std::string_view> names;
 
-            for (const Module &module : modules)
+            for(const Module &module : modules)
             {
-                if (module.name.empty() || module.run == nullptr)
+                if(module.name.empty() || module.run == nullptr)
                 {
                     std::cerr << "Invalid validation module registration.\n";
                     return false;
                 }
 
-                if (!names.insert(module.name).second)
+                if(!names.insert(module.name).second)
                 {
                     std::cerr << "Duplicate validation module: " << module.name << '\n';
                     return false;
@@ -285,11 +285,11 @@ namespace GameWIP::Validation::Tests
             {
                 return module.run(invocation);
             }
-            catch (const std::exception &exception)
+            catch(const std::exception &exception)
             {
                 std::cerr << "Validation module '" << module.name << "' threw an exception: " << exception.what() << '\n';
             }
-            catch (...)
+            catch(...)
             {
                 std::cerr << "Validation module '" << module.name << "' threw an unknown exception.\n";
             }
@@ -303,7 +303,7 @@ namespace GameWIP::Validation::Tests
         const ProcessArguments arguments = processArguments(argc, argv);
         const std::vector<Module> modules = sortedModules(registrations);
 
-        if (!validModules(modules))
+        if(!validModules(modules))
         {
             return {.modulesFailed = 1, .exitCode = 1};
         }
@@ -317,7 +317,7 @@ namespace GameWIP::Validation::Tests
         {
             executablePath = currentExecutablePath();
         }
-        catch (const std::system_error &error)
+        catch(const std::system_error &error)
         {
             std::cerr << "[VALIDATION] executable path discovery failed: " << error.what() << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
@@ -327,7 +327,7 @@ namespace GameWIP::Validation::Tests
         std::error_code temporaryError;
         std::filesystem::create_directories(temporaryRoot, temporaryError);
 
-        if (temporaryError)
+        if(temporaryError)
         {
             std::cerr << "Validation temporary directory setup failed: " << temporaryError.message() << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
@@ -336,7 +336,7 @@ namespace GameWIP::Validation::Tests
         const std::string temporaryRootText(temporaryRootUtf8.begin(), temporaryRootUtf8.end());
         TestSupport::ScopedProcessState processState;
 
-        if (!processState.status().ok())
+        if(!processState.status().ok())
         {
             std::cerr << "Validation process-state setup failed.\n";
             return {.modulesFailed = 1, .exitCode = 1};
@@ -345,7 +345,7 @@ namespace GameWIP::Validation::Tests
         TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias(processState, "TMP", temporaryRootText);
         TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory(processState, "TMPDIR", temporaryRootText);
 
-        if (!temporaryDirectory.status().ok() || !temporaryDirectoryAlias.status().ok() || !posixTemporaryDirectory.status().ok())
+        if(!temporaryDirectory.status().ok() || !temporaryDirectoryAlias.status().ok() || !posixTemporaryDirectory.status().ok())
         {
             std::cerr << "Validation temporary environment setup failed.\n";
             return {.modulesFailed = 1, .exitCode = 1};
@@ -357,41 +357,41 @@ namespace GameWIP::Validation::Tests
         const Module *childOwner = nullptr;
         std::size_t reservedChildArguments = 0;
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value != nullptr && isReservedChildArgument(value))
+            if(value != nullptr && isReservedChildArgument(value))
             {
                 ++reservedChildArguments;
             }
         }
 
-        for (const Module &module : modules)
+        for(const Module &module : modules)
         {
             bool handlesChildArguments = false;
 
-            if (module.handlesChildArguments != nullptr)
+            if(module.handlesChildArguments != nullptr)
             {
                 try
                 {
                     handlesChildArguments = module.handlesChildArguments(argc, argv);
                 }
-                catch (const std::exception &exception)
+                catch(const std::exception &exception)
                 {
                     std::cerr << "Validation child matcher for module '" << module.name << "' threw an exception: " << exception.what() << '\n';
                     return {.modulesFailed = 1, .exitCode = 1};
                 }
-                catch (...)
+                catch(...)
                 {
                     std::cerr << "Validation child matcher for module '" << module.name << "' threw an unknown exception.\n";
                     return {.modulesFailed = 1, .exitCode = 1};
                 }
             }
 
-            if (handlesChildArguments)
+            if(handlesChildArguments)
             {
                 // Child routes must be exclusive; otherwise two modules could
                 // disagree about the expected protocol and exit-code meaning.
-                if (childOwner != nullptr)
+                if(childOwner != nullptr)
                 {
                     std::cerr << "Ambiguous validation child invocation matched modules '" << childOwner->name << "' and '" << module.name << "'.\n";
                     return {.modulesFailed = 1, .exitCode = 1, .handledChildInvocation = true};
@@ -400,19 +400,19 @@ namespace GameWIP::Validation::Tests
             }
         }
 
-        if (reservedChildArguments > 1)
+        if(reservedChildArguments > 1)
         {
             std::cerr << "Validation child invocation must contain exactly one reserved child selector.\n";
             return {.modulesFailed = 1, .exitCode = 1, .handledChildInvocation = true};
         }
 
-        if (reservedChildArguments == 1 && childOwner == nullptr)
+        if(reservedChildArguments == 1 && childOwner == nullptr)
         {
             std::cerr << "Unknown or malformed validation child selector.\n";
             return {.modulesFailed = 1, .exitCode = 1, .handledChildInvocation = true};
         }
 
-        if (childOwner != nullptr)
+        if(childOwner != nullptr)
         {
             // Preserve the owning module's exact exit code for the parent test
             // that launched this child process.
@@ -427,38 +427,38 @@ namespace GameWIP::Validation::Tests
 
         const Selection selection = applyArguments(arguments, options);
 
-        if (selection.conflictingModules)
+        if(selection.conflictingModules)
         {
             std::cerr << "Conflicting validation module selectors were provided.\n";
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
-        if (selection.module && std::ranges::none_of(
-                                    modules,
-                                    [&](const Module &module)
-                                    {
-                                        return module.name == *selection.module;
-                                    }))
+        if(selection.module && std::ranges::none_of(
+                                   modules,
+                                   [&](const Module &module)
+                                   {
+                                       return module.name == *selection.module;
+                                   }))
         {
             std::cerr << "Unknown validation module: " << *selection.module << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
         }
 
-        for (const std::string &excludedModule : selection.excludedModules)
+        for(const std::string &excludedModule : selection.excludedModules)
         {
-            if (std::ranges::none_of(
-                    modules,
-                    [&](const Module &module)
-                    {
-                        return module.name == excludedModule;
-                    }))
+            if(std::ranges::none_of(
+                   modules,
+                   [&](const Module &module)
+                   {
+                       return module.name == excludedModule;
+                   }))
             {
                 std::cerr << "Unknown skipped validation module: " << excludedModule << '\n';
                 return {.modulesFailed = 1, .exitCode = 1};
             }
         }
 
-        if (selection.module && selection.excludedModules.contains(*selection.module))
+        if(selection.module && selection.excludedModules.contains(*selection.module))
         {
             std::cerr << "Selected validation module is also excluded: " << *selection.module << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
@@ -468,7 +468,7 @@ namespace GameWIP::Validation::Tests
         // disable retained output but should not hide console failures.
         resolveReportOutput(outputRoot, options);
 
-        if (options.writeReport)
+        if(options.writeReport)
         {
             std::cout << "[VALIDATION] report=" << options.reportPath.string() << '\n';
         }
@@ -476,9 +476,9 @@ namespace GameWIP::Validation::Tests
         TestResult result;
         bool appendReport = options.appendReport;
 
-        for (const Module &module : modules)
+        for(const Module &module : modules)
         {
-            if ((selection.module && module.name != *selection.module) || selection.excludedModules.contains(module.name))
+            if((selection.module && module.name != *selection.module) || selection.excludedModules.contains(module.name))
             {
                 continue;
             }
@@ -486,7 +486,7 @@ namespace GameWIP::Validation::Tests
             const int moduleExitCode = invokeModule(module, {argc, argv, options, appendReport});
             ++result.modulesRun;
 
-            if (moduleExitCode != 0)
+            if(moduleExitCode != 0)
             {
                 ++result.modulesFailed;
                 result.exitCode = 1;
@@ -501,7 +501,7 @@ namespace GameWIP::Validation::Tests
             appendReport = appendReport || options.writeReport;
         }
 
-        if (result.modulesRun == 0)
+        if(result.modulesRun == 0)
         {
             std::cerr << "No validation modules were selected.\n";
             result.modulesFailed = 1;
@@ -519,15 +519,15 @@ namespace GameWIP::Validation::Tests
     {
         const ProcessArguments arguments = processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value == nullptr)
+            if(value == nullptr)
             {
                 continue;
             }
             const std::string_view argument(value);
 
-            if (argument == "--startup-tests" || isReservedChildArgument(argument))
+            if(argument == "--startup-tests" || isReservedChildArgument(argument))
             {
                 return true;
             }
@@ -537,20 +537,20 @@ namespace GameWIP::Validation::Tests
         // namespaces (for example Logger and Terminal subprocess scenarios).
         // Embedded validation must route those invocations back into the test
         // runner or the child would accidentally start the game runtime.
-        for (const Module &module : registeredModules())
+        for(const Module &module : registeredModules())
         {
-            if (module.handlesChildArguments == nullptr)
+            if(module.handlesChildArguments == nullptr)
             {
                 continue;
             }
             try
             {
-                if (module.handlesChildArguments(argc, argv))
+                if(module.handlesChildArguments(argc, argv))
                 {
                     return true;
                 }
             }
-            catch (...)
+            catch(...)
             {
                 // Enter the runner so its normal exception-to-diagnostic path
                 // reports the broken matcher instead of starting the game.

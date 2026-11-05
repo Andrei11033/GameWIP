@@ -86,7 +86,7 @@ namespace GameWIP::FileSystem
         /// @brief Applies directory-list kind filters to one queried entry.
         bool includeDirectoryEntryKind(Types::EntryKind kind, const Types::Directory::ListOptions &options) noexcept
         {
-            switch (kind)
+            switch(kind)
             {
             case Types::EntryKind::RegularFile:
                 return options.includeFiles;
@@ -134,12 +134,12 @@ namespace GameWIP::FileSystem
         /// @brief Validates a public query request before delegating to the platform backend.
         Detail::Platform::EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy)
         {
-            if (path.empty())
+            if(path.empty())
             {
                 return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
             }
 
-            switch (symlinkPolicy)
+            switch(symlinkPolicy)
             {
             case Types::SymlinkPolicy::DoNotFollow:
             case Types::SymlinkPolicy::FollowFinal:
@@ -159,7 +159,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates replace-mode enum values crossing the public boundary.
         [[nodiscard]] bool isValidReplaceMode(Types::ReplaceMode mode) noexcept
         {
-            switch (mode)
+            switch(mode)
             {
             case Types::ReplaceMode::FailIfExists:
             case Types::ReplaceMode::ReplaceExisting:
@@ -180,7 +180,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates symlink-policy enum values crossing the public boundary.
         [[nodiscard]] bool isValidSymlinkPolicy(Types::SymlinkPolicy policy) noexcept
         {
-            switch (policy)
+            switch(policy)
             {
             case Types::SymlinkPolicy::DoNotFollow:
             case Types::SymlinkPolicy::FollowFinal:
@@ -194,7 +194,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates file-access enum values crossing the public boundary.
         [[nodiscard]] bool isValidFileAccess(Types::File::Access access) noexcept
         {
-            switch (access)
+            switch(access)
             {
             case Types::File::Access::Read:
             case Types::File::Access::Write:
@@ -208,7 +208,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates read/write file-open mode values.
         [[nodiscard]] bool isValidFileOpenMode(Types::File::OpenMode mode) noexcept
         {
-            switch (mode)
+            switch(mode)
             {
             case Types::File::OpenMode::OpenExisting:
             case Types::File::OpenMode::CreateNew:
@@ -224,7 +224,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates write-only file-open mode values.
         [[nodiscard]] bool isValidFileWriterMode(Types::File::WriterMode mode) noexcept
         {
-            switch (mode)
+            switch(mode)
             {
             case Types::File::WriterMode::CreateNew:
             case Types::File::WriterMode::CreateOrTruncate:
@@ -241,7 +241,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates initial-position enum values.
         [[nodiscard]] bool isValidInitialPosition(Types::File::InitialPosition position) noexcept
         {
-            switch (position)
+            switch(position)
             {
             case Types::File::InitialPosition::Beginning:
             case Types::File::InitialPosition::End:
@@ -254,7 +254,7 @@ namespace GameWIP::FileSystem
         /// @brief Validates metadata-copy policy values.
         [[nodiscard]] bool isValidCopyMetadataMode(Types::File::CopyMetadataMode mode) noexcept
         {
-            switch (mode)
+            switch(mode)
             {
             case Types::File::CopyMetadataMode::None:
             case Types::File::CopyMetadataMode::Basic:
@@ -273,7 +273,7 @@ namespace GameWIP::FileSystem
         /// @brief Returns whether an open mode can create or mutate file contents.
         [[nodiscard]] bool modeRequiresWrite(Types::File::OpenMode mode) noexcept
         {
-            switch (mode)
+            switch(mode)
             {
             case Types::File::OpenMode::OpenExisting:
                 return false;
@@ -296,12 +296,12 @@ namespace GameWIP::FileSystem
         /// @brief Validates that an atomic temporary prefix is one safe filename component.
         [[nodiscard]] IO::Types::Status validateAtomicTemporaryPrefix(std::string_view prefix) noexcept
         {
-            if (!validUtf8(prefix))
+            if(!validUtf8(prefix))
             {
                 return IO::makeStatus(ErrorCode::EncodingFailed);
             }
 
-            if (prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
+            if(prefix.empty() || prefix == "." || prefix == ".." || hasPathSeparator(prefix))
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
@@ -314,12 +314,12 @@ namespace GameWIP::FileSystem
         {
             Detail::Platform::EntryQueryResult result = queryEntry(path, symlinkPolicy);
 
-            if (!result.status.ok())
+            if(!result.status.ok())
             {
                 return std::move(result.status);
             }
 
-            if (result.info.kind != Types::EntryKind::Directory)
+            if(result.info.kind != Types::EntryKind::Directory)
             {
                 return IO::makeStatus(ErrorCode::NotDirectory);
             }
@@ -337,23 +337,23 @@ namespace GameWIP::FileSystem
             {
                 const Types::Path parent = path.parent_path();
 
-                if (parent.empty())
+                if(parent.empty())
                 {
                     return IO::successStatus();
                 }
 
-                if (createMissing)
+                if(createMissing)
                 {
                     return createDirectories(parent, Types::Directory::CreateOptions{.succeedIfAlreadyExists = true, .symlinkPolicy = symlinkPolicy});
                 }
 
                 return validateDirectoryExists(parent, symlinkPolicy);
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return IO::makeStatus(ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 return IO::makeStatus(ErrorCode::Unknown);
             }
@@ -363,7 +363,7 @@ namespace GameWIP::FileSystem
         /// @details Native equivalence is preferred for existing entries; lexical equality covers missing destinations and identical spellings.
         [[nodiscard]] bool equivalentOrSameLexically(const Types::Path &left, const Types::Path &right) noexcept
         {
-            if (left == right)
+            if(left == right)
             {
                 return true;
             }
@@ -391,7 +391,7 @@ namespace GameWIP::FileSystem
         {
             std::u8string converted(utf8Path.size(), u8'\0');
 
-            if (!utf8Path.empty())
+            if(!utf8Path.empty())
             {
                 std::ranges::transform(
                     utf8Path,

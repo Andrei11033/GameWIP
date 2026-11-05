@@ -9,7 +9,7 @@ namespace GameWIP::Input::Types
 {
     const ElementState *Frame::state(ElementId id) const noexcept
     {
-        if (!id.isValid() || id.slot == 0)
+        if(!id.isValid() || id.slot == 0)
         {
             return nullptr;
         }
@@ -26,7 +26,7 @@ namespace GameWIP::Input::Types
 
     std::optional<Scalar> Frame::component(ComponentId id) const noexcept
     {
-        if (id.index >= 7)
+        if(id.index >= 7)
         {
             return std::nullopt;
         }
@@ -38,7 +38,7 @@ namespace GameWIP::Input::Types
     bool Frame::isDown(ElementId id) const noexcept
     {
         const ElementState *current = state(id);
-        if (current == nullptr || current->validity != ValueValidity::Valid)
+        if(current == nullptr || current->validity != ValueValidity::Valid)
         {
             return false;
         }

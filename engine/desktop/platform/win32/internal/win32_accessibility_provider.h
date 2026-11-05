@@ -57,7 +57,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @details Terminates if the validated-query precondition is violated.
         [[nodiscard]] const A::TextContent &textContent() const noexcept
         {
-            if (node && node->text)
+            if(node && node->text)
             {
                 return *node->text;
             }

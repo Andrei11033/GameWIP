@@ -210,7 +210,7 @@ namespace
         check(context, "closed bridge starts disabled", !bridge.enabled());
         equal(context, "closed enable", Error::NotOpen, bridge.enable().code);
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -245,7 +245,7 @@ namespace
         check(context, "close clears active tree", !bridge.readSnapshot().isValid());
         check(context, "retained portable reader survives close", retained.find(2) != nullptr);
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -274,7 +274,7 @@ namespace
 
         ~Com()
         {
-            if (value)
+            if(value)
             {
                 value->Release();
             }
@@ -284,7 +284,7 @@ namespace
 
         T **put()
         {
-            if (value)
+            if(value)
             {
                 value->Release();
             }
@@ -307,7 +307,7 @@ namespace
     {
         Com<IUnknown> unknown;
 
-        if (!context.expectTrue("pattern lookup succeeds", SUCCEEDED(provider->GetPatternProvider(id, unknown.put())) && static_cast<bool>(unknown)))
+        if(!context.expectTrue("pattern lookup succeeds", SUCCEEDED(provider->GetPatternProvider(id, unknown.put())) && static_cast<bool>(unknown)))
         {
             return false;
         }
@@ -321,7 +321,7 @@ namespace
     {
         A::Notification notification;
 
-        while (Desktop::TestHooks::popAccessibilityNotification(window, notification))
+        while(Desktop::TestHooks::popAccessibilityNotification(window, notification))
         {
         }
     }
@@ -333,7 +333,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -391,7 +391,7 @@ namespace
         drain(window);
         const auto handles = Desktop::Native::Win32::getHandle(window);
 
-        if (handles.status.ok())
+        if(handles.status.ok())
         {
             // Deterministic native message boundary, independent of desktop activation policy.
             SendMessageW(handles->window, WM_KILLFOCUS, 0, 0);
@@ -399,7 +399,7 @@ namespace
             SendMessageW(handles->window, WM_SETFOCUS, 0, 0);
             bool focusEvent = false;
 
-            while (Desktop::TestHooks::popAccessibilityNotification(window, notification))
+            while(Desktop::TestHooks::popAccessibilityNotification(window, notification))
             {
                 focusEvent = focusEvent || (notification.kind == A::NotificationKind::FocusChanged && notification.node == 2);
             }
@@ -413,7 +413,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -428,7 +428,7 @@ namespace
         check(context, "bounded registry initial publication", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
-        if (!context.expectTrue("registry retains initial provider", static_cast<bool>(retained)))
+        if(!context.expectTrue("registry retains initial provider", static_cast<bool>(retained)))
         {
             return;
         }
@@ -442,7 +442,7 @@ namespace
         check(context, "failed preparation does not consume generation", bridge.publish(tree.view(2)).ok());
         drain(window);
 
-        if (bridge.features().supports(A::Feature::Announcements))
+        if(bridge.features().supports(A::Feature::Announcements))
         {
             check(context, "default-locale announcement queues", bridge.announce({1, "Queued speech"}).ok());
             equal(context, "announcement language support is explicit", Error::Unsupported, bridge.announce({1, "Bonjour", "fr-FR"}).code);
@@ -464,7 +464,7 @@ namespace
         }
         Com<IInvokeProvider> invoke;
 
-        if (!pattern(context, retained.value, UIA_InvokePatternId, invoke))
+        if(!pattern(context, retained.value, UIA_InvokePatternId, invoke))
         {
             return;
         }
@@ -480,7 +480,7 @@ namespace
         progress.owner = &window;
         progress.title = "Accessibility interaction regression";
 
-        if (context.expectTrue("modeless owner blocker opens", blocker.open(progress).ok()))
+        if(context.expectTrue("modeless owner blocker opens", blocker.open(progress).ok()))
         {
             equal(context, "modal owner block rejects accessibility action", static_cast<HRESULT>(UIA_E_ELEMENTNOTENABLED), invoke->Invoke());
             check(context, "owner blocker closes", blocker.close().ok());
@@ -496,7 +496,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -516,7 +516,7 @@ namespace
                 result = bridge.publish(tree.view(2)).code;
             });
 
-        while (!started.load())
+        while(!started.load())
         {
             std::this_thread::yield();
         }
@@ -526,7 +526,7 @@ namespace
         check(context, "in-flight publication never resurrects active snapshot", !bridge.snapshotInfo().available);
         equal(context, "retained reader survives concurrent close", std::string_view("Run"), retained.find(2)->name);
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -543,7 +543,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -555,7 +555,7 @@ namespace
         Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 1)));
         Com<IRawElementProviderSimple> button(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
-        if (!context.expectTrue("stable providers exist", root && button))
+        if(!context.expectTrue("stable providers exist", root && button))
         {
             return;
         }
@@ -565,7 +565,7 @@ namespace
         VariantClear(&value);
         Com<IInvokeProvider> invoke;
 
-        if (pattern(context, button.value, UIA_InvokePatternId, invoke))
+        if(pattern(context, button.value, UIA_InvokePatternId, invoke))
         {
             equal(context, "Invoke is accepted transport", S_OK, invoke->Invoke());
             A::ActionRequest request;
@@ -575,7 +575,7 @@ namespace
         }
         Com<IValueProvider> stringPattern;
 
-        if (pattern(context, button.value, UIA_ValuePatternId, stringPattern))
+        if(pattern(context, button.value, UIA_ValuePatternId, stringPattern))
         {
             BSTR text = nullptr;
             equal(context, "value read", S_OK, stringPattern->get_Value(&text));
@@ -592,7 +592,7 @@ namespace
             "fragment interface",
             SUCCEEDED(button->QueryInterface(__uuidof(IRawElementProviderFragment), reinterpret_cast<void **>(fragment.put()))));
 
-        if (fragment)
+        if(fragment)
         {
             Com<IRawElementProviderFragment> parent;
             equal(context, "parent navigation", S_OK, fragment->Navigate(NavigateDirection_Parent, parent.put()));
@@ -600,14 +600,14 @@ namespace
             SAFEARRAY *runtimeId = nullptr;
             equal(context, "runtime identity", S_OK, fragment->GetRuntimeId(&runtimeId));
 
-            if (runtimeId)
+            if(runtimeId)
             {
                 SafeArrayDestroy(runtimeId);
             }
         }
         const auto handles = Desktop::Native::Win32::getHandle(window);
 
-        if (handles.status.ok())
+        if(handles.status.ok())
         {
             check(context, "WM_GETOBJECT publishes UIA provider", SendMessageW(handles->window, WM_GETOBJECT, 0, UiaRootObjectId) != 0);
         }
@@ -626,7 +626,7 @@ namespace
         check(context, "native close", window.close().ok());
         equal(context, "retained root unavailable after close", kUnavailable, root->GetPropertyValue(UIA_NamePropertyId, &value));
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -644,7 +644,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -662,20 +662,20 @@ namespace
         check(context, "rich text publishes", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
-        if (!context.expectTrue("text provider exists", static_cast<bool>(provider)))
+        if(!context.expectTrue("text provider exists", static_cast<bool>(provider)))
         {
             return;
         }
         Com<ITextProvider2> patternProvider;
 
-        if (!pattern(context, provider.value, UIA_TextPattern2Id, patternProvider))
+        if(!pattern(context, provider.value, UIA_TextPattern2Id, patternProvider))
         {
             return;
         }
         Com<ITextRangeProvider> range, clone, overflow;
         equal(context, "document range", S_OK, patternProvider->get_DocumentRange(range.put()));
 
-        if (!range)
+        if(!range)
         {
             return;
         }
@@ -686,7 +686,7 @@ namespace
         equal(context, "clone claims second pool slot", S_OK, range->Clone(clone.put()));
         equal(context, "pool pressure rejects newest range", HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_QUOTA), range->Clone(overflow.put()));
 
-        if (clone)
+        if(clone)
         {
             BOOL same = FALSE;
             equal(context, "range comparison", S_OK, range->Compare(clone.value, &same));
@@ -722,7 +722,7 @@ namespace
         equal(context, "case-insensitive native text search", S_OK, range->FindText(search, FALSE, TRUE, clone.put()));
         SysFreeString(search);
 
-        if (context.expectTrue("text search creates a retained range", static_cast<bool>(clone)))
+        if(context.expectTrue("text search creates a retained range", static_cast<bool>(clone)))
         {
             equal(context, "matched text read", S_OK, clone->GetText(-1, &wide));
             equal(context, "case search preserves original text", std::wstring_view(L"last"), std::wstring_view(wide, SysStringLen(wide)));
@@ -760,7 +760,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -779,14 +779,14 @@ namespace
         Desktop::TestHooks::applyPresentationPublicationSnapshot(window, host);
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
-        if (!context.expectTrue("text semantics provider exists", static_cast<bool>(provider)))
+        if(!context.expectTrue("text semantics provider exists", static_cast<bool>(provider)))
         {
             return;
         }
         Com<ITextProvider2> text;
         Com<IValueProvider> value;
 
-        if (!pattern(context, provider.value, UIA_TextPattern2Id, text) || !pattern(context, provider.value, UIA_ValuePatternId, value))
+        if(!pattern(context, provider.value, UIA_TextPattern2Id, text) || !pattern(context, provider.value, UIA_ValuePatternId, value))
         {
             return;
         }
@@ -795,7 +795,7 @@ namespace
         equal(context, "missing selection query", S_OK, text->GetSelection(&selection));
         check(context, "missing selection and caret do not invent an insertion point", selection == nullptr);
 
-        if (selection)
+        if(selection)
         {
             SafeArrayDestroy(selection);
         }
@@ -804,20 +804,20 @@ namespace
         check(context, "explicit caret publishes", bridge.publish(tree.view(2)).ok());
         equal(context, "explicit caret selection query", S_OK, text->GetSelection(&selection));
 
-        if (context.expectTrue("explicit caret supplies one selection range", selection && selection->rgsabound[0].cElements == 1))
+        if(context.expectTrue("explicit caret supplies one selection range", selection && selection->rgsabound[0].cElements == 1))
         {
             Com<IUnknown> item;
             LONG index = 0;
             equal(context, "caret selection element", S_OK, SafeArrayGetElement(selection, &index, static_cast<void *>(item.put())));
             Com<ITextRangeProvider> caret;
 
-            if (item && SUCCEEDED(item->QueryInterface(__uuidof(ITextRangeProvider), reinterpret_cast<void **>(caret.put()))))
+            if(item && SUCCEEDED(item->QueryInterface(__uuidof(ITextRangeProvider), reinterpret_cast<void **>(caret.put()))))
             {
                 Com<ITextRangeProvider> document;
                 equal(context, "caret comparison document", S_OK, text->get_DocumentRange(document.put()));
                 int distance = 0;
 
-                if (document)
+                if(document)
                 {
                     equal(
                         context,
@@ -830,17 +830,17 @@ namespace
                 equal(context, "caret rectangle query", S_OK, caret->GetBoundingRectangles(&rectangles));
                 check(context, "degenerate range has no fragment rectangles", rectangles && rectangles->rgsabound[0].cElements == 0);
 
-                if (rectangles)
+                if(rectangles)
                 {
                     SafeArrayDestroy(rectangles);
                 }
 
-                if (document)
+                if(document)
                 {
                     equal(context, "nondegenerate rectangle query", S_OK, document->GetBoundingRectangles(&rectangles));
                     check(context, "document retains its visible fragment rectangle", rectangles && rectangles->rgsabound[0].cElements == 4);
 
-                    if (rectangles)
+                    if(rectangles)
                     {
                         SafeArrayDestroy(rectangles);
                     }
@@ -852,7 +852,7 @@ namespace
             }
         }
 
-        if (selection)
+        if(selection)
         {
             SafeArrayDestroy(selection);
         }
@@ -865,7 +865,7 @@ namespace
         equal(context, "immutable selection query", S_OK, text->GetSelection(&selection));
         check(context, "submitted selection is readable without a selection action", selection && selection->rgsabound[0].cElements == 1);
 
-        if (selection)
+        if(selection)
         {
             SafeArrayDestroy(selection);
         }
@@ -886,7 +886,7 @@ namespace
             EditabilityCase{state(A::State::ReadOnly) | state(A::State::Editable), action(A::ActionKind::SetValue), true}};
         A::Generation generation = 4;
 
-        for (const auto &entry : cases)
+        for(const auto &entry : cases)
         {
             tree.nodes[1].states.flags = entry.states;
             tree.nodes[1].actions.flags = entry.actions;
@@ -894,7 +894,7 @@ namespace
             Com<ITextRangeProvider> document;
             equal(context, "editability document range", S_OK, text->get_DocumentRange(document.put()));
 
-            if (!document)
+            if(!document)
             {
                 continue;
             }
@@ -919,7 +919,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -932,13 +932,13 @@ namespace
         check(context, "adjacent bold annotations publish", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
-        if (!context.expectTrue("attribute provider exists", static_cast<bool>(provider)))
+        if(!context.expectTrue("attribute provider exists", static_cast<bool>(provider)))
         {
             return;
         }
         Com<ITextProvider> text;
 
-        if (!pattern(context, provider.value, UIA_TextPatternId, text))
+        if(!pattern(context, provider.value, UIA_TextPatternId, text))
         {
             return;
         }
@@ -951,7 +951,7 @@ namespace
             Com<ITextRangeProvider> document;
             equal(context, "attribute document range", S_OK, text->get_DocumentRange(document.put()));
 
-            if (!document)
+            if(!document)
             {
                 return;
             }
@@ -1040,7 +1040,7 @@ namespace
     {
         auto window = std::make_unique<Desktop::Window>();
 
-        if (!open(context, *window))
+        if(!open(context, *window))
         {
             return;
         }
@@ -1052,13 +1052,13 @@ namespace
         const auto reader = bridge.readSnapshot();
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
 
-        if (!context.expectTrue("retained-object provider exists", static_cast<bool>(provider)))
+        if(!context.expectTrue("retained-object provider exists", static_cast<bool>(provider)))
         {
             return;
         }
         Com<ITextProvider> text;
 
-        if (!pattern(context, provider.value, UIA_TextPatternId, text))
+        if(!pattern(context, provider.value, UIA_TextPatternId, text))
         {
             return;
         }
@@ -1074,7 +1074,7 @@ namespace
             kUnavailable,
             provider->GetPropertyValue(UIA_NamePropertyId, &name));
 
-        if (range)
+        if(range)
         {
             BSTR content = nullptr;
             equal(context, "retained native range unavailable after object destruction", kUnavailable, range->GetText(-1, &content));
@@ -1089,7 +1089,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -1099,7 +1099,7 @@ namespace
         const std::array<A::NodeId, 5> rootChildren{2, 4, 5, 6, 7};
         const std::array<A::NodeId, 1> cellChildren{3}, textChildren{8}, selected{3};
 
-        for (std::size_t i = 0; i < nodes.size(); ++i)
+        for(std::size_t i = 0; i < nodes.size(); ++i)
         {
             nodes[i].id = i + 1;
             nodes[i].parent = i == 0 ? 0 : 1;
@@ -1143,13 +1143,13 @@ namespace
         Com<IRawElementProviderSimple> expand(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 6)));
         Com<IRawElementProviderSimple> annotationNode(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 8)));
 
-        if (!context.expectTrue("all control providers exist", table && cell && slider && toggle && expand && annotationNode))
+        if(!context.expectTrue("all control providers exist", table && cell && slider && toggle && expand && annotationNode))
         {
             return;
         }
         Com<IGridProvider> grid;
 
-        if (pattern(context, table.value, UIA_GridPatternId, grid))
+        if(pattern(context, table.value, UIA_GridPatternId, grid))
         {
             int rows = 0;
             equal(context, "grid row count", S_OK, grid->get_RowCount(&rows));
@@ -1163,7 +1163,7 @@ namespace
         }
         Com<IGridItemProvider> gridItem;
 
-        if (pattern(context, cell.value, UIA_GridItemPatternId, gridItem))
+        if(pattern(context, cell.value, UIA_GridItemPatternId, gridItem))
         {
             Com<IRawElementProviderSimple> container;
             equal(context, "containing grid", S_OK, gridItem->get_ContainingGrid(container.put()));
@@ -1171,12 +1171,12 @@ namespace
         }
         Com<ITableProvider> tablePattern;
 
-        if (pattern(context, table.value, UIA_TablePatternId, tablePattern))
+        if(pattern(context, table.value, UIA_TablePatternId, tablePattern))
         {
             SAFEARRAY *headers = nullptr;
             equal(context, "table headers", S_OK, tablePattern->GetRowHeaders(&headers));
 
-            if (headers)
+            if(headers)
             {
                 SafeArrayDestroy(headers);
             }
@@ -1185,7 +1185,7 @@ namespace
         check(context, "table-item pattern", pattern(context, cell.value, UIA_TableItemPatternId, tableItem));
         Com<ISelectionProvider2> selection;
 
-        if (pattern(context, table.value, 10034, selection))
+        if(pattern(context, table.value, 10034, selection))
         {
             int count = 0;
             equal(context, "Selection2 item count", S_OK, selection->get_ItemCount(&count));
@@ -1196,7 +1196,7 @@ namespace
         }
         Com<ISelectionItemProvider> selectedItem;
 
-        if (pattern(context, cell.value, UIA_SelectionItemPatternId, selectedItem))
+        if(pattern(context, cell.value, UIA_SelectionItemPatternId, selectedItem))
         {
             equal(context, "add selection transport", S_OK, selectedItem->AddToSelection());
             equal(context, "explicit additive selection", A::SelectionOperation::Add, pop(A::ActionKind::Select).selectionOperation);
@@ -1205,7 +1205,7 @@ namespace
         }
         Com<IRangeValueProvider> range;
 
-        if (pattern(context, slider.value, UIA_RangeValuePatternId, range))
+        if(pattern(context, slider.value, UIA_RangeValuePatternId, range))
         {
             double value = 0;
             equal(context, "numeric current value", S_OK, range->get_Value(&value));
@@ -1216,7 +1216,7 @@ namespace
         }
         Com<IScrollProvider> scroll;
 
-        if (pattern(context, slider.value, UIA_ScrollPatternId, scroll))
+        if(pattern(context, slider.value, UIA_ScrollPatternId, scroll))
         {
             double percent = 0;
             equal(context, "unsupported axis query", S_OK, scroll->get_VerticalScrollPercent(&percent));
@@ -1228,14 +1228,14 @@ namespace
         }
         Com<IScrollItemProvider> scrollItem;
 
-        if (pattern(context, cell.value, UIA_ScrollItemPatternId, scrollItem))
+        if(pattern(context, cell.value, UIA_ScrollItemPatternId, scrollItem))
         {
             equal(context, "scroll item transport", S_OK, scrollItem->ScrollIntoView());
             pop(A::ActionKind::ScrollTo);
         }
         Com<IToggleProvider> togglePattern;
 
-        if (pattern(context, toggle.value, UIA_TogglePatternId, togglePattern))
+        if(pattern(context, toggle.value, UIA_TogglePatternId, togglePattern))
         {
             ToggleState value = ToggleState_Off;
             equal(context, "mixed toggle state query", S_OK, togglePattern->get_ToggleState(&value));
@@ -1245,7 +1245,7 @@ namespace
         }
         Com<IExpandCollapseProvider> expandPattern;
 
-        if (pattern(context, expand.value, UIA_ExpandCollapsePatternId, expandPattern))
+        if(pattern(context, expand.value, UIA_ExpandCollapsePatternId, expandPattern))
         {
             equal(context, "expand transport", S_OK, expandPattern->Expand());
             pop(A::ActionKind::Expand);
@@ -1254,7 +1254,7 @@ namespace
         }
         Com<IVirtualizedItemProvider> virtualPattern;
 
-        if (pattern(context, cell.value, UIA_VirtualizedItemPatternId, virtualPattern))
+        if(pattern(context, cell.value, UIA_VirtualizedItemPatternId, virtualPattern))
         {
             equal(context, "realization transports only", S_OK, virtualPattern->Realize());
             pop(A::ActionKind::Realize);
@@ -1267,7 +1267,7 @@ namespace
         }
         Com<IItemContainerProvider> items;
 
-        if (pattern(context, table.value, UIA_ItemContainerPatternId, items))
+        if(pattern(context, table.value, UIA_ItemContainerPatternId, items))
         {
             Com<IRawElementProviderSimple> item;
             VARIANT filter{};
@@ -1276,7 +1276,7 @@ namespace
         }
         Com<IAnnotationProvider> annotationPattern;
 
-        if (pattern(context, annotationNode.value, UIA_AnnotationPatternId, annotationPattern))
+        if(pattern(context, annotationNode.value, UIA_AnnotationPatternId, annotationPattern))
         {
             int type = 0;
             equal(context, "annotation type query", S_OK, annotationPattern->get_AnnotationTypeId(&type));
@@ -1284,13 +1284,13 @@ namespace
         }
         Com<ITextChildProvider> textChild;
 
-        if (pattern(context, annotationNode.value, UIA_TextChildPatternId, textChild))
+        if(pattern(context, annotationNode.value, UIA_TextChildPatternId, textChild))
         {
             Com<ITextRangeProvider> textRange;
             equal(context, "text child associated range", S_OK, textChild->get_TextRange(textRange.put()));
             BSTR text = nullptr;
 
-            if (textRange)
+            if(textRange)
             {
                 equal(context, "text child range text", S_OK, textRange->GetText(-1, &text));
                 check(context, "annotation range text", std::wstring_view(text, SysStringLen(text)) == L"spell");
@@ -1304,7 +1304,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -1314,7 +1314,7 @@ namespace
         const std::array<A::NodeId, 2> rootChildren{2, 4};
         const std::array<A::NodeId, 1> outerCells{3}, innerRows{5}, innerCells{6};
 
-        for (std::size_t i = 0; i < nodes.size(); ++i)
+        for(std::size_t i = 0; i < nodes.size(); ++i)
         {
             nodes[i].id = i + 1;
         }
@@ -1345,13 +1345,13 @@ namespace
         Com<IRawElementProviderSimple> inner(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 4)));
         Com<IRawElementProviderSimple> nestedCell(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 6)));
 
-        if (!context.expectTrue("nested grid providers exist", outer && cell && inner && nestedCell))
+        if(!context.expectTrue("nested grid providers exist", outer && cell && inner && nestedCell))
         {
             return;
         }
         Com<IGridProvider> grid, nestedGrid;
 
-        if (!pattern(context, outer.value, UIA_GridPatternId, grid) || !pattern(context, inner.value, UIA_GridPatternId, nestedGrid))
+        if(!pattern(context, outer.value, UIA_GridPatternId, grid) || !pattern(context, inner.value, UIA_GridPatternId, nestedGrid))
         {
             return;
         }
@@ -1377,7 +1377,7 @@ namespace
     {
         auto window = std::make_unique<Desktop::Window>();
 
-        if (!open(context, *window))
+        if(!open(context, *window))
         {
             return;
         }
@@ -1395,7 +1395,7 @@ namespace
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
         Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
 
-        if (!context.expectTrue("geometry providers exist", provider && root))
+        if(!context.expectTrue("geometry providers exist", provider && root))
         {
             return;
         }
@@ -1405,7 +1405,7 @@ namespace
             "geometry fragment",
             SUCCEEDED(provider->QueryInterface(__uuidof(IRawElementProviderFragment), reinterpret_cast<void **>(fragment.put()))));
 
-        if (fragment)
+        if(fragment)
         {
             UiaRect bounds{};
             equal(context, "geometry query", S_OK, fragment->get_BoundingRectangle(&bounds));
@@ -1420,13 +1420,13 @@ namespace
             "geometry root",
             SUCCEEDED(root->QueryInterface(__uuidof(IRawElementProviderFragmentRoot), reinterpret_cast<void **>(fragmentRoot.put()))));
 
-        if (fragmentRoot)
+        if(fragmentRoot)
         {
             Com<IRawElementProviderFragment> hit;
             equal(context, "inverse affine hit test", S_OK, fragmentRoot->ElementProviderFromPoint(origin.x + 70.0, origin.y + 67.5, hit.put()));
             Com<IRawElementProviderSimple> hitSimple;
 
-            if (hit)
+            if(hit)
             {
                 check(
                     context,
@@ -1445,7 +1445,7 @@ namespace
         check(context, "native destruction clears active snapshot", !bridge.snapshotInfo().available);
         check(context, "unexpected destruction finalizes", window->close().ok());
 
-        if (!open(context, *window))
+        if(!open(context, *window))
         {
             return;
         }
@@ -1466,7 +1466,7 @@ namespace
     {
         Desktop::Window window;
 
-        if (!open(context, window))
+        if(!open(context, window))
         {
             return;
         }
@@ -1476,7 +1476,7 @@ namespace
         check(context, "concurrent initial snapshot", bridge.publish(tree.view()).ok());
         Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
-        if (!context.expectTrue("concurrent provider exists", static_cast<bool>(provider)))
+        if(!context.expectTrue("concurrent provider exists", static_cast<bool>(provider)))
         {
             return;
         }
@@ -1484,17 +1484,17 @@ namespace
         std::thread client(
             [&]
             {
-                while (!stop.load())
+                while(!stop.load())
                 {
                     VARIANT value{};
                     const auto hr = provider->GetPropertyValue(UIA_NamePropertyId, &value);
 
-                    if (hr != S_OK && hr != kUnavailable)
+                    if(hr != S_OK && hr != kUnavailable)
                     {
                         failed = true;
                     }
 
-                    if (hr == S_OK && (value.vt != VT_BSTR || SysStringLen(value.bstrVal) == 0))
+                    if(hr == S_OK && (value.vt != VT_BSTR || SysStringLen(value.bstrVal) == 0))
                     {
                         failed = true;
                     }
@@ -1504,11 +1504,11 @@ namespace
         std::thread publisher(
             [&]
             {
-                for (A::Generation generation = 2; generation < 100; ++generation)
+                for(A::Generation generation = 2; generation < 100; ++generation)
                 {
                     tree.nodes[1].name = (generation & 1U) != 0 ? "Odd" : "Even";
 
-                    if (!bridge.publish(tree.view(generation)).ok())
+                    if(!bridge.publish(tree.view(generation)).ok())
                     {
                         failed = true;
                     }
@@ -1535,26 +1535,26 @@ namespace GameWIP::Test
         Desktop::Types::Description description;
         description.activation.visible = false;
 
-        if (!window.open(description).ok())
+        if(!window.open(description).ok())
         {
             return 1;
         }
         auto bridge = window.accessibility();
 
-        if (!bridge.enable().ok())
+        if(!bridge.enable().ok())
         {
             return 2;
         }
         Tree tree;
         tree.nodes[1].text = A::TextContent{"Smoke text"};
 
-        if (!bridge.publish(tree.view()).ok())
+        if(!bridge.publish(tree.view()).ok())
         {
             return 3;
         }
         const auto handles = Desktop::Native::Win32::getHandle(window);
 
-        if (!handles.status.ok())
+        if(!handles.status.ok())
         {
             return 4;
         }
@@ -1566,7 +1566,7 @@ namespace GameWIP::Test
             {
                 const auto initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
-                if (FAILED(initialized))
+                if(FAILED(initialized))
                 {
                     done = true;
                     return;
@@ -1575,18 +1575,18 @@ namespace GameWIP::Test
                 {
                     Com<IUIAutomation> automation;
 
-                    if (FAILED(CoCreateInstance(
-                            CLSID_CUIAutomation,
-                            nullptr,
-                            CLSCTX_INPROC_SERVER,
-                            __uuidof(IUIAutomation),
-                            reinterpret_cast<void **>(automation.put()))))
+                    if(FAILED(CoCreateInstance(
+                           CLSID_CUIAutomation,
+                           nullptr,
+                           CLSCTX_INPROC_SERVER,
+                           __uuidof(IUIAutomation),
+                           reinterpret_cast<void **>(automation.put()))))
                     {
                         return 6;
                     }
                     Com<IUIAutomationElement> root, child;
 
-                    if (FAILED(automation->ElementFromHandle(handles->window, root.put())) || !root)
+                    if(FAILED(automation->ElementFromHandle(handles->window, root.put())) || !root)
                     {
                         return 7;
                     }
@@ -1595,7 +1595,7 @@ namespace GameWIP::Test
                     const bool correctName = SUCCEEDED(named) && std::wstring_view(name, SysStringLen(name)) == L"Example";
                     SysFreeString(name);
 
-                    if (!correctName)
+                    if(!correctName)
                     {
                         return 8;
                     }
@@ -1603,7 +1603,7 @@ namespace GameWIP::Test
                     id.vt = VT_BSTR;
                     id.bstrVal = SysAllocString(L"2");
 
-                    if (!id.bstrVal)
+                    if(!id.bstrVal)
                     {
                         return 9;
                     }
@@ -1611,34 +1611,34 @@ namespace GameWIP::Test
                     const auto filtered = automation->CreatePropertyCondition(UIA_AutomationIdPropertyId, id, condition.put());
                     VariantClear(&id);
 
-                    if (FAILED(filtered) || !condition || FAILED(root->FindFirst(TreeScope_Children, condition.value, child.put())) || !child)
+                    if(FAILED(filtered) || !condition || FAILED(root->FindFirst(TreeScope_Children, condition.value, child.put())) || !child)
                     {
                         return 10;
                     }
                     Com<IUnknown> unknown;
 
-                    if (FAILED(child->GetCurrentPattern(UIA_InvokePatternId, unknown.put())) || !unknown)
+                    if(FAILED(child->GetCurrentPattern(UIA_InvokePatternId, unknown.put())) || !unknown)
                     {
                         return 11;
                     }
                     Com<IUIAutomationInvokePattern> invoke;
 
-                    if (FAILED(unknown->QueryInterface(__uuidof(IUIAutomationInvokePattern), reinterpret_cast<void **>(invoke.put()))) ||
-                        FAILED(invoke->Invoke()))
+                    if(FAILED(unknown->QueryInterface(__uuidof(IUIAutomationInvokePattern), reinterpret_cast<void **>(invoke.put()))) ||
+                       FAILED(invoke->Invoke()))
                     {
                         return 12;
                     }
                     unknown.put();
 
-                    if (FAILED(child->GetCurrentPattern(UIA_TextPatternId, unknown.put())) || !unknown)
+                    if(FAILED(child->GetCurrentPattern(UIA_TextPatternId, unknown.put())) || !unknown)
                     {
                         return 13;
                     }
                     Com<IUIAutomationTextPattern> text;
                     Com<IUIAutomationTextRange> range;
 
-                    if (FAILED(unknown->QueryInterface(__uuidof(IUIAutomationTextPattern), reinterpret_cast<void **>(text.put()))) ||
-                        FAILED(text->get_DocumentRange(range.put())) || !range)
+                    if(FAILED(unknown->QueryInterface(__uuidof(IUIAutomationTextPattern), reinterpret_cast<void **>(text.put()))) ||
+                       FAILED(text->get_DocumentRange(range.put())) || !range)
                     {
                         return 14;
                     }
@@ -1653,12 +1653,12 @@ namespace GameWIP::Test
                 done = true;
             });
 
-        while (!done.load())
+        while(!done.load())
         {
             static_cast<void>(Desktop::Events::wait(std::chrono::milliseconds{10}));
             A::ActionRequest request;
 
-            while (bridge.popAction(request))
+            while(bridge.popAction(request))
             {
                 invoked = invoked || request.action == A::ActionKind::Invoke;
             }
@@ -1666,12 +1666,12 @@ namespace GameWIP::Test
         client.join();
         A::ActionRequest request;
 
-        while (bridge.popAction(request))
+        while(bridge.popAction(request))
         {
             invoked = invoked || request.action == A::ActionKind::Invoke;
         }
 
-        if (!window.close().ok())
+        if(!window.close().ok())
         {
             return 16;
         }

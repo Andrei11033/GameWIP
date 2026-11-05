@@ -38,19 +38,19 @@ namespace
     {
         outText.clear();
 
-        if (text.empty())
+        if(text.empty())
         {
             return {};
         }
 
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
 
-        if (measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
+        if(measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
         }
 
-        if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
         }
@@ -58,12 +58,12 @@ namespace
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
 
-        if (conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
+        if(conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
         }
 
-        if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+        if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed, ERROR_NO_UNICODE_TRANSLATION);
         }
@@ -72,16 +72,16 @@ namespace
         {
             outText.resize(conversion.codeUnitsWritten);
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
         }
 
-        for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+        for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
         {
             outText[index] = static_cast<wchar_t>(converted[index]);
         }
@@ -95,9 +95,9 @@ namespace
         std::wstring result;
         result.reserve(text.size());
 
-        for (wchar_t value : text)
+        for(wchar_t value : text)
         {
-            if (value == L'\0')
+            if(value == L'\0')
             {
                 result += L"\\0";
             }
@@ -131,7 +131,7 @@ namespace
 
         ~FormatScratchSlot() noexcept
         {
-            if (value_ != FLS_OUT_OF_INDEXES)
+            if(value_ != FLS_OUT_OF_INDEXES)
             {
                 static_cast<void>(FlsFree(value_));
             }
@@ -159,18 +159,18 @@ namespace
     {
         const DWORD slot = formatScratchSlot();
 
-        if (slot == FLS_OUT_OF_INDEXES)
+        if(slot == FLS_OUT_OF_INDEXES)
         {
             throw std::bad_alloc();
         }
 
         auto *storage = static_cast<FormatScratchStorage *>(FlsGetValue(slot));
 
-        if (!storage)
+        if(!storage)
         {
             storage = new FormatScratchStorage();
 
-            if (!FlsSetValue(slot, storage))
+            if(!FlsSetValue(slot, storage))
             {
                 delete storage;
                 throw std::bad_alloc();
@@ -198,7 +198,7 @@ namespace GameWIP::Logger::Detail::Platform
     {
         FormatScratchStorage &storage = formatScratchStorageForThread();
 
-        if (storage.buffers.size() == storage.depth)
+        if(storage.buffers.size() == storage.depth)
         {
             storage.buffers.emplace_back();
         }
@@ -213,14 +213,14 @@ namespace GameWIP::Logger::Detail::Platform
     {
         FormatScratchStorage &storage = formatScratchStorageForThread();
 
-        if (storage.depth == 0)
+        if(storage.depth == 0)
         {
             return;
         }
 
         --storage.depth;
 
-        if (storage.depth > 0 && storage.depth + 1 == storage.buffers.size())
+        if(storage.depth > 0 && storage.depth + 1 == storage.buffers.size())
         {
             // Keep the outermost buffer hot for the common case, but release extra
             // nested buffers once nested formatting unwinds.
@@ -239,12 +239,12 @@ namespace GameWIP::Logger::Detail::Platform
             std::wstring output;
             IO::Types::Status status = utf8ToWide(line, output);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
 
-            if (output.contains(L'\0'))
+            if(output.contains(L'\0'))
             {
                 output = escapeEmbeddedNuls(output);
             }
@@ -252,11 +252,11 @@ namespace GameWIP::Logger::Detail::Platform
             OutputDebugStringW(output.c_str());
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
         }
@@ -269,28 +269,28 @@ namespace GameWIP::Logger::Detail::Platform
             std::wstring messageText;
             IO::Types::Status status = utf8ToWide(message, messageText);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
 
-            if (messageText.contains(L'\0'))
+            if(messageText.contains(L'\0'))
             {
                 messageText = escapeEmbeddedNuls(messageText);
             }
 
-            if (MessageBoxW(nullptr, messageText.c_str(), L"Fatal Error", MB_ICONERROR | MB_OK) == 0)
+            if(MessageBoxW(nullptr, messageText.c_str(), L"Fatal Error", MB_ICONERROR | MB_OK) == 0)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
             }
 
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
         }
@@ -306,19 +306,19 @@ namespace GameWIP::Logger::Detail::Platform
         std::tm timeInfo{};
         const int localTimeResult = localtime_s(&timeInfo, &time);
 
-        if (localTimeResult != 0)
+        if(localTimeResult != 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, localTimeResult);
         }
 
-        if (timeFormat.size() >= 64)
+        if(timeFormat.size() >= 64)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_INVALID_DATA);
         }
 
         char formatBuffer[64]{};
 
-        if (!timeFormat.empty())
+        if(!timeFormat.empty())
         {
             std::ranges::copy(timeFormat, formatBuffer);
         }
@@ -339,7 +339,7 @@ namespace GameWIP::Logger::Detail::Platform
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-        if (written == 0)
+        if(written == 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_INVALID_DATA);
         }
@@ -349,12 +349,12 @@ namespace GameWIP::Logger::Detail::Platform
             outText.assign(timeBuffer, written);
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             outText.clear();
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             outText.clear();
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
@@ -366,7 +366,7 @@ namespace GameWIP::Logger::Detail::Platform
         PROCESS_MEMORY_COUNTERS_EX counters{};
         counters.cb = sizeof(counters);
 
-        if (GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&counters), sizeof(counters)) == 0)
+        if(GetProcessMemoryInfo(GetCurrentProcess(), reinterpret_cast<PROCESS_MEMORY_COUNTERS *>(&counters), sizeof(counters)) == 0)
         {
             return {};
         }

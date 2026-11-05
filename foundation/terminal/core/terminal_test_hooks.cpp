@@ -24,7 +24,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
 
     std::optional<IO::Types::ErrorCode> consumeFailure(HookFailure &failure) noexcept
     {
-        if (!failure.enabled.exchange(false, std::memory_order_acq_rel))
+        if(!failure.enabled.exchange(false, std::memory_order_acq_rel))
         {
             return std::nullopt;
         }
@@ -36,7 +36,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
     {
         std::unique_lock lock(terminalTestHookState.mutex);
 
-        if (!block.enabled)
+        if(!block.enabled)
         {
             return;
         }
@@ -62,7 +62,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
     {
         std::lock_guard lock(terminalTestHookState.mutex);
 
-        for (InputHookState &state : terminalTestHookState.inputStreams)
+        for(InputHookState &state : terminalTestHookState.inputStreams)
         {
             state.capabilitiesOverrideEnabled = false;
             state.capabilitiesOverride = {};
@@ -82,7 +82,7 @@ namespace GameWIP::Terminal::Detail::TestHooks
             state.exclusiveEventDelivery = false;
         }
 
-        for (OutputHookState &state : terminalTestHookState.outputStreams)
+        for(OutputHookState &state : terminalTestHookState.outputStreams)
         {
             state.capabilitiesOverrideEnabled = false;
             state.capabilitiesOverride = {};
@@ -289,7 +289,7 @@ namespace GameWIP::Terminal::TestHooks
         const std::vector<std::byte> &bytes = terminalTestHookState.outputStreams[outputIndex(stream)].capturedOutput;
         std::string text(bytes.size(), '\0');
 
-        if (!bytes.empty())
+        if(!bytes.empty())
         {
             std::ranges::transform(
                 bytes,
@@ -387,7 +387,7 @@ namespace GameWIP::Terminal::TestHooks
             terminalTestHookState.nextReadBlock.released = true;
             terminalTestHookState.nextReadBlock.condition.notify_all();
         }
-        catch (...)
+        catch(...)
         {
             // Test cleanup is best effort at this noexcept synchronization boundary.
             return;
@@ -424,7 +424,7 @@ namespace GameWIP::Terminal::TestHooks
             terminalTestHookState.nextTextWriteBlock.released = true;
             terminalTestHookState.nextTextWriteBlock.condition.notify_all();
         }
-        catch (...)
+        catch(...)
         {
             // Test cleanup is best effort at this noexcept synchronization boundary.
             return;

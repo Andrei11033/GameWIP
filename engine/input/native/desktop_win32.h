@@ -16,7 +16,7 @@ namespace GameWIP::Input::Platform::Win32::AdapterDetail
     {
         auto *attachment = static_cast<Attachment *>(context);
 
-        if (attachment == nullptr)
+        if(attachment == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
@@ -36,21 +36,21 @@ namespace GameWIP::Input::Platform::Win32
     {
         const auto nativeHandle = GameWIP::Desktop::Native::Win32::getHandle(window);
 
-        if (!nativeHandle.ok() || nativeHandle->window == nullptr)
+        if(!nativeHandle.ok() || nativeHandle->window == nullptr)
         {
             return nativeHandle.status;
         }
 
         const IO::Types::Status inputStatus = attachment.attach(system, static_cast<void *>(nativeHandle->window));
 
-        if (!inputStatus.ok())
+        if(!inputStatus.ok())
         {
             return inputStatus;
         }
 
         const IO::Types::Status sinkStatus = GameWIP::Desktop::Native::Win32::attachMessageSink(window, &AdapterDetail::forwardMessage, &attachment);
 
-        if (!sinkStatus.ok())
+        if(!sinkStatus.ok())
         {
             static_cast<void>(attachment.detach());
             return sinkStatus;

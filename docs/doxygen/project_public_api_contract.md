@@ -89,6 +89,7 @@ or accepting the request without performing it. This pattern allows callers to d
 platform-specific conditional compilation in application code.
 
 Return `Unsupported` when:
+
 - A feature requires native platform support that is absent (e.g., Input attachment on Linux/macOS)
 - A Windows-only capability is requested on another platform
 - A newer OS version requirement is not met (e.g., backdrop effect on Windows 10)
@@ -97,6 +98,7 @@ Return `Unsupported` when:
 Example: `Input::Platform::Win32::Attachment` is available only on Windows; other platforms return `Unsupported` from `attach()`.
 
 Do not use `Unsupported` for:
+
 - Usage errors or invalid arguments (use appropriate error codes)
 - Transient failures or resource exhaustion (use appropriate error codes)
 - Missing optional dependencies (document requirements explicitly)

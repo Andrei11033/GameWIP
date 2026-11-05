@@ -23,7 +23,7 @@ namespace GameWIP::Logger
         /// @brief Converts enum sources to SourceId while preserving string-like sources.
         template <typename Source> constexpr decltype(auto) normalizeSource(Source &&source) noexcept
         {
-            if constexpr (SourceEnum<Source>)
+            if constexpr(SourceEnum<Source>)
             {
                 return sourceId(source);
             }
@@ -103,18 +103,18 @@ namespace GameWIP::Logger
         /// @brief Finds a truncation boundary that does not split a UTF-8 continuation sequence.
         [[nodiscard]] inline std::size_t utf8PrefixBoundary(std::string_view text, std::size_t limit) noexcept
         {
-            if (limit >= text.size())
+            if(limit >= text.size())
             {
                 return text.size();
             }
 
             std::size_t boundary = limit;
 
-            while (boundary > 0)
+            while(boundary > 0)
             {
                 const auto value = static_cast<unsigned char>(text[boundary]);
 
-                if ((value & 0xC0u) != 0x80u)
+                if((value & 0xC0u) != 0x80u)
                 {
                     break;
                 }
@@ -129,13 +129,13 @@ namespace GameWIP::Logger
         {
             constexpr std::string_view suffix = "... [truncated]";
 
-            if (maxMessageLength == 0)
+            if(maxMessageLength == 0)
             {
                 scratch.clear();
                 return;
             }
 
-            if (maxMessageLength <= suffix.size())
+            if(maxMessageLength <= suffix.size())
             {
                 scratch.assign(suffix.substr(0, maxMessageLength));
                 return;
@@ -149,7 +149,7 @@ namespace GameWIP::Logger
         {
             constexpr std::string_view suffix = "... [truncated]";
 
-            if (maxMessageLength > suffix.size())
+            if(maxMessageLength > suffix.size())
             {
                 const std::size_t budget = maxMessageLength - suffix.size();
                 scratch.resize(utf8PrefixBoundary(scratch, budget));
@@ -165,7 +165,7 @@ namespace GameWIP::Logger
         /// @brief Applies Logger's retained-message byte limit after an unbounded formatting pass.
         inline bool truncateScratchIfNeeded(std::string &scratch, std::size_t maxMessageLength)
         {
-            if (scratch.size() <= maxMessageLength)
+            if(scratch.size() <= maxMessageLength)
             {
                 return false;
             }
@@ -198,7 +198,7 @@ namespace GameWIP::Logger
             }
             BoundedFormatIterator &operator=(char value)
             {
-                if (*written_ < limit_)
+                if(*written_ < limit_)
                 {
                     output_->push_back(value);
                 }
@@ -240,7 +240,7 @@ namespace GameWIP::Logger
 
             std::format_to(output, format, std::forward<Args>(args)...);
 
-            if (!truncated)
+            if(!truncated)
             {
                 return false;
             }
@@ -260,7 +260,7 @@ namespace GameWIP::Logger
 
             std::vformat_to(output, format.text, std::make_format_args(args...));
 
-            if (!truncated)
+            if(!truncated)
             {
                 return false;
             }
@@ -273,7 +273,7 @@ namespace GameWIP::Logger
         template <typename Format, typename... Args>
         bool formatWithPolicy(std::string &scratch, std::size_t maxMessageLength, Format format, Args &&...args)
         {
-            if (getFormatPolicyForFormatting() == Types::FormatPolicy::FastNormal)
+            if(getFormatPolicyForFormatting() == Types::FormatPolicy::FastNormal)
             {
                 scratch.clear();
                 std::format_to(std::back_inserter(scratch), format, std::forward<Args>(args)...);
@@ -287,7 +287,7 @@ namespace GameWIP::Logger
         template <typename... Args>
         bool runtimeFormatWithPolicy(std::string &scratch, std::size_t maxMessageLength, Types::RuntimeFormat format, Args &...args)
         {
-            if (getFormatPolicyForFormatting() == Types::FormatPolicy::FastNormal)
+            if(getFormatPolicyForFormatting() == Types::FormatPolicy::FastNormal)
             {
                 scratch.clear();
                 std::vformat_to(std::back_inserter(scratch), format.text, std::make_format_args(args...));
@@ -312,11 +312,11 @@ namespace GameWIP::Logger
                 const bool truncated = formatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 enqueuePreformattedMessage(level, source, scratch, truncated);
             }
-            catch (const std::format_error &)
+            catch(const std::format_error &)
             {
                 recordFormatFailure();
             }
-            catch (...)
+            catch(...)
             {
                 recordAllocationFailure();
             }
@@ -333,11 +333,11 @@ namespace GameWIP::Logger
                 const bool truncated = runtimeFormatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, args...);
                 enqueuePreformattedMessage(level, source, scratch, truncated);
             }
-            catch (const std::format_error &)
+            catch(const std::format_error &)
             {
                 recordFormatFailure();
             }
-            catch (...)
+            catch(...)
             {
                 recordAllocationFailure();
             }
@@ -368,17 +368,17 @@ namespace GameWIP::Logger
                 const bool truncated = formatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
                 return reportPreformattedMessage(level, normalizeSource(source), scratch, showPopup, truncated, timeout);
             }
-            catch (const std::format_error &)
+            catch(const std::format_error &)
             {
                 recordFormatFailure();
                 return reportFailure(IO::Types::ErrorCode::InvalidArgument);
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
                 return reportFailure(IO::Types::ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 recordAllocationFailure();
                 return reportFailure(IO::Types::ErrorCode::Unknown);
@@ -402,17 +402,17 @@ namespace GameWIP::Logger
                 const bool truncated = runtimeFormatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, args...);
                 return reportPreformattedMessage(level, normalizeSource(source), scratch, showPopup, truncated, timeout);
             }
-            catch (const std::format_error &)
+            catch(const std::format_error &)
             {
                 recordFormatFailure();
                 return reportFailure(IO::Types::ErrorCode::InvalidArgument);
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 recordAllocationFailure();
                 return reportFailure(IO::Types::ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 recordAllocationFailure();
                 return reportFailure(IO::Types::ErrorCode::Unknown);

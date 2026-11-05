@@ -156,12 +156,12 @@ void testDragDrop(TestSupport::Context &context)
         {
             const HRESULT initialized = OleInitialize(nullptr);
 
-            if (initialized == S_OK || initialized == S_FALSE)
+            if(initialized == S_OK || initialized == S_FALSE)
             {
                 compatiblePreinitialized = Desktop::TestHooks::testDragDropOleInitialization().code;
             }
 
-            if (initialized == S_OK || initialized == S_FALSE)
+            if(initialized == S_OK || initialized == S_FALSE)
             {
                 OleUninitialize();
             }
@@ -173,12 +173,12 @@ void testDragDrop(TestSupport::Context &context)
         {
             const HRESULT initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
-            if (initialized == S_OK || initialized == S_FALSE)
+            if(initialized == S_OK || initialized == S_FALSE)
             {
                 incompatibleApartment = Desktop::TestHooks::testDragDropOleInitialization().code;
             }
 
-            if (initialized == S_OK || initialized == S_FALSE)
+            if(initialized == S_OK || initialized == S_FALSE)
             {
                 CoUninitialize();
             }
@@ -209,7 +209,7 @@ void testDragDrop(TestSupport::Context &context)
     windowDescription.activation.visible = false;
     Desktop::Window window;
 
-    if (!context.expectTrue("DragDrop Window opens", window.open(windowDescription, Desktop::Events::owned(8)).ok()))
+    if(!context.expectTrue("DragDrop Window opens", window.open(windowDescription, Desktop::Events::owned(8)).ok()))
     {
         return;
     }
@@ -323,7 +323,7 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("failed registration preserves lightweight mode", window.fileDropEnabled()));
     const auto open = target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3));
 
-    if (!open.ok())
+    if(!open.ok())
     {
         context.skip("native OLE target lifecycle", "the test thread has an incompatible OLE apartment");
         static_cast<void>(window.close());
@@ -418,7 +418,7 @@ void testDragDrop(TestSupport::Context &context)
     const auto *coalesced = coalescedMove.getIf<DDEvents::Moved>();
     static_cast<void>(context.expectTrue("coalesced movement keeps its payload type", coalesced != nullptr));
 
-    if (coalesced != nullptr)
+    if(coalesced != nullptr)
     {
         static_cast<void>(context.expectEq(
             "coalescing preserves earliest previous region",
@@ -511,18 +511,18 @@ void testDragDrop(TestSupport::Context &context)
     Desktop::Window deferredWindowA;
     Desktop::Window deferredWindowB;
 
-    if (context.expectTrue("first deferred-cleanup Window opens", deferredWindowA.open(windowDescription, Desktop::Events::owned(4)).ok()) &&
-        context.expectTrue("second deferred-cleanup Window opens", deferredWindowB.open(windowDescription, Desktop::Events::owned(4)).ok()))
+    if(context.expectTrue("first deferred-cleanup Window opens", deferredWindowA.open(windowDescription, Desktop::Events::owned(4)).ok()) &&
+       context.expectTrue("second deferred-cleanup Window opens", deferredWindowB.open(windowDescription, Desktop::Events::owned(4)).ok()))
     {
         auto deferredTargetA = std::make_unique<Desktop::DragDropTarget>();
         auto deferredTargetB = std::make_unique<Desktop::DragDropTarget>();
 
-        if (context.expectTrue(
-                "first deferred-cleanup target opens",
-                deferredTargetA->open(deferredWindowA, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok()) &&
-            context.expectTrue(
-                "second deferred-cleanup target opens",
-                deferredTargetB->open(deferredWindowB, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok()))
+        if(context.expectTrue(
+               "first deferred-cleanup target opens",
+               deferredTargetA->open(deferredWindowA, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok()) &&
+           context.expectTrue(
+               "second deferred-cleanup target opens",
+               deferredTargetB->open(deferredWindowB, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok()))
         {
             std::thread destroyOnWrongThread(
                 [first = std::move(deferredTargetA), second = std::move(deferredTargetB)] mutable

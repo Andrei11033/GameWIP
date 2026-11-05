@@ -36,17 +36,17 @@ namespace GameWIP::Desktop::Detail
 
     bool AccessibilityRuntime::readGeometry(AccessibilityHostGeometry &geometry) const noexcept
     {
-        for (unsigned attempt = 0; attempt < 8; ++attempt)
+        for(unsigned attempt = 0; attempt < 8; ++attempt)
         {
             const auto sequence = geometrySequence.load();
 
-            if ((sequence & 1U) != 0)
+            if((sequence & 1U) != 0)
             {
                 continue;
             }
             geometry = {x.load(), y.load(), width.load(), height.load(), scaleX.load(), scaleY.load(), visible.load(), focused.load()};
 
-            if (sequence == geometrySequence.load())
+            if(sequence == geometrySequence.load())
             {
                 return true;
             }
@@ -57,13 +57,13 @@ namespace GameWIP::Desktop::Detail
 
     void publishAccessibilityGeometry(WindowState &window) noexcept
     {
-        if (!window.accessibility)
+        if(!window.accessibility)
         {
             return;
         }
         const auto runtime = window.accessibility->runtime.load();
 
-        if (!runtime || !runtime->live.load())
+        if(!runtime || !runtime->live.load())
         {
             return;
         }
@@ -82,7 +82,7 @@ namespace GameWIP::Desktop::Detail
                              before.visible != after.visible || before.focused != after.focused;
         runtime->publishGeometry(after);
 
-        if (changed)
+        if(changed)
         {
             invalidateAccessibilityHost(window, !before.focused && after.focused);
         }
@@ -90,31 +90,31 @@ namespace GameWIP::Desktop::Detail
 
     void invalidateAccessibilityHost(WindowState &window, bool focusGained) noexcept
     {
-        if (!window.accessibility)
+        if(!window.accessibility)
         {
             return;
         }
         const auto runtime = window.accessibility->runtime.load();
 
-        if (!runtime || !runtime->live.load())
+        if(!runtime || !runtime->live.load())
         {
             return;
         }
         std::lock_guard lock(runtime->notificationMutex);
         const auto snapshot = runtime->snapshot.load();
 
-        if (!snapshot || !runtime->live.load())
+        if(!snapshot || !runtime->live.load())
         {
             return;
         }
 
-        if (runtime->invalidationPending)
+        if(runtime->invalidationPending)
         {
-            for (std::size_t i = 0; i < runtime->notificationCount; ++i)
+            for(std::size_t i = 0; i < runtime->notificationCount; ++i)
             {
                 auto &notification = runtime->notifications[(runtime->notificationHead + i) % runtime->notifications.size()];
 
-                if (notification.notification.kind == A::NotificationKind::TreeInvalidated)
+                if(notification.notification.kind == A::NotificationKind::TreeInvalidated)
                 {
                     notification.notification.generation = snapshot->storage.generation;
                     notification.after = snapshot;
@@ -124,9 +124,9 @@ namespace GameWIP::Desktop::Detail
         }
         else
         {
-            if (runtime->notificationCount == runtime->notifications.size())
+            if(runtime->notificationCount == runtime->notifications.size())
             {
-                for (auto &notification : runtime->notifications)
+                for(auto &notification : runtime->notifications)
                 {
                     notification = {};
                 }
@@ -141,9 +141,9 @@ namespace GameWIP::Desktop::Detail
                 snapshot};
         }
 
-        if (focusGained && snapshot->focusedNode != 0)
+        if(focusGained && snapshot->focusedNode != 0)
         {
-            if (runtime->notificationCount < runtime->notifications.size())
+            if(runtime->notificationCount < runtime->notifications.size())
             {
                 runtime->notifications[(runtime->notificationHead + runtime->notificationCount++) % runtime->notifications.size()] = {
                     {A::NotificationKind::FocusChanged, snapshot->storage.generation, snapshot->focusedNode},
@@ -160,14 +160,14 @@ namespace GameWIP::Desktop::Detail
 
     void closeAccessibility(WindowState &window) noexcept
     {
-        if (!window.accessibility)
+        if(!window.accessibility)
         {
             return;
         }
         auto &state = *window.accessibility;
         const auto runtime = state.runtime.load();
 
-        if (!runtime || !runtime->live.exchange(false))
+        if(!runtime || !runtime->live.exchange(false))
         {
             return;
         }
@@ -176,7 +176,7 @@ namespace GameWIP::Desktop::Detail
         {
             std::lock_guard actions(runtime->actionMutex);
 
-            for (auto &action : runtime->actions)
+            for(auto &action : runtime->actions)
             {
                 action = {};
             }
@@ -186,7 +186,7 @@ namespace GameWIP::Desktop::Detail
         {
             std::lock_guard notifications(runtime->notificationMutex);
 
-            for (auto &notification : runtime->notifications)
+            for(auto &notification : runtime->notifications)
             {
                 notification = {};
             }
@@ -204,56 +204,55 @@ namespace GameWIP::Desktop::Detail
 
     A::ActionResult submitAccessibilityAction(AccessibilityRuntime &runtime, A::ActionRequest request) noexcept
     {
-        if (!runtime.live.load())
+        if(!runtime.live.load())
         {
             return {A::ActionAcceptance::Closed};
         }
         const auto snapshot = runtime.snapshot.load();
         const auto *node = snapshot ? snapshot->find(request.node) : nullptr;
 
-        if (!node)
+        if(!node)
         {
             return {A::ActionAcceptance::Invalid};
         }
 
-        if (request.action >= A::ActionKind::Count || !node->actions.contains(request.action))
+        if(request.action >= A::ActionKind::Count || !node->actions.contains(request.action))
         {
             return {A::ActionAcceptance::Unsupported};
         }
 
-        if (node->states.contains(A::State::Disabled) || !runtime.hostEnabled.load())
+        if(node->states.contains(A::State::Disabled) || !runtime.hostEnabled.load())
         {
             return {A::ActionAcceptance::Rejected};
         }
 
-        if (!std::isfinite(request.value) || !std::isfinite(request.point.x) || !std::isfinite(request.point.y) ||
-            !std::isfinite(request.scroll.horizontal) || !std::isfinite(request.scroll.vertical) ||
-            request.text.size() > runtime.limits.maximumActionTextBytes ||
-            request.selection.size() > runtime.limits.maximumSelectionRangesPerAction ||
-            Unicode::Utf8::validate(request.text).outcome != Unicode::Types::ValidationOutcome::Valid)
+        if(!std::isfinite(request.value) || !std::isfinite(request.point.x) || !std::isfinite(request.point.y) ||
+           !std::isfinite(request.scroll.horizontal) || !std::isfinite(request.scroll.vertical) ||
+           request.text.size() > runtime.limits.maximumActionTextBytes || request.selection.size() > runtime.limits.maximumSelectionRangesPerAction ||
+           Unicode::Utf8::validate(request.text).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             return {A::ActionAcceptance::Invalid};
         }
 
-        if (request.action == A::ActionKind::SetValue && node->states.contains(A::State::ReadOnly))
+        if(request.action == A::ActionKind::SetValue && node->states.contains(A::State::ReadOnly))
         {
             return {A::ActionAcceptance::Rejected};
         }
 
-        if (request.action == A::ActionKind::SetValue && node->rangeValue &&
-            (request.value < node->rangeValue->minimum || request.value > node->rangeValue->maximum))
+        if(request.action == A::ActionKind::SetValue && node->rangeValue &&
+           (request.value < node->rangeValue->minimum || request.value > node->rangeValue->maximum))
         {
             return {A::ActionAcceptance::Invalid};
         }
 
-        if (request.scroll.unit > A::ScrollUnit::Step || request.selectionOperation > A::SelectionOperation::Remove)
+        if(request.scroll.unit > A::ScrollUnit::Step || request.selectionOperation > A::SelectionOperation::Remove)
         {
             return {A::ActionAcceptance::Invalid};
         }
 
-        if (request.action == A::ActionKind::SetTextSelection || request.range || !request.selection.empty())
+        if(request.action == A::ActionKind::SetTextSelection || request.range || !request.selection.empty())
         {
-            if (!node->text)
+            if(!node->text)
             {
                 return {A::ActionAcceptance::Unsupported};
             }
@@ -265,38 +264,38 @@ namespace GameWIP::Desktop::Detail
             };
             bool invalidSelection = false;
 
-            for (const auto range : request.selection)
+            for(const auto range : request.selection)
             {
-                if (!valid(range))
+                if(!valid(range))
                 {
                     invalidSelection = true;
                     break;
                 }
             }
 
-            if ((request.range && !valid(*request.range)) || invalidSelection)
+            if((request.range && !valid(*request.range)) || invalidSelection)
             {
                 return {A::ActionAcceptance::Invalid};
             }
         }
         std::lock_guard lock(runtime.actionMutex);
 
-        if (!runtime.live.load())
+        if(!runtime.live.load())
         {
             return {A::ActionAcceptance::Closed};
         }
 
-        if (runtime.nextRequest == 0)
+        if(runtime.nextRequest == 0)
         {
             return {A::ActionAcceptance::Rejected};
         }
 
-        if (request.observedGeneration == 0)
+        if(request.observedGeneration == 0)
         {
             request.observedGeneration = snapshot->storage.generation;
         }
 
-        if (request.observedGeneration > snapshot->storage.generation)
+        if(request.observedGeneration > snapshot->storage.generation)
         {
             return {A::ActionAcceptance::Invalid};
         }
@@ -306,11 +305,11 @@ namespace GameWIP::Desktop::Detail
         const bool coalescible = request.action == A::ActionKind::Focus || request.action == A::ActionKind::SetValue ||
                                  request.action == A::ActionKind::ScrollTo || request.action == A::ActionKind::Realize;
 
-        if (coalescible && runtime.actionCount != 0)
+        if(coalescible && runtime.actionCount != 0)
         {
             auto &tail = runtime.actions[(runtime.actionHead + runtime.actionCount - 1) % runtime.actions.size()];
 
-            if (tail.node == request.node && tail.action == request.action)
+            if(tail.node == request.node && tail.action == request.action)
             {
                 tail = std::move(request);
                 Platform::wakeAccessibility(runtime);
@@ -318,7 +317,7 @@ namespace GameWIP::Desktop::Detail
             }
         }
 
-        if (runtime.actionCount == runtime.actions.size())
+        if(runtime.actionCount == runtime.actions.size())
         {
             ++runtime.rejected;
             return {A::ActionAcceptance::QueueFull, 0, request.observedGeneration};
@@ -330,26 +329,26 @@ namespace GameWIP::Desktop::Detail
 
     void drainAccessibilityNotifications(WindowState &window) noexcept
     {
-        if (!window.accessibility)
+        if(!window.accessibility)
         {
             return;
         }
         const auto runtime = window.accessibility->runtime.load();
 
-        if (!runtime || runtime->ownerThread != std::this_thread::get_id())
+        if(!runtime || runtime->ownerThread != std::this_thread::get_id())
         {
             return;
         }
         // A bounded batch prevents reentrant publications from extending a pump indefinitely.
         const std::size_t capacity = runtime->notifications.size();
 
-        for (std::size_t i = 0; i < capacity; ++i)
+        for(std::size_t i = 0; i < capacity; ++i)
         {
             AccessibilityPendingNotification notification;
             {
                 std::lock_guard lock(runtime->notificationMutex);
 
-                if (!runtime->live.load() || runtime->notificationCount == 0)
+                if(!runtime->live.load() || runtime->notificationCount == 0)
                 {
                     return;
                 }
@@ -359,7 +358,7 @@ namespace GameWIP::Desktop::Detail
                 runtime->notificationHead = (runtime->notificationHead + 1) % capacity;
                 --runtime->notificationCount;
 
-                if (notification.notification.kind == A::NotificationKind::TreeInvalidated)
+                if(notification.notification.kind == A::NotificationKind::TreeInvalidated)
                 {
                     runtime->invalidationPending = false;
                 }
@@ -393,13 +392,13 @@ namespace GameWIP::Desktop::TestHooks
         const auto *state = Detail::WindowAccess::accessibilityState(window);
         const auto runtime = state ? state->runtime.load() : nullptr;
 
-        if (!runtime || runtime->ownerThread != std::this_thread::get_id())
+        if(!runtime || runtime->ownerThread != std::this_thread::get_id())
         {
             return false;
         }
         std::lock_guard lock(runtime->notificationMutex);
 
-        if (!runtime->live.load() || runtime->notificationCount == 0)
+        if(!runtime->live.load() || runtime->notificationCount == 0)
         {
             return false;
         }
@@ -409,7 +408,7 @@ namespace GameWIP::Desktop::TestHooks
         runtime->notificationHead = (runtime->notificationHead + 1) % runtime->notifications.size();
         --runtime->notificationCount;
 
-        if (out.kind == Types::Accessibility::NotificationKind::TreeInvalidated)
+        if(out.kind == Types::Accessibility::NotificationKind::TreeInvalidated)
         {
             runtime->invalidationPending = false;
         }
@@ -452,7 +451,7 @@ namespace GameWIP::Desktop::Accessibility
             cache.accessKey = utf16(node.accessKey);
             cache.shortcut = utf16(node.keyboardShortcut);
 
-            if (!node.text)
+            if(!node.text)
             {
                 return;
             }
@@ -461,13 +460,13 @@ namespace GameWIP::Desktop::Accessibility
             cache.text = utf16(text);
             cache.textLanguage = utf16(node.text->language);
 
-            for (const auto &annotation : node.text->annotations)
+            for(const auto &annotation : node.text->annotations)
             {
                 cache.annotationValues.push_back(utf16(annotation.value));
             }
             cache.formats = {0, static_cast<std::uint32_t>(text.size())};
 
-            for (const auto &annotation : node.text->annotations)
+            for(const auto &annotation : node.text->annotations)
             {
                 cache.formats.push_back(annotation.range.begin);
                 cache.formats.push_back(annotation.range.end);
@@ -480,7 +479,7 @@ namespace GameWIP::Desktop::Accessibility
             const auto index = cursor.reset(text, boundaries);
             boundaries.resize(index.requiredBoundaryCount);
 
-            for (auto offset : boundaries)
+            for(auto offset : boundaries)
             {
                 cache.graphemes.push_back(static_cast<std::uint32_t>(offset));
             }
@@ -490,7 +489,7 @@ namespace GameWIP::Desktop::Accessibility
             cache.lines.push_back(0);
             bool previousSpace = false;
 
-            while (offset < text.size())
+            while(offset < text.size())
             {
                 cache.scalars.push_back(offset);
                 cache.utf16Offsets.push_back(wideOffset);
@@ -500,7 +499,7 @@ namespace GameWIP::Desktop::Accessibility
                                    scalar.scalar == 0x2028 || scalar.scalar == 0x2029 || scalar.scalar == 0x202F || scalar.scalar == 0x205F ||
                                    scalar.scalar == 0x3000;
 
-                if (previousSpace && !space && std::ranges::binary_search(cache.graphemes, offset))
+                if(previousSpace && !space && std::ranges::binary_search(cache.graphemes, offset))
                 {
                     cache.words.push_back(offset);
                 }
@@ -508,7 +507,7 @@ namespace GameWIP::Desktop::Accessibility
                 offset += scalar.bytesConsumed;
                 wideOffset += scalar.scalar > 0xFFFF ? 2U : 1U;
 
-                if (scalar.scalar == U'\n' || scalar.scalar == 0x2028 || scalar.scalar == 0x2029)
+                if(scalar.scalar == U'\n' || scalar.scalar == 0x2028 || scalar.scalar == 0x2029)
                 {
                     cache.lines.push_back(offset);
                 }
@@ -516,12 +515,12 @@ namespace GameWIP::Desktop::Accessibility
             cache.scalars.push_back(offset);
             cache.utf16Offsets.push_back(wideOffset);
 
-            if (cache.words.back() != offset)
+            if(cache.words.back() != offset)
             {
                 cache.words.push_back(offset);
             }
 
-            if (cache.lines.back() != offset)
+            if(cache.lines.back() != offset)
             {
                 cache.lines.push_back(offset);
             }
@@ -539,7 +538,7 @@ namespace GameWIP::Desktop::Accessibility
             std::lock_guard lock(runtime.notificationMutex);
             const auto invalidation = [&]
             {
-                for (auto &notification : runtime.notifications)
+                for(auto &notification : runtime.notifications)
                 {
                     notification = {};
                 }
@@ -550,13 +549,13 @@ namespace GameWIP::Desktop::Accessibility
                 runtime.notifications[0] = {{A::NotificationKind::TreeInvalidated, after->storage.generation, after->storage.root}, before, after};
             };
 
-            if (runtime.invalidationPending)
+            if(runtime.invalidationPending)
             {
-                for (std::size_t i = 0; i < runtime.notificationCount; ++i)
+                for(std::size_t i = 0; i < runtime.notificationCount; ++i)
                 {
                     auto &notification = runtime.notifications[(runtime.notificationHead + i) % runtime.notifications.size()];
 
-                    if (notification.notification.kind == A::NotificationKind::TreeInvalidated)
+                    if(notification.notification.kind == A::NotificationKind::TreeInvalidated)
                     {
                         notification.notification.generation = after->storage.generation;
                         notification.before.reset();
@@ -570,12 +569,12 @@ namespace GameWIP::Desktop::Accessibility
             }
             const auto push = [&](A::NotificationKind kind, A::NodeId id, A::PropertyKind property = A::PropertyKind::Name)
             {
-                if (runtime.invalidationPending)
+                if(runtime.invalidationPending)
                 {
                     return;
                 }
 
-                if (runtime.notificationCount == runtime.notifications.size())
+                if(runtime.notificationCount == runtime.notifications.size())
                 {
                     invalidation();
                     return;
@@ -586,7 +585,7 @@ namespace GameWIP::Desktop::Accessibility
                     after};
             };
 
-            if (!before)
+            if(!before)
             {
                 push(A::NotificationKind::TreeInvalidated, after->storage.root);
                 runtime.invalidationPending = true;
@@ -610,106 +609,106 @@ namespace GameWIP::Desktop::Accessibility
                        a.hitTestable == b.hitTestable && a.hitTestOrder == b.hitTestOrder;
             };
 
-            for (const auto &node : after->storage.nodes)
+            for(const auto &node : after->storage.nodes)
             {
                 const auto *old = before->find(node.id);
 
-                if (!old)
+                if(!old)
                 {
                     structure = true;
                     continue;
                 }
 
-                if (node.parent != old->parent || !std::ranges::equal(node.children, old->children) || node.role != old->role)
+                if(node.parent != old->parent || !std::ranges::equal(node.children, old->children) || node.role != old->role)
                 {
                     structure = true;
                 }
 
-                if (node.name != old->name)
+                if(node.name != old->name)
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Name);
                 }
 
-                if (node.description != old->description)
+                if(node.description != old->description)
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Description);
                 }
 
-                if (node.value != old->value || (node.rangeValue && (!old->rangeValue || node.rangeValue->value != old->rangeValue->value)))
+                if(node.value != old->value || (node.rangeValue && (!old->rangeValue || node.rangeValue->value != old->rangeValue->value)))
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Value);
                 }
 
-                if (!optionalEqual(
-                        node.rangeValue,
-                        old->rangeValue,
-                        [](const auto &a, const auto &b)
-                        {
-                            return a.minimum == b.minimum && a.maximum == b.maximum && a.smallChange == b.smallChange &&
-                                   a.largeChange == b.largeChange;
-                        }))
+                if(!optionalEqual(
+                       node.rangeValue,
+                       old->rangeValue,
+                       [](const auto &a, const auto &b)
+                       {
+                           return a.minimum == b.minimum && a.maximum == b.maximum && a.smallChange == b.smallChange &&
+                                  a.largeChange == b.largeChange;
+                       }))
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Range);
                 }
 
-                if (!optionalEqual(
-                        node.scroll,
-                        old->scroll,
-                        [](const auto &a, const auto &b)
-                        {
-                            return a.horizontalScrollable == b.horizontalScrollable && a.verticalScrollable == b.verticalScrollable &&
-                                   a.horizontalPercent == b.horizontalPercent && a.verticalPercent == b.verticalPercent &&
-                                   a.horizontalViewSize == b.horizontalViewSize && a.verticalViewSize == b.verticalViewSize;
-                        }))
+                if(!optionalEqual(
+                       node.scroll,
+                       old->scroll,
+                       [](const auto &a, const auto &b)
+                       {
+                           return a.horizontalScrollable == b.horizontalScrollable && a.verticalScrollable == b.verticalScrollable &&
+                                  a.horizontalPercent == b.horizontalPercent && a.verticalPercent == b.verticalPercent &&
+                                  a.horizontalViewSize == b.horizontalViewSize && a.verticalViewSize == b.verticalViewSize;
+                       }))
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Scroll);
                 }
 
-                if (node.states.flags != old->states.flags)
+                if(node.states.flags != old->states.flags)
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::State);
                 }
 
-                if (node.states.contains(A::State::Focused) && !old->states.contains(A::State::Focused))
+                if(node.states.contains(A::State::Focused) && !old->states.contains(A::State::Focused))
                 {
                     push(A::NotificationKind::FocusChanged, node.id);
                 }
 
-                if (node.states.contains(A::State::Selected) != old->states.contains(A::State::Selected) ||
-                    !optionalEqual(
-                        node.selection,
-                        old->selection,
-                        [](const auto &a, const auto &b)
-                        {
-                            return a.activeNode == b.activeNode && std::ranges::equal(a.selectedNodes, b.selectedNodes);
-                        }))
+                if(node.states.contains(A::State::Selected) != old->states.contains(A::State::Selected) ||
+                   !optionalEqual(
+                       node.selection,
+                       old->selection,
+                       [](const auto &a, const auto &b)
+                       {
+                           return a.activeNode == b.activeNode && std::ranges::equal(a.selectedNodes, b.selectedNodes);
+                       }))
                 {
                     push(A::NotificationKind::SelectionChanged, node.id);
                 }
 
-                if (node.text.has_value() != old->text.has_value() || (node.text && old->text && node.text->utf8 != old->text->utf8))
+                if(node.text.has_value() != old->text.has_value() || (node.text && old->text && node.text->utf8 != old->text->utf8))
                 {
                     push(A::NotificationKind::TextChanged, node.id);
                 }
 
-                if (node.text && old->text &&
-                    (node.text->caret != old->text->caret || !std::ranges::equal(
-                                                                 node.text->selection,
-                                                                 old->text->selection,
-                                                                 [](auto left, auto right)
-                                                                 {
-                                                                     return left.begin == right.begin && left.end == right.end;
-                                                                 })))
+                if(node.text && old->text &&
+                   (node.text->caret != old->text->caret || !std::ranges::equal(
+                                                                node.text->selection,
+                                                                old->text->selection,
+                                                                [](auto left, auto right)
+                                                                {
+                                                                    return left.begin == right.begin && left.end == right.end;
+                                                                })))
                 {
                     push(A::NotificationKind::SelectionChanged, node.id, A::PropertyKind::Text);
                 }
 
-                if (!optionalEqual(node.geometry, old->geometry, geometryEqual))
+                if(!optionalEqual(node.geometry, old->geometry, geometryEqual))
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Geometry);
                 }
 
-                if (node.exposure != old->exposure)
+                if(node.exposure != old->exposure)
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Exposure);
                 }
@@ -760,19 +759,19 @@ namespace GameWIP::Desktop::Accessibility
                                a.realizedChildCount == b.realizedChildCount && a.totalChildCount == b.totalChildCount;
                     });
 
-                if (node.actions.flags != old->actions.flags || node.helpText != old->helpText || node.language != old->language ||
-                    node.accessKey != old->accessKey || node.keyboardShortcut != old->keyboardShortcut || !relationsEqual || !textMetadataEqual ||
-                    !collectionEqual || !virtualizationEqual || node.selection.has_value() != old->selection.has_value() ||
-                    (node.selection && old->selection &&
-                     (node.selection->multiSelectable != old->selection->multiSelectable ||
-                      node.selection->selectionRequired != old->selection->selectionRequired ||
-                      node.selection->activeNode != old->selection->activeNode)))
+                if(node.actions.flags != old->actions.flags || node.helpText != old->helpText || node.language != old->language ||
+                   node.accessKey != old->accessKey || node.keyboardShortcut != old->keyboardShortcut || !relationsEqual || !textMetadataEqual ||
+                   !collectionEqual || !virtualizationEqual || node.selection.has_value() != old->selection.has_value() ||
+                   (node.selection && old->selection &&
+                    (node.selection->multiSelectable != old->selection->multiSelectable ||
+                     node.selection->selectionRequired != old->selection->selectionRequired ||
+                     node.selection->activeNode != old->selection->activeNode)))
                 {
                     push(A::NotificationKind::PropertyChanged, node.id, A::PropertyKind::Metadata);
                 }
             }
 
-            if (structure)
+            if(structure)
             {
                 push(A::NotificationKind::StructureChanged, after->storage.root);
             }
@@ -790,32 +789,32 @@ namespace GameWIP::Desktop::Accessibility
 
     IO::Types::Status Facade::enable(const A::Options &options) noexcept
     {
-        if (!window_->isOpen())
+        if(!window_->isOpen())
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if (!window_->ownedByCurrentThread())
+        if(!window_->ownedByCurrentThread())
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
 
-        if (!window_->supports(Types::Capability::Accessibility))
+        if(!window_->supports(Types::Capability::Accessibility))
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
 
-        if (enabled())
+        if(enabled())
         {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
         }
 
-        if (validate({}, options.limits).issue == A::ValidationIssue::InvalidLimits)
+        if(validate({}, options.limits).issue == A::ValidationIssue::InvalidLimits)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
-        if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+        if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
@@ -829,14 +828,14 @@ namespace GameWIP::Desktop::Accessibility
 
             auto &state = Detail::WindowAccess::accessibilityStateOwner(*window_);
 
-            if (!state)
+            if(!state)
             {
                 state.reset(new Detail::AccessibilityState());
             }
             auto *windowState = Detail::WindowAccess::state(*window_);
             auto status = Detail::Platform::enableAccessibility(*windowState, runtime);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -846,11 +845,11 @@ namespace GameWIP::Desktop::Accessibility
             Detail::publishAccessibilityGeometry(*windowState);
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
         }
@@ -860,17 +859,17 @@ namespace GameWIP::Desktop::Accessibility
     {
         const auto runtime = runtimeFor(window_);
 
-        if (!runtime || !runtime->live.load())
+        if(!runtime || !runtime->live.load())
         {
             return {};
         }
 
-        if (runtime->ownerThread != std::this_thread::get_id())
+        if(runtime->ownerThread != std::this_thread::get_id())
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
 
-        if (auto *state = Detail::WindowAccess::state(*window_))
+        if(auto *state = Detail::WindowAccess::state(*window_))
         {
             Detail::closeAccessibility(*state);
         }
@@ -897,18 +896,18 @@ namespace GameWIP::Desktop::Accessibility
     {
         const auto runtime = runtimeFor(window_);
 
-        if (!runtime || !runtime->live.load())
+        if(!runtime || !runtime->live.load())
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
         const auto validation = validate(snapshot, runtime->limits);
 
-        if (!validation.ok())
+        if(!validation.ok())
         {
             return validation.status;
         }
 
-        if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+        if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
@@ -922,13 +921,13 @@ namespace GameWIP::Desktop::Accessibility
             candidate->index.reserve(snapshot.nodes.size());
             candidate->textCache.resize(snapshot.nodes.size());
 
-            for (std::size_t i = 0; i < snapshot.nodes.size(); ++i)
+            for(std::size_t i = 0; i < snapshot.nodes.size(); ++i)
             {
                 candidate->storage.owned.push_back(std::make_shared<Detail::OwnedAccessibilityNode>(snapshot.nodes[i]));
                 candidate->storage.nodes.push_back(candidate->storage.owned.back()->node);
                 candidate->index.emplace_back(snapshot.nodes[i].id, i);
 
-                if (snapshot.nodes[i].states.contains(A::State::Focused))
+                if(snapshot.nodes[i].states.contains(A::State::Focused))
                 {
                     candidate->focusedNode = snapshot.nodes[i].id;
                 }
@@ -939,30 +938,30 @@ namespace GameWIP::Desktop::Accessibility
             auto *state = Detail::WindowAccess::accessibilityState(*window_);
             std::lock_guard publication(state->publicationMutex);
 
-            if (!runtime->live.load())
+            if(!runtime->live.load())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             }
 
-            if (snapshot.generation <= state->lastGeneration)
+            if(snapshot.generation <= state->lastGeneration)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
             const auto before = runtime->snapshot.load();
 
-            if (before && before->storage.root != snapshot.root)
+            if(before && before->storage.root != snapshot.root)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
 
             const auto status = Detail::Platform::prepareAccessibilitySnapshot(runtime, *candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
 
-            if (!runtime->live.load())
+            if(!runtime->live.load())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             }
@@ -973,11 +972,11 @@ namespace GameWIP::Desktop::Accessibility
             Detail::Platform::wakeAccessibility(*runtime);
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
         }
@@ -1003,7 +1002,7 @@ namespace GameWIP::Desktop::Accessibility
     {
         const auto reader = readSnapshot();
 
-        if (!reader.isValid())
+        if(!reader.isValid())
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
@@ -1011,22 +1010,22 @@ namespace GameWIP::Desktop::Accessibility
         SnapshotBuilder copy(destination.limits());
         auto status = copy.setGeneration(reader.info().generation);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
         status = copy.setRoot(reader.info().root);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        for (const auto &node : reader.view().nodes)
+        for(const auto &node : reader.view().nodes)
         {
             status = copy.addNode(node);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -1043,13 +1042,13 @@ namespace GameWIP::Desktop::Accessibility
     {
         const auto runtime = runtimeFor(window_);
 
-        if (!runtime || runtime->ownerThread != std::this_thread::get_id())
+        if(!runtime || runtime->ownerThread != std::this_thread::get_id())
         {
             return false;
         }
         std::lock_guard lock(runtime->actionMutex);
 
-        if (!runtime->live.load() || runtime->actionCount == 0)
+        if(!runtime->live.load() || runtime->actionCount == 0)
         {
             return false;
         }
@@ -1065,7 +1064,7 @@ namespace GameWIP::Desktop::Accessibility
     {
         const auto runtime = runtimeFor(window_);
 
-        if (!runtime)
+        if(!runtime)
         {
             return {};
         }
@@ -1093,37 +1092,37 @@ namespace GameWIP::Desktop::Accessibility
     {
         const auto runtime = runtimeFor(window_);
 
-        if (!runtime || !runtime->live.load())
+        if(!runtime || !runtime->live.load())
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if (!runtime->features.supports(A::Feature::Announcements))
+        if(!runtime->features.supports(A::Feature::Announcements))
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
 
-        if (announcement.priority > A::AnnouncementPriority::High ||
-            announcement.text.size() + announcement.language.size() > runtime->limits.maximumAnnouncementBytes)
+        if(announcement.priority > A::AnnouncementPriority::High ||
+           announcement.text.size() + announcement.language.size() > runtime->limits.maximumAnnouncementBytes)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
-        if (Unicode::Utf8::validate(announcement.text).outcome != Unicode::Types::ValidationOutcome::Valid ||
-            Unicode::Utf8::validate(announcement.language).outcome != Unicode::Types::ValidationOutcome::Valid)
+        if(Unicode::Utf8::validate(announcement.text).outcome != Unicode::Types::ValidationOutcome::Valid ||
+           Unicode::Utf8::validate(announcement.language).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed);
         }
         const auto snapshot = runtime->snapshot.load();
         const auto id = announcement.node != 0 ? announcement.node : snapshot ? snapshot->storage.root : 0;
 
-        if (!snapshot || !snapshot->find(id))
+        if(!snapshot || !snapshot->find(id))
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
-        if (!announcement.language.empty() && announcement.language != snapshot->find(id)->language &&
-            !runtime->features.supports(A::Feature::AnnouncementLanguage))
+        if(!announcement.language.empty() && announcement.language != snapshot->find(id)->language &&
+           !runtime->features.supports(A::Feature::AnnouncementLanguage))
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
@@ -1137,12 +1136,12 @@ namespace GameWIP::Desktop::Accessibility
                 announcement.priority};
             std::lock_guard lock(runtime->notificationMutex);
 
-            if (!runtime->live.load())
+            if(!runtime->live.load())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             }
 
-            if (runtime->notificationCount == runtime->notifications.size())
+            if(runtime->notificationCount == runtime->notifications.size())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
@@ -1150,7 +1149,7 @@ namespace GameWIP::Desktop::Accessibility
             Detail::Platform::wakeAccessibility(*runtime);
             return {};
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }

@@ -45,7 +45,7 @@ namespace
     {
         using GameWIP::Desktop::Types::Display::ColorSpace;
 
-        switch (colorSpace)
+        switch(colorSpace)
         {
         case ColorSpace::Srgb:
             return "sRGB/SDR";
@@ -76,11 +76,11 @@ namespace
 #endif
             monitors = GameWIP::Desktop::Display::getMonitors();
 
-            if (monitors.ok())
+            if(monitors.ok())
             {
                 GameWIP::Logger::info("Startup", "Enumerated {} connected display(s)", monitors->size());
 
-                for (const GameWIP::Desktop::Types::Display::Info &monitor : *monitors)
+                for(const GameWIP::Desktop::Types::Display::Info &monitor : *monitors)
                 {
                     const auto activeMode = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
                     const auto supportedModes = GameWIP::Desktop::Display::getModes(monitor.id);
@@ -95,7 +95,7 @@ namespace
                         monitor.bounds.position.x,
                         monitor.bounds.position.y);
 
-                    if (supportedModes.ok())
+                    if(supportedModes.ok())
                     {
                         std::format_to(std::back_inserter(displayReport), " has {} supported mode(s)", supportedModes->size());
                     }
@@ -104,7 +104,7 @@ namespace
                         std::format_to(std::back_inserter(displayReport), "\n  mode query failed: {}", supportedModes.status.message);
                     }
 
-                    if (activeMode.ok())
+                    if(activeMode.ok())
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
@@ -117,7 +117,7 @@ namespace
                             activeMode->interlaced ? ", interlaced" : "");
                     }
 
-                    if (colorInfo.ok())
+                    if(colorInfo.ok())
                     {
                         std::format_to(
                             std::back_inserter(displayReport),
@@ -138,9 +138,9 @@ namespace
                         std::format_to(std::back_inserter(displayReport), "\n  HDR/color query failed: {}", colorInfo.status.message);
                     }
 
-                    if (supportedModes.ok())
+                    if(supportedModes.ok())
                     {
-                        for (const auto &mode : *supportedModes)
+                        for(const auto &mode : *supportedModes)
                         {
                             std::format_to(
                                 std::back_inserter(displayReport),
@@ -182,7 +182,7 @@ namespace
 
     [[nodiscard]] bool pumpRuntimeEvents(GameWIP::Desktop::Window &window)
     {
-        while (!window.hasCloseRequest())
+        while(!window.hasCloseRequest())
         {
 #if GAMEWIP_TRACY_ENABLED
             ZoneScopedNC("Game frame", ProfileZoneColor::Frame);
@@ -195,7 +195,7 @@ namespace
                 events = GameWIP::Desktop::Events::wait(std::chrono::milliseconds(16));
             }
 
-            if (!events.status.ok())
+            if(!events.status.ok())
             {
 #if GAMEWIP_TRACY_ENABLED
                 TracyMessage(events.status.message.c_str(), events.status.message.size());
@@ -240,7 +240,7 @@ namespace
 
         const GameWIP::IO::Types::Status shutdownStatus = GameWIP::Logger::shutdown();
 
-        if (primaryExitCode == EXIT_SUCCESS && !shutdownStatus.ok())
+        if(primaryExitCode == EXIT_SUCCESS && !shutdownStatus.ok())
         {
             std::fputs("GameWIP: Logger shutdown failed.\n", stderr);
             return EXIT_FAILURE;
@@ -261,7 +261,7 @@ namespace GameWIP::Game
         // Initialize logging first so every later startup failure has a diagnostic sink.
         const Logger::Types::Init::Result loggerInit = initializeLogger();
 
-        if (!loggerInit.status.ok() || loggerInit.outcome != Logger::Types::Init::Outcome::Started)
+        if(!loggerInit.status.ok() || loggerInit.outcome != Logger::Types::Init::Outcome::Started)
         {
             std::fputs("GameWIP: Logger initialization failed.\n", stderr);
             return EXIT_FAILURE;
@@ -272,7 +272,7 @@ namespace GameWIP::Game
         // Display inspection must precede window creation so it logs the pre-fullscreen topology.
         const auto monitors = inspectDisplays();
 
-        if (!monitors.ok())
+        if(!monitors.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(monitors.status.message.c_str(), monitors.status.message.size());
@@ -288,7 +288,7 @@ namespace GameWIP::Game
 #endif
         const IO::Types::Status inputOpenStatus = input.open();
 
-        if (!inputOpenStatus.ok())
+        if(!inputOpenStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(inputOpenStatus.message.c_str(), inputOpenStatus.message.size());
@@ -300,7 +300,7 @@ namespace GameWIP::Game
         Desktop::Window window;
         const IO::Types::Status openStatus = openRuntimeWindow(window);
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(openStatus.message.c_str(), openStatus.message.size());
@@ -316,7 +316,7 @@ namespace GameWIP::Game
 #if defined(_WIN32)
         const IO::Types::Status inputAttachStatus = Input::Platform::Win32::attachToWindow(input, inputAttachment, window);
 
-        if (!inputAttachStatus.ok())
+        if(!inputAttachStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(inputAttachStatus.message.c_str(), inputAttachStatus.message.size());
@@ -329,7 +329,7 @@ namespace GameWIP::Game
 
         Logger::info("Startup", "Borderless fullscreen window is active; press Alt+F4 to exit");
 
-        if (!pumpRuntimeEvents(window))
+        if(!pumpRuntimeEvents(window))
         {
             return finishRuntime(EXIT_FAILURE);
         }
@@ -337,7 +337,7 @@ namespace GameWIP::Game
         // Close before logger shutdown so the final lifecycle result is recorded.
         const IO::Types::Status closeStatus = closeRuntimeWindow(window);
 
-        if (!closeStatus.ok())
+        if(!closeStatus.ok())
         {
 #if GAMEWIP_TRACY_ENABLED
             TracyMessage(closeStatus.message.c_str(), closeStatus.message.size());

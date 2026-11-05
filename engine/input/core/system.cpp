@@ -21,7 +21,7 @@ namespace GameWIP::Input
 
         template <typename State> [[nodiscard]] IO::Types::Status requireOwner(const State &state) noexcept
         {
-            if (!state.open)
+            if(!state.open)
             {
                 return IO::successStatus();
             }
@@ -30,7 +30,7 @@ namespace GameWIP::Input
 
         template <typename State> [[nodiscard]] IO::Types::Status requireOpenOwner(const State &state) noexcept
         {
-            if (!state.open)
+            if(!state.open)
             {
                 return status(IO::Types::ErrorCode::NotOpen);
             }
@@ -44,7 +44,7 @@ namespace GameWIP::Input
     // ------------------------------------------------------------
     void System::Impl::appendEvent(Types::Event event) noexcept
     {
-        if (pendingEvents.size() >= configuration.eventCapacity)
+        if(pendingEvents.size() >= configuration.eventCapacity)
         {
             ++pendingDroppedEvents;
             ++health.totalDroppedEvents;
@@ -52,7 +52,7 @@ namespace GameWIP::Input
             return;
         }
 
-        if (event.timestamp.receivedAt == Types::Clock::time_point{})
+        if(event.timestamp.receivedAt == Types::Clock::time_point{})
         {
             event.timestamp.receivedAt = Types::Clock::now();
         }
@@ -62,7 +62,7 @@ namespace GameWIP::Input
         {
             pendingEvents.push_back(std::move(event));
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             ++pendingDroppedEvents;
             ++health.totalDroppedEvents;
@@ -72,9 +72,9 @@ namespace GameWIP::Input
 
     std::size_t System::Impl::findDeviceIndex(Types::DeviceId id) const noexcept
     {
-        for (std::size_t index = 0; index < devices.size(); ++index)
+        for(std::size_t index = 0; index < devices.size(); ++index)
         {
-            if (devices[index].id == id)
+            if(devices[index].id == id)
             {
                 return index;
             }
@@ -85,15 +85,15 @@ namespace GameWIP::Input
     std::pair<std::size_t, std::size_t> System::Impl::findElementIndex(Types::ElementId id) const noexcept
     {
         const std::size_t deviceIndex = findDeviceIndex(id.device);
-        if (deviceIndex == devices.size())
+        if(deviceIndex == devices.size())
         {
             return {devices.size(), 0};
         }
 
         const auto &elements = devices[deviceIndex].elements;
-        for (std::size_t elementIndex = 0; elementIndex < elements.size(); ++elementIndex)
+        for(std::size_t elementIndex = 0; elementIndex < elements.size(); ++elementIndex)
         {
-            if (elements[elementIndex].id == id)
+            if(elements[elementIndex].id == id)
             {
                 return {deviceIndex, elementIndex};
             }
@@ -103,7 +103,7 @@ namespace GameWIP::Input
 
     std::size_t System::Impl::findStateIndex(Types::ElementId id) const noexcept
     {
-        if (!id.isValid() || id.device.instance != instance || id.slot == 0)
+        if(!id.isValid() || id.device.instance != instance || id.slot == 0)
         {
             return states.size();
         }
@@ -134,7 +134,7 @@ namespace GameWIP::Input
 
     System::~System() noexcept
     {
-        if (impl_ != nullptr)
+        if(impl_ != nullptr)
         {
             (void)close();
         }
@@ -142,17 +142,17 @@ namespace GameWIP::Input
 
     IO::Types::Status System::open(const Types::Configuration &configuration) noexcept
     {
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
-        if (impl_->open)
+        if(impl_->open)
         {
             return impl_->ownerThread == std::this_thread::get_id() ? status(IO::Types::ErrorCode::AlreadyOpen)
                                                                     : status(IO::Types::ErrorCode::ResourceBusy);
         }
-        if (configuration.eventCapacity == 0 || configuration.maximumPendingTextBytes == 0 ||
-            (configuration.captureRawReports && (configuration.rawReportCapacity == 0 || configuration.maximumRawReportBytes == 0)))
+        if(configuration.eventCapacity == 0 || configuration.maximumPendingTextBytes == 0 ||
+           (configuration.captureRawReports && (configuration.rawReportCapacity == 0 || configuration.maximumRawReportBytes == 0)))
         {
             return status(IO::Types::ErrorCode::InvalidArgument);
         }
@@ -163,7 +163,7 @@ namespace GameWIP::Input
             impl_->configuration = configuration;
             impl_->ownerThread = std::this_thread::get_id();
             impl_->instance = nextSystemInstance.fetch_add(1, std::memory_order_relaxed);
-            if (impl_->instance == 0)
+            if(impl_->instance == 0)
             {
                 impl_->instance = nextSystemInstance.fetch_add(1, std::memory_order_relaxed);
             }
@@ -182,11 +182,11 @@ namespace GameWIP::Input
             impl_->pendingRawReports.clear();
             impl_->pendingTextUtf8.clear();
             impl_->pendingEvents.reserve(configuration.eventCapacity);
-            if (configuration.captureRawReports)
+            if(configuration.captureRawReports)
             {
                 impl_->pendingRawReports.reserve(configuration.rawReportCapacity);
             }
-            if (configuration.enableText)
+            if(configuration.enableText)
             {
                 impl_->pendingTextUtf8.reserve(configuration.maximumPendingTextBytes);
             }
@@ -196,7 +196,7 @@ namespace GameWIP::Input
             impl_->open = true;
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             impl_->open = false;
             return status(IO::Types::ErrorCode::OutOfMemory);
@@ -205,21 +205,21 @@ namespace GameWIP::Input
 
     IO::Types::Status System::close() noexcept
     {
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
-        if (!impl_->open)
+        if(!impl_->open)
         {
             return IO::successStatus();
         }
         const IO::Types::Status ownerStatus = requireOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
 
-        if (impl_->nativeClose != nullptr)
+        if(impl_->nativeClose != nullptr)
         {
             impl_->nativeClose(*impl_, impl_->nativeContext);
         }
@@ -251,20 +251,20 @@ namespace GameWIP::Input
     Types::CaptureResult System::capture(Types::Frame &destination) noexcept
     {
         Types::CaptureResult result{};
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             result.status = status(IO::Types::ErrorCode::OutOfMemory);
             return result;
         }
 
         const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             result.status = ownerStatus;
             return result;
         }
 
-        if (impl_->nativeBeforeCapture != nullptr)
+        if(impl_->nativeBeforeCapture != nullptr)
         {
             impl_->nativeBeforeCapture(*impl_, impl_->nativeContext);
         }
@@ -273,12 +273,12 @@ namespace GameWIP::Input
         {
             impl_->pendingEvents.reserve(impl_->configuration.eventCapacity);
             destination.events_.reserve(impl_->configuration.eventCapacity);
-            if (impl_->configuration.captureRawReports)
+            if(impl_->configuration.captureRawReports)
             {
                 impl_->pendingRawReports.reserve(impl_->configuration.rawReportCapacity);
                 destination.rawReports_.reserve(impl_->configuration.rawReportCapacity);
             }
-            if (impl_->textEnabled)
+            if(impl_->textEnabled)
             {
                 impl_->pendingTextUtf8.reserve(impl_->configuration.maximumPendingTextBytes);
                 destination.textUtf8_.reserve(impl_->configuration.maximumPendingTextBytes);
@@ -297,14 +297,14 @@ namespace GameWIP::Input
             impl_->pendingEvents.clear();
             impl_->pendingRawReports.clear();
             impl_->pendingTextUtf8.clear();
-            if (impl_->nativeAfterCapture != nullptr)
+            if(impl_->nativeAfterCapture != nullptr)
             {
                 impl_->nativeAfterCapture(*impl_, impl_->nativeContext);
             }
-            for (Types::ElementState &state : impl_->states)
+            for(Types::ElementState &state : impl_->states)
             {
                 const Types::ElementInfo *info = impl_->findElement(state.id);
-                if (info != nullptr && info->reporting == Types::ReportingMode::Relative)
+                if(info != nullptr && info->reporting == Types::ReportingMode::Relative)
                 {
                     state.value = Internal::zeroValue(info->kind);
                 }
@@ -322,7 +322,7 @@ namespace GameWIP::Input
             result.discontinuity = destination.discontinuity();
             return result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = status(IO::Types::ErrorCode::OutOfMemory);
             return result;
@@ -335,12 +335,12 @@ namespace GameWIP::Input
     IO::Types::Status System::devices(std::span<const Types::DeviceInfo> &outDevices) const noexcept
     {
         outDevices = {};
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
         const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
@@ -351,22 +351,22 @@ namespace GameWIP::Input
     IO::Types::Status System::findDevice(Types::DeviceId id, const Types::DeviceInfo *&outInfo) const noexcept
     {
         outInfo = nullptr;
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
         const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
-        if (!id.isValid())
+        if(!id.isValid())
         {
             return status(IO::Types::ErrorCode::InvalidArgument);
         }
 
         const std::size_t index = impl_->findDeviceIndex(id);
-        if (index == impl_->devices.size())
+        if(index == impl_->devices.size())
         {
             return status(IO::Types::ErrorCode::NotFound);
         }
@@ -377,16 +377,16 @@ namespace GameWIP::Input
     IO::Types::Status System::findElement(Types::ElementId id, const Types::ElementInfo *&outInfo) const noexcept
     {
         outInfo = nullptr;
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
         const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
-        if (!id.isValid())
+        if(!id.isValid())
         {
             return status(IO::Types::ErrorCode::InvalidArgument);
         }
@@ -397,12 +397,12 @@ namespace GameWIP::Input
 
     IO::Types::Status System::health(Types::Health &outHealth) const noexcept
     {
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
         const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
@@ -414,7 +414,7 @@ namespace GameWIP::Input
     {
         const Types::DeviceInfo *source = nullptr;
         const IO::Types::Status findStatus = findDevice(id, source);
-        if (!findStatus.ok())
+        if(!findStatus.ok())
         {
             return findStatus;
         }
@@ -424,7 +424,7 @@ namespace GameWIP::Input
             outInfo = *source;
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
@@ -435,16 +435,16 @@ namespace GameWIP::Input
     // ------------------------------------------------------------
     IO::Types::Status System::setTextEnabled(bool enabled) noexcept
     {
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
         const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
-        if (!enabled)
+        if(!enabled)
         {
             impl_->textEnabled = false;
             return IO::successStatus();
@@ -456,7 +456,7 @@ namespace GameWIP::Input
             impl_->textEnabled = true;
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
@@ -464,33 +464,33 @@ namespace GameWIP::Input
 
     IO::Types::Status System::setMaximumPendingTextBytes(std::size_t maximumBytes) noexcept
     {
-        if (impl_ == nullptr)
+        if(impl_ == nullptr)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }
         const IO::Types::Status ownerStatus = requireOpenOwner(*impl_);
-        if (!ownerStatus.ok())
+        if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
-        if (maximumBytes == 0)
+        if(maximumBytes == 0)
         {
             return status(IO::Types::ErrorCode::InvalidArgument);
         }
-        if (impl_->pendingTextUtf8.size() > maximumBytes)
+        if(impl_->pendingTextUtf8.size() > maximumBytes)
         {
             return status(IO::Types::ErrorCode::SizeLimitExceeded);
         }
         try
         {
-            if (impl_->textEnabled)
+            if(impl_->textEnabled)
             {
                 impl_->pendingTextUtf8.reserve(maximumBytes);
             }
             impl_->configuration.maximumPendingTextBytes = maximumBytes;
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return status(IO::Types::ErrorCode::OutOfMemory);
         }

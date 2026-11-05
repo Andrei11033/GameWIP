@@ -45,7 +45,7 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears FIFO and movement indexes before releasing event storage.
         void clearRetainedEvents() noexcept
         {
-            for (std::size_t slot = eventHead; slot != noSlot; slot = queueNext[slot])
+            for(std::size_t slot = eventHead; slot != noSlot; slot = queueNext[slot])
             {
                 eventStorage[slot] = {};
             }

@@ -30,19 +30,19 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const DPI_AWARENESS_CONTEXT context = GetThreadDpiAwarenessContext();
 
-            if (context == nullptr || AreDpiAwarenessContextsEqual(context, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == FALSE)
+            if(context == nullptr || AreDpiAwarenessContextsEqual(context, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) == FALSE)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "Window requires a Per-Monitor-V2-aware executable manifest");
             }
             const auto capabilitiesResult = getCapabilities();
             const Types::Capabilities capabilities = capabilitiesResult.value_or({});
 
-            if (description.transparentFramebuffer && !capabilities.supports(Types::Capability::TransparentFramebuffer))
+            if(description.transparentFramebuffer && !capabilities.supports(Types::Capability::TransparentFramebuffer))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "transparentFramebuffer requires Windows 11 build 26100 or newer");
             }
 
-            if (description.backdropEffect != Types::BackdropEffect::None && !capabilities.supports(Types::Capability::SystemBackdrop))
+            if(description.backdropEffect != Types::BackdropEffect::None && !capabilities.supports(Types::Capability::SystemBackdrop))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "system backdrop effects require Windows 11 build 22621 or newer");
             }
@@ -53,14 +53,14 @@ namespace GameWIP::Desktop::Detail::Platform
             data->ownerThreadId = GetCurrentThreadId();
             data->windowedPlacement.length = sizeof(WINDOWPLACEMENT);
 
-            if (data->instance == nullptr)
+            if(data->instance == nullptr)
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "GetModuleHandleW");
             }
 
             IO::Types::Status status = acquireWindowClass(data->instance);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -70,7 +70,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::optional<Types::Display::MonitorId> requestedModeMonitor = std::visit(
                 [](const auto &request) -> std::optional<Types::Display::MonitorId>
                 {
-                    if constexpr (requires { request.targetMonitor; })
+                    if constexpr(requires { request.targetMonitor; })
                     {
                         return request.targetMonitor;
                     }
@@ -81,18 +81,18 @@ namespace GameWIP::Desktop::Detail::Platform
                 },
                 description.initialWindowMode);
 
-            if ((description.windowed.placement.monitor && nativeMonitor(*description.windowed.placement.monitor) == nullptr) ||
-                (requestedModeMonitor && nativeMonitor(*requestedModeMonitor) == nullptr))
+            if((description.windowed.placement.monitor && nativeMonitor(*description.windowed.placement.monitor) == nullptr) ||
+               (requestedModeMonitor && nativeMonitor(*requestedModeMonitor) == nullptr))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
 
-            if (wakeMessage() == 0)
+            if(wakeMessage() == 0)
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, wakeMessageError(), "RegisterWindowMessageW wake");
             }
 
-            if (Detail::consumeFailure(TestHooks::FailurePoint::Dispatcher))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::Dispatcher))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
@@ -101,12 +101,12 @@ namespace GameWIP::Desktop::Detail::Platform
 
             DWORD nativeCode = ERROR_SUCCESS;
 
-            if (Detail::consumeFailure(TestHooks::FailurePoint::TitleConversion))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::TitleConversion))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed);
             }
 
-            if (!utf8ToUtf16(description.title, state.platform->utf16Scratch, nativeCode))
+            if(!utf8ToUtf16(description.title, state.platform->utf16Scratch, nativeCode))
             {
                 return statusFromWin32(
                     unicodeConversionError(nativeCode, IO::Types::ErrorCode::InvalidArgument),
@@ -116,11 +116,11 @@ namespace GameWIP::Desktop::Detail::Platform
 
             HWND ownerHandle = nullptr;
 
-            if (description.owner)
+            if(description.owner)
             {
                 WindowState *owner = resolveWindowId(*description.owner);
 
-                if (owner == nullptr || !owner->platform || owner->platform->ownerThreadId != state.platform->ownerThreadId)
+                if(owner == nullptr || !owner->platform || owner->platform->ownerThreadId != state.platform->ownerThreadId)
                 {
                     return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
                 }
@@ -130,9 +130,9 @@ namespace GameWIP::Desktop::Detail::Platform
             const UINT dpi = dpiForWindow(nullptr);
             const Types::PixelSize physicalClient = logicalToPhysicalSize(description.windowed.clientSize, dpi);
 
-            if (physicalClient.width == 0 || physicalClient.height == 0 ||
-                physicalClient.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
-                physicalClient.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
+            if(physicalClient.width == 0 || physicalClient.height == 0 ||
+               physicalClient.width > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()) ||
+               physicalClient.height > static_cast<std::uint32_t>(std::numeric_limits<LONG>::max()))
             {
                 return IO::makeStatus(
                     IO::Types::ErrorCode::InvalidArgument,
@@ -143,14 +143,14 @@ namespace GameWIP::Desktop::Detail::Platform
             const DWORD style = styleFor(state);
             const DWORD extendedStyle = extendedStyleFor(state);
 
-            if (AdjustWindowRectExForDpi(&outer, style, FALSE, extendedStyle, dpi) == FALSE)
+            if(AdjustWindowRectExForDpi(&outer, style, FALSE, extendedStyle, dpi) == FALSE)
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "AdjustWindowRectExForDpi create");
             }
             const std::int64_t outerWidth = static_cast<std::int64_t>(outer.right) - outer.left;
             const std::int64_t outerHeight = static_cast<std::int64_t>(outer.bottom) - outer.top;
 
-            if (outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() || outerHeight <= 0 || outerHeight > std::numeric_limits<int>::max())
+            if(outerWidth <= 0 || outerWidth > std::numeric_limits<int>::max() || outerHeight <= 0 || outerHeight > std::numeric_limits<int>::max())
             {
                 return IO::makeStatus(
                     IO::Types::ErrorCode::InvalidArgument,
@@ -161,13 +161,13 @@ namespace GameWIP::Desktop::Detail::Platform
             int x = CW_USEDEFAULT;
             int y = CW_USEDEFAULT;
 
-            if (description.windowed.placement.kind == Types::PlacementKind::Explicit)
+            if(description.windowed.placement.kind == Types::PlacementKind::Explicit)
             {
                 const std::int64_t wideX = static_cast<std::int64_t>(description.windowed.placement.position.x) + outer.left;
                 const std::int64_t wideY = static_cast<std::int64_t>(description.windowed.placement.position.y) + outer.top;
 
-                if (wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() || wideY < std::numeric_limits<int>::min() ||
-                    wideY > std::numeric_limits<int>::max())
+                if(wideX < std::numeric_limits<int>::min() || wideX > std::numeric_limits<int>::max() || wideY < std::numeric_limits<int>::min() ||
+                   wideY > std::numeric_limits<int>::max())
                 {
                     return IO::makeStatus(
                         IO::Types::ErrorCode::InvalidArgument,
@@ -177,19 +177,19 @@ namespace GameWIP::Desktop::Detail::Platform
                 x = static_cast<int>(wideX);
                 y = static_cast<int>(wideY);
             }
-            else if (description.windowed.placement.kind == Types::PlacementKind::Centered)
+            else if(description.windowed.placement.kind == Types::PlacementKind::Centered)
             {
                 HMONITOR monitor = description.windowed.placement.monitor ? nativeMonitor(*description.windowed.placement.monitor)
                                                                           : MonitorFromPoint(POINT{0, 0}, MONITOR_DEFAULTTOPRIMARY);
                 MONITORINFO info{};
                 info.cbSize = sizeof(info);
 
-                if (monitor == nullptr)
+                if(monitor == nullptr)
                 {
                     return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, ERROR_NOT_FOUND, "resolve centered monitor");
                 }
 
-                if (GetMonitorInfoW(monitor, &info) == FALSE)
+                if(GetMonitorInfoW(monitor, &info) == FALSE)
                 {
                     const DWORD error = GetLastError();
                     return statusFromWin32(IO::Types::ErrorCode::InvalidArgument, error, "resolve centered monitor");
@@ -200,7 +200,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 y = info.rcWork.top + (info.rcWork.bottom - info.rcWork.top - height) / 2;
             }
 
-            if (Detail::consumeFailure(TestHooks::FailurePoint::NativeCreation))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::NativeCreation))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
@@ -219,7 +219,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 state.platform->instance,
                 &state);
 
-            if (handle == nullptr)
+            if(handle == nullptr)
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "CreateWindowExW");
             }
@@ -230,7 +230,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             registerWindowId(state);
 
-            if (Detail::consumeFailure(TestHooks::FailurePoint::PartialOpen))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::PartialOpen))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             }
@@ -238,14 +238,14 @@ namespace GameWIP::Desktop::Detail::Platform
             state.platform->windowedExtendedStyle = extendedStyle;
             state.platform->cursor = loadCursor(state.cursorShape);
 
-            if (state.platform->cursor == nullptr)
+            if(state.platform->cursor == nullptr)
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "LoadCursorW");
             }
 
             status = refreshCachedGeometry(state);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -259,27 +259,27 @@ namespace GameWIP::Desktop::Detail::Platform
                          ? setClientRect(state, description.windowed.placement.position, description.windowed.clientSize)
                          : setClientSize(state, description.windowed.clientSize);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
 
-            if (description.windowed.placement.kind == Types::PlacementKind::Centered)
+            if(description.windowed.placement.kind == Types::PlacementKind::Centered)
             {
                 status = centerOn(state, description.windowed.placement.monitor.value_or(Types::Display::MonitorId{}));
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
             }
 
-            if (state.transparentFramebuffer)
+            if(state.transparentFramebuffer)
             {
                 const BOOL enabled = TRUE;
                 const HRESULT result = DwmSetWindowAttribute(state.platform->handle, Compat::kRedirectionBitmapAlpha, &enabled, sizeof(enabled));
 
-                if (FAILED(result))
+                if(FAILED(result))
                 {
                     return IO::makeStatus(IO::Types::ErrorCode::Unsupported, result);
                 }
@@ -287,38 +287,38 @@ namespace GameWIP::Desktop::Detail::Platform
 
             status = setFileDropEnabled(state, description.fileDropEnabled);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             status = setOpacity(state, description.opacity);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             status = setBackdropEffect(state, description.backdropEffect);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             status = setWindowMode(state, description.initialWindowMode);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             status = applyCursorState(state);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
 
             int showCommand = SW_HIDE;
 
-            if (description.activation.visible)
+            if(description.activation.visible)
             {
                 showCommand = description.presentation == Types::PresentationState::Minimized           ? SW_SHOWMINIMIZED
                               : description.presentation == Types::PresentationState::Maximized         ? SW_SHOWMAXIMIZED
@@ -331,30 +331,30 @@ namespace GameWIP::Desktop::Detail::Platform
                                  : IsZoomed(state.platform->handle) ? Types::PresentationState::Maximized
                                                                     : Types::PresentationState::Normal;
 
-            if (state.presentationPublication != nullptr)
+            if(state.presentationPublication != nullptr)
             {
                 state.presentationPublication->publishVisible(state.visible);
                 state.presentationPublication->publishPresentationState(state.presentation);
             }
 
-            if (description.activation.requestFocus && description.activation.focusable && description.activation.visible)
+            if(description.activation.requestFocus && description.activation.focusable && description.activation.visible)
             {
                 static_cast<void>(requestFocus(state));
             }
             status = refreshCachedGeometry(state);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             state.suppressEvents = true;
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
         }
@@ -363,29 +363,29 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Closes a Window on its owner thread and reports whether native ownership ended.
     CloseResult close(WindowState &state) noexcept
     {
-        if (!state.platform)
+        if(!state.platform)
         {
             return {IO::successStatus(), true};
         }
 
-        if (state.platform->ownerThreadId != GetCurrentThreadId())
+        if(state.platform->ownerThreadId != GetCurrentThreadId())
         {
             return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
         }
 
-        if (Detail::consumeFailure(TestHooks::FailurePoint::Close))
+        if(Detail::consumeFailure(TestHooks::FailurePoint::Close))
         {
             return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
         }
 
         IO::Types::Status status = leaveExclusive(state);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return {std::move(status), false};
         }
 
-        if (state.platform->cursorClipApplied && ClipCursor(nullptr) == FALSE)
+        if(state.platform->cursorClipApplied && ClipCursor(nullptr) == FALSE)
         {
             return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "release cursor confinement"), false};
         }
@@ -395,15 +395,15 @@ namespace GameWIP::Desktop::Detail::Platform
         state.platform->destroying = true;
         status = notifyProgressOwnerLoss(state);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             state.platform->destroying = false;
 
-            if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
+            if(state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
             {
                 EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
 
-                if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
+                if(IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
                     return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false};
                 }
@@ -412,15 +412,15 @@ namespace GameWIP::Desktop::Detail::Platform
             return {std::move(status), false};
         }
 
-        if (!windowClosingDragDrop(state))
+        if(!windowClosingDragDrop(state))
         {
             state.platform->destroying = false;
 
-            if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
+            if(state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
             {
                 EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
 
-                if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
+                if(IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
                     return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false};
                 }
@@ -429,16 +429,16 @@ namespace GameWIP::Desktop::Detail::Platform
             return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
         }
 
-        if (handle != nullptr && DestroyWindow(handle) == FALSE)
+        if(handle != nullptr && DestroyWindow(handle) == FALSE)
         {
             const DWORD nativeCode = GetLastError();
             state.platform->destroying = false;
 
-            if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
+            if(state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE && !windowHasBlockingProgressDialog(state))
             {
                 EnableWindow(state.platform->handle, state.interactionEnabled ? TRUE : FALSE);
 
-                if (IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
+                if(IsWindowEnabled(state.platform->handle) != (state.interactionEnabled ? TRUE : FALSE))
                 {
                     return {statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_FUNCTION_FAILED, "EnableWindow close rollback"), false};
                 }
@@ -447,12 +447,12 @@ namespace GameWIP::Desktop::Detail::Platform
             return {statusFromWin32(IO::Types::ErrorCode::CloseFailed, nativeCode, "DestroyWindow"), false};
         }
 
-        if (state.platform->largeIcon != nullptr)
+        if(state.platform->largeIcon != nullptr)
         {
             DestroyIcon(state.platform->largeIcon);
         }
 
-        if (state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
+        if(state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
         {
             DestroyIcon(state.platform->smallIcon);
         }
@@ -463,7 +463,7 @@ namespace GameWIP::Desktop::Detail::Platform
         unregisterOpenState(state);
         IO::Types::Status classStatus = IO::successStatus();
 
-        if (state.platform->classReferenceHeld)
+        if(state.platform->classReferenceHeld)
         {
             classStatus = releaseWindowClass();
             state.platform->classReferenceHeld = false;
@@ -476,34 +476,34 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Performs best-effort Window teardown for normal and dispatcher-exit paths.
     void closeBestEffort(WindowState &state) noexcept
     {
-        if (!state.platform)
+        if(!state.platform)
         {
             return;
         }
 
-        if (state.platform->ownerThreadId != GetCurrentThreadId())
+        if(state.platform->ownerThreadId != GetCurrentThreadId())
         {
             // Normal wrong-thread destruction transfers ownership through
             // deferCleanupToOwner(). Reaching this fallback means the owner dispatcher has
             // already exited; its destructor has therefore destroyed the HWND and restored
             // exclusive state. Finish only non-thread-affine bookkeeping.
-            if (state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE)
+            if(state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE)
             {
                 return;
             }
             unregisterWindowId(state);
 
-            if (state.platform->largeIcon != nullptr)
+            if(state.platform->largeIcon != nullptr)
             {
                 DestroyIcon(state.platform->largeIcon);
             }
 
-            if (state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
+            if(state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
             {
                 DestroyIcon(state.platform->smallIcon);
             }
 
-            if (state.platform->classReferenceHeld)
+            if(state.platform->classReferenceHeld)
             {
                 static_cast<void>(releaseWindowClass());
             }
@@ -513,32 +513,32 @@ namespace GameWIP::Desktop::Detail::Platform
 
         static_cast<void>(leaveExclusive(state));
 
-        if (state.platform->cursorClipApplied)
+        if(state.platform->cursorClipApplied)
         {
             static_cast<void>(ClipCursor(nullptr));
         }
         state.platform->destroying = true;
         notifyProgressOwnerLossBestEffort(state);
 
-        if (state.platform->handle != nullptr)
+        if(state.platform->handle != nullptr)
         {
             static_cast<void>(windowClosingDragDrop(state));
             static_cast<void>(DestroyWindow(state.platform->handle));
         }
 
-        if (state.platform->largeIcon != nullptr)
+        if(state.platform->largeIcon != nullptr)
         {
             DestroyIcon(state.platform->largeIcon);
         }
 
-        if (state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
+        if(state.platform->smallIcon != nullptr && state.platform->smallIcon != state.platform->largeIcon)
         {
             DestroyIcon(state.platform->smallIcon);
         }
         unregisterWindowId(state);
         unregisterOpenState(state);
 
-        if (state.platform->classReferenceHeld)
+        if(state.platform->classReferenceHeld)
         {
             static_cast<void>(releaseWindowClass());
         }
@@ -557,7 +557,7 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Wakes the owner thread so a pending event wait can observe cross-thread work.
     IO::Types::Status wakeEventWait(const WindowState &state) noexcept
     {
-        if (!state.platform)
+        if(!state.platform)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
@@ -568,7 +568,7 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Returns opaque native handles for owner-thread interop.
     NativeHandleView nativeHandle(const WindowState &state) noexcept
     {
-        if (!state.platform)
+        if(!state.platform)
         {
             return {};
         }
@@ -593,18 +593,18 @@ namespace GameWIP::Desktop::Native::Win32
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
 
-        if (state == nullptr || !state->platform)
+        if(state == nullptr || !state->platform)
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Detail::Platform::ownedByCurrentThread(*state))
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
         }
         const Detail::Platform::NativeHandleView handles = Detail::Platform::nativeHandle(*state);
 
-        if (handles.window == nullptr)
+        if(handles.window == nullptr)
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
         }
@@ -614,24 +614,24 @@ namespace GameWIP::Desktop::Native::Win32
 
     IO::Types::Status attachMessageSink(GameWIP::Desktop::Window &window, MessageSink sink, void *context) noexcept
     {
-        if (sink == nullptr)
+        if(sink == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
         Detail::WindowState *state = Detail::WindowAccess::state(window);
 
-        if (state == nullptr || !state->platform || state->platform->handle == nullptr)
+        if(state == nullptr || !state->platform || state->platform->handle == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Detail::Platform::ownedByCurrentThread(*state))
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
 
-        if (state->platform->messageSink != nullptr)
+        if(state->platform->messageSink != nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
         }
@@ -645,12 +645,12 @@ namespace GameWIP::Desktop::Native::Win32
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
 
-        if (state == nullptr || !state->platform || state->platform->handle == nullptr)
+        if(state == nullptr || !state->platform || state->platform->handle == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Detail::Platform::ownedByCurrentThread(*state))
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
@@ -681,17 +681,17 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
 
-        if (state == nullptr || !state->platform || state->platform->handle == nullptr)
+        if(state == nullptr || !state->platform || state->platform->handle == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Detail::Platform::ownedByCurrentThread(*state))
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
 
-        if (DestroyWindow(state->platform->handle) == FALSE)
+        if(DestroyWindow(state->platform->handle) == FALSE)
         {
             return Detail::Platform::statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "test-hook unexpected DestroyWindow");
         }
@@ -703,17 +703,17 @@ namespace GameWIP::Desktop::TestHooks
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
 
-        if (state == nullptr || !state->platform || state->platform->handle == nullptr)
+        if(state == nullptr || !state->platform || state->platform->handle == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Detail::Platform::ownedByCurrentThread(*state))
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
 
-        if (state->mode == Types::WindowMode::Windowed)
+        if(state->mode == Types::WindowMode::Windowed)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
@@ -727,17 +727,17 @@ namespace GameWIP::Desktop::TestHooks
         std::uint32_t newDpi,
         Types::DpiResizePolicy policy) noexcept
     {
-        if (newDpi == 0)
+        if(newDpi == 0)
         {
             return {};
         }
 
-        if (policy == Types::DpiResizePolicy::PreserveLogicalClientSize)
+        if(policy == Types::DpiResizePolicy::PreserveLogicalClientSize)
         {
             return {logicalSize, Detail::Platform::logicalToPhysicalSize(logicalSize, newDpi)};
         }
 
-        if (policy == Types::DpiResizePolicy::PreservePhysicalClientSize)
+        if(policy == Types::DpiResizePolicy::PreservePhysicalClientSize)
         {
             return {Detail::Platform::physicalToLogicalSize(framebufferSize.width, framebufferSize.height, newDpi), framebufferSize};
         }

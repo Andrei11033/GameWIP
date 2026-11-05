@@ -27,7 +27,7 @@ namespace GameWIP::Desktop::Detail
         /// @brief Removes one queued event while preserving FIFO order.
         void removeAt(WindowState &state, std::size_t index) noexcept
         {
-            for (std::size_t current = index; current + 1 < state.eventCount; ++current)
+            for(std::size_t current = index; current + 1 < state.eventCount; ++current)
             {
                 state.eventStorage[physicalIndex(state, current)] = std::move(state.eventStorage[physicalIndex(state, current + 1)]);
             }
@@ -65,35 +65,35 @@ namespace GameWIP::Desktop::Detail
     /// @brief Enqueues a Window event, preserving durable events when the fixed queue is full.
     EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept
     {
-        if (state.suppressEvents)
+        if(state.suppressEvents)
         {
             return EnqueueResult::Coalesced;
         }
 
-        if (state.eventStorage.empty())
+        if(state.eventStorage.empty())
         {
             ++state.droppedEvents;
             return EnqueueResult::Dropped;
         }
 
-        if (isCoalescible(data))
+        if(isCoalescible(data))
         {
-            for (std::size_t offset = state.eventCount; offset > 0; --offset)
+            for(std::size_t offset = state.eventCount; offset > 0; --offset)
             {
                 Types::Event &queued = state.eventStorage[physicalIndex(state, offset - 1)];
 
-                if (!isCoalescible(queued.data))
+                if(!isCoalescible(queued.data))
                 {
                     break;
                 }
 
-                if (sameCoalescibleType(queued.data, data))
+                if(sameCoalescibleType(queued.data, data))
                 {
-                    if (auto *queuedScale = std::get_if<Types::Events::ContentScaleChanged>(&queued.data))
+                    if(auto *queuedScale = std::get_if<Types::Events::ContentScaleChanged>(&queued.data))
                     {
                         const auto &latestScale = std::get<Types::Events::ContentScaleChanged>(data);
 
-                        if (mergeContentScaleChanged(*queuedScale, latestScale))
+                        if(mergeContentScaleChanged(*queuedScale, latestScale))
                         {
                             removeAt(state, offset - 1);
                         }
@@ -106,25 +106,25 @@ namespace GameWIP::Desktop::Detail
             }
         }
 
-        if (state.eventCount == state.eventStorage.size())
+        if(state.eventCount == state.eventStorage.size())
         {
             std::size_t replaceIndex = state.eventCount;
 
-            for (std::size_t index = 0; index < state.eventCount; ++index)
+            for(std::size_t index = 0; index < state.eventCount; ++index)
             {
-                if (isCoalescible(state.eventStorage[physicalIndex(state, index)].data))
+                if(isCoalescible(state.eventStorage[physicalIndex(state, index)].data))
                 {
                     replaceIndex = index;
                     break;
                 }
             }
 
-            if (replaceIndex == state.eventCount && std::holds_alternative<Types::Events::NativeDestroyed>(data))
+            if(replaceIndex == state.eventCount && std::holds_alternative<Types::Events::NativeDestroyed>(data))
             {
                 replaceIndex = 0;
             }
 
-            if (replaceIndex == state.eventCount)
+            if(replaceIndex == state.eventCount)
             {
                 ++state.droppedEvents;
                 return EnqueueResult::Dropped;
@@ -141,7 +141,7 @@ namespace GameWIP::Desktop::Detail
     /// @brief Records one close request and avoids repeating it for the same open lifetime.
     EnqueueResult requestClose(WindowState &state, Types::Events::CloseRequestSource source) noexcept
     {
-        if (state.closeRequested)
+        if(state.closeRequested)
         {
             return EnqueueResult::Coalesced;
         }
@@ -152,18 +152,18 @@ namespace GameWIP::Desktop::Detail
     /// @brief Publishes the interactive move/resize transition and its matching event.
     EnqueueResult setInteractiveMoveResizeActive(WindowState &state, bool active) noexcept
     {
-        if (state.interactiveMoveResizeActive == active)
+        if(state.interactiveMoveResizeActive == active)
         {
             return EnqueueResult::Coalesced;
         }
         state.interactiveMoveResizeActive = active;
 
-        if (state.presentationPublication != nullptr)
+        if(state.presentationPublication != nullptr)
         {
             state.presentationPublication->publishInteractiveMoveResizeActive(active);
         }
 
-        if (active)
+        if(active)
         {
             return enqueueEvent(state, Types::Events::InteractiveMoveResizeStarted{});
         }
@@ -185,7 +185,7 @@ namespace GameWIP::Desktop::Events
 
     Types::Events::PumpResult wait(std::chrono::milliseconds timeout) noexcept
     {
-        if (timeout < kWaitForever)
+        if(timeout < kWaitForever)
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }

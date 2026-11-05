@@ -42,9 +42,9 @@ namespace GameWIP::IO::Detail::Core
 
             Types::SizeResult sizeResult = reader.size();
 
-            if (!sizeResult.status.ok())
+            if(!sizeResult.status.ok())
             {
-                if (isUnsupportedReaderCapability(sizeResult.status))
+                if(isUnsupportedReaderCapability(sizeResult.status))
                 {
                     return result;
                 }
@@ -58,9 +58,9 @@ namespace GameWIP::IO::Detail::Core
 
             Types::PositionResult positionResult = reader.position();
 
-            if (!positionResult.status.ok())
+            if(!positionResult.status.ok())
             {
-                if (isUnsupportedReaderCapability(positionResult.status))
+                if(isUnsupportedReaderCapability(positionResult.status))
                 {
                     // A total size is not enough to preallocate the remaining range without a current
                     // position, so fall back to streaming instead of assuming position zero.
@@ -75,7 +75,7 @@ namespace GameWIP::IO::Detail::Core
                 return result;
             }
 
-            if (positionResult.position > sizeResult.sizeBytes)
+            if(positionResult.position > sizeResult.sizeBytes)
             {
                 result.status = makeStatus(Types::ErrorCode::InvalidArgument);
                 result.known = false;
@@ -94,7 +94,7 @@ namespace GameWIP::IO::Detail::Core
         {
             const Unicode::Types::Utf8::ValidationResult validation = Unicode::Utf8::validate(result.text);
 
-            if (validation.outcome == Unicode::Types::ValidationOutcome::Valid)
+            if(validation.outcome == Unicode::Types::ValidationOutcome::Valid)
             {
                 return result;
             }
@@ -103,7 +103,7 @@ namespace GameWIP::IO::Detail::Core
 
             const bool reachedDefinitiveEnd = result.status.ok() || result.status.code == Types::ErrorCode::PartialRead;
 
-            if (validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding || reachedDefinitiveEnd)
+            if(validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding || reachedDefinitiveEnd)
             {
                 result.status = makeStatus(Types::ErrorCode::EncodingFailed);
             }
@@ -115,19 +115,19 @@ namespace GameWIP::IO::Detail::Core
         {
             Types::ReadAllBytesResult result;
 
-            if (knownByteCount > maxBytes)
+            if(knownByteCount > maxBytes)
             {
                 result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
                 return result;
             }
 
-            if (knownByteCount > static_cast<std::uint64_t>(result.bytes.max_size()))
+            if(knownByteCount > static_cast<std::uint64_t>(result.bytes.max_size()))
             {
                 result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
                 return result;
             }
 
-            if (knownByteCount == 0)
+            if(knownByteCount == 0)
             {
                 return result;
             }
@@ -138,17 +138,17 @@ namespace GameWIP::IO::Detail::Core
             {
                 result.bytes.resize(expectedSize);
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 result.status = makeStatus(Types::ErrorCode::OutOfMemory);
                 return result;
             }
-            catch (const std::length_error &)
+            catch(const std::length_error &)
             {
                 result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
                 return result;
             }
-            catch (...)
+            catch(...)
             {
                 result.status = makeStatus(Types::ErrorCode::Unknown);
                 return result;
@@ -156,12 +156,12 @@ namespace GameWIP::IO::Detail::Core
 
             std::size_t totalRead = 0;
 
-            while (totalRead < expectedSize)
+            while(totalRead < expectedSize)
             {
                 const std::span<std::byte> destination = std::span{result.bytes}.subspan(totalRead);
                 Types::ReadResult readResult = reader.read(destination);
 
-                if (readResult.bytesRead > destination.size())
+                if(readResult.bytesRead > destination.size())
                 {
                     result.bytes.resize(totalRead);
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
@@ -170,21 +170,21 @@ namespace GameWIP::IO::Detail::Core
 
                 totalRead += readResult.bytesRead;
 
-                if (!readResult.status.ok())
+                if(!readResult.status.ok())
                 {
                     result.bytes.resize(totalRead);
                     result.status = std::move(readResult.status);
                     return result;
                 }
 
-                if (readResult.endOfStream && totalRead < expectedSize)
+                if(readResult.endOfStream && totalRead < expectedSize)
                 {
                     result.bytes.resize(totalRead);
                     result.status = makeStatus(Types::ErrorCode::PartialRead);
                     return result;
                 }
 
-                if (readResult.bytesRead == 0)
+                if(readResult.bytesRead == 0)
                 {
                     result.bytes.resize(totalRead);
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
@@ -199,19 +199,19 @@ namespace GameWIP::IO::Detail::Core
         {
             Types::ReadAllTextResult result;
 
-            if (knownByteCount > maxBytes)
+            if(knownByteCount > maxBytes)
             {
                 result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
                 return result;
             }
 
-            if (knownByteCount > static_cast<std::uint64_t>(result.text.max_size()))
+            if(knownByteCount > static_cast<std::uint64_t>(result.text.max_size()))
             {
                 result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
                 return result;
             }
 
-            if (knownByteCount == 0)
+            if(knownByteCount == 0)
             {
                 return result;
             }
@@ -222,17 +222,17 @@ namespace GameWIP::IO::Detail::Core
             {
                 result.text.resize(expectedSize);
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 result.status = makeStatus(Types::ErrorCode::OutOfMemory);
                 return result;
             }
-            catch (const std::length_error &)
+            catch(const std::length_error &)
             {
                 result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
                 return result;
             }
-            catch (...)
+            catch(...)
             {
                 result.status = makeStatus(Types::ErrorCode::Unknown);
                 return result;
@@ -240,13 +240,13 @@ namespace GameWIP::IO::Detail::Core
 
             std::size_t totalRead = 0;
 
-            while (totalRead < expectedSize)
+            while(totalRead < expectedSize)
             {
                 const std::span<char> textDestination = std::span{result.text}.subspan(totalRead);
                 const std::span<std::byte> destination = std::as_writable_bytes(textDestination);
                 Types::ReadResult readResult = reader.read(destination);
 
-                if (readResult.bytesRead > destination.size())
+                if(readResult.bytesRead > destination.size())
                 {
                     result.text.resize(totalRead);
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
@@ -255,21 +255,21 @@ namespace GameWIP::IO::Detail::Core
 
                 totalRead += readResult.bytesRead;
 
-                if (!readResult.status.ok())
+                if(!readResult.status.ok())
                 {
                     result.text.resize(totalRead);
                     result.status = std::move(readResult.status);
                     return result;
                 }
 
-                if (readResult.endOfStream && totalRead < expectedSize)
+                if(readResult.endOfStream && totalRead < expectedSize)
                 {
                     result.text.resize(totalRead);
                     result.status = makeStatus(Types::ErrorCode::PartialRead);
                     return result;
                 }
 
-                if (readResult.bytesRead == 0)
+                if(readResult.bytesRead == 0)
                 {
                     result.text.resize(totalRead);
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
@@ -286,12 +286,12 @@ namespace GameWIP::IO::Detail::Core
         // before reaching these helpers, so each read request can make progress.
         [[nodiscard]] Types::Status appendBytes(std::vector<std::byte> &destination, std::span<const std::byte> source) noexcept
         {
-            if (source.empty())
+            if(source.empty())
             {
                 return successStatus();
             }
 
-            if (source.size() > destination.max_size() - destination.size())
+            if(source.size() > destination.max_size() - destination.size())
             {
                 return makeStatus(Types::ErrorCode::SizeLimitExceeded);
             }
@@ -300,15 +300,15 @@ namespace GameWIP::IO::Detail::Core
             {
                 destination.insert(destination.end(), source.begin(), source.end());
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return makeStatus(Types::ErrorCode::OutOfMemory);
             }
-            catch (const std::length_error &)
+            catch(const std::length_error &)
             {
                 return makeStatus(Types::ErrorCode::SizeLimitExceeded);
             }
-            catch (...)
+            catch(...)
             {
                 return makeStatus(Types::ErrorCode::Unknown);
             }
@@ -318,12 +318,12 @@ namespace GameWIP::IO::Detail::Core
 
         [[nodiscard]] Types::Status appendTextBytes(std::string &destination, std::span<const std::byte> source) noexcept
         {
-            if (source.empty())
+            if(source.empty())
             {
                 return successStatus();
             }
 
-            if (source.size() > destination.max_size() - destination.size())
+            if(source.size() > destination.max_size() - destination.size())
             {
                 return makeStatus(Types::ErrorCode::SizeLimitExceeded);
             }
@@ -332,15 +332,15 @@ namespace GameWIP::IO::Detail::Core
             {
                 destination.append(reinterpret_cast<const char *>(source.data()), source.size());
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return makeStatus(Types::ErrorCode::OutOfMemory);
             }
-            catch (const std::length_error &)
+            catch(const std::length_error &)
             {
                 return makeStatus(Types::ErrorCode::SizeLimitExceeded);
             }
-            catch (...)
+            catch(...)
             {
                 return makeStatus(Types::ErrorCode::Unknown);
             }
@@ -356,22 +356,22 @@ namespace GameWIP::IO::Detail::Core
             std::byte probeByte;
             Types::ReadResult readResult = reader.read(std::span<std::byte>(&probeByte, 1));
 
-            if (readResult.bytesRead > 1)
+            if(readResult.bytesRead > 1)
             {
                 return makeStatus(Types::ErrorCode::ReadFailed);
             }
 
-            if (readResult.bytesRead > 0)
+            if(readResult.bytesRead > 0)
             {
                 return makeStatus(Types::ErrorCode::SizeLimitExceeded);
             }
 
-            if (!readResult.status.ok())
+            if(!readResult.status.ok())
             {
                 return std::move(readResult.status);
             }
 
-            if (readResult.endOfStream)
+            if(readResult.endOfStream)
             {
                 return successStatus();
             }
@@ -387,9 +387,9 @@ namespace GameWIP::IO::Detail::Core
             Types::ReadAllBytesResult result;
             std::uint64_t totalRead = 0;
 
-            while (true)
+            while(true)
             {
-                if (totalRead >= maxBytes)
+                if(totalRead >= maxBytes)
                 {
                     result.status = probeForMoreData(reader);
                     return result;
@@ -401,17 +401,17 @@ namespace GameWIP::IO::Detail::Core
                 const std::span<std::byte> request = scratchBuffer.first(requestSize);
                 Types::ReadResult readResult = reader.read(request);
 
-                if (readResult.bytesRead > requestSize)
+                if(readResult.bytesRead > requestSize)
                 {
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
                     return result;
                 }
 
-                if (readResult.bytesRead > 0)
+                if(readResult.bytesRead > 0)
                 {
                     Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)));
 
-                    if (!appendStatus.ok())
+                    if(!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
                         return result;
@@ -420,18 +420,18 @@ namespace GameWIP::IO::Detail::Core
                     totalRead += readResult.bytesRead;
                 }
 
-                if (!readResult.status.ok())
+                if(!readResult.status.ok())
                 {
                     result.status = std::move(readResult.status);
                     return result;
                 }
 
-                if (readResult.endOfStream)
+                if(readResult.endOfStream)
                 {
                     return result;
                 }
 
-                if (readResult.bytesRead == 0)
+                if(readResult.bytesRead == 0)
                 {
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
                     return result;
@@ -447,9 +447,9 @@ namespace GameWIP::IO::Detail::Core
             Types::ReadAllTextResult result;
             std::uint64_t totalRead = 0;
 
-            while (true)
+            while(true)
             {
-                if (totalRead >= maxBytes)
+                if(totalRead >= maxBytes)
                 {
                     result.status = probeForMoreData(reader);
                     return result;
@@ -461,17 +461,17 @@ namespace GameWIP::IO::Detail::Core
                 const std::span<std::byte> request = scratchBuffer.first(requestSize);
                 Types::ReadResult readResult = reader.read(request);
 
-                if (readResult.bytesRead > requestSize)
+                if(readResult.bytesRead > requestSize)
                 {
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
                     return result;
                 }
 
-                if (readResult.bytesRead > 0)
+                if(readResult.bytesRead > 0)
                 {
                     Types::Status appendStatus = appendTextBytes(result.text, std::as_bytes(request.first(readResult.bytesRead)));
 
-                    if (!appendStatus.ok())
+                    if(!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
                         return result;
@@ -480,18 +480,18 @@ namespace GameWIP::IO::Detail::Core
                     totalRead += readResult.bytesRead;
                 }
 
-                if (!readResult.status.ok())
+                if(!readResult.status.ok())
                 {
                     result.status = std::move(readResult.status);
                     return result;
                 }
 
-                if (readResult.endOfStream)
+                if(readResult.endOfStream)
                 {
                     return result;
                 }
 
-                if (readResult.bytesRead == 0)
+                if(readResult.bytesRead == 0)
                 {
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
                     return result;
@@ -511,24 +511,24 @@ namespace GameWIP::IO
 
     Types::ReadAllBytesResult readAllBytes(Reader &reader, std::uint64_t maxBytes, std::size_t bufferSize) noexcept
     {
-        if (bufferSize == 0)
+        if(bufferSize == 0)
         {
             return {.status = makeStatus(Types::ErrorCode::InvalidArgument)};
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
 
-        if (!knownByteCount.status.ok())
+        if(!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};
         }
 
-        if (knownByteCount.known)
+        if(knownByteCount.known)
         {
             return readAllBytesKnownSize(reader, knownByteCount.byteCount, maxBytes);
         }
 
-        if (maxBytes == 0)
+        if(maxBytes == 0)
         {
             return {.status = probeForMoreData(reader)};
         }
@@ -541,15 +541,15 @@ namespace GameWIP::IO
         {
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return {.status = makeStatus(Types::ErrorCode::OutOfMemory)};
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded)};
         }
-        catch (...)
+        catch(...)
         {
             return {.status = makeStatus(Types::ErrorCode::Unknown)};
         }
@@ -567,24 +567,24 @@ namespace GameWIP::IO
 
     Types::ReadAllBytesResult readAllBytes(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept
     {
-        if (scratchBuffer.empty())
+        if(scratchBuffer.empty())
         {
             return {.status = makeStatus(Types::ErrorCode::InvalidArgument)};
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
 
-        if (!knownByteCount.status.ok())
+        if(!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};
         }
 
-        if (knownByteCount.known)
+        if(knownByteCount.known)
         {
             return readAllBytesKnownSize(reader, knownByteCount.byteCount, maxBytes);
         }
 
-        if (maxBytes == 0)
+        if(maxBytes == 0)
         {
             return {.status = probeForMoreData(reader)};
         }
@@ -594,24 +594,24 @@ namespace GameWIP::IO
 
     Types::ReadAllTextResult readAllText(Reader &reader, std::uint64_t maxBytes, std::size_t bufferSize) noexcept
     {
-        if (bufferSize == 0)
+        if(bufferSize == 0)
         {
             return {.status = makeStatus(Types::ErrorCode::InvalidArgument)};
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
 
-        if (!knownByteCount.status.ok())
+        if(!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};
         }
 
-        if (knownByteCount.known)
+        if(knownByteCount.known)
         {
             return finalizeReadAllText(readAllTextKnownSize(reader, knownByteCount.byteCount, maxBytes));
         }
 
-        if (maxBytes == 0)
+        if(maxBytes == 0)
         {
             return {.status = probeForMoreData(reader)};
         }
@@ -624,15 +624,15 @@ namespace GameWIP::IO
         {
             buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return {.status = makeStatus(Types::ErrorCode::OutOfMemory)};
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded)};
         }
-        catch (...)
+        catch(...)
         {
             return {.status = makeStatus(Types::ErrorCode::Unknown)};
         }
@@ -650,24 +650,24 @@ namespace GameWIP::IO
 
     Types::ReadAllTextResult readAllText(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept
     {
-        if (scratchBuffer.empty())
+        if(scratchBuffer.empty())
         {
             return {.status = makeStatus(Types::ErrorCode::InvalidArgument)};
         }
 
         KnownReadableByteCount knownByteCount = knownReadableByteCount(reader);
 
-        if (!knownByteCount.status.ok())
+        if(!knownByteCount.status.ok())
         {
             return {.status = std::move(knownByteCount.status)};
         }
 
-        if (knownByteCount.known)
+        if(knownByteCount.known)
         {
             return finalizeReadAllText(readAllTextKnownSize(reader, knownByteCount.byteCount, maxBytes));
         }
 
-        if (maxBytes == 0)
+        if(maxBytes == 0)
         {
             return {.status = probeForMoreData(reader)};
         }
@@ -683,23 +683,23 @@ namespace GameWIP::IO
     {
         std::size_t totalWritten = 0;
 
-        while (!bytes.empty())
+        while(!bytes.empty())
         {
             auto writeResult = writer.write(bytes);
 
-            if (writeResult.bytesWritten > bytes.size())
+            if(writeResult.bytesWritten > bytes.size())
             {
                 return {.status = makeStatus(Types::ErrorCode::WriteFailed), .bytesWritten = totalWritten};
             }
 
             totalWritten += writeResult.bytesWritten;
 
-            if (!writeResult.status.ok())
+            if(!writeResult.status.ok())
             {
                 return {.status = std::move(writeResult.status), .bytesWritten = totalWritten};
             }
 
-            if (writeResult.bytesWritten == 0)
+            if(writeResult.bytesWritten == 0)
             {
                 return {.status = makeStatus(Types::ErrorCode::WriteFailed), .bytesWritten = totalWritten};
             }
@@ -712,7 +712,7 @@ namespace GameWIP::IO
 
     Types::WriteResult writeAllText(Writer &writer, std::string_view utf8Text) noexcept
     {
-        if (Unicode::Utf8::validate(utf8Text).outcome != Unicode::Types::ValidationOutcome::Valid)
+        if(Unicode::Utf8::validate(utf8Text).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             return {.status = makeStatus(Types::ErrorCode::EncodingFailed), .bytesWritten = 0};
         }

@@ -16,7 +16,7 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::EncodeResult encodeScalar(char32_t scalar) noexcept
     {
-        if (!isScalarValue(scalar))
+        if(!isScalarValue(scalar))
         {
             return {};
         }
@@ -33,11 +33,11 @@ namespace GameWIP::Unicode::Utf8
     {
         std::size_t byteOffset = 0;
 
-        while (byteOffset < text.size())
+        while(byteOffset < text.size())
         {
             const Types::Utf8::DecodeResult decoded = Internal::decodeUtf8Scalar(text.substr(byteOffset));
 
-            if (decoded.outcome == Types::DecodeOutcome::Incomplete)
+            if(decoded.outcome == Types::DecodeOutcome::Incomplete)
             {
                 return {
                     .validPrefixBytes = byteOffset,
@@ -45,7 +45,7 @@ namespace GameWIP::Unicode::Utf8
                 };
             }
 
-            if (decoded.outcome == Types::DecodeOutcome::InvalidEncoding)
+            if(decoded.outcome == Types::DecodeOutcome::InvalidEncoding)
             {
                 return {
                     .validPrefixBytes = byteOffset,
@@ -61,34 +61,34 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::BoundaryResult nextCodePointBoundary(std::string_view text, std::size_t byteOffset) noexcept
     {
-        if (byteOffset > text.size())
+        if(byteOffset > text.size())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
+        if(byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset > 0)
+        if(byteOffset > 0)
         {
             const Internal::PreviousUtf8ScalarResult previous = Internal::decodePreviousUtf8Scalar(text, byteOffset);
 
-            if (previous.decoded.outcome != Types::DecodeOutcome::Decoded)
+            if(previous.decoded.outcome != Types::DecodeOutcome::Decoded)
             {
                 return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
             }
         }
 
-        if (byteOffset == text.size())
+        if(byteOffset == text.size())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::AtEnd};
         }
 
         const Types::Utf8::DecodeResult decoded = Internal::decodeUtf8Scalar(text.substr(byteOffset));
 
-        if (decoded.outcome != Types::DecodeOutcome::Decoded)
+        if(decoded.outcome != Types::DecodeOutcome::Decoded)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }
@@ -101,24 +101,24 @@ namespace GameWIP::Unicode::Utf8
 
     Types::Utf8::BoundaryResult previousCodePointBoundary(std::string_view text, std::size_t byteOffset) noexcept
     {
-        if (byteOffset > text.size())
+        if(byteOffset > text.size())
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
+        if(byteOffset < text.size() && Internal::isContinuationByte(text[byteOffset]))
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidOffset};
         }
 
-        if (byteOffset == 0)
+        if(byteOffset == 0)
         {
             return {.byteOffset = 0, .outcome = Types::Utf8::BoundaryOutcome::AtBeginning};
         }
 
         const Internal::PreviousUtf8ScalarResult previous = Internal::decodePreviousUtf8Scalar(text, byteOffset);
 
-        if (previous.decoded.outcome != Types::DecodeOutcome::Decoded)
+        if(previous.decoded.outcome != Types::DecodeOutcome::Decoded)
         {
             return {.byteOffset = byteOffset, .outcome = Types::Utf8::BoundaryOutcome::InvalidEncoding};
         }

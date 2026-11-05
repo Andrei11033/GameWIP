@@ -17,27 +17,27 @@ namespace GameWIP::Input::Query
     /// @return `true` when every criterion present in selector matches.
     [[nodiscard]] inline bool matches(const Types::ElementInfo &element, const Types::ElementSelector &selector) noexcept
     {
-        if (!selector.isValid())
+        if(!selector.isValid())
         {
             return false;
         }
-        if (selector.persistentKey.has_value() && element.persistentKey != *selector.persistentKey)
+        if(selector.persistentKey.has_value() && element.persistentKey != *selector.persistentKey)
         {
             return false;
         }
-        if (selector.standard.has_value() && (!element.identity.standard.has_value() || *element.identity.standard != *selector.standard))
+        if(selector.standard.has_value() && (!element.identity.standard.has_value() || *element.identity.standard != *selector.standard))
         {
             return false;
         }
-        if (selector.hid.has_value() && (!element.identity.hid.has_value() || *element.identity.hid != *selector.hid))
+        if(selector.hid.has_value() && (!element.identity.hid.has_value() || *element.identity.hid != *selector.hid))
         {
             return false;
         }
-        if (selector.kind.has_value() && element.kind != *selector.kind)
+        if(selector.kind.has_value() && element.kind != *selector.kind)
         {
             return false;
         }
-        if (selector.reporting.has_value() && element.reporting != *selector.reporting)
+        if(selector.reporting.has_value() && element.reporting != *selector.reporting)
         {
             return false;
         }
@@ -50,13 +50,13 @@ namespace GameWIP::Input::Query
     /// @return Borrowed descriptor, or null when absent.
     [[nodiscard]] inline const Types::DeviceInfo *findDevice(std::span<const Types::DeviceInfo> devices, Types::DeviceId id) noexcept
     {
-        if (!id.isValid())
+        if(!id.isValid())
         {
             return nullptr;
         }
-        for (const Types::DeviceInfo &device : devices)
+        for(const Types::DeviceInfo &device : devices)
         {
-            if (device.id == id)
+            if(device.id == id)
             {
                 return &device;
             }
@@ -72,13 +72,13 @@ namespace GameWIP::Input::Query
         std::span<const Types::DeviceInfo> devices,
         std::string_view persistentKey) noexcept
     {
-        if (persistentKey.empty())
+        if(persistentKey.empty())
         {
             return nullptr;
         }
-        for (const Types::DeviceInfo &device : devices)
+        for(const Types::DeviceInfo &device : devices)
         {
-            if (device.persistentKey == persistentKey)
+            if(device.persistentKey == persistentKey)
             {
                 return &device;
             }
@@ -92,18 +92,18 @@ namespace GameWIP::Input::Query
     /// @return Borrowed descriptor, or null when absent.
     [[nodiscard]] inline const Types::ElementInfo *findElement(std::span<const Types::DeviceInfo> devices, Types::ElementId id) noexcept
     {
-        if (!id.isValid())
+        if(!id.isValid())
         {
             return nullptr;
         }
         const Types::DeviceInfo *device = findDevice(devices, id.device);
-        if (device == nullptr)
+        if(device == nullptr)
         {
             return nullptr;
         }
-        for (const Types::ElementInfo &element : device->elements)
+        for(const Types::ElementInfo &element : device->elements)
         {
-            if (element.id == id)
+            if(element.id == id)
             {
                 return &element;
             }
@@ -121,19 +121,19 @@ namespace GameWIP::Input::Query
         const Types::ElementSelector &selector,
         Types::DeviceId device = {}) noexcept
     {
-        if (!selector.isValid())
+        if(!selector.isValid())
         {
             return nullptr;
         }
-        for (const Types::DeviceInfo &candidate : devices)
+        for(const Types::DeviceInfo &candidate : devices)
         {
-            if (device.isValid() ? candidate.id != device : !candidate.connected)
+            if(device.isValid() ? candidate.id != device : !candidate.connected)
             {
                 continue;
             }
-            for (const Types::ElementInfo &element : candidate.elements)
+            for(const Types::ElementInfo &element : candidate.elements)
             {
-                if (matches(element, selector))
+                if(matches(element, selector))
                 {
                     return &element;
                 }
@@ -165,7 +165,7 @@ namespace GameWIP::Input::Query
         Types::StandardId standard,
         Types::DeviceId device = {}) noexcept
     {
-        if (!standard.isValid())
+        if(!standard.isValid())
         {
             return std::nullopt;
         }
@@ -183,7 +183,7 @@ namespace GameWIP::Input::Query
         Types::HidControlId hid,
         Types::DeviceId device = {}) noexcept
     {
-        if (!hid.isValid())
+        if(!hid.isValid())
         {
             return std::nullopt;
         }

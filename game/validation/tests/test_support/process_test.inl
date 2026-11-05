@@ -7,7 +7,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
     TestSupport::ScopedProcessState processState;
     static_cast<void>(context.expectTrue("Process-state scope construction succeeds", processState.status().ok()));
 
-    if (!options.enableChildProcessTests)
+    if(!options.enableChildProcessTests)
     {
         context.skip("TestSupport child process tests", "disabled by TestSupportTestOptions");
         return;
@@ -86,7 +86,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(
             context.expectTrue("Create inheritable sentinel handle succeeds", unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE));
 
-        if (unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE)
+        if(unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE)
         {
             TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);
@@ -176,7 +176,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
             ExitBoundary{"-1", 0xffffffffu},
         };
 
-        for (const ExitBoundary &boundary : boundaries)
+        for(const ExitBoundary &boundary : boundaries)
         {
             TestSupport::Types::Process::Options childOptions;
             childOptions.executablePath = std::filesystem::path(executablePath);

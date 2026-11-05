@@ -19,7 +19,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "interactive_ignore_once"))
+    if(!initFileLogger(context, "interactive_ignore_once"))
     {
         context.fail("interactive ignore once logger init", "Logger::init failed");
         return;
@@ -27,7 +27,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
 
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
 
-    if (!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
+    if(!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
     {
         return;
     }
@@ -61,7 +61,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "interactive_always_ignore"))
+    if(!initFileLogger(context, "interactive_always_ignore"))
     {
         context.fail("interactive always ignore logger init", "Logger::init failed");
         return;
@@ -69,7 +69,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
 
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
 
-    if (!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
+    if(!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
     {
         return;
     }
@@ -96,7 +96,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
 {
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "verify_interactive"))
+    if(!initFileLogger(context, "verify_interactive"))
     {
         context.fail("verify interactive logger init", "Logger::init failed");
         return;
@@ -109,7 +109,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
     int failingEvaluations = 0;
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
 
-    if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE action", testAction.status()))
+    if(!requireInfrastructure(context, "set VERIFY_INTERACTIVE action", testAction.status()))
     {
         return;
     }
@@ -143,7 +143,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
 #if ASSERT_ENABLED
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "verify_interactive_always_ignore"))
+    if(!initFileLogger(context, "verify_interactive_always_ignore"))
     {
         context.fail("verify interactive always ignore logger init", "Logger::init failed");
         return;
@@ -152,7 +152,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     int evaluations = 0;
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
 
-    if (!requireInfrastructure(context, "set VERIFY_INTERACTIVE always-ignore action", testAction.status()))
+    if(!requireInfrastructure(context, "set VERIFY_INTERACTIVE always-ignore action", testAction.status()))
     {
         return;
     }

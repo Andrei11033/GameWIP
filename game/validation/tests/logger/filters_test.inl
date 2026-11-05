@@ -54,7 +54,7 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
     context.expectFalse("debug filtered", Logger::shouldLog(Logger::Types::Level::Debug));
     context.expectTrue("reset level filters status", Logger::resetLevelFilters().ok());
 
-    if (!options.enableStressTests)
+    if(!options.enableStressTests)
     {
         context.skip("filter concurrency", "disabled by LoggerTestOptions");
         return;
@@ -66,12 +66,12 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
     std::thread producer(
         [&]
         {
-            while (!start.load(std::memory_order_acquire))
+            while(!start.load(std::memory_order_acquire))
             {
                 std::this_thread::yield();
             }
 
-            for (std::size_t i = 0; i < iterations; ++i)
+            for(std::size_t i = 0; i < iterations; ++i)
             {
                 Logger::info(TestSource::Core, "producer {}", i);
             }
@@ -79,14 +79,14 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
     std::thread filter(
         [&]
         {
-            while (!start.load(std::memory_order_acquire))
+            while(!start.load(std::memory_order_acquire))
             {
                 std::this_thread::yield();
             }
 
-            for (std::size_t i = 0; i < iterations; ++i)
+            for(std::size_t i = 0; i < iterations; ++i)
             {
-                if (!Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Core), (i & 1u) == 0).ok())
+                if(!Logger::setSourceFilter(static_cast<Logger::Types::SourceId>(TestSource::Core), (i & 1u) == 0).ok())
                 {
                     mutationsOk.store(false, std::memory_order_relaxed);
                 }

@@ -55,7 +55,7 @@ void testErrorCodeNames(TestSupport::Context &context)
         ErrorCodeName{ErrorCode::Unknown, "Unknown"},
     };
 
-    for (const ErrorCodeName &entry : names)
+    for(const ErrorCodeName &entry : names)
     {
         static_cast<void>(context.expectEq(std::format("errorCodeName returns {}", entry.name), entry.name, IO::errorCodeName(entry.code)));
     }

@@ -24,9 +24,9 @@ namespace GameWIP::Desktop::Detail
     {
         std::size_t best = 0;
 
-        for (std::size_t i = 1; i < intendedDpis.size(); ++i)
+        for(std::size_t i = 1; i < intendedDpis.size(); ++i)
         {
-            if (isBetterDpiCandidate(intendedDpis[i], intendedDpis[best], targetDpi))
+            if(isBetterDpiCandidate(intendedDpis[i], intendedDpis[best], targetDpi))
             {
                 best = i;
             }

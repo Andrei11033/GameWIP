@@ -27,14 +27,14 @@ namespace GameWIP::Unicode::Internal
     /// @brief Decodes one strict UTF-8 scalar without allocation or external state.
     [[nodiscard]] inline Types::Utf8::DecodeResult decodeUtf8Scalar(std::string_view bytes) noexcept
     {
-        if (bytes.empty())
+        if(bytes.empty())
         {
             return {};
         }
 
         const std::uint8_t first = byteValue(bytes[0]);
 
-        if (first <= 0x7FU)
+        if(first <= 0x7FU)
         {
             return {
                 .scalar = static_cast<char32_t>(first),
@@ -43,21 +43,21 @@ namespace GameWIP::Unicode::Internal
             };
         }
 
-        if (first < 0xC2U)
+        if(first < 0xC2U)
         {
             return {.outcome = Types::DecodeOutcome::InvalidEncoding};
         }
 
-        if (first <= 0xDFU)
+        if(first <= 0xDFU)
         {
-            if (bytes.size() < 2)
+            if(bytes.size() < 2)
             {
                 return {};
             }
 
             const std::uint8_t second = byteValue(bytes[1]);
 
-            if ((second & 0xC0U) != 0x80U)
+            if((second & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
@@ -66,9 +66,9 @@ namespace GameWIP::Unicode::Internal
             return {.scalar = scalar, .bytesConsumed = 2, .outcome = Types::DecodeOutcome::Decoded};
         }
 
-        if (first <= 0xEFU)
+        if(first <= 0xEFU)
         {
-            if (bytes.size() < 2)
+            if(bytes.size() < 2)
             {
                 return {};
             }
@@ -78,19 +78,19 @@ namespace GameWIP::Unicode::Internal
                                        : first == 0xEDU ? second >= 0x80U && second <= 0x9FU
                                                         : (second & 0xC0U) == 0x80U;
 
-            if (!secondIsValid)
+            if(!secondIsValid)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
 
-            if (bytes.size() < 3)
+            if(bytes.size() < 3)
             {
                 return {};
             }
 
             const std::uint8_t third = byteValue(bytes[2]);
 
-            if ((third & 0xC0U) != 0x80U)
+            if((third & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
@@ -99,9 +99,9 @@ namespace GameWIP::Unicode::Internal
             return {.scalar = scalar, .bytesConsumed = 3, .outcome = Types::DecodeOutcome::Decoded};
         }
 
-        if (first <= 0xF4U)
+        if(first <= 0xF4U)
         {
-            if (bytes.size() < 2)
+            if(bytes.size() < 2)
             {
                 return {};
             }
@@ -111,31 +111,31 @@ namespace GameWIP::Unicode::Internal
                                        : first == 0xF4U ? second >= 0x80U && second <= 0x8FU
                                                         : (second & 0xC0U) == 0x80U;
 
-            if (!secondIsValid)
+            if(!secondIsValid)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
 
-            if (bytes.size() < 3)
+            if(bytes.size() < 3)
             {
                 return {};
             }
 
             const std::uint8_t third = byteValue(bytes[2]);
 
-            if ((third & 0xC0U) != 0x80U)
+            if((third & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
 
-            if (bytes.size() < 4)
+            if(bytes.size() < 4)
             {
                 return {};
             }
 
             const std::uint8_t fourth = byteValue(bytes[3]);
 
-            if ((fourth & 0xC0U) != 0x80U)
+            if((fourth & 0xC0U) != 0x80U)
             {
                 return {.outcome = Types::DecodeOutcome::InvalidEncoding};
             }
@@ -151,17 +151,17 @@ namespace GameWIP::Unicode::Internal
     /// @brief Returns the UTF-8 byte count for a known-valid Unicode scalar.
     [[nodiscard]] constexpr std::uint8_t utf8EncodedLength(char32_t scalar) noexcept
     {
-        if (scalar <= static_cast<char32_t>(0x7F))
+        if(scalar <= static_cast<char32_t>(0x7F))
         {
             return 1;
         }
 
-        if (scalar <= static_cast<char32_t>(0x7FF))
+        if(scalar <= static_cast<char32_t>(0x7FF))
         {
             return 2;
         }
 
-        if (scalar <= static_cast<char32_t>(0xFFFF))
+        if(scalar <= static_cast<char32_t>(0xFFFF))
         {
             return 3;
         }
@@ -174,20 +174,20 @@ namespace GameWIP::Unicode::Internal
     {
         const std::uint32_t value = static_cast<std::uint32_t>(scalar);
 
-        if (value <= 0x7FU)
+        if(value <= 0x7FU)
         {
             destination[0] = static_cast<char>(value);
             return;
         }
 
-        if (value <= 0x7FFU)
+        if(value <= 0x7FFU)
         {
             destination[0] = static_cast<char>(0xC0U | (value >> 6U));
             destination[1] = static_cast<char>(0x80U | (value & 0x3FU));
             return;
         }
 
-        if (value <= 0xFFFFU)
+        if(value <= 0xFFFFU)
         {
             destination[0] = static_cast<char>(0xE0U | (value >> 12U));
             destination[1] = static_cast<char>(0x80U | ((value >> 6U) & 0x3FU));
@@ -204,14 +204,14 @@ namespace GameWIP::Unicode::Internal
     /// @brief Decodes one strict UTF-16 scalar without allocation or external state.
     [[nodiscard]] inline Types::Utf16::DecodeResult decodeUtf16Scalar(std::span<const char16_t> codeUnits) noexcept
     {
-        if (codeUnits.empty())
+        if(codeUnits.empty())
         {
             return {};
         }
 
         const char16_t first = codeUnits[0];
 
-        if (!Utf16::isSurrogate(first))
+        if(!Utf16::isSurrogate(first))
         {
             return {
                 .scalar = static_cast<char32_t>(first),
@@ -220,19 +220,19 @@ namespace GameWIP::Unicode::Internal
             };
         }
 
-        if (Utf16::isLowSurrogate(first))
+        if(Utf16::isLowSurrogate(first))
         {
             return {.outcome = Types::DecodeOutcome::InvalidEncoding};
         }
 
-        if (codeUnits.size() < 2)
+        if(codeUnits.size() < 2)
         {
             return {};
         }
 
         const char16_t second = codeUnits[1];
 
-        if (!Utf16::isLowSurrogate(second))
+        if(!Utf16::isLowSurrogate(second))
         {
             return {.outcome = Types::DecodeOutcome::InvalidEncoding};
         }
@@ -258,7 +258,7 @@ namespace GameWIP::Unicode::Internal
     {
         const std::uint32_t value = static_cast<std::uint32_t>(scalar);
 
-        if (value <= 0xFFFFU)
+        if(value <= 0xFFFFU)
         {
             destination[0] = static_cast<char16_t>(value);
             return;
@@ -279,14 +279,14 @@ namespace GameWIP::Unicode::Internal
     /// @brief Decodes the scalar ending exactly at one nonzero byte offset.
     [[nodiscard]] inline PreviousUtf8ScalarResult decodePreviousUtf8Scalar(std::string_view text, std::size_t byteOffset) noexcept
     {
-        if (byteOffset == 0 || byteOffset > text.size())
+        if(byteOffset == 0 || byteOffset > text.size())
         {
             return {};
         }
 
         std::size_t startOffset = byteOffset - 1;
 
-        while (startOffset > 0 && isContinuationByte(text[startOffset]))
+        while(startOffset > 0 && isContinuationByte(text[startOffset]))
         {
             --startOffset;
         }
@@ -294,7 +294,7 @@ namespace GameWIP::Unicode::Internal
         const std::size_t encodedLength = byteOffset - startOffset;
         const Types::Utf8::DecodeResult decoded = decodeUtf8Scalar(text.substr(startOffset, encodedLength));
 
-        if (decoded.outcome != Types::DecodeOutcome::Decoded || decoded.bytesConsumed != encodedLength)
+        if(decoded.outcome != Types::DecodeOutcome::Decoded || decoded.bytesConsumed != encodedLength)
         {
             return {
                 .decoded = {.outcome = Types::DecodeOutcome::InvalidEncoding},

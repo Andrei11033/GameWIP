@@ -10,7 +10,7 @@ namespace GameWIP::Terminal
         /// @brief Validates all supported basic and bright color enum values.
         [[nodiscard]] bool isKnownBasicColor(Types::Style::BasicColor color) noexcept
         {
-            switch (color)
+            switch(color)
             {
             case Types::Style::BasicColor::Black:
             case Types::Style::BasicColor::Red:
@@ -56,7 +56,7 @@ namespace GameWIP::Terminal
 
     Types::Style::Color basicColor(Types::Style::BasicColor color) noexcept
     {
-        if (!isKnownBasicColor(color))
+        if(!isKnownBasicColor(color))
         {
             return {};
         }

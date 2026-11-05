@@ -40,7 +40,7 @@ namespace GameWIP::Validation::Benchmarks
         {
             temporaryRoot = currentExecutablePath().parent_path() / "temp";
         }
-        catch (const std::system_error &error)
+        catch(const std::system_error &error)
         {
             std::cerr << "Benchmark executable path discovery failed: " << error.what() << '\n';
             return {.argumentsValid = false};
@@ -48,7 +48,7 @@ namespace GameWIP::Validation::Benchmarks
         std::error_code temporaryError;
         std::filesystem::create_directories(temporaryRoot, temporaryError);
 
-        if (temporaryError)
+        if(temporaryError)
         {
             std::cerr << "Benchmark temporary directory setup failed: " << temporaryError.message() << '\n';
             return {.argumentsValid = false};
@@ -57,7 +57,7 @@ namespace GameWIP::Validation::Benchmarks
         const std::string temporaryRootText(temporaryRootUtf8.begin(), temporaryRootUtf8.end());
         TestSupport::ScopedProcessState processState;
 
-        if (!processState.status().ok())
+        if(!processState.status().ok())
         {
             std::cerr << "Benchmark process-state setup failed.\n";
             return {.argumentsValid = false};
@@ -66,7 +66,7 @@ namespace GameWIP::Validation::Benchmarks
         TestSupport::ScopedEnvironmentVariable temporaryDirectoryAlias(processState, "TMP", temporaryRootText);
         TestSupport::ScopedEnvironmentVariable posixTemporaryDirectory(processState, "TMPDIR", temporaryRootText);
 
-        if (!temporaryDirectory.status().ok() || !temporaryDirectoryAlias.status().ok() || !posixTemporaryDirectory.status().ok())
+        if(!temporaryDirectory.status().ok() || !temporaryDirectoryAlias.status().ok() || !posixTemporaryDirectory.status().ok())
         {
             std::cerr << "Benchmark temporary environment setup failed.\n";
             return {.argumentsValid = false};
@@ -76,9 +76,9 @@ namespace GameWIP::Validation::Benchmarks
         arguments.emplace_back(
             !processArgumentValues.empty() && processArgumentValues.front() != nullptr ? processArgumentValues.front() : "GameWIPBenchmarks");
 
-        for (char *value : processArgumentValues.subspan(std::min<std::size_t>(1, processArgumentValues.size())))
+        for(char *value : processArgumentValues.subspan(std::min<std::size_t>(1, processArgumentValues.size())))
         {
-            if (value != nullptr && (!embedded || isEmbeddedBenchmarkArgument(value)))
+            if(value != nullptr && (!embedded || isEmbeddedBenchmarkArgument(value)))
             {
                 arguments.emplace_back(value);
             }
@@ -89,7 +89,7 @@ namespace GameWIP::Validation::Benchmarks
         std::vector<char *> argumentPointers;
         argumentPointers.reserve(arguments.size());
 
-        for (std::string &argument : arguments)
+        for(std::string &argument : arguments)
         {
             argumentPointers.push_back(argument.data());
         }
@@ -97,7 +97,7 @@ namespace GameWIP::Validation::Benchmarks
         int benchmarkArgc = static_cast<int>(argumentPointers.size());
         benchmark::Initialize(&benchmarkArgc, argumentPointers.data());
 
-        if (benchmark::ReportUnrecognizedArguments(benchmarkArgc, argumentPointers.data()))
+        if(benchmark::ReportUnrecognizedArguments(benchmarkArgc, argumentPointers.data()))
         {
             benchmark::Shutdown();
             return {.argumentsValid = false};

@@ -290,12 +290,12 @@ struct ApartmentObservation
 /// @brief Keeps the strictly uninitialized case independent of assistive clients in the parent.
 int runColdApartmentChild()
 {
-    if (observeApartment().result != CO_E_NOTINITIALIZED)
+    if(observeApartment().result != CO_E_NOTINITIALIZED)
     {
         return 2;
     }
 
-    if (!Desktop::TestHooks::testDialogApartment().ok() || observeApartment().result != CO_E_NOTINITIALIZED)
+    if(!Desktop::TestHooks::testDialogApartment().ok() || observeApartment().result != CO_E_NOTINITIALIZED)
     {
         return 3;
     }
@@ -320,14 +320,14 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
         HRESULT result = CoIncrementMTAUsage(&cookie);
         ~MtaUsage()
         {
-            if (cookie != nullptr)
+            if(cookie != nullptr)
             {
                 static_cast<void>(CoDecrementMTAUsage(cookie));
             }
         }
     } mtaUsage;
 
-    if (!context.expectTrue("controlled process MTA is available", SUCCEEDED(mtaUsage.result)))
+    if(!context.expectTrue("controlled process MTA is available", SUCCEEDED(mtaUsage.result)))
     {
         return;
     }
@@ -337,7 +337,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
         std::pair<std::string_view, Probe>{"dialogs", &Desktop::TestHooks::testDialogApartment},
         std::pair<std::string_view, Probe>{"shell", &Desktop::TestHooks::testShellApartment}};
 
-    for (const auto &[name, probe] : probes)
+    for(const auto &[name, probe] : probes)
     {
         ApartmentObservation before;
         ApartmentObservation after;
@@ -373,7 +373,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
             {
                 initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-                if (SUCCEEDED(initialized))
+                if(SUCCEEDED(initialized))
                 {
                     before = observeApartment();
                     leaseStatus = probe();
@@ -393,7 +393,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
             {
                 initialized = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
-                if (SUCCEEDED(initialized))
+                if(SUCCEEDED(initialized))
                 {
                     leaseStatus = probe();
                     after = observeApartment();
@@ -428,7 +428,7 @@ void testMessageDialogs(TestSupport::Context &context)
         ButtonSetCase{Buttons::YesNoCancel, {Button::Yes, Button::No, Button::Cancel}, 3, true},
         ButtonSetCase{Buttons::RetryCancel, {Button::Retry, Button::Cancel, Button::None}, 2, true}};
 
-    for (const ButtonSetCase &testCase : cases)
+    for(const ButtonSetCase &testCase : cases)
     {
         MessageDialogs::Description description{.title = "Message", .message = "Body", .buttons = testCase.buttons};
         Desktop::TestHooks::completeNextMessageDialog({.button = testCase.members[0], .dismissed = false});
@@ -439,7 +439,7 @@ void testMessageDialogs(TestSupport::Context &context)
         static_cast<void>(
             context.expectEq("Message default None reaches backend", Button::None, Desktop::TestHooks::lastMessageDialogSnapshot().defaultButton));
 
-        for (std::size_t index = 0; index < testCase.memberCount; ++index)
+        for(std::size_t index = 0; index < testCase.memberCount; ++index)
         {
             description.defaultButton = testCase.members[index];
             Desktop::TestHooks::completeNextMessageDialog({.button = testCase.members[index], .dismissed = false});
@@ -493,7 +493,7 @@ void testMessageDialogs(TestSupport::Context &context)
         DialogTypes::Severity::Warning,
         DialogTypes::Severity::Error};
 
-    for (DialogTypes::Severity severity : severities)
+    for(DialogTypes::Severity severity : severities)
     {
         description.severity = severity;
         Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});

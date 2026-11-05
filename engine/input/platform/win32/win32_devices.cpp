@@ -46,15 +46,15 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] static Types::BackendKind backendFor(DeviceRole role) noexcept
     {
-        if (role == DeviceRole::Gamepad)
+        if(role == DeviceRole::Gamepad)
         {
             return Types::BackendKind::XInput;
         }
-        if (role == DeviceRole::Hid)
+        if(role == DeviceRole::Hid)
         {
             return Types::BackendKind::Win32Hid;
         }
-        if (role == DeviceRole::Pointer)
+        if(role == DeviceRole::Pointer)
         {
             return Types::BackendKind::Win32WindowMessage;
         }
@@ -66,14 +66,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
     /// model-only identities such as XInput slots are never guessed together.
     [[nodiscard]] static Types::DeviceInfo *findLogicalDevice(System::Impl &state, std::string_view persistentKey) noexcept
     {
-        if (persistentKey.empty())
+        if(persistentKey.empty())
         {
             return nullptr;
         }
-        for (Types::DeviceInfo &device : state.devices)
+        for(Types::DeviceInfo &device : state.devices)
         {
-            if (static_cast<unsigned int>(device.identityConfidence) >= static_cast<unsigned int>(Types::IdentityConfidence::ConnectionPath) &&
-                device.persistentKey == persistentKey)
+            if(static_cast<unsigned int>(device.identityConfidence) >= static_cast<unsigned int>(Types::IdentityConfidence::ConnectionPath) &&
+               device.persistentKey == persistentKey)
             {
                 return &device;
             }
@@ -83,11 +83,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] static std::string defaultSourceName(DeviceRole role)
     {
-        if (role == DeviceRole::Gamepad)
+        if(role == DeviceRole::Gamepad)
         {
             return "XInput";
         }
-        if (role == DeviceRole::Pointer)
+        if(role == DeviceRole::Pointer)
         {
             return "Win32 Window Messages";
         }
@@ -96,7 +96,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] static std::string deviceKey(DeviceRole role, std::uint32_t slot)
     {
-        switch (role)
+        switch(role)
         {
         case DeviceRole::Keyboard:
         case DeviceRole::Mouse:
@@ -257,7 +257,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] static Types::SourceInfo *sourceInfo(System::Impl &state, const DeviceBinding &device) noexcept
     {
         const std::size_t deviceIndex = state.findDeviceIndex(device.id);
-        if (deviceIndex == state.devices.size() || device.sourceIndex >= state.devices[deviceIndex].sources.size())
+        if(deviceIndex == state.devices.size() || device.sourceIndex >= state.devices[deviceIndex].sources.size())
         {
             return nullptr;
         }
@@ -282,7 +282,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             attachment.devices.end(),
             [device, element](const DeviceBinding &candidate)
             {
-                if (!candidate.connected || candidate.id != device)
+                if(!candidate.connected || candidate.id != device)
                 {
                     return false;
                 }
@@ -298,34 +298,34 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void invalidateDevice(System::Impl &state, Attachment::Impl &attachment, DeviceBinding &device, Types::EventCause cause) noexcept
     {
-        if (!device.connected)
+        if(!device.connected)
         {
             return;
         }
 
         const std::size_t deviceIndex = state.findDeviceIndex(device.id);
-        if (deviceIndex == state.devices.size())
+        if(deviceIndex == state.devices.size())
         {
             device.connected = false;
             return;
         }
 
         device.connected = false;
-        if (Types::SourceInfo *source = sourceInfo(state, device); source != nullptr)
+        if(Types::SourceInfo *source = sourceInfo(state, device); source != nullptr)
         {
             source->active = false;
         }
         Types::DeviceInfo &descriptor = state.devices[deviceIndex];
         descriptor.connected = hasActiveSource(descriptor);
         descriptor.descriptorRevision = ++state.deviceRevision;
-        for (const Types::ElementInfo &element : descriptor.elements)
+        for(const Types::ElementInfo &element : descriptor.elements)
         {
-            if (hasActiveElementSource(attachment, descriptor.id, element.id))
+            if(hasActiveElementSource(attachment, descriptor.id, element.id))
             {
                 continue;
             }
             Types::ElementState *elementState = findState(state, element.id);
-            if (elementState == nullptr)
+            if(elementState == nullptr)
             {
                 continue;
             }
@@ -343,12 +343,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     },
             });
         }
-        if (descriptor.connected)
+        if(descriptor.connected)
         {
             appendDeviceEvent(state, Types::EventKind::DeviceChanged, cause, descriptor.id, descriptor.descriptorRevision);
             return;
         }
-        if (state.health.activeDeviceCount != 0)
+        if(state.health.activeDeviceCount != 0)
         {
             --state.health.activeDeviceCount;
         }
@@ -357,12 +357,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void reconnectDevice(System::Impl &state, DeviceBinding &device) noexcept
     {
-        if (device.connected)
+        if(device.connected)
         {
             return;
         }
         const std::size_t deviceIndex = state.findDeviceIndex(device.id);
-        if (deviceIndex == state.devices.size())
+        if(deviceIndex == state.devices.size())
         {
             return;
         }
@@ -370,21 +370,21 @@ namespace GameWIP::Input::Platform::Win32::Detail
         Types::DeviceInfo &descriptor = state.devices[deviceIndex];
         const bool logicalWasConnected = descriptor.connected;
         device.connected = true;
-        if (Types::SourceInfo *source = sourceInfo(state, device); source != nullptr)
+        if(Types::SourceInfo *source = sourceInfo(state, device); source != nullptr)
         {
             source->active = true;
         }
         descriptor.connected = true;
         descriptor.descriptorRevision = ++state.deviceRevision;
-        for (const ElementBinding &binding : device.elements)
+        for(const ElementBinding &binding : device.elements)
         {
             Types::ElementState *elementState = findState(state, binding.id);
-            if (elementState != nullptr && elementState->validity == Types::ValueValidity::Unavailable)
+            if(elementState != nullptr && elementState->validity == Types::ValueValidity::Unavailable)
             {
                 elementState->validity = Types::ValueValidity::Unknown;
             }
         }
-        if (!logicalWasConnected)
+        if(!logicalWasConnected)
         {
             ++state.health.activeDeviceCount;
             appendDeviceEvent(state, Types::EventKind::DeviceConnected, Types::EventCause::Resynchronized, device.id, descriptor.descriptorRevision);
@@ -408,19 +408,19 @@ namespace GameWIP::Input::Platform::Win32::Detail
         ElementRole role,
         std::optional<Types::HidControlId> hid)
     {
-        if (!hid.has_value() && standard.has_value())
+        if(!hid.has_value() && standard.has_value())
         {
-            if (standard->domain == Types::StandardDomain::Keyboard)
+            if(standard->domain == Types::StandardDomain::Keyboard)
             {
                 hid = Types::HidControlId{.usagePage = 0x07, .usage = standard->code};
             }
-            else if (standard->domain == Types::StandardDomain::Mouse && standard->code <= 0x05)
+            else if(standard->domain == Types::StandardDomain::Mouse && standard->code <= 0x05)
             {
                 hid = Types::HidControlId{.usagePage = 0x09, .usage = standard->code};
             }
         }
         const Types::ControlIdentity identity{.standard = standard, .hid = hid};
-        if (identity.isValid())
+        if(identity.isValid())
         {
             const DeviceRole bindingRole = binding.role;
             const auto existing = std::find_if(
@@ -428,7 +428,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 device.elements.end(),
                 [&identity, standard, bindingRole](const Types::ElementInfo &candidate)
                 {
-                    if (candidate.identity == identity)
+                    if(candidate.identity == identity)
                     {
                         return true;
                     }
@@ -441,7 +441,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                            ((candidate.authoritativeBackend == Types::BackendKind::Win32RawInput && bindingRole == DeviceRole::Hid) ||
                             (candidate.authoritativeBackend == Types::BackendKind::Win32Hid && bindingRole != DeviceRole::Hid));
                 });
-            if (existing != device.elements.end())
+            if(existing != device.elements.end())
             {
                 binding.elements.push_back({
                     .id = existing->id,
@@ -481,11 +481,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] static float normalizedHidValue(const Attachment::Impl::DeviceBinding::HidElement &element, const Types::Value &value) noexcept
     {
         double raw = 0.0;
-        if (const auto *signedValue = std::get_if<std::int64_t>(&value); signedValue != nullptr)
+        if(const auto *signedValue = std::get_if<std::int64_t>(&value); signedValue != nullptr)
         {
             raw = static_cast<double>(*signedValue);
         }
-        else if (const auto *unsignedValue = std::get_if<std::uint64_t>(&value); unsignedValue != nullptr)
+        else if(const auto *unsignedValue = std::get_if<std::uint64_t>(&value); unsignedValue != nullptr)
         {
             raw = static_cast<double>(*unsignedValue);
         }
@@ -496,7 +496,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         const double minimum = static_cast<double>(element.logicalMinimum);
         const double maximum = static_cast<double>(element.logicalMaximum);
-        if (maximum <= minimum)
+        if(maximum <= minimum)
         {
             return 0.0F;
         }
@@ -513,7 +513,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         // The HID gamepad convention is X/Y for the left stick, Rx/Ry for
         // the right stick, Z/Rz for the triggers, and usage 0x39 for the
         // hat. Raw elements remain available when a device differs.
-        if (capabilities.UsagePage != 0x01 || capabilities.Usage != 0x04 || descriptor.elements.size() > 4080)
+        if(capabilities.UsagePage != 0x01 || capabilities.Usage != 0x04 || descriptor.elements.size() > 4080)
         {
             return;
         }
@@ -540,7 +540,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             const auto *x = findValue(xUsage);
             const auto *y = findValue(yUsage);
-            if (x == nullptr || y == nullptr)
+            if(x == nullptr || y == nullptr)
             {
                 return;
             }
@@ -567,7 +567,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const auto addScalar = [&](Types::StandardId standard, std::string_view name, USAGE usage)
         {
             const auto *source = findValue(usage);
-            if (source == nullptr)
+            if(source == nullptr)
             {
                 return;
             }
@@ -595,14 +595,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
         addScalar(Standard::Gamepad::RightTrigger, "Right Trigger", 0x35);
 
         const auto *hat = findValue(0x39);
-        if (hat != nullptr)
+        if(hat != nullptr)
         {
             const std::array<std::pair<Types::StandardId, std::string_view>, 4> directions{
                 {{Standard::Gamepad::DpadUp, "D-pad Up"},
                  {Standard::Gamepad::DpadRight, "D-pad Right"},
                  {Standard::Gamepad::DpadDown, "D-pad Down"},
                  {Standard::Gamepad::DpadLeft, "D-pad Left"}}};
-            for (std::size_t index = 0; index < directions.size(); ++index)
+            for(std::size_t index = 0; index < directions.size(); ++index)
             {
                 const auto &[standard, name] = directions[index];
                 const Types::ElementId id = addElement(
@@ -677,10 +677,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const auto rollback = [&] noexcept
         {
             state.devices.resize(initialDeviceCount);
-            if (mergedDevice)
+            if(mergedDevice)
             {
                 const std::size_t deviceIndex = state.findDeviceIndex(mergedDeviceId);
-                if (deviceIndex != state.devices.size())
+                if(deviceIndex != state.devices.size())
                 {
                     Types::DeviceInfo &descriptor = state.devices[deviceIndex];
                     descriptor.sources.resize(initialMergedSourceCount);
@@ -705,19 +705,19 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         try
         {
-            if (source.backend == Types::BackendKind::Synthetic)
+            if(source.backend == Types::BackendKind::Synthetic)
             {
                 source.backend = backendFor(role);
             }
-            if (source.backendName.empty())
+            if(source.backendName.empty())
             {
                 source.backendName = defaultSourceName(role);
             }
-            if (source.persistentKey.empty())
+            if(source.persistentKey.empty())
             {
                 source.persistentKey = deviceKey(role, slot);
             }
-            if (source.identityConfidence == Types::IdentityConfidence::None && !source.persistentKey.empty())
+            if(source.identityConfidence == Types::IdentityConfidence::None && !source.persistentKey.empty())
             {
                 source.identityConfidence =
                     role == DeviceRole::Gamepad ? Types::IdentityConfidence::ModelOnly : Types::IdentityConfidence::ConnectionPath;
@@ -727,7 +727,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             Types::DeviceInfo *descriptor = findLogicalDevice(state, source.persistentKey);
             const bool newLogicalDevice = descriptor == nullptr;
             const bool logicalWasConnected = descriptor != nullptr && descriptor->connected;
-            if (!newLogicalDevice)
+            if(!newLogicalDevice)
             {
                 mergedDevice = true;
                 mergedDeviceId = descriptor->id;
@@ -747,7 +747,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 .connected = connected,
                 .sourceIndex = 0,
             };
-            if (newLogicalDevice)
+            if(newLogicalDevice)
             {
                 Types::DeviceInfo nextDescriptor{
                     .id = binding.id,
@@ -770,15 +770,15 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 binding.sourceIndex = descriptor->sources.size();
                 descriptor->sources.push_back(std::move(source));
                 const Types::SourceInfo &registeredSource = descriptor->sources.back();
-                if (static_cast<unsigned int>(registeredSource.identityConfidence) > static_cast<unsigned int>(descriptor->identityConfidence))
+                if(static_cast<unsigned int>(registeredSource.identityConfidence) > static_cast<unsigned int>(descriptor->identityConfidence))
                 {
                     descriptor->identityConfidence = registeredSource.identityConfidence;
                 }
-                if (!descriptor->vendorId.has_value())
+                if(!descriptor->vendorId.has_value())
                 {
                     descriptor->vendorId = registeredSource.vendorId;
                 }
-                if (!descriptor->productId.has_value())
+                if(!descriptor->productId.has_value())
                 {
                     descriptor->productId = registeredSource.productId;
                 }
@@ -786,15 +786,15 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 descriptor->descriptorRevision = ++state.deviceRevision;
             }
 
-            if (role == DeviceRole::Keyboard)
+            if(role == DeviceRole::Keyboard)
             {
                 constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 3> keyboardUsageRanges = {
                     std::pair{0x04U, 0x31U},
                     std::pair{0x33U, 0x63U},
                     std::pair{0xE0U, 0xE7U}};
-                for (const auto &[firstUsage, lastUsage] : keyboardUsageRanges)
+                for(const auto &[firstUsage, lastUsage] : keyboardUsageRanges)
                 {
-                    for (std::uint32_t usage = firstUsage; usage <= lastUsage; ++usage)
+                    for(std::uint32_t usage = firstUsage; usage <= lastUsage; ++usage)
                     {
                         const Types::StandardId standard{Types::StandardDomain::Keyboard, usage};
                         addElement(
@@ -823,7 +823,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     {},
                     ElementRole::Standard);
             }
-            else if (role == DeviceRole::Mouse)
+            else if(role == DeviceRole::Mouse)
             {
                 const std::array<std::pair<Types::StandardId, std::string_view>, 5> buttons{
                     {{Standard::Mouse::Left, "Left Button"},
@@ -831,7 +831,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                      {Standard::Mouse::Middle, "Middle Button"},
                      {Standard::Mouse::X1, "X1 Button"},
                      {Standard::Mouse::X2, "X2 Button"}}};
-                for (const auto &[standard, buttonName] : buttons)
+                for(const auto &[standard, buttonName] : buttons)
                 {
                     addElement(
                         state,
@@ -870,7 +870,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                      component(1, "Horizontal", numericInfo(Types::NumericStorage::Signed16, {}, {}, Types::Unit::Count))},
                     ElementRole::MouseWheel);
             }
-            else if (role == DeviceRole::Pointer)
+            else if(role == DeviceRole::Pointer)
             {
                 addElement(
                     state,
@@ -902,7 +902,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                      {Standard::Gamepad::Start, "Start"},
                      {Standard::Gamepad::LeftStickButton, "Left Stick Button"},
                      {Standard::Gamepad::RightStickButton, "Right Stick Button"}}};
-                for (const auto &[standard, buttonName] : buttons)
+                for(const auto &[standard, buttonName] : buttons)
                 {
                     addElement(
                         state,
@@ -965,7 +965,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
 
             attachment.devices.push_back(std::move(binding));
-            if (newLogicalDevice && connected)
+            if(newLogicalDevice && connected)
             {
                 ++state.health.activeDeviceCount;
                 appendDeviceEvent(
@@ -975,9 +975,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     attachment.devices.back().id,
                     descriptor->descriptorRevision);
             }
-            else if (!newLogicalDevice)
+            else if(!newLogicalDevice)
             {
-                if (!logicalWasConnected && connected)
+                if(!logicalWasConnected && connected)
                 {
                     ++state.health.activeDeviceCount;
                     appendDeviceEvent(
@@ -998,7 +998,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 }
             }
         }
-        catch (...)
+        catch(...)
         {
             rollback();
             throw;
@@ -1007,11 +1007,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] bool addRawDevice(System::Impl &state, Attachment::Impl &attachment, DeviceRole role, HANDLE nativeDevice)
     {
-        if (nativeDevice == nullptr)
+        if(nativeDevice == nullptr)
         {
             return false;
         }
-        if (DeviceBinding *existing = findNativeDevice(attachment, role, nativeDevice); existing != nullptr)
+        if(DeviceBinding *existing = findNativeDevice(attachment, role, nativeDevice); existing != nullptr)
         {
             reconnectDevice(state, *existing);
             return true;
@@ -1046,7 +1046,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] bool addHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice)
     {
-        if (DeviceBinding *existing = findHidDevice(attachment, nativeDevice); existing != nullptr)
+        if(DeviceBinding *existing = findHidDevice(attachment, nativeDevice); existing != nullptr)
         {
             reconnectDevice(state, *existing);
             return true;
@@ -1055,11 +1055,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
         RID_DEVICE_INFO nativeInfo{};
         HIDP_CAPS capabilities{};
         std::vector<std::byte> preparsedData;
-        if (!hidDeviceInfo(nativeDevice, nativeInfo) || !hidPreparsedData(nativeDevice, preparsedData, capabilities))
+        if(!hidDeviceInfo(nativeDevice, nativeInfo) || !hidPreparsedData(nativeDevice, preparsedData, capabilities))
         {
             return false;
         }
-        if (capabilities.InputReportByteLength == 0)
+        if(capabilities.InputReportByteLength == 0)
         {
             return false;
         }
@@ -1088,10 +1088,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const auto rollback = [&] noexcept
         {
             state.devices.resize(initialDeviceCount);
-            if (mergedDevice)
+            if(mergedDevice)
             {
                 const std::size_t deviceIndex = state.findDeviceIndex(mergedDeviceId);
-                if (deviceIndex != state.devices.size())
+                if(deviceIndex != state.devices.size())
                 {
                     Types::DeviceInfo &descriptor = state.devices[deviceIndex];
                     descriptor.sources.resize(initialMergedSourceCount);
@@ -1119,7 +1119,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, persistentKey);
             const bool newLogicalDevice = logicalDescriptor == nullptr;
             const bool logicalWasConnected = logicalDescriptor != nullptr && logicalDescriptor->connected;
-            if (!newLogicalDevice)
+            if(!newLogicalDevice)
             {
                 mergedDevice = true;
                 mergedDeviceId = logicalDescriptor->id;
@@ -1149,7 +1149,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 .vendorId = static_cast<std::uint16_t>(nativeInfo.hid.dwVendorId),
                 .productId = static_cast<std::uint16_t>(nativeInfo.hid.dwProductId),
             };
-            if (newLogicalDevice)
+            if(newLogicalDevice)
             {
                 Types::DeviceInfo nextDescriptor{
                     .id = deviceId,
@@ -1173,11 +1173,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 logicalDescriptor->sources.push_back(std::move(source));
                 logicalDescriptor->connected = true;
                 logicalDescriptor->descriptorRevision = ++state.deviceRevision;
-                if (!logicalDescriptor->vendorId.has_value())
+                if(!logicalDescriptor->vendorId.has_value())
                 {
                     logicalDescriptor->vendorId = logicalDescriptor->sources.back().vendorId;
                 }
-                if (!logicalDescriptor->productId.has_value())
+                if(!logicalDescriptor->productId.has_value())
                 {
                     logicalDescriptor->productId = logicalDescriptor->sources.back().productId;
                 }
@@ -1187,30 +1187,30 @@ namespace GameWIP::Input::Platform::Win32::Detail
             constexpr std::size_t maximumElements = 4096;
             const std::size_t buttonCount = capabilities.NumberInputButtonCaps;
             const std::size_t valueCount = capabilities.NumberInputValueCaps;
-            if ((buttonCount == 0 && valueCount == 0) || buttonCount > maximumElements || valueCount > maximumElements ||
-                buttonCount + valueCount > maximumElements)
+            if((buttonCount == 0 && valueCount == 0) || buttonCount > maximumElements || valueCount > maximumElements ||
+               buttonCount + valueCount > maximumElements)
             {
                 rollback();
                 return false;
             }
             std::vector<HIDP_BUTTON_CAPS> buttonCaps(buttonCount);
             std::vector<HIDP_VALUE_CAPS> valueCaps(valueCount);
-            if (buttonCount != 0)
+            if(buttonCount != 0)
             {
                 USHORT count = static_cast<USHORT>(buttonCount);
-                if (HidP_GetButtonCaps(HidP_Input, buttonCaps.data(), &count, reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsedData.data())) !=
-                    HIDP_STATUS_SUCCESS)
+                if(HidP_GetButtonCaps(HidP_Input, buttonCaps.data(), &count, reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsedData.data())) !=
+                   HIDP_STATUS_SUCCESS)
                 {
                     rollback();
                     return false;
                 }
                 buttonCaps.resize(count);
             }
-            if (valueCount != 0)
+            if(valueCount != 0)
             {
                 USHORT count = static_cast<USHORT>(valueCount);
-                if (HidP_GetValueCaps(HidP_Input, valueCaps.data(), &count, reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsedData.data())) !=
-                    HIDP_STATUS_SUCCESS)
+                if(HidP_GetValueCaps(HidP_Input, valueCaps.data(), &count, reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsedData.data())) !=
+                   HIDP_STATUS_SUCCESS)
                 {
                     rollback();
                     return false;
@@ -1260,16 +1260,16 @@ namespace GameWIP::Input::Platform::Win32::Detail
             };
 
             std::size_t elementCount = 0;
-            for (const HIDP_BUTTON_CAPS &caps : buttonCaps)
+            for(const HIDP_BUTTON_CAPS &caps : buttonCaps)
             {
                 const std::uint32_t first = caps.IsRange ? caps.Range.UsageMin : caps.NotRange.Usage;
                 const std::uint32_t last = caps.IsRange ? caps.Range.UsageMax : first;
-                if (last < first || last - first >= maximumElements || elementCount + (last - first + 1) > maximumElements)
+                if(last < first || last - first >= maximumElements || elementCount + (last - first + 1) > maximumElements)
                 {
                     rollback();
                     return false;
                 }
-                for (std::uint32_t usage = first; usage <= last; ++usage)
+                for(std::uint32_t usage = first; usage <= last; ++usage)
                 {
                     addButton(static_cast<USAGE>(usage), caps, 0);
                     ++elementCount;
@@ -1326,17 +1326,17 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 });
             };
 
-            for (const HIDP_VALUE_CAPS &caps : valueCaps)
+            for(const HIDP_VALUE_CAPS &caps : valueCaps)
             {
                 const std::uint32_t first = caps.IsRange ? caps.Range.UsageMin : caps.NotRange.Usage;
                 const std::uint32_t last = caps.IsRange ? caps.Range.UsageMax : first;
-                if (last < first || last - first >= maximumElements || elementCount + (last - first + 1) > maximumElements)
+                if(last < first || last - first >= maximumElements || elementCount + (last - first + 1) > maximumElements)
                 {
                     rollback();
                     return false;
                 }
                 std::uint32_t componentIndex = 0;
-                for (std::uint32_t usage = first; usage <= last; ++usage)
+                for(std::uint32_t usage = first; usage <= last; ++usage)
                 {
                     addValue(static_cast<USAGE>(usage), caps, componentIndex++);
                     ++elementCount;
@@ -1349,19 +1349,19 @@ namespace GameWIP::Input::Platform::Win32::Detail
             binding.hidReportLength = capabilities.InputReportByteLength;
             const ULONG usageCapacity =
                 HidP_MaxUsageListLength(HidP_Input, 0, reinterpret_cast<PHIDP_PREPARSED_DATA>(binding.hidPreparsedData.data()));
-            if (usageCapacity > maximumElements)
+            if(usageCapacity > maximumElements)
             {
                 rollback();
                 return false;
             }
             binding.hidUsageScratch.resize(std::max<ULONG>(usageCapacity, 1));
             attachment.devices.push_back(std::move(binding));
-            if (newLogicalDevice)
+            if(newLogicalDevice)
             {
                 ++state.health.activeDeviceCount;
                 appendDeviceEvent(state, Types::EventKind::DeviceConnected, Types::EventCause::Reported, deviceId, descriptor.descriptorRevision);
             }
-            else if (!logicalWasConnected)
+            else if(!logicalWasConnected)
             {
                 ++state.health.activeDeviceCount;
                 appendDeviceEvent(
@@ -1377,7 +1377,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
             return true;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             rollback();
             return false;
@@ -1386,7 +1386,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] bool addOpaqueHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice)
     {
-        if (DeviceBinding *existing = findHidDevice(attachment, nativeDevice); existing != nullptr)
+        if(DeviceBinding *existing = findHidDevice(attachment, nativeDevice); existing != nullptr)
         {
             reconnectDevice(state, *existing);
             return true;
@@ -1415,10 +1415,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const auto rollback = [&] noexcept
         {
             state.devices.resize(initialDeviceCount);
-            if (mergedDevice)
+            if(mergedDevice)
             {
                 const std::size_t deviceIndex = state.findDeviceIndex(mergedDeviceId);
-                if (deviceIndex != state.devices.size())
+                if(deviceIndex != state.devices.size())
                 {
                     Types::DeviceInfo &descriptor = state.devices[deviceIndex];
                     descriptor.sources.resize(initialMergedSourceCount);
@@ -1445,7 +1445,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, persistentKey);
             const bool newLogicalDevice = logicalDescriptor == nullptr;
             const bool logicalWasConnected = logicalDescriptor != nullptr && logicalDescriptor->connected;
-            if (!newLogicalDevice)
+            if(!newLogicalDevice)
             {
                 mergedDevice = true;
                 mergedDeviceId = logicalDescriptor->id;
@@ -1478,7 +1478,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 .vendorId = hasNativeInfo ? std::optional<std::uint16_t>{static_cast<std::uint16_t>(nativeInfo.hid.dwVendorId)} : std::nullopt,
                 .productId = hasNativeInfo ? std::optional<std::uint16_t>{static_cast<std::uint16_t>(nativeInfo.hid.dwProductId)} : std::nullopt,
             };
-            if (newLogicalDevice)
+            if(newLogicalDevice)
             {
                 Types::DeviceInfo nextDescriptor{
                     .id = deviceId,
@@ -1505,12 +1505,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
             attachment.devices.push_back(std::move(binding));
             Types::DeviceInfo &descriptor = *logicalDescriptor;
-            if (newLogicalDevice)
+            if(newLogicalDevice)
             {
                 ++state.health.activeDeviceCount;
                 appendDeviceEvent(state, Types::EventKind::DeviceConnected, Types::EventCause::Reported, deviceId, descriptor.descriptorRevision);
             }
-            else if (!logicalWasConnected)
+            else if(!logicalWasConnected)
             {
                 ++state.health.activeDeviceCount;
                 appendDeviceEvent(
@@ -1526,7 +1526,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
             return true;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             rollback();
             return false;
@@ -1540,20 +1540,20 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const Types::Value &value) noexcept
     {
         const float normalized = normalizedHidValue(source, value);
-        for (Attachment::Impl::DeviceBinding::NormalizedElement &element : device.normalizedElements)
+        for(Attachment::Impl::DeviceBinding::NormalizedElement &element : device.normalizedElements)
         {
-            if (element.isHat)
+            if(element.isHat)
             {
-                if (element.sourceX != source.id)
+                if(element.sourceX != source.id)
                 {
                     continue;
                 }
                 std::uint64_t hat = 8;
-                if (const auto *signedValue = std::get_if<std::int64_t>(&value); signedValue != nullptr && *signedValue >= 0)
+                if(const auto *signedValue = std::get_if<std::int64_t>(&value); signedValue != nullptr && *signedValue >= 0)
                 {
                     hat = static_cast<std::uint64_t>(*signedValue);
                 }
-                else if (const auto *unsignedValue = std::get_if<std::uint64_t>(&value); unsignedValue != nullptr)
+                else if(const auto *unsignedValue = std::get_if<std::uint64_t>(&value); unsignedValue != nullptr)
                 {
                     hat = *unsignedValue;
                 }
@@ -1566,9 +1566,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 continue;
             }
 
-            if (element.standard == Standard::Gamepad::LeftTrigger || element.standard == Standard::Gamepad::RightTrigger)
+            if(element.standard == Standard::Gamepad::LeftTrigger || element.standard == Standard::Gamepad::RightTrigger)
             {
-                if (element.sourceX == source.id)
+                if(element.sourceX == source.id)
                 {
                     publish(state, element.id, normalized, false);
                 }
@@ -1576,17 +1576,17 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
 
             bool changed = false;
-            if (element.sourceX == source.id)
+            if(element.sourceX == source.id)
             {
                 element.x = normalized * 2.0F - 1.0F;
                 changed = true;
             }
-            if (element.sourceY == source.id)
+            if(element.sourceY == source.id)
             {
                 element.y = normalized * 2.0F - 1.0F;
                 changed = true;
             }
-            if (changed)
+            if(changed)
             {
                 publish(state, element.id, Types::Vector2F32{element.x, element.y}, false);
             }
@@ -1600,13 +1600,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const BYTE *report,
         std::size_t reportLength) noexcept
     {
-        if (report == nullptr || reportLength == 0)
+        if(report == nullptr || reportLength == 0)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
             return;
         }
-        if (device.hidOpaque)
+        if(device.hidOpaque)
         {
             appendRawReport(
                 state,
@@ -1617,7 +1617,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             (void)attachment;
             return;
         }
-        if (device.hidPreparsedData.empty())
+        if(device.hidPreparsedData.empty())
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
@@ -1632,7 +1632,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 return element.button;
             });
-        if (hasButtons)
+        if(hasButtons)
         {
             usageLength = static_cast<ULONG>(device.hidUsageScratch.size());
             const NTSTATUS usageStatus = HidP_GetUsagesEx(
@@ -1643,7 +1643,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 preparsed,
                 reinterpret_cast<PCHAR>(const_cast<BYTE *>(report)),
                 static_cast<ULONG>(reportLength));
-            if (usageStatus != HIDP_STATUS_SUCCESS && usageStatus != HIDP_STATUS_BUTTON_NOT_PRESSED)
+            if(usageStatus != HIDP_STATUS_SUCCESS && usageStatus != HIDP_STATUS_BUTTON_NOT_PRESSED)
             {
                 ++state.health.totalInvalidReports;
                 state.pendingDiscontinuity = true;
@@ -1651,18 +1651,18 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
         }
 
-        for (const Attachment::Impl::DeviceBinding::HidElement &element : device.hidElements)
+        for(const Attachment::Impl::DeviceBinding::HidElement &element : device.hidElements)
         {
-            if (element.reportId != 0 && report[0] != element.reportId)
+            if(element.reportId != 0 && report[0] != element.reportId)
             {
                 continue;
             }
-            if (element.button)
+            if(element.button)
             {
                 bool pressed = false;
-                for (ULONG index = 0; index < usageLength; ++index)
+                for(ULONG index = 0; index < usageLength; ++index)
                 {
-                    if (device.hidUsageScratch[index].UsagePage == element.usagePage && device.hidUsageScratch[index].Usage == element.usage)
+                    if(device.hidUsageScratch[index].UsagePage == element.usagePage && device.hidUsageScratch[index].Usage == element.usage)
                     {
                         pressed = true;
                         break;
@@ -1682,7 +1682,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 preparsed,
                 reinterpret_cast<PCHAR>(const_cast<BYTE *>(report)),
                 static_cast<ULONG>(reportLength));
-            if (valueStatus != HIDP_STATUS_SUCCESS)
+            if(valueStatus != HIDP_STATUS_SUCCESS)
             {
                 continue;
             }
@@ -1703,7 +1703,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
     {
         const auto registered =
             std::find(attachment.rawInputCollections.begin(), attachment.rawInputCollections.end(), std::pair<USHORT, USHORT>{usagePage, usage});
-        if (registered != attachment.rawInputCollections.end())
+        if(registered != attachment.rawInputCollections.end())
         {
             return IO::successStatus();
         }
@@ -1714,7 +1714,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             .dwFlags = flags,
             .hwndTarget = reinterpret_cast<HWND>(attachment.windowHandle),
         };
-        if (!RegisterRawInputDevices(&device, 1, sizeof(device)))
+        if(!RegisterRawInputDevices(&device, 1, sizeof(device)))
         {
             return nativeStatus(GetLastError());
         }
@@ -1724,7 +1724,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             attachment.rawInputCollections.emplace_back(usagePage, usage);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             RAWINPUTDEVICE removal{
                 .usUsagePage = usagePage,
@@ -1740,38 +1740,38 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] IO::Types::Status registerHidCollections(Attachment::Impl &attachment)
     {
         UINT deviceCount = 0;
-        if (GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
+        if(GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
         {
             return nativeStatus(GetLastError());
         }
-        if (deviceCount == 0)
+        if(deviceCount == 0)
         {
             return IO::successStatus();
         }
 
         std::vector<RAWINPUTDEVICELIST> devices(static_cast<std::size_t>(deviceCount));
         UINT received = deviceCount;
-        if (GetRawInputDeviceList(devices.data(), &received, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
+        if(GetRawInputDeviceList(devices.data(), &received, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
         {
             return nativeStatus(GetLastError());
         }
 
-        for (std::size_t index = 0; index < static_cast<std::size_t>(received); ++index)
+        for(std::size_t index = 0; index < static_cast<std::size_t>(received); ++index)
         {
             const RAWINPUTDEVICELIST &device = devices[index];
-            if (device.dwType != RIM_TYPEHID)
+            if(device.dwType != RIM_TYPEHID)
             {
                 continue;
             }
 
             RID_DEVICE_INFO info{};
-            if (!hidDeviceInfo(device.hDevice, info) || info.hid.usUsagePage == HID_USAGE_PAGE_GENERIC)
+            if(!hidDeviceInfo(device.hDevice, info) || info.hid.usUsagePage == HID_USAGE_PAGE_GENERIC)
             {
                 continue;
             }
             const IO::Types::Status registrationStatus =
                 registerRawInputCollection(attachment, info.hid.usUsagePage, info.hid.usUsage, RIDEV_DEVNOTIFY);
-            if (!registrationStatus.ok())
+            if(!registrationStatus.ok())
             {
                 return registrationStatus;
             }
@@ -1793,7 +1793,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void unregisterHidDeviceNotification(Attachment::Impl &attachment) noexcept
     {
-        if (attachment.hidDeviceNotification != nullptr)
+        if(attachment.hidDeviceNotification != nullptr)
         {
             (void)UnregisterDeviceNotification(attachment.hidDeviceNotification);
             attachment.hidDeviceNotification = nullptr;
@@ -1803,41 +1803,41 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] bool enumerateNativeDevices(System::Impl &state, Attachment::Impl &attachment)
     {
         UINT deviceCount = 0;
-        if (GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
+        if(GetRawInputDeviceList(nullptr, &deviceCount, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
         {
             return false;
         }
-        if (deviceCount == 0)
+        if(deviceCount == 0)
         {
             return true;
         }
 
         std::vector<RAWINPUTDEVICELIST> devices(static_cast<std::size_t>(deviceCount));
         UINT received = deviceCount;
-        if (GetRawInputDeviceList(devices.data(), &received, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
+        if(GetRawInputDeviceList(devices.data(), &received, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
         {
             return false;
         }
 
-        for (std::size_t index = 0; index < static_cast<std::size_t>(received); ++index)
+        for(std::size_t index = 0; index < static_cast<std::size_t>(received); ++index)
         {
             const RAWINPUTDEVICELIST &device = devices[index];
-            if (device.dwType == RIM_TYPEKEYBOARD)
+            if(device.dwType == RIM_TYPEKEYBOARD)
             {
                 (void)addRawDevice(state, attachment, DeviceRole::Keyboard, device.hDevice);
                 continue;
             }
-            if (device.dwType == RIM_TYPEMOUSE)
+            if(device.dwType == RIM_TYPEMOUSE)
             {
                 (void)addRawDevice(state, attachment, DeviceRole::Mouse, device.hDevice);
                 continue;
             }
-            if (device.dwType != RIM_TYPEHID)
+            if(device.dwType != RIM_TYPEHID)
             {
                 continue;
             }
 
-            if (!addHidDevice(state, attachment, device.hDevice))
+            if(!addHidDevice(state, attachment, device.hDevice))
             {
                 (void)addOpaqueHidDevice(state, attachment, device.hDevice);
             }
@@ -1851,22 +1851,22 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] std::string rawDeviceName(HANDLE nativeDevice)
     {
         UINT characterCount = 0;
-        if (GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, nullptr, &characterCount) == static_cast<UINT>(-1) || characterCount == 0)
+        if(GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, nullptr, &characterCount) == static_cast<UINT>(-1) || characterCount == 0)
         {
             return {};
         }
 
         std::vector<wchar_t> buffer(static_cast<std::size_t>(characterCount) + 1, L'\0');
         UINT received = characterCount;
-        if (GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, buffer.data(), &received) == static_cast<UINT>(-1) || received == 0)
+        if(GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, buffer.data(), &received) == static_cast<UINT>(-1) || received == 0)
         {
             return {};
         }
-        while (received != 0 && buffer[received - 1] == L'\0')
+        while(received != 0 && buffer[received - 1] == L'\0')
         {
             --received;
         }
-        if (received == 0)
+        if(received == 0)
         {
             return {};
         }
@@ -1874,13 +1874,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
         static_assert(sizeof(wchar_t) == sizeof(char16_t));
         const auto codeUnits = std::span<const char16_t>(reinterpret_cast<const char16_t *>(buffer.data()), received);
         const auto measured = GameWIP::Unicode::Utf16::measureToUtf8(codeUnits);
-        if (measured.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        if(measured.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return {};
         }
         std::string result(measured.requiredBytes, '\0');
         const auto converted = GameWIP::Unicode::Utf16::convertToUtf8(codeUnits, std::span<char>(result.data(), result.size()));
-        if (converted.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+        if(converted.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return {};
         }
@@ -1898,7 +1898,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] bool hidPreparsedData(HANDLE nativeDevice, std::vector<std::byte> &outPreparsedData, HIDP_CAPS &outCaps) noexcept
     {
         UINT size = 0;
-        if (GetRawInputDeviceInfoW(nativeDevice, RIDI_PREPARSEDDATA, nullptr, &size) == static_cast<UINT>(-1) || size == 0)
+        if(GetRawInputDeviceInfoW(nativeDevice, RIDI_PREPARSEDDATA, nullptr, &size) == static_cast<UINT>(-1) || size == 0)
         {
             return false;
         }
@@ -1906,13 +1906,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             outPreparsedData.resize(size);
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return false;
         }
 
         UINT received = size;
-        if (GetRawInputDeviceInfoW(nativeDevice, RIDI_PREPARSEDDATA, outPreparsedData.data(), &received) == static_cast<UINT>(-1) || received != size)
+        if(GetRawInputDeviceInfoW(nativeDevice, RIDI_PREPARSEDDATA, outPreparsedData.data(), &received) == static_cast<UINT>(-1) || received != size)
         {
             outPreparsedData.clear();
             return false;
@@ -1933,14 +1933,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
         constexpr USAGE genericDesktopPage = 0x01;
         constexpr USAGE buttonPage = 0x09;
 
-        if (usagePage == keyboardPage &&
-            ((usage >= 0x04 && usage <= 0x31) || (usage >= 0x33 && usage <= 0x63) || usage == 0x65 || (usage >= 0xE0 && usage <= 0xE7)))
+        if(usagePage == keyboardPage &&
+           ((usage >= 0x04 && usage <= 0x31) || (usage >= 0x33 && usage <= 0x63) || usage == 0x65 || (usage >= 0xE0 && usage <= 0xE7)))
         {
             return Types::StandardId{Types::StandardDomain::Keyboard, usage};
         }
-        if (topLevelUsagePage == genericDesktopPage && topLevelUsage == 0x02 && usagePage == buttonPage)
+        if(topLevelUsagePage == genericDesktopPage && topLevelUsage == 0x02 && usagePage == buttonPage)
         {
-            switch (usage)
+            switch(usage)
             {
             case 0x01:
                 return Standard::Mouse::Left;
@@ -1982,9 +1982,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         // Conventional HID gamepads commonly use button usages in physical
         // order. The original HID identity remains attached so unusual
         // layouts are still bindable without relying on this convention.
-        if (topLevelUsagePage == genericDesktopPage && topLevelUsage == 0x04 && usagePage == buttonPage)
+        if(topLevelUsagePage == genericDesktopPage && topLevelUsage == 0x04 && usagePage == buttonPage)
         {
-            switch (usage)
+            switch(usage)
             {
             case 0x01:
                 return Standard::Gamepad::South;
@@ -2018,31 +2018,31 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] Types::NumericStorage hidNumericStorage(bool signedValue, std::uint16_t bitSize) noexcept
     {
-        if (signedValue)
+        if(signedValue)
         {
-            if (bitSize <= 8)
+            if(bitSize <= 8)
             {
                 return Types::NumericStorage::Signed8;
             }
-            if (bitSize <= 16)
+            if(bitSize <= 16)
             {
                 return Types::NumericStorage::Signed16;
             }
-            if (bitSize <= 32)
+            if(bitSize <= 32)
             {
                 return Types::NumericStorage::Signed32;
             }
             return Types::NumericStorage::Signed64;
         }
-        if (bitSize <= 8)
+        if(bitSize <= 8)
         {
             return Types::NumericStorage::Unsigned8;
         }
-        if (bitSize <= 16)
+        if(bitSize <= 16)
         {
             return Types::NumericStorage::Unsigned16;
         }
-        if (bitSize <= 32)
+        if(bitSize <= 32)
         {
             return Types::NumericStorage::Unsigned32;
         }
@@ -2062,7 +2062,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] static std::int64_t signExtendHidValue(ULONG value, std::uint16_t bitSize) noexcept
     {
         const std::uint16_t width = std::min<std::uint16_t>(bitSize, 32);
-        if (width == 0 || width == 32 || (value & (static_cast<ULONG>(1U) << static_cast<ULONG>(width - 1U))) == 0)
+        if(width == 0 || width == 32 || (value & (static_cast<ULONG>(1U) << static_cast<ULONG>(width - 1U))) == 0)
         {
             return static_cast<std::int64_t>(static_cast<std::int32_t>(value));
         }
@@ -2072,7 +2072,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] Types::Value hidValue(const Attachment::Impl::DeviceBinding::HidElement &element, ULONG value) noexcept
     {
-        if (element.signedValue)
+        if(element.signedValue)
         {
             return signExtendHidValue(value, element.bitSize);
         }
@@ -2086,7 +2086,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void unregisterRawInput(Attachment::Impl &attachment) noexcept
     {
-        for (const auto [usagePage, usage] : attachment.rawInputCollections)
+        for(const auto [usagePage, usage] : attachment.rawInputCollections)
         {
             RAWINPUTDEVICE device{
                 .usUsagePage = usagePage,
@@ -2101,11 +2101,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     [[nodiscard]] IO::Types::Status checkAttached(const Attachment::Impl &attachment) noexcept
     {
-        if (!attachment.attached || attachment.system == nullptr)
+        if(!attachment.attached || attachment.system == nullptr)
         {
             return status(ErrorCode::NotOpen);
         }
-        if (!attachment.system->isOpen())
+        if(!attachment.system->isOpen())
         {
             return status(ErrorCode::NotOpen);
         }

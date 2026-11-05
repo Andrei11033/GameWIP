@@ -305,13 +305,13 @@ void recordExpectedManualAnswer(
 {
     const TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::promptManualCheck(question);
 
-    if (answer == expectedAnswer)
+    if(answer == expectedAnswer)
     {
         context.pass(name);
         return;
     }
 
-    if (answer == TestSupport::Types::Reporting::ManualAnswer::Skipped)
+    if(answer == TestSupport::Types::Reporting::ManualAnswer::Skipped)
     {
         context.skip(name, "manual check skipped by user");
         return;
@@ -323,7 +323,7 @@ void recordExpectedManualAnswer(
 /// @brief Runs gated human prompt checks or records their disabled skip.
 void testManualPromptChecks(TestSupport::Context &context, const TestSupportTestOptions &options)
 {
-    if (!options.enableManualTests)
+    if(!options.enableManualTests)
     {
         context.skip("TestSupport manual prompt checks", "disabled by TestSupportTestOptions");
         return;

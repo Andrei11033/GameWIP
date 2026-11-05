@@ -47,7 +47,7 @@ namespace GameWIP::Logger::Detail::Core
 
     bool isValidOutputMode(OutputMode mode)
     {
-        switch (mode)
+        switch(mode)
         {
         case OutputMode::None:
         case OutputMode::Console:
@@ -114,9 +114,9 @@ namespace GameWIP::Logger::Detail::Core
     {
         std::uint32_t spins = 0;
 
-        while (slot.sequence.load(std::memory_order_acquire) != ticket)
+        while(slot.sequence.load(std::memory_order_acquire) != ticket)
         {
-            if (spins++ < kQueueSlotSpinBeforeYield)
+            if(spins++ < kQueueSlotSpinBeforeYield)
             {
                 cpuRelax();
             }
@@ -142,7 +142,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         std::size_t current = target.load(std::memory_order_relaxed);
 
-        while (current < value && !target.compare_exchange_weak(current, value, std::memory_order_relaxed, std::memory_order_relaxed))
+        while(current < value && !target.compare_exchange_weak(current, value, std::memory_order_relaxed, std::memory_order_relaxed))
         {
         }
     }
@@ -165,7 +165,7 @@ namespace GameWIP::Logger::Detail::Core
 
     Status firstFailure(Status current, const Status &candidate)
     {
-        if (current.ok() && !candidate.ok())
+        if(current.ok() && !candidate.ok())
         {
             return candidate;
         }
@@ -190,7 +190,7 @@ namespace GameWIP::Logger::Detail::Core
 
     void recordHealthFailure(Types::Health::FailureSource source, const Status &status, bool disableChannel)
     {
-        if (status.ok())
+        if(status.ok())
         {
             return;
         }
@@ -201,28 +201,28 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().lastHealthNativeCode = status.nativeCode;
         ++loggerState().healthFailureCount;
 
-        if (disableChannel)
+        if(disableChannel)
         {
-            switch (source)
+            switch(source)
             {
             case Types::Health::FailureSource::File:
                 loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
 
-                if (loggerState().mode == OutputMode::Both)
+                if(loggerState().mode == OutputMode::Both)
                 {
                     loggerState().mode = OutputMode::Console;
                 }
-                else if (loggerState().mode == OutputMode::File)
+                else if(loggerState().mode == OutputMode::File)
                 {
                     loggerState().mode = OutputMode::None;
                 }
                 break;
             case Types::Health::FailureSource::Console:
-                if (loggerState().mode == OutputMode::Both)
+                if(loggerState().mode == OutputMode::Both)
                 {
                     loggerState().mode = OutputMode::File;
                 }
-                else if (loggerState().mode == OutputMode::Console)
+                else if(loggerState().mode == OutputMode::Console)
                 {
                     loggerState().mode = OutputMode::None;
                 }
@@ -258,7 +258,7 @@ namespace GameWIP::Logger::Detail::Core
             return LogStyle{text, style, stderrStream};
         };
 
-        switch (level)
+        switch(level)
         {
         case LogLevel::Trace:
             return colored("TRACE", Terminal::Types::Style::BasicColor::BrightBlack, false);
@@ -301,7 +301,7 @@ namespace GameWIP::Logger::Detail::Core
         const long double precise = static_cast<long double>(softQueueSize) * static_cast<long double>(multiplier);
         const long double maximum = static_cast<long double>(std::numeric_limits<std::size_t>::max());
 
-        if (precise >= maximum)
+        if(precise >= maximum)
         {
             return std::numeric_limits<std::size_t>::max();
         }
@@ -313,7 +313,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         adjusted = false;
 
-        if (!std::isfinite(multiplier) || multiplier < 1.0)
+        if(!std::isfinite(multiplier) || multiplier < 1.0)
         {
             adjusted = true;
             multiplier = 1.0;
@@ -408,7 +408,7 @@ namespace GameWIP::Logger::Detail::Core
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         loggerState().mode = mode;
 
-        if (!hasFileOutput(mode))
+        if(!hasFileOutput(mode))
         {
             loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
         }

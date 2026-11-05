@@ -110,7 +110,7 @@ namespace GameWIP::Logger
         template <typename... Args>
         void formatAndLogIfEnabled(Types::Level level, std::string_view source, std::format_string<Args...> format, Args &&...args) noexcept
         {
-            if (::GameWIP::Logger::shouldLog(level))
+            if(::GameWIP::Logger::shouldLog(level))
             {
                 formatAndLog(level, source, format, std::forward<Args>(args)...);
             }
@@ -120,7 +120,7 @@ namespace GameWIP::Logger
         template <typename... Args>
         void formatAndLogIfEnabled(Types::Level level, Types::SourceId source, std::format_string<Args...> format, Args &&...args) noexcept
         {
-            if (::GameWIP::Logger::shouldLog(level, source))
+            if(::GameWIP::Logger::shouldLog(level, source))
             {
                 formatAndLog(level, source, format, std::forward<Args>(args)...);
             }
@@ -130,7 +130,7 @@ namespace GameWIP::Logger
         template <typename... Args>
         void runtimeFormatAndLogIfEnabled(Types::Level level, std::string_view source, Types::RuntimeFormat format, Args &&...args) noexcept
         {
-            if (::GameWIP::Logger::shouldLog(level))
+            if(::GameWIP::Logger::shouldLog(level))
             {
                 runtimeFormatAndLog(level, source, format, args...);
             }
@@ -140,7 +140,7 @@ namespace GameWIP::Logger
         template <typename... Args>
         void runtimeFormatAndLogIfEnabled(Types::Level level, Types::SourceId source, Types::RuntimeFormat format, Args &&...args) noexcept
         {
-            if (::GameWIP::Logger::shouldLog(level, source))
+            if(::GameWIP::Logger::shouldLog(level, source))
             {
                 runtimeFormatAndLog(level, source, format, args...);
             }

@@ -56,7 +56,7 @@ namespace GameWIP::TestSupport
             std::is_copy_constructible_v<Worker>,
             "WorkerFunction must be copy constructible so each worker can receive independent callable state.");
 
-        if (workerCount == 0)
+        if(workerCount == 0)
         {
             return;
         }
@@ -69,18 +69,18 @@ namespace GameWIP::TestSupport
 
         try
         {
-            for (std::size_t index = 0; index < workerCount; ++index)
+            for(std::size_t index = 0; index < workerCount; ++index)
             {
                 workers.emplace_back(
                     [worker = workerPrototype, &exceptionMutex, &firstException](std::size_t workerIndex) mutable
                     {
                         try
                         {
-                            if constexpr (std::is_invocable_v<Worker &, std::size_t>)
+                            if constexpr(std::is_invocable_v<Worker &, std::size_t>)
                             {
                                 worker(workerIndex);
                             }
-                            else if constexpr (std::is_invocable_v<Worker &>)
+                            else if constexpr(std::is_invocable_v<Worker &>)
                             {
                                 worker();
                             }
@@ -91,11 +91,11 @@ namespace GameWIP::TestSupport
                                     "WorkerFunction must be invocable with size_t or with no arguments.");
                             }
                         }
-                        catch (...)
+                        catch(...)
                         {
                             std::lock_guard lock(exceptionMutex);
 
-                            if (!firstException)
+                            if(!firstException)
                             {
                                 firstException = std::current_exception();
                             }
@@ -104,11 +104,11 @@ namespace GameWIP::TestSupport
                     index);
             }
         }
-        catch (...)
+        catch(...)
         {
-            for (std::thread &worker : workers)
+            for(std::thread &worker : workers)
             {
-                if (worker.joinable())
+                if(worker.joinable())
                 {
                     worker.join();
                 }
@@ -116,12 +116,12 @@ namespace GameWIP::TestSupport
             throw;
         }
 
-        for (std::thread &worker : workers)
+        for(std::thread &worker : workers)
         {
             worker.join();
         }
 
-        if (firstException)
+        if(firstException)
         {
             std::rethrow_exception(firstException);
         }

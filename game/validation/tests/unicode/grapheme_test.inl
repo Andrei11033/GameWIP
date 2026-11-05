@@ -111,12 +111,12 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 {
     const std::optional<std::filesystem::path> conformancePath = findGraphemeBreakTestFile();
 
-    if (!conformancePath.has_value())
+    if(!conformancePath.has_value())
     {
         constexpr std::string_view reason = "Unicode 17.0.0 GraphemeBreakTest.txt is not cached. Run '.\\gamewip.bat unicode verify' "
                                             "or set GAMEWIP_UNICODE_GRAPHEME_BREAK_TEST.";
 
-        if (std::getenv("GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS") != nullptr)
+        if(std::getenv("GAMEWIP_REQUIRE_UNICODE_CONFORMANCE_TESTS") != nullptr)
         {
             context.fail("official Unicode grapheme conformance data", reason);
         }
@@ -130,7 +130,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
     std::ifstream input(*conformancePath, std::ios::binary);
 
-    if (!input)
+    if(!input)
     {
         context.fail("official Unicode grapheme conformance data", std::format("could not open {}", conformancePath->string()));
         return;
@@ -142,11 +142,11 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
     std::size_t checkedOffsets = 0;
     std::string line;
 
-    while (std::getline(input, line))
+    while(std::getline(input, line))
     {
         ++lineNumber;
 
-        if (line.contains("GraphemeBreakTest-17.0.0.txt"))
+        if(line.contains("GraphemeBreakTest-17.0.0.txt"))
         {
             versionConfirmed = true;
         }
@@ -154,7 +154,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
         const std::size_t comment = line.find('#');
         const std::string_view payload(line.data(), comment == std::string::npos ? line.size() : comment);
 
-        if (payload.find_first_not_of(" \t\r\n") == std::string_view::npos)
+        if(payload.find_first_not_of(" \t\r\n") == std::string_view::npos)
         {
             continue;
         }
@@ -162,7 +162,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
         std::string parseError;
         const std::optional<GraphemeFixture> fixture = parseGraphemeBreakCase(payload, parseError);
 
-        if (!fixture.has_value())
+        if(!fixture.has_value())
         {
             context.fail(
                 "official Unicode grapheme conformance parsing",
@@ -172,7 +172,7 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
         const std::optional<std::string> failure = graphemeFailure(*fixture);
 
-        if (failure.has_value())
+        if(failure.has_value())
         {
             context.fail("official Unicode grapheme conformance", std::format("{}:{}: {}", conformancePath->string(), lineNumber, *failure));
             return;
@@ -182,19 +182,19 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
         checkedOffsets += fixture->codePointOffsets.size();
     }
 
-    if (!input.eof())
+    if(!input.eof())
     {
         context.fail("official Unicode grapheme conformance data", std::format("read failed before EOF: {}", conformancePath->string()));
         return;
     }
 
-    if (!versionConfirmed)
+    if(!versionConfirmed)
     {
         context.fail("official Unicode grapheme conformance data", "file does not declare GraphemeBreakTest-17.0.0.txt");
         return;
     }
 
-    if (caseCount == 0)
+    if(caseCount == 0)
     {
         context.fail("official Unicode grapheme conformance data", "file contained no test cases");
         return;

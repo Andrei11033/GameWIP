@@ -27,7 +27,7 @@ namespace GameWIP::Action
     template <typename ActionEnum>
     ActionBindingBuilder<ActionEnum> &ActionBindingBuilder<ActionEnum>::withModifiers(std::span<const Input::InputControl> modifiers)
     {
-        for (Input::InputControl modifier : modifiers)
+        for(Input::InputControl modifier : modifiers)
         {
             binding.combo.modifiers.push_back(modifier);
         }
@@ -96,7 +96,7 @@ namespace GameWIP::Action
 
     template <typename ActionEnum> ActionResult ActionBindingBuilder<ActionEnum>::axis2D(ActionComponent component, float scale, float threshold)
     {
-        if (component == ActionComponent::Scalar)
+        if(component == ActionComponent::Scalar)
         {
             return ActionResult::InvalidBinding;
         }

@@ -23,9 +23,9 @@ namespace
         };
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value != nullptr && std::ranges::find(selectors, std::string_view(value)) != std::end(selectors))
+            if(value != nullptr && std::ranges::find(selectors, std::string_view(value)) != std::end(selectors))
             {
                 return true;
             }

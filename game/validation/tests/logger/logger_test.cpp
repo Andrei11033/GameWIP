@@ -58,7 +58,7 @@ namespace std
     {
         template <typename FormatContext> auto format(const LoggerFormatProbe &probe, FormatContext &context) const
         {
-            if (probe.formatCount != nullptr)
+            if(probe.formatCount != nullptr)
             {
                 probe.formatCount->fetch_add(1, memory_order_relaxed);
             }
@@ -125,7 +125,7 @@ namespace
 
         void expectTrue(std::string_view name, bool value, std::string_view details = "expected true")
         {
-            if (value)
+            if(value)
             {
                 testContext.pass(name);
             }
@@ -162,12 +162,12 @@ namespace
         {
             std::forward<Function>(function)();
         }
-        catch (const std::exception &exception)
+        catch(const std::exception &exception)
         {
             static_cast<void>(Logger::shutdown());
             context.fail(name, exception.what());
         }
-        catch (...)
+        catch(...)
         {
             static_cast<void>(Logger::shutdown());
             context.fail(name, "unknown exception");
@@ -216,7 +216,7 @@ namespace
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
 
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             context.fail(
                 "query Logger log file path",
@@ -231,7 +231,7 @@ namespace
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
 
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             context.fail("read Logger log fixture", TestSupport::formatInfrastructureStatus(result.status));
             return {};
@@ -245,7 +245,7 @@ namespace
         std::filesystem::path directory = context.logRoot / std::string(name);
         const auto status = TestSupport::createDirectories(directory);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             context.fail("create Logger test directory", TestSupport::formatInfrastructureStatus(status));
         }
@@ -312,12 +312,12 @@ namespace GameWIP::Test
 
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {
-        if (hasArgument(argc, argv, "--logger-test-child=report-no-drain"))
+        if(hasArgument(argc, argv, "--logger-test-child=report-no-drain"))
         {
             return runReportNoDrainChild();
         }
 
-        if (hasArgument(argc, argv, kFatalTerminateChildArgument))
+        if(hasArgument(argc, argv, kFatalTerminateChildArgument))
         {
             return runFatalTerminateChild();
         }
@@ -331,14 +331,14 @@ namespace GameWIP::Test
             {
                 TestContext context(suiteContext);
 
-                if (!context.processState.status().ok())
+                if(!context.processState.status().ok())
                 {
                     context.fail("acquire Logger process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
                     return;
                 }
                 const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
 
-                if (!workspace.status().ok())
+                if(!workspace.status().ok())
                 {
                     context.fail("create Logger test workspace", TestSupport::formatInfrastructureStatus(workspace.status()));
                     return;
@@ -348,7 +348,7 @@ namespace GameWIP::Test
                 context.executablePath = GameWIP::Validation::currentExecutablePath();
                 const TestSupport::ScopedCurrentPath currentPath(context.processState, workspace.path());
 
-                if (!currentPath.status().ok())
+                if(!currentPath.status().ok())
                 {
                     context.fail("set Logger test working directory", TestSupport::formatInfrastructureStatus(currentPath.status()));
                     return;
@@ -447,7 +447,7 @@ namespace GameWIP::Test
                         testManualFatalPopup(context, options);
                     });
 
-                if (options.enableManualTests)
+                if(options.enableManualTests)
                 {
                     context.testContext.summary(
                         std::format(

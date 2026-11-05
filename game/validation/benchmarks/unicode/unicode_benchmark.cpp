@@ -47,7 +47,7 @@ namespace
             std::string value;
             value.reserve(kTraversalBlock.size() * 512);
 
-            for (std::size_t index = 0; index < 512; ++index)
+            for(std::size_t index = 0; index < 512; ++index)
             {
                 value.append(kTraversalBlock);
             }
@@ -76,7 +76,7 @@ namespace
         std::array<char32_t, kPropertyLookupBatchSize> scalars{};
         std::uint32_t state = 0xC0FFEEU;
 
-        for (char32_t &scalar : scalars)
+        for(char32_t &scalar : scalars)
         {
             state ^= state << 13U;
             state ^= state >> 17U;
@@ -93,11 +93,11 @@ namespace
     /// @brief Measures generated-property lookup with a cache-friendly sequential access pattern.
     void BM_Unicode_PropertyLookupSequential(benchmark::State &state)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
 
-            for (std::uint32_t codePoint = 0x10000U; codePoint < 0x10000U + kPropertyLookupBatchSize; ++codePoint)
+            for(std::uint32_t codePoint = 0x10000U; codePoint < 0x10000U + kPropertyLookupBatchSize; ++codePoint)
             {
                 auto properties = Unicode::Internal::unicodeProperties(static_cast<char32_t>(codePoint));
                 benchmark::DoNotOptimize(properties);
@@ -110,11 +110,11 @@ namespace
     /// @brief Measures generated-property lookup with repeatable table-wide scattered access.
     void BM_Unicode_PropertyLookupScattered(benchmark::State &state)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
 
-            for (const char32_t scalar : kScatteredPropertyScalars)
+            for(const char32_t scalar : kScatteredPropertyScalars)
             {
                 auto properties = Unicode::Internal::unicodeProperties(scalar);
                 benchmark::DoNotOptimize(properties);
@@ -127,16 +127,16 @@ namespace
     /// @brief Measures repeated strict scalar decoding across one complete UTF-8 fixture.
     void benchmarkDecode(benchmark::State &state, std::string_view text)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             std::size_t offset = 0;
 
-            while (offset < text.size())
+            while(offset < text.size())
             {
                 Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(text.substr(offset));
 
-                if (decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
+                if(decoded.outcome != Unicode::Types::DecodeOutcome::Decoded)
                 {
                     state.SkipWithError("Unicode decode benchmark fixture is invalid.");
                     return;
@@ -153,12 +153,12 @@ namespace
     /// @brief Measures repeated whole-range strict UTF-8 validation.
     void benchmarkValidation(benchmark::State &state, std::string_view text)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Unicode::Types::Utf8::ValidationResult result = Unicode::Utf8::validate(text);
 
-            if (result.outcome != Unicode::Types::ValidationOutcome::Valid)
+            if(result.outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 state.SkipWithError("Unicode validation benchmark fixture is invalid.");
                 return;
@@ -173,16 +173,16 @@ namespace
     /// @brief Measures sequential forward UTF-8 code-point traversal.
     void benchmarkForwardCodePoints(benchmark::State &state, std::string_view text)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             std::size_t offset = 0;
 
-            while (offset < text.size())
+            while(offset < text.size())
             {
                 Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextCodePointBoundary(text, offset);
 
-                if (next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+                if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward code-point traversal failed.");
                     return;
@@ -199,16 +199,16 @@ namespace
     /// @brief Measures sequential backward UTF-8 code-point traversal.
     void benchmarkBackwardCodePoints(benchmark::State &state, std::string_view text)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             std::size_t offset = text.size();
 
-            while (offset > 0)
+            while(offset > 0)
             {
                 Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousCodePointBoundary(text, offset);
 
-                if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+                if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward code-point traversal failed.");
                     return;
@@ -225,16 +225,16 @@ namespace
     /// @brief Measures sequential forward extended grapheme-cluster traversal.
     void benchmarkForwardGraphemes(benchmark::State &state, std::string_view text)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             std::size_t offset = 0;
 
-            while (offset < text.size())
+            while(offset < text.size())
             {
                 Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
 
-                if (next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+                if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode forward grapheme traversal failed.");
                     return;
@@ -251,16 +251,16 @@ namespace
     /// @brief Measures sequential backward extended grapheme-cluster traversal.
     void benchmarkBackwardGraphemes(benchmark::State &state, std::string_view text)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             std::size_t offset = text.size();
 
-            while (offset > 0)
+            while(offset > 0)
             {
                 Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
 
-                if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+                if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode backward grapheme traversal failed.");
                     return;
@@ -277,12 +277,12 @@ namespace
     /// @brief Measures one stateless next-boundary query deep inside a long Unicode range.
     void benchmarkLocalNextGrapheme(benchmark::State &state, std::string_view text, std::size_t byteOffset)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
 
-            if (next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+            if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
             {
                 state.SkipWithError("Unicode local next-grapheme query failed.");
                 return;
@@ -294,12 +294,12 @@ namespace
     /// @brief Measures one stateless previous-boundary query deep inside a long Unicode range.
     void benchmarkLocalPreviousGrapheme(benchmark::State &state, std::string_view text, std::size_t byteOffset)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, byteOffset);
 
-            if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+            if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
             {
                 state.SkipWithError("Unicode local previous-grapheme query failed.");
                 return;
@@ -313,23 +313,23 @@ namespace
     {
         std::vector<std::size_t> boundaryStorage(text.size() + 1);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             Unicode::Utf8::GraphemeCursor cursor;
             const Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor.reset(text, boundaryStorage);
 
-            if (indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed)
+            if(indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed)
             {
                 state.SkipWithError("Unicode grapheme cursor indexing failed.");
                 return;
             }
 
-            while (cursor.byteOffset() < text.size())
+            while(cursor.byteOffset() < text.size())
             {
                 Unicode::Types::Utf8::BoundaryResult next = cursor.next();
 
-                if (next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+                if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode indexed forward grapheme traversal failed.");
                     return;
@@ -346,7 +346,7 @@ namespace
     {
         std::vector<std::size_t> boundaryStorage(text.size() + 1);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             std::string editable(text);
@@ -354,18 +354,18 @@ namespace
             Unicode::Utf8::GraphemeCursor cursor;
             const Unicode::Types::Utf8::GraphemeIndexResult indexed = cursor.reset(editable, boundaryStorage);
 
-            if (indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed ||
-                cursor.seek(editable.size()).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+            if(indexed.outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed ||
+               cursor.seek(editable.size()).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
             {
                 state.SkipWithError("Unicode backward-edit cursor setup failed.");
                 return;
             }
 
-            while (!editable.empty())
+            while(!editable.empty())
             {
                 const Unicode::Types::Utf8::BoundaryResult previous = cursor.previous();
 
-                if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+                if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
                 {
                     state.SkipWithError("Unicode indexed backward-edit traversal failed.");
                     return;
@@ -403,15 +403,15 @@ namespace
     /// @brief Measures fixed-result UTF-8 scalar encoding across representative lengths.
     void BM_Unicode_Utf8EncodeScalars(benchmark::State &state)
     {
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
 
-            for (const char32_t scalar : kScalars)
+            for(const char32_t scalar : kScalars)
             {
                 Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
 
-                if (encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
+                if(encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
                 {
                     state.SkipWithError("Unicode encode benchmark scalar is invalid.");
                     return;

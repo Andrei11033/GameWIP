@@ -41,9 +41,9 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
-            if (!eventStorage.empty())
+            if(!eventStorage.empty())
             {
-                for (std::size_t index = 0; index < eventCount; ++index)
+                for(std::size_t index = 0; index < eventCount; ++index)
                 {
                     eventStorage[(eventHead + index) % eventStorage.size()] = {};
                 }

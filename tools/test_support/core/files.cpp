@@ -36,7 +36,7 @@ namespace GameWIP::TestSupport
             std::string sanitized;
             sanitized.reserve(purpose.size());
 
-            for (const char character : purpose)
+            for(const char character : purpose)
             {
                 const bool asciiLetter = (character >= 'A' && character <= 'Z') || (character >= 'a' && character <= 'z');
                 const bool asciiDigit = character >= '0' && character <= '9';
@@ -64,7 +64,7 @@ namespace GameWIP::TestSupport
             std::error_code error;
             root_ = std::filesystem::temp_directory_path(error);
 
-            if (error)
+            if(error)
             {
                 status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 return;
@@ -75,7 +75,7 @@ namespace GameWIP::TestSupport
             root_ /= "TestSupport";
             static_cast<void>(std::filesystem::create_directories(root_, error));
 
-            if (error)
+            if(error)
             {
                 status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 return;
@@ -87,18 +87,18 @@ namespace GameWIP::TestSupport
 
             // The timestamp gives readable names; the atomic counter and bounded retry
             // handle same-tick construction and rare filesystem collisions.
-            for (std::size_t attempt = 0; attempt < 128; ++attempt)
+            for(std::size_t attempt = 0; attempt < 128; ++attempt)
             {
                 const std::filesystem::path candidate = root_ / std::format("{}_{:x}_{:x}_{:x}", prefix, ticks, allocationId, attempt);
                 error.clear();
 
-                if (std::filesystem::create_directory(candidate, error))
+                if(std::filesystem::create_directory(candidate, error))
                 {
                     path_ = candidate;
                     return;
                 }
 
-                if (error && error != std::errc::file_exists)
+                if(error && error != std::errc::file_exists)
                 {
                     status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                     return;
@@ -107,15 +107,15 @@ namespace GameWIP::TestSupport
 
             status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(std::make_error_code(std::errc::file_exists)));
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             status_ = failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-        catch (const std::filesystem::filesystem_error &error)
+        catch(const std::filesystem::filesystem_error &error)
         {
             status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error.code()));
         }
-        catch (...)
+        catch(...)
         {
             status_ = failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
@@ -127,18 +127,18 @@ namespace GameWIP::TestSupport
         {
             std::error_code error;
 
-            if (!path_.empty())
+            if(!path_.empty())
             {
                 static_cast<void>(std::filesystem::remove_all(path_, error));
             }
 
-            if (!root_.empty())
+            if(!root_.empty())
             {
                 removeDirectoryIfEmpty(root_);
                 removeDirectoryIfEmpty(root_.parent_path());
             }
         }
-        catch (...) // NOLINT(bugprone-empty-catch) -- Best-effort cleanup cannot propagate.
+        catch(...) // NOLINT(bugprone-empty-catch) -- Best-effort cleanup cannot propagate.
         {
         }
     }
@@ -158,7 +158,7 @@ namespace GameWIP::TestSupport
     {
         try
         {
-            if (!processState.status().ok())
+            if(!processState.status().ok())
             {
                 status_ = processState.status();
                 return;
@@ -167,7 +167,7 @@ namespace GameWIP::TestSupport
             std::error_code error;
             previousPath_ = std::filesystem::current_path(error);
 
-            if (error)
+            if(error)
             {
                 status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 previousPath_.clear();
@@ -176,7 +176,7 @@ namespace GameWIP::TestSupport
 
             const std::filesystem::path targetPath = std::filesystem::absolute(path, error);
 
-            if (error)
+            if(error)
             {
                 status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 previousPath_.clear();
@@ -186,19 +186,19 @@ namespace GameWIP::TestSupport
             expectedPath_ = targetPath;
             std::filesystem::current_path(targetPath, error);
 
-            if (error)
+            if(error)
             {
                 status_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 previousPath_.clear();
                 return;
             }
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             status_ = failureStatus(Types::InfrastructureError::OutOfMemory);
             previousPath_.clear();
         }
-        catch (...)
+        catch(...)
         {
             status_ = failureStatus(Types::InfrastructureError::FileOperationFailed);
             previousPath_.clear();
@@ -212,12 +212,12 @@ namespace GameWIP::TestSupport
 
     Types::InfrastructureStatus ScopedCurrentPath::restore() noexcept
     {
-        if (!status_.ok())
+        if(!status_.ok())
         {
             return status_;
         }
 
-        if (restored_)
+        if(restored_)
         {
             return restorationStatus_;
         }
@@ -227,14 +227,14 @@ namespace GameWIP::TestSupport
             std::error_code error;
             const std::filesystem::path currentPath = std::filesystem::current_path(error);
 
-            if (error)
+            if(error)
             {
                 restorationStatus_ = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
                 processState_->recordRestorationFailure(restorationStatus_);
                 return restorationStatus_;
             }
 
-            if (currentPath != expectedPath_)
+            if(currentPath != expectedPath_)
             {
                 restorationStatus_ = failureStatus(Types::InfrastructureError::ProcessStateConflict);
                 processState_->recordRestorationFailure(restorationStatus_);
@@ -245,18 +245,18 @@ namespace GameWIP::TestSupport
             restorationStatus_ =
                 error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error)) : Types::InfrastructureStatus{};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             restorationStatus_ = failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-        catch (...) // NOLINT(bugprone-empty-catch) -- Restoration failures are returned through the explicit method.
+        catch(...) // NOLINT(bugprone-empty-catch) -- Restoration failures are returned through the explicit method.
         {
             restorationStatus_ = failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
 
         restored_ = restorationStatus_.ok();
 
-        if (!restorationStatus_.ok())
+        if(!restorationStatus_.ok())
         {
             processState_->recordRestorationFailure(restorationStatus_);
         }
@@ -286,7 +286,7 @@ namespace GameWIP::TestSupport
             errno = 0;
             std::ifstream file(path, std::ios::binary | std::ios::ate);
 
-            if (!file.is_open())
+            if(!file.is_open())
             {
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 return result;
@@ -294,26 +294,26 @@ namespace GameWIP::TestSupport
 
             const auto endPosition = file.tellg();
 
-            if (endPosition < std::ifstream::pos_type{0})
+            if(endPosition < std::ifstream::pos_type{0})
             {
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 return result;
             }
 
-            if (endPosition == std::ifstream::pos_type{0})
+            if(endPosition == std::ifstream::pos_type{0})
             {
                 return result;
             }
 
             const auto fileSize = static_cast<std::uintmax_t>(endPosition);
 
-            if (fileSize > result.text.max_size())
+            if(fileSize > result.text.max_size())
             {
                 result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
                 return result;
             }
 
-            if (fileSize > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max()))
+            if(fileSize > static_cast<std::uintmax_t>(std::numeric_limits<std::streamsize>::max()))
             {
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed);
                 return result;
@@ -322,7 +322,7 @@ namespace GameWIP::TestSupport
             result.text.resize(static_cast<std::size_t>(fileSize));
             file.seekg(0, std::ios::beg);
 
-            if (!file)
+            if(!file)
             {
                 result.text.clear();
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
@@ -338,13 +338,13 @@ namespace GameWIP::TestSupport
 
             const Unicode::Types::Utf8::ValidationResult validation = Unicode::Utf8::validate(result.text);
 
-            if (validation.outcome != Unicode::Types::ValidationOutcome::Valid)
+            if(validation.outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 result.text.resize(validation.validPrefixBytes);
             }
 
             // Malformed input is definitive regardless of a simultaneous backend failure.
-            if (validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding)
+            if(validation.outcome == Unicode::Types::ValidationOutcome::InvalidEncoding)
             {
                 result.status = failureStatus(Types::InfrastructureError::EncodingFailed);
                 return result;
@@ -352,9 +352,9 @@ namespace GameWIP::TestSupport
 
             // An incomplete suffix is an encoding failure only at a definitive end. A real
             // backend failure remains authoritative because more bytes may have existed.
-            if (validation.outcome == Unicode::Types::ValidationOutcome::Incomplete)
+            if(validation.outcome == Unicode::Types::ValidationOutcome::Incomplete)
             {
-                if (backendFailure)
+                if(backendFailure)
                 {
                     result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 }
@@ -369,29 +369,29 @@ namespace GameWIP::TestSupport
             // The size measured before the read is authoritative for this whole-file helper.
             // A valid but shorter read therefore reports an operational failure instead of
             // silently returning a successful prefix.
-            if (backendFailure || knownSizeShortRead)
+            if(backendFailure || knownSizeShortRead)
             {
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
 
             return result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
             return result;
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
             return result;
         }
-        catch (const std::filesystem::filesystem_error &error)
+        catch(const std::filesystem::filesystem_error &error)
         {
             result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error.code()));
             return result;
         }
-        catch (...)
+        catch(...)
         {
             result.status = failureStatus(Types::InfrastructureError::FileOperationFailed);
             return result;
@@ -402,23 +402,23 @@ namespace GameWIP::TestSupport
     {
         try
         {
-            if (text.size() > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max()))
+            if(text.size() > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max()))
             {
                 return failureStatus(Types::InfrastructureError::InvalidArgument);
             }
 
-            if (Unicode::Utf8::validate(text).outcome != Unicode::Types::ValidationOutcome::Valid)
+            if(Unicode::Utf8::validate(text).outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 return failureStatus(Types::InfrastructureError::EncodingFailed);
             }
 
             const std::filesystem::path parentPath = path.parent_path();
 
-            if (!parentPath.empty())
+            if(!parentPath.empty())
             {
                 const Types::InfrastructureStatus directoryStatus = createDirectories(parentPath);
 
-                if (!directoryStatus.ok())
+                if(!directoryStatus.ok())
                 {
                     return directoryStatus;
                 }
@@ -427,7 +427,7 @@ namespace GameWIP::TestSupport
             errno = 0;
             std::ofstream file(path, std::ios::binary | std::ios::trunc);
 
-            if (!file.is_open())
+            if(!file.is_open())
             {
                 return failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
@@ -435,26 +435,26 @@ namespace GameWIP::TestSupport
             file.write(text.data(), static_cast<std::streamsize>(text.size()));
             file.flush();
 
-            if (!file)
+            if(!file)
             {
                 return failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
             }
 
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-        catch (const std::filesystem::filesystem_error &error)
+        catch(const std::filesystem::filesystem_error &error)
         {
             return failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error.code()));
         }
-        catch (...)
+        catch(...)
         {
             return failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
@@ -468,19 +468,19 @@ namespace GameWIP::TestSupport
             std::error_code error;
             result.value = std::filesystem::exists(path, error);
 
-            if (error)
+            if(error)
             {
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error));
             }
 
             return result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
             return result;
         }
-        catch (...)
+        catch(...)
         {
             result.status = failureStatus(Types::InfrastructureError::FileOperationFailed);
             return result;
@@ -492,7 +492,7 @@ namespace GameWIP::TestSupport
         Types::TextResult readResult = readTextFile(path);
         Types::BoolResult result{.status = readResult.status};
 
-        if (result.status.ok())
+        if(result.status.ok())
         {
             result.value = readResult.text.contains(text);
         }
@@ -505,14 +505,14 @@ namespace GameWIP::TestSupport
         Types::TextResult readResult = readTextFile(path);
         Types::CountResult result{.status = readResult.status};
 
-        if (!result.status.ok() || text.empty())
+        if(!result.status.ok() || text.empty())
         {
             return result;
         }
 
         std::size_t position = 0;
 
-        while ((position = readResult.text.find(text, position)) != std::string::npos)
+        while((position = readResult.text.find(text, position)) != std::string::npos)
         {
             ++result.count;
             position += text.size();
@@ -523,7 +523,7 @@ namespace GameWIP::TestSupport
 
     Types::InfrastructureStatus createDirectories(const std::filesystem::path &path) noexcept
     {
-        if (path.empty())
+        if(path.empty())
         {
             return {};
         }
@@ -534,11 +534,11 @@ namespace GameWIP::TestSupport
             static_cast<void>(std::filesystem::create_directories(path, error));
             return error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error)) : Types::InfrastructureStatus{};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return failureStatus(Types::InfrastructureError::FileOperationFailed);
         }
@@ -552,11 +552,11 @@ namespace GameWIP::TestSupport
             static_cast<void>(std::filesystem::remove_all(path, error));
             return error ? failureStatus(Types::InfrastructureError::FileOperationFailed, nativeCode(error)) : Types::InfrastructureStatus{};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return failureStatus(Types::InfrastructureError::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return failureStatus(Types::InfrastructureError::FileOperationFailed);
         }

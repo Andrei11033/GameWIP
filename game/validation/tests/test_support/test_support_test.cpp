@@ -68,9 +68,9 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value != nullptr && std::string_view(value) == argument)
+            if(value != nullptr && std::string_view(value) == argument)
             {
                 return true;
             }
@@ -84,9 +84,9 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (std::size_t index = 1; index + 1 < arguments.size(); ++index)
+        for(std::size_t index = 1; index + 1 < arguments.size(); ++index)
         {
-            if (arguments[index] != nullptr && std::string_view(arguments[index]) == argument && arguments[index + 1] != nullptr)
+            if(arguments[index] != nullptr && std::string_view(arguments[index]) == argument && arguments[index + 1] != nullptr)
             {
                 return arguments[index + 1];
             }
@@ -149,12 +149,12 @@ namespace
 
     int runTestSupportChild(int argc, char **argv)
     {
-        if (hasArgument(argc, argv, kStartGateChildArgument))
+        if(hasArgument(argc, argv, kStartGateChildArgument))
         {
             return runStartGateChild();
         }
 
-        if (hasArgument(argc, argv, kEnvironmentChildArgument))
+        if(hasArgument(argc, argv, kEnvironmentChildArgument))
         {
             const char *setValue = std::getenv(std::string(kChildSetVariable).c_str());
             const char *unsetValue = std::getenv(std::string(kChildUnsetVariable).c_str());
@@ -164,32 +164,32 @@ namespace
             return setValue != nullptr && std::string_view(setValue) == "child-value" && unsetValue == nullptr ? 0 : 9;
         }
 
-        if (hasArgument(argc, argv, kCurrentPathChildArgument))
+        if(hasArgument(argc, argv, kCurrentPathChildArgument))
         {
             std::cout << std::filesystem::current_path().generic_string() << '\n';
             return 0;
         }
 
-        if (hasArgument(argc, argv, kEchoChildArgument))
+        if(hasArgument(argc, argv, kEchoChildArgument))
         {
             std::cout << "testing child echo\n";
             std::cerr << "testing child stderr\n";
             return 0;
         }
 
-        if (hasArgument(argc, argv, kSleepChildArgument))
+        if(hasArgument(argc, argv, kSleepChildArgument))
         {
             std::this_thread::sleep_for(5s);
             return 0;
         }
 
-        if (hasArgument(argc, argv, kExitCodeChildArgument))
+        if(hasArgument(argc, argv, kExitCodeChildArgument))
         {
             const std::string exitCodeText = argumentAfter(argc, argv, kExitCodeChildArgument);
             return exitCodeText.empty() ? 7 : std::stoi(exitCodeText);
         }
 
-        if (hasArgument(argc, argv, kOutputChildArgument))
+        if(hasArgument(argc, argv, kOutputChildArgument))
         {
             const std::string byteCountText = argumentAfter(argc, argv, kOutputChildArgument);
             const std::size_t byteCount = byteCountText.empty() ? 0 : static_cast<std::size_t>(std::stoull(byteCountText));
@@ -198,7 +198,7 @@ namespace
             return 0;
         }
 
-        if (hasArgument(argc, argv, kHandleInheritanceChildArgument))
+        if(hasArgument(argc, argv, kHandleInheritanceChildArgument))
         {
 #if defined(_WIN32)
             const std::string handleText = argumentAfter(argc, argv, kHandleInheritanceChildArgument);
@@ -208,7 +208,7 @@ namespace
             return 0;
         }
 
-        if (hasArgument(argc, argv, kDescendantChildArgument))
+        if(hasArgument(argc, argv, kDescendantChildArgument))
         {
 #if defined(_WIN32)
             const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
@@ -218,17 +218,17 @@ namespace
             startupInfo.cb = sizeof(startupInfo);
             PROCESS_INFORMATION processInfo{};
 
-            if (CreateProcessW(
-                    executablePath.c_str(),
-                    commandLine.data(),
-                    nullptr,
-                    nullptr,
-                    TRUE,
-                    CREATE_NO_WINDOW,
-                    nullptr,
-                    nullptr,
-                    &startupInfo,
-                    &processInfo) == FALSE)
+            if(CreateProcessW(
+                   executablePath.c_str(),
+                   commandLine.data(),
+                   nullptr,
+                   nullptr,
+                   TRUE,
+                   CREATE_NO_WINDOW,
+                   nullptr,
+                   nullptr,
+                   &startupInfo,
+                   &processInfo) == FALSE)
             {
                 return 11;
             }
@@ -259,18 +259,18 @@ namespace GameWIP::Test
 
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {
-        if (hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kCurrentPathChildArgument) ||
-            hasArgument(argc, argv, kEchoChildArgument) || hasArgument(argc, argv, kSleepChildArgument) ||
-            hasArgument(argc, argv, kExitCodeChildArgument) || hasArgument(argc, argv, kOutputChildArgument) ||
-            hasArgument(argc, argv, kDescendantChildArgument) || hasArgument(argc, argv, kHandleInheritanceChildArgument) ||
-            hasArgument(argc, argv, kStartGateChildArgument))
+        if(hasArgument(argc, argv, kEnvironmentChildArgument) || hasArgument(argc, argv, kCurrentPathChildArgument) ||
+           hasArgument(argc, argv, kEchoChildArgument) || hasArgument(argc, argv, kSleepChildArgument) ||
+           hasArgument(argc, argv, kExitCodeChildArgument) || hasArgument(argc, argv, kOutputChildArgument) ||
+           hasArgument(argc, argv, kDescendantChildArgument) || hasArgument(argc, argv, kHandleInheritanceChildArgument) ||
+           hasArgument(argc, argv, kStartGateChildArgument))
         {
             return runTestSupportChild(argc, argv);
         }
 
         const TestSupport::ScopedTemporaryDirectory workspace("test_support_tests");
 
-        if (!workspace.status().ok())
+        if(!workspace.status().ok())
         {
             std::cerr << "TestSupport could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';
             return 1;

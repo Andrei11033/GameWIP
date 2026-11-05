@@ -43,7 +43,7 @@ void testPresentationPublication(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("publication fixture opens", window.open(description, Desktop::Events::owned(4)).ok()));
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
@@ -99,7 +99,7 @@ void testPresentationPublication(TestSupport::Context &context)
     std::thread reader(
         [&]
         {
-            while (!stop.load(std::memory_order_acquire))
+            while(!stop.load(std::memory_order_acquire))
             {
                 const auto client = window.clientSize();
                 const auto framebuffer = window.framebufferSize();
@@ -108,11 +108,11 @@ void testPresentationPublication(TestSupport::Context &context)
                 const auto monitor = window.currentMonitor();
                 const auto presentation = window.presentationState();
 
-                if ((client != first.clientSize && client != second.clientSize) ||
-                    (framebuffer != first.framebufferSize && framebuffer != second.framebufferSize) ||
-                    (scale != first.contentScale && scale != second.contentScale) || (dpi != first.dpi && dpi != second.dpi) ||
-                    (monitor != first.monitor && monitor != second.monitor) ||
-                    (presentation != first.presentation && presentation != second.presentation))
+                if((client != first.clientSize && client != second.clientSize) ||
+                   (framebuffer != first.framebufferSize && framebuffer != second.framebufferSize) ||
+                   (scale != first.contentScale && scale != second.contentScale) || (dpi != first.dpi && dpi != second.dpi) ||
+                   (monitor != first.monitor && monitor != second.monitor) ||
+                   (presentation != first.presentation && presentation != second.presentation))
                 {
                     invalid.store(true, std::memory_order_relaxed);
                 }
@@ -122,7 +122,7 @@ void testPresentationPublication(TestSupport::Context &context)
                 static_cast<void>(window.interactiveMoveResizeActive());
                 static_cast<void>(window.occluded());
 
-                if (reads.fetch_add(1, std::memory_order_release) == 0)
+                if(reads.fetch_add(1, std::memory_order_release) == 0)
                 {
                     reads.notify_one();
                 }
@@ -132,7 +132,7 @@ void testPresentationPublication(TestSupport::Context &context)
     // Ensure the reader runs before a short publisher loop can finish its time slice.
     reads.wait(0, std::memory_order_acquire);
 
-    for (std::size_t iteration = 0; iteration < 200'000; ++iteration)
+    for(std::size_t iteration = 0; iteration < 200'000; ++iteration)
     {
         Desktop::TestHooks::applyPresentationPublicationSnapshot(window, (iteration & 1U) == 0 ? second : first);
     }
@@ -199,7 +199,7 @@ void testPointerHitMask(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("pointer-mask fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
@@ -219,7 +219,7 @@ void testPointerHitMask(TestSupport::Context &context)
 
     Desktop::Types::PixelSize size = window.framebufferSize();
 
-    if (size.width % bitsPerWord == 0)
+    if(size.width % bitsPerWord == 0)
     {
         static_cast<void>(window.setClientSize({description.windowed.clientSize.width + 1, description.windowed.clientSize.height}));
         size = window.framebufferSize();
@@ -229,7 +229,7 @@ void testPointerHitMask(TestSupport::Context &context)
     std::vector<MaskWord> words(wordCount);
     static_cast<void>(context.expectFalse("pointer-mask fixture has nonempty storage", words.empty()));
 
-    if (words.empty())
+    if(words.empty())
     {
         return;
     }
@@ -295,7 +295,7 @@ void testPointerHitMask(TestSupport::Context &context)
 
     const unsigned int validBitsInLastWord = static_cast<unsigned int>(size.width % bitsPerWord);
 
-    if (validBitsInLastWord != 0)
+    if(validBitsInLastWord != 0)
     {
         std::vector<MaskWord> invalidPadding = words;
         invalidPadding[wordsPerRow - 1U] |= MaskWord{1} << validBitsInLastWord;
@@ -327,7 +327,7 @@ void testPointerHitMask(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("pointer-mask fixture closes", window.close().ok()));
     static_cast<void>(context.expectTrue("pointer-mask fixture reopens", window.open(description, Desktop::Events::owned(8)).ok()));
 
-    if (window.isOpen())
+    if(window.isOpen())
     {
         Desktop::TestHooks::enablePointerHitMaskBridge(window);
         static_cast<void>(context.expectEq(
@@ -366,7 +366,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("renderer feedback fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
@@ -390,7 +390,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     const auto *occludedEvent = event.getIf<Desktop::Types::Events::OcclusionChanged>();
     static_cast<void>(context.expectTrue("occluded event has typed payload", occludedEvent != nullptr));
 
-    if (occludedEvent != nullptr)
+    if(occludedEvent != nullptr)
     {
         static_cast<void>(context.expectTrue("occluded event carries true", occludedEvent->occluded));
     }
@@ -417,7 +417,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     const auto *visibleEvent = event.getIf<Desktop::Types::Events::OcclusionChanged>();
     static_cast<void>(context.expectTrue("detach event has typed payload", visibleEvent != nullptr));
 
-    if (visibleEvent != nullptr)
+    if(visibleEvent != nullptr)
     {
         static_cast<void>(context.expectFalse("detach event carries false", visibleEvent->occluded));
     }
@@ -440,7 +440,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     Desktop::Window overflow;
     static_cast<void>(context.expectTrue("occlusion overflow fixture opens", overflow.open(description, Desktop::Events::owned(1)).ok()));
 
-    if (overflow.isOpen())
+    if(overflow.isOpen())
     {
         static_cast<void>(Feedback::attachOcclusionProvider(overflow));
         static_cast<void>(Feedback::reportOcclusion(overflow, true));

@@ -45,50 +45,50 @@ namespace GameWIP::FileSystem
 
         [[nodiscard]] IO::Types::Status statusFromStdError(std::error_code ec, ErrorCode fallback) noexcept
         {
-            if (!ec)
+            if(!ec)
             {
                 return IO::successStatus();
             }
 
             ErrorCode code = fallback;
 
-            if (ec == std::errc::no_such_file_or_directory)
+            if(ec == std::errc::no_such_file_or_directory)
             {
                 code = ErrorCode::NotFound;
             }
-            else if (ec == std::errc::not_a_directory)
+            else if(ec == std::errc::not_a_directory)
             {
                 code = ErrorCode::NotDirectory;
             }
-            else if (ec == std::errc::permission_denied || ec == std::errc::operation_not_permitted)
+            else if(ec == std::errc::permission_denied || ec == std::errc::operation_not_permitted)
             {
                 code = ErrorCode::PermissionDenied;
             }
-            else if (ec == std::errc::file_exists)
+            else if(ec == std::errc::file_exists)
             {
                 code = ErrorCode::AlreadyExists;
             }
-            else if (ec == std::errc::filename_too_long)
+            else if(ec == std::errc::filename_too_long)
             {
                 code = ErrorCode::PathTooLong;
             }
-            else if (ec == std::errc::no_space_on_device)
+            else if(ec == std::errc::no_space_on_device)
             {
                 code = ErrorCode::StorageFull;
             }
-            else if (ec == std::errc::device_or_resource_busy)
+            else if(ec == std::errc::device_or_resource_busy)
             {
                 code = ErrorCode::ResourceBusy;
             }
-            else if (ec == std::errc::interrupted)
+            else if(ec == std::errc::interrupted)
             {
                 code = ErrorCode::Interrupted;
             }
-            else if (ec == std::errc::too_many_symbolic_link_levels)
+            else if(ec == std::errc::too_many_symbolic_link_levels)
             {
                 code = ErrorCode::Unsupported;
             }
-            else if (ec == std::errc::directory_not_empty)
+            else if(ec == std::errc::directory_not_empty)
             {
                 code = ErrorCode::DirectoryNotEmpty;
             }
@@ -97,14 +97,14 @@ namespace GameWIP::FileSystem
             {
                 std::string message = ec.message();
 
-                if (validUtf8(message))
+                if(validUtf8(message))
                 {
                     return IO::makeStatus(code, ec.value(), std::move(message));
                 }
 
                 return IO::makeStatus(code, ec.value());
             }
-            catch (...)
+            catch(...)
             {
                 return IO::makeStatus(code, ec.value());
             }
@@ -114,7 +114,7 @@ namespace GameWIP::FileSystem
         {
             std::u8string converted(utf8Path.size(), u8'\0');
 
-            if (!utf8Path.empty())
+            if(!utf8Path.empty())
             {
                 std::ranges::transform(
                     utf8Path,
@@ -140,18 +140,18 @@ namespace GameWIP::FileSystem
             std::error_code ec;
             Types::Path path = std::filesystem::current_path(ec);
 
-            if (ec)
+            if(ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
 
             return {.status = IO::successStatus(), .path = path};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::Unknown);
         }
@@ -161,7 +161,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (path.empty())
+            if(path.empty())
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
@@ -170,11 +170,11 @@ namespace GameWIP::FileSystem
             std::filesystem::current_path(path, ec);
             return statusFromStdError(ec, ErrorCode::OpenFailed);
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(ErrorCode::Unknown);
         }
@@ -190,11 +190,11 @@ namespace GameWIP::FileSystem
         {
             return {.status = IO::successStatus(), .path = path.parent_path()};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::InvalidArgument);
         }
@@ -206,11 +206,11 @@ namespace GameWIP::FileSystem
         {
             return {.status = IO::successStatus(), .path = path.filename()};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::InvalidArgument);
         }
@@ -222,11 +222,11 @@ namespace GameWIP::FileSystem
         {
             return {.status = IO::successStatus(), .path = path.stem()};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::InvalidArgument);
         }
@@ -238,11 +238,11 @@ namespace GameWIP::FileSystem
         {
             return {.status = IO::successStatus(), .path = path.extension()};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::InvalidArgument);
         }
@@ -257,11 +257,11 @@ namespace GameWIP::FileSystem
 
             return {.status = IO::successStatus(), .path = result};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::InvalidArgument);
         }
@@ -276,11 +276,11 @@ namespace GameWIP::FileSystem
 
             return {.status = IO::successStatus(), .path = result};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::InvalidArgument);
         }
@@ -296,11 +296,11 @@ namespace GameWIP::FileSystem
         {
             return {.status = IO::successStatus(), .value = path.is_absolute()};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return boolFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return boolFailure(ErrorCode::InvalidArgument);
         }
@@ -312,11 +312,11 @@ namespace GameWIP::FileSystem
         {
             return {.status = IO::successStatus(), .value = path.is_relative()};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return boolFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return boolFailure(ErrorCode::InvalidArgument);
         }
@@ -326,7 +326,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (path.empty())
+            if(path.empty())
             {
                 return pathFailure(ErrorCode::InvalidArgument);
             }
@@ -334,18 +334,18 @@ namespace GameWIP::FileSystem
             std::error_code ec;
             Types::Path result = std::filesystem::absolute(path, ec);
 
-            if (ec)
+            if(ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
 
             return {.status = IO::successStatus(), .path = result};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::Unknown);
         }
@@ -355,7 +355,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (path.empty())
+            if(path.empty())
             {
                 return pathFailure(ErrorCode::InvalidArgument);
             }
@@ -363,18 +363,18 @@ namespace GameWIP::FileSystem
             std::error_code ec;
             Types::Path result = std::filesystem::canonical(path, ec);
 
-            if (ec)
+            if(ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
 
             return {.status = IO::successStatus(), .path = result};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::Unknown);
         }
@@ -384,7 +384,7 @@ namespace GameWIP::FileSystem
     {
         try
         {
-            if (path.empty())
+            if(path.empty())
             {
                 return pathFailure(ErrorCode::InvalidArgument);
             }
@@ -392,18 +392,18 @@ namespace GameWIP::FileSystem
             std::error_code ec;
             Types::Path result = std::filesystem::weakly_canonical(path, ec);
 
-            if (ec)
+            if(ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
 
             return {.status = IO::successStatus(), .path = result};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::Unknown);
         }
@@ -416,18 +416,18 @@ namespace GameWIP::FileSystem
             std::error_code ec;
             Types::Path result = std::filesystem::temp_directory_path(ec);
 
-            if (ec)
+            if(ec)
             {
                 return pathFailure(statusFromStdError(ec, ErrorCode::StatFailed));
             }
 
             return {.status = IO::successStatus(), .path = result};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::Unknown);
         }
@@ -439,7 +439,7 @@ namespace GameWIP::FileSystem
 
     Types::PathResult pathFromUtf8(std::string_view utf8Path) noexcept
     {
-        if (!validUtf8(utf8Path))
+        if(!validUtf8(utf8Path))
         {
             return pathFailure(ErrorCode::EncodingFailed);
         }
@@ -449,11 +449,11 @@ namespace GameWIP::FileSystem
             Types::Path result = pathFromTrustedUtf8(utf8Path);
             return {.status = IO::successStatus(), .path = std::move(result)};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::EncodingFailed);
         }
@@ -473,11 +473,11 @@ namespace GameWIP::FileSystem
                 });
             return pathFromUtf8(std::string_view(bytes));
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return pathFailure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return pathFailure(ErrorCode::EncodingFailed);
         }
@@ -490,18 +490,18 @@ namespace GameWIP::FileSystem
             std::u8string u8String = path.u8string();
             std::string utf8{u8String.begin(), u8String.end()};
 
-            if (!validUtf8(utf8))
+            if(!validUtf8(utf8))
             {
                 return utf8Failure(ErrorCode::EncodingFailed);
             }
 
             return {.status = IO::successStatus(), .utf8 = std::move(utf8)};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return utf8Failure(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return utf8Failure(ErrorCode::EncodingFailed);
         }

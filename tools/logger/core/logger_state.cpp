@@ -23,7 +23,7 @@ namespace GameWIP::Logger::Detail::Core
             result.requestedOutput = config.output;
             try
             {
-                if (GameWIP::Logger::running())
+                if(GameWIP::Logger::running())
                 {
                     result.outcome = Types::Init::Outcome::Started;
                     result.effectiveOutput = GameWIP::Logger::getOutput();
@@ -33,7 +33,7 @@ namespace GameWIP::Logger::Detail::Core
                     static_cast<void>(GameWIP::Logger::shutdown());
                 }
             }
-            catch (...)
+            catch(...)
             {
                 result.outcome = Types::Init::Outcome::Disabled;
                 result.effectiveOutput = OutputMode::None;
@@ -45,7 +45,7 @@ namespace GameWIP::Logger::Detail::Core
 
     void waitForActiveProducersToLeave()
     {
-        while (loggerState().activeProducers.load(std::memory_order_acquire) != 0)
+        while(loggerState().activeProducers.load(std::memory_order_acquire) != 0)
         {
             std::this_thread::yield();
         }
@@ -84,13 +84,13 @@ namespace GameWIP::Logger::Detail::Core
             Types::Init::Adjustment &adjustments,
             Status &outStatus)
         {
-            if (!isValidOutputMode(config.output) || !isValidLevel(config.minLevel) || !isValidFormatPolicy(config.formatPolicy))
+            if(!isValidOutputMode(config.output) || !isValidLevel(config.minLevel) || !isValidFormatPolicy(config.formatPolicy))
             {
                 outStatus = IO::makeStatus(ErrorCode::InvalidArgument);
                 return false;
             }
 
-            if (!config.logDirectory.empty() && !validUtf8(config.logDirectory))
+            if(!config.logDirectory.empty() && !validUtf8(config.logDirectory))
             {
                 outStatus = IO::makeStatus(ErrorCode::EncodingFailed);
                 return false;
@@ -98,7 +98,7 @@ namespace GameWIP::Logger::Detail::Core
 
             prepared.softQueueSize = config.maxQueueSize;
 
-            if (prepared.softQueueSize == 0)
+            if(prepared.softQueueSize == 0)
             {
                 prepared.softQueueSize = 4;
                 adjustments |= Types::Init::Adjustment::QueueLimitsAdjusted;
@@ -106,7 +106,7 @@ namespace GameWIP::Logger::Detail::Core
 
             prepared.maxMessageLength = config.maxMessageLength;
 
-            if (prepared.maxMessageLength == 0)
+            if(prepared.maxMessageLength == 0)
             {
                 prepared.maxMessageLength = 512;
                 adjustments |= Types::Init::Adjustment::MessageLengthAdjusted;
@@ -114,7 +114,7 @@ namespace GameWIP::Logger::Detail::Core
 
             prepared.inlineMessageCapacity = std::min(config.inlineMessageCapacity, prepared.maxMessageLength);
 
-            if (prepared.inlineMessageCapacity != config.inlineMessageCapacity)
+            if(prepared.inlineMessageCapacity != config.inlineMessageCapacity)
             {
                 adjustments |= Types::Init::Adjustment::InlineCapacityAdjusted;
             }
@@ -123,27 +123,27 @@ namespace GameWIP::Logger::Detail::Core
             bool hardQueueAdjusted = false;
             prepared.hardQueueSize = effectiveHardQueueLimit(prepared.hardQueueMultiplier, prepared.softQueueSize, hardQueueAdjusted);
 
-            if (hardQueueAdjusted)
+            if(hardQueueAdjusted)
             {
                 adjustments |= Types::Init::Adjustment::QueueLimitsAdjusted;
             }
 
             prepared.workerBatchSize = effectiveWorkerBatchSize(config.workerBatchSize, prepared.hardQueueSize);
 
-            if (config.workerBatchSize != 0 && prepared.workerBatchSize != config.workerBatchSize)
+            if(config.workerBatchSize != 0 && prepared.workerBatchSize != config.workerBatchSize)
             {
                 adjustments |= Types::Init::Adjustment::WorkerBatchAdjusted;
             }
 
             prepared.levelMask = kAllLevelMask;
 
-            if (!prepareLevelMask(config.levelFilters, prepared.levelMask))
+            if(!prepareLevelMask(config.levelFilters, prepared.levelMask))
             {
                 outStatus = IO::makeStatus(ErrorCode::InvalidArgument);
                 return false;
             }
 
-            if (!prepareSources(config.sources, config.sourceFilters, prepared.sourceRegistry, outStatus))
+            if(!prepareSources(config.sources, config.sourceFilters, prepared.sourceRegistry, outStatus))
             {
                 return false;
             }
@@ -157,15 +157,15 @@ namespace GameWIP::Logger::Detail::Core
             Types::Init::Adjustment &adjustments,
             PreparedQueueStorage &storage)
         {
-            if (prepareQueueStorage(
-                    prepared.hardQueueSize,
-                    prepared.workerBatchSize,
-                    prepared.inlineMessageCapacity,
-                    storage.ring,
-                    storage.ringSize,
-                    storage.batch,
-                    storage.ringArena,
-                    storage.batchArena))
+            if(prepareQueueStorage(
+                   prepared.hardQueueSize,
+                   prepared.workerBatchSize,
+                   prepared.inlineMessageCapacity,
+                   storage.ring,
+                   storage.ringSize,
+                   storage.batch,
+                   storage.ringArena,
+                   storage.batchArena))
             {
                 return true;
             }
@@ -179,7 +179,7 @@ namespace GameWIP::Logger::Detail::Core
             adjustments |= Types::Init::Adjustment::QueueLimitsAdjusted;
             adjustments |= Types::Init::Adjustment::QueueStorageFallback;
 
-            if (config.workerBatchSize != 0 && prepared.workerBatchSize != config.workerBatchSize)
+            if(config.workerBatchSize != 0 && prepared.workerBatchSize != config.workerBatchSize)
             {
                 adjustments |= Types::Init::Adjustment::WorkerBatchAdjusted;
             }
@@ -249,7 +249,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
 
-            if (!loggerState().logFile.isOpen())
+            if(!loggerState().logFile.isOpen())
             {
                 return;
             }
@@ -265,7 +265,7 @@ namespace GameWIP::Logger::Detail::Core
             const std::string directoryText = config.logDirectory.empty() ? std::string(kDefaultLogDirectory) : std::string(config.logDirectory);
             auto directory = FileSystem::pathFromUtf8(directoryText);
 
-            if (!directory.status.ok())
+            if(!directory.status.ok())
             {
                 outStatus = directory.status;
                 return false;
@@ -278,7 +278,7 @@ namespace GameWIP::Logger::Detail::Core
                     .succeedIfAlreadyExists = true,
                     .symlinkPolicy = FileSystem::Types::SymlinkPolicy::FollowAll});
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 outStatus = status;
                 return false;
@@ -287,7 +287,7 @@ namespace GameWIP::Logger::Detail::Core
             Status timeStatus;
             const std::string baseName = getCurrentTimeText("%Y-%m-%d_%H-%M-%S", timeStatus);
 
-            if (!timeStatus.ok())
+            if(!timeStatus.ok())
             {
                 // Timestamp failure degrades diagnostics but does not make File unusable
                 // if the backend can still create a collision-safe path from the fallback text.
@@ -299,12 +299,12 @@ namespace GameWIP::Logger::Detail::Core
             Status lastOpenStatus = IO::makeStatus(ErrorCode::OpenFailed);
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
 
-            for (std::size_t index = 0; index <= kMaxCollisionAttempts; ++index)
+            for(std::size_t index = 0; index <= kMaxCollisionAttempts; ++index)
             {
                 const std::string fileName = index == 0 ? baseName + ".log" : baseName + "_" + std::to_string(index) + ".log";
                 auto fileNamePath = FileSystem::pathFromUtf8(fileName);
 
-                if (!fileNamePath.status.ok())
+                if(!fileNamePath.status.ok())
                 {
                     outStatus = firstFailure(outStatus, fileNamePath.status);
                     return false;
@@ -312,7 +312,7 @@ namespace GameWIP::Logger::Detail::Core
 
                 auto candidate = FileSystem::joinPath(directoryPath, fileNamePath.path);
 
-                if (!candidate.status.ok())
+                if(!candidate.status.ok())
                 {
                     outStatus = firstFailure(outStatus, candidate.status);
                     return false;
@@ -320,7 +320,7 @@ namespace GameWIP::Logger::Detail::Core
 
                 lastOpenStatus = openFileExclusiveForLogger(candidate.path, loggerState().logFile);
 
-                if (lastOpenStatus.ok())
+                if(lastOpenStatus.ok())
                 {
                     {
                         std::lock_guard<std::mutex> lock(loggerState().logMutex);
@@ -353,7 +353,7 @@ namespace GameWIP::Logger::Detail::Core
                 loggerState().loggingThread = std::thread(loggerWorker);
                 return {};
             }
-            catch (...)
+            catch(...)
             {
                 {
                     std::lock_guard<std::mutex> lock(loggerState().logMutex);
@@ -409,7 +409,7 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
 
-        if (loggerState().workerRunning || loggerState().loggingThread.joinable())
+        if(loggerState().workerRunning || loggerState().loggingThread.joinable())
         {
             result.status = IO::makeStatus(ErrorCode::AlreadyOpen);
             result.outcome = Types::Init::Outcome::Started;
@@ -420,7 +420,7 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
         resetHealthUnlocked(Types::Health::State::Disabled, OutputMode::None);
     }
 
-    if (!loggerState().shutdownRegistered)
+    if(!loggerState().shutdownRegistered)
     {
         std::atexit(shutdownLoggerAtExit);
         loggerState().shutdownRegistered = true;
@@ -445,12 +445,12 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
 
     PreparedInitConfig prepared;
 
-    if (!normalizeInitConfig(config, prepared, result.adjustments, result.outputSetupStatus))
+    if(!normalizeInitConfig(config, prepared, result.adjustments, result.outputSetupStatus))
     {
         return fail(result.outputSetupStatus);
     }
 
-    if (config.output == OutputMode::None)
+    if(config.output == OutputMode::None)
     {
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         publishDisabledRuntimeUnlocked(config, std::move(prepared));
@@ -461,7 +461,7 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
 
     PreparedQueueStorage storage;
 
-    if (!prepareInitQueueStorage(config, prepared, result.adjustments, storage))
+    if(!prepareInitQueueStorage(config, prepared, result.adjustments, storage))
     {
         return fail(IO::makeStatus(ErrorCode::OutOfMemory));
     }
@@ -472,11 +472,11 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
         publishPreparedRuntimeUnlocked(config, std::move(prepared), std::move(storage));
     }
 
-    if (hasFileOutput(config.output))
+    if(hasFileOutput(config.output))
     {
         const bool fileOutputReady = setupFileOutputForInit(config, result.outputSetupStatus);
 
-        if (!fileOutputReady)
+        if(!fileOutputReady)
         {
             const OutputMode fallback = outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure);
             setOutputMode(fallback);
@@ -489,7 +489,7 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
         result.effectiveOutput = loggerState().mode;
     }
 
-    if (result.effectiveOutput == OutputMode::None)
+    if(result.effectiveOutput == OutputMode::None)
     {
         result.status = result.outputSetupStatus.ok() ? IO::makeStatus(ErrorCode::OpenFailed) : result.outputSetupStatus;
         result.outcome = Types::Init::Outcome::Disabled;
@@ -497,7 +497,7 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         clearQueueUnlocked();
 
-        if (loggerState().releaseStorageOnShutdown)
+        if(loggerState().releaseStorageOnShutdown)
         {
             releaseRuntimeStorageUnlocked();
         }
@@ -509,7 +509,7 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(con
 
     const Status workerStatus = startWorkerThread();
 
-    if (!workerStatus.ok())
+    if(!workerStatus.ok())
     {
         return fail(workerStatus);
     }
@@ -524,11 +524,11 @@ GameWIP::Logger::Types::Init::Result GameWIP::Logger::init(const Types::Config &
     {
         return initImpl(config);
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return failedInitAfterException(config, ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return failedInitAfterException(config, ErrorCode::Unknown);
     }
@@ -540,13 +540,13 @@ GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::ch
     {
         Types::FlushResult invalid;
 
-        if (timeout && timeout->count() < 0)
+        if(timeout && timeout->count() < 0)
         {
             invalid.status = IO::makeStatus(ErrorCode::InvalidArgument);
             return invalid;
         }
 
-        if (!timeout)
+        if(!timeout)
         {
             std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
             return flushInternal(nullptr);
@@ -555,7 +555,7 @@ GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::ch
         const FlushDeadline deadline = makeFlushDeadline(*timeout);
         std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
 
-        if (!lockBefore(lifecycleLock, deadline))
+        if(!lockBefore(lifecycleLock, deadline))
         {
             Types::FlushResult result;
             result.outcome = Types::FlushOutcome::TimedOut;
@@ -564,13 +564,13 @@ GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::ch
 
         return flushInternal(&deadline);
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         Types::FlushResult result;
         result.status = IO::makeStatus(ErrorCode::OutOfMemory);
         return result;
     }
-    catch (...)
+    catch(...)
     {
         Types::FlushResult result;
         result.status = IO::makeStatus(ErrorCode::Unknown);
@@ -591,7 +591,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
         }
         loggerState().logCondition.notify_all();
 
-        if (loggerState().loggingThread.joinable())
+        if(loggerState().loggingThread.joinable())
         {
             loggerState().loggingThread.join();
         }
@@ -602,7 +602,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
         {
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
 
-            if (loggerState().logFile.isOpen())
+            if(loggerState().logFile.isOpen())
             {
                 const Status closeStatus = loggerState().logFile.close();
                 status = firstFailure(std::move(status), closeStatus);
@@ -610,11 +610,11 @@ GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
             loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
         }
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::OutOfMemory));
     }
-    catch (...)
+    catch(...)
     {
         status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::Unknown));
     }
@@ -628,7 +628,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
         loggerState().sourceRegistry.store({}, std::memory_order_release);
         clearQueueUnlocked();
 
-        if (loggerState().releaseStorageOnShutdown)
+        if(loggerState().releaseStorageOnShutdown)
         {
             releaseRuntimeStorageUnlocked();
         }
@@ -646,11 +646,11 @@ GameWIP::IO::Types::Status GameWIP::Logger::shutdown() noexcept
     {
         return shutdownImpl();
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return IO::makeStatus(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return IO::makeStatus(ErrorCode::Unknown);
     }

@@ -35,12 +35,12 @@ int runStartGateChild()
                             const std::size_t currentStarted = started.fetch_add(1, std::memory_order_relaxed) + 1;
                             condition.notify_all();
 
-                            if (currentStarted == 4)
+                            if(currentStarted == 4)
                             {
                                 stopFlag.requestStop();
                             }
 
-                            while (!stopFlag.stopRequested())
+                            while(!stopFlag.stopRequested())
                             {
                                 std::this_thread::yield();
                             }
@@ -67,7 +67,7 @@ int runStartGateChild()
                     });
                 static_cast<void>(context.expectTrue("StartGate workers reached the wait boundary", ready));
 
-                if (ready)
+                if(ready)
                 {
                     // A bounded negative observation is needed to test a blocking contract.
                     const bool passedClosedGate = condition.wait_for(
@@ -104,13 +104,13 @@ int runStartGateChild()
 /// @brief Verifies worker coordination, callable variants, and exception propagation.
 void testStressHelpers(TestSupport::Context &context, const std::filesystem::path &executablePath, const TestSupportTestOptions &options)
 {
-    if (!options.enableStressTests)
+    if(!options.enableStressTests)
     {
         context.skip("TestSupport stress helper tests", "disabled by TestSupportTestOptions");
         return;
     }
 
-    if (options.enableChildProcessTests)
+    if(options.enableChildProcessTests)
     {
         TestSupport::Types::Process::Options childOptions;
         childOptions.executablePath = std::filesystem::path(executablePath);
@@ -118,7 +118,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         childOptions.waitTimeout = 30s;
         const auto child = TestSupport::runChildProcess(childOptions);
 
-        if (!child.status.ok() || child.outcome != TestSupport::Types::Process::Outcome::Exited || child.exitCode != 0)
+        if(!child.status.ok() || child.outcome != TestSupport::Types::Process::Outcome::Exited || child.exitCode != 0)
         {
             context.fail(
                 "StartGate blocking, release and future waiters",
@@ -227,14 +227,14 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
             {
                 enteredFailureWorkers.fetch_add(1, std::memory_order_relaxed);
 
-                if (workerIndex == 2)
+                if(workerIndex == 2)
                 {
                     throw std::runtime_error("intentional worker failure");
                 }
                 completedFailureWorkers.fetch_add(1, std::memory_order_relaxed);
             });
     }
-    catch (const std::runtime_error &)
+    catch(const std::runtime_error &)
     {
         rethrown = true;
     }

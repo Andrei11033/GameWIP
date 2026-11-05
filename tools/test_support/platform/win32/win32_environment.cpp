@@ -31,7 +31,7 @@ namespace
 
     void validateEnvironmentName(std::string_view name)
     {
-        if (name.empty() || name.contains('='))
+        if(name.empty() || name.contains('='))
         {
             throw std::invalid_argument("Environment variable name must be non-empty and cannot contain '='");
         }
@@ -57,16 +57,16 @@ namespace GameWIP::TestSupport::Detail::Platform
             SetLastError(ERROR_SUCCESS);
             const DWORD requiredSize = GetEnvironmentVariableW(nameText.c_str(), nullptr, 0);
 
-            if (requiredSize == 0)
+            if(requiredSize == 0)
             {
                 const DWORD readError = GetLastError();
 
-                if (readError == ERROR_ENVVAR_NOT_FOUND)
+                if(readError == ERROR_ENVVAR_NOT_FOUND)
                 {
                     return result;
                 }
 
-                if (readError == ERROR_SUCCESS)
+                if(readError == ERROR_SUCCESS)
                 {
                     result.value = std::string{};
                     return result;
@@ -79,7 +79,7 @@ namespace GameWIP::TestSupport::Detail::Platform
             SetLastError(ERROR_SUCCESS);
             const DWORD copied = GetEnvironmentVariableW(nameText.c_str(), value.data(), requiredSize);
 
-            if (copied == 0 || copied >= requiredSize)
+            if(copied == 0 || copied >= requiredSize)
             {
                 result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, GetLastError());
                 return result;
@@ -89,22 +89,22 @@ namespace GameWIP::TestSupport::Detail::Platform
             result.value = GameWIP::TestSupport::Detail::Win32::wideToUtf8(value);
             return result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = environmentFailure(Types::InfrastructureError::OutOfMemory);
             return result;
         }
-        catch (const std::invalid_argument &)
+        catch(const std::invalid_argument &)
         {
             result.status = environmentFailure(Types::InfrastructureError::InvalidArgument);
             return result;
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             result.status = environmentFailure(Types::InfrastructureError::InvalidArgument);
             return result;
         }
-        catch (...)
+        catch(...)
         {
             result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed);
             return result;
@@ -122,19 +122,19 @@ namespace GameWIP::TestSupport::Detail::Platform
             return error == 0 ? Types::InfrastructureStatus{}
                               : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return environmentFailure(Types::InfrastructureError::OutOfMemory);
         }
-        catch (const std::invalid_argument &)
+        catch(const std::invalid_argument &)
         {
             return environmentFailure(Types::InfrastructureError::InvalidArgument);
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return environmentFailure(Types::InfrastructureError::InvalidArgument);
         }
-        catch (...)
+        catch(...)
         {
             return environmentFailure(Types::InfrastructureError::EnvironmentFailed);
         }
@@ -150,19 +150,19 @@ namespace GameWIP::TestSupport::Detail::Platform
             return error == 0 ? Types::InfrastructureStatus{}
                               : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return environmentFailure(Types::InfrastructureError::OutOfMemory);
         }
-        catch (const std::invalid_argument &)
+        catch(const std::invalid_argument &)
         {
             return environmentFailure(Types::InfrastructureError::InvalidArgument);
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return environmentFailure(Types::InfrastructureError::InvalidArgument);
         }
-        catch (...)
+        catch(...)
         {
             return environmentFailure(Types::InfrastructureError::EnvironmentFailed);
         }

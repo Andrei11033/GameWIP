@@ -38,7 +38,7 @@ namespace GameWIP::Desktop
         /// @brief Validates cursor dimensions, pixel storage, DPI uniqueness, and hotspot bounds.
         [[nodiscard]] IO::Types::Status validateVariants(std::span<const Types::Cursor::ImageView> variants) noexcept
         {
-            if (variants.empty())
+            if(variants.empty())
             {
                 return error(ErrorCode::InvalidArgument);
             }
@@ -47,14 +47,13 @@ namespace GameWIP::Desktop
 
             constexpr std::size_t channels = 4;
 
-            for (std::size_t i = 0; i < variants.size(); ++i)
+            for(std::size_t i = 0; i < variants.size(); ++i)
             {
                 const auto &variant = variants[i];
 
                 // Validate dimensions, row stride, and complete pixel payload before creating native resources.
-                if (variant.size.width == 0 || variant.size.height == 0 || variant.size.width > nativeMaximum ||
-                    variant.size.height > nativeMaximum || variant.hotspot.x >= variant.size.width || variant.hotspot.y >= variant.size.height ||
-                    variant.intendedDpi == 0)
+                if(variant.size.width == 0 || variant.size.height == 0 || variant.size.width > nativeMaximum || variant.size.height > nativeMaximum ||
+                   variant.hotspot.x >= variant.size.width || variant.hotspot.y >= variant.size.height || variant.intendedDpi == 0)
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
@@ -62,7 +61,7 @@ namespace GameWIP::Desktop
                 const std::size_t width = static_cast<std::size_t>(variant.size.width);
                 const std::size_t height = static_cast<std::size_t>(variant.size.height);
 
-                if (GameWIP::Base::wouldMultiplyOverflow(width, channels))
+                if(GameWIP::Base::wouldMultiplyOverflow(width, channels))
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
@@ -70,27 +69,27 @@ namespace GameWIP::Desktop
                 const std::size_t packedRowBytes = width * channels;
                 const std::size_t resolvedStride = variant.rowStrideBytes.value_or(packedRowBytes);
 
-                if (resolvedStride < packedRowBytes)
+                if(resolvedStride < packedRowBytes)
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                if (GameWIP::Base::wouldMultiplyOverflow(resolvedStride, height))
+                if(GameWIP::Base::wouldMultiplyOverflow(resolvedStride, height))
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
                 const std::size_t requiredBytes = resolvedStride * height;
 
-                if (variant.rgba8.size() != requiredBytes)
+                if(variant.rgba8.size() != requiredBytes)
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
                 // Duplicate DPIs would make native variant selection depend on input order.
-                for (std::size_t previous = 0; previous < i; ++previous)
+                for(std::size_t previous = 0; previous < i; ++previous)
                 {
-                    if (variants[previous].intendedDpi == variant.intendedDpi)
+                    if(variants[previous].intendedDpi == variant.intendedDpi)
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
@@ -137,9 +136,9 @@ namespace GameWIP::Desktop
     {
         std::size_t best = 0;
 
-        for (std::size_t index = 1; index < variants.size(); ++index)
+        for(std::size_t index = 1; index < variants.size(); ++index)
         {
-            if (isBetterDpiCandidate(variants[index].intendedDpi, variants[best].intendedDpi, dpi))
+            if(isBetterDpiCandidate(variants[index].intendedDpi, variants[best].intendedDpi, dpi))
             {
                 best = index;
             }
@@ -172,7 +171,7 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = validateVariants(variants);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return {.status = std::move(status)};
         }
@@ -180,32 +179,32 @@ namespace GameWIP::Desktop
         std::vector<Detail::NativeCursorVariant> nativeVariants;
         try
         {
-            if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
             {
                 throw std::bad_alloc{};
             }
             nativeVariants.reserve(variants.size());
             status = Detail::Platform::createNativeCursorVariants(variants, nativeVariants);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 Detail::Platform::destroyNativeCursorVariants(nativeVariants);
                 return {.status = std::move(status)};
             }
 
-            if (Detail::consumeFailure(TestHooks::FailurePoint::CursorStateAllocation))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::CursorStateAllocation))
             {
                 throw std::bad_alloc{};
             }
             auto state = std::make_shared<Detail::CursorState>(std::move(nativeVariants));
             return {.status = IO::successStatus(), .value = Detail::CursorAccess::make(std::move(state))};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             Detail::Platform::destroyNativeCursorVariants(nativeVariants);
             return {.status = error(ErrorCode::OutOfMemory)};
         }
-        catch (...)
+        catch(...)
         {
             Detail::Platform::destroyNativeCursorVariants(nativeVariants);
             return {.status = error(ErrorCode::Unknown)};
@@ -216,17 +215,17 @@ namespace GameWIP::Desktop
     {
         Detail::WindowState *state = Detail::WindowAccess::state(window);
 
-        if (state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
+        if(state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
         {
             return error(ErrorCode::NotOpen);
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Detail::Platform::ownedByCurrentThread(*state))
         {
             return error(ErrorCode::ResourceBusy);
         }
 
-        if (!cursor.isValid())
+        if(!cursor.isValid())
         {
             return error(ErrorCode::InvalidArgument);
         }

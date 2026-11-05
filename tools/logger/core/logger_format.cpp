@@ -14,7 +14,7 @@ namespace GameWIP::Logger::Detail::Core
         std::string text;
         outStatus = GameWIP::Logger::Detail::Platform::formatLocalTime(time, timeFormat, text);
 
-        if (!outStatus.ok())
+        if(!outStatus.ok())
         {
             return "invalid-time";
         }
@@ -33,12 +33,12 @@ namespace GameWIP::Logger::Detail::Core
         const auto now = std::chrono::system_clock::now();
         const std::time_t currentSecond = std::chrono::system_clock::to_time_t(now);
 
-        if (!cache.valid || cache.second != currentSecond)
+        if(!cache.valid || cache.second != currentSecond)
         {
             Status status;
             cache.text = formatTimeOrFallback(currentSecond, "%H:%M:%S", status);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 recordHealthFailure(Types::Health::FailureSource::TimeConversion, status, false);
             }
@@ -56,14 +56,14 @@ namespace GameWIP::Logger::Detail::Core
         const std::time_t currentSecond = std::chrono::system_clock::to_time_t(now);
         Status status;
 
-        if (!loggerState().debugTimestampCache.valid || loggerState().debugTimestampCache.second != currentSecond)
+        if(!loggerState().debugTimestampCache.valid || loggerState().debugTimestampCache.second != currentSecond)
         {
             loggerState().debugTimestampCache.text = formatTimeOrFallback(currentSecond, "%H:%M:%S", status);
             loggerState().debugTimestampCache.second = currentSecond;
             loggerState().debugTimestampCache.valid = true;
         }
 
-        if (outStatus)
+        if(outStatus)
         {
             *outStatus = status;
         }
@@ -79,9 +79,9 @@ namespace GameWIP::Logger::Detail::Core
     {
         outUnknownSource = false;
 
-        if (registry)
+        if(registry)
         {
-            if (const RegisteredSource *registeredSource = findSource(*registry, source))
+            if(const RegisteredSource *registeredSource = findSource(*registry, source))
             {
                 return registeredSource->name;
             }
@@ -93,7 +93,7 @@ namespace GameWIP::Logger::Detail::Core
 
     std::string_view resolveSourceText(const QueuedLogEntry &entry, const SourceRegistry *registry, bool &outUnknownSource)
     {
-        if (!entry.usesRegisteredSource)
+        if(!entry.usesRegisteredSource)
         {
             outUnknownSource = false;
             return entry.sourceText.view();
@@ -116,12 +116,12 @@ namespace GameWIP::Logger::Detail::Core
         constexpr std::string_view suffix = "... [truncated]";
         outMessage.clear();
 
-        if (maxMessageLength == 0)
+        if(maxMessageLength == 0)
         {
             return;
         }
 
-        if (maxMessageLength <= suffix.size())
+        if(maxMessageLength <= suffix.size())
         {
             outMessage.assign(suffix.substr(0, maxMessageLength));
             return;
@@ -139,14 +139,14 @@ namespace GameWIP::Logger::Detail::Core
     {
         outTruncated = false;
 
-        if (alreadyTruncated)
+        if(alreadyTruncated)
         {
             return message;
         }
 
         const std::size_t maxMessageLength = loggerState().maxMessageLengthAtomic.load(std::memory_order_acquire);
 
-        if (message.size() <= maxMessageLength)
+        if(message.size() <= maxMessageLength)
         {
             return message;
         }
@@ -169,7 +169,7 @@ namespace GameWIP::Logger::Detail::Core
 
         outMessage.clear();
 
-        if (outMessage.capacity() < required)
+        if(outMessage.capacity() < required)
         {
             outMessage.reserve(required);
         }
@@ -193,7 +193,7 @@ using namespace GameWIP::Logger::Detail::Core;
 
 void GameWIP::Logger::Detail::Core::recordAllocationFailure() noexcept
 {
-    if (runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
+    if(runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
     {
         countAllocationFailure();
     }
@@ -201,7 +201,7 @@ void GameWIP::Logger::Detail::Core::recordAllocationFailure() noexcept
 
 void GameWIP::Logger::Detail::Core::recordFormatFailure() noexcept
 {
-    if (runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
+    if(runtimeStateRunning(loggerState().runtimeStateBits.load(std::memory_order_acquire)))
     {
         countFormatFailure();
     }
@@ -224,13 +224,13 @@ FormatPolicy GameWIP::Logger::Detail::Core::getFormatPolicyForFormatting()
 
 void GameWIP::Logger::Detail::Core::releaseFormatScratchIfNeeded(std::string &scratch) noexcept
 {
-    if (loggerState().releaseMessageMemoryAfterWriteAtomic.load(std::memory_order_acquire))
+    if(loggerState().releaseMessageMemoryAfterWriteAtomic.load(std::memory_order_acquire))
     {
         const std::size_t maxMessageLength = loggerState().maxMessageLengthAtomic.load(std::memory_order_acquire);
 
         // Large temporary format buffers can otherwise survive on long-lived threads
         // after the log message that needed them has already been delivered.
-        if (scratch.capacity() > maxMessageLength)
+        if(scratch.capacity() > maxMessageLength)
         {
             std::string{}.swap(scratch);
         }

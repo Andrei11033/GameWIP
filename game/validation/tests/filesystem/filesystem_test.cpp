@@ -112,7 +112,7 @@ namespace
     /// @brief Checks native query success before comparing its payload.
     bool expectStatus(TestSupport::Context &context, std::string_view name, const IO::Types::Status &status)
     {
-        if (!status.ok())
+        if(!status.ok())
         {
             context.fail(name, std::format("code={} native={} message={}", IO::errorCodeName(status.code), status.nativeCode, status.message));
             return false;
@@ -126,7 +126,7 @@ namespace
     {
         const auto result = FileSystem::readAllText(path);
 
-        if (expectStatus(context, std::string(name) + " query", result.status))
+        if(expectStatus(context, std::string(name) + " query", result.status))
         {
             static_cast<void>(context.expectEq(name, expected, result.text));
         }
@@ -135,7 +135,7 @@ namespace
     /// @brief Checks a predicate query before inspecting its boolean value.
     void expectPredicate(TestSupport::Context &context, std::string_view name, const FileSystem::Types::BoolResult &result, bool expected)
     {
-        if (expectStatus(context, std::string(name) + " query", result.status))
+        if(expectStatus(context, std::string(name) + " query", result.status))
         {
             static_cast<void>(context.expectEq(name, expected, result.value));
         }
@@ -147,13 +147,13 @@ namespace
 #if defined(_WIN32)
         const DWORD flags = (directory ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0U) | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
 
-        if (CreateSymbolicLinkW(link.wstring().c_str(), target.wstring().c_str(), flags) == FALSE)
+        if(CreateSymbolicLinkW(link.wstring().c_str(), target.wstring().c_str(), flags) == FALSE)
         {
             const DWORD error = GetLastError();
             const bool unavailable =
                 error == ERROR_PRIVILEGE_NOT_HELD || error == ERROR_ACCESS_DENIED || error == ERROR_NOT_SUPPORTED || error == ERROR_INVALID_FUNCTION;
 
-            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
+            if(std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
             {
                 context.fail(
                     directory ? "intermediate symlink policy checks" : "file symlink policy checks",
@@ -170,7 +170,7 @@ namespace
 #else
         std::error_code error;
 
-        if (directory)
+        if(directory)
         {
             std::filesystem::create_directory_symlink(target, link, error);
         }
@@ -179,12 +179,12 @@ namespace
             std::filesystem::create_symlink(target, link, error);
         }
 
-        if (error)
+        if(error)
         {
             const bool unavailable = error == std::errc::permission_denied || error == std::errc::operation_not_permitted ||
                                      error == std::errc::function_not_supported || error == std::errc::operation_not_supported;
 
-            if (std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
+            if(std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
             {
                 context.fail(
                     directory ? "intermediate symlink policy checks" : "file symlink policy checks",
@@ -242,7 +242,7 @@ namespace GameWIP::Test
     {
         const TestSupport::ScopedTemporaryDirectory workspace("filesystem_tests");
 
-        if (!workspace.status().ok())
+        if(!workspace.status().ok())
         {
             std::cerr << "FileSystem could not create its test workspace: " << TestSupport::formatInfrastructureStatus(workspace.status()) << '\n';
             return 1;
