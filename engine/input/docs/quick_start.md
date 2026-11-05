@@ -12,16 +12,44 @@ the system.
 #include "input/win32.h"
 ```
 
-Link the consumer to `GameWIP::Input`. On Windows, the Win32 attachment uses the
-caller's existing window and does not create or subclass it. On other supported
-platforms, the optional Win32 API remains linkable but native attachment is
-unsupported.
+Link the consumer to `GameWIP::Input`. On Windows, the Win32 attachment observes
+window messages from an existing owner-thread window. On other platforms, the
+optional Win32 API remains linkable but native attachment is unsupported and returns
+`Unsupported`. See @ref project_public_api_contract for unsupported-capability handling.
+
+## Windows integration
+
+On Windows, use `GameWIP::Input::Platform::Win32::attachToWindow()` to register Input
+with a `Desktop::Window` in one call. This combines Input attachment and Desktop message
+routing rather than calling `Attachment::attach()` directly on a manual window handle.
+
+```cpp
+#if defined(_WIN32)
+#include "input/native/desktop_win32.h"
+
+GameWIP::Desktop::Window window;
+GameWIP::Input::System input;
+GameWIP::Input::Platform::Win32::Attachment attachment;
+
+if (window.open(description).ok() && input.open().ok())
+{
+    const auto status = GameWIP::Input::Platform::Win32::attachToWindow(input, attachment, window);
+    if (!status.ok())
+    {
+        static_cast<void>(input.close());
+        return 1;
+    }
+}
+#endif
+```
+
+Manual attachment to non-Desktop windows uses `Attachment::attach(input, hwnd)`.
 
 ## Open and attach
 
-Keep the `System`, `Attachment`, and `Frame` in stable storage. Attach after
-opening the system. Open, attach, message handling, and capture must run on the
-same owner thread:
+Keep the `System`, `Attachment`, and `Frame` in stable storage. Attach after opening
+the system; detach before closing. Open, attach, message handling, and capture must
+run on the same owner thread:
 
 ```cpp
 GameWIP::Input::System input;
@@ -36,6 +64,14 @@ if (!attachment.attach(input, hwnd).ok())
     static_cast<void>(input.close());
     return 2;
 }
+
+// ... capture loop ...
+
+if (!attachment.detach().ok())
+{
+    // Log or handle detach failure
+}
+static_cast<void>(input.close());
 ```
 
 In the window procedure, pass `message`, `wParam`, and `lParam` to
@@ -101,10 +137,9 @@ while (appIsRunning)
 
 `appIsRunning` represents the application's existing loop condition. An
 unfiltered query selects the first matching connected control. Pass a device
-ID to target a specific device. Use
-`Query::findElementByPersistentKey` for producer-defined binding keys, or
-`Query::findHid` for HID controls outside the standard vocabulary. Runtime IDs
-are valid only for the current open session.
+ID to target a specific device. Use `Query::findElementByPersistentKey` for
+producer-defined binding keys, or `Query::findHid` for HID controls outside
+the standard vocabulary. Runtime IDs are valid only for the current open session.
 
 ## Mice and pointer position
 

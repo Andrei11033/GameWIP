@@ -21,6 +21,40 @@ if (auto status = window.open(description); !status.ok())
     return;
 ```
 
+## Attach Input (Windows)
+
+```cpp
+#if defined(_WIN32)
+#include "input/native/desktop_win32.h"
+
+GameWIP::Input::System input;
+GameWIP::Input::Platform::Win32::Attachment attachment;
+
+if (!input.open().ok())
+    return;
+
+const auto attachStatus = GameWIP::Input::Platform::Win32::attachToWindow(input, attachment, window);
+if (!attachStatus.ok())
+{
+    static_cast<void>(input.close());
+    return;
+}
+
+// Capture in main loop
+GameWIP::Input::Types::Frame frame;
+if (input.capture(frame).ok())
+{
+    for (const auto &event : frame.events())
+    {
+        // Handle input events
+    }
+}
+
+static_cast<void>(attachment.detach());
+static_cast<void>(input.close());
+#endif
+```
+
 ## Pump and consume typed events
 
 ```cpp

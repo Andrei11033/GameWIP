@@ -38,8 +38,8 @@ control values. Standard identifiers and lookup helpers live under
 
 ## Dependency boundary
 
-Input depends on the shared IO and Unicode foundations where required by its
-public contracts. The platform attachment owns native observation and feeds
-the portable `System`; it does not own application windows or action policy.
-Input is independent of Desktop, Action, WindowManager, Renderer, UI, and the
-game executable.
+Input's portable API is independent of Desktop, Action, WindowManager, Renderer, UI, and the game executable.
+The platform attachment owns native observation and feeds the portable `System`; it does not own application windows or action policy.
+
+On Windows, optional integration with Desktop is available: see @ref desktop_native_interop for `Platform::Win32::attachToWindow()` which
+registers Input with an existing Desktop window for seamless message routing.

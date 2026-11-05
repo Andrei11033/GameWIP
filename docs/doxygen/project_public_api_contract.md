@@ -82,6 +82,27 @@ successfully enforced, user choice, fallback, adjustment, or truncation remain d
   pairings.
 - Successful status construction and common code-only failures do not allocate diagnostic text.
 
+## Unsupported capabilities
+
+Platform-specific features that are unavailable on the current platform must return `Unsupported` rather than throwing exceptions, providing stub implementations,
+or accepting the request without performing it. This pattern allows callers to detect missing capabilities at runtime and adapt gracefully without requiring
+platform-specific conditional compilation in application code.
+
+Return `Unsupported` when:
+- A feature requires native platform support that is absent (e.g., Input attachment on Linux/macOS)
+- A Windows-only capability is requested on another platform
+- A newer OS version requirement is not met (e.g., backdrop effect on Windows 10)
+- Future extensibility requires a capability placeholder
+
+Example: `Input::Platform::Win32::Attachment` is available only on Windows; other platforms return `Unsupported` from `attach()`.
+
+Do not use `Unsupported` for:
+- Usage errors or invalid arguments (use appropriate error codes)
+- Transient failures or resource exhaustion (use appropriate error codes)
+- Missing optional dependencies (document requirements explicitly)
+
+See @ref project_platform_backend_contract for backend implementation guidance.
+
 ## Exceptions and cleanup
 
 Checked public operations contain expected implementation-owned allocation, conversion, formatting, standard-library, and platform failures and
@@ -101,7 +122,7 @@ threading category and its lifecycle boundary:
 - **Concurrent** means the documented operations are internally safe for the
   supported concurrent combinations. It does not make object destruction or
   move operations safe while another call is active.
-- **Owner-thread-affine** means native mutation and lifecycle operations require
+- **Owner-thread-only** means native mutation and lifecycle operations require
   the opening/owning thread. Wrong-thread calls return the library's status
   vocabulary, and destruction performs only the documented best-effort handoff
   or cleanup.

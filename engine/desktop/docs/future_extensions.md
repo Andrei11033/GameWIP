@@ -30,8 +30,8 @@ progress use `desktop/dialogs.h` (@ref desktop_dialogs). Lightweight file-drop e
 
 Renderer surface lifetime, swapchains, and synchronization remain Renderer responsibilities; the bridge's boundaries are in @ref desktop_renderer_integration.
 
-Text input and IME belong to the future Input API with an internal native Window/Input bridge. Application and editor menus belong to the
-future UI system; only tray-icon menus belong to Desktop shell integration.
+Text input and IME belong to the future Input API with an internal native Window/Input bridge (see @ref desktop_native_interop for
+the current message sink mechanism). Application and editor menus belong to the future UI system; only tray-icon menus belong to Desktop shell integration.
 
 ## Related pages
 

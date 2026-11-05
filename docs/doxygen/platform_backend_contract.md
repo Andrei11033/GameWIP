@@ -26,6 +26,9 @@ must remain source-tree-only and disabled in consumer builds. An unrelated
 library must not gain a platform branch just to avoid defining its own backend
 contract.
 
+Platform-specific features must report `Unsupported` for unavailable platforms instead of providing stub implementations;
+see @ref project_public_api_contract for the `Unsupported` capability pattern and rationale.
+
 ## Platform selection
 
 Repository platform mapping is centralized in `cmake/GameWIPPlatform.cmake`:

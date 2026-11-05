@@ -50,6 +50,12 @@ IO
 IO + FileSystem
   -> Desktop
 
+IO + Unicode
+  -> Input
+
+Input::Platform::Win32::Attachment (optional Windows integration)
+  -> Desktop::Native::Win32 (message sink routing)
+
 IO + FileSystem + Terminal
   -> Logger
 
@@ -66,6 +72,10 @@ Reusable libraries + optional validation modules
 An arrow points from a dependency to the library that consumes it. Lower-level
 libraries must not depend on the game executable, runtime facade, validation
 runner, or benchmark runner.
+
+Input offers portable device capture with an optional Windows attachment. Desktop integration is
+available on Windows only through `Input::Platform::Win32::attachToWindow()`; Input remains independent
+on other platforms and in contexts where Desktop is not used.
 
 Unicode has no dependency on another reusable GameWIP library. It owns
 platform-neutral scalar, encoding, conversion, and grapheme algorithms without

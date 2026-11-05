@@ -74,9 +74,16 @@ ordinary game runtime begins.
 5. Stop startup when correctness validation fails.
 6. Run startup benchmarks when they were compiled into the executable.
 7. Stop startup when Google Benchmark rejects its arguments.
-8. Enter `GameWIP::Game::run()`, which initializes runtime services, opens the
-   game window, and runs the event loop.
+8. Enter `GameWIP::Game::run()`, which initializes Desktop and Input services,
+   opens the game window, attaches Input on Windows, and runs the event loop.
 9. Return the runtime facade's exit code.
+
+## Input and Desktop integration
+
+On Windows, `game/runtime/game.cpp` initializes the Input system after opening the Desktop window
+and calls `GameWIP::Input::Platform::Win32::attachToWindow()` to register the native attachment
+with the message pump. Input captures are then processed during frame updates within the main
+event loop. See @ref input_library and @ref desktop_native_interop for contracts and error handling.
 
 Utility-only help and version queries bypass validation and runtime startup. A
 help or `--version` token combined with other arguments is not treated as the
