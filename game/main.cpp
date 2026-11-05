@@ -6,14 +6,11 @@
 /// GameWIP::Game::run(). Runtime composition lives in runtime/game.cpp.
 
 #include "runtime/game.h"
+#include "runtime/profiling.h"
 #include "validation/process_arguments.h"
 #include "validation/validation.h"
 
 #include <gamewip/version.h>
-
-#if GAMEWIP_TRACY_ENABLED
-#include <tracy/Tracy.hpp>
-#endif
 
 #include <cstdlib>
 #include <cstdio>
@@ -26,15 +23,6 @@
 
 namespace
 {
-#if GAMEWIP_TRACY_ENABLED
-    namespace ProfileZoneColor
-    {
-        inline constexpr auto Process = 0x4C78A8;
-        inline constexpr auto Validation = 0xF58518;
-        inline constexpr auto Benchmark = 0xB279A2;
-    } // namespace ProfileZoneColor
-#endif
-
     /// @brief Returns whether the process was invoked only to print version metadata.
     bool requestsVersion(GameWIP::Validation::ProcessArguments arguments) noexcept
     {
@@ -81,10 +69,8 @@ namespace
 
 int main(int argc, char **argv)
 {
-#if GAMEWIP_TRACY_ENABLED
-    tracy::SetThreadName("GameWIP Main");
-    ZoneScopedNC("GameWIP process", ProfileZoneColor::Process);
-#endif
+    GAMEWIP_PROFILE_THREAD_NAME("GameWIP Main");
+    GAMEWIP_PROFILE_ZONE("GameWIP process", GameWIP::Profiling::Color::Process);
 
     // Keep utility-only invocations independent from validation so packaging and
     // smoke-test scripts can query metadata from any build configuration.
@@ -109,10 +95,8 @@ int main(int argc, char **argv)
 
     if(GameWIP::Validation::shouldRunTests(argc, argv))
     {
-#if GAMEWIP_TRACY_ENABLED
-        FrameMark;
-        ZoneScopedNC("Startup validation", ProfileZoneColor::Validation);
-#endif
+        GameWIP::Profiling::frameMark();
+        GAMEWIP_PROFILE_ZONE("Startup validation", GameWIP::Profiling::Color::Validation);
         tests = GameWIP::Validation::runTests(argc, argv);
     }
 
@@ -130,10 +114,8 @@ int main(int argc, char **argv)
     // collected from a build whose reusable-library checks already failed.
     GameWIP::Validation::BenchmarkResult benchmarks;
     {
-#if GAMEWIP_TRACY_ENABLED
-        FrameMark;
-        ZoneScopedNC("Startup benchmarks", ProfileZoneColor::Benchmark);
-#endif
+        GameWIP::Profiling::frameMark();
+        GAMEWIP_PROFILE_ZONE("Startup benchmarks", GameWIP::Profiling::Color::Benchmark);
         benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
     }
 

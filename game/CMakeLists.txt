@@ -10,7 +10,7 @@ if(GAMEWIP_BUILD_GAME)
         VERBATIM
     )
 
-    add_executable(GameWIP main.cpp runtime/game.cpp)
+    add_executable(GameWIP main.cpp runtime/game.cpp runtime/display_report.cpp)
     add_dependencies(GameWIP GameWIPVersionHeader)
 
     # Keep executable-only compile settings and generated include paths local to GameWIP.
