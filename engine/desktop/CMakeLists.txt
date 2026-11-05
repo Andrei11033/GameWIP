@@ -97,6 +97,7 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/shell_types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h"
                 "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
 )
 

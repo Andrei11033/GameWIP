@@ -611,6 +611,54 @@ namespace GameWIP::Desktop::Native::Win32
 
         return {.status = IO::successStatus(), .value = HandleView{static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
     }
+
+    IO::Types::Status attachMessageSink(GameWIP::Desktop::Window &window, MessageSink sink, void *context) noexcept
+    {
+        if (sink == nullptr)
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
+        }
+
+        Detail::WindowState *state = Detail::WindowAccess::state(window);
+
+        if (state == nullptr || !state->platform || state->platform->handle == nullptr)
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
+
+        if (!Detail::Platform::ownedByCurrentThread(*state))
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+        }
+
+        if (state->platform->messageSink != nullptr)
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
+        }
+
+        state->platform->messageSink = sink;
+        state->platform->messageSinkContext = context;
+        return IO::successStatus();
+    }
+
+    IO::Types::Status detachMessageSink(GameWIP::Desktop::Window &window) noexcept
+    {
+        Detail::WindowState *state = Detail::WindowAccess::state(window);
+
+        if (state == nullptr || !state->platform || state->platform->handle == nullptr)
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
+        }
+
+        if (!Detail::Platform::ownedByCurrentThread(*state))
+        {
+            return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
+        }
+
+        state->platform->messageSink = nullptr;
+        state->platform->messageSinkContext = nullptr;
+        return IO::successStatus();
+    }
 } // namespace GameWIP::Desktop::Native::Win32
 
 #if DESKTOP_INTERNAL_TEST_HOOKS

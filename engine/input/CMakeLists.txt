@@ -40,6 +40,7 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/system.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/win32.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/native/desktop_win32.h"
                 "${INPUT_GENERATED_INCLUDE_DIR}/input/input_export.h"
 )
 
@@ -80,6 +81,7 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/system.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/win32.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/native/desktop_win32.h"
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )
 endif()

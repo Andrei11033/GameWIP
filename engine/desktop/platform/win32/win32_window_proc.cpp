@@ -223,6 +223,19 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
 
+        const ::GameWIP::Desktop::Native::Win32::MessageSink messageSink = state->platform->messageSink;
+        void *const messageSinkContext = state->platform->messageSinkContext;
+
+        if (messageSink != nullptr)
+        {
+            IO::Types::Status messageStatus = messageSink(messageSinkContext, window, message, wParam, lParam);
+
+            if (!messageStatus.ok())
+            {
+                recordPumpFailure(std::move(messageStatus));
+            }
+        }
+
         if (message >= kFirstRegisteredWindowMessage && message <= kLastRegisteredWindowMessage)
         {
             const UINT progressRestoreMessage = registeredProgressOwnerRestoreMessage();

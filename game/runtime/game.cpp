@@ -10,6 +10,11 @@
 #include "logger/logger.h"
 #include "desktop/display_info.h"
 #include "desktop/window.h"
+#include "input/input.h"
+
+#if defined(_WIN32)
+#include "input/native/desktop_win32.h"
+#endif
 
 #if GAMEWIP_TRACY_ENABLED
 #include <tracy/Tracy.hpp>
@@ -277,6 +282,21 @@ namespace GameWIP::Game
             return finishRuntime(EXIT_FAILURE);
         }
 
+        Input::System input;
+#if defined(_WIN32)
+        Input::Platform::Win32::Attachment inputAttachment;
+#endif
+        const IO::Types::Status inputOpenStatus = input.open();
+
+        if (!inputOpenStatus.ok())
+        {
+#if GAMEWIP_TRACY_ENABLED
+            TracyMessage(inputOpenStatus.message.c_str(), inputOpenStatus.message.size());
+#endif
+            Logger::error("Input", "Failed to open input system: {}", inputOpenStatus.message);
+            return finishRuntime(EXIT_FAILURE);
+        }
+
         Desktop::Window window;
         const IO::Types::Status openStatus = openRuntimeWindow(window);
 
@@ -291,6 +311,20 @@ namespace GameWIP::Game
         }
 #if GAMEWIP_TRACY_ENABLED
         TracyMessageL("Borderless fullscreen window opened");
+#endif
+
+#if defined(_WIN32)
+        const IO::Types::Status inputAttachStatus = Input::Platform::Win32::attachToWindow(input, inputAttachment, window);
+
+        if (!inputAttachStatus.ok())
+        {
+#if GAMEWIP_TRACY_ENABLED
+            TracyMessage(inputAttachStatus.message.c_str(), inputAttachStatus.message.size());
+#endif
+
+            Logger::error("Input", "Failed to attach Input to Desktop Window: {}", inputAttachStatus.message);
+            return finishRuntime(EXIT_FAILURE);
+        }
 #endif
 
         Logger::info("Startup", "Borderless fullscreen window is active; press Alt+F4 to exit");

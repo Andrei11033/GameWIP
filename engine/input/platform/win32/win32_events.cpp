@@ -65,7 +65,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         attachment.pendingHighSurrogate = 0;
     }
 
-    [[nodiscard]] Types::Value zeroFor(const Types::ElementInfo &info) noexcept
+    [[nodiscard]] static Types::Value zeroFor(const Types::ElementInfo &info) noexcept
     {
         return Internal::zeroValue(info.kind);
     }
@@ -138,7 +138,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return findElement(device, standard);
     }
 
-    [[nodiscard]] std::uint32_t keyboardUsage(unsigned int scanCode, bool extended, bool extendedPause, unsigned int virtualKey) noexcept
+    [[nodiscard]] static std::uint32_t keyboardUsage(unsigned int scanCode, bool extended, bool extendedPause, unsigned int virtualKey) noexcept
     {
         if (virtualKey == VK_PAUSE || extendedPause)
         {
@@ -317,7 +317,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
-    [[nodiscard]] bool validScalar(char32_t scalar) noexcept
+    [[nodiscard]] static bool validScalar(char32_t scalar) noexcept
     {
         return scalar <= 0x10FFFF && (scalar < 0xD800 || scalar > 0xDFFF);
     }

@@ -39,12 +39,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return value == 0 ? 1 : value;
     }
 
-    [[nodiscard]] bool sameStandard(Types::StandardId left, Types::StandardId right) noexcept
+    [[nodiscard]] static bool sameStandard(Types::StandardId left, Types::StandardId right) noexcept
     {
         return left == right;
     }
 
-    [[nodiscard]] Types::BackendKind backendFor(DeviceRole role) noexcept
+    [[nodiscard]] static Types::BackendKind backendFor(DeviceRole role) noexcept
     {
         if (role == DeviceRole::Gamepad)
         {
@@ -64,7 +64,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
     /// @brief Finds a logical device that can safely absorb another source.
     /// @details Only connection-path or device-unique identities may merge;
     /// model-only identities such as XInput slots are never guessed together.
-    [[nodiscard]] Types::DeviceInfo *findLogicalDevice(System::Impl &state, std::string_view persistentKey) noexcept
+    [[nodiscard]] static Types::DeviceInfo *findLogicalDevice(System::Impl &state, std::string_view persistentKey) noexcept
     {
         if (persistentKey.empty())
         {
@@ -81,7 +81,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return nullptr;
     }
 
-    [[nodiscard]] std::string defaultSourceName(DeviceRole role)
+    [[nodiscard]] static std::string defaultSourceName(DeviceRole role)
     {
         if (role == DeviceRole::Gamepad)
         {
@@ -94,7 +94,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return role == DeviceRole::Hid ? "Win32 HID" : "Win32 Raw Input";
     }
 
-    [[nodiscard]] std::string deviceKey(DeviceRole role, std::uint32_t slot)
+    [[nodiscard]] static std::string deviceKey(DeviceRole role, std::uint32_t slot)
     {
         switch (role)
         {
@@ -110,12 +110,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return "win32:device";
     }
 
-    [[nodiscard]] std::string standardKey(Types::StandardId standard)
+    [[nodiscard]] static std::string standardKey(Types::StandardId standard)
     {
         return "standard:" + std::to_string(static_cast<unsigned int>(standard.domain)) + ":" + std::to_string(standard.code);
     }
 
-    [[nodiscard]] Types::NumericInfo numericInfo(
+    [[nodiscard]] static Types::NumericInfo numericInfo(
         Types::NumericStorage storage,
         std::optional<Types::Scalar> minimum,
         std::optional<Types::Scalar> maximum,
@@ -129,7 +129,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         };
     }
 
-    [[nodiscard]] Types::ComponentInfo component(std::uint8_t index, std::string_view name, Types::NumericInfo numeric)
+    [[nodiscard]] static Types::ComponentInfo component(std::uint8_t index, std::string_view name, Types::NumericInfo numeric)
     {
         return Types::ComponentInfo{
             .index = index,
@@ -217,7 +217,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
     // ------------------------------------------------------------
     // Device source and descriptor lifecycle
     // ------------------------------------------------------------
-    void appendDeviceEvent(
+    static void appendDeviceEvent(
         System::Impl &state,
         Types::EventKind kind,
         Types::EventCause cause,
@@ -254,7 +254,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         });
     }
 
-    [[nodiscard]] Types::SourceInfo *sourceInfo(System::Impl &state, const DeviceBinding &device) noexcept
+    [[nodiscard]] static Types::SourceInfo *sourceInfo(System::Impl &state, const DeviceBinding &device) noexcept
     {
         const std::size_t deviceIndex = state.findDeviceIndex(device.id);
         if (deviceIndex == state.devices.size() || device.sourceIndex >= state.devices[deviceIndex].sources.size())
@@ -264,7 +264,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return &state.devices[deviceIndex].sources[device.sourceIndex];
     }
 
-    [[nodiscard]] bool hasActiveSource(const Types::DeviceInfo &device) noexcept
+    [[nodiscard]] static bool hasActiveSource(const Types::DeviceInfo &device) noexcept
     {
         return std::any_of(
             device.sources.begin(),
@@ -275,7 +275,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             });
     }
 
-    [[nodiscard]] bool hasActiveElementSource(const Attachment::Impl &attachment, Types::DeviceId device, Types::ElementId element) noexcept
+    [[nodiscard]] static bool hasActiveElementSource(const Attachment::Impl &attachment, Types::DeviceId device, Types::ElementId element) noexcept
     {
         return std::any_of(
             attachment.devices.begin(),
@@ -478,7 +478,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return id;
     }
 
-    [[nodiscard]] float normalizedHidValue(const Attachment::Impl::DeviceBinding::HidElement &element, const Types::Value &value) noexcept
+    [[nodiscard]] static float normalizedHidValue(const Attachment::Impl::DeviceBinding::HidElement &element, const Types::Value &value) noexcept
     {
         double raw = 0.0;
         if (const auto *signedValue = std::get_if<std::int64_t>(&value); signedValue != nullptr)
@@ -503,7 +503,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return std::clamp(static_cast<float>((raw - minimum) / (maximum - minimum)), 0.0F, 1.0F);
     }
 
-    void addNormalizedGamepadElements(
+    static void addNormalizedGamepadElements(
         System::Impl &state,
         Types::DeviceInfo &descriptor,
         DeviceBinding &binding,
@@ -2059,7 +2059,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return signedValue ? Types::Scalar{static_cast<std::int64_t>(value)} : Types::Scalar{static_cast<std::uint64_t>(static_cast<ULONG>(value))};
     }
 
-    [[nodiscard]] std::int64_t signExtendHidValue(ULONG value, std::uint16_t bitSize) noexcept
+    [[nodiscard]] static std::int64_t signExtendHidValue(ULONG value, std::uint16_t bitSize) noexcept
     {
         const std::uint16_t width = std::min<std::uint16_t>(bitSize, 32);
         if (width == 0 || width == 32 || (value & (static_cast<ULONG>(1U) << static_cast<ULONG>(width - 1U))) == 0)

@@ -8,4 +8,4 @@ target_sources(
         "${CMAKE_CURRENT_LIST_DIR}/internal/win32_attachment_state.h"
 )
 
-target_link_libraries(Input PRIVATE kernel32 user32 hidparse imm32)
+target_link_libraries(Input PRIVATE kernel32 user32 hid imm32)
