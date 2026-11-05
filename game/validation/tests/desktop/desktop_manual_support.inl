@@ -933,13 +933,13 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
     return true;
 }
 
-/// @brief Returns whether an opt-in suite should run and records the unattended skip otherwise.
-[[nodiscard]] bool beginManualSuite(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options, std::string_view name)
+/// @brief Returns whether an opt-in suite should run.
+/// @note Skip reporting is consolidated at the registration level to avoid spam.
+[[nodiscard]] bool beginManualSuite(TestSupport::Context &, const GameWIP::Test::DesktopTestOptions &options, std::string_view)
 {
     if(options.enableManualTests)
     {
         return true;
     }
-    context.skip(name, "disabled by DesktopTestOptions");
     return false;
 }

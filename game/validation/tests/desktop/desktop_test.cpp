@@ -713,10 +713,19 @@ namespace GameWIP::Test
                     context.fail("Window manual suite selector", std::format("unknown suite '{}'", *selectedManualSuite));
                 });
         }
+        
+        // Track manual suite names for consolidated skip reporting
+        std::vector<std::string_view> pendingManualSkips;
+        
         const auto runManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
             if(!validManualSelection || (selectedManualSuite && *selectedManualSuite != selector))
             {
+                return;
+            }
+            if(!options.enableManualTests)
+            {
+                pendingManualSkips.push_back(displayName);
                 return;
             }
             runner.runSuite(
@@ -730,6 +739,11 @@ namespace GameWIP::Test
         {
             if(!validManualSelection || !selectedManualSuite || *selectedManualSuite != selector)
             {
+                return;
+            }
+            if(!options.enableManualTests)
+            {
+                pendingManualSkips.push_back(displayName);
                 return;
             }
             runner.runSuite(
@@ -810,6 +824,19 @@ namespace GameWIP::Test
             });
         runManualSuite("Window manual HDR and advanced color", "hdr", testManualHdrAndAdvancedColor);
         runManualSuite("Window manual modern Windows capabilities", "modern", testManualModernWindowsCapabilities);
+
+        // Report all skipped manual tests in one consolidated message
+        if(!pendingManualSkips.empty())
+        {
+            runner.runSuite(
+                "Desktop manual tests",
+                [&](TestSupport::Context &context)
+                {
+                    context.skip(
+                        "Desktop manual tests",
+                        std::format("{} manual tests disabled by DesktopTestOptions", pendingManualSkips.size()));
+                });
+        }
 
         if(options.enableManualTests && manualCaseSelection && manualCasesSelected == 0)
         {
