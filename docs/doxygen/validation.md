@@ -111,8 +111,8 @@ policy for the duration of one callback.
 - A zero callback result means pass; any nonzero result means fail.
 
 A module adapter translates shared policy into its library-specific test options
-and invokes the suite. Reusable test behavior belongs in the module's
-`_test.cpp` file or TestSupport, not in the adapter.
+and invokes the suite. Reusable test behavior belongs in the module's test
+sources or TestSupport, not in the adapter.
 
 ## Command-line interface
 
