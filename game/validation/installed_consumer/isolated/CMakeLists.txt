@@ -17,6 +17,7 @@ set(supported_packages
     FileSystem
     Terminal
     Desktop
+    Input
     Logger
     Assert
     TestSupport

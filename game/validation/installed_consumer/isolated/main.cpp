@@ -29,6 +29,8 @@
 #include "desktop/window.h"
 bool probeInstalledAccessibility();
 bool probeInstalledDragDrop();
+#elif defined(GAMEWIP_CONSUMER_Input)
+#include "input/input.h"
 #elif defined(GAMEWIP_CONSUMER_Logger)
 #include "logger/logger.h"
 #elif defined(GAMEWIP_CONSUMER_Assert)
@@ -82,6 +84,11 @@ int main()
                    displayColor.status.code == GameWIP::IO::Types::ErrorCode::NotOpen
                ? 0
                : 1;
+#elif defined(GAMEWIP_CONSUMER_Input)
+    GameWIP::Input::System input;
+    const auto openStatus = input.open();
+    const auto closeStatus = input.close();
+    return openStatus.ok() && closeStatus.ok() && !input.isOpen() ? 0 : 1;
 #elif defined(GAMEWIP_CONSUMER_Logger)
     static_cast<void>(GameWIP::Logger::defaultConfig());
     return 0;

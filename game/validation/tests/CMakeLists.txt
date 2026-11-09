@@ -73,6 +73,7 @@ if(GAMEWIP_BUILD_TESTS)
 
     gamewip_add_export_validation(Terminal terminal.txt "${TERMINAL_ENABLE_TEST_HOOKS}")
     gamewip_add_export_validation(Desktop desktop.txt "${DESKTOP_ENABLE_TEST_HOOKS}")
+    gamewip_add_export_validation(Input input.txt FALSE)
     gamewip_add_export_validation(Logger logger.txt "${LOGGER_ENABLE_TEST_HOOKS}")
     get_target_property(assert_target_type Assert TYPE)
     if(NOT assert_target_type STREQUAL "INTERFACE_LIBRARY")

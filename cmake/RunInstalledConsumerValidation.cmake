@@ -112,6 +112,16 @@ set(expected_gamewip_headers
     desktop/types.h
     desktop/window.h
     desktop/desktop_export.h
+    input/frame.h
+    input/input.h
+    input/input_export.h
+    input/native/desktop_win32.h
+    input/query.h
+    input/standard.h
+    input/synthetic.h
+    input/system.h
+    input/types.h
+    input/win32.h
 )
 list(SORT expected_gamewip_headers)
 
@@ -119,12 +129,21 @@ file(GLOB_RECURSE installed_gamewip_headers RELATIVE "${INSTALL_PREFIX}/include"
 list(FILTER installed_gamewip_headers EXCLUDE REGEX "^tracy/")
 list(SORT installed_gamewip_headers)
 
-if(NOT "${installed_gamewip_headers}" STREQUAL "${expected_gamewip_headers}")
+set(unexpected_headers ${installed_gamewip_headers})
+list(REMOVE_ITEM unexpected_headers ${expected_gamewip_headers})
+
+set(missing_headers ${expected_gamewip_headers})
+list(REMOVE_ITEM missing_headers ${installed_gamewip_headers})
+
+if(unexpected_headers OR missing_headers)
+    string(JOIN "\n  " unexpected_text ${unexpected_headers})
+    string(JOIN "\n  " missing_text ${missing_headers})
+
     message(
         FATAL_ERROR
         "Installed GameWIP headers differ from the public allowlist.\n"
-        "Expected: ${expected_gamewip_headers}\n"
-        "Actual: ${installed_gamewip_headers}"
+        "Unexpected:\n  ${unexpected_text}\n"
+        "Missing:\n  ${missing_text}"
     )
 endif()
 
@@ -207,7 +226,7 @@ run_installed_consumer("${CONSUMER_SOURCE_DIR}" "${CONSUMER_BUILD_DIR}/combined"
 foreach(
     package_name
     IN
-    ITEMS Unicode IO FileSystem Terminal Desktop Logger Assert TestSupport
+    ITEMS Unicode IO FileSystem Terminal Desktop Input Logger Assert TestSupport
 )
     string(TOLOWER "${package_name}" package_directory)
     run_installed_consumer(

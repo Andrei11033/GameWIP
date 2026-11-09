@@ -15,6 +15,7 @@ find_package(IO ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(FileSystem ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Terminal ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Desktop ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
+find_package(Input ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Logger ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(Assert ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 find_package(TestSupport ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
@@ -23,7 +24,7 @@ add_executable(GameWIPInstalledConsumer main.cpp)
 target_compile_features(GameWIPInstalledConsumer PRIVATE cxx_std_23)
 target_link_libraries(
     GameWIPInstalledConsumer
-    PRIVATE GameWIP::Unicode GameWIP::IO GameWIP::FileSystem GameWIP::Terminal GameWIP::Desktop GameWIP::Logger GameWIP::Assert GameWIP::TestSupport
+    PRIVATE GameWIP::Unicode GameWIP::IO GameWIP::FileSystem GameWIP::Terminal GameWIP::Desktop GameWIP::Input GameWIP::Logger GameWIP::Assert GameWIP::TestSupport
 )
 
 gamewip_attach_application_manifest(TARGET GameWIPInstalledConsumer COMMON_CONTROLS_V6 PER_MONITOR_V2)

@@ -31,6 +31,7 @@
 #include "desktop/display_info.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/window.h"
+#include "input/input.h"
 
 #include <span>
 #include <string>
@@ -87,6 +88,9 @@ int main()
     const GameWIP::IO::Types::Status rendererFeedbackStatus = GameWIP::Desktop::Renderer::attachOcclusionProvider(closedWindow);
     const bool rendererProvider = GameWIP::Desktop::Renderer::hasOcclusionProvider(closedWindow);
     const auto displayColor = GameWIP::Desktop::Display::getColorInfo(closedWindow);
+    GameWIP::Input::System inputSystem;
+    const GameWIP::IO::Types::Status inputOpen = inputSystem.open();
+    const GameWIP::IO::Types::Status inputClose = inputSystem.close();
 
     // Keep each probe alive through the checks below so this translation unit verifies
     // construction, mutation, and result types rather than only header parsing.
@@ -122,7 +126,9 @@ int main()
         closedDrag.status.code == GameWIP::IO::Types::ErrorCode::NotOpen && !closedProgressDialog.isOpen() && closedProgressDialog.close().ok() &&
         dialogButtonId.isValid() && closedDialogResult.outcome == GameWIP::Desktop::Types::Dialogs::Outcome::Cancelled;
 
-    const bool everyProbePassed =
-        unicodeProbePassed && ioProbePassed && terminalProbePassed && closedTerminalProbePassed && testSupportProbePassed && desktopProbePassed;
+    const bool inputProbePassed = inputOpen.ok() && inputClose.ok() && !inputSystem.isOpen();
+
+    const bool everyProbePassed = unicodeProbePassed && ioProbePassed && terminalProbePassed && closedTerminalProbePassed && testSupportProbePassed &&
+                                  desktopProbePassed && inputProbePassed;
     return everyProbePassed ? 0 : 1;
 }
