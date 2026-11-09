@@ -8,16 +8,22 @@
 #include "validation/process_arguments.h"
 #include "validation/tests/runner_helpers.h"
 
-#include "test_support/test_support.h"
-#include "desktop/child_surface.h"
+#ifndef DESKTOP_INTERNAL_TEST_HOOKS
+#define DESKTOP_INTERNAL_TEST_HOOKS 0
+#endif
+
 #include "desktop/accessibility.h"
+#include "desktop/child_surface.h"
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
-#include "desktop/drag_drop.h"
 #include "desktop/dialogs.h"
-#include "desktop/internal/drag_drop_state.h"
+#include "desktop/drag_drop.h"
 #include "desktop/internal/cursor_selection.h"
+#if DESKTOP_INTERNAL_TEST_HOOKS
+#include "desktop/internal/desktop_test_hooks.h"
+#endif
+#include "desktop/internal/drag_drop_state.h"
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/shell.h"
@@ -28,21 +34,14 @@
 #include "desktop/shell_tray.h"
 #include "desktop/shell_types.h"
 #include "desktop/window.h"
-#include "unicode/unicode.h"
 #include "filesystem/file.h"
+#include "test_support/test_support.h"
+#include "unicode/unicode.h"
 
+#include <propkey.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
-#include <propkey.h>
-
-#ifndef DESKTOP_INTERNAL_TEST_HOOKS
-#define DESKTOP_INTERNAL_TEST_HOOKS 0
-#endif
-
-#if DESKTOP_INTERNAL_TEST_HOOKS
-#include "desktop/internal/desktop_test_hooks.h"
-#endif
 
 #include <algorithm>
 #include <array>
@@ -713,10 +712,10 @@ namespace GameWIP::Test
                     context.fail("Window manual suite selector", std::format("unknown suite '{}'", *selectedManualSuite));
                 });
         }
-        
+
         // Track manual suite names for consolidated skip reporting
         std::vector<std::string_view> pendingManualSkips;
-        
+
         const auto runManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
             if(!validManualSelection || (selectedManualSuite && *selectedManualSuite != selector))
@@ -832,9 +831,7 @@ namespace GameWIP::Test
                 "Desktop manual tests",
                 [&](TestSupport::Context &context)
                 {
-                    context.skip(
-                        "Desktop manual tests",
-                        std::format("{} manual tests disabled by DesktopTestOptions", pendingManualSkips.size()));
+                    context.skip("Desktop manual tests", std::format("{} manual tests disabled by DesktopTestOptions", pendingManualSkips.size()));
                 });
         }
 

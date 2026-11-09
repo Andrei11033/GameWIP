@@ -1,5 +1,5 @@
 /// @file configuration_test.inl
-/// @brief Logger initialization, configuration, and file-output correctness suites.
+/// @brief Logger initialization, configuration, and file-output tests.
 
 void expectStarted(TestContext &context, std::string_view name, const Logger::Types::Init::Result &result)
 {

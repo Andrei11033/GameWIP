@@ -286,13 +286,13 @@ namespace
         return session.close().ok() ? 0 : 6;
     }
 
-    /// @brief Records a human response as a test pass, failure, or skip.
     // ------------------------------------------------------------
     // Manual test reporting
     // ------------------------------------------------------------
 
     thread_local TestSupport::Types::Reporting::Summary manualObservations;
 
+    /// @brief Records a human response as a test pass, failure, or skip.
     void recordManualAnswer(
         TestSupport::Context &context,
         std::string_view name,
@@ -441,11 +441,11 @@ namespace
             .supportsCancellation = true};
     }
 
-    /// @brief Resets hooks, installs output capabilities, and enables byte capture.
     // ------------------------------------------------------------
     // Test fixtures and suites
     // ------------------------------------------------------------
 
+    /// @brief Resets hooks, installs output capabilities, and enables byte capture.
     void setupCapturedOutput(
         Terminal::Types::Output::Stream stream,
         Terminal::Types::Output::Capabilities capabilities = terminalOutputCapabilities())

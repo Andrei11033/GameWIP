@@ -59,11 +59,11 @@ namespace
     constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
 
-    /// @brief Returns whether one exact child-mode argument is present.
     // ------------------------------------------------------------
     // Argument and reporting helpers
     // ------------------------------------------------------------
 
+    /// @brief Returns whether one exact child-mode argument is present.
     bool hasArgument(int argc, char **argv, std::string_view argument)
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
@@ -140,13 +140,13 @@ namespace
         return TestSupport::promptManualCheck("automated prompt check");
     }
 
-    /// @brief Implements child modes used to verify capture, timeout, environment, and exit behavior.
     // ------------------------------------------------------------
     // Child-process routes
     // ------------------------------------------------------------
 
     int runStartGateChild();
 
+    /// @brief Implements child modes used to verify capture, timeout, environment, and exit behavior.
     int runTestSupportChild(int argc, char **argv)
     {
         if(hasArgument(argc, argv, kStartGateChildArgument))

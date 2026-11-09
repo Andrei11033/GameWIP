@@ -1,4 +1,6 @@
-# Each isolated consumer intentionally calls find_package only once to test transitive package discovery.
+# Each isolated consumer intentionally calls find_package only once to test
+# transitive package discovery.
+
 cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 
 project(GameWIPIsolatedConsumer LANGUAGES CXX)
@@ -22,6 +24,7 @@ set(supported_packages
     Assert
     TestSupport
 )
+
 # Reject misspelled package selectors before configuring any target sources.
 if(NOT GAMEWIP_CONSUMER_PACKAGE IN_LIST supported_packages)
     message(FATAL_ERROR "GAMEWIP_CONSUMER_PACKAGE must be one of: ${supported_packages}.")
@@ -31,8 +34,13 @@ endif()
 # package config discovers every imported target in its transitive interface.
 find_package(${GAMEWIP_CONSUMER_PACKAGE} ${GAMEWIP_PACKAGE_VERSION} EXACT CONFIG REQUIRED)
 
-add_executable(GameWIPIsolatedConsumer main.cpp)
-# Add focused header probes only for the selected package so every installed target is checked independently.
+# ------------------------------------------------------------
+# Consumer target and focused probes
+# ------------------------------------------------------------
+
+add_executable(GameWIPIsolatedConsumer main.cpp ../consumer_probe.h)
+# Add focused header probes only for the selected package so every installed
+# target is checked independently.
 if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
     target_sources(GameWIPIsolatedConsumer PRIVATE logger_config.cpp logger_macros.cpp logger_types.cpp)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Terminal")
@@ -72,6 +80,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
         PRIVATE test_support_types.cpp test_support_reporting.cpp test_support_files.cpp test_support_process.cpp test_support_stress.cpp
     )
 endif()
+
 target_compile_features(GameWIPIsolatedConsumer PRIVATE cxx_std_23)
 target_compile_definitions(GameWIPIsolatedConsumer PRIVATE "GAMEWIP_CONSUMER_${GAMEWIP_CONSUMER_PACKAGE}=1")
 target_link_libraries(GameWIPIsolatedConsumer PRIVATE "GameWIP::${GAMEWIP_CONSUMER_PACKAGE}")
@@ -81,6 +90,10 @@ if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Assert")
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
     gamewip_attach_application_manifest(TARGET GameWIPIsolatedConsumer COMMON_CONTROLS_V6 PER_MONITOR_V2)
 endif()
+
+# ------------------------------------------------------------
+# Optional instrumentation
+# ------------------------------------------------------------
 
 if(GAMEWIP_CONSUMER_LINK_COVERAGE)
     target_link_options(GameWIPIsolatedConsumer PRIVATE --coverage)

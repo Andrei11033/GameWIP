@@ -1,5 +1,5 @@
 /// @file filters_test.inl
-/// @brief Logger source and level filter correctness and concurrency suites.
+/// @brief Logger source, level-filtering, and concurrency tests.
 
 void testFilteredFormattedRegisteredSource(TestContext &context)
 {

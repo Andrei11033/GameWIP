@@ -93,6 +93,10 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
     using IO::Types::ErrorCode;
 
+    // ------------------------------------------------------------
+    // Test helpers
+    // ------------------------------------------------------------
+
     /// @brief Creates entry-query options for one explicit symlink policy.
     FileSystem::Types::EntryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept
     {
@@ -100,10 +104,6 @@ namespace
     }
 
     /// @brief Exposes fixture text as bytes without copying or conversion.
-    // ------------------------------------------------------------
-    // Test helpers
-    // ------------------------------------------------------------
-
     std::span<const std::byte> bytesOf(std::string_view text) noexcept
     {
         return std::as_bytes(std::span<const char>(text.data(), text.size()));

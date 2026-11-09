@@ -1,5 +1,5 @@
 /// @file contracts_test.inl
-/// @brief Focused terminal contracts correctness suites.
+/// @brief Focused Terminal contract tests.
 
 /// @brief Verifies color/segment helpers, event alternatives, defaults, and formatting failures.
 void testPassiveHelpers(TestSupport::Context &context)

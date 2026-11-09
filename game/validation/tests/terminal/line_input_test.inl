@@ -1,5 +1,5 @@
 /// @file line_input_test.inl
-/// @brief Focused terminal line input correctness suites.
+/// @brief Focused Terminal line-input tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 /// @brief Verifies the managed Unicode line editor over deterministic structured events.

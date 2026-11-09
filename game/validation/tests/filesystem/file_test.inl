@@ -1,5 +1,5 @@
 /// @file file_test.inl
-/// @brief Focused filesystem file correctness suites.
+/// @brief Focused FileSystem file tests.
 
 /// @brief Verifies final and intermediate symlink handling for every query policy.
 void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::path &root)

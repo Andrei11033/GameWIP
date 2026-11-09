@@ -1,5 +1,5 @@
 /// @file metadata_test.inl
-/// @brief Focused filesystem metadata correctness suites.
+/// @brief Focused FileSystem metadata tests.
 
 /// @brief Verifies existence, kind, missing-entry, and invalid-path query behavior.
 void testBasicEntryQueries(TestSupport::Context &context, const std::filesystem::path &root)

@@ -1,5 +1,5 @@
 /// @file environment_test.inl
-/// @brief Private TestSupport correctness cases grouped by behavioral responsibility.
+/// @brief Private TestSupport environment and process-state restoration tests.
 
 /// @brief Verifies scoped environment set/unset and exact restoration behavior.
 void testEnvironmentHelpers(TestSupport::Context &context)

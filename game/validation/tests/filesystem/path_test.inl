@@ -1,5 +1,5 @@
 /// @file path_test.inl
-/// @brief Focused filesystem path correctness suites.
+/// @brief Focused FileSystem path tests.
 
 /// @brief Verifies explicit UTF-8 path conversion with non-ASCII fixture names.
 void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem::path &root)

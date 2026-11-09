@@ -1,5 +1,5 @@
 /// @file reports_test.inl
-/// @brief Logger synchronous report, flush, and fatal-channel correctness suites.
+/// @brief Logger reporting, flushing, and fatal-channel tests.
 
 void testReportsAndHealth(TestContext &context)
 {

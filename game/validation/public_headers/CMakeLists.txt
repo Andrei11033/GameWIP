@@ -1,27 +1,53 @@
+# Compiles every installed public header through its owning target.
+
 function(gamewip_add_public_header_check name source dependency)
     add_library("GameWIPPublicHeaderCheck${name}" OBJECT "${source}")
     target_compile_features("GameWIPPublicHeaderCheck${name}" PRIVATE cxx_std_23)
     target_link_libraries("GameWIPPublicHeaderCheck${name}" PRIVATE "${dependency}")
 endfunction()
 
+# ------------------------------------------------------------
+# Foundation
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(BaseCheckedArithmetic base_checked_arithmetic_header.cpp GameWIP::Base)
+
+# ------------------------------------------------------------
+# Unicode and IO
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(Unicode unicode_header.cpp GameWIP::Unicode)
 gamewip_add_public_header_check(IO io_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOStatus io_status_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOStream io_stream_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOMemory io_memory_header.cpp GameWIP::IO)
 gamewip_add_public_header_check(IOTransfer io_transfer_header.cpp GameWIP::IO)
+
+# ------------------------------------------------------------
+# FileSystem
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(FileSystem filesystem_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemPath filesystem_path_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemEntry filesystem_entry_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemFile filesystem_file_header.cpp GameWIP::FileSystem)
 gamewip_add_public_header_check(FileSystemDirectory filesystem_directory_header.cpp GameWIP::FileSystem)
+
+# ------------------------------------------------------------
+# Terminal
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(Terminal terminal_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalTypes terminal_types_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalInput terminal_input_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalOutput terminal_output_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalSession terminal_session_header.cpp GameWIP::Terminal)
 gamewip_add_public_header_check(TerminalStyle terminal_style_header.cpp GameWIP::Terminal)
+
+# ------------------------------------------------------------
+# Desktop
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(DesktopTypes desktop_types_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopAccessibility desktop_accessibility_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopClipboard desktop_clipboard_header.cpp GameWIP::Desktop)
@@ -45,11 +71,26 @@ gamewip_add_public_header_check(DesktopShellNotifications desktop_shell_notifica
 gamewip_add_public_header_check(DesktopShellJumpLists desktop_shell_jump_lists_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellRegistration desktop_shell_registration_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopNativeWin32 desktop_native_win32_header.cpp GameWIP::Desktop)
+
+# ------------------------------------------------------------
+# Logger
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(LoggerTypes logger_types_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(LoggerConfig logger_config_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(Logger logger_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(LoggerMacros logger_macros_header.cpp GameWIP::Logger)
+
+# ------------------------------------------------------------
+# Assert
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(Assert assert_header.cpp GameWIP::Assert)
+
+# ------------------------------------------------------------
+# TestSupport
+# ------------------------------------------------------------
+
 gamewip_add_public_header_check(TestSupportTypes test_support_types_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupportReporting test_support_reporting_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupportFiles test_support_files_header.cpp GameWIP::TestSupport)

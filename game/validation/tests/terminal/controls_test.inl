@@ -1,5 +1,5 @@
 /// @file controls_test.inl
-/// @brief Focused terminal controls correctness suites.
+/// @brief Focused Terminal control tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 /// @brief Verifies cursor, clear, scroll, title, alternate-screen, and visibility controls.

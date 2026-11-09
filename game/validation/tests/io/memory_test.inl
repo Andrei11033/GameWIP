@@ -1,5 +1,5 @@
 /// @file memory_test.inl
-/// @brief Focused io memory correctness suites.
+/// @brief Focused IO memory tests.
 
 /// @brief Verifies MemoryReader construction, reads, state, and close behavior.
 void testMemoryReader(TestSupport::Context &context)

@@ -1,5 +1,5 @@
 /// @file output_test.inl
-/// @brief Focused terminal output correctness suites.
+/// @brief Focused Terminal output tests.
 
 /// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
 void testReentrantFormatting(TestSupport::Context &context, const std::filesystem::path &executablePath)

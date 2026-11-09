@@ -1,5 +1,5 @@
 /// @file contracts_test.inl
-/// @brief Focused io contracts correctness suites.
+/// @brief Focused IO contract tests.
 
 /// @brief Verifies every portable error-code name and the unknown-value fallback.
 void testErrorCodeNames(TestSupport::Context &context)

@@ -7,11 +7,11 @@
 #include "validation/tests/runner/runner_test.h"
 
 #include "validation/executable_path.h"
-
-#include "validation/tests/runner_helpers.h"
-#include "test_support/test_support.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
+#include "validation/tests/runner_helpers.h"
+
+#include "test_support/test_support.h"
 
 #include <algorithm>
 #include <array>

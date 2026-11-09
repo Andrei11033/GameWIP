@@ -1,5 +1,5 @@
 /// @file utf16_test.inl
-/// @brief Focused unicode utf16 correctness suites.
+/// @brief Focused Unicode UTF-16 tests.
 
 /// @brief Verifies strict UTF-16 decode, encode, and whole-range validation edge cases.
 void testUtf16CodecAndValidation(TestSupport::Context &context)

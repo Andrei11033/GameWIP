@@ -1,5 +1,5 @@
 /// @file input_test.inl
-/// @brief Focused terminal input correctness suites.
+/// @brief Focused Terminal input tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 /// @brief Verifies byte, text, and line reads across UTF-8, timeout, truncation, and EOF paths.
@@ -533,7 +533,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     Hooks::reset();
 }
 
-/// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
+/// @brief Runs a child test for cancellation when the stop callback cannot signal its event.
 int runCancellationSignalFailureChild()
 {
     Hooks::reset();
@@ -575,7 +575,7 @@ int runCancellationSignalFailureChild()
     return passed ? 0 : 1;
 }
 
-/// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
+/// @brief Verifies bounded cancellation after the native signal fails.
 void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath)
 {
     Hooks::reset();

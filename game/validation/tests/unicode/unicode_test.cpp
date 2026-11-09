@@ -68,11 +68,11 @@ namespace
     static_assert(noexcept(Unicode::Utf16::measureToUtf8(std::declval<std::span<const char16_t>>())));
     static_assert(noexcept(Unicode::Utf16::convertToUtf8(std::declval<std::span<const char16_t>>(), std::declval<std::span<char>>())));
 
-    /// @brief Builds a byte string from explicit unsigned octets without depending on char signedness.
     // ------------------------------------------------------------
     // Test data helpers
     // ------------------------------------------------------------
 
+    /// @brief Builds a byte string from explicit unsigned octets without depending on char signedness.
     std::string bytes(std::initializer_list<std::uint8_t> values)
     {
         std::string result;

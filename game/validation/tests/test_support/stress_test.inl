@@ -1,5 +1,5 @@
 /// @file stress_test.inl
-/// @brief Private TestSupport correctness cases grouped by behavioral responsibility.
+/// @brief Private TestSupport stress-helper tests.
 
 /// @brief Observes a closed gate before release; the parent bounds any synchronization hang.
 int runStartGateChild()

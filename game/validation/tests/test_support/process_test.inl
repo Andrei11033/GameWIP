@@ -1,5 +1,5 @@
 /// @file process_test.inl
-/// @brief Private TestSupport correctness cases grouped by behavioral responsibility.
+/// @brief Private TestSupport child-process tests.
 
 /// @brief Verifies child launch, merged capture, truncation, timeout, environment, and process-tree cleanup.
 void testChildProcesses(TestSupport::Context &context, const std::filesystem::path &executablePath, const TestSupportTestOptions &options)

@@ -105,7 +105,12 @@ namespace
 
         const auto button = Input::Query::findStandard(devices, Input::Standard::Key::A, device);
 
-        static_cast<void>(context.expectTrue("standard button lookup resolves", button.has_value()));
+        if(!button.has_value())
+        {
+            static_cast<void>(context.expectTrue("standard button lookup resolves", false));
+            return;
+        }
+        static_cast<void>(context.expectTrue("standard button lookup resolves", true));
 
         const Input::Types::ElementInfo *axisInfo = Input::Query::findElementByPersistentKey(devices, "axis", device);
 
@@ -137,7 +142,7 @@ namespace
 
         static_cast<void>(context.expectTrue("device connection event is published", connectedEvent));
 
-        const Input::Types::ElementId buttonElement = *button;
+        const Input::Types::ElementId buttonElement = button.value();
 
         static_cast<void>(context.expectTrue("button value publishes", source.setAbsoluteValue(buttonElement, Input::Types::Value{true}).ok()));
 
@@ -354,12 +359,14 @@ namespace
         }
 
         const auto pointer = Input::Query::findStandard(devices, Input::Standard::Pointer::Position);
-        if(!context.expectTrue("window pointer is discoverable", pointer.has_value()))
+        if(!pointer.has_value())
         {
+            static_cast<void>(context.expectTrue("window pointer is discoverable", false));
             return;
         }
+        static_cast<void>(context.expectTrue("window pointer is discoverable", true));
 
-        const auto *position = std::get_if<Input::Types::Vector2I64>(frame.value(*pointer));
+        const auto *position = std::get_if<Input::Types::Vector2I64>(frame.value(pointer.value()));
         static_cast<void>(context.expectTrue("window pointer position is forwarded", position != nullptr && position->x == 123 && position->y == 45));
 
         static_cast<void>(context.expectTrue("Desktop message sink detaches", Desktop::Native::Win32::detachMessageSink(window).ok()));

@@ -1,5 +1,5 @@
 /// @file health_test.inl
-/// @brief Logger lifecycle health and statistics correctness suites.
+/// @brief Logger lifecycle, health, and statistics tests.
 
 void testQueryDefaultsAndLifecycle(TestContext &context)
 {

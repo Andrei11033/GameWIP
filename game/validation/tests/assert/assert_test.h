@@ -11,20 +11,20 @@
 /// @brief Source-tree reusable-library self-test options and suite entry points.
 namespace GameWIP::Test
 {
-    /// @brief Runtime toggles for the assert test suite.
+    /// @brief Runtime toggles for the Assert test suite.
     struct AssertTestOptions
     {
-        /// @brief Enables child-process crash tests for assert, break, unreachable, and interactive abort/break paths.
+        /// @brief Enables child-process crash tests for Assert, break, unreachable, and interactive abort/break paths.
         bool enableChildCrashTests = true;
         /// @brief Enables deterministic stress tests that exercise concurrent and repeated failure paths.
         bool enableStressTests = true;
-        /// @brief Enables automated interactive assert tests that use the Assert test-action environment override instead of real UI.
+        /// @brief Enables automated interactive Assert tests that use the test-action environment override instead of real UI.
         bool enableAutomatedInteractiveTests = true;
         /// @brief Enables manual tests that require the user to click real Windows dialogs.
         bool enableManualTests = false;
         /// @brief Mirrors complete suite output to stdout instead of only failures, skips, and manual instructions.
         bool verboseConsole = false;
-        /// @brief Number of worker threads used by assert stress tests.
+        /// @brief Number of worker threads used by Assert stress tests.
         std::size_t stressThreadCount = 4;
         /// @brief Writes test progress and summaries to reportPath and stdout.
         bool writeReport = true;
@@ -34,10 +34,10 @@ namespace GameWIP::Test
         std::filesystem::path reportPath = "logs/validation/latest_test_report.txt";
     };
 
-    /// @brief Runs the assert library tests.
+    /// @brief Runs the Assert library tests.
     /// @param argc Borrowed process argument count for the duration of the call.
     /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Test toggles for expensive or process-aborting scenarios.
-    /// @return Zero when every assert test passes, nonzero otherwise.
+    /// @return Zero when every Assert test passes, nonzero otherwise.
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options = {});
 } // namespace GameWIP::Test

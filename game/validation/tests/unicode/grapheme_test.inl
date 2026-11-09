@@ -1,5 +1,5 @@
 /// @file grapheme_test.inl
-/// @brief Focused unicode grapheme correctness suites.
+/// @brief Focused Unicode grapheme tests.
 
 /// @brief Verifies Unicode 17 grapheme rules with targeted rule-oriented examples and error paths.
 void testTargetedGraphemeBoundaries(TestSupport::Context &context)

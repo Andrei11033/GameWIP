@@ -1,5 +1,5 @@
 /// @file reporting_test.inl
-/// @brief Private TestSupport correctness cases grouped by behavioral responsibility.
+/// @brief Private TestSupport reporting and expectation tests.
 
 /// @brief Verifies summary arithmetic, result predicates, defaults, and timer units.
 void testSummaryAndTimer(TestSupport::Context &context)

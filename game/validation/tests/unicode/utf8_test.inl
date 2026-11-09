@@ -1,5 +1,5 @@
 /// @file utf8_test.inl
-/// @brief Focused unicode utf8 correctness suites.
+/// @brief Focused Unicode UTF-8 tests.
 
 /// @brief Verifies standard-version reporting and scalar/surrogate classification boundaries.
 void testVersionAndScalarPredicates(TestSupport::Context &context)

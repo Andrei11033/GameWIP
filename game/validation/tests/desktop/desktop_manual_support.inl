@@ -937,9 +937,5 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
 /// @note Skip reporting is consolidated at the registration level to avoid spam.
 [[nodiscard]] bool beginManualSuite(TestSupport::Context &, const GameWIP::Test::DesktopTestOptions &options, std::string_view)
 {
-    if(options.enableManualTests)
-    {
-        return true;
-    }
-    return false;
+    return options.enableManualTests;
 }

@@ -1,5 +1,5 @@
 /// @file manual_test.inl
-/// @brief Focused terminal manual correctness suites.
+/// @brief Manual Terminal tests.
 
 /// @brief Displays representative UTF-8 text for visual verification.
 void testManualUnicodeOutput(TestSupport::Context &context)

@@ -1,5 +1,5 @@
 /// @file read_test.inl
-/// @brief Focused io read correctness suites.
+/// @brief Focused IO read tests.
 
 /// @brief Verifies whole-reader byte draining across known-size, unknown-size, limit, and failure paths.
 void testReadAllBytes(TestSupport::Context &context)

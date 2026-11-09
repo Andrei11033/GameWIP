@@ -1,3 +1,9 @@
+# Correctness-test modules, installed consumer checks, and export validation.
+
+# ------------------------------------------------------------
+# Shared test modules
+# ------------------------------------------------------------
+
 # The shared object library contains registration and runner code used by both test processes.
 add_library(GameWIPTestModules OBJECT registry.cpp runner.cpp)
 target_compile_features(GameWIPTestModules PUBLIC cxx_std_23)
@@ -5,6 +11,10 @@ target_include_directories(GameWIPTestModules PUBLIC "${PROJECT_SOURCE_DIR}/game
 target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess)
 
 if(GAMEWIP_BUILD_TESTS)
+    # ------------------------------------------------------------
+    # Standalone correctness-test process
+    # ------------------------------------------------------------
+
     # The standalone executable exposes focused module selection to developers and CTest.
     add_executable(GameWIPTests standalone_main.cpp)
     if(WIN32)
@@ -44,6 +54,10 @@ if(GAMEWIP_BUILD_TESTS)
         validation.packages.installed_consumer
         PROPERTIES LABELS "validation;packages" RUN_SERIAL TRUE TIMEOUT 600
     )
+
+    # ------------------------------------------------------------
+    # Exported ABI checks
+    # ------------------------------------------------------------
 
     # Export checks keep installed libraries from accidentally exposing private implementation symbols.
     add_test(

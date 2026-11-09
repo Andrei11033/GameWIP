@@ -1,5 +1,5 @@
 /// @file process_test.inl
-/// @brief Logger child-process and manual diagnostic correctness suites.
+/// @brief Logger child-process and manual diagnostic tests.
 
 [[nodiscard]] TestSupport::Types::Process::Result runChild(
     const std::filesystem::path &executable,
