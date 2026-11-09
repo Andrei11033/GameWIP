@@ -124,7 +124,21 @@ function Assert-GameWipSetupActionCatalog
 
     if ((($requiredActionIds | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
-        throw "Setup action catalog drift. Required: $($requiredActionIds -join ', '); configured: $($actionIds -join ', ')."
+        $missingActions = @($requiredActionIds | Where-Object { $actionIds -cnotcontains $_ })
+        $unexpectedActions = @($actionIds | Where-Object { $requiredActionIds -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingActions.Count -gt 0)
+        {
+            $differences += "missing required actions: $($missingActions -join ', ')"
+        }
+
+        if ($unexpectedActions.Count -gt 0)
+        {
+            $differences += "unexpected configured actions: $($unexpectedActions -join ', ')"
+        }
+
+        throw "Setup action catalog drift: $($differences -join '; ')."
     }
     $duplicateKeys = @($actions | Where-Object { $_.ContainsKey('Key') } | ForEach-Object { [string]$_.Key } | Group-Object | Where-Object Count -gt 1)
 

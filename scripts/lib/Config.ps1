@@ -664,7 +664,21 @@ function Assert-GameWipCommandConfig
 
     if ((($requiredActions | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
-        throw "Project action catalog drift. Required: $($requiredActions -join ', '); configured: $($actionIds -join ', ')."
+        $missingActions = @($requiredActions | Where-Object { $actionIds -cnotcontains $_ })
+        $unexpectedActions = @($actionIds | Where-Object { $requiredActions -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingActions.Count -gt 0)
+        {
+            $differences += "missing required actions: $($missingActions -join ', ')"
+        }
+
+        if ($unexpectedActions.Count -gt 0)
+        {
+            $differences += "unexpected configured actions: $($unexpectedActions -join ', ')"
+        }
+
+        throw "Project action catalog drift: $($differences -join '; ')."
     }
     $actionNames = @{}
 
@@ -688,7 +702,21 @@ function Assert-GameWipCommandConfig
 
     if ((($requiredMenus | Sort-Object) -join "`n") -cne (($menuIds | Sort-Object) -join "`n"))
     {
-        throw "Interactive menu catalog drift. Required: $($requiredMenus -join ', '); configured: $($menuIds -join ', ')."
+        $missingMenus = @($requiredMenus | Where-Object { $menuIds -cnotcontains $_ })
+        $unexpectedMenus = @($menuIds | Where-Object { $requiredMenus -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingMenus.Count -gt 0)
+        {
+            $differences += "missing required menus: $($missingMenus -join ', ')"
+        }
+
+        if ($unexpectedMenus.Count -gt 0)
+        {
+            $differences += "unexpected configured menus: $($unexpectedMenus -join ', ')"
+        }
+
+        throw "Interactive menu catalog drift: $($differences -join '; ')."
     }
     $supportedMenuHandlers = @(
         'menu-development', 'menu-validation', 'menu-quality', 'menu-hygiene', 'menu-tools', 'menu-tool-updates',
@@ -724,7 +752,21 @@ function Assert-GameWipCommandConfig
 
     if ((($supportedMenuHandlers | Sort-Object) -join "`n") -cne (($configuredMenuHandlers | Sort-Object) -join "`n"))
     {
-        throw "Interactive menu handler catalog drift. Supported: $($supportedMenuHandlers -join ', '); configured: $($configuredMenuHandlers -join ', ')."
+        $missingHandlers = @($supportedMenuHandlers | Where-Object { $configuredMenuHandlers -cnotcontains $_ })
+        $unsupportedHandlers = @($configuredMenuHandlers | Where-Object { $supportedMenuHandlers -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingHandlers.Count -gt 0)
+        {
+            $differences += "missing supported handlers: $($missingHandlers -join ', ')"
+        }
+
+        if ($unsupportedHandlers.Count -gt 0)
+        {
+            $differences += "unsupported configured handlers: $($unsupportedHandlers -join ', ')"
+        }
+
+        throw "Interactive menu handler catalog drift: $($differences -join '; ')."
     }
     Assert-GameWipUniqueId -Label 'bundle' -Items $bundles
     Assert-GameWipUniqueId -Label 'manual workflow' -Items $workflows
@@ -749,7 +791,21 @@ function Assert-GameWipCommandConfig
 
     if (($discoveredModules -join "`n") -ne ($configuredModules -join "`n"))
     {
-        throw "Validation module catalog drift. Configured: $($configuredModules -join ', '); discovered: $($discoveredModules -join ', ')."
+        $missingModules = @($discoveredModules | Where-Object { $configuredModules -cnotcontains $_ })
+        $staleModules = @($configuredModules | Where-Object { $discoveredModules -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingModules.Count -gt 0)
+        {
+            $differences += "missing from configuration: $($missingModules -join ', ')"
+        }
+
+        if ($staleModules.Count -gt 0)
+        {
+            $differences += "no longer discovered: $($staleModules -join ', ')"
+        }
+
+        throw "Validation module catalog drift: $($differences -join '; ')."
     }
 
     if ($configuredModules -notcontains $CommandConfig.DefaultModule -and $CommandConfig.DefaultModule -ne 'all')
