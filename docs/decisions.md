@@ -204,11 +204,11 @@ defines the boundary between them.
 ## Repository workflow and releases
 
 Feature work normally moves from an issue to a short-lived branch, a pull
-request with concrete validation evidence, and a squash merge. Pull request
-and squash commit subjects use:
+request with concrete validation evidence, and a squash merge. Prefer this
+style for pull request and commit subjects:
 
 ```text
-area: imperative summary
+action(area): imperative summary
 ```
 
 Issue titles instead use their work type: `bug:`, `feature:`, `task:`,
