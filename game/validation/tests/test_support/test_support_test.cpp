@@ -59,9 +59,34 @@ namespace
     constexpr std::string_view kChildUnsetVariable = "INTERNAL_TEST_SUPPORT_CHILD_UNSET";
     constexpr std::string_view kScopedVariable = "INTERNAL_TEST_SUPPORT_SCOPED_ENV";
 
+    std::string g_consoleWriterCategory;
+    std::string g_consoleWriterLine;
+
     // ------------------------------------------------------------
     // Argument and reporting helpers
     // ------------------------------------------------------------
+
+    bool captureConsoleWriter(std::string_view category, std::string_view line) noexcept
+    {
+        try
+        {
+            if(category == "PASS")
+            {
+                g_consoleWriterCategory = category;
+                g_consoleWriterLine = line;
+            }
+            return true;
+        }
+        catch(...)
+        {
+            return false;
+        }
+    }
+
+    bool failConsoleWriter(std::string_view, std::string_view) noexcept
+    {
+        return false;
+    }
 
     /// @brief Returns whether one exact child-mode argument is present.
     bool hasArgument(int argc, char **argv, std::string_view argument)
@@ -112,8 +137,10 @@ namespace
     {
         std::istringstream input;
         std::ostringstream output;
+        std::ostringstream error;
         std::streambuf *previousInput = nullptr;
         std::streambuf *previousOutput = nullptr;
+        std::streambuf *previousError = nullptr;
 
         /// @brief Replaces standard prompt streams with deterministic string streams.
         explicit ScopedPromptStreams(std::string_view text)
@@ -121,12 +148,14 @@ namespace
         {
             previousInput = std::cin.rdbuf(input.rdbuf());
             previousOutput = std::cout.rdbuf(output.rdbuf());
+            previousError = std::cerr.rdbuf(error.rdbuf());
         }
 
         ~ScopedPromptStreams()
         {
             std::cin.rdbuf(previousInput);
             std::cout.rdbuf(previousOutput);
+            std::cerr.rdbuf(previousError);
         }
 
         ScopedPromptStreams(const ScopedPromptStreams &) = delete;

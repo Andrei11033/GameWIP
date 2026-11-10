@@ -7,6 +7,7 @@
 #include "validation/executable_path.h"
 #include "validation/tests/internal/runner_test_hooks.h"
 #include "validation/tests/registry.h"
+#include "validation/tests/runner_helpers.h"
 
 #include "test_support/process.h"
 
@@ -470,7 +471,8 @@ namespace GameWIP::Validation::Tests
 
         if(options.writeReport)
         {
-            std::cout << "[VALIDATION] report=" << options.reportPath.string() << '\n';
+            const std::string reportLine = std::format("[VALIDATION] report={}", options.reportPath.string());
+            GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose("INFO", reportLine);
         }
 
         TestResult result;
@@ -493,7 +495,7 @@ namespace GameWIP::Validation::Tests
             }
             const std::string moduleLine =
                 std::format("[VALIDATION] module={} result={} exitCode={}", module.name, moduleExitCode == 0 ? "PASS" : "FAIL", moduleExitCode);
-            std::cout << moduleLine << '\n';
+            GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose(moduleExitCode == 0 ? "PASS" : "FAIL", moduleLine);
             appendValidationLine(options, moduleLine);
 
             // Once one module has written the aggregate report, later modules
@@ -510,7 +512,7 @@ namespace GameWIP::Validation::Tests
 
         const std::string resultLine =
             std::format("[VALIDATION] result={} modules={} failed={}", result.ok() ? "PASS" : "FAIL", result.modulesRun, result.modulesFailed);
-        std::cout << resultLine << '\n';
+        GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose(result.ok() ? "PASS" : "FAIL", resultLine);
         appendValidationLine(options, resultLine);
         return result;
     }

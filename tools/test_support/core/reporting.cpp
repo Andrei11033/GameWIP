@@ -100,7 +100,14 @@ namespace GameWIP::TestSupport
 
                 if(shouldWriteToConsole(category))
                 {
-                    std::cout << text << '\n';
+                    if(options_.consoleWriter == nullptr)
+                    {
+                        std::cout << text << '\n';
+                    }
+                    else if(!options_.consoleWriter(category, text))
+                    {
+                        std::cerr << "[TEST OUTPUT] console writer failed; report line was not written.\n";
+                    }
                 }
 
                 if(status_.state == Types::Reporting::SinkState::Active)

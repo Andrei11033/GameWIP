@@ -48,6 +48,9 @@ namespace GameWIP::TestSupport
             InfrastructureStatus failureStatus;    ///< First report-sink infrastructure failure, if any.
         };
 
+        /// @brief Receives a category and formatted line without a line ending; return true when written successfully.
+        using ConsoleWriter = bool (*)(std::string_view category, std::string_view line) noexcept;
+
         /// @brief Runtime report-output settings shared by test suites.
         struct Options
         {
@@ -56,6 +59,7 @@ namespace GameWIP::TestSupport
             bool appendReport = false;                                  ///< Appends instead of truncating when the report sink opens.
             bool flushReportEachLine = false;                           ///< Flushes report-file output after each written line.
             ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full; ///< Categories mirrored to stdout.
+            ConsoleWriter consoleWriter = nullptr;                      ///< Optional console-only writer; null uses plain stdout.
             std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report-file destination.
         };
 

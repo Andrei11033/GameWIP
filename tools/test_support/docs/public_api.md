@@ -28,7 +28,8 @@ construction and inspection never allocate diagnostic text.
 Reporting vocabulary lives under `Types::Reporting`:
 
 - `ConsoleVerbosity`: `Minimal`, `Concise`, or `Full`.
-- `Options`: console/report-file behavior and report path.
+- `Options`: console/report-file behavior, report path, and optional `ConsoleWriter`.
+- `ConsoleWriter`: a `noexcept` callback for formatted console lines.
 - `Summary`: passed/failed/skipped counts.
 - `SuiteResult`: suite name, summary, and elapsed milliseconds.
 - `ManualAnswer`: `Yes`, `No`, or `Skipped`.

@@ -1,9 +1,8 @@
 @page logger_output Output
 
-Normal output is selected with `Logger::Types::OutputMode`: `None`, `Console`, `File`, or `Both`.
-
-Console uses Terminal and preserves its stdout/stderr severity routing. File output uses FileSystem and keeps the collision-safe timestamped filename
-behavior. Debugger output and the fatal popup are emergency channels controlled separately by configuration.
+Normal output is selected with `Logger::Types::OutputMode`: `None`, `Console`, `File`, or `Both`. Console uses Terminal for severity-based styling
+and stdout/stderr routing; redirected or unsupported output remains plain. File output uses FileSystem and keeps the collision-safe timestamped
+filename behavior. Debugger output and the fatal popup are emergency channels controlled separately by configuration.
 
 File-only startup may fall back to Console when configured. `Both` naturally retains Console when File setup fails. Initialization exposes
 requested/effective normal output and File/timestamp setup failures directly through `Types::Init::Result`.
