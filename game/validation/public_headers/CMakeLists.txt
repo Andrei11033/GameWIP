@@ -1,9 +1,12 @@
 # Compiles every installed public header through its owning target.
 
-function(gamewip_add_public_header_check name source dependency)
+function(gamewip_add_public_header_check name source)
+    if(NOT ARGN)
+        message(FATAL_ERROR "gamewip_add_public_header_check requires at least one owning target.")
+    endif()
     add_library("GameWIPPublicHeaderCheck${name}" OBJECT "${source}")
     target_compile_features("GameWIPPublicHeaderCheck${name}" PRIVATE cxx_std_23)
-    target_link_libraries("GameWIPPublicHeaderCheck${name}" PRIVATE "${dependency}")
+    target_link_libraries("GameWIPPublicHeaderCheck${name}" PRIVATE ${ARGN})
 endfunction()
 
 # ------------------------------------------------------------
@@ -71,6 +74,20 @@ gamewip_add_public_header_check(DesktopShellNotifications desktop_shell_notifica
 gamewip_add_public_header_check(DesktopShellJumpLists desktop_shell_jump_lists_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellRegistration desktop_shell_registration_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopNativeWin32 desktop_native_win32_header.cpp GameWIP::Desktop)
+
+# ------------------------------------------------------------
+# Input
+# ------------------------------------------------------------
+
+gamewip_add_public_header_check(Input input_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputTypes input_types_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputStandard input_standard_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputFrame input_frame_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputQuery input_query_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputSystem input_system_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputSynthetic input_synthetic_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputWin32 input_win32_header.cpp GameWIP::Input)
+gamewip_add_public_header_check(InputNativeDesktopWin32 input_native_desktop_win32_header.cpp GameWIP::Input GameWIP::Desktop)
 
 # ------------------------------------------------------------
 # Logger
