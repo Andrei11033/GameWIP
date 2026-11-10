@@ -70,7 +70,7 @@ namespace
 int main(int argc, char **argv)
 {
     GAMEWIP_PROFILE_THREAD_NAME("GameWIP Main");
-    GAMEWIP_PROFILE_ZONE("GameWIP process", GameWIP::Profiling::Color::Process);
+    GAMEWIP_PROFILE_ZONE("GameWIP process", GameWIP::Profiling::Color::kProcess);
 
     // Keep utility-only invocations independent from validation so packaging and
     // smoke-test scripts can query metadata from any build configuration.
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     if(GameWIP::Validation::shouldRunTests(argc, argv))
     {
         GameWIP::Profiling::frameMark();
-        GAMEWIP_PROFILE_ZONE("Startup validation", GameWIP::Profiling::Color::Validation);
+        GAMEWIP_PROFILE_ZONE("Startup validation", GameWIP::Profiling::Color::kValidation);
         tests = GameWIP::Validation::runTests(argc, argv);
     }
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv)
     GameWIP::Validation::BenchmarkResult benchmarks;
     {
         GameWIP::Profiling::frameMark();
-        GAMEWIP_PROFILE_ZONE("Startup benchmarks", GameWIP::Profiling::Color::Benchmark);
+        GAMEWIP_PROFILE_ZONE("Startup benchmarks", GameWIP::Profiling::Color::kBenchmark);
         benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
     }
 

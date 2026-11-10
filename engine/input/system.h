@@ -133,7 +133,6 @@ namespace GameWIP::Input
         /// @note Reducing the limit below currently pending text is rejected without changing the limit.
         [[nodiscard]] IO::Types::Status setMaximumPendingTextBytes(std::size_t maximumBytes) noexcept;
 
-    public:
         /// @brief Opaque implementation declaration used by in-tree producer attachments.
         struct Impl;
 

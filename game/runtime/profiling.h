@@ -15,14 +15,14 @@
 /// @brief Colors shared by profiling zones so related phases look consistent on the Tracy timeline.
 namespace GameWIP::Profiling::Color
 {
-    inline constexpr auto Process = 0x4C78A8;
-    inline constexpr auto Runtime = 0x4C78A8;
-    inline constexpr auto Initialization = 0x72B7B2;
-    inline constexpr auto Frame = 0x54A24B;
-    inline constexpr auto Wait = 0x9D9DA1;
-    inline constexpr auto Shutdown = 0xE45756;
-    inline constexpr auto Validation = 0xF58518;
-    inline constexpr auto Benchmark = 0xB279A2;
+    inline constexpr auto kProcess = 0x4C78A8;
+    inline constexpr auto kRuntime = 0x4C78A8;
+    inline constexpr auto kInitialization = 0x72B7B2;
+    inline constexpr auto kFrame = 0x54A24B;
+    inline constexpr auto kWait = 0x9D9DA1;
+    inline constexpr auto kShutdown = 0xE45756;
+    inline constexpr auto kValidation = 0xF58518;
+    inline constexpr auto kBenchmark = 0xB279A2;
 } // namespace GameWIP::Profiling::Color
 
 namespace GameWIP::Profiling

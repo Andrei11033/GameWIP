@@ -95,7 +95,7 @@ namespace GameWIP::Test::RunnerHelpers
             break;
         case Detail::ReportStyle::Result:
         {
-            const BasicColor color = line.find("failed=0") != std::string_view::npos ? BasicColor::BrightGreen : BasicColor::BrightRed;
+            const BasicColor color = line.contains("failed=0") ? BasicColor::BrightGreen : BasicColor::BrightRed;
             style.foreground = GameWIP::Terminal::basicColor(color);
             break;
         }

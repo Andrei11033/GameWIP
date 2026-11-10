@@ -14,7 +14,6 @@
 #include <array>
 #include <cstddef>
 #include <format>
-#include <iostream>
 #include <initializer_list>
 #include <limits>
 #include <span>

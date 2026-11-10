@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
-#include <span>
 #include <string>
 #include <system_error>
 #include <utility>

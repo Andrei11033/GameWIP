@@ -50,7 +50,7 @@ namespace
     /// @brief Starts console logging so every later startup failure has a diagnostic sink.
     [[nodiscard]] GameWIP::Logger::Types::Init::Result initializeLogger()
     {
-        GAMEWIP_PROFILE_ZONE("Init Logger", Color::Initialization);
+        GAMEWIP_PROFILE_ZONE("Init Logger", Color::kInitialization);
         return GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
     }
 
@@ -68,7 +68,7 @@ namespace
     /// @brief Opens the runtime window inside its profiling zone.
     [[nodiscard]] GameWIP::IO::Types::Status openRuntimeWindow(GameWIP::Desktop::Window &window)
     {
-        GAMEWIP_PROFILE_ZONE("Open borderless fullscreen window", Color::Initialization);
+        GAMEWIP_PROFILE_ZONE("Open borderless fullscreen window", Color::kInitialization);
         return window.open(runtimeWindowDescription());
     }
 
@@ -77,10 +77,10 @@ namespace
     {
         while(!window.hasCloseRequest())
         {
-            GAMEWIP_PROFILE_ZONE("Game frame", Color::Frame);
+            GAMEWIP_PROFILE_ZONE("Game frame", Color::kFrame);
             GameWIP::Desktop::Types::Events::PumpResult events;
             {
-                GAMEWIP_PROFILE_ZONE("Wait for and pump window events", Color::Wait);
+                GAMEWIP_PROFILE_ZONE("Wait for and pump window events", Color::kWait);
                 const auto waitStart = std::chrono::steady_clock::now();
                 events = GameWIP::Desktop::Events::wait(kEventWaitInterval);
                 const std::chrono::duration<double, std::milli> waited = std::chrono::steady_clock::now() - waitStart;
@@ -91,7 +91,7 @@ namespace
             {
                 reportFailure("Window", "Event pump failed", events.status);
                 {
-                    GAMEWIP_PROFILE_ZONE("Close window after event-pump failure", Color::Shutdown);
+                    GAMEWIP_PROFILE_ZONE("Close window after event-pump failure", Color::kShutdown);
                     const GameWIP::IO::Types::Status closeStatus = window.close();
 
                     if(!closeStatus.ok())
@@ -112,14 +112,14 @@ namespace
     /// @brief Closes the runtime window inside its profiling zone.
     [[nodiscard]] GameWIP::IO::Types::Status closeRuntimeWindow(GameWIP::Desktop::Window &window)
     {
-        GAMEWIP_PROFILE_ZONE("Close borderless fullscreen window", Color::Shutdown);
+        GAMEWIP_PROFILE_ZONE("Close borderless fullscreen window", Color::kShutdown);
         return window.close();
     }
 
     /// @brief Logs the final result and shuts Logger down, upgrading a clean exit to failure if shutdown fails.
     int finishRuntime(int primaryExitCode) noexcept
     {
-        GAMEWIP_PROFILE_ZONE("Logger shutdown", Color::Shutdown);
+        GAMEWIP_PROFILE_ZONE("Logger shutdown", Color::kShutdown);
 
         // The logger cannot record anything once it is shut down, so the final result is logged first.
         if(primaryExitCode == EXIT_SUCCESS)
@@ -234,7 +234,7 @@ namespace GameWIP::Game
 {
     int run(int argc, char **argv)
     {
-        GAMEWIP_PROFILE_ZONE("Game runtime", Color::Runtime);
+        GAMEWIP_PROFILE_ZONE("Game runtime", Color::kRuntime);
         static_cast<void>(argc);
         static_cast<void>(argv);
 

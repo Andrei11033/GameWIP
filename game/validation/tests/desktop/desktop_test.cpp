@@ -23,7 +23,6 @@
 #if DESKTOP_INTERNAL_TEST_HOOKS
 #include "desktop/internal/desktop_test_hooks.h"
 #endif
-#include "desktop/internal/drag_drop_state.h"
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/shell.h"
@@ -53,7 +52,6 @@
 #include <filesystem>
 #include <format>
 #include <functional>
-#include <iostream>
 #include <limits>
 #include <memory>
 #include <optional>

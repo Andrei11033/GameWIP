@@ -64,7 +64,6 @@ namespace GameWIP::Input::Platform::Win32
         /// @return Success, NotOpen, ResourceBusy, Unsupported, or OutOfMemory.
         [[nodiscard]] IO::Types::Status poll() noexcept;
 
-    public:
         /// @brief Opaque implementation declaration reserved for the library binary.
         struct Impl;
 

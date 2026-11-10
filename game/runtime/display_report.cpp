@@ -162,7 +162,7 @@ namespace GameWIP::Game
 {
     Desktop::Types::Result<std::vector<Desktop::Types::Display::Info>> inspectDisplays()
     {
-        GAMEWIP_PROFILE_ZONE("Enumerate displays, display modes, and HDR state", Profiling::Color::Initialization);
+        GAMEWIP_PROFILE_ZONE("Enumerate displays, display modes, and HDR state", Profiling::Color::kInitialization);
         auto monitors = Desktop::Display::getMonitors();
 
         if(!monitors.ok())
