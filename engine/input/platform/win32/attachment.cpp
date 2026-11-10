@@ -247,9 +247,19 @@ namespace GameWIP::Input::Platform::Win32
                     state.pendingDiscontinuity = true;
                     return status(ErrorCode::NativeFailure);
                 }
-                const RAWINPUT &raw = *reinterpret_cast<const RAWINPUT *>(impl_->rawInputBuffer.data());
+                const std::span<const std::byte> rawBytes = std::span<const std::byte>(impl_->rawInputBuffer).first(received);
+                std::array<RAWINPUT, 1> rawStorage{};
+                std::span<std::byte> rawStorageBytes = std::as_writable_bytes(std::span(rawStorage));
+                std::ranges::copy(rawBytes.first(std::min(rawBytes.size(), rawStorageBytes.size())), rawStorageBytes.begin());
+                const RAWINPUT &raw = rawStorage.front();
                 if(raw.header.dwType == RIM_TYPEKEYBOARD)
                 {
+                    if(received < offsetof(RAWINPUT, data.keyboard) + sizeof(RAWKEYBOARD))
+                    {
+                        ++state.health.totalInvalidReports;
+                        state.pendingDiscontinuity = true;
+                        return status(ErrorCode::NativeFailure);
+                    }
                     DeviceBinding *keyboard = findNativeDevice(*impl_, DeviceRole::Keyboard, raw.header.hDevice);
                     if(keyboard == nullptr && raw.header.hDevice != nullptr)
                     {
@@ -322,17 +332,18 @@ namespace GameWIP::Input::Platform::Win32
                     }
                     const bool down = (raw.data.keyboard.Flags & RI_KEY_BREAK) == 0;
                     publish(state, element->id, down, false);
-                    appendRawReport(
-                        state,
-                        state.configuration,
-                        keyboard->id,
-                        Types::BackendKind::Win32RawInput,
-                        std::span<const std::byte>(impl_->rawInputBuffer.data(), static_cast<std::size_t>(received)));
+                    appendRawReport(state, state.configuration, keyboard->id, Types::BackendKind::Win32RawInput, rawBytes);
                     outHandled = true;
                     return IO::successStatus();
                 }
                 if(raw.header.dwType == RIM_TYPEMOUSE)
                 {
+                    if(received < offsetof(RAWINPUT, data.mouse) + sizeof(RAWMOUSE))
+                    {
+                        ++state.health.totalInvalidReports;
+                        state.pendingDiscontinuity = true;
+                        return status(ErrorCode::NativeFailure);
+                    }
                     DeviceBinding *mouse = findNativeDevice(*impl_, DeviceRole::Mouse, raw.header.hDevice);
                     if(mouse == nullptr && raw.header.hDevice != nullptr)
                     {
@@ -391,17 +402,20 @@ namespace GameWIP::Input::Platform::Win32
                             }
                         }
                     }
-                    appendRawReport(
-                        state,
-                        state.configuration,
-                        mouse->id,
-                        Types::BackendKind::Win32RawInput,
-                        std::span<const std::byte>(impl_->rawInputBuffer.data(), static_cast<std::size_t>(received)));
+                    appendRawReport(state, state.configuration, mouse->id, Types::BackendKind::Win32RawInput, rawBytes);
                     outHandled = true;
                     return IO::successStatus();
                 }
                 if(raw.header.dwType == RIM_TYPEHID)
                 {
+                    const std::size_t reportDataOffset = offsetof(RAWINPUT, data.hid.bRawData);
+                    if(received < reportDataOffset)
+                    {
+                        ++state.health.totalInvalidReports;
+                        state.pendingDiscontinuity = true;
+                        outHandled = true;
+                        return status(ErrorCode::NativeFailure);
+                    }
                     DeviceBinding *hid = findHidDevice(*impl_, raw.header.hDevice);
                     if(hid == nullptr && !addHidDevice(state, *impl_, raw.header.hDevice))
                     {
@@ -424,9 +438,7 @@ namespace GameWIP::Input::Platform::Win32
                     }
                     const std::size_t reportSize = raw.data.hid.dwSizeHid;
                     const std::size_t reportCount = raw.data.hid.dwCount;
-                    const std::size_t reportDataOffset = offsetof(RAWINPUT, data.hid.bRawData);
-                    if(reportSize == 0 || received < reportDataOffset ||
-                       reportCount > (static_cast<std::size_t>(received) - reportDataOffset) / reportSize ||
+                    if(reportSize == 0 || reportCount > (static_cast<std::size_t>(received) - reportDataOffset) / reportSize ||
                        (hid->hidReportLength != 0 && reportSize != hid->hidReportLength))
                     {
                         ++state.health.totalInvalidReports;
@@ -436,7 +448,7 @@ namespace GameWIP::Input::Platform::Win32
                     }
                     for(std::size_t index = 0; index < reportCount; ++index)
                     {
-                        publishHidReport(state, *impl_, *hid, raw.data.hid.bRawData + index * reportSize, reportSize);
+                        publishHidReport(state, *impl_, *hid, rawBytes.subspan(reportDataOffset + index * reportSize, reportSize));
                     }
                     outHandled = true;
                     return IO::successStatus();

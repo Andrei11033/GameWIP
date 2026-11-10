@@ -236,11 +236,6 @@ namespace GameWIP::Input::Platform::Win32
         [[nodiscard]] bool addRawDevice(System::Impl &state, Attachment::Impl &attachment, DeviceRole role, HANDLE nativeDevice);
         [[nodiscard]] bool addHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice);
         [[nodiscard]] bool addOpaqueHidDevice(System::Impl &state, Attachment::Impl &attachment, HANDLE nativeDevice);
-        void publishHidReport(
-            System::Impl &state,
-            Attachment::Impl &attachment,
-            DeviceBinding &device,
-            const BYTE *report,
-            std::size_t reportLength) noexcept;
+        void publishHidReport(System::Impl &state, Attachment::Impl &attachment, DeviceBinding &device, std::span<const std::byte> report) noexcept;
     } // namespace Detail
 } // namespace GameWIP::Input::Platform::Win32

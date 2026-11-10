@@ -28,6 +28,11 @@ Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
 
+if ($CommandConfig.ActionOptions.unicode -notcontains 'ClangFormatPath')
+{
+    throw 'Unicode operations must accept the clang-format override.'
+}
+
 foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'ChangedOnly', 'FailOnFindings', 'UseCallerTemp', 'UnicodeDataPath', 'ItemNumber'))
 {
     if (@($CommandConfig.Options | Where-Object Id -eq $requiredOption).Count -ne 1)

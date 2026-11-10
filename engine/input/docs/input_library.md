@@ -21,7 +21,7 @@ applications may preassign.
 
 ## Generated API reference
 
-Use @ref GameWIP::Input for the umbrella API, @ref GameWIP::Input::System for
+Use `input/input.h` for the umbrella API, @ref GameWIP::Input::System for
 session ownership, and @ref GameWIP::Input::Types for device, event, frame, and
 control values. Standard identifiers and lookup helpers live under
 @ref GameWIP::Input::Standard and @ref GameWIP::Input::Query.

@@ -550,11 +550,11 @@ namespace GameWIP::Input::Types
     /// @brief Open-time behavior and bounded-storage configuration.
     struct Configuration
     {
-        std::size_t eventCapacity = 4096;                ///< Maximum queued events between captures.
-        bool enableText = true;                          ///< Whether text events are accepted.
+        std::size_t eventCapacity = 4096;                                          ///< Maximum queued events between captures.
+        bool enableText = true;                                                    ///< Whether text events are accepted.
         std::size_t maximumPendingTextBytes = std::size_t{64} * std::size_t{1024}; ///< Maximum UTF-8 text retained between captures.
-        bool captureRawReports = false;                  ///< Whether native raw reports are retained in frames.
-        std::size_t rawReportCapacity = 256;             ///< Maximum raw reports retained between captures.
-        std::size_t maximumRawReportBytes = 4096;        ///< Maximum bytes per retained raw report.
+        bool captureRawReports = false;                                            ///< Whether native raw reports are retained in frames.
+        std::size_t rawReportCapacity = 256;                                       ///< Maximum raw reports retained between captures.
+        std::size_t maximumRawReportBytes = 4096;                                  ///< Maximum bytes per retained raw report.
     };
 } // namespace GameWIP::Input::Types

@@ -24,4 +24,4 @@ The sink is invoked synchronously during Desktop's message pump for each message
 block the owner thread and delay all message delivery; keep implementations lightweight. Only one sink per window is supported;
 `attachMessageSink()` returns `AlreadyOpen` if one is already registered.
 
-Attach and detach only from the owner thread. See @ref GameWIP::Input::Platform::Win32::attachToWindow for standard integration with the Input library.
+Attach and detach only from the owner thread. See @ref input_quick_start for standard integration with the Input library.

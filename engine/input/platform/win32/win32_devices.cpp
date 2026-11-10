@@ -1593,14 +1593,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
-    void publishHidReport(
-        System::Impl &state,
-        Attachment::Impl &attachment,
-        DeviceBinding &device,
-        const BYTE *report,
-        std::size_t reportLength) noexcept
+    void publishHidReport(System::Impl &state, Attachment::Impl &attachment, DeviceBinding &device, std::span<const std::byte> report) noexcept
     {
-        if(report == nullptr || reportLength == 0)
+        if(report.empty())
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
@@ -1608,12 +1603,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
         if(device.hidOpaque)
         {
-            appendRawReport(
-                state,
-                state.configuration,
-                device.id,
-                Types::BackendKind::Win32Hid,
-                std::as_bytes(std::span<const BYTE>(report, reportLength)));
+            appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
             (void)attachment;
             return;
         }
@@ -1641,8 +1631,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 device.hidUsageScratch.data(),
                 &usageLength,
                 preparsed,
-                reinterpret_cast<PCHAR>(const_cast<BYTE *>(report)),
-                static_cast<ULONG>(reportLength));
+                reinterpret_cast<PCHAR>(const_cast<std::byte *>(report.data())),
+                static_cast<ULONG>(report.size()));
             if(usageStatus != HIDP_STATUS_SUCCESS && usageStatus != HIDP_STATUS_BUTTON_NOT_PRESSED)
             {
                 ++state.health.totalInvalidReports;
@@ -1653,7 +1643,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         for(const Attachment::Impl::DeviceBinding::HidElement &element : device.hidElements)
         {
-            if(element.reportId != 0 && report[0] != element.reportId)
+            if(element.reportId != 0 && std::to_integer<BYTE>(report[0]) != element.reportId)
             {
                 continue;
             }
@@ -1680,8 +1670,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 element.usage,
                 &rawValue,
                 preparsed,
-                reinterpret_cast<PCHAR>(const_cast<BYTE *>(report)),
-                static_cast<ULONG>(reportLength));
+                reinterpret_cast<PCHAR>(const_cast<std::byte *>(report.data())),
+                static_cast<ULONG>(report.size()));
             if(valueStatus != HIDP_STATUS_SUCCESS)
             {
                 continue;
@@ -1690,12 +1680,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             publish(state, element.id, value, !element.absolute);
             publishNormalizedGamepad(state, device, element, value);
         }
-        appendRawReport(
-            state,
-            state.configuration,
-            device.id,
-            Types::BackendKind::Win32Hid,
-            std::as_bytes(std::span<const BYTE>(report, reportLength)));
+        appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
         (void)attachment;
     }
 
@@ -1858,7 +1843,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         std::vector<wchar_t> buffer(static_cast<std::size_t>(characterCount) + 1, L'\0');
         UINT received = characterCount;
-        if(GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, buffer.data(), &received) == static_cast<UINT>(-1) || received == 0)
+        if(GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, buffer.data(), &received) == static_cast<UINT>(-1) || received == 0 ||
+           received > buffer.size())
         {
             return {};
         }
@@ -1871,8 +1857,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return {};
         }
 
-        static_assert(sizeof(wchar_t) == sizeof(char16_t));
-        const auto codeUnits = std::span<const char16_t>(reinterpret_cast<const char16_t *>(buffer.data()), received);
+        std::u16string codeUnits;
+        codeUnits.reserve(received);
+        for(const wchar_t value : std::span<const wchar_t>(buffer).first(received))
+        {
+            codeUnits.push_back(static_cast<char16_t>(value));
+        }
         const auto measured = GameWIP::Unicode::Utf16::measureToUtf8(codeUnits);
         if(measured.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {

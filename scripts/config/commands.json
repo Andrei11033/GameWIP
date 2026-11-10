@@ -212,7 +212,7 @@
     "ready": ["PythonPath", "ClangFormatPath"],
     "git": [],
     "workflow": ["WorkflowKind", "ItemNumber", "ReleaseCommit"],
-    "unicode": ["PythonPath", "UnicodeDataPath", "RefreshUnicodeData"],
+    "unicode": ["PythonPath", "ClangFormatPath", "UnicodeDataPath", "RefreshUnicodeData"],
     "format": ["ClangFormatPath"],
     "quality": ["PythonPath", "ClangFormatPath", "FailFast", "ChangedOnly", "FailOnFindings"],
     "tool": ["PythonPath"],
