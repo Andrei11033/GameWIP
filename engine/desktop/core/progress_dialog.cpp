@@ -103,6 +103,7 @@ namespace GameWIP::Desktop
             }
             state_.reset();
         }
+
         ownerThreadToken_.store(0, std::memory_order_release);
     }
 
@@ -122,7 +123,6 @@ namespace GameWIP::Desktop
         for(std::string_view text : {description.title, description.heading, description.message})
         {
             IO::Types::Status status = validateText(text);
-
             if(!status.ok())
             {
                 return status;
@@ -175,7 +175,6 @@ namespace GameWIP::Desktop
 
                 return status;
             }
-
             const std::uint64_t token = candidate->ownerToken;
             state_ = std::move(candidate);
             ownerThreadToken_.store(token, std::memory_order_release);
@@ -214,6 +213,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         status = validateText(title);
         return status.ok() ? Detail::Platform::setProgressTitle(*state_, title) : status;
     }
@@ -226,6 +226,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         status = validateText(heading);
         return status.ok() ? Detail::Platform::setProgressHeading(*state_, heading) : status;
     }
@@ -238,6 +239,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         status = validateText(message);
         return status.ok() ? Detail::Platform::setProgressMessage(*state_, message) : status;
     }
@@ -255,6 +257,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         status = Detail::Platform::setProgressMode(*state_, mode);
 
         if(status.ok())
@@ -278,6 +281,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         status = Detail::Platform::setProgressValue(*state_, progress);
 
         if(status.ok())

@@ -31,6 +31,7 @@ namespace GameWIP::Desktop::Detail
             {
                 state.eventStorage[physicalIndex(state, current)] = std::move(state.eventStorage[physicalIndex(state, current + 1)]);
             }
+
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
         }
@@ -189,7 +190,6 @@ namespace GameWIP::Desktop::Events
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
-
         return Detail::Platform::pumpEvents(timeout, true);
     }
 } // namespace GameWIP::Desktop::Events

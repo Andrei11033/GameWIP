@@ -25,11 +25,13 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     {
         using IO::Types::ErrorCode;
         namespace Transfer = Types::DataTransfer;
+
         /// @brief Creates a data-transfer status with an optional native error value.
         [[nodiscard]] IO::Types::Status failure(ErrorCode code, DWORD native = 0) noexcept
         {
             return IO::makeStatus(code, native);
         }
+
         /// @brief Multiplies sizes while rejecting native allocation overflow.
         [[nodiscard]] bool multiply(std::size_t a, std::size_t b, std::size_t &out) noexcept
         {
@@ -37,9 +39,11 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             {
                 return false;
             }
+
             out = a * b;
             return true;
         }
+
         /// @brief Adds sizes while rejecting native allocation overflow.
         [[nodiscard]] bool add(std::size_t a, std::size_t b, std::size_t &out) noexcept
         {
@@ -47,9 +51,11 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             {
                 return false;
             }
+
             out = a + b;
             return true;
         }
+
         /// @brief Views a native byte range without changing its ownership.
         template <class T> [[nodiscard]] std::span<T> span(void *p, std::size_t n) noexcept
         {
@@ -61,6 +67,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
 #pragma clang unsafe_buffer_usage end
 #endif
         }
+
         /// @brief Views a const native byte range without changing its ownership.
         template <class T> [[nodiscard]] std::span<const T> span(const void *p, std::size_t n) noexcept
         {
@@ -116,10 +123,12 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             {
                 return &value_;
             }
+
             [[nodiscard]] Interface *operator->() const noexcept
             {
                 return value_;
             }
+
             [[nodiscard]] explicit operator bool() const noexcept
             {
                 return value_ != nullptr;
@@ -149,6 +158,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         private:
             FORMATETC &format_;
         };
+
         /// @brief Owns an acquired STGMEDIUM until materialization completes.
         class Medium final
         {
@@ -164,10 +174,12 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             {
                 return &value_;
             }
+
             HGLOBAL global() const noexcept
             {
                 return valid_ && value_.tymed == TYMED_HGLOBAL ? value_.hGlobal : nullptr;
             }
+
             void acquired() noexcept
             {
                 valid_ = true;
@@ -177,6 +189,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             STGMEDIUM value_{};
             bool valid_ = false;
         };
+
         /// @brief Requests one HGLOBAL representation from a foreign data object.
         [[nodiscard]] IO::Types::Status getGlobal(IDataObject &object, CLIPFORMAT format, Medium &medium) noexcept
         {
@@ -187,6 +200,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
             {
                 return failure(ErrorCode::ReadFailed, static_cast<DWORD>(result));
             }
+
             medium.acquired();
             return medium.global() ? IO::successStatus() : failure(ErrorCode::ReadFailed);
         }
@@ -218,6 +232,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     result = failure(ErrorCode::InvalidArgument);
                     return 0;
                 }
+
                 std::wstring wide;
                 DWORD code = 0;
 
@@ -263,6 +278,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         {
             return true;
         }
+
         IO::Types::Status leftStatus;
         IO::Types::Status rightStatus;
         const CLIPFORMAT left = nativeFormat(a, leftStatus);
@@ -323,6 +339,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                             {
                                 return failure(ErrorCode::InvalidArgument);
                             }
+
                             std::string validated;
                             DWORD code = 0;
 
@@ -665,6 +682,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                     }
                     list.paths.emplace_back(std::move(path));
                 }
+
                 out = std::move(list);
             }
             else if(format.kind == Transfer::FormatKind::Custom)
@@ -770,6 +788,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                         d[x * 4 + 3] = explicitAlpha ? s[p + 3] : std::byte{0xFF};
                     }
                 }
+
                 out = std::move(image);
             }
 

@@ -15,14 +15,17 @@ void testGeometryAndExceptionalLifetime(Context &context)
     }
     auto bridge = window->accessibility();
     check(context, "geometry bridge enables", bridge.enable().ok());
+
     Tree tree;
     tree.nodes[1].geometry = A::Geometry{{1, 2, 10, 20}, {0, 1, -1, 0, 50, 40}, A::Rect{30, 42, 10, 8}};
     check(context, "transformed geometry publishes", bridge.publish(tree.view()).ok());
+
     Desktop::TestHooks::PresentationPublicationSnapshot host;
     host.clientSize = {200, 100};
     host.contentScale = {2, 1.5F};
     host.visible = true;
     Desktop::TestHooks::applyPresentationPublicationSnapshot(*window, host);
+
     const auto origin = window->clientPosition();
     Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
     Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
@@ -31,6 +34,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
     {
         return;
     }
+
     Com<IRawElementProviderFragment> fragment;
     check(
         context,
@@ -46,6 +50,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
         equal(context, "physical clipped width", 20.0, bounds.width);
         equal(context, "physical clipped height", 12.0, bounds.height);
     }
+
     Com<IRawElementProviderFragmentRoot> fragmentRoot;
     check(
         context,
@@ -67,6 +72,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
         }
         check(context, "hit finds transformed child", hitSimple.value == provider.value);
     }
+
     check(context, "unexpected native destruction", Desktop::TestHooks::destroyNativeWindow(*window).ok());
     VARIANT value{};
     equal(context, "native destruction immediately gates retained provider", kUnavailable, provider->GetPropertyValue(UIA_NamePropertyId, &value));
@@ -77,6 +83,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
     {
         return;
     }
+
     check(context, "exceptional lifetime reenable", bridge.enable().ok());
     check(context, "exceptional lifetime fresh publish", bridge.publish(tree.view(2)).ok());
     Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
@@ -129,6 +136,7 @@ void testConcurrentQueries(Context &context)
                 VariantClear(&value);
             }
         });
+
     std::thread publisher(
         [&]
         {
@@ -142,6 +150,7 @@ void testConcurrentQueries(Context &context)
                 }
             }
         });
+
     publisher.join();
     check(context, "close while native queries active", window.close().ok());
     stop = true;

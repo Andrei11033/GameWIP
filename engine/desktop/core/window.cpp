@@ -59,7 +59,6 @@ namespace GameWIP::Desktop
             {
                 return false;
             }
-
             return !limits.minimum || !limits.maximum ||
                    (limits.minimum->width <= limits.maximum->width && limits.minimum->height <= limits.maximum->height);
         }
@@ -178,7 +177,6 @@ namespace GameWIP::Desktop
             {
                 return error(ErrorCode::InvalidArgument);
             }
-
             return IO::successStatus();
         }
 
@@ -261,6 +259,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Capabilities and lifecycle
     // ------------------------------------------------------------
+
     Types::Result<Types::Capabilities> getCapabilities() noexcept
     {
         return Detail::Platform::getCapabilities();
@@ -328,7 +327,6 @@ namespace GameWIP::Desktop
         }
 
         const IO::Types::Status validation = validateDescription(description);
-
         if(!validation.ok())
         {
             return validation;
@@ -368,7 +366,6 @@ namespace GameWIP::Desktop
             }
 
             IO::Types::Status status = Detail::Platform::open(*candidate, description);
-
             if(!status.ok())
             {
                 Detail::Platform::closeBestEffort(*candidate);
@@ -387,6 +384,7 @@ namespace GameWIP::Desktop
                 Detail::WindowAccess::bindPresentationPublication(*this, *candidate);
                 Detail::publishCachedPresentationState(*candidate);
             }
+
             state_ = std::move(candidate);
             return IO::successStatus();
         }
@@ -457,7 +455,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::ResourceBusy);
         }
-
         Detail::invalidatePointerHitMask(*state_);
         Detail::Platform::CloseResult result = Detail::Platform::close(*state_);
 
@@ -484,6 +481,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Identity, close requests, and events
     // ------------------------------------------------------------
+
     Types::WindowId Window::id() const noexcept
     {
         return state_ ? state_->id : Types::WindowId::invalid();
@@ -495,7 +493,6 @@ namespace GameWIP::Desktop
         {
             return std::nullopt;
         }
-
         return state_->owner;
     }
 
@@ -522,7 +519,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setOwner(*state_, owner.value_or(Types::WindowId::invalid()));
     }
 
@@ -539,6 +535,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         static_cast<void>(Detail::requestClose(*state_, Types::Events::CloseRequestSource::Programmatic));
         return IO::successStatus();
     }
@@ -551,6 +548,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         state_->closeRequested = false;
         return IO::successStatus();
     }
@@ -637,6 +635,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Cached state
     // ------------------------------------------------------------
+
     std::string_view Window::title() const noexcept
     {
         return state_ ? std::string_view(state_->title) : std::string_view{};
@@ -783,6 +782,7 @@ namespace GameWIP::Desktop
         {
             return presentationPublication_->occluded();
         }
+
         const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(*this);
         return state_ && renderer != nullptr && renderer->occluded;
     }
@@ -825,6 +825,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Geometry and content mutations
     // ------------------------------------------------------------
+
     IO::Types::Status Window::setTitle(std::string_view utf8Title) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -838,7 +839,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setTitle(*state_, utf8Title);
     }
 
@@ -910,7 +910,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setClientSize(*state_, size);
     }
 
@@ -944,7 +943,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setClientRect(*state_, position, size);
     }
 
@@ -980,7 +978,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setSizeLimits(*state_, limits);
     }
 
@@ -1002,7 +999,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setAspectRatio(*state_, ratio);
     }
 
@@ -1038,6 +1034,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Presentation and interaction
     // ------------------------------------------------------------
+
     IO::Types::Status Window::show() noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -1093,7 +1090,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setWindowMode(*state_, request);
     }
 
@@ -1110,7 +1106,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setResizable(*state_, resizable);
     }
 
@@ -1127,7 +1122,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setDecorationMode(*state_, mode);
     }
 
@@ -1144,7 +1138,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setControls(*state_, controls);
     }
 
@@ -1179,7 +1172,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setOpacity(*state_, opacity);
     }
 
@@ -1196,7 +1188,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setBackdropEffect(*state_, effect);
     }
 
@@ -1254,6 +1245,7 @@ namespace GameWIP::Desktop
             const auto previousMinimize = state_->minimizeButtonRegion;
             const auto previousMaximize = state_->maximizeButtonRegion;
             const auto previousClose = state_->closeButtonRegion;
+
             state_->draggableRegions = std::move(copied);
             state_->systemMenuRegion = layout.systemMenuRegion;
             state_->minimizeButtonRegion = layout.minimizeButtonRegion;
@@ -1300,13 +1292,13 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         const bool regionMode = layout.mode == Types::PointerInputMode::AcceptRegions || layout.mode == Types::PointerInputMode::IgnoreRegions;
 
         if(regionMode == layout.regions.empty())
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         const auto capabilities = getCapabilities();
 
         if(!capabilities.ok())
@@ -1351,6 +1343,7 @@ namespace GameWIP::Desktop
             std::vector<Types::LogicalRect> copied(layout.regions.begin(), layout.regions.end());
             std::vector<Types::LogicalRect> previous = std::move(state_->pointerInputRegions);
             const Types::PointerInputMode previousMode = state_->pointerInputMode;
+
             state_->pointerInputRegions = std::move(copied);
             state_->pointerInputMode = layout.mode;
             status = Detail::Platform::setPointerInputLayout(*state_);
@@ -1362,7 +1355,6 @@ namespace GameWIP::Desktop
                 IO::Types::Status rollback = Detail::Platform::setPointerInputLayout(*state_);
                 return rollback.ok() ? std::move(status) : std::move(rollback);
             }
-
             return status;
         }
         catch(const std::bad_alloc &)
@@ -1378,6 +1370,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Cursor controls
     // ------------------------------------------------------------
+
     IO::Types::Status Window::setCursorMode(Types::CursorMode mode) noexcept
     {
         IO::Types::Status status = requireState(state_.get());
@@ -1391,7 +1384,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setCursorMode(*state_, mode);
     }
 
@@ -1408,7 +1400,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setCursorShape(*state_, shape);
     }
 

@@ -59,6 +59,7 @@ namespace
     static_assert(std::is_nothrow_move_assignable_v<Terminal::AlternateScreenScope>);
     static_assert(std::is_nothrow_destructible_v<Terminal::AlternateScreenScope>);
     static_assert(noexcept(std::declval<Terminal::AlternateScreenScope &>().leave()));
+
     static_assert(std::is_nothrow_default_constructible_v<Terminal::CursorHiddenScope>);
     static_assert(std::is_nothrow_move_constructible_v<Terminal::CursorHiddenScope>);
     static_assert(std::is_nothrow_move_assignable_v<Terminal::CursorHiddenScope>);

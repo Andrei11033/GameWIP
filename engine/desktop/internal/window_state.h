@@ -126,7 +126,7 @@ namespace GameWIP::Desktop::Detail
         std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> deferredAccessibilityOwner;
     };
 
-    /// @brief Returns whether a Window payload may replace a newer payload of the same type.
+    /// @brief Returns whether a Window payload may be superseded by a later payload of the same type.
     [[nodiscard]] bool isCoalescible(const Types::Events::Payload &data) noexcept;
     /// @brief Enqueues one payload while preserving durable events under pressure.
     [[nodiscard]] EnqueueResult enqueueEvent(WindowState &state, Types::Events::Payload data) noexcept;
@@ -189,7 +189,6 @@ namespace GameWIP::Desktop::Detail
         {
             return true;
         }
-
         const std::uint64_t x = static_cast<std::uint64_t>(position.x) * state.framebufferSize.width / state.clientSize.width;
         const std::uint64_t y = static_cast<std::uint64_t>(position.y) * state.framebufferSize.height / state.clientSize.height;
 
@@ -217,10 +216,12 @@ namespace GameWIP::Desktop::Detail
         {
             return window.accessibilityState_.get();
         }
+
         [[nodiscard]] static std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> &accessibilityStateOwner(Window &window) noexcept
         {
             return window.accessibilityState_;
         }
+
         [[nodiscard]] static WindowState *state(Window &window) noexcept
         {
             return window.state_.get();

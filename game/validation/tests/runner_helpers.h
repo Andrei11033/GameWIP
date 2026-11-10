@@ -68,6 +68,7 @@ namespace GameWIP::Test::RunnerHelpers
 
         const Detail::ReportStyle reportStyle = Detail::reportStyleFor(category);
         Request style;
+
         switch(reportStyle)
         {
         case Detail::ReportStyle::None:
@@ -111,6 +112,7 @@ namespace GameWIP::Test::RunnerHelpers
             const Segment segment =
                 reportStyle == Detail::ReportStyle::None ? GameWIP::Terminal::textSegment(line) : GameWIP::Terminal::styledTextSegment(line, style);
             const std::array<Segment, 1> segments{segment};
+
             return GameWIP::Terminal::writeSegments(GameWIP::Terminal::Types::Output::Stream::Stdout, segments, options).ok();
         }
         catch(...)

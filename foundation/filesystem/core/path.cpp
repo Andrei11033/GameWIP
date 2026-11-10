@@ -101,7 +101,6 @@ namespace GameWIP::FileSystem
                 {
                     return IO::makeStatus(code, ec.value(), std::move(message));
                 }
-
                 return IO::makeStatus(code, ec.value());
             }
             catch(...)
@@ -165,7 +164,6 @@ namespace GameWIP::FileSystem
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
-
             std::error_code ec;
             std::filesystem::current_path(path, ec);
             return statusFromStdError(ec, ErrorCode::OpenFailed);
@@ -330,7 +328,6 @@ namespace GameWIP::FileSystem
             {
                 return pathFailure(ErrorCode::InvalidArgument);
             }
-
             std::error_code ec;
             Types::Path result = std::filesystem::absolute(path, ec);
 
@@ -359,7 +356,6 @@ namespace GameWIP::FileSystem
             {
                 return pathFailure(ErrorCode::InvalidArgument);
             }
-
             std::error_code ec;
             Types::Path result = std::filesystem::canonical(path, ec);
 
@@ -388,7 +384,6 @@ namespace GameWIP::FileSystem
             {
                 return pathFailure(ErrorCode::InvalidArgument);
             }
-
             std::error_code ec;
             Types::Path result = std::filesystem::weakly_canonical(path, ec);
 

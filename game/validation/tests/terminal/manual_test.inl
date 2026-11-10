@@ -85,7 +85,6 @@ void testManualRgbColorOutput(TestSupport::Context &context, const Terminal::Typ
     {
         return;
     }
-
     recordManualCheck(context, "manual RGB-color output", "Does the preceding RGB line appear as the requested vivid green color?");
 }
 
@@ -350,7 +349,6 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     {
         return;
     }
-
     Terminal::Session session;
     const IO::Types::Status openStatus = session.open();
 
@@ -358,7 +356,6 @@ void testManualEventInput(TestSupport::Context &context, const Terminal::Types::
     {
         return;
     }
-
     Terminal::Types::Input::EventOptions options;
     options.timeout = std::chrono::seconds{10};
 
@@ -437,7 +434,6 @@ void testManualStateRestoration(
                 static_cast<void>(session.close());
                 return;
             }
-
             const Terminal::Types::Input::LineResult hiddenInput = session.readLine();
             bool readSucceeded = requireManualOperation(context, "manual session restoration", "read managed session input", hiddenInput.status);
 

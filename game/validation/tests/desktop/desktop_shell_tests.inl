@@ -17,6 +17,7 @@ int runJumpListPublicationChild(const std::filesystem::path &executable)
     {
         return 2;
     }
+
     const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
     const std::array<ShellTypes::LaunchArgumentView, 1> arguments{ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"}};
     const ShellTypes::LaunchActionView action{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, arguments};
@@ -36,6 +37,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     {
         return;
     }
+
     struct ComInitialization
     {
         ~ComInitialization()
@@ -51,7 +53,6 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     const JumpListTypes::Task task{"Native title caf\xC3\xA9 \xF0\x9F\x99\x82", "Distinct task tooltip", action};
     void *rawLink = nullptr;
     const auto created = Desktop::TestHooks::createJumpLink(task, rawLink);
-
     if(!context.expectTrue("native jump link creates", created.ok() && rawLink != nullptr))
     {
         return;
@@ -84,6 +85,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
         }
         static_cast<void>(PropVariantClear(&title));
     }
+
     std::array<wchar_t, 4096> text{};
     static_cast<void>(context.expectTrue("jump tooltip reads", SUCCEEDED(link->GetDescription(text.data(), static_cast<int>(text.size())))));
     static_cast<void>(
@@ -133,6 +135,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
     {
         return;
     }
+
     const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
     const std::string identity = std::format("{}-{}", GetCurrentProcessId(), GetTickCount64());
     const std::filesystem::path applicationExecutable = fixtures.path() / std::format("GameWIPRegistration-{}.exe", identity);
@@ -196,6 +199,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
                 description.conflictPolicy = policy;
                 return Desktop::Registration::registerFileExtension(description);
             }
+
             RegistrationTypes::UriSchemeDescription description;
             description.ownerKey = key;
             description.scheme = target;
@@ -284,6 +288,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
                 commandRead == ERROR_SUCCESS && std::wstring_view{value.data()}.contains(applicationExecutable.wstring()) &&
                     std::wstring_view{value.data()}.contains(L"%1")));
         }
+
         const auto replaced = registerOwner(owner, RegistrationTypes::ConflictPolicy::ReplaceOwned, action);
         context.info(
             std::format(
@@ -395,6 +400,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     {
         return;
     }
+
     const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
     const std::string identity = std::format("{}-{}", GetCurrentProcessId(), GetTickCount64());
     const std::filesystem::path applicationExecutable = fixtures.path() / std::format("GameWIPCollision-{}.exe", identity);
@@ -491,6 +497,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     {
         return;
     }
+
     const auto foreignCollision = registerDescription();
     static_cast<void>(context.expectEq("foreign application ownership blocks registration", ErrorCode::AlreadyExists, foreignCollision.status.code));
     static_cast<void>(context.expectEq("foreign application conflict is reported", std::size_t{1}, foreignCollision.conflicts.size()));
@@ -550,11 +557,11 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
     static_cast<void>(context.expectTrue("unowned application fixture removes", removeApplicationFixture()));
 
     const auto created = registerDescription();
-
     if(!context.expectTrue("application registration succeeds after conflict removal", created.status.ok()))
     {
         return;
     }
+
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ShellRegistryDelete);
     const auto failedCleanup = Desktop::Registration::unregisterFileExtension(owner, target);
     static_cast<void>(context.expectEq("registry deletion failure is propagated", ErrorCode::PermissionDenied, failedCleanup.status.code));
@@ -608,6 +615,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
     {
         return;
     }
+
     struct ApartmentCleanup
     {
         ~ApartmentCleanup()
@@ -626,6 +634,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
     {
         return;
     }
+
     struct ExecutableCleanup
     {
         std::filesystem::path path;
@@ -821,6 +830,7 @@ void testTrayNativeCallbacks(TestSupport::Context &context)
     {
         return;
     }
+
     TrayTypes::Description description;
     description.icons = std::span{&icon, 1};
     description.tooltip = "GameWIP callback regression";
@@ -836,6 +846,7 @@ void testTrayNativeCallbacks(TestSupport::Context &context)
     {
         return;
     }
+
     DWORD process = 0;
     const DWORD thread = GetWindowThreadProcessId(window, &process);
 
@@ -857,10 +868,12 @@ void testTrayNativeCallbacks(TestSupport::Context &context)
                 activation->screenPosition == std::optional{Desktop::Types::ScreenPosition{-120, 240}}));
         static_cast<void>(context.expectFalse("tray callback does not duplicate activation", queue.popEvent(received)));
     };
+
     verify(NIN_SELECT, ShellTypes::Events::TrayActivationKind::Primary);
     verify(NIN_KEYSELECT, ShellTypes::Events::TrayActivationKind::Primary);
     verify(WM_LBUTTONDBLCLK, ShellTypes::Events::TrayActivationKind::DoublePrimary);
     verify(WM_CONTEXTMENU, ShellTypes::Events::TrayActivationKind::Secondary);
+
     NOTIFYICONDATAW deleted{};
     deleted.cbSize = sizeof(deleted);
     deleted.hWnd = window;
@@ -985,6 +998,7 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
                 context.fail("shell-only notification center", "the native message window could not be opened");
                 return;
             }
+
             checkPump(false);
             checkPump(true);
 
@@ -1011,7 +1025,6 @@ void testShellPumpingWithoutWindow(TestSupport::Context &context)
             {
                 context.skip("shell-only tray pumping", std::format("native tray publication returned {}", IO::errorCodeName(opened.code)));
             }
-
             static_cast<void>(context.expectTrue(
                 "closed shell owner accepts a native marker",
                 PostThreadMessageW(GetCurrentThreadId(), markerMessage, 0, 0) != FALSE));
@@ -1154,7 +1167,6 @@ void testShellNativeLifetimes(TestSupport::Context &context)
         context.skip("shell native lifetimes", "the hidden native validation Window could not be opened");
         return;
     }
-
     Desktop::TaskbarItem taskbar;
     Desktop::Types::Shell::Progress progress{Desktop::Types::Shell::ProgressState::Normal, 0.5};
     TaskbarTypes::Description taskbarDescription;

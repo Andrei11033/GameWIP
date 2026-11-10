@@ -98,7 +98,6 @@ namespace GameWIP::Logger::Detail::Core
             outUnknownSource = false;
             return entry.sourceText.view();
         }
-
         return findSourceName(registry, entry.sourceId, outUnknownSource);
     }
 
@@ -126,7 +125,6 @@ namespace GameWIP::Logger::Detail::Core
             outMessage.assign(suffix.substr(0, maxMessageLength));
             return;
         }
-
         const std::size_t prefixLimit = maxMessageLength - suffix.size();
         const std::size_t prefixBytes = utf8PrefixBoundary(message, prefixLimit);
 
@@ -150,7 +148,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return message;
         }
-
         buildTruncatedMessage(scratch, message, maxMessageLength);
         outTruncated = true;
 

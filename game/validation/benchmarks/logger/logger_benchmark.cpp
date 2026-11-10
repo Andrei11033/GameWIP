@@ -148,6 +148,7 @@ namespace
                 state.SkipWithError("Logger disabled initialization failed.");
                 return;
             }
+
             initialized_ = true;
         }
     };
@@ -164,6 +165,7 @@ namespace
             static_cast<void>(iteration);
             Logger::info(kSource, kMessage);
         }
+
         state.SetItemsProcessed(state.iterations());
     }
 
@@ -187,6 +189,7 @@ namespace
         {
             return;
         }
+
         std::size_t value = 0;
 
         for(auto iteration : state)
@@ -195,6 +198,7 @@ namespace
             Logger::info(kSource, "filtered {} {}", value, value + 1);
             ++value;
         }
+
         state.SetItemsProcessed(state.iterations());
     }
 
@@ -224,6 +228,7 @@ namespace
             static_cast<void>(iteration);
             Logger::info(kSource, kMessage);
         }
+
         state.SetItemsProcessed(state.iterations());
     }
 
@@ -254,6 +259,7 @@ namespace
             static_cast<void>(iteration);
             Logger::info(kRegisteredSource, kMessage);
         }
+
         state.SetItemsProcessed(state.iterations());
     }
 
@@ -302,6 +308,7 @@ namespace
                     initialized = false;
                 }
             }
+
             ++activeThreads;
         }
 
@@ -316,6 +323,7 @@ namespace
                 static_cast<void>(iteration);
                 Logger::info(kRegisteredSource, kMessage);
             }
+
             state.SetItemsProcessed(state.iterations());
         }
 

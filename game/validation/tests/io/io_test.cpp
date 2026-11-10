@@ -111,7 +111,6 @@ namespace
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t remaining = bytes_.size() - position_;
             const std::size_t count = std::min(destination.size(), std::min(maxChunkSize_, remaining));
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
@@ -144,7 +143,6 @@ namespace
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -179,7 +177,6 @@ namespace
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -337,7 +334,6 @@ namespace
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -372,7 +368,6 @@ namespace
             {
                 return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .bytesRead = 0, .endOfStream = false};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -426,7 +421,6 @@ namespace
                 position_ += count;
                 return {.status = IO::makeStatus(failureCode_), .bytesRead = count, .endOfStream = false};
             }
-
             const std::size_t remainingBeforeFailure = failAfterBytes_ - position_;
             const std::size_t count = std::min(destination.size(), remainingBeforeFailure);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
@@ -477,7 +471,6 @@ namespace
             {
                 return {.status = {}, .bytesWritten = 0};
             }
-
             const std::size_t count = std::min(maxChunkSize_, bytes.size());
             const std::span<const std::byte> accepted = bytes.first(count);
             bytes_.insert(bytes_.end(), accepted.begin(), accepted.end());

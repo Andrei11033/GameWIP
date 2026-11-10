@@ -11,7 +11,6 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
     {
         return;
     }
-
     const std::filesystem::path path = root / "unicode" / namePath.path;
     static_cast<void>(context.expectTrue("write non-ASCII path succeeds", FileSystem::writeAllText(path, "text").status.ok()));
     const auto roundTrip = FileSystem::pathToUtf8(path.filename());

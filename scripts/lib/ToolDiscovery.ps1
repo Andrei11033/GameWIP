@@ -21,6 +21,7 @@ function Add-GameWipToolCandidate
     {
         return
     }
+
     $resolved = [IO.Path]::GetFullPath($Path)
 
     if ((Test-GameWipWindowsHost) -and [IO.Path]::GetExtension($resolved).ToLowerInvariant() -notin @('.exe', '.com', '.cmd', '.bat', '.ps1'))
@@ -93,7 +94,6 @@ function Get-GameWipToolCandidates
         {
             Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) ([string]$Tool.provider.managedPath)) -Source 'managed environment' -Priority 20 -SelectionReason 'declared provider location'
         }
-
     }
 
     foreach ($managedRoot in @(Get-GameWipProviderManagedToolPath -Tool $Tool))
@@ -202,6 +202,7 @@ function Resolve-GameWipToolCommand
     {
         throw 'Resolve-GameWipToolCommand requires -Tool or -Command.'
     }
+
     $names = @(Get-GameWipExecutableNames -Command $Command)
 
     if (Test-GameWipWindowsHost)
@@ -256,15 +257,18 @@ function Get-GameWipDetectedTool
         {
             return [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; SelectionReason = $null; Candidates = @() }
         }
+
         $selected = $candidates[0]
         return [pscustomobject]@{ Installed = $true; Version = $selected.Version; Location = $selected.Location; Source = $selected.Source; SelectionReason = $selected.SelectionReason; Candidates = $candidates }
     }
+
     $candidates = @(Get-GameWipToolCandidates -Tool $Tool)
 
     if ($candidates.Count -eq 0)
     {
         return [pscustomobject]@{ Installed = $false; Version = $null; Location = $null; Source = $null; SelectionReason = $null; Candidates = @() }
     }
+
     $selected = $candidates[0]
     $version = Get-GameWipToolCandidateVersion -Tool $Tool -Path $selected.Path
     $usesPackageQueryHost = $Tool.provider.kind -in @('python', 'npm') -and [string]$Tool.detection.command -ne [string]$Tool.provider.package

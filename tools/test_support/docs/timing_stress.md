@@ -67,6 +67,7 @@ int main()
 
     return visits.load(std::memory_order_relaxed) == 4 ? 0 : 1;
 }
+
 ```
 
 ## Related pages

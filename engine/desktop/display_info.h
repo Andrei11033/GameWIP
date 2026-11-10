@@ -58,7 +58,6 @@ namespace GameWIP::Desktop::Types::Display
         std::optional<float> maximumFullFrameLuminanceNits; ///< Maximum full-frame luminance when reported.
         std::optional<float> sdrWhiteLevelNits;             ///< Operating-system SDR white level when reported.
     };
-
 } // namespace GameWIP::Desktop::Types::Display
 
 namespace GameWIP::Desktop::Display

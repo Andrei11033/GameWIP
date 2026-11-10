@@ -51,6 +51,7 @@ void testChildSurfaces(TestSupport::Context &context)
         static_cast<void>(parent.close());
         return;
     }
+
     const Desktop::Types::WindowId firstParentId = parent.id();
     static_cast<void>(context.expectEq("ChildSurface retains parent lifetime identity", firstParentId, surface.parentId()));
     static_cast<void>(context.expectTrue("ChildSurface inherits current owner thread", surface.ownedByCurrentThread()));
@@ -380,7 +381,6 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
     {
         return;
     }
-
     Desktop::Window parent;
 
     if(!openManualWindow(context, parent, "GameWIP ChildSurface native-host validation"))
@@ -400,7 +400,6 @@ void testManualChildSurface(TestSupport::Context &context, const GameWIP::Test::
         static_cast<void>(parent.close());
         return;
     }
-
     const auto native = Desktop::Native::Win32::getHandle(surface);
     HWND button = nullptr;
 

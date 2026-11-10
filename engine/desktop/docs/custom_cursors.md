@@ -68,7 +68,9 @@ auto image = GameWIP::Desktop::Types::Cursor::ImageView::packed(
 
 auto created = GameWIP::Desktop::createCursor(image);
 if (created.ok())
+{
     static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
+}
 ```
 
 ## Multiple DPI variants
@@ -81,7 +83,9 @@ std::array<GameWIP::Desktop::Types::Cursor::ImageView, 3> variants{
 
 auto created = GameWIP::Desktop::createCursor(variants);
 if (created.ok())
+{
     static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
+}
 ```
 
 ## Restore and share

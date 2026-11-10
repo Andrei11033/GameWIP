@@ -141,7 +141,6 @@ namespace
                     state.SkipWithError("Unicode decode benchmark fixture is invalid.");
                     return;
                 }
-
                 benchmark::DoNotOptimize(decoded.scalar);
                 offset += decoded.bytesConsumed;
             }
@@ -163,7 +162,6 @@ namespace
                 state.SkipWithError("Unicode validation benchmark fixture is invalid.");
                 return;
             }
-
             benchmark::DoNotOptimize(result.validPrefixBytes);
         }
 
@@ -187,7 +185,6 @@ namespace
                     state.SkipWithError("Unicode forward code-point traversal failed.");
                     return;
                 }
-
                 offset = next.byteOffset;
                 benchmark::DoNotOptimize(next.byteOffset);
             }
@@ -213,7 +210,6 @@ namespace
                     state.SkipWithError("Unicode backward code-point traversal failed.");
                     return;
                 }
-
                 offset = previous.byteOffset;
                 benchmark::DoNotOptimize(previous.byteOffset);
             }
@@ -239,7 +235,6 @@ namespace
                     state.SkipWithError("Unicode forward grapheme traversal failed.");
                     return;
                 }
-
                 offset = next.byteOffset;
                 benchmark::DoNotOptimize(next.byteOffset);
             }
@@ -265,7 +260,6 @@ namespace
                     state.SkipWithError("Unicode backward grapheme traversal failed.");
                     return;
                 }
-
                 offset = previous.byteOffset;
                 benchmark::DoNotOptimize(previous.byteOffset);
             }
@@ -370,7 +364,6 @@ namespace
                     state.SkipWithError("Unicode indexed backward-edit traversal failed.");
                     return;
                 }
-
                 editable.resize(previous.byteOffset);
                 cursor.discardAfterCurrent();
                 benchmark::DoNotOptimize(editable.size());
@@ -416,7 +409,6 @@ namespace
                     state.SkipWithError("Unicode encode benchmark scalar is invalid.");
                     return;
                 }
-
                 benchmark::DoNotOptimize(encoded.bytes.data());
                 benchmark::DoNotOptimize(encoded.byteCount);
             }

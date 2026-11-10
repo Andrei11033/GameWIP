@@ -163,6 +163,7 @@ function Read-GameWipOwnershipMarker
     {
         return [pscustomobject]@{ Status = 'malformed'; Marker = $null; Reason = $_.Exception.Message }
     }
+
     $properties = @($marker.PSObject.Properties.Name)
 
     if ('schemaVersion' -notin $properties -or 'owner' -notin $properties -or 'resource' -notin $properties)
@@ -227,6 +228,7 @@ function Invoke-GameWipStaleOperationTempCleanup
         {
             continue
         }
+
         $markerPath = Join-Path $directory.FullName '.gamewip-owned.json'
         $state = Read-GameWipOwnershipMarker -Path $markerPath -Resource 'operation-temp'
 

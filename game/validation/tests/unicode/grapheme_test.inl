@@ -127,7 +127,6 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
 
         return;
     }
-
     std::ifstream input(*conformancePath, std::ios::binary);
 
     if(!input)
@@ -169,7 +168,6 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
                 std::format("{}:{}: {}", conformancePath->string(), lineNumber, parseError));
             return;
         }
-
         const std::optional<std::string> failure = graphemeFailure(*fixture);
 
         if(failure.has_value())
@@ -177,7 +175,6 @@ void testOfficialGraphemeConformance(TestSupport::Context &context)
             context.fail("official Unicode grapheme conformance", std::format("{}:{}: {}", conformancePath->string(), lineNumber, *failure));
             return;
         }
-
         ++caseCount;
         checkedOffsets += fixture->codePointOffsets.size();
     }

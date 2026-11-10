@@ -12,7 +12,6 @@
 /// does not open operating-system resources or provide a platform backend.
 namespace GameWIP::IO
 {
-
     /// @brief IO status, result, and option types.
     namespace Types
     {

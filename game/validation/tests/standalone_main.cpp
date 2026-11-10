@@ -113,6 +113,7 @@ int main(int argc, char **argv)
         printHelp();
         return EXIT_SUCCESS;
     }
+
     const GameWIP::Validation::TestResult result = GameWIP::Validation::Tests::run(argc, argv);
     // Routed child invocations preserve the module-owned protocol exit code;
     // normal aggregate runs expose only process success or failure.

@@ -29,12 +29,14 @@ function Get-GameWipNpmGlobalModuleRoot
     {
         return Join-Path ((Get-GameWipManagedToolRoot)) 'npm\lib\node_modules'
     }
+
     $npm = Resolve-GameWipToolCommand -Command npm
 
     if ($null -eq $npm)
     {
         throw 'npm is unavailable; cannot resolve the global module root.'
     }
+
     $result = Invoke-GameWipProcess -FilePath $npm -Arguments @('root', '--global') -OutputMode LogOnly -TimeoutSeconds 20
     $output = ($result.Stdout -join "`n").Trim()
 
@@ -230,5 +232,6 @@ function Install-GameWipNpmTool
     {
         throw "npm is unavailable for '$($Tool.id)'. Run setup.bat repair."
     }
+
     Invoke-GameWipProviderNative -Name "npm-install-$($Tool.id)" -FilePath $npm -Arguments (@('install', '--global', '--prefix', $root, '--no-audit', '--no-fund') + $specifications) | Out-Null
 }

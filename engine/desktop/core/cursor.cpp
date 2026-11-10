@@ -44,7 +44,6 @@ namespace GameWIP::Desktop
             }
 
             constexpr auto nativeMaximum = static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max());
-
             constexpr std::size_t channels = 4;
 
             for(std::size_t i = 0; i < variants.size(); ++i)
@@ -57,7 +56,6 @@ namespace GameWIP::Desktop
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
-
                 const std::size_t width = static_cast<std::size_t>(variant.size.width);
                 const std::size_t height = static_cast<std::size_t>(variant.size.height);
 
@@ -65,7 +63,6 @@ namespace GameWIP::Desktop
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
-
                 const std::size_t packedRowBytes = width * channels;
                 const std::size_t resolvedStride = variant.rowStrideBytes.value_or(packedRowBytes);
 
@@ -85,7 +82,6 @@ namespace GameWIP::Desktop
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
-
                 // Duplicate DPIs would make native variant selection depend on input order.
                 for(std::size_t previous = 0; previous < i; ++previous)
                 {
@@ -103,6 +99,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Shared cursor lifecycle
     // ------------------------------------------------------------
+
     Cursor::Cursor() noexcept = default;
     Cursor::Cursor(const Cursor &) noexcept = default;
     Cursor &Cursor::operator=(const Cursor &) noexcept = default;
@@ -162,6 +159,7 @@ namespace GameWIP::Desktop
     // ------------------------------------------------------------
     // Cursor creation and Window binding
     // ------------------------------------------------------------
+
     Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept
     {
         return createCursor(std::span{&image, std::size_t{1}});
@@ -170,13 +168,13 @@ namespace GameWIP::Desktop
     Types::Result<Cursor> createCursor(std::span<const Types::Cursor::ImageView> variants) noexcept
     {
         IO::Types::Status status = validateVariants(variants);
-
         if(!status.ok())
         {
             return {.status = std::move(status)};
         }
 
         std::vector<Detail::NativeCursorVariant> nativeVariants;
+
         try
         {
             if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
@@ -229,7 +227,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::setCustomCursor(*state, Detail::CursorAccess::state(cursor));
     }
 

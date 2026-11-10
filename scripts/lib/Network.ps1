@@ -18,6 +18,7 @@ function Test-GameWipTransientNetworkError
         {
             return $true
         }
+
         $statusCode = [int]$response.StatusCode
         return $statusCode -eq 408 -or $statusCode -eq 429 -or $statusCode -ge 500
     }
@@ -68,6 +69,7 @@ function Invoke-GameWipHttpDownloadAttempt
             }
             Start-Sleep -Milliseconds 200
         }
+
         $response = $responseTask.GetAwaiter().GetResult()
         [void]$response.EnsureSuccessStatusCode()
         $contentLength = $response.Content.Headers.ContentLength
@@ -93,6 +95,7 @@ function Invoke-GameWipHttpDownloadAttempt
                 }
                 Start-Sleep -Milliseconds 200
             }
+
             $read = $readTask.GetAwaiter().GetResult()
 
             if ($read -eq 0)
@@ -214,6 +217,7 @@ function Invoke-GameWipHttpRead
                     }
                 }
             }
+
             # Metadata requests return parsed values; ordinary reads preserve the
             # web response object for callers that need its headers or content.
             if ($Json)

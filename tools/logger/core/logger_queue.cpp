@@ -18,6 +18,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             return {storage.get(), count};
         }
+
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif
@@ -37,7 +38,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return false;
         }
-
         arena.reset(new char[entryCount * inlineMessageCapacity]);
         return true;
     }
@@ -66,7 +66,6 @@ namespace GameWIP::Logger::Detail::Core
             {
                 return false;
             }
-
             ring = std::make_unique<QueueSlot[]>(hardLimit);
             ringSize = hardLimit;
             batch.resize(workerBatchSize);
@@ -81,7 +80,6 @@ namespace GameWIP::Logger::Detail::Core
                 batchArena.reset();
                 return false;
             }
-
             std::span<QueueSlot> ringView = ownedArrayView(ring, ringSize);
             const std::size_t ringArenaSize = ringSize * inlineMessageCapacity;
             const std::size_t batchArenaSize = batch.size() * inlineMessageCapacity;
@@ -204,7 +202,6 @@ namespace GameWIP::Logger::Detail::Core
             entry.message.assign(suffix.substr(0, maxMessageLength));
             return;
         }
-
         entry.message.assignJoined(message.substr(0, maxMessageLength - suffix.size()), suffix);
     }
 

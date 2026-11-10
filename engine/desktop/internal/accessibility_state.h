@@ -80,6 +80,7 @@ namespace GameWIP::Desktop::Detail
     {
         virtual ~AccessibilityNativeSnapshot() = default;
     };
+
     struct AccessibilityNativeState
     {
         virtual ~AccessibilityNativeState() = default;

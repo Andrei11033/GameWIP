@@ -14,6 +14,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Native geometry and icon helpers
     // ------------------------------------------------------------
+
     namespace
     {
         /// @brief Changes the HWND owner while preserving Win32's zero-value error ambiguity.
@@ -46,6 +47,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     ERROR_ARITHMETIC_OVERFLOW,
                     "client size exceeds Win32 range at the effective DPI");
             }
+
             RECT outer{0, 0, static_cast<LONG>(physicalSize.width), static_cast<LONG>(physicalSize.height)};
             LONG_PTR styleValue = 0;
             IO::Types::Status status = queryWindowLong(state.platform->handle, GWL_STYLE, styleValue, "GetWindowLongPtrW geometry style");
@@ -54,6 +56,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             LONG_PTR extendedStyleValue = 0;
             status = queryWindowLong(state.platform->handle, GWL_EXSTYLE, extendedStyleValue, "GetWindowLongPtrW geometry extended style");
 
@@ -61,6 +64,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             const DWORD style = static_cast<DWORD>(styleValue);
             const DWORD extendedStyle = static_cast<DWORD>(extendedStyleValue);
 
@@ -93,7 +97,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos client rectangle");
             }
-
             return refreshCachedGeometry(state);
         }
 
@@ -190,6 +193,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Ownership and content
     // ------------------------------------------------------------
+
     IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
     {
         WindowState *ownerState = owner.isValid() ? resolveWindowId(owner) : nullptr;
@@ -208,6 +212,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             ancestor = resolveWindowId(ancestor->owner);
         }
+
         const Types::WindowId previous = state.owner;
         WindowState *previousOwnerState = previous.isValid() ? resolveWindowId(previous) : nullptr;
         HWND previousOwnerHandle = previousOwnerState != nullptr && previousOwnerState->platform ? previousOwnerState->platform->handle : nullptr;
@@ -217,6 +222,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return status;
         }
+
         state.owner = owner;
         status = applyStyle(state);
 
@@ -230,7 +236,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return parentRollback;
             }
-
             return styleRollback.ok() ? std::move(status) : std::move(styleRollback);
         }
 
@@ -286,6 +291,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
         }
+
         const UINT dpi = dpiForWindow(state.platform->handle);
         const int largeWidth = GetSystemMetricsForDpi(SM_CXICON, dpi);
         const int largeHeight = GetSystemMetricsForDpi(SM_CYICON, dpi);
@@ -297,6 +303,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "CreateIconIndirect large");
         }
+
         HICON small = createIcon(closestIcon(images, smallWidth, smallHeight));
 
         if(small == nullptr)
@@ -304,6 +311,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DestroyIcon(large);
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "CreateIconIndirect small");
         }
+
         // The Window owns both handles after publication and releases them on replacement or close.
         SendMessageW(state.platform->handle, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(large));
         SendMessageW(state.platform->handle, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(small));
@@ -344,6 +352,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Geometry and coordinate conversion
     // ------------------------------------------------------------
+
     IO::Types::Status setClientSize(WindowState &state, Types::LogicalSize size) noexcept
     {
         return setOuterRect(state, state.clientPosition, size);
@@ -367,6 +376,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, ERROR_NOT_FOUND, "resolve center monitor");
         }
+
         MONITORINFO info{};
         info.cbSize = sizeof(info);
 
@@ -374,6 +384,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, GetLastError(), "resolve center monitor");
         }
+
         RECT frame{};
 
         if(GetWindowRect(state.platform->handle, &frame) == FALSE)
@@ -394,7 +405,6 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "SetWindowPos center");
         }
-
         return refreshCachedGeometry(state);
     }
 

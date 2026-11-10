@@ -126,6 +126,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
     {
         return;
     }
+
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
@@ -177,6 +178,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
     {
         return;
     }
+
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
@@ -228,6 +230,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
     {
         return;
     }
+
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,

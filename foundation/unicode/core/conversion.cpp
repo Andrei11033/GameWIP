@@ -22,7 +22,6 @@ namespace GameWIP::Unicode
             {
                 return false;
             }
-
             const auto *firstBegin = first.data();
             const auto *secondBegin = second.data();
             const auto *firstEnd = std::to_address(first.end());
@@ -93,7 +92,6 @@ namespace GameWIP::Unicode
             {
                 return {.outcome = Types::ConversionOutcome::OverlappingRanges};
             }
-
             std::size_t sourceBytesConsumed = 0;
             std::size_t codeUnitsWritten = 0;
 
@@ -182,7 +180,6 @@ namespace GameWIP::Unicode
             {
                 return {.outcome = Types::ConversionOutcome::OverlappingRanges};
             }
-
             std::size_t sourceCodeUnitsConsumed = 0;
             std::size_t bytesWritten = 0;
 

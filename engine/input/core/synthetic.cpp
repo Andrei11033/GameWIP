@@ -64,6 +64,7 @@ namespace GameWIP::Input::Synthetic
             case Types::ValueKind::Float64:
                 return 1;
             }
+
             return 0;
         }
 
@@ -112,10 +113,12 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::NotOpen);
         }
+
         if(!impl_->system->isOpen() || impl_->system->impl_ == nullptr || impl_->system->impl_->instance != impl_->systemInstance)
         {
             return status(ErrorCode::NotOpen);
         }
+
         if(impl_->system->impl_->sessionLifetime != systemLifetime)
         {
             return status(ErrorCode::NotOpen);
@@ -129,6 +132,7 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         if(impl_->attached)
         {
             const IO::Types::Status attachedStatus = checkAttached();
@@ -136,26 +140,27 @@ namespace GameWIP::Input::Synthetic
             {
                 return impl_->system == &system ? status(ErrorCode::AlreadyOpen) : status(ErrorCode::ResourceBusy);
             }
+
             if(attachedStatus.code != ErrorCode::NotOpen)
             {
                 return attachedStatus;
             }
-
             impl_->system = nullptr;
             impl_->systemLifetime.reset();
             impl_->systemInstance = 0;
             impl_->attached = false;
             impl_->devices.clear();
         }
+
         if(!system.isOpen())
         {
             return status(ErrorCode::NotOpen);
         }
+
         if(!system.ownedByCurrentThread())
         {
             return status(ErrorCode::ResourceBusy);
         }
-
         impl_->system = &system;
         impl_->systemLifetime = system.impl_->sessionLifetime;
         impl_->systemInstance = system.impl_->instance;
@@ -207,15 +212,18 @@ namespace GameWIP::Input::Synthetic
     IO::Types::Status Source::addDevice(const Types::SyntheticDeviceDescription &description, Types::DeviceId &outDevice) noexcept
     {
         outDevice = {};
+
         if(impl_ == nullptr)
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status attachedStatus = checkAttached();
         if(!attachedStatus.ok())
         {
             return attachedStatus;
         }
+
         if(description.name.empty() || description.persistentKey.empty() || description.elements.empty())
         {
             return status(ErrorCode::InvalidArgument);
@@ -242,6 +250,7 @@ namespace GameWIP::Input::Synthetic
                 {
                     return status(ErrorCode::InvalidArgument);
                 }
+
                 for(std::size_t index = 0; index < descriptionElement.components.size(); ++index)
                 {
                     if(descriptionElement.components[index].index != index)
@@ -271,6 +280,7 @@ namespace GameWIP::Input::Synthetic
         const std::uint64_t initialDroppedEvents = state.pendingDroppedEvents;
         const bool initialDiscontinuity = state.pendingDiscontinuity;
         const Types::Health initialHealth = state.health;
+
         const auto rollback = [&] noexcept
         {
             state.devices.resize(initialDeviceCount);
@@ -284,6 +294,7 @@ namespace GameWIP::Input::Synthetic
             state.pendingDiscontinuity = initialDiscontinuity;
             state.health = initialHealth;
         };
+
         try
         {
             state.devices.reserve(state.devices.size() + 1);
@@ -323,6 +334,7 @@ namespace GameWIP::Input::Synthetic
                     .authoritativeBackend = Types::BackendKind::Synthetic,
                     .provenance = Types::ValueProvenance::Synthetic,
                 };
+
                 if(element.components.empty())
                 {
                     const std::size_t count = componentCount(element.kind);
@@ -332,6 +344,7 @@ namespace GameWIP::Input::Synthetic
                         element.components.push_back(defaultComponent(index, element.name));
                     }
                 }
+
                 device.elements.push_back(std::move(element));
                 newStates.push_back({
                     .id = elementId,
@@ -345,6 +358,7 @@ namespace GameWIP::Input::Synthetic
             {
                 state.states.push_back(newState);
             }
+
             impl_->devices.push_back(deviceId);
             ++state.health.activeDeviceCount;
 
@@ -371,16 +385,17 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status attachedStatus = checkAttached();
         if(!attachedStatus.ok())
         {
             return attachedStatus;
         }
+
         if(!ownsDevice(*impl_, device))
         {
             return status(ErrorCode::NotFound);
         }
-
         System::Impl &state = *impl_->system->impl_;
         const std::size_t deviceIndex = state.findDeviceIndex(device);
         if(deviceIndex == state.devices.size())
@@ -416,10 +431,12 @@ namespace GameWIP::Input::Synthetic
 
             const std::uint64_t revision = ++state.deviceRevision;
             state.devices.erase(state.devices.begin() + static_cast<std::ptrdiff_t>(deviceIndex));
+
             if(state.health.activeDeviceCount != 0)
             {
                 --state.health.activeDeviceCount;
             }
+
             state.appendEvent({
                 .timestamp = timestampOrNow({}),
                 .kind = Types::EventKind::DeviceDisconnected,
@@ -465,16 +482,17 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status attachedStatus = checkAttached();
         if(!attachedStatus.ok())
         {
             return attachedStatus;
         }
+
         if(!ownsDevice(*impl_, element.device))
         {
             return status(ErrorCode::NotFound);
         }
-
         System::Impl &state = *impl_->system->impl_;
         const Types::ElementInfo *info = state.findElement(element);
         const std::size_t stateIndex = state.findStateIndex(element);
@@ -482,10 +500,12 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::NotFound);
         }
+
         if(expectedReporting.has_value() && info->reporting != *expectedReporting)
         {
             return status(ErrorCode::InvalidArgument);
         }
+
         if(!Internal::hasValueKind(value, info->kind))
         {
             return status(ErrorCode::InvalidArgument);
@@ -557,16 +577,17 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status attachedStatus = checkAttached();
         if(!attachedStatus.ok())
         {
             return attachedStatus;
         }
+
         if(!ownsDevice(*impl_, element.device))
         {
             return status(ErrorCode::NotFound);
         }
-
         System::Impl &state = *impl_->system->impl_;
         if(state.findElement(element) == nullptr)
         {
@@ -577,7 +598,6 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::InvalidArgument);
         }
-
         Types::ElementState &elementState = state.states[stateIndex];
         ++elementState.repeatCount;
         elementState.lastObservation = timestampOrNow(when);
@@ -602,23 +622,23 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status attachedStatus = checkAttached();
         if(!attachedStatus.ok())
         {
             return attachedStatus;
         }
+
         if(!ownsDevice(*impl_, element.device))
         {
             return status(ErrorCode::NotFound);
         }
-
         System::Impl &state = *impl_->system->impl_;
         const std::size_t stateIndex = state.findStateIndex(element);
         if(state.findElement(element) == nullptr || stateIndex == state.states.size())
         {
             return status(ErrorCode::NotFound);
         }
-
         Types::ElementState &elementState = state.states[stateIndex];
         elementState.validity = Types::ValueValidity::Unavailable;
         elementState.lastObservation = timestampOrNow(when);
@@ -646,19 +666,23 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status attachedStatus = checkAttached();
         if(!attachedStatus.ok())
         {
             return attachedStatus;
         }
+
         if(!impl_->system->impl_->textEnabled)
         {
             return status(ErrorCode::Unsupported);
         }
+
         if(surface.value == 0)
         {
             return status(ErrorCode::InvalidArgument);
         }
+
         if(Unicode::Utf8::validate(utf8).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             return status(ErrorCode::EncodingFailed);
@@ -671,6 +695,7 @@ namespace GameWIP::Input::Synthetic
             state.pendingDiscontinuity = true;
             return status(ErrorCode::SizeLimitExceeded);
         }
+
         try
         {
             Types::Event event{

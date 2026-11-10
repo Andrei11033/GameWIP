@@ -392,7 +392,6 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
             context.fail("exhaustive UTF-16 round trip", std::format("U+{:06X} did not decode back exactly", value));
             return;
         }
-
         std::array<char16_t, Unicode::Utf16::kMaximumScalarCodeUnits> convertedUtf16{};
         const Unicode::Types::Utf8::ToUtf16Result toUtf16 = Unicode::Utf8::convertToUtf16(encodedBytes(utf8), convertedUtf16);
 

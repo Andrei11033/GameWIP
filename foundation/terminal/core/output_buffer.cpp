@@ -52,6 +52,7 @@ namespace GameWIP::Terminal
             {
                 return IO::makeStatus(code);
             }
+
             try
             {
                 return IO::makeStatus(code, 0, std::string(message));
@@ -92,7 +93,6 @@ namespace GameWIP::Terminal
         {
             return invalidArgumentStatus("Unknown terminal line ending.");
         }
-
         lineEnding_ = lineEnding;
         return IO::successStatus();
     }
@@ -188,7 +188,6 @@ namespace GameWIP::Terminal
                 rollbackString(text_, previousSize);
                 return IO::makeStatus(ErrorCode::EncodingFailed);
             }
-
             return IO::successStatus();
         }
         catch(...)
@@ -223,13 +222,10 @@ namespace GameWIP::Terminal
     IO::Types::Status OutputBuffer::flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options) noexcept
     {
         IO::Types::Status status = writeTo(stream, options);
-
         if(status.ok())
         {
             clear();
         }
-
         return status;
     }
-
 } // namespace GameWIP::Terminal

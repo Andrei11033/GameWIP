@@ -60,7 +60,6 @@ namespace GameWIP::Terminal
         {
             return {};
         }
-
         return Types::Style::Color(color);
     }
 
@@ -68,5 +67,4 @@ namespace GameWIP::Terminal
     {
         return Types::Style::Color(red, green, blue);
     }
-
 } // namespace GameWIP::Terminal

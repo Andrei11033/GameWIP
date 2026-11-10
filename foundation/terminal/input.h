@@ -283,7 +283,6 @@ namespace GameWIP::Terminal
                 /// @brief True when maxReturnedBytes limited the returned line.
                 bool wasTruncated = false;
             };
-
         } // namespace Input
 
         namespace Events
@@ -450,7 +449,6 @@ namespace GameWIP::Terminal
 
             /// @brief Tagged payload for one portable Terminal event.
             using Payload = std::variant<Types::Events::Key, Types::Events::Paste, Types::Events::Resize>;
-
         } // namespace Events
 
         /// @brief One normalized pull-based Terminal input event.
@@ -487,9 +485,7 @@ namespace GameWIP::Terminal
                 /// @details Empty for non-completed outcomes and failures.
                 std::optional<Event> event;
             };
-
         } // namespace Input
-
     } // namespace Types
 
     /// @brief Returns a snapshot of capabilities for stdin.

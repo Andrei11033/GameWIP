@@ -17,9 +17,11 @@
 namespace GameWIP::Desktop::Detail::Platform
 {
     inline constexpr WORD kTaskbarThumbnailButtonClicked = 0x1800U;
+
     // ------------------------------------------------------------
     // Native message translation
     // ------------------------------------------------------------
+
     namespace
     {
         constexpr UINT kFirstRegisteredWindowMessage = 0xC000U;
@@ -55,6 +57,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return HTNOWHERE;
             }
+
             RECT frame{};
 
             if(GetWindowRect(state.platform->handle, &frame) == FALSE)
@@ -165,6 +168,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Window procedure
     // ------------------------------------------------------------
+
     LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     {
         WindowState *state = reinterpret_cast<WindowState *>(GetWindowLongPtrW(window, GWLP_USERDATA));
@@ -193,6 +197,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return DefWindowProcW(window, message, wParam, lParam);
         }
+
         const bool runtimeReady =
             state->platform != nullptr && state->platform->lifecycle == NativeWindowLifecycle::Published && state->platform->handle == window;
 
@@ -213,7 +218,6 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return -1;
                 }
-
                 return DefWindowProcW(window, message, wParam, lParam);
             }
 
@@ -265,6 +269,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return result;
             }
+
             break;
         }
         case WM_NCCALCSIZE:
@@ -291,6 +296,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return customHitTest(*state, point);
             }
+
             break;
         }
         case WM_MOUSEACTIVATE:
@@ -377,6 +383,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return 0;
         }
+
         case WM_SETFOCUS:
             if(!state->focused)
             {
@@ -451,6 +458,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return 0;
         }
+
         case WM_MOVE:
         {
             const Types::ScreenPosition previousPosition = state->clientPosition;
@@ -476,6 +484,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return 0;
         }
+
         case WM_DPICHANGED:
         {
             const Types::ContentScale previousScale = state->contentScale;
@@ -559,6 +568,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     recordPumpFailure(std::move(placement));
                 }
             }
+
             const IO::Types::Status geometry = refreshCachedGeometry(*state);
 
             if(!geometry.ok())
@@ -580,6 +590,7 @@ namespace GameWIP::Desktop::Detail::Platform
             updateCurrentMonitor(*state);
             return 0;
         }
+
         case WM_GETMINMAXINFO:
         {
             auto *info = reinterpret_cast<MINMAXINFO *>(lParam);
@@ -588,6 +599,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return 0;
             }
+
             const UINT dpi = dpiForWindow(window);
             RECT frame{0, 0, 0, 0};
 
@@ -613,6 +625,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return 0;
         }
+
         case WM_SIZING:
         {
             if(!state->aspectRatio || state->mode != Types::WindowMode::Windowed)
@@ -669,6 +682,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return TRUE;
         }
+
         case WM_SETCURSOR:
             if(LOWORD(lParam) == HTCLIENT)
             {
@@ -714,6 +728,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return 0;
             }
+
             try
             {
                 Types::Events::FilesDropped event;
@@ -742,6 +757,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     path.resize(length);
                     event.paths.emplace_back(std::move(path));
                 }
+
                 routeEvent(*state, std::move(event));
             }
             catch(const std::bad_alloc &)
@@ -755,6 +771,7 @@ namespace GameWIP::Desktop::Detail::Platform
             DragFinish(drop);
             return 0;
         }
+
         case WM_DISPLAYCHANGE:
             if(IO::Types::Status recovery = recoverAfterDisplayChange(*state); !recovery.ok())
             {
@@ -770,6 +787,7 @@ namespace GameWIP::Desktop::Detail::Platform
             routeEvent(*state, Types::Events::RedrawRequested{});
             return 0;
         }
+
         case WM_ERASEBKGND:
             if(state->transparentFramebuffer)
             {
@@ -825,5 +843,4 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return DefWindowProcW(window, message, wParam, lParam);
     }
-
 } // namespace GameWIP::Desktop::Detail::Platform

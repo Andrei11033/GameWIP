@@ -35,6 +35,7 @@ namespace
 #endif
             std::string_view{"--desktop-test-child=shell-launch-probe"},
         };
+
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
         return std::ranges::any_of(
             arguments.subspan(std::min<std::size_t>(1, arguments.size())),

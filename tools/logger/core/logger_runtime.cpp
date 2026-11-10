@@ -169,7 +169,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return candidate;
         }
-
         return current;
     }
 
@@ -305,7 +304,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return std::numeric_limits<std::size_t>::max();
         }
-
         return std::max(softQueueSize, static_cast<std::size_t>(std::ceil(precise)));
     }
 
@@ -319,7 +317,6 @@ namespace GameWIP::Logger::Detail::Core
             multiplier = 1.0;
             return softQueueSize;
         }
-
         return computeHardQueueLimit(softQueueSize, multiplier);
     }
 
@@ -420,5 +417,4 @@ namespace GameWIP::Logger::Detail::Core
     {
         return hasConsoleOutput(requested) || fallbackToConsole ? OutputMode::Console : OutputMode::None;
     }
-
 } // namespace GameWIP::Logger::Detail::Core

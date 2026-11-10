@@ -55,7 +55,6 @@ namespace GameWIP::Action
             {
                 return false;
             }
-
             return control.controlCode == Input::KeyboardControlCode::LeftControl ||
                    control.controlCode == Input::KeyboardControlCode::RightControl || control.controlCode == Input::KeyboardControlCode::LeftShift ||
                    control.controlCode == Input::KeyboardControlCode::RightShift || control.controlCode == Input::KeyboardControlCode::LeftAlt ||
@@ -111,7 +110,6 @@ namespace GameWIP::Action
             {
                 return true;
             }
-
             const float valueMagnitude = activation.value < 0.0f ? -activation.value : activation.value;
             const float movement = activation.value - activation.previousValue;
             const float movementMagnitude = movement < 0.0f ? -movement : movement;
@@ -375,7 +373,6 @@ namespace GameWIP::Action
             {
                 return maximum;
             }
-
             return value;
         }
 
@@ -428,7 +425,6 @@ namespace GameWIP::Action
             {
                 return sign(value);
             }
-
             const float remappedMagnitude = (magnitude - inner) / (outer - inner);
             return sign(value) * remappedMagnitude;
         }
@@ -458,7 +454,6 @@ namespace GameWIP::Action
                 y /= length;
                 return;
             }
-
             const float remappedLength = (length - inner) / (outer - inner);
             const float scale = remappedLength / length;
             x *= scale;
@@ -495,7 +490,6 @@ namespace GameWIP::Action
             {
                 return;
             }
-
             const float scale = maximumLength / length;
             x *= scale;
             y *= scale;
@@ -533,7 +527,6 @@ namespace GameWIP::Action
                 {
                     return getMouseAxisValue(inputState, control);
                 }
-
                 return inputState.getAxis(control);
             case Input::InputControlType::Wheel:
                 return inputState.getWheelDelta(control);

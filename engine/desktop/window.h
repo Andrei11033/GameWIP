@@ -125,7 +125,6 @@ namespace GameWIP::Desktop
                 return index < static_cast<std::uint8_t>(Capability::Count) && (flags & (std::uint64_t{1} << index)) != 0;
             }
         };
-
     } // namespace Types
 
     /// @brief Returns cached backend/environment capabilities.
@@ -152,6 +151,7 @@ namespace GameWIP::Desktop
         Window &operator=(const Window &) = delete;
         Window(Window &&) = delete;
         Window &operator=(Window &&) = delete;
+
         /// @brief Closes the native lifetime and releases owned state.
         /// @details Renderer readers must already be stopped or joined before C++ object destruction.
         ~Window() noexcept;

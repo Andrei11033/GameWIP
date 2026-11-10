@@ -36,7 +36,6 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         context.fail("manual assert UI logger init", "Logger::init failed");
         return;
     }
-
     const ScopedClearedEnvironmentVariable clearTestAction(context.processState, kTestActionEnvironmentVariable);
     const ScopedClearedEnvironmentVariable clearSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
 

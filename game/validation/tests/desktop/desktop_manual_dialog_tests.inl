@@ -13,6 +13,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
     {
         return;
     }
+
     Desktop::Window owner;
 
     if(!openManualWindow(context, owner, "GameWIP focused dialog validation"))
@@ -122,6 +123,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
         }
         static_cast<void>(requireManualStatus(context, "focused progress closes", progress.close()));
     }
+
     static_cast<void>(owner.close());
 }
 

@@ -15,6 +15,7 @@ void testProviders(Context &context)
     }
     auto bridge = window.accessibility();
     check(context, "native bridge enables", bridge.enable().ok());
+
     Tree tree;
     tree.nodes[1].value = std::string_view("a\0b", 3);
     check(context, "native tree publishes", bridge.publish(tree.view()).ok());
@@ -25,10 +26,12 @@ void testProviders(Context &context)
     {
         return;
     }
+
     VARIANT value{};
     equal(context, "native name query", S_OK, button->GetPropertyValue(UIA_NamePropertyId, &value));
     check(context, "native name UTF16", value.vt == VT_BSTR && std::wstring_view(value.bstrVal, SysStringLen(value.bstrVal)) == L"Run");
     VariantClear(&value);
+
     Com<IInvokeProvider> invoke;
 
     if(pattern(context, button.value, UIA_InvokePatternId, invoke))
@@ -39,6 +42,7 @@ void testProviders(Context &context)
         equal(context, "native action kind", A::ActionKind::Invoke, request.action);
         equal(context, "native generation", A::Generation{1}, request.observedGeneration);
     }
+
     Com<IValueProvider> stringPattern;
 
     if(pattern(context, button.value, UIA_ValuePatternId, stringPattern))
@@ -52,6 +56,7 @@ void testProviders(Context &context)
         check(context, "value action pops", bridge.popAction(request));
         equal(context, "UTF8 native input", std::string("new \xF0\x9F\x99\x82"), request.text);
     }
+
     Com<IRawElementProviderFragment> fragment;
     check(
         context,
@@ -71,12 +76,14 @@ void testProviders(Context &context)
             SafeArrayDestroy(runtimeId);
         }
     }
+
     const auto handles = Desktop::Native::Win32::getHandle(window);
 
     if(handles.status.ok())
     {
         check(context, "WM_GETOBJECT publishes UIA provider", SendMessageW(handles->window, WM_GETOBJECT, 0, UiaRootObjectId) != 0);
     }
+
     tree.nodes[1].states.flags |= state(A::State::Password);
     check(context, "redaction publishes", bridge.publish(tree.view(2)).ok());
     equal(context, "redacted value property", S_OK, button->GetPropertyValue(UIA_ValueValuePropertyId, &value));
@@ -85,10 +92,12 @@ void testProviders(Context &context)
     Com<IUnknown> hidden;
     equal(context, "password pattern lookup succeeds", S_OK, button->GetPatternProvider(UIA_ValuePatternId, hidden.put()));
     check(context, "password pattern is not exposed", !hidden);
+
     const std::array<A::Node, 1> remaining{A::Node{.id = 1}};
     check(context, "remove native node", bridge.publish({3, 1, remaining}).ok());
     equal(context, "retained removed provider unavailable", kUnavailable, button->GetPropertyValue(UIA_NamePropertyId, &value));
     VariantClear(&value);
+
     check(context, "native close", window.close().ok());
     equal(context, "retained root unavailable after close", kUnavailable, root->GetPropertyValue(UIA_NamePropertyId, &value));
 
@@ -96,6 +105,7 @@ void testProviders(Context &context)
     {
         return;
     }
+
     check(context, "native reopen enable", bridge.enable().ok());
     check(context, "fresh native publish", bridge.publish(tree.view(4)).ok());
     equal(context, "old root never revives across reopen", kUnavailable, root->GetPropertyValue(UIA_NamePropertyId, &value));

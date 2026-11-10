@@ -12,10 +12,12 @@ std::span<std::byte> nativeClipboardBytes(void *data, std::size_t size) noexcept
 {
     return {static_cast<std::byte *>(data), size};
 }
+
 std::span<const std::byte> nativeClipboardBytes(const void *data, std::size_t size) noexcept
 {
     return {static_cast<const std::byte *>(data), size};
 }
+
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage end
 #endif
@@ -73,6 +75,7 @@ bool publishNativeClipboardData(TestSupport::Context &context, UINT format, std:
 
         return false;
     }
+
     const auto diagnose = [&](const char *call, bool success)
     {
         if(!success)
@@ -127,6 +130,7 @@ bool readNativeDibV5Header(TestSupport::Context &context, BITMAPV5HEADER &header
     {
         return false;
     }
+
     const HGLOBAL memory = static_cast<HGLOBAL>(GetClipboardData(CF_DIBV5));
 
     if(memory == nullptr)

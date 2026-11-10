@@ -18,6 +18,7 @@ namespace GameWIP::Validation
         {
             return {};
         }
+
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif

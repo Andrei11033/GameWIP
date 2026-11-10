@@ -318,6 +318,7 @@ void testPromptManualCheck(TestSupport::Context &context)
         promptWithInput("maybe\nYes\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
     static_cast<void>(
         context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
+
     const auto promptReason = [&](std::string_view input, std::string_view expected)
     {
         ScopedPromptStreams streams(input);
@@ -353,7 +354,6 @@ void recordExpectedManualAnswer(
         context.skip(name, "manual check skipped by user");
         return;
     }
-
     context.fail(name, "manual answer did not match the requested response");
 }
 

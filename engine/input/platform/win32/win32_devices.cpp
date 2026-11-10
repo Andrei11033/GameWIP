@@ -50,14 +50,17 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return Types::BackendKind::XInput;
         }
+
         if(role == DeviceRole::Hid)
         {
             return Types::BackendKind::Win32Hid;
         }
+
         if(role == DeviceRole::Pointer)
         {
             return Types::BackendKind::Win32WindowMessage;
         }
+
         return Types::BackendKind::Win32RawInput;
     }
 
@@ -70,6 +73,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return nullptr;
         }
+
         for(Types::DeviceInfo &device : state.devices)
         {
             if(static_cast<unsigned int>(device.identityConfidence) >= static_cast<unsigned int>(Types::IdentityConfidence::ConnectionPath) &&
@@ -78,6 +82,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 return &device;
             }
         }
+
         return nullptr;
     }
 
@@ -87,6 +92,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return "XInput";
         }
+
         if(role == DeviceRole::Pointer)
         {
             return "Win32 Window Messages";
@@ -107,6 +113,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         case DeviceRole::Hid:
             return {};
         }
+
         return "win32:device";
     }
 
@@ -286,6 +293,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 {
                     return false;
                 }
+
                 return std::any_of(
                     candidate.elements.begin(),
                     candidate.elements.end(),
@@ -302,7 +310,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return;
         }
-
         const std::size_t deviceIndex = state.findDeviceIndex(device.id);
         if(deviceIndex == state.devices.size())
         {
@@ -315,9 +322,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             source->active = false;
         }
+
         Types::DeviceInfo &descriptor = state.devices[deviceIndex];
         descriptor.connected = hasActiveSource(descriptor);
         descriptor.descriptorRevision = ++state.deviceRevision;
+
         for(const Types::ElementInfo &element : descriptor.elements)
         {
             if(hasActiveElementSource(attachment, descriptor.id, element.id))
@@ -343,15 +352,18 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     },
             });
         }
+
         if(descriptor.connected)
         {
             appendDeviceEvent(state, Types::EventKind::DeviceChanged, cause, descriptor.id, descriptor.descriptorRevision);
             return;
         }
+
         if(state.health.activeDeviceCount != 0)
         {
             --state.health.activeDeviceCount;
         }
+
         appendDeviceEvent(state, Types::EventKind::DeviceDisconnected, cause, device.id, state.deviceRevision);
     }
 
@@ -366,7 +378,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return;
         }
-
         Types::DeviceInfo &descriptor = state.devices[deviceIndex];
         const bool logicalWasConnected = descriptor.connected;
         device.connected = true;
@@ -374,8 +385,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             source->active = true;
         }
+
         descriptor.connected = true;
         descriptor.descriptorRevision = ++state.deviceRevision;
+
         for(const ElementBinding &binding : device.elements)
         {
             Types::ElementState *elementState = findState(state, binding.id);
@@ -384,6 +397,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 elementState->validity = Types::ValueValidity::Unknown;
             }
         }
+
         if(!logicalWasConnected)
         {
             ++state.health.activeDeviceCount;
@@ -419,6 +433,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 hid = Types::HidControlId{.usagePage = 0x09, .usage = standard->code};
             }
         }
+
         const Types::ControlIdentity identity{.standard = standard, .hid = hid};
         if(identity.isValid())
         {
@@ -432,6 +447,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     {
                         return true;
                     }
+
                     // Raw keyboard/mouse and HID collections can describe
                     // the same standard control with different collection
                     // metadata. Share that canonical element only across
@@ -452,6 +468,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 return existing->id;
             }
         }
+
         const Types::ElementId id{binding.id, state.nextElementSlot++, 1};
         device.elements.push_back({
             .id = id,
@@ -517,7 +534,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return;
         }
-
         const auto findValue = [&binding](USAGE usage) -> const Attachment::Impl::DeviceBinding::HidElement *
         {
             const auto element = std::find_if(
@@ -544,6 +560,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 return;
             }
+
             const Types::ElementId id = addElement(
                 state,
                 descriptor,
@@ -571,6 +588,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 return;
             }
+
             const Types::ElementId id = addElement(
                 state,
                 descriptor,
@@ -727,6 +745,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             Types::DeviceInfo *descriptor = findLogicalDevice(state, source.persistentKey);
             const bool newLogicalDevice = descriptor == nullptr;
             const bool logicalWasConnected = descriptor != nullptr && descriptor->connected;
+
             if(!newLogicalDevice)
             {
                 mergedDevice = true;
@@ -739,6 +758,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 initialMergedVendorId = descriptor->vendorId;
                 initialMergedProductId = descriptor->productId;
             }
+
             const Types::DeviceId logicalId = newLogicalDevice ? Types::DeviceId{state.instance, state.nextDeviceSlot++, 1} : descriptor->id;
             DeviceBinding binding{
                 .role = role,
@@ -965,6 +985,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
 
             attachment.devices.push_back(std::move(binding));
+
             if(newLogicalDevice && connected)
             {
                 ++state.health.activeDeviceCount;
@@ -1011,12 +1032,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return false;
         }
+
         if(DeviceBinding *existing = findNativeDevice(attachment, role, nativeDevice); existing != nullptr)
         {
             reconnectDevice(state, *existing);
             return true;
         }
-
         const std::uint32_t slot = static_cast<std::uint32_t>(attachment.devices.size() + 1);
         const bool keyboard = role == DeviceRole::Keyboard;
         const std::string label = keyboard ? "Keyboard" : "Mouse";
@@ -1059,6 +1080,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return false;
         }
+
         if(capabilities.InputReportByteLength == 0)
         {
             return false;
@@ -1085,6 +1107,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         std::optional<std::uint16_t> initialMergedVendorId{};
         std::optional<std::uint16_t> initialMergedProductId{};
         bool mergedDevice = false;
+
         const auto rollback = [&] noexcept
         {
             state.devices.resize(initialDeviceCount);
@@ -1119,6 +1142,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, persistentKey);
             const bool newLogicalDevice = logicalDescriptor == nullptr;
             const bool logicalWasConnected = logicalDescriptor != nullptr && logicalDescriptor->connected;
+
             if(!newLogicalDevice)
             {
                 mergedDevice = true;
@@ -1131,6 +1155,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 initialMergedVendorId = logicalDescriptor->vendorId;
                 initialMergedProductId = logicalDescriptor->productId;
             }
+
             const Types::DeviceId deviceId = newLogicalDevice ? Types::DeviceId{state.instance, state.nextDeviceSlot++, 1} : logicalDescriptor->id;
             DeviceBinding binding{
                 .role = DeviceRole::Hid,
@@ -1182,6 +1207,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     logicalDescriptor->productId = logicalDescriptor->sources.back().productId;
                 }
             }
+
             Types::DeviceInfo &descriptor = *logicalDescriptor;
 
             constexpr std::size_t maximumElements = 4096;
@@ -1269,6 +1295,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     rollback();
                     return false;
                 }
+
                 for(std::uint32_t usage = first; usage <= last; ++usage)
                 {
                     addButton(static_cast<USAGE>(usage), caps, 0);
@@ -1356,6 +1383,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
             binding.hidUsageScratch.resize(std::max<ULONG>(usageCapacity, 1));
             attachment.devices.push_back(std::move(binding));
+
             if(newLogicalDevice)
             {
                 ++state.health.activeDeviceCount;
@@ -1412,6 +1440,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         std::optional<std::uint16_t> initialMergedVendorId{};
         std::optional<std::uint16_t> initialMergedProductId{};
         bool mergedDevice = false;
+
         const auto rollback = [&] noexcept
         {
             state.devices.resize(initialDeviceCount);
@@ -1445,6 +1474,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, persistentKey);
             const bool newLogicalDevice = logicalDescriptor == nullptr;
             const bool logicalWasConnected = logicalDescriptor != nullptr && logicalDescriptor->connected;
+
             if(!newLogicalDevice)
             {
                 mergedDevice = true;
@@ -1456,6 +1486,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 initialMergedVendorId = logicalDescriptor->vendorId;
                 initialMergedProductId = logicalDescriptor->productId;
             }
+
             const Types::DeviceId deviceId = newLogicalDevice ? Types::DeviceId{state.instance, state.nextDeviceSlot++, 1} : logicalDescriptor->id;
             DeviceBinding binding{
                 .role = DeviceRole::Hid,
@@ -1503,6 +1534,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 logicalDescriptor->connected = true;
                 logicalDescriptor->descriptorRevision = ++state.deviceRevision;
             }
+
             attachment.devices.push_back(std::move(binding));
             Types::DeviceInfo &descriptor = *logicalDescriptor;
             if(newLogicalDevice)
@@ -1601,12 +1633,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
             state.pendingDiscontinuity = true;
             return;
         }
+
         if(device.hidOpaque)
         {
             appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
             (void)attachment;
             return;
         }
+
         if(device.hidPreparsedData.empty())
         {
             ++state.health.totalInvalidReports;
@@ -1647,6 +1681,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 continue;
             }
+
             if(element.button)
             {
                 bool pressed = false;
@@ -1680,6 +1715,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             publish(state, element.id, value, !element.absolute);
             publishNormalizedGamepad(state, device, element, value);
         }
+
         appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
         (void)attachment;
     }
@@ -1729,11 +1765,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return nativeStatus(GetLastError());
         }
+
         if(deviceCount == 0)
         {
             return IO::successStatus();
         }
-
         std::vector<RAWINPUTDEVICELIST> devices(static_cast<std::size_t>(deviceCount));
         UINT received = deviceCount;
         if(GetRawInputDeviceList(devices.data(), &received, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
@@ -1792,11 +1828,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return false;
         }
+
         if(deviceCount == 0)
         {
             return true;
         }
-
         std::vector<RAWINPUTDEVICELIST> devices(static_cast<std::size_t>(deviceCount));
         UINT received = deviceCount;
         if(GetRawInputDeviceList(devices.data(), &received, sizeof(RAWINPUTDEVICELIST)) == static_cast<UINT>(-1))
@@ -1840,7 +1876,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return {};
         }
-
         std::vector<wchar_t> buffer(static_cast<std::size_t>(characterCount) + 1, L'\0');
         UINT received = characterCount;
         if(GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, buffer.data(), &received) == static_cast<UINT>(-1) || received == 0 ||
@@ -1848,6 +1883,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return {};
         }
+
         while(received != 0 && buffer[received - 1] == L'\0')
         {
             --received;
@@ -1863,17 +1899,20 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             codeUnits.push_back(static_cast<char16_t>(value));
         }
+
         const auto measured = GameWIP::Unicode::Utf16::measureToUtf8(codeUnits);
         if(measured.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return {};
         }
+
         std::string result(measured.requiredBytes, '\0');
         const auto converted = GameWIP::Unicode::Utf16::convertToUtf8(codeUnits, std::span<char>(result.data(), result.size()));
         if(converted.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return {};
         }
+
         return result;
     }
 
@@ -1892,6 +1931,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return false;
         }
+
         try
         {
             outPreparsedData.resize(size);
@@ -1928,6 +1968,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return Types::StandardId{Types::StandardDomain::Keyboard, usage};
         }
+
         if(topLevelUsagePage == genericDesktopPage && topLevelUsage == 0x02 && usagePage == buttonPage)
         {
             switch(usage)
@@ -2014,28 +2055,34 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 return Types::NumericStorage::Signed8;
             }
+
             if(bitSize <= 16)
             {
                 return Types::NumericStorage::Signed16;
             }
+
             if(bitSize <= 32)
             {
                 return Types::NumericStorage::Signed32;
             }
             return Types::NumericStorage::Signed64;
         }
+
         if(bitSize <= 8)
         {
             return Types::NumericStorage::Unsigned8;
         }
+
         if(bitSize <= 16)
         {
             return Types::NumericStorage::Unsigned16;
         }
+
         if(bitSize <= 32)
         {
             return Types::NumericStorage::Unsigned32;
         }
+
         return Types::NumericStorage::Unsigned64;
     }
 
@@ -2066,6 +2113,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return signExtendHidValue(value, element.bitSize);
         }
+
         return static_cast<std::uint64_t>(value);
     }
 
@@ -2086,6 +2134,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             };
             (void)RegisterRawInputDevices(&device, 1, sizeof(device));
         }
+
         attachment.rawInputCollections.clear();
     }
 
@@ -2095,6 +2144,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return status(ErrorCode::NotOpen);
         }
+
         if(!attachment.system->isOpen())
         {
             return status(ErrorCode::NotOpen);

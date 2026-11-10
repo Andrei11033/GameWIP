@@ -98,6 +98,7 @@ function Install-GameWipMsys2Tool
     {
         throw 'MSYS2 is not installed; run setup.bat repair.'
     }
+
     $dependencies = if ($Tool.provider.Contains('dependencies'))
     {
         @($Tool.provider.dependencies)

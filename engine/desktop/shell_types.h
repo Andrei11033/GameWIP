@@ -107,11 +107,13 @@ namespace GameWIP::Desktop::Types::Shell
         {
             return std::monostate{};
         }
+
         /// @brief Path target; `value` is borrowed.
         [[nodiscard]] inline TargetView path(const FileSystem::Types::Path &value) noexcept
         {
             return PathTargetView{std::cref(value)};
         }
+
         /// @brief URI target; `value` is borrowed.
         [[nodiscard]] inline TargetView uri(std::string_view value) noexcept
         {
@@ -148,6 +150,7 @@ namespace GameWIP::Desktop::Types::Shell
         {
             return PathTarget{std::move(value)};
         }
+
         /// @brief Owned URI target.
         [[nodiscard]] inline Target ownedUri(std::string value)
         {
@@ -192,11 +195,13 @@ namespace GameWIP::Desktop::Types::Shell
         {
             return LiteralLaunchArgumentView{value};
         }
+
         /// @brief Target argument; the target's storage is borrowed.
         [[nodiscard]] inline LaunchArgumentView target(TargetView value) noexcept
         {
             return TargetLaunchArgumentView{value};
         }
+
         /// @brief Placeholder expanded from the selected target set.
         [[nodiscard]] inline LaunchArgumentView placeholder(LaunchPlaceholder value) noexcept
         {
@@ -231,11 +236,13 @@ namespace GameWIP::Desktop::Types::Shell
         {
             return LiteralLaunchArgument{std::move(value)};
         }
+
         /// @brief Owned target argument.
         [[nodiscard]] inline LaunchArgument ownedTarget(Target value)
         {
             return TargetLaunchArgument{std::move(value)};
         }
+
         /// @brief Placeholder expanded from the selected target set.
         [[nodiscard]] inline LaunchArgument ownedPlaceholder(LaunchPlaceholder value) noexcept
         {
@@ -441,5 +448,4 @@ namespace GameWIP::Desktop::Types::Shell
 
     /// @brief Explicit owned-or-borrowed storage policy for Shell events.
     using QueueConfiguration = ::GameWIP::Desktop::Types::Events::EventQueueConfiguration<Event>;
-
 } // namespace GameWIP::Desktop::Types::Shell

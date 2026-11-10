@@ -17,6 +17,7 @@ if ($duplicates.Count -ne 0)
 {
     throw "Duplicate setup action IDs: $($duplicates.Name -join ', ')."
 }
+
 $menuActions = @($actions | Where-Object { $null -ne $_.PSObject.Properties['key'] })
 $duplicateKeys = @($menuActions.Key | Group-Object | Where-Object Count -gt 1)
 
@@ -259,11 +260,13 @@ function Switch-GameWipRepositoryBranch
 }
 function Initialize-GameWipRepository
 {
-    param([string]$RepositoryRoot); $null = $RepositoryRoot
+    param([string]$RepositoryRoot)
+    $null = $RepositoryRoot
 }
 function Test-GameWipRepositoryState
 {
-    param([string]$RepositoryRoot); $null = $RepositoryRoot
+    param([string]$RepositoryRoot)
+    $null = $RepositoryRoot
 }
 $NonInteractive = $false
 $Branch = ''
@@ -362,7 +365,8 @@ function Invoke-GameWipMsys2
 
     if ($script:simulatedFailures -gt 0)
     {
-        --$script:simulatedFailures; throw 'simulated transient failure'
+        --$script:simulatedFailures
+        throw 'simulated transient failure'
     }
 }
 $output = @(& { Invoke-GameWipMsys2PacmanWithRetry -MsysRoot 'C:\TestMsys2' -Command 'pacman -Syu --noconfirm' -MaxAttempts 3 -RetryDelaySeconds 0 } *>&1)
@@ -395,6 +399,7 @@ if (-not $rejected)
 {
     throw 'Non-interactive setup implicitly authorized a destructive action.'
 }
+
 $Script:OperationContext = $null
 
 Write-Host 'Setup helper regression tests passed.'

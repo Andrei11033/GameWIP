@@ -217,7 +217,7 @@ installed consumer API.
 `game/` may compose reusable libraries, including Logger and Desktop, validation
 objects, Google Benchmark, Tracy instrumentation, and generated project
 metadata. It must not become the implementation owner for behavior that belongs
-existing library. The runtime consumes Desktop's public display, renderer/color,
+in an existing library. The runtime consumes Desktop's public display, renderer/color,
 window-lifetime, and event-pump interfaces; Desktop retains the platform-specific
 display and window mechanics.
 

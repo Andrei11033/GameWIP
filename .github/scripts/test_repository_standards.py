@@ -76,7 +76,6 @@ class UnicodeAuthorityTests(unittest.TestCase):
         self.assertEqual(len(failures), 1)
 
     def test_character_literals_do_not_corrupt_scanning(self) -> None:
-
         for literal in ("'x'", "L'x'", "u'x'", "U'x'", "u8'x'", "'\\''"):
             with self.subTest(literal=literal):
                 failures = self.check_fixture("fixture.cpp", f"auto value = {literal};\nMultiByteToWideChar(...);\n")

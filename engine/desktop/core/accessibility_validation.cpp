@@ -3,6 +3,7 @@
 
 #include "desktop/accessibility.h"
 #include "unicode/unicode.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -15,6 +16,7 @@ namespace GameWIP::Desktop::Accessibility
     {
         namespace A = Types::Accessibility;
         using Issue = A::ValidationIssue;
+
         // ------------------------------------------------------------
         // Primitive validation and resource budgets
         // ------------------------------------------------------------
@@ -29,6 +31,7 @@ namespace GameWIP::Desktop::Accessibility
             return std::isfinite(rect.x) && std::isfinite(rect.y) && std::isfinite(rect.width) && std::isfinite(rect.height) && rect.width >= 0 &&
                    rect.height >= 0 && std::isfinite(rect.x + rect.width) && std::isfinite(rect.y + rect.height);
         }
+
         struct Budget
         {
             const A::Limits &limits;
@@ -49,6 +52,7 @@ namespace GameWIP::Desktop::Accessibility
                 bytes += value.size();
                 return Issue::None;
             }
+
             Issue extension(const A::ExtensionValue &value, std::uint32_t depth)
             {
                 if(++extensionValues > limits.maximumExtensionValuesPerNode || depth > limits.maximumExtensionDepth)
@@ -170,6 +174,7 @@ namespace GameWIP::Desktop::Accessibility
                 }
                 index.emplace_back(snapshot.nodes[i].id, i);
             }
+
             std::ranges::sort(index);
 
             for(std::size_t i = 1; i < index.size(); ++i)
@@ -198,7 +203,6 @@ namespace GameWIP::Desktop::Accessibility
             {
                 return fail(Issue::InvalidRoot, snapshot.root);
             }
-
             Budget budget{limits};
             std::vector<std::uint32_t> incoming(snapshot.nodes.size());
             std::size_t focused = 0;
@@ -617,6 +621,7 @@ namespace GameWIP::Desktop::Accessibility
                     return fail(Issue::ParentMismatch, snapshot.nodes[i].id, i);
                 }
             }
+
             std::vector<std::size_t> work{root};
             std::vector<bool> visited(snapshot.nodes.size());
 

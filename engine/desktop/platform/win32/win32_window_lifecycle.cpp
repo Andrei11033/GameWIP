@@ -17,6 +17,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Native lifecycle
     // ------------------------------------------------------------
+
     /// @brief Deletes portable Window backend storage after native cleanup is complete.
     void WindowDataDeleter::operator()(WindowData *data) const noexcept
     {
@@ -46,7 +47,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unsupported, 0, "system backdrop effects require Windows 11 build 22621 or newer");
             }
-
             auto data = std::unique_ptr<WindowData, WindowDataDeleter>(new WindowData{});
             data->owner = &state;
             data->instance = GetModuleHandleW(nullptr);
@@ -96,7 +96,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
-
             registerOpenState(state);
 
             DWORD nativeCode = ERROR_SUCCESS;
@@ -139,6 +138,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     ERROR_ARITHMETIC_OVERFLOW,
                     "initial client size exceeds Win32 range at the effective DPI");
             }
+
             RECT outer{0, 0, static_cast<LONG>(physicalClient.width), static_cast<LONG>(physicalClient.height)};
             const DWORD style = styleFor(state);
             const DWORD extendedStyle = extendedStyleFor(state);
@@ -204,7 +204,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
-
             HWND handle = CreateWindowExW(
                 extendedStyle,
                 kWindowClassName,
@@ -291,31 +290,34 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             status = setOpacity(state, description.opacity);
 
             if(!status.ok())
             {
                 return status;
             }
+
             status = setBackdropEffect(state, description.backdropEffect);
 
             if(!status.ok())
             {
                 return status;
             }
+
             status = setWindowMode(state, description.initialWindowMode);
 
             if(!status.ok())
             {
                 return status;
             }
+
             status = applyCursorState(state);
 
             if(!status.ok())
             {
                 return status;
             }
-
             int showCommand = SW_HIDE;
 
             if(description.activation.visible)
@@ -510,7 +512,6 @@ namespace GameWIP::Desktop::Detail::Platform
             state.platform.reset();
             return;
         }
-
         static_cast<void>(leaveExclusive(state));
 
         if(state.platform->cursorClipApplied)
@@ -548,6 +549,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Ownership, wakeup, and native state
     // ------------------------------------------------------------
+
     /// @brief Tests whether the current thread owns the Window's native resources.
     bool ownedByCurrentThread(const WindowState &state) noexcept
     {
@@ -561,7 +563,6 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-
         return postWakeMessage(state.platform->ownerThreadId, "PostThreadMessageW wake");
     }
 
@@ -572,7 +573,6 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return {};
         }
-
         return {state.platform->instance, state.platform->handle};
     }
 
@@ -581,7 +581,6 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         return state.platform && state.platform->handle != nullptr && IsWindow(state.platform->handle) != FALSE;
     }
-
 } // namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Native::Win32
@@ -589,6 +588,7 @@ namespace GameWIP::Desktop::Native::Win32
     // ------------------------------------------------------------
     // Native interop
     // ------------------------------------------------------------
+
     Types::Result<HandleView> getHandle(const GameWIP::Desktop::Window &window) noexcept
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
@@ -635,7 +635,6 @@ namespace GameWIP::Desktop::Native::Win32
         {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
         }
-
         state->platform->messageSink = sink;
         state->platform->messageSinkContext = context;
         return IO::successStatus();
@@ -654,7 +653,6 @@ namespace GameWIP::Desktop::Native::Win32
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
-
         state->platform->messageSink = nullptr;
         state->platform->messageSinkContext = nullptr;
         return IO::successStatus();
@@ -667,6 +665,7 @@ namespace GameWIP::Desktop::TestHooks
     // ------------------------------------------------------------
     // Validation hooks
     // ------------------------------------------------------------
+
     Types::Events::PumpResult pumpReentrantly() noexcept
     {
         Detail::Platform::Dispatcher &current = Detail::Platform::dispatcher();
@@ -717,7 +716,6 @@ namespace GameWIP::Desktop::TestHooks
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::recoverAfterDisplayChange(*state, true);
     }
 

@@ -65,6 +65,7 @@ void testErrorCodeNames(TestSupport::Context &context)
         std::string_view{"Unknown"},
         IO::errorCodeName(static_cast<ErrorCode>(-1))));
 }
+
 /// @brief Verifies status helpers and default Reader/Writer optional-operation contracts.
 void testStatusAndDefaultContracts(TestSupport::Context &context)
 {

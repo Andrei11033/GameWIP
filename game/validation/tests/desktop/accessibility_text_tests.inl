@@ -17,6 +17,7 @@ void testText(Context &context)
     A::Options options;
     options.limits.maximumNativeTextRanges = 2;
     check(context, "text pool enables", bridge.enable(options).ok());
+
     Tree tree;
     const std::string_view text = "e\xCC\x81 \xF0\x9F\x99\x82\nlast";
     const std::array<A::TextAnnotation, 1> annotations{{{{0, 3}, A::TextAnnotationKind::Language, "fr-FR", 0}}};
@@ -31,12 +32,14 @@ void testText(Context &context)
     {
         return;
     }
+
     Com<ITextProvider2> patternProvider;
 
     if(!pattern(context, provider.value, UIA_TextPattern2Id, patternProvider))
     {
         return;
     }
+
     Com<ITextRangeProvider> range, clone, overflow;
     equal(context, "document range", S_OK, patternProvider->get_DocumentRange(range.put()));
 
@@ -44,10 +47,12 @@ void testText(Context &context)
     {
         return;
     }
+
     BSTR wide = nullptr;
     equal(context, "text full query", S_OK, range->GetText(-1, &wide));
     check(context, "text preserves combining and nonBMP scalars", std::wstring_view(wide, SysStringLen(wide)) == L"e\u0301 \U0001F642\nlast");
     SysFreeString(wide);
+
     equal(context, "clone claims second pool slot", S_OK, range->Clone(clone.put()));
     equal(context, "pool pressure rejects newest range", HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_QUOTA), range->Clone(overflow.put()));
 
@@ -57,6 +62,7 @@ void testText(Context &context)
         equal(context, "range comparison", S_OK, range->Compare(clone.value, &same));
         check(context, "clone initially equal", same != FALSE);
     }
+
     equal(context, "character expands by grapheme", S_OK, range->ExpandToEnclosingUnit(TextUnit_Character));
     equal(context, "first grapheme query", S_OK, range->GetText(-1, &wide));
     equal(context, "combining scalar kept", UINT{2}, SysStringLen(wide));
@@ -70,17 +76,21 @@ void testText(Context &context)
     equal(context, "UTF16 cap does not split surrogate", S_OK, range->GetText(1, &wide));
     equal(context, "split surrogate suppressed", UINT{0}, SysStringLen(wide));
     SysFreeString(wide);
+
     equal(context, "selection transports typed range", S_OK, range->Select());
     A::ActionRequest request;
     check(context, "range action pops", bridge.popAction(request));
     check(context, "UTF8 grapheme offsets transported", request.range && request.range->begin == 4 && request.range->end == 8);
+
     VARIANT attribute{};
     equal(context, "read-only attribute", S_OK, range->GetAttributeValue(UIA_IsReadOnlyAttributeId, &attribute));
     check(context, "document content is read-only", attribute.vt == VT_BOOL && attribute.boolVal == VARIANT_TRUE);
     VariantClear(&attribute);
+
     Com<IUnknown> textEdit;
     equal(context, "TextEdit availability query", S_OK, provider->GetPatternProvider(UIA_TextEditPatternId, textEdit.put()));
     check(context, "TextEdit is not advertised", !textEdit);
+
     clone.put();
     equal(context, "restore complete document unit", S_OK, range->ExpandToEnclosingUnit(TextUnit_Document));
     BSTR search = SysAllocString(L"LAST");
@@ -93,25 +103,30 @@ void testText(Context &context)
         equal(context, "case search preserves original text", std::wstring_view(L"last"), std::wstring_view(wide, SysStringLen(wide)));
         SysFreeString(wide);
     }
+
     clone.put();
     search = SysAllocString(L"e");
     equal(context, "partial combining-grapheme search", S_OK, range->FindText(search, FALSE, FALSE, clone.put()));
     SysFreeString(search);
     check(context, "search never returns a split grapheme", !clone);
+
     attribute.vt = VT_BOOL;
     attribute.boolVal = VARIANT_TRUE;
     equal(context, "read-only attribute search", S_OK, range->FindAttribute(UIA_IsReadOnlyAttributeId, attribute, FALSE, clone.put()));
     check(context, "attribute search creates a range", static_cast<bool>(clone));
+
     clone.put();
     equal(context, "range scroll transports without executing", S_OK, range->ScrollIntoView(FALSE));
     check(context, "range scroll request drains", bridge.popAction(request));
     check(context, "range scroll alignment is typed", request.action == A::ActionKind::ScrollTo && request.range && request.point.y == 1);
+
     equal(
         context,
         "bounded endpoint saturation",
         S_OK,
         range->MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, INT_MAX, &moved));
     check(context, "endpoint movement count is bounded", moved > 0 && moved < INT_MAX);
+
     check(context, "replace text snapshot", bridge.publish(tree.view(2)).ok());
     equal(context, "old immutable ranges unavailable after replacement", kUnavailable, range->GetText(-1, &wide));
     clone.put();
@@ -131,6 +146,7 @@ void testTextSemantics(Context &context)
     }
     auto bridge = window.accessibility();
     check(context, "text semantics bridge enables", bridge.enable().ok());
+
     Tree tree;
     const std::array<A::TextFragment, 1> fragments{{{{0, 2}, {0, 0, 100, 20}}}};
     tree.nodes[1].role = A::Role::TextField;
@@ -138,6 +154,7 @@ void testTextSemantics(Context &context)
     auto &content = tree.nodes[1].text.emplace(A::TextContent{"ab", A::TextDirection::LeftToRight, "en-US", {}, fragments});
     tree.nodes[1].actions.flags = action(A::ActionKind::SetTextSelection);
     check(context, "text without selection or caret publishes", bridge.publish(tree.view()).ok());
+
     Desktop::TestHooks::PresentationPublicationSnapshot host;
     host.clientSize = {200, 100};
     host.visible = true;
@@ -234,6 +251,7 @@ void testTextSemantics(Context &context)
     {
         SafeArrayDestroy(selection);
     }
+
     SupportedTextSelection supported = SupportedTextSelection_None;
     equal(context, "immutable selection policy query", S_OK, text->get_SupportedTextSelection(&supported));
     equal(context, "submitted selection advertises single selection", SupportedTextSelection_Single, supported);
@@ -290,6 +308,7 @@ void testTextAttributes(Context &context)
     }
     auto bridge = window.accessibility();
     check(context, "text attribute bridge enables", bridge.enable().ok());
+
     Tree tree;
     std::array<A::TextAnnotation, 2> annotations{
         {{{0, 1}, A::TextAnnotationKind::Emphasis, "bold"}, {{1, 2}, A::TextAnnotationKind::Emphasis, "bold"}}};
@@ -301,12 +320,14 @@ void testTextAttributes(Context &context)
     {
         return;
     }
+
     Com<ITextProvider> text;
 
     if(!pattern(context, provider.value, UIA_TextPatternId, text))
     {
         return;
     }
+
     Com<IUnknown> mixed, unsupported;
     equal(context, "mixed attribute sentinel", S_OK, UiaGetReservedMixedAttributeValue(mixed.put()));
     equal(context, "unsupported attribute sentinel", S_OK, UiaGetReservedNotSupportedValue(unsupported.put()));
@@ -320,17 +341,20 @@ void testTextAttributes(Context &context)
         {
             return;
         }
+
         VARIANT attribute{};
         equal(context, "effective attribute query", S_OK, document->GetAttributeValue(id, &attribute));
         verify(attribute);
         VariantClear(&attribute);
     };
+
     read(
         UIA_FontWeightAttributeId,
         [&](const VARIANT &attribute)
         {
             check(context, "adjacent equal bold values remain uniform", attribute.vt == VT_I4 && attribute.lVal == 700);
         });
+
     annotations[1].value = "italic";
     check(context, "different effective formatting publishes", bridge.publish(tree.view(2)).ok());
     read(
@@ -339,6 +363,7 @@ void testTextAttributes(Context &context)
         {
             check(context, "different effective weights are mixed", attribute.vt == VT_UNKNOWN && attribute.punkVal == mixed.value);
         });
+
     annotations[0] = {{0, 2}, A::TextAnnotationKind::Emphasis, "bold"};
     check(context, "overlapping independent attributes publish", bridge.publish(tree.view(3)).ok());
     read(
@@ -353,6 +378,7 @@ void testTextAttributes(Context &context)
         {
             check(context, "partial italic is mixed", attribute.vt == VT_UNKNOWN && attribute.punkVal == mixed.value);
         });
+
     annotations = {{{{0, 1}, A::TextAnnotationKind::Language, "fr-FR"}, {{1, 2}, A::TextAnnotationKind::Language, "fr-FR"}}};
     check(context, "adjacent language annotations publish", bridge.publish(tree.view(4)).ok());
     read(
@@ -364,6 +390,7 @@ void testTextAttributes(Context &context)
                 "adjacent equal language values remain uniform",
                 attribute.vt == VT_I4 && attribute.lVal == static_cast<LONG>(LocaleNameToLCID(L"fr-FR", 0)));
         });
+
     annotations[0].range = {0, 2};
     annotations[1].value = "fr-fr";
     check(context, "overlapping equivalent languages publish", bridge.publish(tree.view(5)).ok());
@@ -376,6 +403,7 @@ void testTextAttributes(Context &context)
                 "equivalent native cultures remain uniform",
                 attribute.vt == VT_I4 && attribute.lVal == static_cast<LONG>(LocaleNameToLCID(L"fr-FR", 0)));
         });
+
     annotations[0] = {{0, 2}, A::TextAnnotationKind::Link, "target", 1};
     content.annotations = std::span(annotations).first<1>();
     check(context, "portable link association publishes", bridge.publish(tree.view(6)).ok());
@@ -388,6 +416,7 @@ void testTextAttributes(Context &context)
                 "link without a destination text range is unsupported",
                 attribute.vt == VT_UNKNOWN && attribute.punkVal == unsupported.value);
         });
+
     const auto reader = bridge.readSnapshot();
     const auto *link = reader.find(2);
     check(

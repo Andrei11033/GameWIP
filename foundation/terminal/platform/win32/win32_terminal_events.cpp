@@ -287,6 +287,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 
                 return KeyLocation::Unknown;
             }
+
             case VK_RETURN:
                 return (record.dwControlKeyState & ENHANCED_KEY) != 0 ? KeyLocation::Numpad : KeyLocation::Standard;
             default:
@@ -537,7 +538,6 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
         {
             return makeEvent(*media, record, state);
         }
-
         return decodeCharacterRecord(record, state);
     }
 } // namespace GameWIP::Terminal::Detail::Platform::Win32Events

@@ -2,6 +2,7 @@
 /// @brief Owned authoring storage and indexed immutable snapshot inspection.
 
 #include "desktop/internal/accessibility_state.h"
+
 #include <algorithm>
 #include <new>
 
@@ -74,8 +75,10 @@ namespace GameWIP::Desktop::Detail
         node.language = copyString(source.language);
         node.accessKey = copyString(source.accessKey);
         node.keyboardShortcut = copyString(source.keyboardShortcut);
+
         children.assign(source.children.begin(), source.children.end());
         node.children = children;
+
         relations.reserve(source.relations.size());
 
         for(const auto &relation : source.relations)
@@ -84,6 +87,7 @@ namespace GameWIP::Desktop::Detail
             relations.push_back({relation.kind, relationTargets.back()});
         }
         node.relations = relations;
+
         extensions.reserve(source.extensions.size());
 
         for(const auto &extension : source.extensions)
@@ -108,6 +112,7 @@ namespace GameWIP::Desktop::Detail
             {
                 annotation.value = copyString(annotation.value);
             }
+
             fragments.assign(source.text->fragments.begin(), source.text->fragments.end());
             textSelection.assign(source.text->selection.begin(), source.text->selection.end());
             node.text->annotations = annotations;
@@ -172,6 +177,7 @@ namespace GameWIP::Desktop::Accessibility
             {
                 return false;
             }
+
             std::uint64_t targets = 0;
 
             for(const auto &relation : node.relations)
@@ -183,6 +189,7 @@ namespace GameWIP::Desktop::Accessibility
                     return false;
                 }
             }
+
             const auto extension = [&](const auto &self, const A::ExtensionValue &value, std::uint32_t depth) -> bool
             {
                 if(depth > limits.maximumExtensionDepth || ++values > limits.maximumExtensionValuesPerNode)
@@ -245,6 +252,7 @@ namespace GameWIP::Desktop::Accessibility
                     }
                 }
             }
+
             bytes += nodeBytes;
             return bytes <= limits.maximumTotalTextBytes;
         }
@@ -280,6 +288,7 @@ namespace GameWIP::Desktop::Accessibility
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         try
         {
             if(!state_)
@@ -301,6 +310,7 @@ namespace GameWIP::Desktop::Accessibility
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         try
         {
             if(!state_)
@@ -322,6 +332,7 @@ namespace GameWIP::Desktop::Accessibility
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         try
         {
             if(state_ && state_->nodes.size() >= limits_.maximumNodes)
@@ -333,14 +344,12 @@ namespace GameWIP::Desktop::Accessibility
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
-
             std::uint64_t bytes = state_ ? state_->textBytes : 0;
 
             if(!boundedNode(node, limits_, bytes))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
-
             auto owned = std::make_shared<Detail::OwnedAccessibilityNode>(node);
 
             if(!state_)
@@ -381,6 +390,7 @@ namespace GameWIP::Desktop::Accessibility
     {
         return state_ ? state_->view() : A::SnapshotView{};
     }
+
     // ------------------------------------------------------------
     // Immutable snapshot inspection
     // ------------------------------------------------------------

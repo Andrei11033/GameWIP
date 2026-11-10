@@ -53,13 +53,11 @@ namespace
         {
             return;
         }
-
         Input::Synthetic::Source source;
         if(!context.expectTrue("synthetic source attaches", source.attach(input).ok()))
         {
             return;
         }
-
         Input::Types::SyntheticDeviceDescription description{
             .name = "Synthetic Test Device",
             .persistentKey = "test:synthetic-device",
@@ -92,19 +90,15 @@ namespace
         {
             return;
         }
-
         const Input::Types::DeviceInfo *deviceInfo = Input::Query::findDevice(devices, device);
         if(!context.expectTrue("synthetic device is discoverable", deviceInfo != nullptr))
         {
             return;
         }
-
         static_cast<void>(context.expectEq("synthetic device has virtual origin", Input::Types::DeviceOrigin::Virtual, deviceInfo->origin));
-
         static_cast<void>(context.expectEq("synthetic device exposes both elements", std::size_t{2}, deviceInfo->elements.size()));
 
         const auto button = Input::Query::findStandard(devices, Input::Standard::Key::A, device);
-
         if(!button.has_value())
         {
             static_cast<void>(context.expectTrue("standard button lookup resolves", false));
@@ -113,12 +107,10 @@ namespace
         static_cast<void>(context.expectTrue("standard button lookup resolves", true));
 
         const Input::Types::ElementInfo *axisInfo = Input::Query::findElementByPersistentKey(devices, "axis", device);
-
         if(!context.expectTrue("persistent axis lookup resolves", axisInfo != nullptr))
         {
             return;
         }
-
         const Input::Types::ElementId axis = axisInfo->id;
 
         Input::Types::Frame frame;
@@ -143,11 +135,8 @@ namespace
         static_cast<void>(context.expectTrue("device connection event is published", connectedEvent));
 
         const Input::Types::ElementId buttonElement = button.value();
-
         static_cast<void>(context.expectTrue("button value publishes", source.setAbsoluteValue(buttonElement, Input::Types::Value{true}).ok()));
-
         static_cast<void>(context.expectTrue("first relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{1.25F}).ok()));
-
         static_cast<void>(context.expectTrue("second relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{2.75F}).ok()));
 
         const auto pressedCapture = input.capture(frame);
@@ -155,7 +144,6 @@ namespace
         {
             return;
         }
-
         static_cast<void>(context.expectTrue("button is down", frame.isDown(buttonElement)));
         static_cast<void>(context.expectTrue("button was pressed", frame.wasPressed(buttonElement)));
         static_cast<void>(context.expectEq("button press count is one", std::uint32_t{1}, frame.pressCount(buttonElement)));
@@ -164,7 +152,6 @@ namespace
         static_cast<void>(context.expectTrue("relative deltas accumulate", axisValue != nullptr && *axisValue == 4.0F));
 
         static_cast<void>(context.expectTrue("button release publishes", source.setAbsoluteValue(buttonElement, Input::Types::Value{false}).ok()));
-
         static_cast<void>(context.expectTrue("negative relative delta publishes", source.addRelativeDelta(axis, Input::Types::Value{-1.5F}).ok()));
 
         const auto releasedCapture = input.capture(frame);
@@ -172,7 +159,6 @@ namespace
         {
             return;
         }
-
         static_cast<void>(context.expectTrue("button is released", !frame.isDown(buttonElement)));
         static_cast<void>(context.expectTrue("button was released", frame.wasReleased(buttonElement)));
 
@@ -202,7 +188,6 @@ namespace
         {
             return;
         }
-
         static_cast<void>(context.expectEq("synthetic text is retained", std::string_view{"Synthetic text"}, frame.textUtf8()));
 
         bool textEvent = false;
@@ -226,7 +211,6 @@ namespace
         {
             return;
         }
-
         static_cast<void>(context.expectEq("repeat does not create a press transition", std::uint32_t{0}, frame.pressCount(buttonElement)));
         static_cast<void>(context.expectEq("repeat does not create a release transition", std::uint32_t{0}, frame.releaseCount(buttonElement)));
 
@@ -324,7 +308,6 @@ namespace
         {
             return;
         }
-
         static_cast<void>(context.expectTrue("Win32 attachment reports attached", attachment.isAttached()));
         static_cast<void>(context.expectTrue("Win32 attachment exposes a surface", attachment.surfaceId().isValid()));
 
@@ -349,7 +332,6 @@ namespace
         {
             return;
         }
-
         static_cast<void>(context.expectEq("Win32 text is forwarded", std::string_view{"A"}, frame.textUtf8()));
 
         std::span<const Input::Types::DeviceInfo> devices;
@@ -357,7 +339,6 @@ namespace
         {
             return;
         }
-
         const auto pointer = Input::Query::findStandard(devices, Input::Standard::Pointer::Position);
         if(!pointer.has_value())
         {

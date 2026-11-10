@@ -134,6 +134,7 @@ std::string pasteText()
     const auto result = Clipboard::readText();
     return result.ok() ? *result : std::string{};
 }
+
 ```
 
 Clipboard itself only exchanges data; the application maps shortcuts, menus, and selection commands to these helpers.

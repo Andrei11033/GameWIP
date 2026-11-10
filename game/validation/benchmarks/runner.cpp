@@ -45,6 +45,7 @@ namespace GameWIP::Validation::Benchmarks
             std::cerr << "Benchmark executable path discovery failed: " << error.what() << '\n';
             return {.argumentsValid = false};
         }
+
         std::error_code temporaryError;
         std::filesystem::create_directories(temporaryRoot, temporaryError);
 
@@ -53,6 +54,7 @@ namespace GameWIP::Validation::Benchmarks
             std::cerr << "Benchmark temporary directory setup failed: " << temporaryError.message() << '\n';
             return {.argumentsValid = false};
         }
+
         const std::u8string temporaryRootUtf8 = temporaryRoot.u8string();
         const std::string temporaryRootText(temporaryRootUtf8.begin(), temporaryRootUtf8.end());
         TestSupport::ScopedProcessState processState;
@@ -102,7 +104,6 @@ namespace GameWIP::Validation::Benchmarks
             benchmark::Shutdown();
             return {.argumentsValid = false};
         }
-
         const std::size_t benchmarksRun = benchmark::RunSpecifiedBenchmarks();
         benchmark::Shutdown();
         return {.benchmarksRun = benchmarksRun};

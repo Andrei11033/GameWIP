@@ -387,6 +387,7 @@ namespace GameWIP::Logger
     {
         return reportError(Detail::Core::sourceId(source), message);
     }
+
     /// @brief Synchronously reports an enum-source Error under a bounded deadline.
     template <typename Source>
         requires(SourceEnum<Source>)
@@ -394,6 +395,7 @@ namespace GameWIP::Logger
     {
         return reportError(Detail::Core::sourceId(source), timeout, message);
     }
+
     /// @brief Synchronously reports a preformatted Fatal diagnostic with an enum source.
     template <typename Source>
         requires(SourceEnum<Source>)
@@ -401,6 +403,7 @@ namespace GameWIP::Logger
     {
         return reportFatal(Detail::Core::sourceId(source), message);
     }
+
     /// @brief Synchronously reports an enum-source Fatal diagnostic under a bounded deadline.
     template <typename Source>
         requires(SourceEnum<Source>)
@@ -465,6 +468,7 @@ namespace GameWIP::Logger
     {
         fatalTerminate(Detail::Core::sourceId(source), message);
     }
+
     /// @brief Reports an enum-source Fatal diagnostic under a deadline and then terminates.
     template <typename Source>
         requires(SourceEnum<Source>)
@@ -481,6 +485,7 @@ namespace GameWIP::Logger
         static_cast<void>(Detail::Core::formatAndReport(Types::Level::Fatal, source, true, nullptr, format, std::forward<Args>(args)...));
         std::terminate();
     }
+
     /// @brief Formats and reports a Fatal diagnostic under a deadline, then terminates.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
@@ -489,6 +494,7 @@ namespace GameWIP::Logger
         static_cast<void>(Detail::Core::formatAndReport(Types::Level::Fatal, source, true, &timeout, format, std::forward<Args>(args)...));
         std::terminate();
     }
+
     /// @brief Runtime-formats a Fatal diagnostic, reports it, and then terminates.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)
@@ -497,6 +503,7 @@ namespace GameWIP::Logger
         static_cast<void>(Detail::Core::runtimeFormatAndReport(Types::Level::Fatal, source, true, nullptr, format, args...));
         std::terminate();
     }
+
     /// @brief Runtime-formats and reports a Fatal diagnostic under a deadline, then terminates.
     template <typename Source, typename... Args>
         requires(sizeof...(Args) > 0)

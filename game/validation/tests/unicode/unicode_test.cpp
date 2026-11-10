@@ -92,7 +92,6 @@ namespace
         {
             throw std::runtime_error(std::format("UTF-8 encode length {} is outside 1..{}", result.byteCount, result.bytes.size()));
         }
-
         return {result.bytes.data(), result.byteCount};
     }
 
@@ -103,7 +102,6 @@ namespace
         {
             throw std::runtime_error(std::format("UTF-16 encode length {} is outside 1..{}", result.codeUnitCount, result.codeUnits.size()));
         }
-
         return std::span{result.codeUnits}.first(result.codeUnitCount);
     }
 
@@ -400,7 +398,6 @@ namespace
                 error = std::format("invalid scalar token '{}'", scalarText);
                 return std::nullopt;
             }
-
             const char32_t scalar = static_cast<char32_t>(scalarValue);
             const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
 
@@ -440,15 +437,14 @@ namespace
             error = "case is empty or does not end with a break marker";
             return std::nullopt;
         }
-
         return fixture;
     }
 
-    // Focused suite declarations keep cross-suite calls independent of fragment include order.
     // ------------------------------------------------------------
     // Test suites
     // ------------------------------------------------------------
 
+    // Focused suite declarations keep cross-suite calls independent of fragment include order.
     void testVersionAndScalarPredicates(TestSupport::Context &context);
     void testUtf8CodecAndValidation(TestSupport::Context &context);
     void testUtf16CodecAndValidation(TestSupport::Context &context);

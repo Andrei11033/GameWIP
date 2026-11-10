@@ -87,7 +87,6 @@ IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::Rem
         {
             return IO::makeStatus(ErrorCode::Unsupported);
         }
-
         return Detail::Platform::removeEmptyDirectory(path, options);
     }
     catch(const std::bad_alloc &)
@@ -108,7 +107,6 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
         {
             return removeTreeFailure(ErrorCode::InvalidArgument);
         }
-
         Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
 
         if(!existing.status.ok())
@@ -117,7 +115,6 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
             {
                 return {.status = IO::successStatus(), .removedEntries = 0};
             }
-
             return removeTreeFailure(std::move(existing.status));
         }
 
@@ -135,7 +132,6 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
         {
             return removeTreeFailure(ErrorCode::SizeLimitExceeded);
         }
-
         struct RemovalFrame
         {
             Types::Path path;
@@ -155,7 +151,6 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
             {
                 return removeTreeFailure(ErrorCode::SizeLimitExceeded, removedEntries);
             }
-
             RemovalFrame &current = pending.back();
 
             if(current.info.kind == Types::EntryKind::Directory)

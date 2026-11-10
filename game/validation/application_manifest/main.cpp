@@ -31,14 +31,12 @@ int main()
     {
         return 1;
     }
-
     const HRSRC resource = FindResourceW(module, MAKEINTRESOURCEW(1), MAKEINTRESOURCEW(24));
 
     if(resource == nullptr)
     {
         return 2;
     }
-
     const HGLOBAL loaded = LoadResource(module, resource);
     const auto *data = static_cast<const char *>(LockResource(loaded));
 
@@ -46,7 +44,6 @@ int main()
     {
         return 3;
     }
-
     const std::string_view manifest(data, SizeofResource(module, resource));
     const bool commonControls = manifest.contains("Microsoft.Windows.Common-Controls");
 
@@ -61,6 +58,7 @@ int main()
     {
         return 5;
     }
+
 #endif
     return 0;
 }

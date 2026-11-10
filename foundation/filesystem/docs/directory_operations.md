@@ -43,6 +43,7 @@ if (auto status = cursor.open("assets"); !status.ok())
 {
     return 1;
 }
+
 for (;;)
 {
     auto next = cursor.next();
@@ -50,10 +51,12 @@ for (;;)
     {
         return 1;
     }
+
     if (!next.hasEntry)
     {
         break;
     }
+
     // Process next.entry without retaining every sibling.
 }
 ```

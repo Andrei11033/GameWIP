@@ -57,7 +57,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return 0;
         }
-
         std::size_t bytes = sizeof(SourceRegistry) + registry->sources.capacity() * sizeof(RegisteredSource) +
                             registry->directSourceLookup.capacity() * sizeof(std::size_t);
         const std::size_t emptyCapacity = std::string{}.capacity();
@@ -182,7 +181,6 @@ GameWIP::Logger::Types::OutputMode GameWIP::Logger::getOutput() noexcept
         {
             return Types::OutputMode::None;
         }
-
         return loggerState().mode;
     }
     catch(...)

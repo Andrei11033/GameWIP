@@ -13,7 +13,6 @@ namespace GameWIP::Input::Types
         {
             return nullptr;
         }
-
         const std::size_t index = static_cast<std::size_t>(id.slot - 1);
         return index < states_.size() && states_[index].id == id ? &states_[index] : nullptr;
     }
@@ -42,7 +41,6 @@ namespace GameWIP::Input::Types
         {
             return false;
         }
-
         const bool *pressed = std::get_if<bool>(&current->value);
         return pressed != nullptr && *pressed;
     }

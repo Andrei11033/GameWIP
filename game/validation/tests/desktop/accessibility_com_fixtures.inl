@@ -54,6 +54,5 @@ template <typename T> bool pattern(Context &context, IRawElementProviderSimple *
     {
         return false;
     }
-
     return context.expectTrue("pattern has correct interface", SUCCEEDED(unknown->QueryInterface(__uuidof(T), reinterpret_cast<void **>(out.put()))));
 }

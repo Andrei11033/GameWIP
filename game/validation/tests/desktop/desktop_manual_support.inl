@@ -10,14 +10,13 @@
         return {};
     }
     const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
-
     if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
     {
         return L"?";
     }
+
     std::vector<char16_t> converted(measurement.requiredCodeUnits);
     const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
-
     if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
     {
         return L"?";
@@ -66,7 +65,6 @@ struct ManualFullscreenSections
         return result;
     }
     const auto native = Desktop::Native::Win32::getHandle(window);
-
     if(!native.status.ok() || native->window == nullptr)
     {
         return result;
@@ -90,7 +88,6 @@ struct ManualFullscreenSections
     {
         return result;
     }
-
     result.client = {clientTopLeft.x, clientTopLeft.y, clientBottomRight.x, clientBottomRight.y};
     result.monitor = monitorInfo.rcMonitor;
     result.style = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_STYLE));
@@ -248,6 +245,7 @@ public:
         {
             return;
         }
+
         RECT workArea{};
 
         if(SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
@@ -479,12 +477,13 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     {
         return;
     }
-    const auto native = Desktop::Native::Win32::getHandle(window);
 
+    const auto native = Desktop::Native::Win32::getHandle(window);
     if(!native.status.ok())
     {
         return;
     }
+
     constexpr std::size_t extent = 128;
     std::array<std::byte, extent * extent * 4> preview{};
 
@@ -520,6 +519,7 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     {
         return;
     }
+
     StretchDIBits(dc, 18, 170, 128, 128, 0, 0, 128, 128, preview.data(), &bitmap, DIB_RGB_COLORS, SRCCOPY);
     ReleaseDC(native->window, dc);
 }
@@ -767,6 +767,7 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     {
         return TestSupport::Types::Reporting::ManualAnswer::Skipped;
     }
+
     ++manualCasesSelected;
 
     if(manualStatusWindow != nullptr)
@@ -780,6 +781,7 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
         paintManualValidationSurface(window, surfaceLayout);
         manualStatusWindow->refresh(window);
     }
+
     std::atomic<bool> answered = false;
     TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::Types::Reporting::ManualAnswer::Skipped;
     std::string skipReason;
@@ -838,6 +840,7 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
         context.fail(name, pumpFailure.message);
         return TestSupport::Types::Reporting::ManualAnswer::No;
     }
+
     recordManualAnswer(context, name, answer, skipReason);
     return answer;
 }
@@ -902,8 +905,8 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
     {
         return false;
     }
-    const Desktop::Types::Events::PumpResult pump = Desktop::Events::poll();
 
+    const Desktop::Types::Events::PumpResult pump = Desktop::Events::poll();
     if(!requireManualStatus(context, "manual Window event pump", pump.status))
     {
         return false;

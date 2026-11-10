@@ -65,6 +65,7 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status testShellApartment() noexcept;
     [[nodiscard]] IO::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept;
 #endif
+
     /// @brief Registers one file extension with the shell.
     [[nodiscard]] Types::Registration::Result registerFileExtension(const Types::Registration::FileExtensionDescription &description) noexcept;
     /// @brief Registers one URI scheme with the shell.

@@ -64,6 +64,7 @@ if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
 {
     return;
 }
+
 ```
 
 ## Failure handling

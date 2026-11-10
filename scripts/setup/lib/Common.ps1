@@ -40,6 +40,7 @@ function Get-GameWipSetupState
         Add-GameWipOperationWarning -Message "Disposable setup state is corrupt and will be ignored: $($_.Exception.Message)"
         return $defaultState
     }
+
     $script:SetupStateReadStatus = 'valid'
     [string[]]$wingetPackages = @($state.wingetPackages | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     [string[]]$vscodeExtensions = @($state.vscodeExtensions | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
@@ -83,6 +84,7 @@ function Initialize-GameWipSetupProcessPath
 function Resolve-GameWipSetupCommand
 {
     param([Parameter(Mandatory = $true)][string]$Name)
+
     $command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue |
         Select-Object -First 1
 
@@ -90,6 +92,7 @@ function Resolve-GameWipSetupCommand
     {
         return $null
     }
+
     return [string]$command.Source
 }
 
@@ -120,6 +123,7 @@ function Assert-GameWipSetupWindows
     {
         throw 'The Windows setup entry point can only run on Windows.'
     }
+
     $build = [Environment]::OSVersion.Version.Build
 
     if ($build -lt 22000)

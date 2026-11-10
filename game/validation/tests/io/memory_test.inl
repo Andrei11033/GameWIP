@@ -45,6 +45,7 @@ void testMemoryReader(TestSupport::Context &context)
     {
         return;
     }
+
     static_cast<void>(context.expectTrue("MemoryReader final read reports EOS", finalRead.endOfStream));
     static_cast<void>(context.expectEq(
         "MemoryReader move continues from the preserved position",
@@ -134,6 +135,7 @@ void testMemoryReaderSeek(TestSupport::Context &context)
     {
         return;
     }
+
     struct RejectedSeek
     {
         std::string_view name;
@@ -228,6 +230,7 @@ void testMemoryWriter(TestSupport::Context &context)
     {
         return;
     }
+
     const IO::Types::CopyTextResult textCopy = textWriter.copyText();
     static_cast<void>(context.expectTrue("MemoryWriter text copy succeeds", textCopy.status.ok()));
     static_cast<void>(context.expectEq("MemoryWriter text copy preserves NUL bytes", std::string("a\0b", 3), textCopy.text));
@@ -249,6 +252,7 @@ void testMemoryWriter(TestSupport::Context &context)
     {
         return;
     }
+
     const IO::Types::CopyTextResult invalidText = invalidTextWriter.copyText();
     static_cast<void>(context.expectEq("MemoryWriter text copy rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidText.status.code));
     static_cast<void>(context.expectTrue("MemoryWriter malformed text copy returns no text", invalidText.text.empty()));

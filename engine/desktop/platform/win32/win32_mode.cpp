@@ -13,6 +13,7 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Transition state and rollback
     // ------------------------------------------------------------
+
     namespace
     {
         /// @brief Marks a mode transition so synchronous native callbacks do not compete for geometry.
@@ -94,6 +95,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 const DWORD nativeCode = GetLastError();
                 return statusFromWin32(IO::Types::ErrorCode::StatFailed, nativeCode, "GetWindowPlacement");
             }
+
             LONG_PTR style = 0;
             LONG_PTR extendedStyle = 0;
             IO::Types::Status status = queryWindowLong(data.handle, GWL_STYLE, style, "GetWindowLongPtrW saved windowed style");
@@ -102,12 +104,14 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             status = queryWindowLong(data.handle, GWL_EXSTYLE, extendedStyle, "GetWindowLongPtrW saved windowed extended style");
 
             if(!status.ok())
             {
                 return status;
             }
+
             data.windowedPlacement = placement;
             data.windowedStyle = static_cast<DWORD>(style);
             data.windowedExtendedStyle = static_cast<DWORD>(extendedStyle);
@@ -190,12 +194,14 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             status = queryWindowLong(data.handle, GWL_EXSTYLE, extendedStyle, "GetWindowLongPtrW mode extended style");
 
             if(!status.ok())
             {
                 return status;
             }
+
             snapshot.style = static_cast<DWORD>(style);
             snapshot.extendedStyle = static_cast<DWORD>(extendedStyle);
             snapshot.rect = rect;
@@ -295,12 +301,14 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Fullscreen placement and mode transitions
     // ------------------------------------------------------------
+
     IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder) noexcept
     {
         if(monitor == nullptr)
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, ERROR_NOT_FOUND, "resolve fullscreen monitor");
         }
+
         MONITORINFOEXW info{};
         info.cbSize = sizeof(info);
 
@@ -308,6 +316,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return statusFromWin32(IO::Types::ErrorCode::NotFound, GetLastError(), "resolve fullscreen monitor");
         }
+
         UINT flags = SWP_NOACTIVATE | SWP_FRAMECHANGED;
 
         if(preserveZOrder)
@@ -336,6 +345,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
+
         try
         {
             WindowData &data = *state.platform;
@@ -351,7 +361,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::successStatus();
             }
-
             HMONITOR monitor = nullptr;
             Types::Result<Types::Display::Info> monitorInfo;
             std::wstring requestedDevice;
@@ -413,6 +422,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     return placementStatus;
                 }
             }
+
             ModeSnapshot snapshot;
             IO::Types::Status snapshotStatus = captureModeSnapshot(state, previousRect, snapshot);
 
@@ -565,13 +575,13 @@ namespace GameWIP::Desktop::Detail::Platform
     // ------------------------------------------------------------
     // Display-change recovery
     // ------------------------------------------------------------
+
     IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor) noexcept
     {
         if(!state.platform || state.platform->handle == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-
         const Types::WindowMode previousMode = state.mode;
         const Types::Display::MonitorId previousMonitor = state.monitor;
         const Types::ScreenPosition previousPosition = state.clientPosition;

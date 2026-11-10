@@ -43,7 +43,6 @@ namespace GameWIP::Desktop::Renderer
                 {
                     return nullptr;
                 }
-
                 return Detail::WindowAccess::ensureRendererIntegration(window);
             }
             catch(...)
@@ -160,6 +159,7 @@ namespace GameWIP::Desktop::Renderer
         {
             return status;
         }
+
         Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
 
         if(renderer == nullptr || !renderer->occlusionProviderAttached)
@@ -171,13 +171,13 @@ namespace GameWIP::Desktop::Renderer
         {
             return IO::successStatus();
         }
-
         renderer->occluded = occluded;
 
         if(Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
         {
             publication->publishOccluded(occluded);
         }
+
         static_cast<void>(Detail::enqueueEvent(*state, Types::Events::OcclusionChanged{occluded}));
         return IO::successStatus();
     }
@@ -191,13 +191,13 @@ namespace GameWIP::Desktop::Renderer
         {
             return status;
         }
+
         Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
 
         if(renderer == nullptr || !renderer->occlusionProviderAttached)
         {
             return IO::successStatus();
         }
-
         renderer->occlusionProviderAttached = false;
 
         if(Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
@@ -234,7 +234,6 @@ namespace GameWIP::Desktop::Renderer
         {
             return 0;
         }
-
         return wordsPerRow * height;
     }
 
@@ -248,6 +247,7 @@ namespace GameWIP::Desktop::Renderer
         {
             return {.status = status};
         }
+
         Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
         const bool enabledForTesting = renderer != nullptr && renderer->pointerHitMaskBackendSupportedForTesting;
 
@@ -310,6 +310,7 @@ namespace GameWIP::Desktop::Renderer
         {
             return status;
         }
+
         Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
 
         if(renderer == nullptr || generation == 0 || generation != renderer->pointerHitMaskTargetGeneration)
@@ -390,6 +391,7 @@ namespace GameWIP::Desktop::Renderer
         {
             return status;
         }
+
         Detail::invalidatePointerHitMask(*state);
         return IO::successStatus();
     }

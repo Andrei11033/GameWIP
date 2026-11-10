@@ -114,7 +114,6 @@ namespace
                 testContext.summary(std::string_view(text).substr(std::string_view{"[RESULT] "}.size()));
                 return;
             }
-
             testContext.info(text);
         }
 
@@ -158,6 +157,7 @@ namespace
                 testContext.pass(name);
                 return;
             }
+
             testContext.fail(name, details);
         }
 
@@ -168,6 +168,7 @@ namespace
                 testContext.pass(name);
                 return;
             }
+
             testContext.fail(name, details);
         }
 
@@ -439,6 +440,7 @@ namespace GameWIP::Test
                     context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
                     return;
                 }
+
                 context.executablePath = GameWIP::Validation::currentExecutablePath();
                 const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
 
@@ -446,6 +448,7 @@ namespace GameWIP::Test
                 {
                     return;
                 }
+
                 const ScopedLoggerShutdown loggerShutdown;
                 context.logRoot = workspace.path();
 

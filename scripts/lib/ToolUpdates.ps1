@@ -34,7 +34,6 @@ function Get-GameWipRepositoryRelativePath
     return $fullPath
 }
 
-
 function Get-GameWipToolUpdatePlan
 {
     param([string[]]$ToolId)
@@ -258,6 +257,7 @@ function Get-GameWipReferenceTexts
         $pattern = [string]$Reference.pattern
         return [pscustomobject]@{ Old = $pattern.Replace('{version}', $OldVersion); New = $pattern.Replace('{version}', $NewVersion) }
     }
+
     throw "Unknown live version reference kind '$($Reference.kind)'."
 }
 
@@ -295,6 +295,7 @@ function Get-GameWipTrackedToolMutationPlan
         {
             throw "Tool '$($tool.id)' disappeared from staged project-tools.json."
         }
+
         $registryTool = $registryTool[0]
 
         if ($tool.versionPolicy -eq 'exact' -and $item.Latest -and $item.Latest -ne $tool.requiredVersion)
@@ -374,7 +375,6 @@ function Get-GameWipTrackedToolMutationPlan
                     {
                         throw "Planned release metadata for '$($tool.id)' is missing '$key'."
                     }
-
                     foreach ($field in @('archive', 'sha256'))
                     {
                         $oldAssetValue = [string]$registryTool.provider.assets[$key][$field]
@@ -438,6 +438,7 @@ function Get-GameWipTrackedToolMutationPlan
         {
             throw 'Node.js is required to stage source-preserving project-tools.json mutations, but node could not be resolved through project-tool discovery.'
         }
+
         $temporaryRoot = if ($null -ne $Script:OperationContext -and -not [string]::IsNullOrWhiteSpace([string]$Script:OperationContext.Temp))
         {
             [string]$Script:OperationContext.Temp
@@ -457,6 +458,7 @@ function Get-GameWipTrackedToolMutationPlan
         {
             throw "The source-preserving project-tools.json mutation failed. See $($mutationResult.LogPath)"
         }
+
         $stagedRegistryText = Read-GameWipUtf8Text -Path $temporaryRegistry
         $stagedRegistry = Read-GameWipJsonConfig -Path $temporaryRegistry -Name 'staged project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
         $previousProjectTools = $Script:ProjectTools
@@ -511,6 +513,7 @@ function Test-GameWipToolPlanRequiresInstall
     {
         return $true
     }
+
     $installTool = Get-GameWipPlannedInstallTool -PlanItem $PlanItem -TrackedPlan $TrackedPlan
     $currentStatus = Get-GameWipToolStatus -Tool $installTool
 
@@ -542,6 +545,7 @@ function Invoke-GameWipToolInstallPlan
     {
         return
     }
+
     Initialize-GameWipManagedToolRoot
 
     foreach ($item in $InstallPlan)
@@ -576,6 +580,7 @@ function Invoke-GameWipToolInstallPlan
             }
             throw "Tool '$($installTool.id)' failed post-install verification (state=$($verifiedStatus.State), provider=$providerDetails, location=$($verified.Location), dependencies=$($dependencyDetails -join '; '))."
         }
+
         Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
     }
 }
@@ -649,6 +654,7 @@ function Invoke-GameWipToolUpdate
     {
         return
     }
+
     $installPlan = @($plan | Where-Object {
             $_.Tool.capabilities.update -and (Test-GameWipToolPlanRequiresInstall -PlanItem $_ -TrackedPlan $trackedPlan)
         })
@@ -658,6 +664,7 @@ function Invoke-GameWipToolUpdate
         Write-Host 'All selected tools and tracked declarations are already current.'
         return
     }
+
     Assert-GameWipCleanTrackedTree
     $planLines = @($installPlan | ForEach-Object { "$($_.Tool.id): install/verify $(if ($_.Latest) { $_.Latest } elseif ($_.Tool.Contains('requiredVersion')) { $_.Tool.requiredVersion } else { 'provider-managed version' })" }) + @($trackedPlan.Descriptions) + @('Format maintained files with the updated tools, then run the quality gate.')
 
@@ -691,6 +698,7 @@ function Assert-GameWipPinnedToolAvailable
     {
         return
     }
+
     $version = [string]$Tool.requiredVersion
 
     switch ([string]$Tool.provider.kind)
@@ -718,7 +726,6 @@ function Assert-GameWipPinnedToolAvailable
             {
                 throw "Pinned npm package '$($Tool.provider.package)@$version' is unavailable."
             }
-
             foreach ($dependency in $(if ($Tool.provider.Contains('dependencies'))
                     {
                         @($Tool.provider.dependencies)
@@ -888,6 +895,7 @@ function Invoke-GameWipToolEnsure
     {
         return
     }
+
     Invoke-GameWipMutationBody -Body {
         Initialize-GameWipManagedToolRoot
 

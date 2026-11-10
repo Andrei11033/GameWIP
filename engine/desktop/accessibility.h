@@ -679,6 +679,7 @@ namespace GameWIP::Desktop::Types::Accessibility
         Percent, ///< Absolute [0, 100] percentages; -1 leaves an axis unchanged.
         Step     ///< Relative step commands: +/-1 small, +/-10 large, 0 unchanged.
     };
+
     /// @brief Distinguishes replacement, additive selection, and removal requests.
     enum class SelectionOperation : std::uint8_t
     {
@@ -686,6 +687,7 @@ namespace GameWIP::Desktop::Types::Accessibility
         Add,
         Remove
     };
+
     /// @brief Scroll delta or destination, with explicit units and absolute/relative semantics.
     struct ScrollRequest
     {

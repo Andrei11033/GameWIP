@@ -51,7 +51,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return;
         }
-
         publishHookMilestone(loggerTestHookState.workerDeliveryReached);
         waitForHookMilestone(loggerTestHookState.releaseWorkerDelivery);
     }

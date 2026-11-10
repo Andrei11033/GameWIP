@@ -200,11 +200,13 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
         {
             return value != 0;
         }
+
         /// @brief Returns the invalid id (`value` 0).
         [[nodiscard]] static constexpr ButtonId invalid() noexcept
         {
             return {};
         }
+
         friend constexpr bool operator==(ButtonId left, ButtonId right) noexcept = default;
     };
 
@@ -218,11 +220,13 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
         {
             return value != 0;
         }
+
         /// @brief Returns the invalid id (`value` 0).
         [[nodiscard]] static constexpr OptionId invalid() noexcept
         {
             return {};
         }
+
         friend constexpr bool operator==(OptionId left, OptionId right) noexcept = default;
     };
 
@@ -320,6 +324,7 @@ namespace GameWIP::Desktop
         ProgressDialog &operator=(const ProgressDialog &) = delete;
         ProgressDialog(ProgressDialog &&) = delete;
         ProgressDialog &operator=(ProgressDialog &&) = delete;
+
         /// @brief Best-effort closes the native presentation and releases retained state.
         /// @details Wrong-thread destruction transfers cleanup to the opening thread when its dispatcher remains available.
         ~ProgressDialog() noexcept;

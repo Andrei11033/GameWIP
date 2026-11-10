@@ -23,6 +23,7 @@ namespace GameWIP::Desktop::Detail::Platform
 namespace GameWIP::Desktop::Detail
 {
     struct WindowState;
+
     /// @brief Validated, owned target region and its native format identities.
     struct DragDropRegion
     {
@@ -42,6 +43,7 @@ namespace GameWIP::Desktop::Detail
         {
             clearRetainedEvents();
         }
+
         /// @brief Clears FIFO and movement indexes before releasing event storage.
         void clearRetainedEvents() noexcept
         {
@@ -104,10 +106,12 @@ namespace GameWIP::Desktop::Detail
         {
             return target.state_.get();
         }
+
         [[nodiscard]] static const DragDropState *state(const DragDropTarget &target) noexcept
         {
             return target.state_.get();
         }
+
         [[nodiscard]] static std::unique_ptr<DragDropState> &stateOwner(DragDropTarget &target) noexcept
         {
             return target.state_;

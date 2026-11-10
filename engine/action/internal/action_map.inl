@@ -33,7 +33,6 @@ namespace GameWIP::Action
         {
             return ActionResult::InvalidAction;
         }
-
         actionKinds[getActionIndex(action)] = kind;
         return ActionResult::Success;
     }
@@ -456,7 +455,6 @@ namespace GameWIP::Action
         {
             return false;
         }
-
         return actionStates[getActionIndex(action)].down;
     }
 
@@ -466,7 +464,6 @@ namespace GameWIP::Action
         {
             return false;
         }
-
         return actionStates[getActionIndex(action)].pressed;
     }
 
@@ -476,7 +473,6 @@ namespace GameWIP::Action
         {
             return false;
         }
-
         return actionStates[getActionIndex(action)].released;
     }
 
@@ -486,7 +482,6 @@ namespace GameWIP::Action
         {
             return 0.0f;
         }
-
         return actionStates[getActionIndex(action)].value.scalar;
     }
 
@@ -496,7 +491,6 @@ namespace GameWIP::Action
         {
             return 0.0f;
         }
-
         return actionStates[getActionIndex(action)].value.x;
     }
 
@@ -506,7 +500,6 @@ namespace GameWIP::Action
         {
             return 0.0f;
         }
-
         return actionStates[getActionIndex(action)].value.y;
     }
 
@@ -815,7 +808,6 @@ namespace GameWIP::Action
         {
             return ActionResult::InvalidControl;
         }
-
         const ActionKind actionKind = actionKinds[getActionIndex(binding.action)];
 
         if(!Internal::isBindingCompatibleWithActionKind(actionKind, binding))
@@ -977,7 +969,6 @@ namespace GameWIP::Action
         {
             return;
         }
-
         ActionState &actionState = actionStates[getActionIndex(action)];
         actionState.down = actionState.down || down;
     }
@@ -988,7 +979,6 @@ namespace GameWIP::Action
         {
             return false;
         }
-
         const ActionBinding<ActionEnum> &binding = bindings[bindingIndex];
 
         for(std::size_t compareIndex = 0; compareIndex < bindings.size(); ++compareIndex)

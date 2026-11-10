@@ -3,9 +3,11 @@ include(GNUInstallDirs)
 if(NOT COMMAND gamewip_generate_export_header)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPVisibility.cmake")
 endif()
+
 if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
+
 if(NOT COMMAND gamewip_target_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)

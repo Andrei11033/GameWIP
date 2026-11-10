@@ -16,6 +16,7 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
         context.info(TestSupport::formatInfrastructureStatus(directorySetup));
         return;
     }
+
     const auto fileSetup = TestSupport::writeTextFile(targetFile, "payload");
 
     if(!context.expectTrue("symlink fixture file write succeeds", fileSetup.ok()))
@@ -98,6 +99,7 @@ void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::p
         static_cast<void>(context.expectEq("DoNotFollow listDirectory rejects symlink root", ErrorCode::NotDirectory, strictListing.status.code));
     }
 }
+
 /// @brief Verifies strict UTF-8 content helpers and pre-side-effect text validation.
 void testTextContracts(TestSupport::Context &context, const std::filesystem::path &root)
 {
@@ -117,6 +119,7 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
     {
         return;
     }
+
     const auto malformedRead = FileSystem::readAllText(malformedFile);
     static_cast<void>(context.expectEq("readAllText rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedRead.status.code));
     static_cast<void>(context.expectEq("readAllText preserves valid prefix", std::string{"prefix "}, malformedRead.text));
@@ -258,7 +261,6 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     {
         return;
     }
-
     static_cast<void>(context.expectTrue("resizeFile succeeds", FileSystem::resizeFile(source, 3).ok()));
     const IO::Types::ReadAllTextResult resized = FileSystem::readAllText(source);
     static_cast<void>(context.expectTrue("read resized file succeeds", resized.status.ok()));

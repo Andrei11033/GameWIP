@@ -13,6 +13,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     {
         return;
     }
+
     constexpr std::string_view outbound =
         "GameWIP outbound: caf\xC3\xA9 e\xCC\x81 \xE6\x97\xA5\xE6\x9C\xAC\xE8\xAA\x9E \xF0\x9F\x99\x82\r\nSecond line\twith \"quotes\".";
     constexpr std::string_view inbound =
@@ -25,6 +26,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     {
         return;
     }
+
     Desktop::Window window;
 
     if(!openManualWindow(context, window, "GameWIP clipboard interoperability"))
@@ -68,6 +70,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         static_cast<void>(context.expectTrue("foreign clipboard text reads", copied.ok()));
         static_cast<void>(context.expectTrue("foreign Unicode text and line endings match exact fixture", copied.ok() && *copied == inbound));
     }
+
     const auto unicodeFile = fixtures.path() / L"caf\u00e9-\u65e5\u672c\u8a9e-\U0001f600.txt";
     const auto secondFile = fixtures.path() / "second-file.txt";
     const auto copyDirectory = fixtures.path() / "clipboard-copy";
@@ -83,7 +86,6 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
 
     if((manualCaseSelected("clipboard files pasted into Explorer")) &&
        (requireManualStatus(context, "file-list clipboard publication", Desktop::Clipboard::writeFiles(filePaths).status)))
-
     {
         const auto pasted = recordManualCheck(
             context,
@@ -124,6 +126,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
             std::vector(filePaths.begin(), filePaths.end()),
             *imported));
     }
+
     const auto image = manualInteropImage();
     const auto bitmapFile = fixtures.path() / "four-quadrants.bmp";
 
@@ -137,7 +140,6 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
            context,
            "image clipboard publication",
            Desktop::Clipboard::writeImage(Desktop::Types::DataTransfer::ImageView::packed(image.size, image.rgba8)).status)))
-
     {
         recordManualCheck(
             context,
@@ -170,6 +172,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
         static_cast<void>(context.expectEq("Paint image has exact dimensions", image.size, imported->size));
         static_cast<void>(context.expectEq("Paint image has exact channels, orientation and opaque alpha", image.rgba8, imported->rgba8));
     }
+
     static_cast<void>(requireManualStatus(context, "clipboard fixture cleanup", Desktop::Clipboard::clear().status));
     static_cast<void>(window.close());
 }

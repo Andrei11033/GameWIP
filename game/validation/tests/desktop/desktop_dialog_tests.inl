@@ -30,6 +30,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
             ErrorCode::InvalidArgument,
             Desktop::Dialogs::openFile(description).status.code));
     };
+
     invalidExtension("");
     invalidExtension(".png");
     invalidExtension("*");
@@ -55,6 +56,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("file cancellation is a domain outcome", DialogTypes::Outcome::Cancelled, cancelled.outcome));
     static_cast<void>(context.expectTrue("cancelled file path is empty", cancelled.path.empty()));
     static_cast<void>(context.expectFalse("cancelled file has no selected filter", cancelled.selectedFilterIndex.has_value()));
+
     const auto &snapshot = Desktop::TestHooks::lastFileDialogSnapshot();
     static_cast<void>(
         context.expectEq("file filter names preserve order", std::vector<std::wstring>{L"Images", L"Projects", L"All files"}, snapshot.filterNames));
@@ -141,6 +143,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
             ErrorCode::InvalidArgument,
             Desktop::Dialogs::saveFile(save).status.code));
     };
+
     invalidSuggestedExtension(".png");
     invalidSuggestedExtension("*.png");
     invalidSuggestedExtension("a/b");
@@ -665,6 +668,7 @@ void testPromptDialogs(TestSupport::Context &context)
             Desktop::Dialogs::showPrompt(description).status.code));
         description.*member = {};
     };
+
     rejectText("title", &PromptDialogs::Description::title);
     rejectText("heading", &PromptDialogs::Description::heading);
     rejectText("message", &PromptDialogs::Description::message);
@@ -688,6 +692,7 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("portable button ID round trips", buttons[0].id, accepted.button));
     static_cast<void>(context.expectEq("portable option ID round trips", options[1].id, accepted.option));
     static_cast<void>(context.expectEq("Prompt final checkbox state returns", std::optional<bool>{false}, accepted.checkBoxChecked));
+
     const auto &snapshot = Desktop::TestHooks::lastPromptDialogSnapshot();
     static_cast<void>(context.expectEq(
         "Prompt descriptions compose command-link text",

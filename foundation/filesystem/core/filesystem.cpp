@@ -17,7 +17,6 @@
 
 namespace GameWIP::FileSystem
 {
-
     namespace
     {
         using IO::Types::ErrorCode;
@@ -423,7 +422,6 @@ namespace GameWIP::FileSystem
 
             return parent / pathFromTrustedUtf8(name);
         }
-
     } // namespace
 
 #include "filesystem/core/filesystem_handles.inl"
@@ -431,5 +429,4 @@ namespace GameWIP::FileSystem
 #include "filesystem/core/filesystem_whole_file.inl"
 #include "filesystem/core/filesystem_directories.inl"
 #include "filesystem/core/filesystem_mutations.inl"
-
 } // namespace GameWIP::FileSystem

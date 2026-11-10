@@ -120,6 +120,7 @@ namespace GameWIP::Desktop::Detail
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             try
             {
                 out.size = view.size;
@@ -209,6 +210,7 @@ namespace GameWIP::Desktop::Detail
                             return status;
                         }
                     }
+
                     out.push_back(std::move(owned));
                 }
 
@@ -267,7 +269,6 @@ namespace GameWIP::Desktop::Detail
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
-
                     OwnedTrayMenuItem owned;
                     owned.kind = item.kind;
                     owned.commandId = item.commandId;
@@ -287,6 +288,7 @@ namespace GameWIP::Desktop::Detail
                             return status;
                         }
                     }
+
                     IO::Types::Status status = copyMenuItems(item.children, owned.children, ids);
 
                     if(!status.ok())
@@ -317,6 +319,7 @@ namespace GameWIP::Desktop::Detail
             {
                 return status;
             }
+
             state.progress = description.progress;
             state.overlayIcon.reset();
 
@@ -342,6 +345,7 @@ namespace GameWIP::Desktop::Detail
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             try
             {
                 state.icons.clear();
@@ -358,6 +362,7 @@ namespace GameWIP::Desktop::Detail
                     }
                     state.icons.push_back(std::move(owned));
                 }
+
                 state.tooltip = description.tooltip;
                 std::unordered_set<std::uint32_t> ids;
                 return copyMenuItems(description.menu.items, state.menu, ids);
@@ -381,6 +386,7 @@ namespace GameWIP::Desktop::Detail
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             IO::Types::Status status = validateProgress(description.progress);
 
             if(!status.ok())
@@ -472,6 +478,7 @@ namespace GameWIP::Desktop::Detail
                         owned.uri = true;
                         owned.uriText = uri.uri;
                     }
+
                     out.media.push_back(std::move(owned));
                 }
 
@@ -648,6 +655,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         Detail::WindowState *windowState = Detail::WindowAccess::state(window);
 
         if(windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
@@ -669,6 +677,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyExists);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::TaskbarItemState>();
@@ -709,6 +718,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         Detail::WindowState *windowState = Detail::WindowAccess::state(window);
 
         if(windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
@@ -738,6 +748,7 @@ namespace GameWIP::Desktop
             {
                 return status;
             }
+
             status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
             if(!status.ok())
@@ -798,6 +809,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         const IO::Types::Status status = Detail::Platform::closeTaskbar(*state_);
 
         if(!status.ok())
@@ -809,6 +821,7 @@ namespace GameWIP::Desktop
         {
             state_->window->taskbarItem = nullptr;
         }
+
         releaseTaskbarQueue(*state_);
         state_.reset();
         return IO::successStatus();
@@ -822,12 +835,14 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         status = Detail::validateProgress(progress);
 
         if(!status.ok())
         {
             return status;
         }
+
         const auto old = state_->progress;
         state_->progress = progress;
         status = Detail::Platform::applyTaskbar(*state_);
@@ -849,6 +864,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         try
         {
             std::optional<Detail::OwnedIconImage> replacement;
@@ -863,6 +879,7 @@ namespace GameWIP::Desktop
                     return status;
                 }
             }
+
             std::optional<Detail::OwnedIconImage> old;
             old.swap(state_->overlayIcon);
             state_->overlayIcon.swap(replacement);
@@ -899,6 +916,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::vector<Detail::OwnedThumbnailButton> replacement;
@@ -966,6 +984,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::TrayIconState>();
@@ -1004,6 +1023,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::TrayIconState>();
@@ -1015,6 +1035,7 @@ namespace GameWIP::Desktop
             {
                 return status;
             }
+
             status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
             if(!status.ok())
@@ -1077,7 +1098,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::bindQueue(eventQueue, state_->ownerThread, state_->eventQueue);
     }
 
@@ -1092,12 +1112,14 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         const IO::Types::Status status = Detail::Platform::closeTray(*state_);
 
         if(!status.ok())
         {
             return status;
         }
+
         releaseTrayQueue(*state_);
         state_.reset();
         return IO::successStatus();
@@ -1116,6 +1138,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::vector<Detail::OwnedIconImage> replacement;
@@ -1132,6 +1155,7 @@ namespace GameWIP::Desktop
                 }
                 replacement.push_back(std::move(owned));
             }
+
             auto old = std::move(state_->icons);
             state_->icons = std::move(replacement);
             status = Detail::Platform::applyTray(*state_);
@@ -1166,6 +1190,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::string old = std::move(state_->tooltip);
@@ -1202,6 +1227,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::vector<Detail::OwnedTrayMenuItem> replacement;
@@ -1268,6 +1294,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::NotificationCenterState>();
@@ -1299,6 +1326,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::NotificationCenterState>();
@@ -1357,12 +1385,14 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         const IO::Types::Status status = Detail::Platform::closeNotificationCenter(*state_);
 
         if(!status.ok())
         {
             return status;
         }
+
         releaseNotificationQueue(*state_);
         state_->notifications.clear();
         state_.reset();
@@ -1385,8 +1415,10 @@ namespace GameWIP::Desktop
             result.status = error(ErrorCode::InvalidArgument);
             return result;
         }
+
         std::uint64_t publishedId = 0;
         bool nativePublished = false;
+
         try
         {
             Detail::OwnedNotificationDescription owned;
@@ -1413,6 +1445,7 @@ namespace GameWIP::Desktop
                     id = state_->nextId++;
                 }
             }
+
             status = Detail::Platform::publishNotification(*state_, id, owned);
 
             if(!status.ok())
@@ -1433,6 +1466,7 @@ namespace GameWIP::Desktop
             {
                 static_cast<void>(Detail::Platform::dismissNotification(*state_, publishedId));
             }
+
             result.status = error(ErrorCode::OutOfMemory);
             return result;
         }
@@ -1442,6 +1476,7 @@ namespace GameWIP::Desktop
             {
                 static_cast<void>(Detail::Platform::dismissNotification(*state_, publishedId));
             }
+
             result.status = error(ErrorCode::Unknown);
             return result;
         }
@@ -1470,8 +1505,10 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         bool nativeUpdated = false;
         std::optional<Detail::OwnedNotificationDescription> previous;
+
         try
         {
             previous = state_->notifications.at(id.value);
@@ -1482,6 +1519,7 @@ namespace GameWIP::Desktop
             {
                 return status;
             }
+
             status = Detail::Platform::updateNotification(*state_, id.value, owned);
 
             if(!status.ok())
@@ -1530,6 +1568,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::NotFound);
         }
+
         status = Detail::Platform::dismissNotification(*state_, id.value);
 
         if(status.ok())
@@ -1550,6 +1589,7 @@ namespace GameWIP::Desktop
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
+
                 IO::Types::Status status = Detail::validateLaunchAction(task.action, false);
 
                 if(!status.ok())
@@ -1571,6 +1611,7 @@ namespace GameWIP::Desktop
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
+
                     IO::Types::Status status = Detail::validateLaunchAction(task.action, false);
 
                     if(!status.ok())
@@ -1636,6 +1677,7 @@ namespace GameWIP::Desktop
             {
                 return result;
             }
+
             IO::Types::Status status = Detail::validateLaunchAction(verb.action, true);
 
             if(!status.ok())
@@ -1675,6 +1717,7 @@ namespace GameWIP::Desktop
             {
                 return result;
             }
+
             IO::Types::Status status = Detail::validateLaunchAction(verb.action, true);
 
             if(!status.ok())
@@ -1693,7 +1736,6 @@ namespace GameWIP::Desktop
         {
             return {error(ErrorCode::InvalidArgument), {}, false};
         }
-
         return Detail::Platform::unregisterFileExtension(ownerKey, extension);
     }
 
@@ -1703,14 +1745,12 @@ namespace GameWIP::Desktop
         {
             return {error(ErrorCode::InvalidArgument), {}, false};
         }
-
         return Detail::Platform::unregisterUriScheme(ownerKey, scheme);
     }
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Detail
 {
-
     /// @brief Appends one native shell callback payload under the queue lock.
     void publishShellEvent(ShellEventQueueState &queue, Types::Shell::Events::Payload payload) noexcept
     {
@@ -1796,6 +1836,7 @@ namespace GameWIP::Desktop
                 candidate->eventStorage = borrowedQueue->storage;
                 candidate->storageKind = Types::Events::StorageKind::External;
             }
+
             candidate->ownerThread = std::this_thread::get_id();
             candidate->open = true;
             state_ = std::move(candidate);
@@ -1846,6 +1887,7 @@ namespace GameWIP::Desktop
             state_->open = false;
             state_->ownerThread = {};
         }
+
         state_.reset();
         return IO::successStatus();
     }
@@ -1862,6 +1904,7 @@ namespace GameWIP::Desktop
         {
             return false;
         }
+
         try
         {
             outEvent = std::move(state_->eventStorage[state_->eventHead]);
@@ -1888,9 +1931,9 @@ namespace GameWIP::Desktop
         {
             return 0;
         }
-
         const std::size_t count = std::min(destination.size(), state_->eventCount);
         std::size_t copied = 0;
+
         try
         {
             for(; copied < count; ++copied)

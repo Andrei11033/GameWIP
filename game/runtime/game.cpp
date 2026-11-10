@@ -102,7 +102,6 @@ namespace
 
                 return false;
             }
-
             GameWIP::Profiling::frameMark();
         }
 
@@ -138,7 +137,6 @@ namespace
             std::fputs("GameWIP: Logger shutdown failed.\n", stderr);
             return EXIT_FAILURE;
         }
-
         return primaryExitCode;
     }
 
@@ -194,6 +192,7 @@ namespace
             {
                 reportFailure("Window", "Failed to close window after input attach failure", cleanupStatus);
             }
+
             return EXIT_FAILURE;
         }
 
@@ -246,7 +245,6 @@ namespace GameWIP::Game
             std::fputs("GameWIP: Logger initialization failed.\n", stderr);
             return EXIT_FAILURE;
         }
-
         Logger::info("Startup", "Logger initialized");
         return finishRuntime(runSession());
     }

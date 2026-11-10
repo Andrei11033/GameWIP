@@ -38,8 +38,10 @@ function Uninstall-GameWipWingetPackage
 
     if (-not (Test-GameWipWingetPackage -Id $Id))
     {
-        Write-Host "  Already absent: $Id"; return
+        Write-Host "  Already absent: $Id"
+        return
     }
+
     Invoke-GameWipSetupNative -FilePath winget -ArgumentList @('uninstall', '--id', $Id, '--exact', '--source', 'winget', '--accept-source-agreements', '--silent') | Out-Null
 }
 
@@ -49,8 +51,10 @@ function Invoke-GameWipWingetPackageUpdate
 
     if (-not (Test-GameWipWingetPackage -Id $Id))
     {
-        Install-GameWipWingetPackage -Id $Id -Override $Override; return
+        Install-GameWipWingetPackage -Id $Id -Override $Override
+        return
     }
+
     $arguments = @('upgrade', '--id', $Id, '--exact', '--source', 'winget', '--accept-package-agreements', '--accept-source-agreements', '--silent')
 
     if ($Override)

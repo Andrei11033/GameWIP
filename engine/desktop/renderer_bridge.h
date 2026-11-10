@@ -29,7 +29,6 @@ namespace GameWIP::Desktop::Types::Renderer
         PixelSize framebufferSize;         ///< Framebuffer extent represented by the mask.
         std::size_t requiredWordCount = 0; ///< Exact packed-word count required for publication.
     };
-
 } // namespace GameWIP::Desktop::Types::Renderer
 
 /// @brief Optional Window and renderer presentation integration.

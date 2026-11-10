@@ -16,7 +16,6 @@ function Get-GameWipFormatFile
     {
         return @(
             $Files |
-
                 ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
                 Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
                 Where-Object { $extensions -contains [IO.Path]::GetExtension($_).ToLowerInvariant() } |
@@ -68,8 +67,10 @@ function Invoke-GameWipFormat
     {
         if ($null -ne $Files -and @($Files).Count -ne 0)
         {
-            Write-Host 'No changed C/C++ files require formatting checks.'; return
+            Write-Host 'No changed C/C++ files require formatting checks.'
+            return
         }
+
         Write-GameWipStatusLine -Status SKIP -Text 'No C/C++ files are in the selected scope.' -Semantic Muted -Indent 2
         return
     }

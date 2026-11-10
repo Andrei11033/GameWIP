@@ -37,6 +37,7 @@ function Assert-GameWipGitHubCli
     {
         throw "GitHub CLI is unavailable. Run '.\setup.bat repair', then 'gh auth login'."
     }
+
     $auth = Invoke-GameWipProcess -FilePath gh -Arguments @('auth', 'status', '--hostname', 'github.com') -OutputMode LogOnly -TimeoutSeconds 20
 
     if ($auth.ExitCode -ne 0)
@@ -54,6 +55,7 @@ function Invoke-GameWipGhJson
     {
         throw "GitHub CLI query failed: gh $($Arguments -join ' ')"
     }
+
     $json = ($result.Stdout -join "`n").Trim()
 
     if ([string]::IsNullOrWhiteSpace($json))
@@ -77,6 +79,7 @@ function Resolve-GameWipWorkflowArgument
         {
             throw "Project kind '$ItemKind' requires -ItemNumber with a positive issue or pull-request number."
         }
+
         @('-f', "kind=$ItemKind") | ForEach-Object { $arguments.Add($_) | Out-Null }
 
         if ($ItemKind -ne 'all')
@@ -226,8 +229,10 @@ function Invoke-GameWipManualWorkflow
 
     if ($null -eq $run)
     {
-        Add-GameWipOperationWarning -Message 'Dispatch succeeded, but the new run was not visible within 30 seconds.'; return
+        Add-GameWipOperationWarning -Message 'Dispatch succeeded, but the new run was not visible within 30 seconds.'
+        return
     }
+
     $runId = [string]$run.databaseId
     Write-GameWipSemanticText -Object 'Queued run:' -Semantic Success -NoNewline
     Write-Host ' ' -NoNewline
@@ -243,6 +248,7 @@ function Invoke-GameWipManualWorkflow
     {
         Invoke-GameWipNative -Name "workflow-watch-$runId" -FilePath gh -Arguments @('run', 'watch', $runId, '--repo', $ProjectConfig.repository, '--exit-status')
     }
+
     Show-GameWipWorkflowVerification -WorkflowId $WorkflowId -RunId $runId
 }
 

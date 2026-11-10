@@ -114,24 +114,20 @@ namespace
     [[nodiscard]] int runStandaloneColorShutdownChild() noexcept
     {
         const auto primary = Desktop::Display::getPrimaryMonitor();
-
         if(!primary.ok())
         {
             return 2;
         }
-
         return Desktop::Display::getColorInfo(primary->id).ok() ? 0 : 3;
     }
 
     [[nodiscard]] int runWindowColorShutdownChild() noexcept
     {
         const auto primary = Desktop::Display::getPrimaryMonitor();
-
         if(!primary.ok() || !Desktop::Display::getColorInfo(primary->id).ok())
         {
             return 2;
         }
-
         Desktop::Types::Description description;
         description.title = "Desktop color shutdown child";
         description.windowed.clientSize = {160, 100};
@@ -147,9 +143,7 @@ namespace
         {
             return 4;
         }
-
         const auto handle = Desktop::Native::Win32::getHandle(window);
-
         if(!handle.status.ok() || handle->window == nullptr || PostMessageW(static_cast<HWND>(handle->window), WM_CLOSE, 0, 0) == FALSE)
         {
             return 5;
@@ -159,7 +153,6 @@ namespace
         {
             return 6;
         }
-
         return window.close().ok() ? 0 : 7;
     }
 
@@ -235,6 +228,7 @@ namespace
                     workerResult = 3;
                     return;
                 }
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
                 if(forceRepeatedRevocationFailure)
                 {
@@ -296,6 +290,7 @@ namespace
                     workerResult = 2;
                     return;
                 }
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
                 if(forceCloseFailure)
                 {
@@ -336,7 +331,6 @@ namespace
         {
             return 2;
         }
-
         Desktop::ProgressDialog progress;
         Desktop::Types::Dialogs::Progress::Description progressDescription;
         progressDescription.title = "Deferred pump failure progress";
@@ -358,7 +352,6 @@ namespace
             static_cast<void>(owner.close());
             return 4;
         }
-
         const Desktop::Types::Events::PumpResult waitResult = Desktop::Events::wait();
         static_cast<void>(progress.close());
         static_cast<void>(owner.close());
@@ -373,7 +366,6 @@ namespace
         {
             return 2;
         }
-
         Desktop::Window window;
         Desktop::Types::Description description;
         description.title = "Progress restore registration laziness";
@@ -397,6 +389,7 @@ namespace
 
         return Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted() ? 6 : 0;
     }
+
 #endif
 
     void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
@@ -527,6 +520,7 @@ namespace GameWIP::Test
         {
             return runDeferredPumpFailureWaitChild();
         }
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
         if(hasArgument(argc, argv, "--desktop-test-child=cold-com-apartment"))
         {
@@ -542,12 +536,14 @@ namespace GameWIP::Test
         {
             return runProgressRestoreMessageLazinessChild();
         }
+
 #endif
 
         if(hasArgument(argc, argv, "--desktop-test-child=shell-launch-probe"))
         {
             return runShellLaunchProbeChild(argc, argv);
         }
+
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
         std::optional<std::string_view> selectedManualSuite;
@@ -570,6 +566,7 @@ namespace GameWIP::Test
                 manualCaseSelection = std::string_view(value).substr(manualCasePrefix.size());
             }
         }
+
         constexpr std::array manualSuiteNames{
             std::string_view{"lifecycle"},     std::string_view{"accessibility"},   std::string_view{"multiple-windows"},
             std::string_view{"custom-chrome"}, std::string_view{"layered-pointer"}, std::string_view{"dpi"},
@@ -699,8 +696,8 @@ namespace GameWIP::Test
                 });
             runner.runSuite("Window monitors and display modes", testMonitors);
         }
-        const bool validManualSelection = !selectedManualSuite || std::ranges::find(manualSuiteNames, *selectedManualSuite) != manualSuiteNames.end();
 
+        const bool validManualSelection = !selectedManualSuite || std::ranges::find(manualSuiteNames, *selectedManualSuite) != manualSuiteNames.end();
         if(!validManualSelection)
         {
             runner.runSuite(
@@ -720,11 +717,13 @@ namespace GameWIP::Test
             {
                 return;
             }
+
             if(!options.enableManualTests)
             {
                 pendingManualSkips.push_back(displayName);
                 return;
             }
+
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)
@@ -732,17 +731,20 @@ namespace GameWIP::Test
                     suite(context, options);
                 });
         };
+
         const auto runSelectedManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
             if(!validManualSelection || !selectedManualSuite || *selectedManualSuite != selector)
             {
                 return;
             }
+
             if(!options.enableManualTests)
             {
                 pendingManualSkips.push_back(displayName);
                 return;
             }
+
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)
@@ -750,6 +752,7 @@ namespace GameWIP::Test
                     suite(context, options);
                 });
         };
+
         runManualSuite("Window manual visible lifecycle", "lifecycle", testManualVisibleLifecycle);
         runManualSuite("Desktop manual accessibility", "accessibility", testManualAccessibility);
         runManualSuite("Window manual multiple windows", "multiple-windows", testManualMultipleWindows);
@@ -842,6 +845,7 @@ namespace GameWIP::Test
                     context.fail("manual case selector matched no scenarios", *manualCaseSelection);
                 });
         }
+
         const TestSupport::Types::Reporting::Summary result = runner.result();
 
         if(options.enableManualTests)

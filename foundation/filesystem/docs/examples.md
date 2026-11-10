@@ -23,6 +23,7 @@ GameWIP::IO::Types::Status loadSmallConfig()
 
     return GameWIP::IO::successStatus();
 }
+
 ```
 
 ## Streaming read with a final nonzero chunk
@@ -44,6 +45,7 @@ GameWIP::IO::Types::Status scanFile(const GameWIP::FileSystem::Types::Path& path
     }
 
     std::array<std::byte, 8192> buffer{};
+
     while (true)
     {
         const auto result = reader.read(buffer);
@@ -63,6 +65,7 @@ GameWIP::IO::Types::Status scanFile(const GameWIP::FileSystem::Types::Path& path
     const auto closeStatus = reader.close();
     return status.ok() ? closeStatus : status;
 }
+
 ```
 
 ## Modify and resize an existing file
@@ -104,8 +107,10 @@ GameWIP::IO::Types::Status addMarker(const GameWIP::FileSystem::Types::Path& pat
     {
         status = file.close();
     }
+
     return status;
 }
+
 ```
 
 ## Normal replacement and append
@@ -129,6 +134,7 @@ GameWIP::IO::Types::Status writeSessionLog()
     const auto append = FileSystem::appendText("session.log", "ready\n", options);
     return append.status;
 }
+
 ```
 
 ## Atomic save replacement
@@ -147,6 +153,7 @@ GameWIP::IO::Types::Status commitSave(std::string_view json)
 
     return GameWIP::FileSystem::writeAllTextAtomic("saves/profile.json", json, options);
 }
+
 ```
 
 ## Listing with partial-result handling
@@ -173,6 +180,7 @@ GameWIP::IO::Types::Status listAssets()
 
     return result.status;
 }
+
 ```
 
 ## Metadata, copy, move, and removal
@@ -202,12 +210,15 @@ GameWIP::IO::Types::Status rotateDataFile()
         move.replaceMode = FileSystem::Types::ReplaceMode::ReplaceExisting;
         status = FileSystem::movePath("backup/data.bin", "backup/current.bin", move);
     }
+
     if (status.ok())
     {
         status = FileSystem::removeFile("backup/current.bin");
     }
+
     return status;
 }
+
 ```
 
 ## UTF-8 path boundary and lexical operations
@@ -234,6 +245,7 @@ GameWIP::IO::Types::Status buildSavePath()
     const auto text = FileSystem::pathToUtf8(joined.path);
     return text.status;
 }
+
 ```
 
 ## Whole-file lock ownership
@@ -253,8 +265,10 @@ GameWIP::FileSystem::Types::Lock::Result openAndLock(
     {
         return {.status = status};
     }
+
     return owner.tryLockExclusive();
 }
+
 ```
 
 The returned `FileLock` remains responsible for unlocking. Explicit `owner.close()` reports `ResourceBusy` until the lock is released.
@@ -284,6 +298,7 @@ GameWIP::IO::Types::Status temporarilySelectDirectory(
     const auto restore = GameWIP::FileSystem::setCurrentDirectory(previous.path);
     return restore;
 }
+
 ```
 
 Avoid this pattern in concurrent code: nothing synchronizes other threads' relative-path use or

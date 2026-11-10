@@ -65,6 +65,7 @@ namespace GameWIP::TestSupport
                 : handle_(handle)
             {
             }
+
             ~UniqueHandle() noexcept
             {
                 reset();
@@ -129,6 +130,7 @@ namespace GameWIP::TestSupport
                     list_ = nullptr;
                     return;
                 }
+
                 initialized_ = true;
 
                 if(UpdateProcThreadAttribute(
@@ -192,7 +194,6 @@ namespace GameWIP::TestSupport
                 {
                     return UniqueHandle(duplicate);
                 }
-
                 return {};
             }
 
@@ -222,7 +223,6 @@ namespace GameWIP::TestSupport
             {
                 throw std::invalid_argument("Child-process executable path contains an embedded null");
             }
-
             return text;
         }
 
@@ -317,7 +317,6 @@ namespace GameWIP::TestSupport
             {
                 throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }
-
             const std::wstring variableName = Detail::Win32::utf8ToWide(variable.name);
             const auto matchesName = [&variableName](const std::wstring &entry)
             {
@@ -329,7 +328,6 @@ namespace GameWIP::TestSupport
                 entries.erase(std::remove_if(entries.begin(), entries.end(), matchesName), entries.end());
                 return;
             }
-
             const std::wstring replacement = variableName + L"=" + Detail::Win32::utf8ToWide(*variable.value);
             const auto existing = std::find_if(entries.begin(), entries.end(), matchesName);
 
@@ -425,13 +423,13 @@ namespace GameWIP::TestSupport
             {
                 return INFINITE;
             }
+
             constexpr auto maxWait = static_cast<long long>((std::numeric_limits<DWORD>::max)() - 1);
 
             if(timeout->count() > maxWait)
             {
                 return (std::numeric_limits<DWORD>::max)() - 1;
             }
-
             return static_cast<DWORD>(timeout->count());
         }
 
@@ -602,7 +600,6 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::InvalidArgument);
                 return result;
             }
-
             std::wstring commandLine = buildCommandLine(options);
             std::wstring environmentBlock;
             std::wstring workingDirectory;
@@ -616,7 +613,6 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
-
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimits{};
             jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
@@ -626,7 +622,6 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
-
             // Standard handles must be inheritable for CreateProcessW, but the parent
             // read end of the capture pipe must be made non-inheritable before launch.
             SECURITY_ATTRIBUTES securityAttributes{};
@@ -663,7 +658,6 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
-
             UniqueHandle childOutput;
             UniqueHandle childError;
 
@@ -699,7 +693,6 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, attributeList.nativeCode());
                 return result;
             }
-
             STARTUPINFOEXW startupInfo{};
             startupInfo.StartupInfo.cb = sizeof(startupInfo);
             startupInfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
@@ -747,7 +740,6 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessLaunchFailed, launchError);
                 return result;
             }
-
             UniqueHandle processHandle(processInfo.hProcess);
             UniqueHandle threadHandle(processInfo.hThread);
 
@@ -759,7 +751,6 @@ namespace GameWIP::TestSupport
                 result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                 return result;
             }
-
             // Output capture runs on a separate reader so a verbose child cannot block
             // forever on a full pipe while the parent waits for process exit.
             std::string outputBytes;
@@ -938,6 +929,7 @@ namespace GameWIP::TestSupport
             setFailure(Types::InfrastructureError::PlatformFailure);
             return result;
         }
+
 #else
         (void)options;
         result.status.error = Types::InfrastructureError::Unsupported;

@@ -95,7 +95,6 @@ namespace GameWIP::Unicode::Internal
         {
             return {};
         }
-
         const std::size_t blockIndexOffset = static_cast<std::size_t>(codePoint) >> Generated::kBlockShift;
         const std::size_t blockIndex = Generated::kBlockIndexes[blockIndexOffset];
         const std::size_t propertyOffset = (blockIndex << Generated::kBlockShift) | (static_cast<std::size_t>(codePoint) & Generated::kBlockMask);

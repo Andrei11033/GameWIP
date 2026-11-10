@@ -19,7 +19,6 @@ bool loadSmallConfig(std::string& output)
 
     GameWIP::IO::Types::ReadAllTextResult result =
         GameWIP::IO::readAllText(reader, 64 * 1024);
-
     if (!result.status.ok())
     {
         return false;
@@ -28,6 +27,7 @@ bool loadSmallConfig(std::string& output)
     output = std::move(result.text);
     return true;
 }
+
 ```
 
 `readAllText()` requires strict UTF-8 (@ref io_utf8_policy). The limit rejects oversized input rather than truncating it.
@@ -49,7 +49,6 @@ bool readThirdByte(std::byte& output)
     GameWIP::IO::MemoryReader reader(source);
     const GameWIP::IO::Types::Status seekStatus =
         reader.seek(2, GameWIP::IO::Types::SeekOrigin::Begin);
-
     if (!seekStatus.ok())
     {
         return false;
@@ -57,7 +56,6 @@ bool readThirdByte(std::byte& output)
 
     std::array<std::byte, 1> destination{};
     const GameWIP::IO::Types::ReadResult readResult = reader.read(destination);
-
     if (!readResult.status.ok() || readResult.bytesRead != 1)
     {
         return false;
@@ -66,6 +64,7 @@ bool readThirdByte(std::byte& output)
     output = destination[0];
     return true;
 }
+
 ```
 
 ## Reuse scratch storage for unknown-size readers
@@ -126,6 +125,7 @@ bool encodeTwice(GameWIP::IO::MemoryWriter& writer)
     GameWIP::IO::Types::CopyTextResult secondCopy = writer.copyText();
     return secondCopy.status.ok() && firstCopy.text == "first" && secondCopy.text == "second";
 }
+
 ```
 
 `clear()` preserves capacity. `copyText()` validates before copying. A view returned by `bytes()` is borrowed and must not be retained across `clear()`
@@ -146,12 +146,12 @@ std::vector<std::byte> buildPacket()
     {
         return {};
     }
+
     const std::vector<std::byte> header{
         std::byte{0x47}, std::byte{0x57}, std::byte{0x49}, std::byte{0x50}};
 
     const GameWIP::IO::Types::WriteResult result =
         GameWIP::IO::writeAllBytes(writer, header);
-
     if (!result.status.ok())
     {
         return {};
@@ -159,6 +159,7 @@ std::vector<std::byte> buildPacket()
 
     return writer.takeBytes();
 }
+
 ```
 
 `takeBytes()` leaves the writer empty and preserves whether it was open or closed.
@@ -174,6 +175,7 @@ std::string_view portableFailureName(const GameWIP::IO::Types::Status& status)
 {
     return GameWIP::IO::errorCodeName(status.code);
 }
+
 ```
 
 Use the portable code for control flow. Treat `nativeCode` and `message` as supplemental diagnostics.

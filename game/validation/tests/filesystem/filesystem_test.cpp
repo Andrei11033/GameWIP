@@ -116,6 +116,7 @@ namespace
             context.fail(name, std::format("code={} native={} message={}", IO::errorCodeName(status.code), status.nativeCode, status.message));
             return false;
         }
+
         context.pass(name);
         return true;
     }
@@ -212,11 +213,11 @@ namespace
         return createSymlink(context, target, link, true);
     }
 
-    // Focused suite declarations keep cross-suite calls independent of fragment include order.
     // ------------------------------------------------------------
     // Test suites
     // ------------------------------------------------------------
 
+    // Focused suite declarations keep cross-suite calls independent of fragment include order.
     void testBasicEntryQueries(TestSupport::Context &context, const std::filesystem::path &root);
     void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::path &root);
     void testMetadataDirectoriesAndListing(TestSupport::Context &context, const std::filesystem::path &root);

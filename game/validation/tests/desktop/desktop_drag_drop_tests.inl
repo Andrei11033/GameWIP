@@ -47,6 +47,7 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("rejected native drop completes successfully", rejectedDrop.status.ok()));
     static_cast<void>(context.expectEq("rejected native drop is cancelled", DD::Outcome::Cancelled, rejectedDrop.outcome));
     static_cast<void>(context.expectEq("rejected native drop performs no effect", DD::Effect::None, rejectedDrop.effect));
+
     const DD::Result acceptedDrop = Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Move, all);
     static_cast<void>(context.expectTrue("accepted native drop completes successfully", acceptedDrop.status.ok()));
     static_cast<void>(context.expectEq("accepted native drop is dropped", DD::Outcome::Dropped, acceptedDrop.outcome));
@@ -92,6 +93,7 @@ void testDragDrop(TestSupport::Context &context)
         "source text embedded NUL is rejected",
         ErrorCode::InvalidArgument,
         Desktop::TestHooks::prepareDragDropSource({nulTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+
     std::array<std::byte, 1> oneByte{std::byte{1}};
     std::array<Transfer::ItemView, 1> malformedCustomItems{{Transfer::CustomView{std::string_view{"\xC3", 1}, oneByte}}};
     static_cast<void>(context.expectEq(
@@ -108,6 +110,7 @@ void testDragDrop(TestSupport::Context &context)
         "zero-byte custom source is unsupported",
         ErrorCode::Unsupported,
         Desktop::TestHooks::prepareDragDropSource({emptyCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+
     std::array<std::byte, 3> invalidImageBytes{};
     std::array<Transfer::ItemView, 1> invalidImageItems{{Transfer::ImageView::strided({1, 1}, 0, invalidImageBytes)}};
     static_cast<void>(context.expectEq(
@@ -125,6 +128,7 @@ void testDragDrop(TestSupport::Context &context)
         "undersized image stride is rejected",
         ErrorCode::InvalidArgument,
         Desktop::TestHooks::prepareDragDropSource({invalidStrideItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+
     std::array<GameWIP::FileSystem::Types::Path, 1> relativePaths{{L"relative.txt"}};
     std::array<Transfer::ItemView, 1> relativeFileItems{{Transfer::FileListView{relativePaths}}};
     static_cast<void>(context.expectEq(
@@ -139,6 +143,7 @@ void testDragDrop(TestSupport::Context &context)
         "malformed native Unicode source path is rejected",
         ErrorCode::InvalidArgument,
         Desktop::TestHooks::prepareDragDropSource({malformedFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+
     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropPreparation);
     static_cast<void>(context.expectEq(
         "source preparation failure is deterministic",
@@ -321,14 +326,15 @@ void testDragDrop(TestSupport::Context &context)
         context.expectEq("failed registration removes its active registry entry", std::size_t{0}, Desktop::TestHooks::activeDragDropTargetCount()));
     static_cast<void>(context.expectTrue("failed registration leaves the Window usable", window.isOpen()));
     static_cast<void>(context.expectFalse("failed registration preserves lightweight mode", window.fileDropEnabled()));
-    const auto open = target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3));
 
+    const auto open = target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3));
     if(!open.ok())
     {
         context.skip("native OLE target lifecycle", "the test thread has an incompatible OLE apartment");
         static_cast<void>(window.close());
         return;
     }
+
     static_cast<void>(context.expectTrue("target opens lazily", target.isOpen()));
     static_cast<void>(context.expectEq("target retains Window identity", window.id(), target.windowId()));
     static_cast<void>(context.expectTrue("target inherits owner thread", target.ownedByCurrentThread()));
@@ -472,6 +478,7 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("lightweight mode enables after target close", window.setFileDropEnabled(true).ok()));
     static_cast<void>(context.expectEq("full target conflicts with lightweight mode", ErrorCode::ResourceBusy, target.open(window, {}).code));
     static_cast<void>(context.expectTrue("lightweight mode disables before full target registration", window.setFileDropEnabled(false).ok()));
+
     std::array<DD::Event, 2> externalStorage;
     static_cast<void>(context.expectTrue(
         "target reopens with external queue",

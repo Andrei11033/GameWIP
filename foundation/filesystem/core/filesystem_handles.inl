@@ -22,14 +22,12 @@ IO::Types::Status DirectoryCursor::open(const Types::Path &path, const Types::Di
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
-
         Detail::Platform::DirectoryCursorOpenResult opened = Detail::Platform::openDirectoryCursor(path, options.symlinkPolicy);
 
         if(!opened.status.ok())
         {
             return std::move(opened.status);
         }
-
         options_ = options;
         emittedEntries_ = 0;
         limitReached_ = false;
@@ -89,7 +87,6 @@ Types::Directory::CursorNextResult DirectoryCursor::next() noexcept
                 limitReached_ = true;
                 return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
             }
-
             ++emittedEntries_;
             return {.status = IO::successStatus(), .entry = std::move(next.entry), .hasEntry = true};
         }

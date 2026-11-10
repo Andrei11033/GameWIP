@@ -163,6 +163,7 @@ void testManualFilesAndShell(
                 {
                     return;
                 }
+
                 static_cast<void>(context.expectEq("file drop produces one grouped event", std::size_t{1}, groupedEvents));
                 static_cast<void>(context.expectTrue("file drop retains expected paths", pathCount >= minimumPaths));
             };
@@ -460,6 +461,7 @@ void testManualFilesAndShell(
                 {
                     return true;
                 }
+
                 // The generic Applications command is a separate process.  A
                 // successful launch is established by a non-empty receipt;
                 // tolerate a transient read result while that child is still
@@ -560,6 +562,7 @@ void testManualFilesAndShell(
             {
                 return;
             }
+
             const std::array<Desktop::Types::Shell::LaunchArgumentView, 4> fileLaunchArguments{
                 launchArguments[0],
                 launchArguments[1],
@@ -894,11 +897,11 @@ struct ManualDragDropCapture
 [[nodiscard]] bool manualPointerInside(const Desktop::Window &window) noexcept
 {
     const auto native = Desktop::Native::Win32::getHandle(window);
-
     if(!native.status.ok() || native->window == nullptr)
     {
         return false;
     }
+
     POINT pointer{};
     RECT client{};
     return GetCursorPos(&pointer) != FALSE && ScreenToClient(native->window, &pointer) != FALSE && GetClientRect(native->window, &client) != FALSE &&
@@ -929,6 +932,7 @@ ManualDragDropRun runManualDragDropSource(
     {
         return run;
     }
+
     bool wasDown = manualDragButtonDown(description.triggerButton);
     const auto effectName = [](Desktop::Types::DragDrop::Effect effect) -> std::string_view
     {
@@ -946,6 +950,7 @@ ManualDragDropRun runManualDragDropSource(
             return "Combined";
         }
     };
+
     const auto observe = [&]
     {
         if(target != nullptr && capture != nullptr)
@@ -994,6 +999,7 @@ ManualDragDropRun runManualDragDropSource(
                     target != nullptr && capture != nullptr ? capture->observation(*target) : std::string{}));
         }
     };
+
     const std::string retryInstruction =
         std::string(instruction) +
         " Retry with a fresh press in the source if you miss. Confirm the last attempt; its named effect remains in diagnostics.";
@@ -1023,7 +1029,6 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     {
         return;
     }
-
     context.manual(
         "This suite requires an interactive Windows desktop. Keep both GameWIP Windows visible. "
         "Answer skip when a requested foreign diagnostic provider or consumer is unavailable.");
@@ -1064,6 +1069,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         static_cast<void>(sourceWindow.close());
         return;
     }
+
     paintManualValidationSurface(sourceWindow, ManualSurfaceLayout::DragDropSource);
     paintManualValidationSurface(targetWindow, ManualSurfaceLayout::DragDropTarget);
 
@@ -1098,6 +1104,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     {
         return;
     }
+
     context.info(std::format("Drag fixtures: {}", fixtures.path().string()));
     const std::array<GameWIP::FileSystem::Types::Path, 2> files{{readme, cmake}};
     const std::array<std::byte, 16> pixels{
@@ -1316,6 +1323,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             }
         }
     };
+
     const Transfer::Item expectedSingle = Transfer::FileList{{singleFile}};
     const Transfer::Item expectedMultiple = Transfer::FileList{{unicodeFile, singleFile}};
     const Transfer::Item expectedText = Transfer::Text{std::string(unicodeText)};
@@ -1392,6 +1400,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             }
         }
     };
+
     const std::array<Transfer::ItemView, 1> fileItem{{Transfer::FileListView{files}}};
     const std::array<Transfer::ItemView, 1> imageItem{{Transfer::ImageView::packed({2, 2}, pixels)}};
     const std::array<Transfer::ItemView, 1> customItem{{Transfer::CustomView{customName, customBytes}}};

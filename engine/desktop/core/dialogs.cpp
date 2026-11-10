@@ -40,7 +40,6 @@ namespace GameWIP::Desktop::Dialogs
             {
                 return error(ErrorCode::NotOpen);
             }
-
             return Detail::Platform::ownedByCurrentThread(*state) ? IO::successStatus() : error(ErrorCode::ResourceBusy);
         }
 
@@ -224,6 +223,7 @@ namespace GameWIP::Desktop::Dialogs
                         return error(ErrorCode::InvalidArgument);
                     }
                 }
+
                 IO::Types::Status status = validateText(option.label);
 
                 if(!status.ok())
@@ -245,6 +245,7 @@ namespace GameWIP::Desktop::Dialogs
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
+
                 IO::Types::Status status = validateText(description.checkBox->label);
 
                 if(!status.ok())

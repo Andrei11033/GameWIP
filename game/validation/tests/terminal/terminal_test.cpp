@@ -238,7 +238,6 @@ namespace
         {
             return 1;
         }
-
         Terminal::Types::Output::LineOptions options;
         options.lineEnding = Terminal::Types::Output::LineEnding::Lf;
         return Terminal::println(options, "{}", TerminalReentrantFormat{}).ok() ? 0 : 1;
@@ -282,7 +281,6 @@ namespace
         {
             return 5;
         }
-
         return session.close().ok() ? 0 : 6;
     }
 
@@ -484,41 +482,21 @@ namespace
     void testPassiveHelpers(TestSupport::Context &context);
 #if TERMINAL_INTERNAL_TEST_HOOKS
     void testCapabilitiesAndQueries(TestSupport::Context &context);
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
     void testUtf8OutputContracts(TestSupport::Context &context);
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
     void testTextAndStyleOutput(TestSupport::Context &context);
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
     void testSegmentedAndByteOutput(TestSupport::Context &context);
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
     void testControls(TestSupport::Context &context);
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
     void testInputReads(TestSupport::Context &context);
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
+    void testManagedLineEditing(TestSupport::Context &context);
+    void testSessions(TestSupport::Context &context);
+
 #if defined(_WIN32)
     void testWin32EventDecoder(TestSupport::Context &context);
-#endif
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
-#if defined(_WIN32)
     void testInputEndpointReplacement(TestSupport::Context &context);
     void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath);
     void testCancellationResetFailure(TestSupport::Context &context);
 #endif
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
-    void testManagedLineEditing(TestSupport::Context &context);
-#endif
-#if TERMINAL_INTERNAL_TEST_HOOKS
-    void testSessions(TestSupport::Context &context);
-#endif
-#if !TERMINAL_INTERNAL_TEST_HOOKS
+#else
     void testHookDependentSuitesSkipped(TestSupport::Context &context);
 #endif
 
@@ -548,11 +526,13 @@ namespace GameWIP::Test
         {
             return runSessionReentrantFormatChild();
         }
+
 #if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
         if(hasArgument(argc, argv, kCancellationSignalFailureChildArgument))
         {
             return runCancellationSignalFailureChild();
         }
+
 #endif
 
         TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);

@@ -51,7 +51,6 @@ namespace
         {
             return text.size();
         }
-
         std::size_t boundary = maxBytes;
 
         while(boundary > 0 && isUtf8ContinuationByte(text[boundary]))
@@ -124,7 +123,6 @@ namespace
             {
                 return;
             }
-
             constexpr std::string_view suffix = "... [truncated]";
             static_assert(suffix.size() < kCapacityBytes);
             // The retained prefix leaves room for the suffix without cutting a UTF-8 scalar.
@@ -234,6 +232,7 @@ namespace
         failureMessage.finish();
         return failureMessage;
     }
+
 #else
     /// @brief Returns the tiny generic failure text used when diagnostic payloads are compiled out.
     /// @param kind Failure kind to label.
@@ -248,6 +247,7 @@ namespace
     {
         return kind == FailureKind::Assert ? "Assert failed" : "Check failed";
     }
+
 #endif
 
     // ------------------------------------------------------------
@@ -407,11 +407,13 @@ namespace
     {
         return message.view();
     }
+
 #else
     std::string_view failureTextView(std::string_view message) noexcept
     {
         return message;
     }
+
 #endif
 
     /// @brief Formats and reports a non-interactive failure, then shows its configured popup.

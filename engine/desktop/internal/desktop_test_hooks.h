@@ -367,36 +367,44 @@ namespace GameWIP::Desktop::Detail
     {
         return false;
     }
+
     [[nodiscard]] constexpr bool consumeCursorNativeCreationFailure() noexcept
     {
         return false;
     }
+
     [[nodiscard]] constexpr bool consumeClipboardPublicationFailure(std::size_t) noexcept
     {
         return false;
     }
+
     [[nodiscard]] constexpr bool consumeClipboardEnumerationFailure(std::size_t) noexcept
     {
         return false;
     }
+
     [[nodiscard]] constexpr bool consumeDragDropRevocationFailure() noexcept
     {
         return false;
     }
+
     [[nodiscard]] constexpr bool consumeFileDialogResponse(TestHooks::FileDialogOperation, TestHooks::FileDialogResponse &) noexcept
     {
         return false;
     }
+
     constexpr void recordFileDialogSnapshot(TestHooks::FileDialogSnapshot) noexcept {}
     [[nodiscard]] constexpr bool consumeMessageDialogResponse(TestHooks::MessageDialogResponse &) noexcept
     {
         return false;
     }
+
     constexpr void recordMessageDialogSnapshot(TestHooks::MessageDialogSnapshot) noexcept {}
     [[nodiscard]] constexpr bool consumePromptDialogResponse(TestHooks::PromptDialogResponse &) noexcept
     {
         return false;
     }
+
     constexpr void recordPromptDialogSnapshot(TestHooks::PromptDialogSnapshot) noexcept {}
     constexpr void recordCustomCursorCreated() noexcept {}
     constexpr void recordCustomCursorDestroyed() noexcept {}

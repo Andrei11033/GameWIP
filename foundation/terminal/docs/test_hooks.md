@@ -53,6 +53,7 @@ Overrides persist until reset.
 - `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
 - Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting
   production decoder symbols.
+
 The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable
 backend output and therefore obey the normal Event contract. Native-mode/decoder hooks exist only because validation must prove exact managed
 restoration and Win32 normalization; public consumers configure input through `SessionOptions`.
@@ -144,6 +145,7 @@ int main()
     Hooks::reset();
     return status.ok() && !output.empty() ? 0 : 1;
 }
+
 ```
 
 ## Related pages

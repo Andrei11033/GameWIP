@@ -135,7 +135,6 @@ namespace GameWIP
         {
             return WindowResult::NotCreated;
         }
-
         Window *windowPtr = windowIt->get();
         HWND handle = toNativeHandle(*windowPtr);
 
@@ -195,7 +194,6 @@ namespace GameWIP
                 (void)rawInputError;
                 return;
             }
-
             nativeManager->rawInputRegistered = true;
         }
 
@@ -345,7 +343,6 @@ namespace GameWIP
         {
             return;
         }
-
         outWindows.reserve(nativeManager->windows.size());
 
         for(const std::unique_ptr<Window> &window : nativeManager->windows)

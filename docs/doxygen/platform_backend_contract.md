@@ -150,7 +150,7 @@ When adding a backend:
 - Run the relevant validation, installed-consumer, and documentation workflows.
 
 Unicode and IO are portable foundation libraries and do not receive artificial
-backend directories. Input, Action, and WindowManager are unbuilt reference
+backend directories. Action and WindowManager are unbuilt reference
 sources outside the supported backend-completeness contract.
 
 ## Allowed exceptions

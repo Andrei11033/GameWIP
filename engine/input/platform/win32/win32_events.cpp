@@ -25,6 +25,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 continue;
             }
+
             const bool alreadyProcessed = std::any_of(
                 attachment.devices.begin(),
                 attachment.devices.begin() + static_cast<std::ptrdiff_t>(bindingIndex),
@@ -36,11 +37,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 continue;
             }
+
             const std::size_t deviceIndex = state.findDeviceIndex(device.id);
             if(deviceIndex == state.devices.size())
             {
                 continue;
             }
+
             for(const Types::ElementInfo &element : state.devices[deviceIndex].elements)
             {
                 if(Types::ElementState *elementState = findState(state, element.id);
@@ -62,6 +65,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 }
             }
         }
+
         attachment.pendingHighSurrogate = 0;
     }
 
@@ -80,12 +84,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
     {
         Types::ElementState *elementState = findState(state, id);
         Types::ElementInfo *element = findElement(state, id);
+
         if(elementState == nullptr || element == nullptr)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
             return;
         }
+
         if(Internal::valueKind(value) != element->kind)
         {
             ++state.health.totalInvalidReports;
@@ -96,6 +102,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const bool previousKnown = elementState->validity == Types::ValueValidity::Valid;
         const Types::Value previous = elementState->value;
         Types::Value next = value;
+
         if(relative)
         {
             next = previousKnown ? previous : zeroFor(*element);
@@ -127,6 +134,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 ++elementState->becameFalseCount;
             }
         }
+
         elementState->value = next;
         elementState->validity = Types::ValueValidity::Valid;
         elementState->lastObservation = timestamp.receivedAt == Types::Clock::time_point{} ? now() : timestamp;
@@ -144,6 +152,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return 0x48;
         }
+
         if(extended)
         {
             switch(scanCode)
@@ -194,10 +203,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
             0x0C, 0x12, 0x13, 0x2F, 0x30, 0x28, 0xE0, 0x04, 0x16, 0x07, 0x09, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x33, 0x34, 0x35, 0x2C, 0xE1, 0x31, 0x1D,
             0x1B, 0x06, 0x19, 0x05, 0x11, 0x10, 0x36, 0x37, 0x38, 0xE2, 0x55, 0xE6, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43,
             0x44, 0x45, 0x53, 0x47, 0x5F, 0x60, 0x61, 0x5C, 0x5D, 0x5E, 0x59, 0x5A, 0x5B, 0x62, 0x63, 0x54, 0x55, 0x56, 0x57, 0x58};
+
         if(scanCode < scanToUsage.size())
         {
             return scanToUsage[scanCode];
         }
+
         if(virtualKey != 0)
         {
             const UINT mapped = MapVirtualKeyW(virtualKey, MAPVK_VK_TO_VSC_EX);
@@ -260,6 +271,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
         attachment.xinputLoadAttempted = true;
         constexpr std::array<const wchar_t *, 3> libraries{L"xinput1_4.dll", L"xinput1_3.dll", L"xinput9_1_0.dll"};
+
         for(const wchar_t *name : libraries)
         {
             HMODULE module = LoadLibraryW(name);
@@ -267,6 +279,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 continue;
             }
+
             const auto function = GameWIP::Base::Win32::loadProcedure<Attachment::Impl::XInputGetStateFunction>(module, "XInputGetState");
             if(function != nullptr)
             {
@@ -289,12 +302,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return;
         }
+
         if(state.pendingRawReports.size() >= configuration.rawReportCapacity)
         {
             state.pendingDiscontinuity = true;
             return;
         }
-
         const std::size_t count = std::min(bytes.size(), configuration.maximumRawReportBytes);
         try
         {
@@ -305,6 +318,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             };
             report.bytes.assign(bytes.begin(), bytes.begin() + static_cast<std::ptrdiff_t>(count));
             state.pendingRawReports.push_back(std::move(report));
+
             if(count != bytes.size())
             {
                 ++state.health.totalInvalidReports;
@@ -335,13 +349,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return;
         }
+
         if(GameWIP::Unicode::Utf8::validate(utf8).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
             return;
         }
-
         const bool committed = kind == Types::EventKind::TextCommitted;
         if(committed && (state.pendingTextUtf8.size() > state.configuration.maximumPendingTextBytes ||
                          utf8.size() > state.configuration.maximumPendingTextBytes - state.pendingTextUtf8.size()))
@@ -367,10 +381,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
             };
             const std::uint64_t droppedEvents = state.pendingDroppedEvents;
             state.appendEvent(std::move(event));
+
             if(state.pendingDroppedEvents != droppedEvents)
             {
                 return;
             }
+
             if(committed)
             {
                 state.pendingTextUtf8.append(utf8);
@@ -390,7 +406,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
             state.pendingDiscontinuity = true;
             return;
         }
-
         const auto encoded = GameWIP::Unicode::Utf8::encodeScalar(scalar);
         if(encoded.outcome != GameWIP::Unicode::Types::EncodeOutcome::Encoded)
         {
@@ -427,7 +442,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 state.pendingDiscontinuity = true;
                 return;
             }
-
             const std::span<const char16_t> text(codeUnits.data(), codeUnits.size());
             if(GameWIP::Unicode::Utf16::validate(text).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
             {
@@ -451,7 +465,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 state.pendingDiscontinuity = true;
                 return;
             }
-
             std::size_t selectionStartBytes = 0;
             if(cursorPosition > 0)
             {
@@ -462,6 +475,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     selectionStartBytes = prefix.requiredBytes;
                 }
             }
+
             appendTextUtf8(state, attachment, utf8, kind, selectionStartBytes);
         }
         catch(const std::bad_alloc &)
@@ -469,10 +483,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
             state.pendingDiscontinuity = true;
         }
     }
+
     void handleUtf16(System::Impl &state, Attachment::Impl &attachment, char16_t codeUnit) noexcept
     {
         const bool high = codeUnit >= 0xD800 && codeUnit <= 0xDBFF;
         const bool low = codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
+
         if(high)
         {
             if(attachment.pendingHighSurrogate != 0)
@@ -483,6 +499,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             attachment.pendingHighSurrogate = codeUnit;
             return;
         }
+
         if(low)
         {
             if(attachment.pendingHighSurrogate == 0)
@@ -498,12 +515,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
             appendText(state, attachment, scalar);
             return;
         }
+
         if(attachment.pendingHighSurrogate != 0)
         {
             attachment.pendingHighSurrogate = 0;
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
         }
+
         appendText(state, attachment, static_cast<char32_t>(codeUnit));
     }
 

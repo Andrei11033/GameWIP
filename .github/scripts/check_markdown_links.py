@@ -40,7 +40,6 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def normalized_relative_path(path: Path, root: Path) -> Path | None:
-
     try:
         return path.resolve().relative_to(root.resolve())
     except ValueError:
@@ -96,7 +95,6 @@ def iter_link_targets(markdown: str) -> list[str]:
 
 
 def strip_markdown_title(target: str) -> str:
-
     if not target:
         return target
 
@@ -110,7 +108,6 @@ def strip_markdown_title(target: str) -> str:
 
 
 def is_local_relative_target(target: str) -> bool:
-
     if not target or target.startswith("#"):
         return False
 

@@ -35,7 +35,8 @@ function Invoke-GameWipBundle
             {
                 { $_ -in @('Configure', 'Build', 'BuildTarget', 'CTest') }
                 {
-                    [string]$step.Preset; break
+                    [string]$step.Preset
+                    break
                 }
                 'ProjectCommand'
                 {
@@ -49,7 +50,8 @@ function Invoke-GameWipBundle
                 }
                 'Benchmark'
                 {
-                    [string](Get-GameWipProjectCommand -Id 'benchmark-dry-run').BuildPreset; break
+                    [string](Get-GameWipProjectCommand -Id 'benchmark-dry-run').BuildPreset
+                    break
                 }
                 default
                 {

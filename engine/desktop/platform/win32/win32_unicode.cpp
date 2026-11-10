@@ -55,7 +55,6 @@ namespace GameWIP::Desktop::Detail::Platform
             nativeCode = ERROR_INVALID_PARAMETER;
             return false;
         }
-
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
 
         if(measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
@@ -78,7 +77,6 @@ namespace GameWIP::Desktop::Detail::Platform
             nativeCode = nativeCodeForConversion(conversion.outcome);
             return false;
         }
-
         output.resize(conversion.codeUnitsWritten);
 
         for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
@@ -99,7 +97,6 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return true;
         }
-
         std::vector<char16_t> source(text.size());
 
         for(std::size_t index = 0; index < text.size(); ++index)

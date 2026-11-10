@@ -100,7 +100,6 @@ namespace GameWIP::Action
         {
             return ActionResult::InvalidBinding;
         }
-
         return value(component, scale, threshold);
     }
 

@@ -107,7 +107,6 @@ namespace GameWIP::Logger
             {
                 return text.size();
             }
-
             std::size_t boundary = limit;
 
             while(boundary > 0)
@@ -140,7 +139,6 @@ namespace GameWIP::Logger
                 scratch.assign(suffix.substr(0, maxMessageLength));
                 return;
             }
-
             scratch.append(suffix);
         }
 
@@ -169,7 +167,6 @@ namespace GameWIP::Logger
             {
                 return false;
             }
-
             truncateScratch(scratch, maxMessageLength);
             return true;
         }
@@ -209,14 +206,17 @@ namespace GameWIP::Logger
                 ++*written_;
                 return *this;
             }
+
             BoundedFormatIterator &operator*() noexcept
             {
                 return *this;
             }
+
             BoundedFormatIterator &operator++() noexcept
             {
                 return *this;
             }
+
             BoundedFormatIterator operator++(int) noexcept
             {
                 return *this;

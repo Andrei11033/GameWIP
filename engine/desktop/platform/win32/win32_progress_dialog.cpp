@@ -80,12 +80,14 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::successStatus();
             }
+
             RECT client{};
 
             if(GetClientRect(data.handle, &client) == FALSE)
             {
                 return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "GetClientRect ProgressDialog");
             }
+
             const LONG margin = scaled(18, dpi);
             const LONG gap = scaled(10, dpi);
             const LONG headingHeight = scaled(26, dpi);
@@ -195,6 +197,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 return 0;
             }
+
             case WM_NCDESTROY:
             {
                 const bool unexpected = !data->destroying;
@@ -300,6 +303,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
+
 #endif
             if(RegisterClassExW(&windowClass) == 0)
             {
@@ -334,18 +338,21 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::successStatus();
             }
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
             if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressClassRelease))
             {
                 ++progressClassUsers;
                 return IO::makeStatus(IO::Types::ErrorCode::CloseFailed);
             }
+
 #endif
             if(UnregisterClassW(kProgressClassName, progressClassInstance) == FALSE)
             {
                 ++progressClassUsers;
                 return statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "UnregisterClassW ProgressDialog");
             }
+
             progressClassOwned = false;
             progressClassInstance = nullptr;
             return IO::successStatus();
@@ -361,7 +368,6 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return IO::makeStatus(unicodeConversionError(nativeCode, IO::Types::ErrorCode::EncodingFailed), nativeCode);
                 }
-
                 return IO::successStatus();
             }
             catch(const std::bad_alloc &)
@@ -381,6 +387,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             }
+
 #endif
             std::wstring wide;
             IO::Types::Status status = convertProgressText(text, wide);
@@ -389,6 +396,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             SetLastError(ERROR_SUCCESS);
 
             if(SetWindowTextW(control, wide.c_str()) == FALSE)
@@ -406,6 +414,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             }
+
 #endif
             ProgressDialogData &data = *state.platform;
             LONG_PTR style = 0;
@@ -415,6 +424,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return queryStatus;
             }
+
             const ULONG_PTR styleBits = static_cast<ULONG_PTR>(style);
             const ULONG_PTR marqueeStyle = static_cast<ULONG_PTR>(PBS_MARQUEE);
             const LONG_PTR requestedStyle =
@@ -473,6 +483,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return;
             }
+
             Dispatcher &current = dispatcher();
             state.pendingOwnerRestoreNext = current.pendingProgressOwnerRestoreHead;
             current.pendingProgressOwnerRestoreHead = &state;
@@ -486,6 +497,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return;
             }
+
             ProgressDialogState **link = &dispatcher().pendingProgressOwnerRestoreHead;
 
             while(*link != nullptr && *link != &state)
@@ -584,7 +596,6 @@ namespace GameWIP::Desktop::Detail::Platform
                 state.nativeDestroyedPendingFinalize = true;
                 return;
             }
-
             ProgressDialogData &data = *state.platform;
 
             if(data.registered)
@@ -780,19 +791,20 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             status = convertProgressText(description.heading, heading);
 
             if(!status.ok())
             {
                 return status;
             }
+
             status = convertProgressText(description.message, message);
 
             if(!status.ok())
             {
                 return status;
             }
-
             auto data = std::unique_ptr<ProgressDialogData, ProgressDialogDataDeleter>(new ProgressDialogData);
             data->owner = &state;
             data->ownerThreadId = GetCurrentThreadId();
@@ -825,7 +837,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "InitCommonControlsEx");
             }
-
             const UINT dpi = native.nativeOwner != nullptr ? dpiForWindow(native.nativeOwner) : dpiForWindow(nullptr);
             RECT bounds{0, 0, scaled(460, dpi), scaled(description.cancelable ? 190 : 160, dpi)};
 
@@ -978,6 +989,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 rollbackProgressOpenBestEffort(state);
                 return status;
             }
+
             status = layoutProgressWindow(*state.platform, dpi);
 
             if(!status.ok())
@@ -1004,6 +1016,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 state.platform->blockingOwner = true;
             }
+
             ShowWindow(state.platform->handle, SW_SHOWNOACTIVATE);
 
             if(UpdateWindow(state.platform->handle) == FALSE)
@@ -1039,7 +1052,6 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
         }
-
         return finalizeNative(state, true);
     }
 
@@ -1098,6 +1110,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::successStatus();
         }
+
         std::size_t index = 0;
 
         while(current.progressDialogs && index < current.progressDialogs->size())
@@ -1129,6 +1142,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return;
         }
+
         std::size_t index = 0;
 
         while(current.progressDialogs && index < current.progressDialogs->size())
@@ -1193,7 +1207,6 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status setProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept
     {
         IO::Types::Status status = applyProgressMode(state, mode);
-
         if(!status.ok())
         {
             const IO::Types::Status rollback = applyProgressMode(state, state.mode);
@@ -1215,6 +1228,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
         }
+
 #endif
         if(state.mode == Types::Dialogs::Progress::Mode::Determinate)
         {
@@ -1264,7 +1278,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             }
-
             return state->platform->ownerThreadId == GetCurrentThreadId() ? IO::successStatus() : IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
     } // namespace
@@ -1283,6 +1296,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return snapshot;
         }
+
         try
         {
             const ProgressDialogData &data = *state->platform;
@@ -1332,6 +1346,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
+
         SendMessageW(
             state->platform->handle,
             WM_COMMAND,
@@ -1348,6 +1363,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return status;
         }
+
         SendMessageW(state->platform->handle, WM_CLOSE, 0, 0);
         return IO::successStatus();
     }
@@ -1377,6 +1393,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return status;
         }
+
         constexpr auto maximumLong = std::numeric_limits<LONG>::max();
 
         if(dpi == 0 || suggestedBounds.width > static_cast<std::uint32_t>(maximumLong) ||
@@ -1386,6 +1403,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         RECT suggested{
             suggestedBounds.x,
             suggestedBounds.y,
@@ -1420,5 +1438,6 @@ namespace GameWIP::Desktop::Detail::Platform
         std::scoped_lock lock(progressClassMutex);
         return progressClassUsers;
     }
+
 #endif
 } // namespace GameWIP::Desktop::Detail::Platform

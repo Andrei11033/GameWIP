@@ -132,6 +132,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         const auto *ownedQueue = std::get_if<Types::ChildSurface::QueueConfiguration::Owned>(&queue.storage);
         const auto *borrowedQueue = std::get_if<Types::ChildSurface::QueueConfiguration::Borrowed>(&queue.storage);
 
@@ -139,6 +140,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         Detail::WindowState *parentState = Detail::WindowAccess::state(parent);
 
         if(parentState == nullptr || !Detail::Platform::hasLiveNativeWindow(*parentState))
@@ -176,9 +178,9 @@ namespace GameWIP::Desktop
                 candidate->eventStorage = borrowedQueue->storage;
                 candidate->eventStorageKind = Types::Events::StorageKind::External;
             }
+
             candidate->parentId = parentState->id;
             IO::Types::Status status = Detail::Platform::openChildSurface(*candidate, *parentState);
-
             if(!status.ok())
             {
                 Detail::Platform::closeChildSurfaceBestEffort(*candidate);
@@ -234,6 +236,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         Detail::Platform::CloseResult result = Detail::Platform::closeChildSurface(*state_);
 
         if(result.resourceClosed)
@@ -302,6 +305,7 @@ namespace GameWIP::Desktop
         {
             state_->eventStorage[(state_->eventHead + index) % state_->eventStorage.size()] = {};
         }
+
         state_->eventHead = 0;
         state_->eventCount = 0;
     }
@@ -312,7 +316,6 @@ namespace GameWIP::Desktop
         {
             return {};
         }
-
         return {state_->eventStorageKind, state_->eventStorage.size(), state_->eventCount, state_->droppedEvents};
     }
 
@@ -381,6 +384,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         const Types::LogicalRect previous = state_->rect;
         const Types::PixelSize previousPixels = state_->pixelSize;
         status = Detail::Platform::setChildSurfaceRect(*state_, newRect);
@@ -389,6 +393,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         state_->rect = newRect;
         state_->pixelSize = physicalSize(newRect.size, state_->dpi);
         queueGeometryChanges(*state_, previous, previousPixels);
@@ -445,6 +450,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         status = Detail::Platform::showChildSurface(*state_, true);
 
         if(status.ok())
@@ -464,6 +470,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         status = Detail::Platform::showChildSurface(*state_, false);
 
         if(status.ok())
@@ -483,6 +490,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         status = Detail::Platform::setChildSurfaceInteractionEnabled(*state_, enabled);
 
         if(status.ok())
@@ -513,6 +521,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         const Detail::ChildSurfaceState *siblingState = sibling.state_.get();
 
         if(&sibling == this || siblingState == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*siblingState) ||
@@ -520,7 +529,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::orderChildSurface(*state_, siblingState, true);
     }
 
@@ -532,6 +540,7 @@ namespace GameWIP::Desktop
         {
             return status;
         }
+
         const Detail::ChildSurfaceState *siblingState = sibling.state_.get();
 
         if(&sibling == this || siblingState == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*siblingState) ||
@@ -539,7 +548,6 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::Platform::orderChildSurface(*state_, siblingState, false);
     }
 } // namespace GameWIP::Desktop

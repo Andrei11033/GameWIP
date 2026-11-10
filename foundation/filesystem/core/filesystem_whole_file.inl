@@ -9,7 +9,6 @@ IO::Types::ReadAllBytesResult readAllBytes(const Types::Path &path, const Types:
         {
             return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
         }
-
         FileReader reader;
         IO::Types::Status openStatus = reader.open(path, options.open);
 
@@ -46,7 +45,6 @@ IO::Types::ReadAllTextResult readAllText(const Types::Path &path, const Types::F
         {
             return {.status = IO::makeStatus(ErrorCode::InvalidArgument)};
         }
-
         FileReader reader;
         IO::Types::Status openStatus = reader.open(path, options.open);
 
@@ -83,7 +81,6 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
         {
             return writeFailure(ErrorCode::InvalidArgument);
         }
-
         Types::File::WriterMode writerMode = Types::File::WriterMode::CreateOrTruncate;
 
         switch(options.mode)
@@ -124,7 +121,6 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
             static_cast<void>(writer.close());
             return result;
         }
-
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
 
         if(!flushStatus.ok())
@@ -132,7 +128,6 @@ IO::Types::WriteResult writeAllBytes(const Types::Path &path, std::span<const st
             result.status = std::move(flushStatus);
             return result;
         }
-
         IO::Types::Status closeStatus = writer.close();
 
         if(!closeStatus.ok())
@@ -158,7 +153,6 @@ IO::Types::WriteResult writeAllText(const Types::Path &path, std::string_view ut
     {
         return writeFailure(ErrorCode::EncodingFailed);
     }
-
     return writeAllBytes(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
 }
 
@@ -170,7 +164,6 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
         {
             return writeFailure(ErrorCode::InvalidArgument);
         }
-
         Types::File::WriterMode writerMode = Types::File::WriterMode::AppendOrCreate;
 
         switch(options.mode)
@@ -208,7 +201,6 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
             static_cast<void>(writer.close());
             return result;
         }
-
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
 
         if(!flushStatus.ok())
@@ -216,7 +208,6 @@ IO::Types::WriteResult appendBytes(const Types::Path &path, std::span<const std:
             result.status = std::move(flushStatus);
             return result;
         }
-
         IO::Types::Status closeStatus = writer.close();
 
         if(!closeStatus.ok())
@@ -242,7 +233,6 @@ IO::Types::WriteResult appendText(const Types::Path &path, std::string_view utf8
     {
         return writeFailure(ErrorCode::EncodingFailed);
     }
-
     return appendBytes(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
 }
 
@@ -265,7 +255,6 @@ IO::Types::Status writeAllBytesAtomic(
         {
             return prefixStatus;
         }
-
         Types::Path parent = path.parent_path();
 
         if(parent.empty())
@@ -282,7 +271,6 @@ IO::Types::Status writeAllBytesAtomic(
         {
             return parentStatus;
         }
-
         Detail::Platform::EntryQueryResult destination = queryEntry(path, options.symlinkPolicy);
 
         if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
@@ -299,10 +287,10 @@ IO::Types::Status writeAllBytesAtomic(
         {
             return IO::makeStatus(ErrorCode::Unsupported);
         }
-
         Types::Path temporaryPath;
         IO::Types::Status openStatus = IO::makeStatus(ErrorCode::AlreadyExists);
         FileWriter writer;
+
         // Until movePath() succeeds, every failure below is pre-commit. Cleanup is best effort: it may retain this
         // uniquely named temporary but cannot publish the replacement.
         // Bound collision retries so a hostile or exhausted directory cannot make temporary-name creation loop indefinitely.
@@ -323,7 +311,6 @@ IO::Types::Status writeAllBytesAtomic(
         {
             return openStatus;
         }
-
         IO::Types::WriteResult writeResult = IO::writeAllBytes(writer, bytes);
 
         if(!writeResult.status.ok())
@@ -332,7 +319,6 @@ IO::Types::Status writeAllBytesAtomic(
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
             return std::move(writeResult.status);
         }
-
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
 
         if(!flushStatus.ok())
@@ -341,7 +327,6 @@ IO::Types::Status writeAllBytesAtomic(
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
             return flushStatus;
         }
-
         IO::Types::Status closeStatus = writer.close();
 
         if(!closeStatus.ok())
@@ -349,7 +334,6 @@ IO::Types::Status writeAllBytesAtomic(
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
             return closeStatus;
         }
-
         IO::Types::Status commitStatus = Detail::Platform::movePath(temporaryPath, path, options.replaceMode, options.symlinkPolicy);
 
         if(!commitStatus.ok())
@@ -357,7 +341,6 @@ IO::Types::Status writeAllBytesAtomic(
             static_cast<void>(removeFile(temporaryPath, Types::RemoveOptions{.succeedIfMissing = true}));
             return commitStatus;
         }
-
         // Commit already succeeded; a failure below is a late durability failure and must not be reported as a pre-commit rollback.
         if(options.flushParentDirectory)
         {
@@ -387,6 +370,5 @@ IO::Types::Status writeAllTextAtomic(const Types::Path &path, std::string_view u
     {
         return IO::makeStatus(ErrorCode::EncodingFailed);
     }
-
     return writeAllBytesAtomic(path, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())), options);
 }

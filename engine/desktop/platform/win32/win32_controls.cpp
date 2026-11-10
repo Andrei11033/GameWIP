@@ -410,12 +410,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "LoadCursorW");
         }
+
         IO::Types::Status status = replaceCustomCursorWithSystem(state, cursor);
 
         if(!status.ok())
         {
             return status;
         }
+
         state.cursorShape = shape;
         return IO::successStatus();
     }

@@ -112,10 +112,12 @@ namespace
         {
             testContext.pass(name);
         }
+
         void skip(std::string_view name, std::string_view reason)
         {
             testContext.skip(name, reason);
         }
+
         void fail(std::string_view name, std::string_view details)
         {
             testContext.fail(name, details);
@@ -334,6 +336,7 @@ namespace GameWIP::Test
                     context.fail("acquire Logger process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
                     return;
                 }
+
                 const TestSupport::ScopedTemporaryDirectory workspace("logger_tests");
 
                 if(!workspace.status().ok())
@@ -341,7 +344,6 @@ namespace GameWIP::Test
                     context.fail("create Logger test workspace", TestSupport::formatInfrastructureStatus(workspace.status()));
                     return;
                 }
-
                 context.logRoot = workspace.path();
                 context.executablePath = GameWIP::Validation::currentExecutablePath();
                 const TestSupport::ScopedCurrentPath currentPath(context.processState, workspace.path());

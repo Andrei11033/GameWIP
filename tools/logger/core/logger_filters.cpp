@@ -39,7 +39,6 @@ namespace GameWIP::Logger::Detail::Core
             {
                 return &(*position);
             }
-
             return static_cast<decltype(&registry.sources[0])>(nullptr);
         }
     } // namespace
@@ -82,7 +81,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return;
         }
-
         const SourceId minSource = registry.sources.front().id;
         const SourceId maxSource = registry.sources.back().id;
         const std::uint64_t span64 = static_cast<std::uint64_t>(maxSource) - static_cast<std::uint64_t>(minSource) + 1u;
@@ -120,7 +118,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return true;
         }
-
         const RegisteredSource *registeredSource = findSource(*registry, source);
         return registeredSource == nullptr || registeredSource->enabled.load(std::memory_order_acquire);
     }
@@ -150,7 +147,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return false;
         }
-
         const std::uint8_t bit = levelBit(level);
         return bit != 0 && (runtimeStateLevelMask(runtimeState) & bit) != 0;
     }
@@ -178,7 +174,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return {};
         }
-
         const std::uint8_t levelMaskBit = levelBit(entry.level);
 
         if(levelMaskBit == 0 || (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0)
@@ -222,8 +217,8 @@ namespace GameWIP::Logger::Detail::Core
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                     return false;
                 }
-                const auto validation = GameWIP::Unicode::Utf8::validate(definition.name);
 
+                const auto validation = GameWIP::Unicode::Utf8::validate(definition.name);
                 if(validation.outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
                 {
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed);
@@ -252,7 +247,6 @@ namespace GameWIP::Logger::Detail::Core
                 outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                 return false;
             }
-
             std::vector<SourceId> filteredSources;
             filteredSources.reserve(filters.size());
 
@@ -319,7 +313,6 @@ namespace GameWIP::Logger::Detail::Core
             {
                 return false;
             }
-
             seenLevels |= bit;
 
             if(filter.enabled)
@@ -393,7 +386,6 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
     {
         std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
         const auto registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
-
         if(registry)
         {
             for(const auto &source : registry->sources)

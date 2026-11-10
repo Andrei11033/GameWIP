@@ -27,7 +27,6 @@ if(GAMEWIP_DEPENDENCY_CACHE_DIR)
         set(_gamewip_fetchcontent_root "${GAMEWIP_DEPENDENCY_CACHE_DIR}/fetchcontent")
     else()
         get_filename_component(_gamewip_dependency_cache_root "${GAMEWIP_DEPENDENCY_CACHE_DIR}" ABSOLUTE BASE_DIR "${GAMEWIP_SOURCE_ROOT}")
-
         set(_gamewip_fetchcontent_root "${_gamewip_dependency_cache_root}/fetchcontent")
     endif()
 
@@ -51,9 +50,7 @@ function(gamewip_get_dependency DEPENDENCY_NAME OUT_REPOSITORY OUT_COMMIT OUT_CA
     file(READ "${GAMEWIP_DEPENDENCY_LOCK_FILE}" _dependency_json)
 
     string(JSON _repository GET "${_dependency_json}" dependencies "${DEPENDENCY_NAME}" repository)
-
     string(JSON _commit GET "${_dependency_json}" dependencies "${DEPENDENCY_NAME}" commit)
-
     string(JSON _cache_directory GET "${_dependency_json}" dependencies "${DEPENDENCY_NAME}" cacheDirectory)
 
     set("${OUT_REPOSITORY}" "${_repository}" PARENT_SCOPE)

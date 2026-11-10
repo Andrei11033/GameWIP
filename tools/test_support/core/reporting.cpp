@@ -357,6 +357,7 @@ namespace GameWIP::TestSupport
             pass(name);
             return true;
         }
+
         fail(name, "expected true", location);
         return false;
     }
@@ -368,6 +369,7 @@ namespace GameWIP::TestSupport
             pass(name);
             return true;
         }
+
         fail(name, "expected false", location);
         return false;
     }
@@ -385,7 +387,6 @@ namespace GameWIP::TestSupport
             pass(name);
             return true;
         }
-
         std::ostringstream reason;
         reason << "expected " << expected << " +/- " << tolerance << ", got " << actual;
         fail(name, reason.str(), location);

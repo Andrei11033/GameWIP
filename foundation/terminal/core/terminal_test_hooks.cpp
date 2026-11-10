@@ -28,7 +28,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
         {
             return std::nullopt;
         }
-
         return static_cast<IO::Types::ErrorCode>(failure.code.load(std::memory_order_acquire));
     }
 
@@ -40,7 +39,6 @@ namespace GameWIP::Terminal::Detail::TestHooks
         {
             return;
         }
-
         block.enabled = false;
         block.reached = true;
         block.released = false;
@@ -177,6 +175,7 @@ namespace GameWIP::Terminal::TestHooks
     {
         return Detail::Platform::TestHooks::takePendingWin32KeyEvent();
     }
+
 #endif
 
     // ------------------------------------------------------------

@@ -21,26 +21,32 @@ namespace GameWIP::Input::Query
         {
             return false;
         }
+
         if(selector.persistentKey.has_value() && element.persistentKey != *selector.persistentKey)
         {
             return false;
         }
+
         if(selector.standard.has_value() && (!element.identity.standard.has_value() || *element.identity.standard != *selector.standard))
         {
             return false;
         }
+
         if(selector.hid.has_value() && (!element.identity.hid.has_value() || *element.identity.hid != *selector.hid))
         {
             return false;
         }
+
         if(selector.kind.has_value() && element.kind != *selector.kind)
         {
             return false;
         }
+
         if(selector.reporting.has_value() && element.reporting != *selector.reporting)
         {
             return false;
         }
+
         return true;
     }
 
@@ -54,6 +60,7 @@ namespace GameWIP::Input::Query
         {
             return nullptr;
         }
+
         for(const Types::DeviceInfo &device : devices)
         {
             if(device.id == id)
@@ -61,6 +68,7 @@ namespace GameWIP::Input::Query
                 return &device;
             }
         }
+
         return nullptr;
     }
 
@@ -76,6 +84,7 @@ namespace GameWIP::Input::Query
         {
             return nullptr;
         }
+
         for(const Types::DeviceInfo &device : devices)
         {
             if(device.persistentKey == persistentKey)
@@ -83,6 +92,7 @@ namespace GameWIP::Input::Query
                 return &device;
             }
         }
+
         return nullptr;
     }
 
@@ -96,11 +106,13 @@ namespace GameWIP::Input::Query
         {
             return nullptr;
         }
+
         const Types::DeviceInfo *device = findDevice(devices, id.device);
         if(device == nullptr)
         {
             return nullptr;
         }
+
         for(const Types::ElementInfo &element : device->elements)
         {
             if(element.id == id)
@@ -108,6 +120,7 @@ namespace GameWIP::Input::Query
                 return &element;
             }
         }
+
         return nullptr;
     }
 
@@ -125,12 +138,14 @@ namespace GameWIP::Input::Query
         {
             return nullptr;
         }
+
         for(const Types::DeviceInfo &candidate : devices)
         {
             if(device.isValid() ? candidate.id != device : !candidate.connected)
             {
                 continue;
             }
+
             for(const Types::ElementInfo &element : candidate.elements)
             {
                 if(matches(element, selector))
@@ -139,6 +154,7 @@ namespace GameWIP::Input::Query
                 }
             }
         }
+
         return nullptr;
     }
 

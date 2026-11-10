@@ -47,6 +47,7 @@ void testPresentationPublication(TestSupport::Context &context)
     {
         return;
     }
+
     static_cast<void>(
         context.expectFalse("default Window has no presentation publication", Desktop::Renderer::concurrentPresentationReadsEnabled(window)));
     static_cast<void>(context.expectEq(
@@ -153,6 +154,7 @@ void testPresentationPublication(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("published visibility is visible", window.visible()));
     static_cast<void>(context.expectTrue("published interactive state is visible", window.interactiveMoveResizeActive()));
     static_cast<void>(context.expectTrue("published occlusion is visible", window.occluded()));
+
     static_cast<void>(context.expectTrue("portable publication fixture closes", window.close().ok()));
     static_cast<void>(context.expectEq("close clears client size", Desktop::Types::LogicalSize{}, window.clientSize()));
     static_cast<void>(context.expectEq("close clears framebuffer size", Desktop::Types::PixelSize{}, window.framebufferSize()));
@@ -370,6 +372,7 @@ void testRendererOcclusionFeedback(TestSupport::Context &context)
     {
         return;
     }
+
     static_cast<void>(context.expectFalse(
         "occlusion feedback works without concurrent presentation publication",
         Feedback::concurrentPresentationReadsEnabled(window)));

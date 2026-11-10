@@ -71,6 +71,7 @@ namespace
             nodes[0].role = A::Role::Window;
             nodes[0].children = children;
             nodes[0].name = "Example";
+
             nodes[1].id = 2;
             nodes[1].parent = 1;
             nodes[1].role = A::Role::Button;
@@ -131,6 +132,7 @@ namespace GameWIP::Test
         {
             return 2;
         }
+
         Tree tree;
         tree.nodes[1].text = A::TextContent{"Smoke text"};
 
@@ -138,12 +140,14 @@ namespace GameWIP::Test
         {
             return 3;
         }
+
         const auto handles = Desktop::Native::Win32::getHandle(window);
 
         if(!handles.status.ok())
         {
             return 4;
         }
+
         std::atomic<bool> done{false};
         std::atomic<int> clientResult{5};
         bool invoked = false;
@@ -157,6 +161,7 @@ namespace GameWIP::Test
                     done = true;
                     return;
                 }
+
                 const auto runClient = [&] -> int
                 {
                     Com<IUIAutomation> automation;
@@ -170,12 +175,14 @@ namespace GameWIP::Test
                     {
                         return 6;
                     }
+
                     Com<IUIAutomationElement> root, child;
 
                     if(FAILED(automation->ElementFromHandle(handles->window, root.put())) || !root)
                     {
                         return 7;
                     }
+
                     BSTR name = nullptr;
                     const auto named = root->get_CurrentName(&name);
                     const bool correctName = SUCCEEDED(named) && std::wstring_view(name, SysStringLen(name)) == L"Example";
@@ -185,6 +192,7 @@ namespace GameWIP::Test
                     {
                         return 8;
                     }
+
                     VARIANT id{};
                     id.vt = VT_BSTR;
                     id.bstrVal = SysAllocString(L"2");
@@ -193,6 +201,7 @@ namespace GameWIP::Test
                     {
                         return 9;
                     }
+
                     Com<IUIAutomationCondition> condition;
                     const auto filtered = automation->CreatePropertyCondition(UIA_AutomationIdPropertyId, id, condition.put());
                     VariantClear(&id);
@@ -201,12 +210,14 @@ namespace GameWIP::Test
                     {
                         return 10;
                     }
+
                     Com<IUnknown> unknown;
 
                     if(FAILED(child->GetCurrentPattern(UIA_InvokePatternId, unknown.put())) || !unknown)
                     {
                         return 11;
                     }
+
                     Com<IUIAutomationInvokePattern> invoke;
 
                     if(FAILED(unknown->QueryInterface(__uuidof(IUIAutomationInvokePattern), reinterpret_cast<void **>(invoke.put()))) ||
@@ -220,6 +231,7 @@ namespace GameWIP::Test
                     {
                         return 13;
                     }
+
                     Com<IUIAutomationTextPattern> text;
                     Com<IUIAutomationTextRange> range;
 
@@ -228,6 +240,7 @@ namespace GameWIP::Test
                     {
                         return 14;
                     }
+
                     BSTR content = nullptr;
                     const auto read = range->GetText(-1, &content);
                     const bool correctText = SUCCEEDED(read) && std::wstring_view(content, SysStringLen(content)) == L"Smoke text";

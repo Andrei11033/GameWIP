@@ -174,6 +174,7 @@ namespace GameWIP::Validation::Tests
                             throw std::invalid_argument("relative report paths cannot contain '..'");
                         }
                     }
+
                     options.reportPath = (outputRoot / normalized).lexically_normal();
                 }
                 else
@@ -323,6 +324,7 @@ namespace GameWIP::Validation::Tests
             std::cerr << "[VALIDATION] executable path discovery failed: " << error.what() << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
         }
+
         const std::filesystem::path outputRoot = executablePath.parent_path();
         const std::filesystem::path temporaryRoot = outputRoot / "temp";
         std::error_code temporaryError;
@@ -333,6 +335,7 @@ namespace GameWIP::Validation::Tests
             std::cerr << "Validation temporary directory setup failed: " << temporaryError.message() << '\n';
             return {.modulesFailed = 1, .exitCode = 1};
         }
+
         const std::u8string temporaryRootUtf8 = temporaryRoot.u8string();
         const std::string temporaryRootText(temporaryRootUtf8.begin(), temporaryRootUtf8.end());
         TestSupport::ScopedProcessState processState;
@@ -493,6 +496,7 @@ namespace GameWIP::Validation::Tests
                 ++result.modulesFailed;
                 result.exitCode = 1;
             }
+
             const std::string moduleLine =
                 std::format("[VALIDATION] module={} result={} exitCode={}", module.name, moduleExitCode == 0 ? "PASS" : "FAIL", moduleExitCode);
             GameWIP::Test::RunnerHelpers::writeValidationConsoleLineOrDiagnose(moduleExitCode == 0 ? "PASS" : "FAIL", moduleLine);
@@ -527,6 +531,7 @@ namespace GameWIP::Validation::Tests
             {
                 continue;
             }
+
             const std::string_view argument(value);
 
             if(argument == "--startup-tests" || isReservedChildArgument(argument))
@@ -545,6 +550,7 @@ namespace GameWIP::Validation::Tests
             {
                 continue;
             }
+
             try
             {
                 if(module.handlesChildArguments(argc, argv))

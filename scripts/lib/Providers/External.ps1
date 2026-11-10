@@ -10,6 +10,7 @@ function Get-GameWipExternalToolLatestVersion
     $null = $Tool
     return $null
 }
+
 function Install-GameWipExternalTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)

@@ -23,7 +23,6 @@ void testDisplayColorInformation(TestSupport::Context &context)
     {
         return;
     }
-
     const auto primaryColor = Feedback::getColorInfo(primary->id);
     static_cast<void>(context.expectTrue("native display-color query succeeds", primaryColor.ok()));
 
@@ -52,7 +51,6 @@ void testDisplayColorInformation(TestSupport::Context &context)
     {
         return;
     }
-
     const auto windowColor = Feedback::getColorInfo(window);
     static_cast<void>(context.expectTrue("Window display-color query succeeds", windowColor.ok()));
 

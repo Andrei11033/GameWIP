@@ -6,7 +6,8 @@
 
 function Test-GameWipWingetNoUpdateExitCode
 {
-    param([Parameter(Mandatory = $true)][int]$ExitCode); return $ExitCode -eq -1978335189
+    param([Parameter(Mandatory = $true)][int]$ExitCode)
+    return $ExitCode -eq -1978335189
 }
 
 function Get-GameWipWingetToolLatestVersion

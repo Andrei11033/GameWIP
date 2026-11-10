@@ -71,6 +71,7 @@ namespace GameWIP::TestSupport::Detail::Platform
                     result.value = std::string{};
                     return result;
                 }
+
                 result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, readError);
                 return result;
             }
@@ -84,7 +85,6 @@ namespace GameWIP::TestSupport::Detail::Platform
                 result.status = environmentFailure(Types::InfrastructureError::EnvironmentFailed, GetLastError());
                 return result;
             }
-
             value.resize(copied);
             result.value = GameWIP::TestSupport::Detail::Win32::wideToUtf8(value);
             return result;

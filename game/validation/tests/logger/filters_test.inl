@@ -59,7 +59,6 @@ void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOpti
         context.skip("filter concurrency", "disabled by LoggerTestOptions");
         return;
     }
-
     const std::size_t iterations = std::max<std::size_t>(500, options.stressIterationsPerThread);
     std::atomic<bool> start{false};
     std::atomic<bool> mutationsOk{true};

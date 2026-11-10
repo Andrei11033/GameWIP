@@ -456,7 +456,6 @@ namespace GameWIP::Terminal
             {
                 return {};
             }
-
             Types::Output::CapabilitiesResult capabilities = Detail::Platform::getOutputCapabilities(stream);
 
             if(capabilities.status.ok())
@@ -511,7 +510,6 @@ namespace GameWIP::Terminal
             {
                 return IO::successStatus();
             }
-
             return Detail::Platform::flush(stream, mode);
         }
 
@@ -670,6 +668,7 @@ namespace GameWIP::Terminal
                     {
                         return plan.status;
                     }
+
                     break;
                 }
                 default:
@@ -792,7 +791,6 @@ namespace GameWIP::Terminal
                         });
 
                     if((!allStylesSupported) && (capabilityResult.capabilities.kind != Types::StreamKind::Redirected))
-
                     {
                         Types::Output::CapabilitiesResult prepared = Detail::Platform::prepareOutput(stream);
 
@@ -1005,7 +1003,6 @@ namespace GameWIP::Terminal
                     restored = true;
                     return IO::successStatus();
                 }
-
                 bool emitted = false;
                 IO::Types::Status status = writeControlSequenceUnlocked(
                     stream,
@@ -1053,7 +1050,6 @@ namespace GameWIP::Terminal
                     restored = true;
                     return IO::successStatus();
                 }
-
                 bool emitted = false;
                 IO::Types::Status status = writeControlSequenceUnlocked(
                     stream,
@@ -1200,6 +1196,7 @@ namespace GameWIP::Terminal
                     return *this;
                 }
             }
+
             stream_ = other.stream_;
             options_ = other.options_;
             status_ = std::move(other.status_);
@@ -1304,6 +1301,7 @@ namespace GameWIP::Terminal
                     return *this;
                 }
             }
+
             stream_ = other.stream_;
             options_ = other.options_;
             status_ = std::move(other.status_);
@@ -1396,7 +1394,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = invalidArgumentStatus("Unknown terminal input stream."), .capabilities = {}};
             }
-
             std::lock_guard lock(Detail::inputIoMutex(stream));
             return Detail::Platform::getInputCapabilities(stream);
         }
@@ -1419,7 +1416,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = invalidArgumentStatus("Unknown terminal output stream."), .capabilities = {}};
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return Detail::Platform::getOutputCapabilities(stream);
         }
@@ -1442,7 +1438,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = invalidArgumentStatus("Unknown terminal output stream."), .capabilities = {}};
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return Detail::Platform::prepareOutput(stream);
         }
@@ -1465,7 +1460,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = invalidArgumentStatus("Unknown terminal output stream."), .size = {}};
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return Detail::Platform::getTerminalSize(stream);
         }
@@ -1492,7 +1486,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
             return writeTextUnlocked(stream, state, utf8Text, options);
@@ -1516,7 +1509,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
             return writeLineUnlocked(stream, state, utf8Text, options);
@@ -1543,7 +1535,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = invalidArgumentStatus("Unknown terminal output stream."), .bytesWritten = 0};
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeBytesUnlocked(stream, bytes, options);
         }
@@ -1569,7 +1560,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
             return writeSegmentsUnlocked(stream, state, segments, options);
@@ -1599,7 +1589,6 @@ namespace GameWIP::Terminal
                 {
                     return invalidArgumentStatus("Unknown IO flush mode.");
                 }
-
                 OutputState &state = outputState(stream);
                 FormatScratchLease scratch(state);
                 std::vformat_to(std::back_inserter(scratch.text()), format, arguments);
@@ -1635,7 +1624,6 @@ namespace GameWIP::Terminal
                 {
                     return invalidArgumentStatus("Unknown IO flush mode.");
                 }
-
                 OutputState &state = outputState(stream);
                 FormatScratchLease scratch(state);
                 std::vformat_to(std::back_inserter(scratch.text()), format, arguments);
@@ -1668,7 +1656,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return Detail::Platform::flush(stream, mode);
         }
@@ -1695,7 +1682,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeControlSequenceUnlocked(
                 stream,
@@ -1727,7 +1713,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
 
@@ -1755,13 +1740,13 @@ namespace GameWIP::Terminal
             {
                 return flushIfRequested(stream, options.flushMode);
             }
+
             IO::Types::Status validationStatus = Detail::Platform::validateCursorMovement(stream, amount);
 
             if(!validationStatus.ok())
             {
                 return validationStatus;
             }
-
             state.assembly.clear();
             state.assembly.append("\x1b[");
             appendUnsigned(state.assembly, amount);
@@ -1795,13 +1780,13 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
+
             IO::Types::Status validationStatus = Detail::Platform::validateCursorPosition(stream, position);
 
             if(!validationStatus.ok())
             {
                 return validationStatus;
             }
-
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
             state.assembly.clear();
@@ -1840,7 +1825,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = invalidArgumentStatus("Unknown terminal stream selected for cursor position query."), .position = {}};
             }
-
             std::scoped_lock lock(outputState(outputStream).mutex, Detail::inputIoMutex(responseStream));
 
             IO::Types::Status status = flushIfRequested(outputStream, options.flushMode);
@@ -1849,7 +1833,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = status, .position = {}};
             }
-
             return Detail::Platform::getCursorPosition(outputStream, responseStream, options);
         }
         catch(...)
@@ -1868,7 +1851,6 @@ namespace GameWIP::Terminal
             {
                 return {.status = invalidArgumentStatus("Unknown terminal stream selected for line rendering."), .position = {}};
             }
-
             std::scoped_lock lock(outputState(outputStream).mutex, Detail::inputIoMutex(inputStream));
             return Detail::Platform::getLineRenderingCursorPosition(outputStream);
         }
@@ -1886,7 +1868,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream selected for line rendering.");
             }
-
             std::lock_guard lock(outputState(outputStream).mutex);
             return Detail::Platform::setLineRenderingCursorPosition(outputStream, position);
         }
@@ -1909,7 +1890,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeControlSequenceUnlocked(
                 stream,
@@ -1937,7 +1917,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeControlSequenceUnlocked(
                 stream,
@@ -1965,7 +1944,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeControlSequenceUnlocked(
                 stream,
@@ -2055,7 +2033,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
 
             std::string_view sequence;
@@ -2117,7 +2094,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
 
@@ -2139,13 +2115,13 @@ namespace GameWIP::Terminal
             {
                 return flushIfRequested(stream, options.flushMode);
             }
+
             IO::Types::Status validationStatus = Detail::Platform::validateScroll(stream, lines);
 
             if(!validationStatus.ok())
             {
                 return validationStatus;
             }
-
             state.assembly.clear();
             state.assembly.append("\x1b[");
             appendUnsigned(state.assembly, lines);
@@ -2176,7 +2152,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeControlSequenceUnlocked(
                 stream,
@@ -2204,7 +2179,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeControlSequenceUnlocked(
                 stream,
@@ -2294,19 +2268,20 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
+
             IO::Types::Status validationStatus = validateUtf8Text(utf8Title);
 
             if(!validationStatus.ok())
             {
                 return validationStatus;
             }
+
             validationStatus = Detail::Platform::validateTitle(stream, utf8Title);
 
             if(!validationStatus.ok())
             {
                 return validationStatus;
             }
-
             OutputState &state = outputState(stream);
             std::lock_guard lock(state.mutex);
             state.assembly.clear();
@@ -2339,7 +2314,6 @@ namespace GameWIP::Terminal
             {
                 return invalidArgumentStatus("Unknown terminal output stream.");
             }
-
             std::lock_guard lock(outputState(stream).mutex);
             return writeControlSequenceUnlocked(
                 stream,

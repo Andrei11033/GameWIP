@@ -10,7 +10,7 @@
 namespace GameWIP::Game
 {
     /// @brief Enumerates connected displays and logs their active mode, color capabilities, and supported modes.
-    /// @note Per-display summaries are logged at Info and the full supported-mode list at Debug.
+    /// @note Per-display summaries and the full supported-mode list are logged at Debug.
     /// @return The enumerated displays, or the enumeration failure for the caller to report.
     [[nodiscard]] Desktop::Types::Result<std::vector<Desktop::Types::Display::Info>> inspectDisplays();
 } // namespace GameWIP::Game

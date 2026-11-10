@@ -51,11 +51,13 @@ body:
       placeholder: Describe the behavior, maintenance gap, or missing repository support.
     validations:
       required: true
+
   - type: textarea
     id: reason
     attributes:
       label: Why now? (optional)
       description: If timing affects prioritization, why does this work belong in the project now?
+
   - type: textarea
     id: work
     attributes:

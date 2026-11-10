@@ -49,6 +49,7 @@ namespace
                             TestSupport::formatInfrastructureStatus(workspace_->status())));
                 }
             }
+
             std::filesystem::path directoryPath = workspace_->path() / ("entries_" + std::to_string(entryCount) + "_depth_" + std::to_string(depth));
 
             for(int level = 0; level < depth; ++level)
@@ -88,6 +89,7 @@ namespace
         const int depth = static_cast<int>(state.range(0));
         const int entryCount = static_cast<int>(state.range(1));
         const std::filesystem::path *directory = nullptr;
+
         try
         {
             directory = &fixtureStore().directory(depth, entryCount);
@@ -115,6 +117,7 @@ namespace
             }
             benchmark::DoNotOptimize(listing.entries.data());
         }
+
         state.SetItemsProcessed(state.iterations() * entryCount);
     }
 
@@ -124,6 +127,7 @@ namespace
         const int depth = static_cast<int>(state.range(0));
         const int entryCount = static_cast<int>(state.range(1));
         const std::filesystem::path *directory = nullptr;
+
         try
         {
             directory = &fixtureStore().directory(depth, entryCount);
@@ -180,6 +184,7 @@ namespace
                 break;
             }
         }
+
         state.SetItemsProcessed(state.iterations() * entryCount);
     }
 

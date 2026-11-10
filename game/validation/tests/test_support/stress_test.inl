@@ -47,6 +47,7 @@ int runStartGateChild()
                             stopped.fetch_add(1, std::memory_order_relaxed);
                         });
                 });
+
             // Release before the worker owner joins, including exception unwinding.
             struct ScopedGateRelease
             {
@@ -138,6 +139,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
     {
         context.skip("StartGate child", "child process tests disabled by TestSupportTestOptions");
     }
+
     TestSupport::StopFlag stopFlag;
     static_cast<void>(context.expectFalse("StopFlag starts without a request", stopFlag.stopRequested()));
     stopFlag.requestStop();
@@ -152,6 +154,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
             calls.fetch_add(1, std::memory_order_relaxed);
         });
     static_cast<void>(context.expectEq("runWorkers zero workers never invokes the callable", std::size_t{0}, calls.load(std::memory_order_relaxed)));
+
     TestSupport::runWorkers(
         3,
         [&]
@@ -231,6 +234,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
                 {
                     throw std::runtime_error("intentional worker failure");
                 }
+
                 completedFailureWorkers.fetch_add(1, std::memory_order_relaxed);
             });
     }

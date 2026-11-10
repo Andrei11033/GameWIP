@@ -21,6 +21,7 @@ int main()
     const auto second = GameWIP::Terminal::writeLine(Stream::Stderr, "diagnostic");
     return second.ok() ? 0 : 1;
 }
+
 ```
 
 ## Read a line and handle every outcome
@@ -62,6 +63,7 @@ int main()
 
     return 6;
 }
+
 ```
 
 ## Non-blocking byte input when supported
@@ -90,6 +92,7 @@ int main()
     const auto result = readBytes(std::span<std::byte>{storage}, options);
     return result.status.ok() ? 0 : 1;
 }
+
 ```
 
 ## Styled output with fallback
@@ -108,6 +111,7 @@ int main()
 
     return writeLine("ready", options).ok() ? 0 : 1;
 }
+
 ```
 
 ## Segmented output with stable payload storage
@@ -140,6 +144,7 @@ int main()
 
     return writeSegments(segments, options).ok() ? 0 : 1;
 }
+
 ```
 
 ## Reusable OutputBuffer with retry
@@ -169,6 +174,7 @@ int main()
 
     return buffer.empty() ? 0 : 3;
 }
+
 ```
 
 ## Persistent Stream session with explicit restoration
@@ -207,6 +213,7 @@ int main()
     const auto closeStatus = session.close();
     return line.outcome == Types::Input::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
 }
+
 ```
 
 Explicit `close()` is preferred when native restoration failure matters. A failed close retains session ownership for retry.
@@ -243,6 +250,7 @@ int main()
 
     return session.close().ok() ? 0 : 3;
 }
+
 ```
 
 On native Win32 consoles, key/repeat/release/modifier/location and resize events come from `INPUT_RECORD`. Mouse records are ignored until Terminal
@@ -292,6 +300,7 @@ int main()
     const auto restoreStatus = hidden.restore();
     return writeStatus.ok() && restoreStatus.ok() ? 0 : 2;
 }
+
 ```
 
 ## Capability-aware terminal size
@@ -317,6 +326,7 @@ int main()
 
     return println("{} columns x {} rows", size.size.columns, size.size.rows).ok() ? 0 : 2;
 }
+
 ```
 
 ## Raw bytes to a suitable endpoint
@@ -342,6 +352,7 @@ int main()
     const auto result = writeBytes(std::span<const std::byte>{payload});
     return result.status.ok() && result.bytesWritten == payload.size() ? 0 : 1;
 }
+
 ```
 
 See @ref terminal_read_write for result interpretation and @ref terminal_capabilities_and_redirection for endpoint differences.

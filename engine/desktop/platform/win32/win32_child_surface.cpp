@@ -73,6 +73,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return false;
             }
+
             x = nativeX;
             y = nativeY;
             width = static_cast<int>(size.width);
@@ -87,6 +88,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return;
             }
+
             RECT native{};
 
             if(GetWindowRect(state.platform->handle, &native) == FALSE)
@@ -109,6 +111,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             visible = (static_cast<DWORD>(style) & WS_VISIBLE) != 0;
             return IO::successStatus();
         }
@@ -123,6 +126,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 ++childClassUsers;
                 return IO::successStatus();
             }
+
             WNDCLASSEXW nativeClass{};
             nativeClass.cbSize = sizeof(nativeClass);
             nativeClass.style = CS_DBLCLKS;
@@ -219,6 +223,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return 0;
                 }
+
                 const Types::ContentScale previousScale = state->contentScale;
                 const Types::Dpi previousDpi = state->dpi;
                 const Types::PixelSize previousPixels = state->pixelSize;
@@ -238,6 +243,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     recordPumpFailure(statusFromWin32(IO::Types::ErrorCode::NativeFailure, GetLastError(), "apply ChildSurface DPI geometry"));
                     return 0;
                 }
+
                 state->dpi = {static_cast<float>(newDpi), static_cast<float>(newDpi)};
                 state->contentScale = {
                     static_cast<float>(newDpi) / static_cast<float>(kBaselineDpi),
@@ -255,6 +261,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 return 0;
             }
+
             case WM_NCDESTROY:
             {
                 const bool unexpected = !state->platform || !state->platform->destroying;
@@ -279,6 +286,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 return DefWindowProcW(window, message, wParam, lParam);
             }
+
             default:
                 return DefWindowProcW(window, message, wParam, lParam);
             }
@@ -340,7 +348,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
-
             DWORD creationError = ERROR_SUCCESS;
             {
                 DpiHostingScope hosting;
@@ -349,6 +356,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "enable mixed DPI hosting for ChildSurface");
                 }
+
                 state.platform->handle = CreateWindowExW(
                     WS_EX_NOPARENTNOTIFY,
                     kChildSurfaceClassName,
@@ -523,6 +531,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
+
         int x = 0;
         int y = 0;
         int width = 0;
@@ -553,6 +562,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
+
         POINT point{x, y};
 
         if(ClientToScreen(state.platform->handle, &point) == FALSE)
@@ -677,7 +687,6 @@ namespace GameWIP::Desktop::TestHooks
         {
             return {};
         }
-
         return {logicalRect, Detail::Platform::logicalToPhysicalSize(logicalRect.size, newDpi)};
     }
 

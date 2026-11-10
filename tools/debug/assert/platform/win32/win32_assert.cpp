@@ -58,6 +58,7 @@ namespace
         {
             return;
         }
+
 #endif
         static_cast<void>(MessageBoxW(nullptr, message, title, MB_ICONERROR | MB_OK | MB_SETFOREGROUND));
     }
@@ -90,14 +91,13 @@ namespace
         {
             throw std::bad_alloc{};
         }
+
 #endif
         if(text.empty())
         {
             return {};
         }
-
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
-
         if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
         {
             return asciiFallbackToWide(text);
@@ -105,12 +105,10 @@ namespace
 
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
-
         if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
         {
             return asciiFallbackToWide(text);
         }
-
         std::wstring output(conversion.codeUnitsWritten, L'\0');
 
         for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
@@ -147,7 +145,6 @@ namespace
         {
             return maxCodeUnits - 1;
         }
-
         return maxCodeUnits;
     }
 
@@ -166,7 +163,6 @@ namespace
             text.resize(utf16PrefixBoundary(text, maxCodeUnits));
             return;
         }
-
         // The suffix overwrites discarded text in existing storage, so truncation needs no allocation.
         const std::size_t prefixLimit = maxCodeUnits - suffix.size();
         const std::size_t prefixSize = utf16PrefixBoundary(text, prefixLimit);
@@ -317,6 +313,7 @@ namespace GameWIP::Debug::Assert::Detail::Platform
         {
             return;
         }
+
         try
         {
             const PopupText text = preparePopupText(title, message);
@@ -377,7 +374,6 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 
     bool isDebuggerAttached() noexcept
     {
-
         return IsDebuggerPresent() != FALSE;
     }
 

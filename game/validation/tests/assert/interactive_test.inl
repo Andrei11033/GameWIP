@@ -24,13 +24,13 @@ void testInteractiveIgnoreOnce(TestContext &context)
         context.fail("interactive ignore once logger init", "Logger::init failed");
         return;
     }
-
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "ignore_once");
 
     if(!requireInfrastructure(context, "set interactive ignore-once action", testAction.status()))
     {
         return;
     }
+
     ASSERT_INTERACTIVE_MSG(false, "interactive ignore once test");
 
     Logger::flush(2s);
@@ -66,13 +66,13 @@ void testInteractiveAlwaysIgnore(TestContext &context)
         context.fail("interactive always ignore logger init", "Logger::init failed");
         return;
     }
-
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "always_ignore");
 
     if(!requireInfrastructure(context, "set interactive always-ignore action", testAction.status()))
     {
         return;
     }
+
     interactiveAlwaysIgnoreSite();
     interactiveAlwaysIgnoreSite();
 
@@ -113,6 +113,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
     {
         return;
     }
+
     VERIFY_INTERACTIVE_MSG(++failingEvaluations < 0, "verify interactive ignore once test");
     context.expectEq("VERIFY_INTERACTIVE failing evaluates once", failingEvaluations, 1);
 
@@ -156,6 +157,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     {
         return;
     }
+
     verifyInteractiveAlwaysIgnoreSite(evaluations);
     verifyInteractiveAlwaysIgnoreSite(evaluations);
 

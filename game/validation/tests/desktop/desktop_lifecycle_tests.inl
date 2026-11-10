@@ -526,6 +526,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     {
         return;
     }
+
     static_cast<void>(context.expectTrue("open Window has an id", owner.id().isValid()));
     static_cast<void>(context.expectEq("open Window reports Open lifetime", Desktop::Types::LifetimeState::Open, owner.lifetimeState()));
     static_cast<void>(context.expectEq("title cache matches", std::string_view{description.title}, owner.title()));
@@ -616,6 +617,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
                 EqualRect(&fullscreenRect, &fullscreenMonitorInfo.rcMonitor) != FALSE));
         }
     }
+
     static_cast<void>(context.expectTrue("windowed placement restores", owner.setWindowMode(Desktop::Types::WindowModes::windowed()).ok()));
     static_cast<void>(context.expectEq("windowed mode is cached", Desktop::Types::WindowMode::Windowed, owner.windowMode()));
 
@@ -690,9 +692,9 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     controls.minimizable = true;
     static_cast<void>(context.expectTrue("maximize restores after resize", owner.setControls(controls).ok()));
 
+    // Capability-gated behavior is checked last so unsupported features remain explicit skips or stable errors.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
-    // Capability-gated behavior is checked last so unsupported features remain explicit skips or stable errors.
     static_cast<void>(context.expectFalse(
         "Win32 does not advertise cross-application pointer regions",
         capabilities.supports(Desktop::Types::Capability::PointerRegions)));
@@ -789,7 +791,6 @@ void testHiddenNativeWindow(TestSupport::Context &context)
 void testInitialMonitorGeometry(TestSupport::Context &context)
 {
     const auto monitors = Desktop::Display::getMonitors();
-
     if(!context.expectTrue("initial geometry monitor enumeration succeeds", monitors.ok()))
     {
         return;
@@ -848,8 +849,8 @@ void testResultAccessPreconditions(TestSupport::Context &context)
         child.arguments = {std::string(argument)};
         child.waitTimeout = std::chrono::seconds(10);
         child.captureOutput = true;
-        const auto result = TestSupport::runChildProcess(child);
 
+        const auto result = TestSupport::runChildProcess(child);
         if(!context.expectTrue("result precondition child starts", result.status.ok()))
         {
             continue;

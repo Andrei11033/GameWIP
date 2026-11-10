@@ -42,9 +42,7 @@ namespace
         {
             return {};
         }
-
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
-
         if(measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
@@ -57,7 +55,6 @@ namespace
 
         std::vector<char16_t> converted(measurement.requiredCodeUnits);
         const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
-
         if(conversion.outcome == GameWIP::Unicode::Types::ConversionOutcome::DestinationTooSmall)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::SizeLimitExceeded, ERROR_INSUFFICIENT_BUFFER);
@@ -163,7 +160,6 @@ namespace
         {
             throw std::bad_alloc();
         }
-
         auto *storage = static_cast<FormatScratchStorage *>(FlsGetValue(slot));
 
         if(!storage)
@@ -179,6 +175,7 @@ namespace
 
         return *storage;
     }
+
 #endif
 
     FormatScratchStorage &formatScratchStorageForThread()
@@ -217,7 +214,6 @@ namespace GameWIP::Logger::Detail::Platform
         {
             return;
         }
-
         --storage.depth;
 
         if(storage.depth > 0 && storage.depth + 1 == storage.buffers.size())
@@ -238,7 +234,6 @@ namespace GameWIP::Logger::Detail::Platform
         {
             std::wstring output;
             IO::Types::Status status = utf8ToWide(line, output);
-
             if(!status.ok())
             {
                 return status;
@@ -268,7 +263,6 @@ namespace GameWIP::Logger::Detail::Platform
         {
             std::wstring messageText;
             IO::Types::Status status = utf8ToWide(message, messageText);
-
             if(!status.ok())
             {
                 return status;
@@ -283,7 +277,6 @@ namespace GameWIP::Logger::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
             }
-
             return {};
         }
         catch(const std::bad_alloc &)
@@ -370,7 +363,6 @@ namespace GameWIP::Logger::Detail::Platform
         {
             return {};
         }
-
         return {static_cast<std::size_t>(counters.WorkingSetSize), static_cast<std::size_t>(counters.PrivateUsage), true};
     }
 } // namespace GameWIP::Logger::Detail::Platform

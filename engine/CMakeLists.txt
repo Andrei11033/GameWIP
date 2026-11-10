@@ -1,5 +1,5 @@
-# Action and WindowManager are retained, unbuilt reference sources. Desktop is the
-# maintained, independently consumable engine library.
+# Action and WindowManager are retained, unbuilt reference sources. Desktop and
+# Input are maintained, independently consumable engine libraries.
 
 add_subdirectory(input)
 

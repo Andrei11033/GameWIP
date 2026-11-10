@@ -29,7 +29,6 @@ namespace GameWIP::TestSupport::Detail::Win32
         {
             return {};
         }
-
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
 
         if(measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
@@ -49,7 +48,6 @@ namespace GameWIP::TestSupport::Detail::Win32
         {
             throw std::runtime_error("Win32 UTF-8 conversion failed");
         }
-
         std::wstring output(conversion.codeUnitsWritten, L'\0');
 
         for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
@@ -71,7 +69,6 @@ namespace GameWIP::TestSupport::Detail::Win32
         {
             return {};
         }
-
         std::vector<char16_t> source(text.size());
 
         for(std::size_t index = 0; index < text.size(); ++index)

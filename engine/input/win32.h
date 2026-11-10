@@ -9,7 +9,7 @@
 namespace GameWIP::Input::Platform::Win32
 {
     /// @brief Connects an Input system to a caller-owned Win32 window.
-    /// @details Available on Windows; The caller owns the window
+    /// @details Available on Windows; the caller owns the window
     /// and forwards its messages; the attachment does not create or subclass the
     /// window or start a worker thread. It registers generic and discovered HID
     /// collections, groups confidently identified sources, exposes decoded

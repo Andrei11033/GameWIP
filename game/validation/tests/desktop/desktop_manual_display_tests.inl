@@ -38,6 +38,7 @@ void testManualFullscreenAndTopology(
         {
             return std::nullopt;
         }
+
         const auto secondary = std::ranges::find_if(
             *connected,
             [](const Desktop::Types::Display::Info &monitor)
@@ -82,6 +83,7 @@ void testManualFullscreenAndTopology(
                 context.skip("borderless fullscreen monitor", "borderless-mode setup failed; see preceding status");
             }
         }
+
         const Desktop::Types::LogicalSize restoredSize = window.clientSize();
 
         if(savedSize == restoredSize)
@@ -337,6 +339,7 @@ void testManualFullscreenAndTopology(
 
         context.pass("fullscreen recovery event ordering and failure-state cleanup are covered deterministically");
     }
+
     static_cast<void>(window.close());
 }
 
@@ -487,6 +490,7 @@ void testManualModernWindowsCapabilities(TestSupport::Context &context, const Ga
         }
         context.skip("system backdrop presentation", "runtime does not advertise SystemBackdrop");
     }
+
     static_cast<void>(window.close());
 
     Desktop::Types::Description alphaDescription;

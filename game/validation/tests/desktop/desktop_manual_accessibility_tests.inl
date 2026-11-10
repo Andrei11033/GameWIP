@@ -24,12 +24,14 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     {
         return;
     }
+
     const std::array<A::NodeId, 3> children{2, 3, 4};
     std::array<A::Node, 4> nodes{};
     nodes[0].id = 1;
     nodes[0].role = A::Role::Window;
     nodes[0].name = "Accessibility demo";
     nodes[0].children = children;
+
     nodes[1].id = 2;
     nodes[1].parent = 1;
     nodes[1].role = A::Role::Button;
@@ -39,6 +41,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     nodes[1].actions.flags =
         (std::uint64_t{1} << static_cast<unsigned>(A::ActionKind::Focus)) | (std::uint64_t{1} << static_cast<unsigned>(A::ActionKind::Invoke));
     nodes[1].geometry = A::Geometry{{24, 24, 180, 40}};
+
     nodes[2].id = 3;
     nodes[2].parent = 1;
     nodes[2].role = A::Role::Document;
@@ -47,18 +50,21 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     const A::TextFragment fragment{{0, static_cast<std::uint32_t>(sample.size())}, {24, 100, 700, 40}};
     nodes[2].text = A::TextContent{sample, A::TextDirection::LeftToRight, "en-US", {}, {&fragment, 1}};
     nodes[2].geometry = A::Geometry{{24, 100, 700, 40}};
+
     nodes[3].id = 4;
     nodes[3].parent = 1;
     nodes[3].role = A::Role::PasswordField;
     nodes[3].name = "Password";
     nodes[3].value = "MUST NOT BE EXPOSED";
     nodes[3].geometry = A::Geometry{{24, 180, 180, 40}};
+
     A::Generation generation = 1;
 
     if(!requireManualStatus(context, "accessibility semantic fixture publishes", bridge.publish({generation, 1, nodes})))
     {
         return;
     }
+
     std::size_t invocations = 0;
     std::string count;
     const auto observe = [&]
@@ -130,6 +136,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     {
         return;
     }
+
     recordManualCheck(
         context,
         window,

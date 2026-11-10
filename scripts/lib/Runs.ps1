@@ -239,6 +239,7 @@ function Initialize-GameWipRunLog
         $Script:RunContext = $Script:OperationContext.Run
         return
     }
+
     $runAction = if ($null -ne (Get-Variable -Name RunLabel -Scope Script -ErrorAction SilentlyContinue) -and -not [string]::IsNullOrWhiteSpace([string]$Script:RunLabel))
     {
         [string]$Script:RunLabel
@@ -255,7 +256,6 @@ function Initialize-GameWipRunLog
     $Script:RunContext = $Script:OperationContext.Run
 }
 
-
 function Get-GameWipRunRoot
 {
     return Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.runs
@@ -269,6 +269,7 @@ function Get-GameWipRetainedRun
     {
         return @()
     }
+
     $activeRunRoot = if ($null -ne $Script:OperationContext -and $null -ne $Script:OperationContext.Run)
     {
         [IO.Path]::GetFullPath([string]$Script:OperationContext.Run.Root)
@@ -291,8 +292,10 @@ function Show-GameWipRunList
 
     if ($items.Count -eq 0)
     {
-        Write-Host '  (none)'; return
+        Write-Host '  (none)'
+        return
     }
+
     $displayItems = if ($All)
     {
         $items
@@ -315,13 +318,16 @@ function Show-GameWipRunList
     foreach ($item in $displayItems)
     {
         $manifest = Join-Path $item.FullName 'manifest.json'
-        $status = 'incomplete'; $action = $item.Name
+        $status = 'incomplete'
+        $action = $item.Name
 
         if (Test-Path -LiteralPath $manifest -PathType Leaf)
         {
             try
             {
-                $doc = Get-Content -Raw -LiteralPath $manifest | ConvertFrom-Json; $status = [string]$doc.status; $action = [string]$doc.action
+                $doc = Get-Content -Raw -LiteralPath $manifest | ConvertFrom-Json
+                $status = [string]$doc.status
+                $action = [string]$doc.action
             }
 
             catch
@@ -380,6 +386,7 @@ function Resolve-GameWipRunSelection
     {
         return $items[0]
     }
+
     $match = @($items | Where-Object { $_.Name -eq $Selector })
 
     if ($match.Count -ne 1)
@@ -425,14 +432,17 @@ function Invoke-GameWipRunCleanup
 
     if ($targets.Count -eq 0)
     {
-        Write-Host 'No retained runs to clean.'; return
+        Write-Host 'No retained runs to clean.'
+        return
     }
+
     $plan = @($targets | ForEach-Object { "Remove retained run $($_.Name)" })
 
     if (-not (Confirm-GameWipMutation -Summary "Remove $($targets.Count) retained run(s)?" -Risk destructive -Plan $plan))
     {
         return
     }
+
     Set-GameWipMutationState partial
 
     foreach ($target in $targets)
@@ -441,5 +451,6 @@ function Invoke-GameWipRunCleanup
         Remove-Item -LiteralPath $target.FullName -Recurse -Force
         Add-GameWipOperationChange -Message "Removed retained run $($target.Name)"
     }
+
     Set-GameWipMutationState complete
 }

@@ -34,7 +34,6 @@ namespace GameWIP::Validation
             {
                 throw std::system_error(std::make_error_code(std::errc::filename_too_long), "GetModuleFileNameW");
             }
-
             buffer.resize(buffer.size() * 2);
         }
     }

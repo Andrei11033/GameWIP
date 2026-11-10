@@ -17,7 +17,6 @@ IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, c
         {
             return openStatus;
         }
-
         IO::Types::Status resizeStatus = file.resizeWithoutPositionRestore(sizeBytes);
         IO::Types::Status closeStatus = file.close();
 
@@ -25,7 +24,6 @@ IO::Types::Status resizeFile(const Types::Path &path, std::uint64_t sizeBytes, c
         {
             return resizeStatus;
         }
-
         return closeStatus;
     }
     catch(const std::bad_alloc &)
@@ -68,7 +66,6 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
-
         Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
 
         if(!source.status.ok())
@@ -85,7 +82,6 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
-
         Detail::Platform::EntryQueryResult destination = queryEntry(to, Types::SymlinkPolicy::DoNotFollow);
 
         if(destination.status.ok() && options.replaceMode == Types::ReplaceMode::FailIfExists)
@@ -104,7 +100,6 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         {
             return parentStatus;
         }
-
         FileReader reader;
         IO::Types::Status readerOpenStatus =
             reader.open(from, Types::File::ReaderOpenOptions{.share = Types::File::Share::All, .symlinkPolicy = options.symlinkPolicy});
@@ -113,7 +108,6 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         {
             return readerOpenStatus;
         }
-
         // Once destination creation or truncation begins, copy is non-transactional; later failures do not roll back destination state.
         const Types::File::WriterMode writerMode = options.replaceMode == Types::ReplaceMode::ReplaceExisting
                                                        ? Types::File::WriterMode::CreateOrTruncate
@@ -132,7 +126,6 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
             static_cast<void>(reader.close());
             return writerOpenStatus;
         }
-
         std::vector<std::byte> buffer(IO::kDefaultBufferSize);
         std::uint64_t copiedBytes = 0;
 
@@ -173,7 +166,6 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
             static_cast<void>(reader.close());
             return IO::makeStatus(ErrorCode::CopyFailed);
         }
-
         IO::Types::Status flushStatus = writer.flush(options.flushMode);
         IO::Types::Status writerCloseStatus = writer.close();
         IO::Types::Status readerCloseStatus = reader.close();
@@ -197,7 +189,6 @@ IO::Types::Status copyFile(const Types::Path &from, const Types::Path &to, const
         {
             return copyBasicMetadata(from, to, options.symlinkPolicy);
         }
-
         return IO::successStatus();
     }
     catch(const std::bad_alloc &)
@@ -223,7 +214,6 @@ IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const
         {
             return IO::makeStatus(ErrorCode::Unsupported);
         }
-
         Types::EntryInfoResult source = getEntryInfo(from, Types::EntryOptions{.symlinkPolicy = options.symlinkPolicy});
 
         if(!source.status.ok())
@@ -253,7 +243,6 @@ IO::Types::Status movePath(const Types::Path &from, const Types::Path &to, const
         {
             return parentStatus;
         }
-
         IO::Types::Status moveStatus = Detail::Platform::movePath(from, to, options.replaceMode, options.symlinkPolicy);
 
         if(!moveStatus.ok())
@@ -288,7 +277,6 @@ IO::Types::Status removeFile(const Types::Path &path, const Types::RemoveOptions
         {
             return IO::makeStatus(ErrorCode::Unsupported);
         }
-
         return Detail::Platform::removeFile(path, options);
     }
     catch(const std::bad_alloc &)

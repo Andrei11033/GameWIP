@@ -35,26 +35,32 @@ namespace GameWIP::Input::Platform::Win32
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         if(impl_->attached)
         {
             return impl_->system == &system ? status(ErrorCode::AlreadyOpen) : status(ErrorCode::ResourceBusy);
         }
+
         if(windowHandle == nullptr)
         {
             return status(ErrorCode::InvalidArgument);
         }
+
         if(!system.isOpen())
         {
             return status(ErrorCode::NotOpen);
         }
+
         if(!system.ownedByCurrentThread())
         {
             return status(ErrorCode::ResourceBusy);
         }
+
         if(system.impl_->nativeBeforeCapture != nullptr)
         {
             return status(ErrorCode::AlreadyOpen);
         }
+
         Attachment::Impl *expected = nullptr;
         if(!processRegistrationOwner.compare_exchange_strong(expected, impl_.get(), std::memory_order_acq_rel))
         {
@@ -66,6 +72,7 @@ namespace GameWIP::Input::Platform::Win32
             impl_->system = &system;
             impl_->windowHandle = windowHandle;
             impl_->attached = true;
+
             const IO::Types::Status rawInputStatus = registerRawInputCollection(*impl_, HID_USAGE_PAGE_GENERIC, 0, RIDEV_PAGEONLY | RIDEV_DEVNOTIFY);
             if(!rawInputStatus.ok())
             {
@@ -76,6 +83,7 @@ namespace GameWIP::Input::Platform::Win32
                 processRegistrationOwner.store(nullptr, std::memory_order_release);
                 return rawInputStatus;
             }
+
             if(!registerHidDeviceNotification(*impl_))
             {
                 const DWORD error = GetLastError();
@@ -101,6 +109,7 @@ namespace GameWIP::Input::Platform::Win32
             system.impl_->nativeAfterCapture = &Attachment::afterCapture;
             system.impl_->nativeClose = &Attachment::closeSystem;
             system.impl_->nativeContext = impl_.get();
+
             const bool enumerated = enumerateNativeDevices(*system.impl_, *impl_);
             const auto hasRole = [this](DeviceRole role)
             {
@@ -112,14 +121,17 @@ namespace GameWIP::Input::Platform::Win32
                         return device.role == role;
                     });
             };
+
             if(!enumerated || !hasRole(DeviceRole::Keyboard))
             {
                 addDevice(*system.impl_, *impl_, DeviceRole::Keyboard, 0, "Keyboard", {}, true);
             }
+
             if(!enumerated || !hasRole(DeviceRole::Mouse))
             {
                 addDevice(*system.impl_, *impl_, DeviceRole::Mouse, 0, "Mouse", {}, true);
             }
+
             addDevice(
                 *system.impl_,
                 *impl_,
@@ -135,6 +147,7 @@ namespace GameWIP::Input::Platform::Win32
                     .persistentKey = "win32:window:pointer:" + std::to_string(surfaceValue(impl_->windowHandle)),
                     .identityConfidence = Types::IdentityConfidence::ConnectionPath,
                 });
+
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -142,6 +155,7 @@ namespace GameWIP::Input::Platform::Win32
             unregisterHidDeviceNotification(*impl_);
             unregisterRawInput(*impl_);
             processRegistrationOwner.store(nullptr, std::memory_order_release);
+
             if(system.impl_->nativeContext == impl_.get())
             {
                 system.impl_->nativeBeforeCapture = nullptr;
@@ -149,6 +163,7 @@ namespace GameWIP::Input::Platform::Win32
                 system.impl_->nativeClose = nullptr;
                 system.impl_->nativeContext = nullptr;
             }
+
             impl_->system = nullptr;
             impl_->windowHandle = nullptr;
             impl_->attached = false;
@@ -165,6 +180,7 @@ namespace GameWIP::Input::Platform::Win32
         {
             return IO::successStatus();
         }
+
         if(impl_->system != nullptr && impl_->system->isOpen())
         {
             const IO::Types::Status ownerStatus = checkAttached(*impl_);
@@ -172,10 +188,12 @@ namespace GameWIP::Input::Platform::Win32
             {
                 return ownerStatus;
             }
+
             for(DeviceBinding &device : impl_->devices)
             {
                 invalidateDevice(*impl_->system->impl_, *impl_, device, Types::EventCause::Disconnected);
             }
+
             if(impl_->system->impl_->nativeContext == impl_.get())
             {
                 impl_->system->impl_->nativeBeforeCapture = nullptr;
@@ -184,17 +202,21 @@ namespace GameWIP::Input::Platform::Win32
                 impl_->system->impl_->nativeContext = nullptr;
             }
         }
+
         unregisterHidDeviceNotification(*impl_);
         unregisterRawInput(*impl_);
         releaseXInput(*impl_);
+
         Attachment::Impl *owner = impl_.get();
         processRegistrationOwner.compare_exchange_strong(owner, nullptr, std::memory_order_acq_rel);
+
         impl_->system = nullptr;
         impl_->windowHandle = nullptr;
         impl_->attached = false;
         impl_->devices.clear();
         impl_->pendingHighSurrogate = 0;
         impl_->rawInputBuffer.clear();
+
         return IO::successStatus();
     }
 
@@ -211,22 +233,27 @@ namespace GameWIP::Input::Platform::Win32
     IO::Types::Status Attachment::handleMessage(std::uint32_t message, std::uint64_t wParam, std::int64_t lParam, bool &outHandled) noexcept
     {
         outHandled = false;
+
         if(impl_ == nullptr)
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status ownerStatus = checkAttached(*impl_);
         if(!ownerStatus.ok())
         {
             return ownerStatus;
         }
+
         try
         {
             System::Impl &state = *impl_->system->impl_;
+
             if(message == WM_INPUT)
             {
                 UINT byteCount = 0;
                 HRAWINPUT rawHandle = reinterpret_cast<HRAWINPUT>(static_cast<std::uintptr_t>(lParam));
+
                 if(GetRawInputData(rawHandle, RID_INPUT, nullptr, &byteCount, sizeof(RAWINPUTHEADER)) != 0 || byteCount == 0)
                 {
                     ++state.health.totalInvalidReports;
@@ -235,12 +262,14 @@ namespace GameWIP::Input::Platform::Win32
                 }
                 impl_->rawInputBuffer.resize(byteCount);
                 UINT received = byteCount;
+
                 if(GetRawInputData(rawHandle, RID_INPUT, impl_->rawInputBuffer.data(), &received, sizeof(RAWINPUTHEADER)) == static_cast<UINT>(-1))
                 {
                     ++state.health.totalInvalidReports;
                     state.pendingDiscontinuity = true;
                     return nativeStatus(GetLastError());
                 }
+
                 if(received < sizeof(RAWINPUTHEADER) || received > byteCount)
                 {
                     ++state.health.totalInvalidReports;
@@ -252,6 +281,7 @@ namespace GameWIP::Input::Platform::Win32
                 std::span<std::byte> rawStorageBytes = std::as_writable_bytes(std::span(rawStorage));
                 std::ranges::copy(rawBytes.first(std::min(rawBytes.size(), rawStorageBytes.size())), rawStorageBytes.begin());
                 const RAWINPUT &raw = rawStorage.front();
+
                 if(raw.header.dwType == RIM_TYPEKEYBOARD)
                 {
                     if(received < offsetof(RAWINPUT, data.keyboard) + sizeof(RAWKEYBOARD))
@@ -270,6 +300,7 @@ namespace GameWIP::Input::Platform::Win32
                     {
                         keyboard = findDevice(*impl_, DeviceRole::Keyboard, 0);
                     }
+
                     const std::uint32_t usage = rawKeyboardUsage(raw.data.keyboard);
                     if(keyboard == nullptr || usage == 0)
                     {
@@ -295,13 +326,13 @@ namespace GameWIP::Input::Platform::Win32
                                 state.pendingDiscontinuity = true;
                                 return status(ErrorCode::Success);
                             }
-
                             Types::DeviceInfo &descriptor = state.devices[deviceIndex];
                             std::string persistentKey;
                             if(!descriptor.persistentKey.empty())
                             {
                                 persistentKey = descriptor.persistentKey + ":control:7:" + std::to_string(usage);
                             }
+
                             addElement(
                                 state,
                                 descriptor,
@@ -324,6 +355,7 @@ namespace GameWIP::Input::Platform::Win32
                             element = findHidElement(*keyboard, hid);
                         }
                     }
+
                     if(element == nullptr)
                     {
                         ++state.health.totalInvalidReports;
@@ -336,6 +368,7 @@ namespace GameWIP::Input::Platform::Win32
                     outHandled = true;
                     return IO::successStatus();
                 }
+
                 if(raw.header.dwType == RIM_TYPEMOUSE)
                 {
                     if(received < offsetof(RAWINPUT, data.mouse) + sizeof(RAWMOUSE))
@@ -367,6 +400,7 @@ namespace GameWIP::Input::Platform::Win32
                             publish(state, movement->id, Types::Vector2I64{data.lLastX, data.lLastY}, true);
                         }
                     }
+
                     if((data.usButtonFlags & RI_MOUSE_WHEEL) != 0 || (data.usButtonFlags & RI_MOUSE_HWHEEL) != 0)
                     {
                         if(ElementBinding *wheel = findRole(*mouse, ElementRole::MouseWheel); wheel != nullptr)
@@ -384,6 +418,7 @@ namespace GameWIP::Input::Platform::Win32
                                 true);
                         }
                     }
+
                     const std::array<Types::StandardId, 5> buttons{
                         {Standard::Mouse::Left, Standard::Mouse::Right, Standard::Mouse::Middle, Standard::Mouse::X1, Standard::Mouse::X2}};
                     const std::array<std::pair<USHORT, USHORT>, 5> transitions{
@@ -392,6 +427,7 @@ namespace GameWIP::Input::Platform::Win32
                          {RI_MOUSE_MIDDLE_BUTTON_DOWN, RI_MOUSE_MIDDLE_BUTTON_UP},
                          {RI_MOUSE_BUTTON_4_DOWN, RI_MOUSE_BUTTON_4_UP},
                          {RI_MOUSE_BUTTON_5_DOWN, RI_MOUSE_BUTTON_5_UP}}};
+
                     for(std::size_t index = 0; index < buttons.size(); ++index)
                     {
                         if((data.usButtonFlags & transitions[index].first) != 0 || (data.usButtonFlags & transitions[index].second) != 0)
@@ -402,10 +438,12 @@ namespace GameWIP::Input::Platform::Win32
                             }
                         }
                     }
+
                     appendRawReport(state, state.configuration, mouse->id, Types::BackendKind::Win32RawInput, rawBytes);
                     outHandled = true;
                     return IO::successStatus();
                 }
+
                 if(raw.header.dwType == RIM_TYPEHID)
                 {
                     const std::size_t reportDataOffset = offsetof(RAWINPUT, data.hid.bRawData);
@@ -429,6 +467,7 @@ namespace GameWIP::Input::Platform::Win32
                         outHandled = true;
                         return IO::successStatus();
                     }
+
                     if(raw.data.hid.dwSizeHid == 0)
                     {
                         ++state.health.totalInvalidReports;
@@ -446,15 +485,18 @@ namespace GameWIP::Input::Platform::Win32
                         outHandled = true;
                         return status(ErrorCode::NativeFailure);
                     }
+
                     for(std::size_t index = 0; index < reportCount; ++index)
                     {
                         publishHidReport(state, *impl_, *hid, rawBytes.subspan(reportDataOffset + index * reportSize, reportSize));
                     }
+
                     outHandled = true;
                     return IO::successStatus();
                 }
                 return IO::successStatus();
             }
+
             if(message == WM_DEVICECHANGE)
             {
                 if(wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVNODES_CHANGED)
@@ -467,6 +509,7 @@ namespace GameWIP::Input::Platform::Win32
                         outHandled = true;
                         return registrationStatus;
                     }
+
                     if(!enumerateNativeDevices(state, *impl_))
                     {
                         ++state.health.totalBackendFailures;
@@ -476,6 +519,7 @@ namespace GameWIP::Input::Platform::Win32
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_INPUT_DEVICE_CHANGE)
             {
                 if(wParam == GIDC_ARRIVAL)
@@ -501,12 +545,14 @@ namespace GameWIP::Input::Platform::Win32
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_KILLFOCUS || (message == WM_ACTIVATEAPP && wParam == 0))
             {
                 invalidateFocus(state, *impl_);
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_MOUSEMOVE)
             {
                 if(DeviceBinding *pointer = findDevice(*impl_, DeviceRole::Pointer, 0); pointer != nullptr)
@@ -523,12 +569,14 @@ namespace GameWIP::Input::Platform::Win32
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_IME_STARTCOMPOSITION)
             {
                 appendTextUtf8(state, *impl_, {}, Types::EventKind::CompositionStarted);
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_IME_COMPOSITION)
             {
                 const HWND window = reinterpret_cast<HWND>(impl_->windowHandle);
@@ -551,18 +599,21 @@ namespace GameWIP::Input::Platform::Win32
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_IME_ENDCOMPOSITION)
             {
                 appendTextUtf8(state, *impl_, {}, Types::EventKind::CompositionFinished);
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_CHAR)
             {
                 handleUtf16(state, *impl_, static_cast<char16_t>(wParam));
                 outHandled = true;
                 return IO::successStatus();
             }
+
             if(message == WM_UNICHAR)
             {
                 if(wParam != UNICODE_NOCHAR)
@@ -592,6 +643,7 @@ namespace GameWIP::Input::Platform::Win32
         {
             return status(ErrorCode::OutOfMemory);
         }
+
         const IO::Types::Status ownerStatus = checkAttached(*impl_);
         return ownerStatus.ok() ? pollNative(*impl_) : ownerStatus;
     }
@@ -610,7 +662,6 @@ namespace GameWIP::Input::Platform::Win32
                 }
                 return status(ErrorCode::Unsupported);
             }
-
             System::Impl &state = *implementation.system->impl_;
             for(DWORD slot = 0; slot < 4; ++slot)
             {
@@ -626,6 +677,7 @@ namespace GameWIP::Input::Platform::Win32
                     implementation.xinputHasPackets[slot] = false;
                     continue;
                 }
+
                 if(gamepad == nullptr)
                 {
                     addDevice(state, implementation, DeviceRole::Gamepad, slot, "XInput Controller " + std::to_string(slot + 1), {}, true);
@@ -635,6 +687,7 @@ namespace GameWIP::Input::Platform::Win32
                 {
                     reconnectDevice(state, *gamepad);
                 }
+
                 if(gamepad == nullptr)
                 {
                     continue;
@@ -643,8 +696,10 @@ namespace GameWIP::Input::Platform::Win32
                 {
                     continue;
                 }
+
                 implementation.xinputPackets[slot] = packet.dwPacketNumber;
                 implementation.xinputHasPackets[slot] = true;
+
                 const WORD buttons = packet.Gamepad.wButtons;
                 const std::array<std::pair<WORD, Types::StandardId>, 14> buttonMap{
                     {{XINPUT_GAMEPAD_A, Standard::Gamepad::South},
@@ -661,6 +716,7 @@ namespace GameWIP::Input::Platform::Win32
                      {XINPUT_GAMEPAD_START, Standard::Gamepad::Start},
                      {XINPUT_GAMEPAD_LEFT_THUMB, Standard::Gamepad::LeftStickButton},
                      {XINPUT_GAMEPAD_RIGHT_THUMB, Standard::Gamepad::RightStickButton}}};
+
                 for(const auto &[mask, standard] : buttonMap)
                 {
                     if(ElementBinding *button = standardElement(*gamepad, standard); button != nullptr)
@@ -668,6 +724,7 @@ namespace GameWIP::Input::Platform::Win32
                         publish(state, button->id, mask == 0 ? false : (buttons & mask) != 0, false);
                     }
                 }
+
                 if(ElementBinding *leftStick = findRole(*gamepad, ElementRole::LeftStick); leftStick != nullptr)
                 {
                     publish(state, leftStick->id, Types::Vector2F32{xInputAxis(packet.Gamepad.sThumbLX), xInputAxis(packet.Gamepad.sThumbLY)}, false);
@@ -680,8 +737,10 @@ namespace GameWIP::Input::Platform::Win32
                         Types::Vector2F32{xInputAxis(packet.Gamepad.sThumbRX), xInputAxis(packet.Gamepad.sThumbRY)},
                         false);
                 }
+
                 const std::array<std::pair<BYTE, Types::StandardId>, 2> triggerMap{
                     {{packet.Gamepad.bLeftTrigger, Standard::Gamepad::LeftTrigger}, {packet.Gamepad.bRightTrigger, Standard::Gamepad::RightTrigger}}};
+
                 for(const auto &[value, standard] : triggerMap)
                 {
                     if(ElementBinding *trigger = standardElement(*gamepad, standard); trigger != nullptr)
@@ -690,6 +749,7 @@ namespace GameWIP::Input::Platform::Win32
                     }
                 }
             }
+
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -722,8 +782,10 @@ namespace GameWIP::Input::Platform::Win32
         unregisterHidDeviceNotification(*attachment);
         unregisterRawInput(*attachment);
         releaseXInput(*attachment);
+
         Attachment::Impl *owner = attachment;
         processRegistrationOwner.compare_exchange_strong(owner, nullptr, std::memory_order_acq_rel);
+
         attachment->system = nullptr;
         attachment->windowHandle = nullptr;
         attachment->attached = false;

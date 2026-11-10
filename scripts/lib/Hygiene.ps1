@@ -118,6 +118,7 @@ function Show-GameWipHygieneList
     {
         Write-Host ('  {0,-12} {1} ({2})' -f $profileInfo.Id, $profileInfo.Title, (@($profileInfo.Checks) -join ', '))
     }
+
     Write-Host ''
     Write-GameWipSection 'Hygiene checks'
 
@@ -176,12 +177,14 @@ function ConvertFrom-GameWipClangTidyFinding
         {
             continue
         }
+
         $rule = $match.Groups['rule'].Value
 
         if (-not $RuleLookup.ContainsKey($rule))
         {
             continue
         }
+
         $check = $RuleLookup[$rule]
         $path = $match.Groups['path'].Value
 
@@ -254,6 +257,7 @@ function Invoke-GameWipHygieneClangTidy
             }
         }
     }
+
     $checkOptions = @($options.GetEnumerator() | ForEach-Object { [ordered]@{ key = $_.Key; value = $_.Value } })
     $inlineConfig = [ordered]@{ Checks = '-*,' + (($ruleLookup.Keys | Sort-Object) -join ','); WarningsAsErrors = ''; CheckOptions = $checkOptions } | ConvertTo-Json -Compress -Depth 5
     $arguments = @(
@@ -319,12 +323,14 @@ function Invoke-GameWipHygieneCompilerWarnings
             $flags.Add([string]$flag)
         }
     }
+
     $arguments = @('-u', $scriptPath, '--database', $database, '--source-filter', [string]$HygieneConfig.SourceFilter)
 
     foreach ($flag in $flags)
     {
         $arguments += "--flag=$flag"
     }
+
     $path = @((Get-GameWipToolchainPathPrefix $preset), $env:PATH) -join [IO.Path]::PathSeparator
     $result = Invoke-GameWipProcess -FilePath $python -Arguments $arguments -OutputMode $Script:OperationContext.OutputMode -TimeoutSeconds 7200 -Environment @{ PATH = $path }
     $lines = @($result.Stdout) + @($result.Stderr)

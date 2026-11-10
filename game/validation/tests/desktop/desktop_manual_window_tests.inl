@@ -8,7 +8,6 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
     {
         return;
     }
-
     context.manual(
         "Window manual tests require a normal interactive Windows desktop. Answer yes, no, or skip at each prompt. "
         "Restore any changed desktop state before the suite ends.");
@@ -27,6 +26,7 @@ void testManualVisibleLifecycle(TestSupport::Context &context, const GameWIP::Te
         context.fail("manual Window opens", openStatus.message);
         return;
     }
+
     context.pass("manual Window opens");
 
     recordManualCheck(
@@ -84,7 +84,6 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     {
         return;
     }
-
     Desktop::Window owner;
 
     if(!openManualWindow(context, owner, "GameWIP manual owner Window"))
@@ -100,6 +99,7 @@ void testManualMultipleWindows(TestSupport::Context &context, const GameWIP::Tes
     {
         return;
     }
+
     const auto paintOwnedWindow = [&]
     {
         paintManualValidationSurface(child);
@@ -175,7 +175,6 @@ void testManualCustomChrome(TestSupport::Context &context, const GameWIP::Test::
         context.skip("Window custom chrome", "backend does not advertise CustomChrome");
         return;
     }
-
     Desktop::Types::Description description;
     description.decoration = Desktop::Types::DecorationMode::Custom;
     Desktop::Window window;
@@ -357,7 +356,6 @@ void testManualDpiAndCoordinates(TestSupport::Context &context, const GameWIP::T
     {
         return;
     }
-
     Desktop::Window window;
     Desktop::Types::Description description;
     description.dpiResizePolicy = Desktop::Types::DpiResizePolicy::PreserveLogicalClientSize;

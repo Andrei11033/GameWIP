@@ -78,6 +78,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 : value_(std::exchange(other.value_, nullptr))
             {
             }
+
             GlobalMemory &operator=(GlobalMemory &&other) noexcept
             {
                 if(this != &other)
@@ -88,6 +89,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 return *this;
             }
+
             ~GlobalMemory() noexcept
             {
                 reset();
@@ -98,10 +100,12 @@ namespace GameWIP::Desktop::Detail::Platform
                 value_ = ::GlobalAlloc(GMEM_MOVEABLE, size);
                 return value_ != nullptr;
             }
+
             [[nodiscard]] HGLOBAL get() const noexcept
             {
                 return value_;
             }
+
             [[nodiscard]] HGLOBAL release() noexcept
             {
                 return std::exchange(value_, nullptr);
@@ -128,8 +132,10 @@ namespace GameWIP::Desktop::Detail::Platform
                 , value_(::GlobalLock(memory))
             {
             }
+
             GlobalLock(const GlobalLock &) = delete;
             GlobalLock &operator=(const GlobalLock &) = delete;
+
             ~GlobalLock() noexcept
             {
                 if(value_ != nullptr)
@@ -137,6 +143,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     static_cast<void>(::GlobalUnlock(memory_));
                 }
             }
+
             [[nodiscard]] void *get() const noexcept
             {
                 return value_;
@@ -285,6 +292,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return status(ErrorCode::InvalidArgument);
                 }
+
                 try
                 {
                     std::wstring wide;
@@ -313,6 +321,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return false;
             }
+
             std::array<wchar_t, 256> buffer{};
             SetLastError(ERROR_SUCCESS);
             const int length = GetClipboardFormatNameW(format, buffer.data(), static_cast<int>(buffer.size()));
@@ -406,6 +415,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status(ErrorCode::OutOfMemory);
             }
+
             DataTransfer::PreparedItem shared;
             IO::Types::Status result = DataTransfer::prepare(item, shared);
 
@@ -413,6 +423,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return result;
             }
+
             prepared.format = shared.format;
             return allocateAndCopy(shared.bytes, prepared.memory);
         }
@@ -427,7 +438,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status(ErrorCode::ReadFailed, GetLastError());
             }
-
             return DataTransfer::materializeGlobal(memory, format, item);
         }
 
@@ -462,12 +472,13 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return failure<Types::Result<bool>>(ErrorCode::InvalidArgument);
         }
-        IO::Types::Status validation = validateFormatView(format);
 
+        IO::Types::Status validation = validateFormatView(format);
         if(!validation.ok())
         {
             return {.status = std::move(validation)};
         }
+
         try
         {
             ClipboardSession session;
@@ -539,6 +550,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return failure<Types::Result<std::vector<Transfer::Format>>>(ErrorCode::InvalidArgument);
         }
+
         Types::Result<std::vector<Transfer::Format>> result;
         std::vector<Transfer::Format> formats;
         try
@@ -646,6 +658,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return failure<Types::Result<std::string>>(ErrorCode::InvalidArgument);
         }
+
         Types::Result<std::string> result;
         std::string text;
         try
@@ -701,6 +714,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return failure<Types::Result<std::vector<FileSystem::Types::Path>>>(ErrorCode::InvalidArgument);
         }
+
         Types::Result<std::vector<FileSystem::Types::Path>> result;
         std::vector<FileSystem::Types::Path> paths;
         try
@@ -756,6 +770,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return failure<Types::Result<Transfer::Image>>(ErrorCode::InvalidArgument);
         }
+
         Types::Result<Transfer::Image> result;
         Transfer::Image image;
         try
@@ -812,12 +827,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return failure<Types::Result<std::vector<std::byte>>>(ErrorCode::InvalidArgument);
         }
+
         IO::Types::Status validation = validateFormatView(Transfer::FormatView::custom(formatName));
 
         if(!validation.ok())
         {
             return {.status = std::move(validation)};
         }
+
         Types::Result<std::vector<std::byte>> result;
         std::vector<std::byte> bytes;
         try
@@ -884,6 +901,7 @@ namespace GameWIP::Desktop::Detail::Platform
             result.status = status(ErrorCode::InvalidArgument);
             return result;
         }
+
         try
         {
             std::vector<PreparedItem> prepared;
@@ -906,6 +924,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     result.status = status(ErrorCode::InvalidArgument);
                     return result;
                 }
+
                 prepared.push_back(std::move(native));
             }
 
@@ -985,6 +1004,7 @@ namespace GameWIP::Desktop::Detail::Platform
             result.status = status(ErrorCode::OpenFailed, ERROR_GEN_FAILURE);
             return result;
         }
+
         PublicationOwner owner;
 
         if(owner.get() == nullptr)
@@ -992,6 +1012,7 @@ namespace GameWIP::Desktop::Detail::Platform
             result.status = status(ErrorCode::OpenFailed, GetLastError());
             return result;
         }
+
         ClipboardSession session;
         result.status = session.open(owner.get(), timeout);
 
@@ -999,6 +1020,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return result;
         }
+
         SetLastError(ERROR_SUCCESS);
 
         if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardClear) || EmptyClipboard() == FALSE)

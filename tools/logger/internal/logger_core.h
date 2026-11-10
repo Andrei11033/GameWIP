@@ -95,7 +95,6 @@ namespace GameWIP::Logger::Detail::Core
         {
             return 0;
         }
-
         std::size_t lead = text.size() - 1;
         std::size_t continuationCount = 0;
 
@@ -158,11 +157,11 @@ namespace GameWIP::Logger::Detail::Core
 
                 return;
             }
-
             heapText_.assign(text);
             inlineSize_ = 0;
             heapActive_ = true;
         }
+
         void assign(std::string &&text)
         {
             if(text.size() <= InlineCapacity)
@@ -170,11 +169,11 @@ namespace GameWIP::Logger::Detail::Core
                 assign(std::string_view(text));
                 return;
             }
-
             heapText_ = std::move(text);
             inlineSize_ = 0;
             heapActive_ = true;
         }
+
         void assignJoined(std::string_view first, std::string_view second)
         {
             first = first.substr(0, completeUtf8TailBoundary(first));
@@ -210,6 +209,7 @@ namespace GameWIP::Logger::Detail::Core
             inlineSize_ = 0;
             heapActive_ = true;
         }
+
         void transferFrom(InlineLogText &source)
         {
             if(source.heapActive_)
@@ -228,7 +228,6 @@ namespace GameWIP::Logger::Detail::Core
                 source.heapActive_ = false;
                 return;
             }
-
             assign(source.view());
             source.clear();
         }
@@ -280,6 +279,7 @@ namespace GameWIP::Logger::Detail::Core
             inlineSize_ = 0;
             clear();
         }
+
         void assign(std::string_view text)
         {
             if(text.size() <= inlineText_.size())
@@ -299,11 +299,11 @@ namespace GameWIP::Logger::Detail::Core
                 heapActive_ = false;
                 return;
             }
-
             heapText_.assign(text);
             inlineSize_ = 0;
             heapActive_ = true;
         }
+
         void assign(std::string &&text)
         {
             if(text.size() <= inlineText_.size())
@@ -311,11 +311,11 @@ namespace GameWIP::Logger::Detail::Core
                 assign(std::string_view(text));
                 return;
             }
-
             heapText_ = std::move(text);
             inlineSize_ = 0;
             heapActive_ = true;
         }
+
         void assignJoined(std::string_view first, std::string_view second)
         {
             first = first.substr(0, completeUtf8TailBoundary(first));
@@ -351,6 +351,7 @@ namespace GameWIP::Logger::Detail::Core
             inlineSize_ = 0;
             heapActive_ = true;
         }
+
         void transferFrom(DynamicLogText &source)
         {
             if(source.heapActive_)
@@ -369,7 +370,6 @@ namespace GameWIP::Logger::Detail::Core
                 source.heapActive_ = false;
                 return;
             }
-
             assign(source.view());
             source.clear();
         }
@@ -453,6 +453,7 @@ namespace GameWIP::Logger::Detail::Core
         SourceId id = 0;
         std::string name;
         mutable std::atomic<bool> enabled{true};
+
         RegisteredSource() = default;
         RegisteredSource(SourceId source, std::string displayName, bool sourceEnabled)
             : id(source)
@@ -460,18 +461,21 @@ namespace GameWIP::Logger::Detail::Core
             , enabled(sourceEnabled)
         {
         }
+
         RegisteredSource(const RegisteredSource &other)
             : id(other.id)
             , name(other.name)
             , enabled(other.enabled.load(std::memory_order_relaxed))
         {
         }
+
         RegisteredSource(RegisteredSource &&other) noexcept
             : id(other.id)
             , name(std::move(other.name))
             , enabled(other.enabled.load(std::memory_order_relaxed))
         {
         }
+
         RegisteredSource &operator=(const RegisteredSource &other)
         {
             if(this != &other)
@@ -483,6 +487,7 @@ namespace GameWIP::Logger::Detail::Core
 
             return *this;
         }
+
         RegisteredSource &operator=(RegisteredSource &&other) noexcept
         {
             if(this != &other)
@@ -513,6 +518,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             return std::atomic_load_explicit(&value_, order);
         }
+
         void store(std::shared_ptr<Value> value, std::memory_order order)
         {
             std::atomic_store_explicit(&value_, std::move(value), order);
@@ -650,7 +656,6 @@ namespace GameWIP::Logger::Detail::Core
             {
                 return;
             }
-
             active = false;
 
             if(loggerState().activeProducers.fetch_sub(1, std::memory_order_acq_rel) == 1)

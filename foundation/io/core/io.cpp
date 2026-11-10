@@ -276,7 +276,6 @@ namespace GameWIP::IO
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
-
         const auto available = bytes_.size() - position_;
         const auto count = std::min(destination.size(), available);
 
@@ -334,14 +333,12 @@ namespace GameWIP::IO
         {
             return makeStatus(Types::ErrorCode::SizeLimitExceeded);
         }
-
         const auto size = static_cast<std::int64_t>(bytes_.size());
 
         if(position_ > static_cast<std::size_t>(size))
         {
             return makeStatus(Types::ErrorCode::InvalidArgument);
         }
-
         std::int64_t base = 0;
 
         switch(origin)
@@ -366,7 +363,6 @@ namespace GameWIP::IO
         {
             return makeStatus(Types::ErrorCode::SeekFailed);
         }
-
         const auto target = base + offset;
         position_ = static_cast<std::size_t>(target);
 
@@ -396,7 +392,6 @@ namespace GameWIP::IO
         }
 
         const auto oldSize = bytes_.size();
-
         if(bytes.size() > bytes_.max_size() - oldSize)
         {
             return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded), .bytesWritten = 0};
@@ -404,7 +399,6 @@ namespace GameWIP::IO
 
         try
         {
-
             // Detect self-aliasing before appending can reallocate the vector. The source offset,
             // rather than the input pointer, remains usable after storage moves.
             const std::byte *const inputBegin = bytes.data();
@@ -416,7 +410,6 @@ namespace GameWIP::IO
             {
                 const auto sourceOffset = static_cast<std::size_t>(inputBegin - ownBegin);
                 Types::Status appendStatus = appendAliasedBytes(bytes_, sourceOffset, bytes.size());
-
                 if(!appendStatus.ok())
                 {
                     return {.status = std::move(appendStatus), .bytesWritten = 0};
@@ -424,7 +417,6 @@ namespace GameWIP::IO
 
                 return {.status = {}, .bytesWritten = bytes.size()};
             }
-
             bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
 
             return {.status = {}, .bytesWritten = bytes.size()};
@@ -520,7 +512,6 @@ namespace GameWIP::IO
             result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
             return result;
         }
-
         const std::string_view textView(reinterpret_cast<const char *>(view.data()), view.size());
 
         if(Unicode::Utf8::validate(textView).outcome != Unicode::Types::ValidationOutcome::Valid)
@@ -573,5 +564,4 @@ namespace GameWIP::IO
     {
         bytes_.clear();
     }
-
 } // namespace GameWIP::IO

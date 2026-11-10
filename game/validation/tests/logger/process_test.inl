@@ -113,6 +113,7 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
     {
         return;
     }
+
     std::string skipReason;
     const auto answer =
         TestSupport::promptManualCheck("Did the fatal popup show the Manual Logger message, and could you close it normally?", skipReason);

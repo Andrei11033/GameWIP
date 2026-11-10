@@ -100,6 +100,7 @@ function Enter-GameWipOperationLock
         $operationLock.Dispose()
         throw
     }
+
     $Script:OperationContext.OperationLock = $operationLock
 }
 
@@ -197,6 +198,7 @@ function Add-GameWipOperationChange
     {
         return
     }
+
     Set-GameWipMutationStarted
     $Script:OperationContext.Changes.Add($Message) | Out-Null
 }
@@ -209,6 +211,7 @@ function Add-GameWipOperationPreserved
     {
         return
     }
+
     $Script:OperationContext.Preserved.Add($Message) | Out-Null
 }
 
@@ -220,6 +223,7 @@ function Add-GameWipOperationWarning
     {
         return
     }
+
     $Script:OperationContext.Warnings.Add($Message) | Out-Null
 }
 
@@ -231,6 +235,7 @@ function Add-GameWipOperationNextAction
     {
         return
     }
+
     $Script:OperationContext.NextActions.Add($Message) | Out-Null
 }
 
@@ -242,6 +247,7 @@ function Set-GameWipMutationState
     {
         return
     }
+
     $Script:OperationContext.MutationState = $State
 }
 
@@ -451,6 +457,7 @@ function Get-GameWipUnixDescendantProcessId
     {
         return @()
     }
+
     $processStatusCommand = Get-Command -Name ps -CommandType Application -ErrorAction Stop | Select-Object -First 1
     $childrenByParent = @{}
 

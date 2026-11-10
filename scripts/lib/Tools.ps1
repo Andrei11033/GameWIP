@@ -51,18 +51,21 @@ function Get-GameWipProjectToolSelection
     {
         return @($ProjectTools.tools)
     }
+
     $byId = @($ProjectTools.tools | Where-Object { $_.id -eq $Selector })
 
     if ($byId.Count -eq 1)
     {
         return $byId
     }
+
     $byCategory = @($ProjectTools.tools | Where-Object { $_.category -eq $Selector })
 
     if ($byCategory.Count -ne 0)
     {
         return $byCategory
     }
+
     throw "Unknown project tool or category '$Selector'."
 }
 
@@ -100,14 +103,17 @@ function Get-GameWipProviderManagedToolPath
         {
             return @((Join-Path $root 'python/bin'))
         }
+
         'npm'
         {
             return @((Join-Path $root 'npm'), (Join-Path $root 'npm/bin'))
         }
+
         'githubRelease'
         {
             return @((Join-Path $root 'bin'))
         }
+
         'powershellGallery'
         {
             return @((Join-Path $root 'powershell'))
@@ -137,6 +143,7 @@ function Write-GameWipManagedToolShim
         Write-GameWipTextAtomic -Path (Join-Path $binRoot "$ToolId.cmd") -Content "@echo off`r`n`"%~dp0$relativeExecutable`" %*`r`n"
         return
     }
+
     $destination = Join-Path $binRoot $ToolId
     $temporary = Join-Path $binRoot ('.{0}.{1}.incoming' -f $ToolId, [guid]::NewGuid().ToString('N'))
 
@@ -185,6 +192,7 @@ function Get-GameWipToolCandidateVersion
     {
         return [string](Resolve-GameWipCommandConfigValue -Path ([string]$Tool.detection.commandConfigVersionPath))
     }
+
     $environment = @{}
     $managed = @(Get-GameWipManagedToolPath)
 
@@ -198,6 +206,7 @@ function Get-GameWipToolCandidateVersion
     {
         return $null
     }
+
     $output = (@($result.Stdout) + @($result.Stderr)) -join "`n"
     $match = [regex]::Match($output, [string]$Tool.detection.versionPattern)
 
@@ -276,10 +285,12 @@ function Get-GameWipToolCompatibilitySemantic
         {
             return 'Success'
         }
+
         'missing'
         {
             return 'Failure'
         }
+
         'dependency-missing'
         {
             return 'Failure'
@@ -556,14 +567,17 @@ function Test-GameWipDetectedToolFromDeclaredProvider
         {
             return [string]$Detected.Source -like 'GameWIPTools python*'
         }
+
         'npm'
         {
             return [string]$Detected.Source -like 'GameWIPTools npm*'
         }
+
         'githubRelease'
         {
             return [string]$Detected.Source -like 'GameWIPTools githubRelease*'
         }
+
         'powershellGallery'
         {
             return [string]$Detected.Source -like 'GameWIPTools powershellGallery*'
@@ -748,6 +762,7 @@ function Confirm-GameWipToolchain
     {
         return
     }
+
     $prefix = Get-GameWipToolchainPathPrefix $PresetName
     $requiredExecutables = [System.Collections.Generic.List[string]]::new()
     $requiredExecutables.Add('cmake.exe')
@@ -790,11 +805,13 @@ function Resolve-GameWipPython
 
     if (-not [string]::IsNullOrWhiteSpace([string]$PythonPath))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$PythonPath); $source = '-PythonPath override'
+        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$PythonPath)
+        $source = '-PythonPath override'
     }
     elseif (-not [string]::IsNullOrWhiteSpace($env:GAMEWIP_PYTHON))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_PYTHON; $source = 'GAMEWIP_PYTHON override'
+        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_PYTHON
+        $source = 'GAMEWIP_PYTHON override'
     }
     elseif (Test-GameWipWindowsHost)
     {
@@ -802,7 +819,8 @@ function Resolve-GameWipPython
 
         if (Test-Path -LiteralPath $configured)
         {
-            $candidate = $configured; $source = 'GameWIP UCRT64 toolchain'
+            $candidate = $configured
+            $source = 'GameWIP UCRT64 toolchain'
         }
     }
 
@@ -810,9 +828,12 @@ function Resolve-GameWipPython
     {
         foreach ($name in @('python3', 'python', 'python.exe'))
         {
-            $command = Get-Command $name -ErrorAction SilentlyContinue | Select-Object -First 1; if ($null -ne $command)
+            $command = Get-Command $name -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($null -ne $command)
             {
-                $candidate = $command.Source; $source = 'PATH fallback'; break
+                $candidate = $command.Source
+                $source = 'PATH fallback'
+                break
             }
         }
     }
@@ -821,6 +842,7 @@ function Resolve-GameWipPython
     {
         throw 'Python is unavailable. Run setup.bat repair on Windows or provision Python on the CI runner.'
     }
+
     $result = Invoke-GameWipProcess -FilePath $candidate -Arguments @('--version') -OutputMode LogOnly -TimeoutSeconds 20
 
     if ($result.ExitCode -ne 0)
@@ -838,11 +860,13 @@ function Resolve-GameWipClangFormat
 
     if (-not [string]::IsNullOrWhiteSpace([string]$ClangFormatPath))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$ClangFormatPath); $source = '-ClangFormatPath override'
+        $candidate = Resolve-GameWipRepositoryPath -Path ([string]$ClangFormatPath)
+        $source = '-ClangFormatPath override'
     }
     elseif (-not [string]::IsNullOrWhiteSpace($env:GAMEWIP_CLANG_FORMAT))
     {
-        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_CLANG_FORMAT; $source = 'GAMEWIP_CLANG_FORMAT override'
+        $candidate = Resolve-GameWipRepositoryPath -Path $env:GAMEWIP_CLANG_FORMAT
+        $source = 'GAMEWIP_CLANG_FORMAT override'
     }
     elseif (Test-GameWipWindowsHost)
     {
@@ -850,7 +874,8 @@ function Resolve-GameWipClangFormat
 
         if (Test-Path -LiteralPath $configured)
         {
-            $candidate = $configured; $source = 'GameWIP UCRT64 toolchain'
+            $candidate = $configured
+            $source = 'GameWIP UCRT64 toolchain'
         }
     }
 
@@ -860,7 +885,8 @@ function Resolve-GameWipClangFormat
 
         if ($detected.Installed)
         {
-            $candidate = $detected.Location; $source = $detected.Source
+            $candidate = $detected.Location
+            $source = $detected.Source
         }
     }
 
@@ -868,6 +894,7 @@ function Resolve-GameWipClangFormat
     {
         throw 'clang-format is unavailable. Run setup.bat repair on Windows or provision it on the CI runner.'
     }
+
     $result = Invoke-GameWipProcess -FilePath $candidate -Arguments @('--version') -OutputMode LogOnly -TimeoutSeconds 20
     return [pscustomobject]@{ Path = $candidate; Source = $source; Version = ((@($result.Stdout) + @($result.Stderr)) -join ' ').Trim() }
 }

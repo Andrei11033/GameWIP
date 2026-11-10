@@ -43,19 +43,23 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return value_;
             }
+
             [[nodiscard]] Interface **put() noexcept
             {
                 reset();
                 return &value_;
             }
+
             Interface *operator->() const noexcept
             {
                 return value_;
             }
+
             explicit operator bool() const noexcept
             {
                 return value_ != nullptr;
             }
+
             void reset() noexcept
             {
                 if(value_ != nullptr)
@@ -77,6 +81,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 CoTaskMemFree(value);
             }
+
             PWSTR value = nullptr;
         };
 
@@ -201,7 +206,6 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return IO::makeStatus(unicodeConversionError(nativeCode, ErrorCode::EncodingFailed), nativeCode);
                 }
-
                 return IO::successStatus();
             }
             catch(const std::bad_alloc &)
@@ -221,6 +225,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::successStatus();
             }
+
             try
             {
                 const auto &native = directory.native();
@@ -269,6 +274,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::InvalidArgument);
             }
+
             try
             {
                 native.names.reserve(filters.size());
@@ -350,6 +356,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return statusFromHResult(result);
             }
+
             result = dialog.SetOptions(static_cast<FILEOPENDIALOGOPTIONS>(static_cast<DWORD>(options) | requestedOptions | FOS_FORCEFILESYSTEM));
 
             if(FAILED(result))
@@ -366,6 +373,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return status;
                 }
+
                 result = dialog.SetTitle(wideTitle.c_str());
 
                 if(FAILED(result))
@@ -380,6 +388,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return status;
             }
+
             status = makeFilters(filters, nativeFilters);
 
             if(!status.ok())
@@ -419,6 +428,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::successStatus();
             }
+
             UINT nativeIndex = 0;
             const HRESULT result = dialog.GetFileTypeIndex(&nativeIndex);
 
@@ -463,7 +473,6 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return status;
                 }
-
                 NativeFilters nativeFilters;
                 status = makeFilters(filters, nativeFilters);
 
@@ -479,6 +488,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return status;
                 }
+
                 status = convertText(suggestedExtension, snapshot.suggestedExtension);
 
                 if(!status.ok())
@@ -658,6 +668,7 @@ namespace GameWIP::Desktop::Detail::Platform
             output.outcome = Types::Dialogs::Outcome::Accepted;
             return output;
         }
+
 #endif
 
         /// @brief Extracts one Shell item filesystem path into the portable Path type.
@@ -675,6 +686,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(ErrorCode::NativeFailure);
             }
+
             try
             {
                 FileSystem::Types::Path candidate(native.value);
@@ -762,6 +774,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             ComPtr<IShellItem> item;
             result = dialog->GetResult(item.put());
 
@@ -776,6 +789,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             output.status = extractPath(*item.get(), output.path);
 
             if(!output.status.ok())
@@ -871,6 +885,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             DWORD count = 0;
             result = items->GetCount(&count);
 
@@ -885,6 +900,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             try
             {
                 std::vector<FileSystem::Types::Path> paths;
@@ -1134,6 +1150,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return output;
                 }
+
                 result = dialog->SetFileName(fileName.c_str());
 
                 if(FAILED(result))
@@ -1142,6 +1159,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     return output;
                 }
             }
+
             std::wstring extension;
 
             if(!description.suggestedExtension.empty())
@@ -1152,6 +1170,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return output;
                 }
+
                 result = dialog->SetDefaultExtension(extension.c_str());
 
                 if(FAILED(result))
@@ -1160,6 +1179,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     return output;
                 }
             }
+
             result = dialog->Show(ownerHandle(description.owner));
 
             if(isCancellation(result))
@@ -1187,6 +1207,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
             }
+
             output.status = extractPath(*item.get(), output.path);
 
             if(!output.status.ok())
@@ -1194,6 +1215,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.path.clear();
                 return output;
             }
+
             output.status = selectedFilter(*dialog.get(), description.filters.size(), output.selectedFilterIndex);
 
             if(!output.status.ok())
@@ -1308,13 +1330,13 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return output;
             }
+
             output.status = convertText(description.message, message);
 
             if(!output.status.ok())
             {
                 return output;
             }
-
             TASKDIALOGCONFIG config{};
             config.cbSize = sizeof(config);
             config.hwndParent = ownerHandle(description.owner);
@@ -1385,6 +1407,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.status = statusFromHResult(result);
                 return output;
             }
+
             output.status = IO::successStatus();
 
             if(selected == IDCANCEL)
@@ -1441,7 +1464,6 @@ namespace GameWIP::Desktop::Detail::Platform
                 output.status = IO::makeStatus(ErrorCode::InvalidArgument);
                 return output;
             }
-
             std::wstring title;
             std::wstring heading;
             std::wstring message;
@@ -1496,6 +1518,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     return output;
                 }
+
                 output.status = convertText(description.buttons[index].description, detail);
 
                 if(!output.status.ok())
@@ -1696,7 +1719,6 @@ namespace GameWIP::Desktop::Detail::Platform
                                                                                                        : Types::Dialogs::Outcome::Accepted;
                 return output;
             }
-
             output = {};
             output.status = IO::makeStatus(ErrorCode::NativeFailure);
         }
@@ -1721,5 +1743,6 @@ namespace GameWIP::Desktop::Detail::Platform
         const IO::Types::Status &status = apartment.status();
         return status.ok() ? IO::successStatus() : IO::makeStatus(status.code, status.nativeCode);
     }
+
 #endif
 } // namespace GameWIP::Desktop::Detail::Platform

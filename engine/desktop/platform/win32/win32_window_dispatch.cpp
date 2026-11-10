@@ -52,6 +52,7 @@ namespace GameWIP::Desktop::Detail::Platform
             current.pumping = false;
             return result;
         }
+
         bool accessibilityPending = false;
 
         for(const WindowState *state : current.windows)

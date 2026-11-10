@@ -46,6 +46,7 @@ namespace GameWIP::Desktop::Detail
     // ------------------------------------------------------------
     // Injected failures and counters
     // ------------------------------------------------------------
+
     bool consumeFailure(TestHooks::FailurePoint point) noexcept
     {
         if(armedFailure != point)
@@ -166,6 +167,7 @@ namespace GameWIP::Desktop::TestHooks
     // ------------------------------------------------------------
     // Failure controls
     // ------------------------------------------------------------
+
     void failNext(FailurePoint point) noexcept
     {
         armedFailure = point;
@@ -306,7 +308,6 @@ namespace GameWIP::Desktop::TestHooks
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-
         return Detail::enqueueDragDropEvent(*state, std::move(data), terminal) ? IO::successStatus()
                                                                                : IO::makeStatus(IO::Types::ErrorCode::StorageFull);
     }
@@ -363,7 +364,6 @@ namespace GameWIP::Desktop::TestHooks
             result.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             return result;
         }
-
         return Detail::Platform::testRouteDragDropDuringPump(*state, std::move(data), terminal);
     }
 
@@ -425,7 +425,6 @@ namespace GameWIP::Desktop::TestHooks
         {
             return 0;
         }
-
         return Detail::Platform::customCursorBindingDpi(*state);
     }
 
@@ -454,6 +453,7 @@ namespace GameWIP::Desktop::TestHooks
     // ------------------------------------------------------------
     // Renderer bridge controls
     // ------------------------------------------------------------
+
     void enablePointerHitMaskBridge(Window &window) noexcept
     {
         try
@@ -500,6 +500,7 @@ namespace GameWIP::Desktop::TestHooks
     // ------------------------------------------------------------
     // Portable lifecycle and events
     // ------------------------------------------------------------
+
     IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
     {
         if(Detail::WindowAccess::state(window) != nullptr)
@@ -511,6 +512,7 @@ namespace GameWIP::Desktop::TestHooks
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         try
         {
             auto state = std::make_unique<Detail::WindowState>();
@@ -525,6 +527,7 @@ namespace GameWIP::Desktop::TestHooks
                 Detail::WindowAccess::bindPresentationPublication(window, *state);
                 Detail::publishCachedPresentationState(*state);
             }
+
             Detail::WindowAccess::stateOwner(window) = std::move(state);
             return IO::successStatus();
         }
@@ -626,6 +629,7 @@ namespace GameWIP::Desktop::TestHooks
     // ------------------------------------------------------------
     // Display color fixtures
     // ------------------------------------------------------------
+
     Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
     {
         return Detail::Platform::makeDisplayColorInfo(

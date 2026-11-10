@@ -334,6 +334,7 @@ GameWIP::IO::Types::Status publishAccessibleCommand(
     nodes[1].geometry = A::Geometry{{20, 20, 160, 40}};
     return bridge.publish({generation, 1, nodes});
 }
+
 ```
 
 For initial activation on the owner thread:

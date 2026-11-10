@@ -41,7 +41,6 @@ namespace GameWIP::TestSupport::Detail
                 {
                     return Platform::setEnvironmentVariableValue(name, *previousValue);
                 }
-
                 return Platform::unsetEnvironmentVariableValue(name);
             }
             catch(const std::bad_alloc &)
@@ -117,7 +116,6 @@ namespace GameWIP::TestSupport
                 status_ = processState.status();
                 return;
             }
-
             name_.assign(name);
             const Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
 
@@ -126,7 +124,6 @@ namespace GameWIP::TestSupport
                 status_ = readResult.status;
                 return;
             }
-
             previousValue_ = readResult.value;
             expectedValue_ = value.empty() ? std::nullopt : std::optional<std::string>{std::string(value)};
             status_ = Detail::Platform::setEnvironmentVariableValue(name_, value);
@@ -188,7 +185,6 @@ namespace GameWIP::TestSupport
                 status_ = processState.status();
                 return;
             }
-
             name_.assign(name);
             const Detail::Platform::EnvironmentReadResult readResult = Detail::Platform::readEnvironmentVariable(name_);
 
@@ -197,7 +193,6 @@ namespace GameWIP::TestSupport
                 status_ = readResult.status;
                 return;
             }
-
             previousValue_ = readResult.value;
             expectedValue_ = std::nullopt;
             status_ = Detail::Platform::unsetEnvironmentVariableValue(name_);

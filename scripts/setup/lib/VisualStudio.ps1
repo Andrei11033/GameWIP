@@ -14,6 +14,7 @@ function Get-GameWipVisualStudioInstance
     {
         return $null
     }
+
     $result = Invoke-GameWipProcess -FilePath $vswhere -Arguments @('-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Workload.NativeDesktop', '-property', 'installationPath') -OutputMode LogOnly -TimeoutSeconds 30
 
     if ($result.ExitCode -ne 0 -or $result.Stdout.Count -eq 0)
@@ -32,13 +33,15 @@ function Install-GameWipVisualStudio
 
     if (-not $instance)
     {
-        Install-GameWipWingetPackage -Id $PackageId -Override $override; $instance = Get-GameWipVisualStudioInstance
+        Install-GameWipWingetPackage -Id $PackageId -Override $override
+        $instance = Get-GameWipVisualStudioInstance
     }
 
     if (-not $instance)
     {
         throw 'Visual Studio with the Desktop development with C++ workload was not detected after installation.'
     }
+
     $installer = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\setup.exe'
 
     if (Test-Path -LiteralPath $installer)

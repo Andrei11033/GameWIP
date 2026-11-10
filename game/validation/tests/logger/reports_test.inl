@@ -110,6 +110,7 @@ void testReportDoesNotDrainAsyncBacklog(TestContext &context, const LoggerTestOp
         context.skip("report no-drain child", "child tests disabled by LoggerTestOptions");
         return;
     }
+
     const auto directory = testDirectory(context, "report-no-drain-child");
     TestSupport::Types::Process::Options childOptions;
     childOptions.executablePath = std::filesystem::path(context.executablePath);
@@ -141,6 +142,7 @@ int runReportNoDrainChild()
     {
         return 2;
     }
+
     TestSupport::Types::Reporting::Options options;
     options.writeReport = false;
     TestSupport::Runner runner(options);

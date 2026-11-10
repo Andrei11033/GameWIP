@@ -62,6 +62,7 @@ void testPassiveHelpers(TestSupport::Context &context)
     event.data = Terminal::Types::Events::Resize{.size = {.columns = 120, .rows = 40}};
     const Terminal::Types::Events::Resize *resize = event.getIf<Terminal::Types::Events::Resize>();
     static_cast<void>(context.expectTrue("event getIf returns resize event", resize != nullptr));
+
     const Terminal::Types::Output::Segment text = Terminal::textSegment("text");
     static_cast<void>(context.expectEq("text segment kind", Terminal::Types::Output::SegmentKind::Text, text.kind()));
     static_cast<void>(context.expectEq("text segment view", std::string_view{"text"}, text.text()));

@@ -131,7 +131,6 @@ void testNativeEventTranslation(TestSupport::Context &context)
     {
         return;
     }
-
     const auto handle = Desktop::Native::Win32::getHandle(window);
     static_cast<void>(context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle->window != nullptr));
 
@@ -140,7 +139,6 @@ void testNativeEventTranslation(TestSupport::Context &context)
         static_cast<void>(window.close());
         return;
     }
-
     window.clearEvents();
     static_cast<void>(window.setClientSize({300, 210}));
     static_cast<void>(context.expectTrue(

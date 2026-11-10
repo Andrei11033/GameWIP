@@ -168,7 +168,6 @@ void testWin32EventDecoder(TestSupport::Context &context)
             context.fail(label, "decoder produced no portable event");
             return nullptr;
         }
-
         const Terminal::Types::Events::Key *key = decoded.event->getIf<Terminal::Types::Events::Key>();
         static_cast<void>(context.expectTrue(std::format("{} payload", label), key != nullptr));
         return key;
@@ -418,7 +417,6 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     {
         return;
     }
-
     static_cast<void>(context.expectTrue("install first stdin pipe", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
     DWORD bytesWritten = 0;
     static_cast<void>(context.expectTrue("write first stdin pipe", WriteFile(firstWrite, "AB", 2, &bytesWritten, nullptr) != FALSE));
@@ -512,7 +510,6 @@ void testInputEndpointReplacement(TestSupport::Context &context)
         Hooks::reset();
         return;
     }
-
     static_cast<void>(context.expectTrue("install reused stdin handle", SetStdHandle(STD_INPUT_HANDLE, replacementRead) != FALSE));
     bytesWritten = 0;
     static_cast<void>(context.expectTrue("write replacement stdin pipe", WriteFile(replacementWrite, "C", 1, &bytesWritten, nullptr) != FALSE));
@@ -559,6 +556,7 @@ int runCancellationSignalFailureChild()
         reader.join();
         return 3;
     }
+
     std::cout << "Native wait reached; requesting cancellation.\n" << std::flush;
     const auto cancellationStarted = std::chrono::steady_clock::now();
     stopSource.request_stop();

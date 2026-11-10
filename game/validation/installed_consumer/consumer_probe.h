@@ -128,6 +128,7 @@ namespace
         {
             return 1;
         }
+
         VERIFY(condition());
         VERIFY_MSG(condition(), message());
         VERIFY_INTERACTIVE(condition());
@@ -149,11 +150,13 @@ namespace
         GameWIP::TestSupport::Types::Reporting::Options reportingOptions;
         reportingOptions.writeConsole = false;
         reportingOptions.writeReport = false;
+
         GameWIP::TestSupport::Runner runner(reportingOptions);
         const auto runnerInitialReport = runner.reportStatus();
         const auto runnerFinalReport = runner.finalize();
         GameWIP::TestSupport::Context context("installed", reportingOptions);
         const auto contextFinalReport = context.finalize();
+
         const bool processDefaultsAreUsable = status.ok() && statusText == "None" && childResult.status.ok() &&
                                               childResult.outcome == GameWIP::TestSupport::Types::Process::Outcome::NotStarted &&
                                               childResult.outputBytes.empty();

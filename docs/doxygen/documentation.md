@@ -498,6 +498,7 @@ if ($warningLog.Length -ne 0) {
     Get-Content $warningLog
     throw "Doxygen emitted unexpected warnings."
 }
+
 ```
 
 The generated Doxyfile must keep explicit inputs, write HTML output under the

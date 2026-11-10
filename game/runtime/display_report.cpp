@@ -169,7 +169,6 @@ namespace GameWIP::Game
         {
             return monitors;
         }
-
         Logger::debug("Startup", "Enumerated {} connected display(s)", monitors->size());
 
         for(const Desktop::Types::Display::Info &monitor : *monitors)

@@ -32,6 +32,7 @@ PrefixState classifyPrefix(std::string_view bytes) noexcept
 
     return PrefixState::Reject;
 }
+
 ```
 
 Unicode classifies the encoded prefix. It does not decide whether the stream buffers more bytes, inserts `U+FFFD`, drops input, logs a diagnostic, or
@@ -85,6 +86,7 @@ std::optional<std::vector<char16_t>> toUtf16(std::string_view source)
 
     return result;
 }
+
 ```
 
 No terminating `U+0000` code unit is appended. If a platform or C API requires a terminator, that boundary owns the additional storage and terminator
@@ -119,6 +121,7 @@ std::optional<std::size_t> graphemeCount(std::string_view text) noexcept
 
     return count;
 }
+
 ```
 
 This counts Unicode extended grapheme clusters. It does not count glyphs, words, display columns, or terminal cells.
@@ -158,6 +161,7 @@ bool eraseSuffixByGrapheme(std::string &text)
 
     return true;
 }
+
 ```
 
 The cursor does not retain the text. A suffix truncation exactly at its current indexed boundary can therefore discard later stale offsets in O(1).
@@ -179,11 +183,11 @@ std::optional<std::size_t> previousClusterStart(
 
     const Unicode::Types::Utf8::BoundaryResult previous =
         Unicode::Utf8::previousGraphemeBoundary(text, offset);
-
     if (previous.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtBeginning)
     {
         return std::size_t{0};
     }
+
     if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
     {
         return std::nullopt;
@@ -191,6 +195,7 @@ std::optional<std::size_t> previousClusterStart(
 
     return previous.byteOffset;
 }
+
 ```
 
 The offset may be `text.size()` or any code-point boundary inside a cluster. This stateless form is intended for isolated queries; use

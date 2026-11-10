@@ -180,7 +180,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, "injected custom cursor creation failure");
             }
-
             HCURSOR cursor = nullptr;
             IO::Types::Status status = createNativeCursor(image, cursor);
 
@@ -236,7 +235,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return nativeCursorFailure(GetLastError(), "SetPropW custom cursor binding");
             }
-
             window.platform->cursor = static_cast<HCURSOR>(variant.handle);
 
             if(cursorVisible(window))
@@ -250,7 +248,6 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return IO::makeStatus(IO::Types::ErrorCode::Unknown);
             }
-
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -286,6 +283,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return;
         }
+
         static_cast<void>(RemovePropW(window, kCursorBindingProperty));
         delete binding;
     }

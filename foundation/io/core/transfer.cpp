@@ -82,7 +82,6 @@ namespace GameWIP::IO::Detail::Core
                 result.byteCount = 0;
                 return result;
             }
-
             result.byteCount = sizeResult.sizeBytes - positionResult.position;
             return result;
         }
@@ -131,7 +130,6 @@ namespace GameWIP::IO::Detail::Core
             {
                 return result;
             }
-
             const auto expectedSize = static_cast<std::size_t>(knownByteCount);
 
             try
@@ -167,7 +165,6 @@ namespace GameWIP::IO::Detail::Core
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
                     return result;
                 }
-
                 totalRead += readResult.bytesRead;
 
                 if(!readResult.status.ok())
@@ -215,7 +212,6 @@ namespace GameWIP::IO::Detail::Core
             {
                 return result;
             }
-
             const auto expectedSize = static_cast<std::size_t>(knownByteCount);
 
             try
@@ -252,7 +248,6 @@ namespace GameWIP::IO::Detail::Core
                     result.status = makeStatus(Types::ErrorCode::ReadFailed);
                     return result;
                 }
-
                 totalRead += readResult.bytesRead;
 
                 if(!readResult.status.ok())
@@ -394,7 +389,6 @@ namespace GameWIP::IO::Detail::Core
                     result.status = probeForMoreData(reader);
                     return result;
                 }
-
                 const auto remainingLimit = maxBytes - totalRead;
                 const auto requestSize =
                     static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
@@ -410,13 +404,11 @@ namespace GameWIP::IO::Detail::Core
                 if(readResult.bytesRead > 0)
                 {
                     Types::Status appendStatus = appendBytes(result.bytes, std::as_bytes(request.first(readResult.bytesRead)));
-
                     if(!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
                         return result;
                     }
-
                     totalRead += readResult.bytesRead;
                 }
 
@@ -454,7 +446,6 @@ namespace GameWIP::IO::Detail::Core
                     result.status = probeForMoreData(reader);
                     return result;
                 }
-
                 const auto remainingLimit = maxBytes - totalRead;
                 const auto requestSize =
                     static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(scratchBuffer.size()), remainingLimit));
@@ -470,13 +461,11 @@ namespace GameWIP::IO::Detail::Core
                 if(readResult.bytesRead > 0)
                 {
                     Types::Status appendStatus = appendTextBytes(result.text, std::as_bytes(request.first(readResult.bytesRead)));
-
                     if(!appendStatus.ok())
                     {
                         result.status = std::move(appendStatus);
                         return result;
                     }
-
                     totalRead += readResult.bytesRead;
                 }
 
@@ -532,7 +521,6 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
-
         const auto effectiveBufferSize = static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(bufferSize), maxBytes));
         std::unique_ptr<std::byte[]> buffer;
 
@@ -588,7 +576,6 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
-
         return readAllBytesWithScratch(reader, scratchBuffer, maxBytes);
     }
 
@@ -615,7 +602,6 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
-
         const auto effectiveBufferSize = static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(bufferSize), maxBytes));
         std::unique_ptr<std::byte[]> buffer;
 
@@ -671,7 +657,6 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
-
         return finalizeReadAllText(readAllTextWithScratch(reader, scratchBuffer, maxBytes));
     }
 
@@ -691,7 +676,6 @@ namespace GameWIP::IO
             {
                 return {.status = makeStatus(Types::ErrorCode::WriteFailed), .bytesWritten = totalWritten};
             }
-
             totalWritten += writeResult.bytesWritten;
 
             if(!writeResult.status.ok())
@@ -703,7 +687,6 @@ namespace GameWIP::IO
             {
                 return {.status = makeStatus(Types::ErrorCode::WriteFailed), .bytesWritten = totalWritten};
             }
-
             bytes = bytes.subspan(writeResult.bytesWritten);
         }
 
@@ -716,7 +699,6 @@ namespace GameWIP::IO
         {
             return {.status = makeStatus(Types::ErrorCode::EncodingFailed), .bytesWritten = 0};
         }
-
         return writeAllBytes(writer, std::as_bytes(std::span<const char>(utf8Text.data(), utf8Text.size())));
     }
 } // namespace GameWIP::IO

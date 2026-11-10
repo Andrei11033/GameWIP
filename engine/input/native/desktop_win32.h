@@ -40,7 +40,6 @@ namespace GameWIP::Input::Platform::Win32
         {
             return nativeHandle.status;
         }
-
         const IO::Types::Status inputStatus = attachment.attach(system, static_cast<void *>(nativeHandle->window));
 
         if(!inputStatus.ok())

@@ -20,6 +20,7 @@ namespace GameWIP::Desktop::Detail
             {
                 state.eventStorage[physicalIndex(state, current)] = state.eventStorage[physicalIndex(state, current + 1)];
             }
+
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
         }
@@ -45,7 +46,7 @@ namespace GameWIP::Desktop::Detail
         }
     } // namespace
 
-    /// @brief Returns whether a ChildSurface payload may replace a newer payload of the same type.
+    /// @brief Returns whether a ChildSurface payload may be replaced by a newer payload of the same type.
     bool isChildSurfaceEventCoalescible(const Types::ChildSurface::Events::Payload &data) noexcept
     {
         using namespace Types::ChildSurface::Events;

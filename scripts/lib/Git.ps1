@@ -85,7 +85,6 @@ function Get-GameWipBranchNames
     $remote = @(
         Invoke-GameWipGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)', 'refs/remotes/origin') |
             Where-Object { $_ -like 'origin/*' -and $_ -ne 'origin/HEAD' } |
-
             ForEach-Object { $_.Substring('origin/'.Length) }
     )
     return [pscustomobject]@{ Local = @($local); All = @($local + $remote | Sort-Object -Unique) }
@@ -114,12 +113,14 @@ function Invoke-GameWipBranchSwitch
         {
             throw 'git switch requires a branch in non-interactive mode.'
         }
+
         $choice = Read-GameWipRepositoryBranchChoice -Candidates $branches.All -Recommended $current
 
         if ($choice.Status -eq 'Cancelled')
         {
             return
         }
+
         $selected = [string]$choice.Value
     }
 
@@ -130,8 +131,10 @@ function Invoke-GameWipBranchSwitch
 
     if ($selected -eq $current)
     {
-        Write-Host "Already on '$selected'."; return
+        Write-Host "Already on '$selected'."
+        return
     }
+
     $gitArguments = if ($branches.Local -contains $selected)
     {
         @('-C', $RepositoryRoot, 'switch', $selected)
@@ -156,6 +159,7 @@ function Invoke-GameWipCurrentBranchUpdate
     {
         throw "Branch '$branch' has no upstream."
     }
+
     Invoke-GameWipMutation -Summary "Fast-forward '$branch' from '$upstream'." -Risk local -Plan @('Fetch/prune remotes.', "git merge --ff-only $upstream") -Body {
         Invoke-GameWipNative -Name 'git-fetch-prune' -FilePath git -Arguments @('-C', $RepositoryRoot, 'fetch', '--all', '--prune')
         Invoke-GameWipNative -Name "git-update-$branch" -FilePath git -Arguments @('-C', $RepositoryRoot, 'merge', '--ff-only', $upstream)
@@ -174,6 +178,7 @@ function Invoke-GameWipBranchCreate
         {
             throw 'git create requires a branch name in non-interactive mode.'
         }
+
         $name = Read-GameWipTextValue -Prompt 'New branch name'
     }
 
@@ -181,12 +186,14 @@ function Invoke-GameWipBranchCreate
     {
         return
     }
+
     $check = Invoke-GameWipProcess -FilePath git -Arguments @('check-ref-format', '--branch', $name) -OutputMode LogOnly -TimeoutSeconds 10
 
     if ($check.ExitCode -ne 0)
     {
         throw "'$name' is not a valid Git branch name."
     }
+
     Invoke-GameWipMutation -Summary "Create and switch to branch '$name'." -Risk local -Plan @("git switch -c $name") -Body {
         Invoke-GameWipNative -Name "git-create-$name" -FilePath git -Arguments @('-C', $RepositoryRoot, 'switch', '-c', $name)
     } | Out-Null
@@ -238,15 +245,16 @@ function Invoke-GameWipBranchCleanup
     $gone = @(
         Invoke-GameWipGitQuery -Arguments @('for-each-ref', '--format=%(refname:short)|%(upstream:track)', 'refs/heads') |
             Where-Object { $_ -match '\|\[gone\]$' } |
-
             ForEach-Object { ($_ -split '\|', 2)[0] } |
             Where-Object { -not $protected.Contains($_) -and $merged -notcontains $_ }
     )
 
     if ($merged.Count -eq 0 -and $gone.Count -eq 0)
     {
-        Write-Host 'No cleanup candidates.'; return
+        Write-Host 'No cleanup candidates.'
+        return
     }
+
     $plan = @($merged | ForEach-Object { "Delete merged local branch: $_" }) + @($gone | ForEach-Object { "Force-delete local branch with gone upstream: $_" })
     Invoke-GameWipMutation -Summary 'Delete reviewed local branch cleanup candidates.' -Risk destructive -Plan $plan -Body {
         foreach ($branch in $merged)
@@ -275,7 +283,6 @@ function Invoke-GameWipGitAction
         {
             Invoke-GameWipGitFetch
         }
-
         switch
         {
             Invoke-GameWipBranchSwitch -TargetBranch $BranchName

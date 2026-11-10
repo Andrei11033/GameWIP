@@ -26,7 +26,6 @@ namespace GameWIP::Input::Internal
             {
                 return false;
             }
-
             current += delta;
             return true;
         }
@@ -34,6 +33,7 @@ namespace GameWIP::Input::Internal
         template <typename T> [[nodiscard]] bool addFloating(T &current, T delta) noexcept
         {
             const T result = current + delta;
+
             if(!std::isfinite(result))
             {
                 return false;
@@ -47,6 +47,7 @@ namespace GameWIP::Input::Internal
         {
             T x = current.x;
             T y = current.y;
+
             const bool xAdded = [&]
             {
                 if constexpr(std::is_floating_point_v<T>)
@@ -58,6 +59,7 @@ namespace GameWIP::Input::Internal
                     return addIntegral(x, delta.x);
                 }
             }();
+
             const bool yAdded = [&]
             {
                 if constexpr(std::is_floating_point_v<T>)
@@ -69,6 +71,7 @@ namespace GameWIP::Input::Internal
                     return addIntegral(y, delta.y);
                 }
             }();
+
             if(!xAdded || !yAdded)
             {
                 return false;
@@ -83,6 +86,7 @@ namespace GameWIP::Input::Internal
             T x = current.x;
             T y = current.y;
             T z = current.z;
+
             const bool xAdded = [&]
             {
                 if constexpr(std::is_floating_point_v<T>)
@@ -94,6 +98,7 @@ namespace GameWIP::Input::Internal
                     return addIntegral(x, delta.x);
                 }
             }();
+
             const bool yAdded = [&]
             {
                 if constexpr(std::is_floating_point_v<T>)
@@ -105,6 +110,7 @@ namespace GameWIP::Input::Internal
                     return addIntegral(y, delta.y);
                 }
             }();
+
             const bool zAdded = [&]
             {
                 if constexpr(std::is_floating_point_v<T>)
@@ -116,6 +122,7 @@ namespace GameWIP::Input::Internal
                     return addIntegral(z, delta.z);
                 }
             }();
+
             if(!xAdded || !yAdded || !zAdded)
             {
                 return false;
@@ -192,6 +199,7 @@ namespace GameWIP::Input::Internal
                     {
                         return std::optional<Types::Scalar>{Types::Scalar{current}};
                     }
+
                     return std::nullopt;
                 }
                 else if constexpr(
@@ -202,10 +210,12 @@ namespace GameWIP::Input::Internal
                     {
                         return Types::Scalar{current.x};
                     }
+
                     if(index == 1)
                     {
                         return Types::Scalar{current.y};
                     }
+
                     return std::nullopt;
                 }
                 else if constexpr(
@@ -216,14 +226,17 @@ namespace GameWIP::Input::Internal
                     {
                         return Types::Scalar{current.x};
                     }
+
                     if(index == 1)
                     {
                         return Types::Scalar{current.y};
                     }
+
                     if(index == 2)
                     {
                         return Types::Scalar{current.z};
                     }
+
                     return std::nullopt;
                 }
                 else if constexpr(std::is_same_v<T, Types::QuaternionF32> || std::is_same_v<T, Types::QuaternionF64>)
@@ -232,14 +245,17 @@ namespace GameWIP::Input::Internal
                     {
                         return Types::Scalar{current.x};
                     }
+
                     if(index == 1)
                     {
                         return Types::Scalar{current.y};
                     }
+
                     if(index == 2)
                     {
                         return Types::Scalar{current.z};
                     }
+
                     if(index == 3)
                     {
                         return Types::Scalar{current.w};
@@ -254,16 +270,19 @@ namespace GameWIP::Input::Internal
                         {
                             return std::nullopt;
                         }
+
                         if(index == 0)
                         {
                             return Types::Scalar{current.position.x};
                         }
+
                         if(index == 1)
                         {
                             return Types::Scalar{current.position.y};
                         }
                         return Types::Scalar{current.position.z};
                     }
+
                     if(index < 7)
                     {
                         if(!current.orientationValid)
@@ -275,10 +294,12 @@ namespace GameWIP::Input::Internal
                         {
                             return Types::Scalar{current.orientation.x};
                         }
+
                         if(orientationIndex == 1)
                         {
                             return Types::Scalar{current.orientation.y};
                         }
+
                         if(orientationIndex == 2)
                         {
                             return Types::Scalar{current.orientation.z};

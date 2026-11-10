@@ -17,7 +17,6 @@ namespace GameWIP::IO
 {
     namespace Types
     {
-
         /// @brief Result of copying collected bytes as validated text.
         struct CopyTextResult
         {

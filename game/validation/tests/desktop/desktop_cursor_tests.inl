@@ -399,6 +399,7 @@ void testCursorLifecycle(TestSupport::Context &context)
     {
         return;
     }
+
     RECT suggested{};
     static_cast<void>(GetWindowRect(native->window, &suggested));
     static_cast<void>(SendMessageW(native->window, WM_DPICHANGED, MAKEWPARAM(120, 120), reinterpret_cast<LPARAM>(&suggested)));
