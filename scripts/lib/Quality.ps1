@@ -39,7 +39,6 @@ function Select-GameWipQualityFile
         })
 }
 
-
 function Get-GameWipMaintainedWorktreeFile
 {
     param([string[]]$Extensions = @(), [string[]]$ExactNames = @())
@@ -51,7 +50,6 @@ function Get-GameWipMaintainedWorktreeFile
     }
 
     return @($result.Stdout |
-
             ForEach-Object { ([string]$_).Replace('\', '/') } |
             Where-Object { $_ -and $_ -notmatch '^(?:external|build|install|docs/releases)/' } |
             Where-Object { Test-Path -LiteralPath (Join-Path $RepositoryRoot $_) -PathType Leaf } |
@@ -96,6 +94,7 @@ function Get-GameWipQualityScope
     {
         return [pscustomobject]@{ Requested = $false; UseChanged = $false; Expanded = $false; Files = @() }
     }
+
     $files = @(Get-GameWipChangedRepositoryFile)
     $expanded = Test-GameWipQualityPolicyChange -Files $files
     return [pscustomobject]@{
@@ -120,10 +119,8 @@ function Get-GameWipPowerShellFile
     }
 
     return @($selected |
-
             ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
             Where-Object { (Test-Path -LiteralPath $_ -PathType Leaf) -and $extensions -contains [IO.Path]::GetExtension($_).ToLowerInvariant() } |
-
             ForEach-Object { Get-Item -LiteralPath $_ })
 }
 
@@ -140,7 +137,6 @@ function Get-GameWipCMakeFile
     }
 
     return @($selected |
-
             ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
             Where-Object { (Test-Path -LiteralPath $_ -PathType Leaf) -and ((Split-Path -Leaf $_) -eq 'CMakeLists.txt' -or $_ -match '\.cmake(?:\.in)?$') } |
             Sort-Object -Unique)
@@ -153,11 +149,9 @@ function Invoke-GameWipLineEndingNormalization
     param([string[]]$Files = @())
 
     $candidates = @(
-
         if ($null -ne $Files -and @($Files).Count -ne 0)
         {
             $Files |
-
                 ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
                 Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
                 Sort-Object -Unique
@@ -165,7 +159,6 @@ function Invoke-GameWipLineEndingNormalization
         else
         {
             Get-GameWipMaintainedWorktreeFile |
-
                 ForEach-Object { Resolve-GameWipRepositoryPath -Path $_ } |
                 Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } |
                 Sort-Object -Unique

@@ -14,7 +14,8 @@ function Write-GameWipUninstallSection
 
     if ($Items.Count -eq 0)
     {
-        Write-Host '  (none)'; return
+        Write-Host '  (none)'
+        return
     }
 
     foreach ($item in $Items)
@@ -83,11 +84,13 @@ function Invoke-GameWipUninstall
 
     if ($null -ne $toolMarker)
     {
-        $proven.Add("$toolRoot ($($toolMarker.origin))") | Out-Null; $planned.Add($toolRoot) | Out-Null
+        $proven.Add("$toolRoot ($($toolMarker.origin))") | Out-Null
+        $planned.Add($toolRoot) | Out-Null
     }
     elseif (Test-Path -LiteralPath $toolRoot)
     {
-        $unknown.Add("$toolRoot has no valid ownership marker") | Out-Null; $preserved.Add("$toolRoot (ownership unknown)") | Out-Null
+        $unknown.Add("$toolRoot has no valid ownership marker") | Out-Null
+        $preserved.Add("$toolRoot (ownership unknown)") | Out-Null
     }
 
     if ($msysState.Status -eq 'valid' -and $msysState.Marker.payload.installedBySetup -eq $true)
@@ -101,12 +104,14 @@ function Invoke-GameWipUninstall
 
     foreach ($id in @($state.wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
     {
-        $recorded.Add("WinGet package $id") | Out-Null; $planned.Add("WinGet package $id") | Out-Null
+        $recorded.Add("WinGet package $id") | Out-Null
+        $planned.Add("WinGet package $id") | Out-Null
     }
 
     foreach ($id in @($state.vscodeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
     {
-        $recorded.Add("VS Code extension $id") | Out-Null; $planned.Add("VS Code extension $id") | Out-Null
+        $recorded.Add("VS Code extension $id") | Out-Null
+        $planned.Add("VS Code extension $id") | Out-Null
     }
 
     foreach ($tree in @('build/gamewip/cache/tracy', 'build/dev', 'build/docs', 'disposable setup/editor state'))
@@ -134,6 +139,7 @@ function Invoke-GameWipUninstall
         Add-GameWipOperationPreserved -Message 'Uninstall was cancelled; no resources were removed.'
         return
     }
+
     Invoke-GameWipMutationBody -Body {
         Invoke-GameWipEditorIntegrationRemoval
 

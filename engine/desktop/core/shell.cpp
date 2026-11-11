@@ -31,7 +31,7 @@ namespace GameWIP::Desktop::Detail
         {
             std::uint64_t value = nextShellIdentityValue.fetch_add(1, std::memory_order_relaxed);
 
-            if (value == 0)
+            if(value == 0)
             {
                 value = nextShellIdentityValue.fetch_add(1, std::memory_order_relaxed);
             }
@@ -62,7 +62,7 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears queue payloads while the caller holds the queue mutex.
         void clearEventsUnlocked(ShellEventQueueState &state) noexcept
         {
-            for (std::size_t index = 0; index < state.eventCount; ++index)
+            for(std::size_t index = 0; index < state.eventCount; ++index)
             {
                 state.eventStorage[physicalIndex(state, index)] = {};
             }
@@ -79,17 +79,17 @@ namespace GameWIP::Desktop::Detail
         /// @brief Validates optional progress state before native shell publication.
         [[nodiscard]] IO::Types::Status validateProgress(const std::optional<Types::Shell::Progress> &progress) noexcept
         {
-            if (!progress.has_value())
+            if(!progress.has_value())
             {
                 return IO::successStatus();
             }
 
-            if (!std::isfinite(progress->fraction))
+            if(!std::isfinite(progress->fraction))
             {
                 return error(ErrorCode::InvalidArgument);
             }
 
-            if (progress->state != Types::Shell::ProgressState::Indeterminate && (progress->fraction < 0.0 || progress->fraction > 1.0))
+            if(progress->state != Types::Shell::ProgressState::Indeterminate && (progress->fraction < 0.0 || progress->fraction > 1.0))
             {
                 return error(ErrorCode::InvalidArgument);
             }
@@ -102,8 +102,8 @@ namespace GameWIP::Desktop::Detail
         {
             constexpr std::size_t bytesPerPixel = 4;
 
-            if (size.width == 0 || size.height == 0 ||
-                static_cast<std::size_t>(size.width) > std::numeric_limits<std::size_t>::max() / bytesPerPixel / size.height)
+            if(size.width == 0 || size.height == 0 ||
+               static_cast<std::size_t>(size.width) > std::numeric_limits<std::size_t>::max() / bytesPerPixel / size.height)
             {
                 return false;
             }
@@ -116,21 +116,22 @@ namespace GameWIP::Desktop::Detail
         {
             std::size_t byteCount = 0;
 
-            if (!imageByteCount(view.size, byteCount) || view.rgba8.size() != byteCount)
+            if(!imageByteCount(view.size, byteCount) || view.rgba8.size() != byteCount)
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             try
             {
                 out.size = view.size;
                 out.rgba8.assign(view.rgba8.begin(), view.rgba8.end());
                 return IO::successStatus();
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return error(ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 return error(ErrorCode::Unknown);
             }
@@ -141,18 +142,18 @@ namespace GameWIP::Desktop::Detail
         {
             ShellEventQueueState *candidate = ShellEventQueueAccess::state(queue);
 
-            if (candidate == nullptr)
+            if(candidate == nullptr)
             {
                 return error(ErrorCode::NotOpen);
             }
             std::lock_guard lock(candidate->mutex);
 
-            if (!candidate->open)
+            if(!candidate->open)
             {
                 return error(ErrorCode::NotOpen);
             }
 
-            if (candidate->ownerThread != owner || owner != std::this_thread::get_id())
+            if(candidate->ownerThread != owner || owner != std::this_thread::get_id())
             {
                 return error(ErrorCode::ResourceBusy);
             }
@@ -164,13 +165,13 @@ namespace GameWIP::Desktop::Detail
         /// @brief Drops one resource binding without closing or destroying the queue.
         void unbindQueue(ShellEventQueueState *queue) noexcept
         {
-            if (queue == nullptr)
+            if(queue == nullptr)
             {
                 return;
             }
             std::lock_guard lock(queue->mutex);
 
-            if (queue->boundResourceCount != 0)
+            if(queue->boundResourceCount != 0)
             {
                 --queue->boundResourceCount;
             }
@@ -187,10 +188,10 @@ namespace GameWIP::Desktop::Detail
                 out.clear();
                 out.reserve(buttons.size());
 
-                for (const Types::Taskbar::ThumbnailButton &button : buttons)
+                for(const Types::Taskbar::ThumbnailButton &button : buttons)
                 {
-                    if (!button.id.isValid() || button.id.value > std::numeric_limits<std::uint16_t>::max() || !validText(button.label, true) ||
-                        !ids.insert(button.id.value).second)
+                    if(!button.id.isValid() || button.id.value > std::numeric_limits<std::uint16_t>::max() || !validText(button.label, true) ||
+                       !ids.insert(button.id.value).second)
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
@@ -199,26 +200,27 @@ namespace GameWIP::Desktop::Detail
                     owned.label = button.label;
                     owned.enabled = button.enabled;
 
-                    if (button.icon.has_value())
+                    if(button.icon.has_value())
                     {
                         owned.icon.emplace();
                         IO::Types::Status status = copyIcon(*button.icon, *owned.icon);
 
-                        if (!status.ok())
+                        if(!status.ok())
                         {
                             return status;
                         }
                     }
+
                     out.push_back(std::move(owned));
                 }
 
                 return IO::successStatus();
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return error(ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 return error(ErrorCode::Unknown);
             }
@@ -235,39 +237,38 @@ namespace GameWIP::Desktop::Detail
                 out.clear();
                 out.reserve(source.size());
 
-                for (const Types::Tray::MenuItem &item : source)
+                for(const Types::Tray::MenuItem &item : source)
                 {
                     const bool actionable = item.kind == Types::Tray::MenuItemKind::Command || item.kind == Types::Tray::MenuItemKind::Check ||
                                             item.kind == Types::Tray::MenuItemKind::Radio;
 
-                    if (actionable && (!item.commandId.isValid() || !validText(item.label, true) || !item.children.empty()))
+                    if(actionable && (!item.commandId.isValid() || !validText(item.label, true) || !item.children.empty()))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
 
-                    if (item.kind == Types::Tray::MenuItemKind::Submenu &&
-                        (item.commandId.isValid() || !validText(item.label, true) || item.children.empty() || !item.accelerator.empty()))
+                    if(item.kind == Types::Tray::MenuItemKind::Submenu &&
+                       (item.commandId.isValid() || !validText(item.label, true) || item.children.empty() || !item.accelerator.empty()))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
 
-                    if (item.kind == Types::Tray::MenuItemKind::Separator &&
-                        (item.commandId.isValid() || !item.label.empty() || item.icon.has_value() || !item.accelerator.empty() ||
-                         !item.badge.empty() || !item.children.empty() || !item.enabled))
+                    if(item.kind == Types::Tray::MenuItemKind::Separator &&
+                       (item.commandId.isValid() || !item.label.empty() || item.icon.has_value() || !item.accelerator.empty() ||
+                        !item.badge.empty() || !item.children.empty() || !item.enabled))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
 
-                    if (!validText(item.label) || !validText(item.accelerator) || !validText(item.badge))
+                    if(!validText(item.label) || !validText(item.accelerator) || !validText(item.badge))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
 
-                    if (actionable && !ids.insert(item.commandId.value).second)
+                    if(actionable && !ids.insert(item.commandId.value).second)
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
-
                     OwnedTrayMenuItem owned;
                     owned.kind = item.kind;
                     owned.commandId = item.commandId;
@@ -277,19 +278,20 @@ namespace GameWIP::Desktop::Detail
                     owned.enabled = item.enabled;
                     owned.checked = item.checked;
 
-                    if (item.icon.has_value())
+                    if(item.icon.has_value())
                     {
                         owned.icon.emplace();
                         IO::Types::Status status = copyIcon(*item.icon, *owned.icon);
 
-                        if (!status.ok())
+                        if(!status.ok())
                         {
                             return status;
                         }
                     }
+
                     IO::Types::Status status = copyMenuItems(item.children, owned.children, ids);
 
-                    if (!status.ok())
+                    if(!status.ok())
                     {
                         return status;
                     }
@@ -298,11 +300,11 @@ namespace GameWIP::Desktop::Detail
 
                 return IO::successStatus();
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return error(ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 return error(ErrorCode::Unknown);
             }
@@ -313,19 +315,20 @@ namespace GameWIP::Desktop::Detail
         {
             IO::Types::Status status = validateProgress(description.progress);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
+
             state.progress = description.progress;
             state.overlayIcon.reset();
 
-            if (description.overlayIcon.has_value())
+            if(description.overlayIcon.has_value())
             {
                 OwnedIconImage overlayIcon{};
                 status = copyIcon(*description.overlayIcon, overlayIcon);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
@@ -338,35 +341,37 @@ namespace GameWIP::Desktop::Detail
         /// @brief Validates and copies tray icons, tooltip, and recursive menu data.
         [[nodiscard]] IO::Types::Status copyDescription(const Types::Tray::Description &description, TrayIconState &state) noexcept
         {
-            if (description.icons.empty() || !validText(description.tooltip))
+            if(description.icons.empty() || !validText(description.tooltip))
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             try
             {
                 state.icons.clear();
                 state.icons.reserve(description.icons.size());
 
-                for (Types::IconImageView icon : description.icons)
+                for(Types::IconImageView icon : description.icons)
                 {
                     OwnedIconImage owned;
                     IO::Types::Status status = copyIcon(icon, owned);
 
-                    if (!status.ok())
+                    if(!status.ok())
                     {
                         return status;
                     }
                     state.icons.push_back(std::move(owned));
                 }
+
                 state.tooltip = description.tooltip;
                 std::unordered_set<std::uint32_t> ids;
                 return copyMenuItems(description.menu.items, state.menu, ids);
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return error(ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 return error(ErrorCode::Unknown);
             }
@@ -377,20 +382,21 @@ namespace GameWIP::Desktop::Detail
             const Types::Notifications::Description &description,
             OwnedNotificationDescription &out) noexcept
         {
-            if (!validText(description.title, true) || !validText(description.body) || !validText(description.group) || !validText(description.badge))
+            if(!validText(description.title, true) || !validText(description.body) || !validText(description.group) || !validText(description.badge))
             {
                 return error(ErrorCode::InvalidArgument);
             }
+
             IO::Types::Status status = validateProgress(description.progress);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
 
-            if (description.schedule.has_value() &&
-                (description.schedule->occurrenceCount == 0 ||
-                 (description.schedule->occurrenceCount > 1 && description.schedule->repeatInterval <= std::chrono::milliseconds::zero())))
+            if(description.schedule.has_value() &&
+               (description.schedule->occurrenceCount == 0 ||
+                (description.schedule->occurrenceCount > 1 && description.schedule->repeatInterval <= std::chrono::milliseconds::zero())))
             {
                 return error(ErrorCode::InvalidArgument);
             }
@@ -414,37 +420,37 @@ namespace GameWIP::Desktop::Detail
                 out.inputs.reserve(description.inputs.size());
                 out.media.reserve(description.media.size());
 
-                for (const Types::Notifications::Action &action : description.actions)
+                for(const Types::Notifications::Action &action : description.actions)
                 {
-                    if (!action.id.isValid() || !validText(action.label, true) || !actionIds.insert(action.id.value).second)
+                    if(!action.id.isValid() || !validText(action.label, true) || !actionIds.insert(action.id.value).second)
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
                     out.actions.push_back({action.id, std::string(action.label)});
                 }
 
-                for (const Types::Notifications::Input &input : description.inputs)
+                for(const Types::Notifications::Input &input : description.inputs)
                 {
-                    if (!input.id.isValid() || !validText(input.placeholder) || !validText(input.initialValue) ||
-                        !inputIds.insert(input.id.value).second)
+                    if(!input.id.isValid() || !validText(input.placeholder) || !validText(input.initialValue) ||
+                       !inputIds.insert(input.id.value).second)
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
                     out.inputs.push_back({input.id, std::string(input.placeholder), std::string(input.initialValue), input.secure});
                 }
 
-                for (const Types::Notifications::MediaView &media : description.media)
+                for(const Types::Notifications::MediaView &media : description.media)
                 {
                     OwnedNotificationMedia owned;
 
-                    if (const auto *image = std::get_if<Types::DataTransfer::ImageView>(&media))
+                    if(const auto *image = std::get_if<Types::DataTransfer::ImageView>(&media))
                     {
                         const std::size_t packedRowBytes = static_cast<std::size_t>(image->size.width) * 4U;
                         const std::size_t rowStride = image->rowStrideBytes.value_or(packedRowBytes);
 
-                        if (image->size.width == 0 || image->size.height == 0 || rowStride < packedRowBytes ||
-                            static_cast<std::size_t>(image->size.height) > std::numeric_limits<std::size_t>::max() / rowStride ||
-                            image->rgba8.size() != static_cast<std::size_t>(image->size.height) * rowStride)
+                        if(image->size.width == 0 || image->size.height == 0 || rowStride < packedRowBytes ||
+                           static_cast<std::size_t>(image->size.height) > std::numeric_limits<std::size_t>::max() / rowStride ||
+                           image->rgba8.size() != static_cast<std::size_t>(image->size.height) * rowStride)
                         {
                             return error(ErrorCode::InvalidArgument);
                         }
@@ -453,7 +459,7 @@ namespace GameWIP::Desktop::Detail
                         const auto sourceRowBytes = static_cast<std::vector<std::byte>::difference_type>(rowStride);
                         const auto destinationRowBytes = static_cast<std::vector<std::byte>::difference_type>(packedRowBytes);
 
-                        for (std::uint32_t row = 0; row < image->size.height; ++row)
+                        for(std::uint32_t row = 0; row < image->size.height; ++row)
                         {
                             std::copy_n(
                                 image->rgba8.begin() + static_cast<std::vector<std::byte>::difference_type>(row) * sourceRowBytes,
@@ -465,23 +471,24 @@ namespace GameWIP::Desktop::Detail
                     {
                         const auto &uri = std::get<Types::Notifications::UriMediaView>(media);
 
-                        if (!validText(uri.uri, true))
+                        if(!validText(uri.uri, true))
                         {
                             return error(ErrorCode::InvalidArgument);
                         }
                         owned.uri = true;
                         owned.uriText = uri.uri;
                     }
+
                     out.media.push_back(std::move(owned));
                 }
 
                 return IO::successStatus();
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return error(ErrorCode::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 return error(ErrorCode::Unknown);
             }
@@ -490,9 +497,9 @@ namespace GameWIP::Desktop::Detail
         /// @brief Returns whether a launch action contains a target-substitution placeholder.
         [[nodiscard]] bool containsPlaceholder(const Types::Shell::LaunchActionView &action) noexcept
         {
-            for (const Types::Shell::LaunchArgumentView &argument : action.arguments)
+            for(const Types::Shell::LaunchArgumentView &argument : action.arguments)
             {
-                if (std::holds_alternative<Types::Shell::LaunchPlaceholder>(argument))
+                if(std::holds_alternative<Types::Shell::LaunchPlaceholder>(argument))
                 {
                     return true;
                 }
@@ -504,33 +511,33 @@ namespace GameWIP::Desktop::Detail
         /// @brief Validates launch targets and arguments before shell registration or publication.
         [[nodiscard]] IO::Types::Status validateLaunchAction(const Types::Shell::LaunchActionView &action, bool allowPlaceholders) noexcept
         {
-            if (action.executable.path.get().empty() || (!allowPlaceholders && containsPlaceholder(action)))
+            if(action.executable.path.get().empty() || (!allowPlaceholders && containsPlaceholder(action)))
             {
                 return error(ErrorCode::InvalidArgument);
             }
 
-            for (const Types::Shell::LaunchArgumentView &argument : action.arguments)
+            for(const Types::Shell::LaunchArgumentView &argument : action.arguments)
             {
-                if (const auto *literal = std::get_if<Types::Shell::LiteralLaunchArgumentView>(&argument))
+                if(const auto *literal = std::get_if<Types::Shell::LiteralLaunchArgumentView>(&argument))
                 {
-                    if (!validText(literal->text))
+                    if(!validText(literal->text))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
                 }
-                else if (const auto *target = std::get_if<Types::Shell::TargetLaunchArgumentView>(&argument))
+                else if(const auto *target = std::get_if<Types::Shell::TargetLaunchArgumentView>(&argument))
                 {
-                    if (const auto *path = std::get_if<Types::Shell::PathTargetView>(&target->target); path != nullptr && path->path.get().empty())
+                    if(const auto *path = std::get_if<Types::Shell::PathTargetView>(&target->target); path != nullptr && path->path.get().empty())
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
 
-                    if (const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target->target); uri != nullptr && !validText(uri->uri, true))
+                    if(const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target->target); uri != nullptr && !validText(uri->uri, true))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
 
-                    if (std::holds_alternative<std::monostate>(target->target))
+                    if(std::holds_alternative<std::monostate>(target->target))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
@@ -586,7 +593,7 @@ namespace GameWIP::Desktop
         /// @brief Validates an open taskbar item and its owner-thread access.
         [[nodiscard]] IO::Types::Status requireOwnedTaskbar(TaskbarItemState *state, bool owned) noexcept
         {
-            if (state == nullptr || !state->open || state->platform == nullptr || state->window == nullptr)
+            if(state == nullptr || !state->open || state->platform == nullptr || state->window == nullptr)
             {
                 return error(ErrorCode::NotOpen);
             }
@@ -597,7 +604,7 @@ namespace GameWIP::Desktop
         /// @brief Validates an open tray icon and its owner-thread access.
         [[nodiscard]] IO::Types::Status requireOwnedTray(TrayIconState *state, bool owned) noexcept
         {
-            if (state == nullptr || !state->open || state->platform == nullptr)
+            if(state == nullptr || !state->open || state->platform == nullptr)
             {
                 return error(ErrorCode::NotOpen);
             }
@@ -608,7 +615,7 @@ namespace GameWIP::Desktop
         /// @brief Validates an open notification center and its owner-thread access.
         [[nodiscard]] IO::Types::Status requireOwnedNotification(NotificationCenterState *state, bool owned) noexcept
         {
-            if (state == nullptr || !state->open || state->platform == nullptr)
+            if(state == nullptr || !state->open || state->platform == nullptr)
             {
                 return error(ErrorCode::NotOpen);
             }
@@ -625,12 +632,12 @@ namespace GameWIP::Desktop
 
     TaskbarItem::~TaskbarItem() noexcept
     {
-        if (state_ == nullptr)
+        if(state_ == nullptr)
         {
             return;
         }
 
-        if (ownedByCurrentThread())
+        if(ownedByCurrentThread())
         {
             static_cast<void>(close());
         }
@@ -644,31 +651,33 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TaskbarItem::open(Window &window, const Types::Taskbar::Description &description) noexcept
     {
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         Detail::WindowState *windowState = Detail::WindowAccess::state(window);
 
-        if (windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
+        if(windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
         {
             return error(ErrorCode::NotOpen);
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*windowState))
+        if(!Detail::Platform::ownedByCurrentThread(*windowState))
         {
             return error(ErrorCode::ResourceBusy);
         }
 
-        if (!description.thumbnailButtons.empty())
+        if(!description.thumbnailButtons.empty())
         {
             return error(ErrorCode::InvalidArgument);
         }
 
-        if (windowState->taskbarItem != nullptr)
+        if(windowState->taskbarItem != nullptr)
         {
             return error(ErrorCode::AlreadyExists);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::TaskbarItemState>();
@@ -677,14 +686,14 @@ namespace GameWIP::Desktop
             candidate->windowId = windowState->id;
             IO::Types::Status status = Detail::copyDescription(description, *candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
             status = Detail::Platform::openTaskbar(*candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 Detail::Platform::closeTaskbarBestEffort(*candidate);
                 return status;
@@ -693,11 +702,11 @@ namespace GameWIP::Desktop
             state_ = std::move(candidate);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -705,23 +714,24 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TaskbarItem::open(Window &window, const Types::Taskbar::Description &description, ShellEventQueue &eventQueue) noexcept
     {
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         Detail::WindowState *windowState = Detail::WindowAccess::state(window);
 
-        if (windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
+        if(windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
         {
             return error(ErrorCode::NotOpen);
         }
 
-        if (!Detail::Platform::ownedByCurrentThread(*windowState))
+        if(!Detail::Platform::ownedByCurrentThread(*windowState))
         {
             return error(ErrorCode::ResourceBusy);
         }
 
-        if (windowState->taskbarItem != nullptr)
+        if(windowState->taskbarItem != nullptr)
         {
             return error(ErrorCode::AlreadyExists);
         }
@@ -734,20 +744,21 @@ namespace GameWIP::Desktop
             candidate->windowId = windowState->id;
             IO::Types::Status status = Detail::copyDescription(description, *candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
+
             status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
             status = Detail::Platform::openTaskbar(*candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 Detail::unbindQueue(candidate->eventQueue);
                 Detail::Platform::closeTaskbarBestEffort(*candidate);
@@ -757,11 +768,11 @@ namespace GameWIP::Desktop
             state_ = std::move(candidate);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -789,26 +800,28 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TaskbarItem::close() noexcept
     {
-        if (state_ == nullptr)
+        if(state_ == nullptr)
         {
             return IO::successStatus();
         }
 
-        if (!ownedByCurrentThread())
+        if(!ownedByCurrentThread())
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         const IO::Types::Status status = Detail::Platform::closeTaskbar(*state_);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (state_->window != nullptr && state_->window->taskbarItem == state_.get())
+        if(state_->window != nullptr && state_->window->taskbarItem == state_.get())
         {
             state_->window->taskbarItem = nullptr;
         }
+
         releaseTaskbarQueue(*state_);
         state_.reset();
         return IO::successStatus();
@@ -818,21 +831,23 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedTaskbar(Detail::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         status = Detail::validateProgress(progress);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         const auto old = state_->progress;
         state_->progress = progress;
         status = Detail::Platform::applyTaskbar(*state_);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             state_->progress = old;
             static_cast<void>(Detail::Platform::applyTaskbar(*state_));
@@ -845,30 +860,32 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedTaskbar(Detail::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         try
         {
             std::optional<Detail::OwnedIconImage> replacement;
 
-            if (icon.has_value())
+            if(icon.has_value())
             {
                 replacement.emplace();
                 status = Detail::copyIcon(*icon, *replacement);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
             }
+
             std::optional<Detail::OwnedIconImage> old;
             old.swap(state_->overlayIcon);
             state_->overlayIcon.swap(replacement);
             status = Detail::Platform::applyTaskbar(*state_);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 state_->overlayIcon.swap(old);
                 static_cast<void>(Detail::Platform::applyTaskbar(*state_));
@@ -876,11 +893,11 @@ namespace GameWIP::Desktop
 
             return status;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -890,21 +907,22 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedTaskbar(Detail::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (!buttons.empty() && state_->eventQueue == nullptr)
+        if(!buttons.empty() && state_->eventQueue == nullptr)
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::vector<Detail::OwnedThumbnailButton> replacement;
             status = Detail::validateThumbnailButtons(buttons, replacement);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -912,7 +930,7 @@ namespace GameWIP::Desktop
             state_->thumbnailButtons = std::move(replacement);
             status = Detail::Platform::applyTaskbar(*state_);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 state_->thumbnailButtons = std::move(old);
                 static_cast<void>(Detail::Platform::applyTaskbar(*state_));
@@ -920,11 +938,11 @@ namespace GameWIP::Desktop
 
             return status;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -938,12 +956,12 @@ namespace GameWIP::Desktop
 
     TrayIcon::~TrayIcon() noexcept
     {
-        if (state_ == nullptr)
+        if(state_ == nullptr)
         {
             return;
         }
 
-        if (ownedByCurrentThread())
+        if(ownedByCurrentThread())
         {
             static_cast<void>(close());
         }
@@ -957,15 +975,16 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TrayIcon::open(const Types::Tray::Description &description) noexcept
     {
-        if (!description.menu.items.empty())
+        if(!description.menu.items.empty())
         {
             return error(ErrorCode::InvalidArgument);
         }
 
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::TrayIconState>();
@@ -973,14 +992,14 @@ namespace GameWIP::Desktop
             candidate->id = Types::Shell::TrayIconId{Detail::nextShellIdentity()};
             IO::Types::Status status = Detail::copyDescription(description, *candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
             status = Detail::Platform::openTray(*candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 Detail::Platform::closeTrayBestEffort(*candidate);
                 return status;
@@ -988,11 +1007,11 @@ namespace GameWIP::Desktop
             state_ = std::move(candidate);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1000,10 +1019,11 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TrayIcon::open(const Types::Tray::Description &description, ShellEventQueue &eventQueue) noexcept
     {
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::TrayIconState>();
@@ -1011,20 +1031,21 @@ namespace GameWIP::Desktop
             candidate->id = Types::Shell::TrayIconId{Detail::nextShellIdentity()};
             IO::Types::Status status = Detail::copyDescription(description, *candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
+
             status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
             status = Detail::Platform::openTray(*candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 Detail::unbindQueue(candidate->eventQueue);
                 Detail::Platform::closeTrayBestEffort(*candidate);
@@ -1034,11 +1055,11 @@ namespace GameWIP::Desktop
             state_ = std::move(candidate);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1068,36 +1089,37 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (state_->eventQueue != nullptr || state_->menuWasPublished)
+        if(state_->eventQueue != nullptr || state_->menuWasPublished)
         {
             return error(ErrorCode::InvalidArgument);
         }
-
         return Detail::bindQueue(eventQueue, state_->ownerThread, state_->eventQueue);
     }
 
     IO::Types::Status TrayIcon::close() noexcept
     {
-        if (state_ == nullptr)
+        if(state_ == nullptr)
         {
             return IO::successStatus();
         }
 
-        if (!ownedByCurrentThread())
+        if(!ownedByCurrentThread())
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         const IO::Types::Status status = Detail::Platform::closeTray(*state_);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         releaseTrayQueue(*state_);
         state_.reset();
         return IO::successStatus();
@@ -1107,47 +1129,49 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (icons.empty())
+        if(icons.empty())
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::vector<Detail::OwnedIconImage> replacement;
             replacement.reserve(icons.size());
 
-            for (Types::IconImageView icon : icons)
+            for(Types::IconImageView icon : icons)
             {
                 Detail::OwnedIconImage owned;
                 status = Detail::copyIcon(icon, owned);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
                 replacement.push_back(std::move(owned));
             }
+
             auto old = std::move(state_->icons);
             state_->icons = std::move(replacement);
             status = Detail::Platform::applyTray(*state_);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 state_->icons = std::move(old);
             }
 
             return status;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1157,33 +1181,34 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (!Detail::validText(tooltip))
+        if(!Detail::validText(tooltip))
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::string old = std::move(state_->tooltip);
             state_->tooltip = tooltip;
             status = Detail::Platform::applyTray(*state_);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 state_->tooltip = std::move(old);
             }
 
             return status;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1193,22 +1218,23 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (!menu.items.empty() && state_->eventQueue == nullptr)
+        if(!menu.items.empty() && state_->eventQueue == nullptr)
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         try
         {
             std::vector<Detail::OwnedTrayMenuItem> replacement;
             std::unordered_set<std::uint32_t> ids;
             status = Detail::copyMenuItems(menu.items, replacement, ids);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -1216,22 +1242,22 @@ namespace GameWIP::Desktop
             state_->menu = std::move(replacement);
             status = Detail::Platform::applyTray(*state_);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 state_->menu = std::move(old);
             }
-            else if (!state_->menu.empty())
+            else if(!state_->menu.empty())
             {
                 state_->menuWasPublished = true;
             }
 
             return status;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1245,12 +1271,12 @@ namespace GameWIP::Desktop
 
     NotificationCenter::~NotificationCenter() noexcept
     {
-        if (state_ == nullptr)
+        if(state_ == nullptr)
         {
             return;
         }
 
-        if (ownedByCurrentThread())
+        if(ownedByCurrentThread())
         {
             static_cast<void>(close());
         }
@@ -1264,10 +1290,11 @@ namespace GameWIP::Desktop
 
     IO::Types::Status NotificationCenter::open() noexcept
     {
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::NotificationCenterState>();
@@ -1275,7 +1302,7 @@ namespace GameWIP::Desktop
             candidate->open = true;
             const IO::Types::Status status = Detail::Platform::openNotificationCenter(*candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 Detail::Platform::closeNotificationCenterBestEffort(*candidate);
                 return status;
@@ -1283,11 +1310,11 @@ namespace GameWIP::Desktop
             state_ = std::move(candidate);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1295,24 +1322,25 @@ namespace GameWIP::Desktop
 
     IO::Types::Status NotificationCenter::open(ShellEventQueue &eventQueue) noexcept
     {
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             return error(ErrorCode::AlreadyOpen);
         }
+
         try
         {
             auto candidate = std::make_unique<Detail::NotificationCenterState>();
             candidate->ownerThread = std::this_thread::get_id();
             IO::Types::Status status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
             status = Detail::Platform::openNotificationCenter(*candidate);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 Detail::unbindQueue(candidate->eventQueue);
                 Detail::Platform::closeNotificationCenterBestEffort(*candidate);
@@ -1321,11 +1349,11 @@ namespace GameWIP::Desktop
             state_ = std::move(candidate);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1348,21 +1376,23 @@ namespace GameWIP::Desktop
 
     IO::Types::Status NotificationCenter::close() noexcept
     {
-        if (state_ == nullptr)
+        if(state_ == nullptr)
         {
             return IO::successStatus();
         }
 
-        if (!ownedByCurrentThread())
+        if(!ownedByCurrentThread())
         {
             return error(ErrorCode::ResourceBusy);
         }
+
         const IO::Types::Status status = Detail::Platform::closeNotificationCenter(*state_);
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         releaseNotificationQueue(*state_);
         state_->notifications.clear();
         state_.reset();
@@ -1374,48 +1404,51 @@ namespace GameWIP::Desktop
         Types::Result<Types::Shell::NotificationId> result{error(ErrorCode::NotOpen), std::nullopt};
         IO::Types::Status status = requireOwnedNotification(Detail::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             result.status = std::move(status);
             return result;
         }
 
-        if ((!description.actions.empty() || !description.inputs.empty()) && state_->eventQueue == nullptr)
+        if((!description.actions.empty() || !description.inputs.empty()) && state_->eventQueue == nullptr)
         {
             result.status = error(ErrorCode::InvalidArgument);
             return result;
         }
+
         std::uint64_t publishedId = 0;
         bool nativePublished = false;
+
         try
         {
             Detail::OwnedNotificationDescription owned;
             status = Detail::copyNotificationDescription(description, owned);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 result.status = std::move(status);
                 return result;
             }
             std::uint64_t id = state_->nextId++;
 
-            if (id == 0)
+            if(id == 0)
             {
                 id = state_->nextId++;
             }
 
-            while (id == 0 || state_->notifications.contains(id))
+            while(id == 0 || state_->notifications.contains(id))
             {
                 id = state_->nextId++;
 
-                if (id == 0)
+                if(id == 0)
                 {
                     id = state_->nextId++;
                 }
             }
+
             status = Detail::Platform::publishNotification(*state_, id, owned);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 result.status = std::move(status);
                 return result;
@@ -1427,21 +1460,23 @@ namespace GameWIP::Desktop
             result.value = Types::Shell::NotificationId{id};
             return result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
-            if (nativePublished)
+            if(nativePublished)
             {
                 static_cast<void>(Detail::Platform::dismissNotification(*state_, publishedId));
             }
+
             result.status = error(ErrorCode::OutOfMemory);
             return result;
         }
-        catch (...)
+        catch(...)
         {
-            if (nativePublished)
+            if(nativePublished)
             {
                 static_cast<void>(Detail::Platform::dismissNotification(*state_, publishedId));
             }
+
             result.status = error(ErrorCode::Unknown);
             return result;
         }
@@ -1451,40 +1486,43 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedNotification(Detail::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (!id.isValid())
+        if(!id.isValid())
         {
             return error(ErrorCode::InvalidArgument);
         }
 
-        if (!state_->notifications.contains(id.value))
+        if(!state_->notifications.contains(id.value))
         {
             return error(ErrorCode::NotFound);
         }
 
-        if ((!description.actions.empty() || !description.inputs.empty()) && state_->eventQueue == nullptr)
+        if((!description.actions.empty() || !description.inputs.empty()) && state_->eventQueue == nullptr)
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         bool nativeUpdated = false;
         std::optional<Detail::OwnedNotificationDescription> previous;
+
         try
         {
             previous = state_->notifications.at(id.value);
             Detail::OwnedNotificationDescription owned;
             status = Detail::copyNotificationDescription(description, owned);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
+
             status = Detail::Platform::updateNotification(*state_, id.value, owned);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -1492,18 +1530,18 @@ namespace GameWIP::Desktop
             state_->notifications[id.value] = std::move(owned);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
-            if (nativeUpdated && previous.has_value())
+            if(nativeUpdated && previous.has_value())
             {
                 static_cast<void>(Detail::Platform::updateNotification(*state_, id.value, *previous));
             }
 
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
-            if (nativeUpdated && previous.has_value())
+            if(nativeUpdated && previous.has_value())
             {
                 static_cast<void>(Detail::Platform::updateNotification(*state_, id.value, *previous));
             }
@@ -1516,23 +1554,24 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireOwnedNotification(Detail::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (!id.isValid())
+        if(!id.isValid())
         {
             return error(ErrorCode::InvalidArgument);
         }
 
-        if (!state_->notifications.contains(id.value))
+        if(!state_->notifications.contains(id.value))
         {
             return error(ErrorCode::NotFound);
         }
+
         status = Detail::Platform::dismissNotification(*state_, id.value);
 
-        if (status.ok())
+        if(status.ok())
         {
             state_->notifications.erase(id.value);
         }
@@ -1544,50 +1583,52 @@ namespace GameWIP::Desktop
     {
         try
         {
-            for (const Types::JumpLists::Task &task : description.tasks)
+            for(const Types::JumpLists::Task &task : description.tasks)
             {
-                if (!Detail::validText(task.title, true) || !Detail::validText(task.description))
+                if(!Detail::validText(task.title, true) || !Detail::validText(task.description))
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
+
                 IO::Types::Status status = Detail::validateLaunchAction(task.action, false);
 
-                if (!status.ok())
+                if(!status.ok())
                 {
                     return status;
                 }
             }
 
-            for (const Types::JumpLists::Category &category : description.categories)
+            for(const Types::JumpLists::Category &category : description.categories)
             {
-                if (!Detail::validText(category.label, true) || category.tasks.empty())
+                if(!Detail::validText(category.label, true) || category.tasks.empty())
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                for (const Types::JumpLists::Task &task : category.tasks)
+                for(const Types::JumpLists::Task &task : category.tasks)
                 {
-                    if (!Detail::validText(task.title, true) || !Detail::validText(task.description))
+                    if(!Detail::validText(task.title, true) || !Detail::validText(task.description))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
+
                     IO::Types::Status status = Detail::validateLaunchAction(task.action, false);
 
-                    if (!status.ok())
+                    if(!status.ok())
                     {
                         return status;
                     }
                 }
             }
 
-            for (const Types::Shell::TargetView &target : description.recentItems)
+            for(const Types::Shell::TargetView &target : description.recentItems)
             {
-                if (const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target); uri != nullptr && !Detail::validText(uri->uri, true))
+                if(const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target); uri != nullptr && !Detail::validText(uri->uri, true))
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                if (std::holds_alternative<std::monostate>(target))
+                if(std::holds_alternative<std::monostate>(target))
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
@@ -1595,11 +1636,11 @@ namespace GameWIP::Desktop
 
             return Detail::Platform::publishJumpLists(description);
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -1613,32 +1654,33 @@ namespace GameWIP::Desktop
     {
         Types::Registration::Result result{error(ErrorCode::InvalidArgument), {}, false};
 
-        if (!Detail::validText(description.ownerKey, true) || !Detail::validText(description.extension, true) ||
-            !Detail::validText(description.displayName, true) || !Detail::validText(description.contentType))
+        if(!Detail::validText(description.ownerKey, true) || !Detail::validText(description.extension, true) ||
+           !Detail::validText(description.displayName, true) || !Detail::validText(description.contentType))
         {
             return result;
         }
 
-        if (description.defaultAction.has_value())
+        if(description.defaultAction.has_value())
         {
             IO::Types::Status status = Detail::validateLaunchAction(*description.defaultAction, true);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 result.status = std::move(status);
                 return result;
             }
         }
 
-        for (const Types::Registration::Verb &verb : description.verbs)
+        for(const Types::Registration::Verb &verb : description.verbs)
         {
-            if (!Detail::validText(verb.name, true) || !Detail::validText(verb.label, true))
+            if(!Detail::validText(verb.name, true) || !Detail::validText(verb.label, true))
             {
                 return result;
             }
+
             IO::Types::Status status = Detail::validateLaunchAction(verb.action, true);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 result.status = std::move(status);
                 return result;
@@ -1652,32 +1694,33 @@ namespace GameWIP::Desktop
     {
         Types::Registration::Result result{error(ErrorCode::InvalidArgument), {}, false};
 
-        if (!Detail::validText(description.ownerKey, true) || !Detail::validText(description.scheme, true) ||
-            !Detail::validText(description.displayName, true))
+        if(!Detail::validText(description.ownerKey, true) || !Detail::validText(description.scheme, true) ||
+           !Detail::validText(description.displayName, true))
         {
             return result;
         }
 
-        if (description.defaultAction.has_value())
+        if(description.defaultAction.has_value())
         {
             IO::Types::Status status = Detail::validateLaunchAction(*description.defaultAction, true);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 result.status = std::move(status);
                 return result;
             }
         }
 
-        for (const Types::Registration::Verb &verb : description.verbs)
+        for(const Types::Registration::Verb &verb : description.verbs)
         {
-            if (!Detail::validText(verb.name, true) || !Detail::validText(verb.label, true))
+            if(!Detail::validText(verb.name, true) || !Detail::validText(verb.label, true))
             {
                 return result;
             }
+
             IO::Types::Status status = Detail::validateLaunchAction(verb.action, true);
 
-            if (!status.ok())
+            if(!status.ok())
             {
                 result.status = std::move(status);
                 return result;
@@ -1689,39 +1732,36 @@ namespace GameWIP::Desktop
 
     Types::Registration::Result Registration::unregisterFileExtension(std::string_view ownerKey, std::string_view extension) noexcept
     {
-        if (!Detail::validText(ownerKey, true) || !Detail::validText(extension, true))
+        if(!Detail::validText(ownerKey, true) || !Detail::validText(extension, true))
         {
             return {error(ErrorCode::InvalidArgument), {}, false};
         }
-
         return Detail::Platform::unregisterFileExtension(ownerKey, extension);
     }
 
     Types::Registration::Result Registration::unregisterUriScheme(std::string_view ownerKey, std::string_view scheme) noexcept
     {
-        if (!Detail::validText(ownerKey, true) || !Detail::validText(scheme, true))
+        if(!Detail::validText(ownerKey, true) || !Detail::validText(scheme, true))
         {
             return {error(ErrorCode::InvalidArgument), {}, false};
         }
-
         return Detail::Platform::unregisterUriScheme(ownerKey, scheme);
     }
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Detail
 {
-
     /// @brief Appends one native shell callback payload under the queue lock.
     void publishShellEvent(ShellEventQueueState &queue, Types::Shell::Events::Payload payload) noexcept
     {
         std::lock_guard lock(queue.mutex);
 
-        if (!queue.open || queue.eventStorage.empty())
+        if(!queue.open || queue.eventStorage.empty())
         {
             return;
         }
 
-        if (queue.eventCount == queue.eventStorage.size())
+        if(queue.eventCount == queue.eventStorage.size())
         {
             ++queue.droppedEvents;
             return;
@@ -1733,7 +1773,7 @@ namespace GameWIP::Desktop::Detail
             queue.eventStorage[slot] = Types::Shell::Event{queue.nextSequence++, std::move(payload)};
             ++queue.eventCount;
         }
-        catch (...)
+        catch(...)
         {
             ++queue.droppedEvents;
         }
@@ -1750,7 +1790,7 @@ namespace GameWIP::Desktop
 
     ShellEventQueue::~ShellEventQueue() noexcept
     {
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             static_cast<void>(close());
             state_.reset();
@@ -1767,12 +1807,12 @@ namespace GameWIP::Desktop
         const auto *ownedQueue = std::get_if<Types::Shell::QueueConfiguration::Owned>(&queue.storage);
         const auto *borrowedQueue = std::get_if<Types::Shell::QueueConfiguration::Borrowed>(&queue.storage);
 
-        if ((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
+        if((ownedQueue != nullptr && ownedQueue->capacity == 0) || (borrowedQueue != nullptr && borrowedQueue->storage.empty()))
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
-        if (state_ != nullptr)
+        if(state_ != nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
         }
@@ -1781,9 +1821,9 @@ namespace GameWIP::Desktop
         {
             auto candidate = std::make_unique<Detail::ShellEventQueueState>();
 
-            if (ownedQueue != nullptr)
+            if(ownedQueue != nullptr)
             {
-                if (ownedQueue->capacity > candidate->internalEvents.max_size())
+                if(ownedQueue->capacity > candidate->internalEvents.max_size())
                 {
                     return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
                 }
@@ -1796,16 +1836,17 @@ namespace GameWIP::Desktop
                 candidate->eventStorage = borrowedQueue->storage;
                 candidate->storageKind = Types::Events::StorageKind::External;
             }
+
             candidate->ownerThread = std::this_thread::get_id();
             candidate->open = true;
             state_ = std::move(candidate);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
         }
@@ -1823,12 +1864,12 @@ namespace GameWIP::Desktop
 
     IO::Types::Status ShellEventQueue::close() noexcept
     {
-        if (state_ == nullptr || !state_->open)
+        if(state_ == nullptr || !state_->open)
         {
             return IO::successStatus();
         }
 
-        if (!ownedByCurrentThread())
+        if(!ownedByCurrentThread())
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
@@ -1836,7 +1877,7 @@ namespace GameWIP::Desktop
         {
             std::lock_guard lock(state_->mutex);
 
-            if (state_->boundResourceCount != 0)
+            if(state_->boundResourceCount != 0)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
             }
@@ -1846,22 +1887,24 @@ namespace GameWIP::Desktop
             state_->open = false;
             state_->ownerThread = {};
         }
+
         state_.reset();
         return IO::successStatus();
     }
 
     bool ShellEventQueue::popEvent(Types::Shell::Event &outEvent) noexcept
     {
-        if (state_ == nullptr || !ownedByCurrentThread())
+        if(state_ == nullptr || !ownedByCurrentThread())
         {
             return false;
         }
         std::lock_guard lock(state_->mutex);
 
-        if (!state_->open || state_->eventCount == 0)
+        if(!state_->open || state_->eventCount == 0)
         {
             return false;
         }
+
         try
         {
             outEvent = std::move(state_->eventStorage[state_->eventHead]);
@@ -1870,7 +1913,7 @@ namespace GameWIP::Desktop
             --state_->eventCount;
             return true;
         }
-        catch (...)
+        catch(...)
         {
             return false;
         }
@@ -1878,22 +1921,22 @@ namespace GameWIP::Desktop
 
     std::size_t ShellEventQueue::popEvents(std::span<Types::Shell::Event> destination) noexcept
     {
-        if (state_ == nullptr || destination.empty() || !ownedByCurrentThread())
+        if(state_ == nullptr || destination.empty() || !ownedByCurrentThread())
         {
             return 0;
         }
         std::lock_guard lock(state_->mutex);
 
-        if (!state_->open)
+        if(!state_->open)
         {
             return 0;
         }
-
         const std::size_t count = std::min(destination.size(), state_->eventCount);
         std::size_t copied = 0;
+
         try
         {
-            for (; copied < count; ++copied)
+            for(; copied < count; ++copied)
             {
                 destination[copied] = std::move(state_->eventStorage[state_->eventHead]);
                 state_->eventStorage[state_->eventHead] = {};
@@ -1901,7 +1944,7 @@ namespace GameWIP::Desktop
                 --state_->eventCount;
             }
         }
-        catch (...)
+        catch(...)
         {
             return copied;
         }
@@ -1911,13 +1954,13 @@ namespace GameWIP::Desktop
 
     void ShellEventQueue::clearEvents() noexcept
     {
-        if (state_ == nullptr || !ownedByCurrentThread())
+        if(state_ == nullptr || !ownedByCurrentThread())
         {
             return;
         }
         std::lock_guard lock(state_->mutex);
 
-        if (state_->open)
+        if(state_->open)
         {
             Detail::clearEventsUnlocked(*state_);
         }
@@ -1925,7 +1968,7 @@ namespace GameWIP::Desktop
 
     Types::Events::QueueInfo ShellEventQueue::eventQueueInfo() const noexcept
     {
-        if (state_ == nullptr || !state_->open || !ownedByCurrentThread())
+        if(state_ == nullptr || !state_->open || !ownedByCurrentThread())
         {
             return {};
         }
@@ -1935,13 +1978,13 @@ namespace GameWIP::Desktop
 
     void ShellEventQueue::clearDroppedEventCount() noexcept
     {
-        if (state_ == nullptr || !ownedByCurrentThread())
+        if(state_ == nullptr || !ownedByCurrentThread())
         {
             return;
         }
         std::lock_guard lock(state_->mutex);
 
-        if (state_->open)
+        if(state_->open)
         {
             state_->droppedEvents = 0;
         }

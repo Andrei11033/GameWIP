@@ -11,7 +11,7 @@ void threadedCheckOnceSite()
 void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &options)
 {
 #if ASSERT_CHECKS_ENABLED
-    if (!options.enableStressTests)
+    if(!options.enableStressTests)
     {
         context.skip("CHECK_ONCE thread stress", "disabled by AssertTestOptions");
         return;
@@ -19,7 +19,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
 
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "check_once_thread_stress"))
+    if(!initFileLogger(context, "check_once_thread_stress"))
     {
         context.fail("CHECK_ONCE thread stress logger init", "Logger::init failed");
         return;
@@ -30,12 +30,12 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
     std::vector<std::thread> workers;
     workers.reserve(static_cast<std::size_t>(threadCount));
 
-    for (int index = 0; index < threadCount; ++index)
+    for(int index = 0; index < threadCount; ++index)
     {
         workers.emplace_back(
             [&start]
             {
-                while (!start.load(std::memory_order_acquire))
+                while(!start.load(std::memory_order_acquire))
                 {
                     std::this_thread::yield();
                 }
@@ -45,7 +45,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
 
     start.store(true, std::memory_order_release);
 
-    for (std::thread &worker : workers)
+    for(std::thread &worker : workers)
     {
         worker.join();
     }

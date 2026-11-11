@@ -5,26 +5,25 @@
 
 [[nodiscard]] std::wstring manualDiagnosticWideText(std::string_view text)
 {
-    if (text.empty())
+    if(text.empty())
     {
         return {};
     }
     const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
-
-    if (measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+    if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
     {
         return L"?";
     }
+
     std::vector<char16_t> converted(measurement.requiredCodeUnits);
     const auto conversion = GameWIP::Unicode::Utf8::convertToUtf16(text, converted);
-
-    if (conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+    if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
     {
         return L"?";
     }
     std::wstring wide(conversion.codeUnitsWritten, L'\0');
 
-    for (std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
+    for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
     {
         wide[index] = static_cast<wchar_t>(converted[index]);
     }
@@ -61,13 +60,12 @@ struct ManualFullscreenSections
 {
     ManualNativeWindowState result;
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return result;
     }
     const auto native = Desktop::Native::Win32::getHandle(window);
-
-    if (!native.status.ok() || native->window == nullptr)
+    if(!native.status.ok() || native->window == nullptr)
     {
         return result;
     }
@@ -79,18 +77,17 @@ struct ManualFullscreenSections
     MONITORINFO monitorInfo{};
     monitorInfo.cbSize = sizeof(monitorInfo);
 
-    if (GetWindowRect(native->window, &result.frame) == FALSE || GetClientRect(native->window, &client) == FALSE ||
-        ClientToScreen(native->window, &clientTopLeft) == FALSE)
+    if(GetWindowRect(native->window, &result.frame) == FALSE || GetClientRect(native->window, &client) == FALSE ||
+       ClientToScreen(native->window, &clientTopLeft) == FALSE)
     {
         return result;
     }
     clientBottomRight = {client.right, client.bottom};
 
-    if (ClientToScreen(native->window, &clientBottomRight) == FALSE || monitor == nullptr || GetMonitorInfoW(monitor, &monitorInfo) == FALSE)
+    if(ClientToScreen(native->window, &clientBottomRight) == FALSE || monitor == nullptr || GetMonitorInfoW(monitor, &monitorInfo) == FALSE)
     {
         return result;
     }
-
     result.client = {clientTopLeft.x, clientTopLeft.y, clientBottomRight.x, clientBottomRight.y};
     result.monitor = monitorInfo.rcMonitor;
     result.style = static_cast<DWORD>(GetWindowLongPtrW(native->window, GWL_STYLE));
@@ -125,7 +122,7 @@ void recordManualModeTransition(
     const std::optional<Desktop::Types::Display::Mode> requestedMode = std::visit(
         [](const auto &value) -> std::optional<Desktop::Types::Display::Mode>
         {
-            if constexpr (requires { value.displayMode; })
+            if constexpr(requires { value.displayMode; })
             {
                 return value.displayMode;
             }
@@ -147,11 +144,11 @@ void recordManualModeTransition(
         [](const auto &value) noexcept
         {
             using Request = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<Request, Desktop::Types::WindowedModeRequest>)
+            if constexpr(std::is_same_v<Request, Desktop::Types::WindowedModeRequest>)
             {
                 return 0;
             }
-            else if constexpr (std::is_same_v<Request, Desktop::Types::BorderlessFullscreenRequest>)
+            else if constexpr(std::is_same_v<Request, Desktop::Types::BorderlessFullscreenRequest>)
             {
                 return 1;
             }
@@ -180,7 +177,7 @@ void recordManualModeTransition(
             std::visit(
                 [](const auto &value) noexcept
                 {
-                    if constexpr (requires { value.targetMonitor; })
+                    if constexpr(requires { value.targetMonitor; })
                     {
                         return value.targetMonitor ? value.targetMonitor->value : std::uint64_t{0};
                     }
@@ -244,13 +241,14 @@ class ManualStatusWindow final
 public:
     explicit ManualStatusWindow(bool enabled)
     {
-        if (!enabled)
+        if(!enabled)
         {
             return;
         }
+
         RECT workArea{};
 
-        if (SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
+        if(SystemParametersInfoW(SPI_GETWORKAREA, 0, &workArea, 0) == FALSE)
         {
             workArea = {0, 0, 1920, 1080};
         }
@@ -272,7 +270,7 @@ public:
             GetModuleHandleW(nullptr),
             nullptr);
 
-        if (handle_ != nullptr)
+        if(handle_ != nullptr)
         {
             SendMessageW(handle_, WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)), TRUE);
             ShowWindow(handle_, SW_SHOWNOACTIVATE);
@@ -285,7 +283,7 @@ public:
 
     ~ManualStatusWindow()
     {
-        if (handle_ != nullptr)
+        if(handle_ != nullptr)
         {
             DestroyWindow(handle_);
         }
@@ -304,7 +302,7 @@ public:
 
     void refresh(const Desktop::Window &window)
     {
-        if (handle_ == nullptr)
+        if(handle_ == nullptr)
         {
             return;
         }
@@ -393,7 +391,7 @@ public:
             native.visibleStyle,
             native.fullscreenBounds);
 
-        if (text == lastText_)
+        if(text == lastText_)
         {
             return;
         }
@@ -426,9 +424,9 @@ inline constexpr std::string_view kManualInteropText =
 {
     Desktop::Types::DataTransfer::Image image{{128, 128}, std::vector<std::byte>(std::size_t{128} * 128 * 4)};
 
-    for (std::size_t y = 0; y < 128; ++y)
+    for(std::size_t y = 0; y < 128; ++y)
     {
-        for (std::size_t x = 0; x < 128; ++x)
+        for(std::size_t x = 0; x < 128; ++x)
         {
             const std::size_t offset = (y * 128 + x) * 4;
             const bool left = x < 64;
@@ -460,7 +458,7 @@ inline constexpr std::string_view kManualInteropText =
     std::ranges::copy(std::as_bytes(std::span{&file, 1}), bytes.begin());
     std::ranges::copy(std::as_bytes(std::span{&bitmap, 1}), bytes.begin() + sizeof(file));
 
-    for (std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
+    for(std::size_t offset = 0; offset < image.rgba8.size(); offset += 4)
     {
         const std::size_t destination = file.bfOffBits + offset;
         bytes[destination] = image.rgba8[offset + 2];
@@ -475,33 +473,34 @@ inline constexpr std::string_view kManualInteropText =
 /// @brief Shows channel order, row order, and alpha against a checkerboard in the target.
 void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types::DataTransfer::Image &image)
 {
-    if (image.size.width == 0 || image.size.height == 0 || image.rgba8.empty())
+    if(image.size.width == 0 || image.size.height == 0 || image.rgba8.empty())
     {
         return;
     }
-    const auto native = Desktop::Native::Win32::getHandle(window);
 
-    if (!native.status.ok())
+    const auto native = Desktop::Native::Win32::getHandle(window);
+    if(!native.status.ok())
     {
         return;
     }
+
     constexpr std::size_t extent = 128;
     std::array<std::byte, extent * extent * 4> preview{};
 
-    for (std::size_t y = 0; y < extent; ++y)
+    for(std::size_t y = 0; y < extent; ++y)
     {
-        for (std::size_t x = 0; x < extent; ++x)
+        for(std::size_t x = 0; x < extent; ++x)
         {
             const std::size_t source = ((y * image.size.height / extent) * image.size.width + x * image.size.width / extent) * 4;
 
-            if (source + 3 >= image.rgba8.size())
+            if(source + 3 >= image.rgba8.size())
             {
                 return;
             }
             const unsigned int alpha = std::to_integer<unsigned int>(image.rgba8[source + 3]);
             const unsigned int background = ((x / 8 + y / 8) % 2) == 0 ? 192 : 240;
 
-            for (std::size_t channel = 0; channel < 3; ++channel)
+            for(std::size_t channel = 0; channel < 3; ++channel)
             {
                 const auto color = std::to_integer<unsigned int>(image.rgba8[source + 2 - channel]);
                 preview[(y * extent + x) * 4 + channel] = std::byte{static_cast<unsigned char>((color * alpha + background * (255 - alpha)) / 255)};
@@ -516,10 +515,11 @@ void paintManualImagePreview(const Desktop::Window &window, const Desktop::Types
     bitmap.bmiHeader.biBitCount = 32;
     const HDC dc = GetDC(native->window);
 
-    if (dc == nullptr)
+    if(dc == nullptr)
     {
         return;
     }
+
     StretchDIBits(dc, 18, 170, 128, 128, 0, 0, 128, 128, preview.data(), &bitmap, DIB_RGB_COLORS, SRCCOPY);
     ReleaseDC(native->window, dc);
 }
@@ -539,26 +539,26 @@ enum class ManualSurfaceLayout : std::uint8_t
 /// pixels are otherwise undefined and can misleadingly retain only the old windowed area.
 void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLayout layout = ManualSurfaceLayout::Standard)
 {
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
     const auto native = Desktop::Native::Win32::getHandle(window);
 
-    if (!native.status.ok() || native->window == nullptr)
+    if(!native.status.ok() || native->window == nullptr)
     {
         return;
     }
 
     RECT client{};
 
-    if (GetClientRect(native->window, &client) == FALSE)
+    if(GetClientRect(native->window, &client) == FALSE)
     {
         return;
     }
     HDC device = GetDC(native->window);
 
-    if (device == nullptr)
+    if(device == nullptr)
     {
         return;
     }
@@ -588,7 +588,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
         SetTextColor(device, color);
         DrawTextW(device, text.data(), static_cast<int>(text.size()), &rect, format | DT_NOPREFIX);
 
-        if (previousFont != nullptr)
+        if(previousFont != nullptr)
         {
             SelectObject(device, previousFont);
         }
@@ -596,7 +596,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
 
     fill(client, RGB(22, 70, 126));
 
-    if (layout == ManualSurfaceLayout::DragDropSource)
+    if(layout == ManualSurfaceLayout::DragDropSource)
     {
         fill(client, RGB(25, 104, 72));
         drawText(L"GAMEWIP DRAG SOURCE", clippedRect(20, 100, 540, 155), 26, RGB(255, 255, 255), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -607,7 +607,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_WORDBREAK);
     }
-    else if (layout == ManualSurfaceLayout::DragDropTarget)
+    else if(layout == ManualSurfaceLayout::DragDropTarget)
     {
         RECT preferred = clippedRect(120, 90, 480, 270);
         fill(preferred, RGB(20, 128, 94));
@@ -620,7 +620,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
-    else if (layout == ManualSurfaceLayout::CustomChromePrimary)
+    else if(layout == ManualSurfaceLayout::CustomChromePrimary)
     {
         RECT drag = clippedRect(0, 0, 760, 48);
         RECT gap = clippedRect(760, 0, 800, 48);
@@ -653,7 +653,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
             RGB(255, 255, 255),
             DT_CENTER | DT_VCENTER | DT_SINGLELINE);
     }
-    else if (layout == ManualSurfaceLayout::CustomChromeReplacement)
+    else if(layout == ManualSurfaceLayout::CustomChromeReplacement)
     {
         RECT inactive = clippedRect(0, 0, 960, 48);
         RECT replacement = clippedRect(0, 48, 640, 88);
@@ -696,12 +696,12 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     Rectangle(device, client.left + inset, client.top + inset, client.right - inset, client.bottom - inset);
     SelectObject(device, previousBrush);
 
-    if (previousPen != nullptr)
+    if(previousPen != nullptr)
     {
         SelectObject(device, previousPen);
     }
 
-    if (edgePen != nullptr)
+    if(edgePen != nullptr)
     {
         DeleteObject(edgePen);
     }
@@ -714,7 +714,7 @@ template <typename Payload> [[nodiscard]] bool consumeEventOfType(Desktop::Windo
     bool found = false;
     Desktop::Types::Event event;
 
-    while (window.popEvent(event))
+    while(window.popEvent(event))
     {
         found = found || event.getIf<Payload>() != nullptr;
     }
@@ -737,7 +737,7 @@ void recordManualAnswer(
     TestSupport::Types::Reporting::ManualAnswer answer,
     std::string_view skipReason = {})
 {
-    switch (answer)
+    switch(answer)
     {
     case TestSupport::Types::Reporting::ManualAnswer::Yes:
         ++manualObservationCounts.passed;
@@ -763,23 +763,25 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     const std::function<void()> &observe = {},
     ManualSurfaceLayout surfaceLayout = ManualSurfaceLayout::Standard)
 {
-    if (!manualCaseSelected(name))
+    if(!manualCaseSelected(name))
     {
         return TestSupport::Types::Reporting::ManualAnswer::Skipped;
     }
+
     ++manualCasesSelected;
 
-    if (manualStatusWindow != nullptr)
+    if(manualStatusWindow != nullptr)
     {
         manualStatusWindow->setScenario(name, question);
 
-        if (!observe)
+        if(!observe)
         {
             manualStatusWindow->setObservation({});
         }
         paintManualValidationSurface(window, surfaceLayout);
         manualStatusWindow->refresh(window);
     }
+
     std::atomic<bool> answered = false;
     TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::Types::Reporting::ManualAnswer::Skipped;
     std::string skipReason;
@@ -793,22 +795,22 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
 
     IO::Types::Status pumpFailure;
 
-    while (!answered.load(std::memory_order_acquire))
+    while(!answered.load(std::memory_order_acquire))
     {
         const Desktop::Types::Events::PumpResult pump = Desktop::Events::wait(std::chrono::milliseconds{50});
 
-        if (!pump.status.ok() && pumpFailure.ok())
+        if(!pump.status.ok() && pumpFailure.ok())
         {
             pumpFailure = pump.status;
         }
         paintManualValidationSurface(window, surfaceLayout);
 
-        if (observe)
+        if(observe)
         {
             observe();
         }
 
-        if (manualStatusWindow != nullptr)
+        if(manualStatusWindow != nullptr)
         {
             manualStatusWindow->refresh(window);
         }
@@ -816,28 +818,29 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
     promptThread.join();
     const Desktop::Types::Events::PumpResult finalPump = Desktop::Events::poll();
 
-    if (!finalPump.status.ok() && pumpFailure.ok())
+    if(!finalPump.status.ok() && pumpFailure.ok())
     {
         pumpFailure = finalPump.status;
     }
     paintManualValidationSurface(window, surfaceLayout);
 
-    if (observe)
+    if(observe)
     {
         observe();
     }
 
-    if (manualStatusWindow != nullptr)
+    if(manualStatusWindow != nullptr)
     {
         manualStatusWindow->refresh(window);
     }
 
-    if (!pumpFailure.ok())
+    if(!pumpFailure.ok())
     {
         ++manualObservationCounts.failed;
         context.fail(name, pumpFailure.message);
         return TestSupport::Types::Reporting::ManualAnswer::No;
     }
+
     recordManualAnswer(context, name, answer, skipReason);
     return answer;
 }
@@ -845,12 +848,12 @@ TestSupport::Types::Reporting::ManualAnswer recordManualCheck(
 /// @brief Reports a failed setup operation and returns whether the manual scenario may continue.
 [[nodiscard]] bool requireManualStatus(TestSupport::Context &context, std::string_view name, const IO::Types::Status &status)
 {
-    if (status.ok())
+    if(status.ok())
     {
         return true;
     }
 
-    if (manualStatusWindow != nullptr)
+    if(manualStatusWindow != nullptr)
     {
         manualStatusWindow->setObservation(
             std::format(
@@ -875,7 +878,7 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
 {
     const auto deadline = std::chrono::steady_clock::now() + duration;
 
-    while (std::chrono::steady_clock::now() < deadline)
+    while(std::chrono::steady_clock::now() < deadline)
     {
         static_cast<void>(Desktop::Events::wait(std::chrono::milliseconds{50}));
     }
@@ -893,30 +896,30 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
     description.activation.visible = true;
     description.activation.requestFocus = true;
 
-    if (!requireManualStatus(context, "manual Window setup", window.open(description)))
+    if(!requireManualStatus(context, "manual Window setup", window.open(description)))
     {
         return false;
     }
 
-    if (!requireManualStatus(context, "manual Window presentation", window.show()))
+    if(!requireManualStatus(context, "manual Window presentation", window.show()))
     {
         return false;
     }
+
     const Desktop::Types::Events::PumpResult pump = Desktop::Events::poll();
-
-    if (!requireManualStatus(context, "manual Window event pump", pump.status))
+    if(!requireManualStatus(context, "manual Window event pump", pump.status))
     {
         return false;
     }
 
-    if (!window.isOpen() || !window.visible())
+    if(!window.isOpen() || !window.visible())
     {
         context.fail("manual Window presentation", "Window did not remain open and visible after the presentation pump");
         return false;
     }
     paintManualValidationSurface(window);
 
-    if (manualStatusWindow != nullptr)
+    if(manualStatusWindow != nullptr)
     {
         manualStatusWindow->refresh(window);
     }
@@ -925,7 +928,7 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
 
     paintManualValidationSurface(window);
 
-    if (manualStatusWindow != nullptr)
+    if(manualStatusWindow != nullptr)
     {
         manualStatusWindow->refresh(window);
     }
@@ -933,13 +936,9 @@ void pumpManualPreparation(std::chrono::milliseconds duration)
     return true;
 }
 
-/// @brief Returns whether an opt-in suite should run and records the unattended skip otherwise.
-[[nodiscard]] bool beginManualSuite(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options, std::string_view name)
+/// @brief Returns whether an opt-in suite should run.
+/// @note Skip reporting is consolidated at the registration level to avoid spam.
+[[nodiscard]] bool beginManualSuite(TestSupport::Context &, const GameWIP::Test::DesktopTestOptions &options, std::string_view)
 {
-    if (options.enableManualTests)
-    {
-        return true;
-    }
-    context.skip(name, "disabled by DesktopTestOptions");
-    return false;
+    return options.enableManualTests;
 }

@@ -50,12 +50,11 @@ namespace GameWIP::Action
 
         inline bool isKeyboardModifier(Input::InputControl control)
         {
-            if (control.deviceType != Input::InputDeviceType::Keyboard || control.deviceIndex != 0 ||
-                control.controlType != Input::InputControlType::Button)
+            if(control.deviceType != Input::InputDeviceType::Keyboard || control.deviceIndex != 0 ||
+               control.controlType != Input::InputControlType::Button)
             {
                 return false;
             }
-
             return control.controlCode == Input::KeyboardControlCode::LeftControl ||
                    control.controlCode == Input::KeyboardControlCode::RightControl || control.controlCode == Input::KeyboardControlCode::LeftShift ||
                    control.controlCode == Input::KeyboardControlCode::RightShift || control.controlCode == Input::KeyboardControlCode::LeftAlt ||
@@ -65,7 +64,7 @@ namespace GameWIP::Action
 
         inline bool isCaptureActivation(const Input::InputActivation &activation)
         {
-            switch (activation.activationType)
+            switch(activation.activationType)
             {
             case Input::InputActivationType::ButtonPressed:
             case Input::InputActivationType::AxisPositive:
@@ -107,11 +106,10 @@ namespace GameWIP::Action
 
         inline bool passesAxisCaptureThresholds(const Input::InputActivation &activation, const ActionRebindOptions &options)
         {
-            if (!isAxisActivation(activation))
+            if(!isAxisActivation(activation))
             {
                 return true;
             }
-
             const float valueMagnitude = activation.value < 0.0f ? -activation.value : activation.value;
             const float movement = activation.value - activation.previousValue;
             const float movementMagnitude = movement < 0.0f ? -movement : movement;
@@ -125,7 +123,7 @@ namespace GameWIP::Action
 
         inline void addUniqueControl(std::vector<Input::InputControl> &controls, Input::InputControl control)
         {
-            if (!containsControl(controls, control))
+            if(!containsControl(controls, control))
             {
                 controls.push_back(control);
             }
@@ -150,7 +148,7 @@ namespace GameWIP::Action
 
         inline ActionSettings makeDefaultSettings(ActionKind kind)
         {
-            switch (kind)
+            switch(kind)
             {
             case ActionKind::Button:
                 return makeButtonSettings();
@@ -202,7 +200,7 @@ namespace GameWIP::Action
                     return isSameValueBucket(candidate, binding.action, binding.combo.primaryControl, settings);
                 });
 
-            if (bucket == buckets.end())
+            if(bucket == buckets.end())
             {
                 buckets.push_back(
                     ValueBucket<ActionEnum>{
@@ -213,14 +211,14 @@ namespace GameWIP::Action
                 bucket = buckets.end() - 1;
             }
 
-            if (lastChangeSequence > bucket->lastChangeSequence)
+            if(lastChangeSequence > bucket->lastChangeSequence)
             {
                 bucket->lastChangeSequence = lastChangeSequence;
             }
 
             const float scaledValue = value * binding.valueMapping.scale;
 
-            switch (binding.valueMapping.component)
+            switch(binding.valueMapping.component)
             {
             case ActionComponent::Scalar:
                 bucket->value.scalar += scaledValue;
@@ -236,7 +234,7 @@ namespace GameWIP::Action
 
         template <typename ActionEnum> bool isBindingCompatibleWithActionKind(ActionKind kind, const ActionBinding<ActionEnum> &binding)
         {
-            switch (kind)
+            switch(kind)
             {
             case ActionKind::Button:
                 return binding.gesture.trigger != ActionTrigger::Value && binding.valueMapping.component == ActionComponent::Scalar;
@@ -256,13 +254,13 @@ namespace GameWIP::Action
             std::span<const Input::InputControl> cancelControls,
             std::span<const Input::InputControl> ignoredControls)
         {
-            if (modifierMode == RebindModifierMode::None || modifier == primaryControl || !isButtonControl(modifier) ||
-                containsControl(cancelControls, modifier) || containsControl(ignoredControls, modifier))
+            if(modifierMode == RebindModifierMode::None || modifier == primaryControl || !isButtonControl(modifier) ||
+               containsControl(cancelControls, modifier) || containsControl(ignoredControls, modifier))
             {
                 return false;
             }
 
-            if (modifierMode == RebindModifierMode::KeyboardModifiersOnly)
+            if(modifierMode == RebindModifierMode::KeyboardModifiersOnly)
             {
                 return isKeyboardModifier(modifier);
             }
@@ -272,11 +270,11 @@ namespace GameWIP::Action
 
         inline bool hasDuplicateControls(const std::vector<Input::InputControl> &controls)
         {
-            for (std::size_t controlIndex = 0; controlIndex < controls.size(); ++controlIndex)
+            for(std::size_t controlIndex = 0; controlIndex < controls.size(); ++controlIndex)
             {
-                for (std::size_t compareIndex = controlIndex + 1; compareIndex < controls.size(); ++compareIndex)
+                for(std::size_t compareIndex = controlIndex + 1; compareIndex < controls.size(); ++compareIndex)
                 {
-                    if (controls[controlIndex] == controls[compareIndex])
+                    if(controls[controlIndex] == controls[compareIndex])
                     {
                         return true;
                     }
@@ -288,14 +286,14 @@ namespace GameWIP::Action
 
         inline bool haveSameModifierSet(const std::vector<Input::InputControl> &left, const std::vector<Input::InputControl> &right)
         {
-            if (left.size() != right.size())
+            if(left.size() != right.size())
             {
                 return false;
             }
 
-            for (Input::InputControl modifier : left)
+            for(Input::InputControl modifier : left)
             {
-                if (!containsControl(right, modifier))
+                if(!containsControl(right, modifier))
                 {
                     return false;
                 }
@@ -333,9 +331,9 @@ namespace GameWIP::Action
 
         inline bool areModifiersDown(const Input::InputState &inputState, const ActionCombo &combo)
         {
-            for (Input::InputControl modifier : combo.modifiers)
+            for(Input::InputControl modifier : combo.modifiers)
             {
-                if (!inputState.isButtonDown(modifier))
+                if(!inputState.isButtonDown(modifier))
                 {
                     return false;
                 }
@@ -366,16 +364,15 @@ namespace GameWIP::Action
 
         inline float clamp(float value, float minimum, float maximum)
         {
-            if (value < minimum)
+            if(value < minimum)
             {
                 return minimum;
             }
 
-            if (value > maximum)
+            if(value > maximum)
             {
                 return maximum;
             }
-
             return value;
         }
 
@@ -385,12 +382,12 @@ namespace GameWIP::Action
             float candidateMagnitude,
             std::uint64_t candidateSequence)
         {
-            if (candidateMagnitude > currentMagnitude)
+            if(candidateMagnitude > currentMagnitude)
             {
                 return true;
             }
 
-            if (candidateMagnitude < currentMagnitude)
+            if(candidateMagnitude < currentMagnitude)
             {
                 return false;
             }
@@ -419,16 +416,15 @@ namespace GameWIP::Action
             const float inner = clamp(innerDeadzone, 0.0f, 1.0f);
             const float outer = clamp(outerDeadzone, inner, 1.0f);
 
-            if (magnitude <= inner)
+            if(magnitude <= inner)
             {
                 return 0.0f;
             }
 
-            if (magnitude >= outer)
+            if(magnitude >= outer)
             {
                 return sign(value);
             }
-
             const float remappedMagnitude = (magnitude - inner) / (outer - inner);
             return sign(value) * remappedMagnitude;
         }
@@ -445,20 +441,19 @@ namespace GameWIP::Action
             const float inner = clamp(innerDeadzone, 0.0f, 1.0f);
             const float outer = clamp(outerDeadzone, inner, 1.0f);
 
-            if (length <= inner || length == 0.0f)
+            if(length <= inner || length == 0.0f)
             {
                 x = 0.0f;
                 y = 0.0f;
                 return;
             }
 
-            if (length >= outer)
+            if(length >= outer)
             {
                 x /= length;
                 y /= length;
                 return;
             }
-
             const float remappedLength = (length - inner) / (outer - inner);
             const float scale = remappedLength / length;
             x *= scale;
@@ -475,7 +470,7 @@ namespace GameWIP::Action
         {
             const float length = getVectorLength(x, y);
 
-            if (length == 0.0f)
+            if(length == 0.0f)
             {
                 return;
             }
@@ -491,11 +486,10 @@ namespace GameWIP::Action
         {
             const float length = getVectorLength(x, y);
 
-            if (length <= maximumLength || length == 0.0f)
+            if(length <= maximumLength || length == 0.0f)
             {
                 return;
             }
-
             const float scale = maximumLength / length;
             x *= scale;
             y *= scale;
@@ -509,12 +503,12 @@ namespace GameWIP::Action
 
         inline float getMouseAxisValue(const Input::InputState &inputState, Input::InputControl control)
         {
-            if (isMouseAxis(control, Input::MouseAxis::DeltaX))
+            if(isMouseAxis(control, Input::MouseAxis::DeltaX))
             {
                 return static_cast<float>(inputState.getMouseDeltaX());
             }
 
-            if (isMouseAxis(control, Input::MouseAxis::DeltaY))
+            if(isMouseAxis(control, Input::MouseAxis::DeltaY))
             {
                 return static_cast<float>(inputState.getMouseDeltaY());
             }
@@ -524,16 +518,15 @@ namespace GameWIP::Action
 
         inline float getControlValue(const Input::InputState &inputState, Input::InputControl control)
         {
-            switch (control.controlType)
+            switch(control.controlType)
             {
             case Input::InputControlType::Button:
                 return inputState.isButtonDown(control) ? 1.0f : 0.0f;
             case Input::InputControlType::Axis:
-                if (control.deviceType == Input::InputDeviceType::Mouse)
+                if(control.deviceType == Input::InputDeviceType::Mouse)
                 {
                     return getMouseAxisValue(inputState, control);
                 }
-
                 return inputState.getAxis(control);
             case Input::InputControlType::Wheel:
                 return inputState.getWheelDelta(control);

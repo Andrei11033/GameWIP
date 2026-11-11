@@ -1,5 +1,5 @@
 /// @file session_test.inl
-/// @brief Focused terminal session correctness suites.
+/// @brief Focused Terminal session tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 /// @brief Verifies persistent Session lifecycle, ownership, cancellation, and exact restoration.

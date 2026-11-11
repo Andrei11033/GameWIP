@@ -1,5 +1,5 @@
 /// @file contracts_test.inl
-/// @brief Focused io contracts correctness suites.
+/// @brief Focused IO contract tests.
 
 /// @brief Verifies every portable error-code name and the unknown-value fallback.
 void testErrorCodeNames(TestSupport::Context &context)
@@ -55,7 +55,7 @@ void testErrorCodeNames(TestSupport::Context &context)
         ErrorCodeName{ErrorCode::Unknown, "Unknown"},
     };
 
-    for (const ErrorCodeName &entry : names)
+    for(const ErrorCodeName &entry : names)
     {
         static_cast<void>(context.expectEq(std::format("errorCodeName returns {}", entry.name), entry.name, IO::errorCodeName(entry.code)));
     }
@@ -65,6 +65,7 @@ void testErrorCodeNames(TestSupport::Context &context)
         std::string_view{"Unknown"},
         IO::errorCodeName(static_cast<ErrorCode>(-1))));
 }
+
 /// @brief Verifies status helpers and default Reader/Writer optional-operation contracts.
 void testStatusAndDefaultContracts(TestSupport::Context &context)
 {

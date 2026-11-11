@@ -31,6 +31,7 @@ function Resolve-GameWipBenchmarkOutputPath
     {
         throw "Benchmark output inside the checkout must be under 'build'. Requested: $resolved"
     }
+
     $parent = Split-Path -Parent $resolved
 
     if (-not [string]::IsNullOrWhiteSpace($parent))
@@ -96,6 +97,7 @@ function Invoke-GameWipBenchmark
     {
         throw "Unknown benchmark profile '$ProfileId'."
     }
+
     $command = Get-GameWipProjectCommand -Id 'benchmark-dry-run'
 
     if ($SkipBuild)
@@ -199,14 +201,17 @@ function ConvertTo-GameWipBenchmarkNanosecond
         {
             return $Value
         }
+
         'us'
         {
             return $Value * 1000.0
         }
+
         'ms'
         {
             return $Value * 1000000.0
         }
+
         's'
         {
             return $Value * 1000000000.0
@@ -226,12 +231,14 @@ function Get-GameWipBenchmarkComparisonRow
     {
         throw "Benchmark result does not exist: $Path"
     }
+
     $document = Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
 
     if (-not $document.PSObject.Properties['benchmarks'])
     {
         throw "Benchmark result has no 'benchmarks' array: $Path"
     }
+
     $groups = @($document.benchmarks | Group-Object { if ($_.PSObject.Properties['run_name'])
             {
                 $_.run_name

@@ -34,6 +34,12 @@ otherwise force source builds on Windows. The registry owns the upstream tag,
 platform asset names, and SHA-256 digests. `scripts/setup/config/setup.json`
 owns setup-action metadata and the IDs needed to bootstrap a provider host.
 
+On Windows, the Python provider uses MSYS2 UCRT64 Python. GameWIP creates its
+managed environment at `C:\MSYS2\GameWIPTools\python` with MSYS2 system
+packages visible, so native Windows CPython is not required. MSYS2 provides
+compiled tools and dependencies such as Ruff and jsonschema; pure-Python tools
+such as yamllint are installed in the managed environment.
+
 The GitHub CLI is a managed WinGet tool because the workflow status and dispatch
 commands depend on it. Its sign-in state is intentionally not managed by setup.
 

@@ -103,7 +103,6 @@ def source_paths(ucd_directory: Path) -> SourcePaths:
 
 
 def require_source(path: Path, accepted_version_markers: Iterable[str]) -> None:
-
     if not path.is_file():
         raise FileNotFoundError(f"required Unicode data file is missing: {path}")
 
@@ -130,7 +129,6 @@ def records(path: Path) -> Iterator[tuple[str, ...]]:
 
 
 def code_points(field: str) -> range:
-
     if ".." in field:
         first_text, last_text = field.split("..", maxsplit=1)
         first = int(first_text, 16)
@@ -150,7 +148,6 @@ def code_points(field: str) -> range:
 
 
 def apply_grapheme_break(data: bytearray, path: Path) -> None:
-
     for fields in records(path):
         property_name = fields[1]
 
@@ -164,7 +161,6 @@ def apply_grapheme_break(data: bytearray, path: Path) -> None:
 
 
 def apply_indic_conjunct_break(data: bytearray, path: Path) -> None:
-
     for fields in records(path):
         if fields[1] != "InCB":
             continue
@@ -184,7 +180,6 @@ def apply_indic_conjunct_break(data: bytearray, path: Path) -> None:
 
 
 def apply_extended_pictographic(data: bytearray, path: Path) -> None:
-
     for fields in records(path):
         if fields[1] != "Extended_Pictographic":
             continue

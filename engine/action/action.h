@@ -522,7 +522,6 @@ namespace GameWIP::Action
         void applyBindingDown(ActionEnum action, bool down);
         bool hasMatchingHoldFired(std::size_t bindingIndex) const;
     };
-
 } // namespace GameWIP::Action
 
 #include "action/internal/action.inl"

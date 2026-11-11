@@ -68,12 +68,12 @@ namespace GameWIP::Desktop::Display
     {
         const Detail::WindowState *state = Detail::WindowAccess::state(window);
 
-        if (state == nullptr || !window.isOpen())
+        if(state == nullptr || !window.isOpen())
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
         }
 
-        if (!window.ownedByCurrentThread())
+        if(!window.ownedByCurrentThread())
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
         }

@@ -24,11 +24,8 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
     gamewip_get_dependency("${gamewip_dependency}" _repository _commit _cache_directory)
 
     set(_final_source_directory "${_fetchcontent_root}/${_cache_directory}-src")
-
     set(_dependency_staging_directory "${_staging_root}/${_cache_directory}")
-
     set(_staging_source_directory "${_dependency_staging_directory}/source")
-
     set(_staging_subbuild_directory "${_dependency_staging_directory}/subbuild")
 
     set(_cached_commit "")

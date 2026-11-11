@@ -36,16 +36,19 @@ namespace GameWIP::Desktop::Types::DataTransfer
         {
             return FormatView{FormatKind::Text, {}};
         }
+
         /// @brief Standard file-list format.
         [[nodiscard]] static constexpr FormatView files() noexcept
         {
             return FormatView{FormatKind::FileList, {}};
         }
+
         /// @brief Standard image format.
         [[nodiscard]] static constexpr FormatView image() noexcept
         {
             return FormatView{FormatKind::Image, {}};
         }
+
         /// @brief Custom format; `name` is borrowed and must outlive the view.
         [[nodiscard]] static constexpr FormatView custom(std::string_view name) noexcept
         {
@@ -133,16 +136,19 @@ namespace GameWIP::Desktop::Types::DataTransfer
         {
             return TextView{value};
         }
+
         /// @brief File-list item; borrows the span and its paths.
         [[nodiscard]] inline ItemView files(std::span<const FileSystem::Types::Path> value) noexcept
         {
             return FileListView{value};
         }
+
         /// @brief Image item; borrows the pixel data.
         [[nodiscard]] inline ItemView image(ImageView value) noexcept
         {
             return value;
         }
+
         /// @brief Custom binary item; borrows name and bytes.
         [[nodiscard]] inline ItemView custom(CustomView value) noexcept
         {

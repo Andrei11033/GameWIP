@@ -87,7 +87,7 @@ namespace
         {
             std::string text(line);
 
-            while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
+            while(!text.empty() && (text.back() == '\n' || text.back() == '\r'))
             {
                 text.pop_back();
             }
@@ -100,21 +100,20 @@ namespace
                 std::pair{std::string_view{"[SUMMARY] "}, &TestSupport::Context::summary},
             };
 
-            for (const auto &[prefix, writer] : categories)
+            for(const auto &[prefix, writer] : categories)
             {
-                if (text.starts_with(prefix))
+                if(text.starts_with(prefix))
                 {
                     (testContext.*writer)(std::string_view(text).substr(prefix.size()));
                     return;
                 }
             }
 
-            if (text.starts_with("[RESULT] "))
+            if(text.starts_with("[RESULT] "))
             {
                 testContext.summary(std::string_view(text).substr(std::string_view{"[RESULT] "}.size()));
                 return;
             }
-
             testContext.info(text);
         }
 
@@ -129,7 +128,7 @@ namespace
             std::string skipReason;
             const auto answer = TestSupport::promptManualCheck(question, skipReason);
 
-            switch (answer)
+            switch(answer)
             {
             case TestSupport::Types::Reporting::ManualAnswer::Yes:
                 ++manualObservations.passed;
@@ -153,21 +152,23 @@ namespace
 
         void expectTrue(std::string_view name, bool value, std::string_view details = "expected true")
         {
-            if (value)
+            if(value)
             {
                 testContext.pass(name);
                 return;
             }
+
             testContext.fail(name, details);
         }
 
         void expectFalse(std::string_view name, bool value, std::string_view details = "expected false")
         {
-            if (!value)
+            if(!value)
             {
                 testContext.pass(name);
                 return;
             }
+
             testContext.fail(name, details);
         }
 
@@ -194,12 +195,12 @@ namespace
         {
             std::forward<Function>(function)();
         }
-        catch (const std::exception &exception)
+        catch(const std::exception &exception)
         {
             Logger::shutdown();
             context.fail(name, exception.what());
         }
-        catch (...)
+        catch(...)
         {
             Logger::shutdown();
             context.fail(name, "unknown exception");
@@ -215,7 +216,7 @@ namespace
 
     bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
     {
-        if (status.ok())
+        if(status.ok())
         {
             return true;
         }
@@ -236,9 +237,9 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value != nullptr && std::string_view(value) == argument)
+            if(value != nullptr && std::string_view(value) == argument)
             {
                 return true;
             }
@@ -284,7 +285,7 @@ namespace
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
 
-        if (!result.status.ok())
+        if(!result.status.ok())
         {
             context.fail(
                 "query Assert log file path",
@@ -299,7 +300,7 @@ namespace
     {
         TestSupport::Types::TextResult result = TestSupport::readTextFile(path);
 
-        if (!requireInfrastructure(context, "read Assert log fixture", result.status))
+        if(!requireInfrastructure(context, "read Assert log fixture", result.status))
         {
             return {};
         }
@@ -311,14 +312,14 @@ namespace
     {
         std::string contents;
 
-        if (!std::filesystem::exists(directory))
+        if(!std::filesystem::exists(directory))
         {
             return contents;
         }
 
-        for (const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(directory))
+        for(const std::filesystem::directory_entry &entry : std::filesystem::directory_iterator(directory))
         {
-            if (entry.is_regular_file())
+            if(entry.is_regular_file())
             {
                 contents += readFile(context, entry.path());
             }
@@ -329,7 +330,7 @@ namespace
 
     std::size_t countOccurrences(std::string_view text, std::string_view needle)
     {
-        if (needle.empty())
+        if(needle.empty())
         {
             return 0;
         }
@@ -337,7 +338,7 @@ namespace
         std::size_t count = 0;
         std::size_t position = 0;
 
-        while ((position = text.find(needle, position)) != std::string_view::npos)
+        while((position = text.find(needle, position)) != std::string_view::npos)
         {
             ++count;
             position += needle.size();
@@ -357,7 +358,7 @@ namespace
         Logger::shutdown();
         const std::filesystem::path directory = context.logRoot / std::string(name);
 
-        if (!TestSupport::createDirectories(directory).ok())
+        if(!TestSupport::createDirectories(directory).ok())
         {
             return false;
         }
@@ -398,27 +399,27 @@ namespace GameWIP::Test
 
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options)
     {
-        if (hasArgument(argc, argv, kAssertFailureChildArgument))
+        if(hasArgument(argc, argv, kAssertFailureChildArgument))
         {
             return runAssertFailureChild();
         }
 
-        if (hasArgument(argc, argv, kInteractiveAbortChildArgument))
+        if(hasArgument(argc, argv, kInteractiveAbortChildArgument))
         {
             return runInteractiveAbortChild();
         }
 
-        if (hasArgument(argc, argv, kInteractiveBreakChildArgument))
+        if(hasArgument(argc, argv, kInteractiveBreakChildArgument))
         {
             return runInteractiveBreakChild();
         }
 
-        if (hasArgument(argc, argv, kDebugBreakChildArgument))
+        if(hasArgument(argc, argv, kDebugBreakChildArgument))
         {
             return runDebugBreakChild();
         }
 
-        if (hasArgument(argc, argv, kUnreachableChildArgument))
+        if(hasArgument(argc, argv, kUnreachableChildArgument))
         {
             return runUnreachableChild();
         }
@@ -434,18 +435,20 @@ namespace GameWIP::Test
             {
                 TestContext context(suiteContext);
 
-                if (!context.processState.status().ok())
+                if(!context.processState.status().ok())
                 {
                     context.fail("acquire Assert process-state scope", TestSupport::formatInfrastructureStatus(context.processState.status()));
                     return;
                 }
+
                 context.executablePath = GameWIP::Validation::currentExecutablePath();
                 const TestSupport::ScopedTemporaryDirectory workspace("assert_tests");
 
-                if (!requireInfrastructure(context, "create Assert test workspace", workspace.status()))
+                if(!requireInfrastructure(context, "create Assert test workspace", workspace.status()))
                 {
                     return;
                 }
+
                 const ScopedLoggerShutdown loggerShutdown;
                 context.logRoot = workspace.path();
 
@@ -543,7 +546,7 @@ namespace GameWIP::Test
                     "automated interactive assert tests",
                     [&]
                     {
-                        if (options.enableAutomatedInteractiveTests)
+                        if(options.enableAutomatedInteractiveTests)
                         {
                             testInteractiveIgnoreOnce(context);
                             testInteractiveAlwaysIgnore(context);
@@ -593,7 +596,7 @@ namespace GameWIP::Test
                         testManualAssertUi(context, options);
                     });
 
-                if (options.enableManualTests)
+                if(options.enableManualTests)
                 {
                     context.testContext.summary(
                         std::format(

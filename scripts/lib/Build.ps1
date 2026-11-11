@@ -42,6 +42,7 @@ function Reset-GameWipPresetBuildTree
     {
         throw "Refusing to recursively remove reparse-point preset tree '$presetRoot'."
     }
+
     Write-GameWipOperationEvent -Phase execute -Step "fresh-$Name" -Severity info -Message "Removing the complete preset build tree '$presetRoot'."
     Remove-Item -LiteralPath $presetRoot -Recurse -Force
 }

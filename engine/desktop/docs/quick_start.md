@@ -97,6 +97,7 @@ int main()
 
     return window.close().ok() ? 0 : 3;
 }
+
 ```
 
 Keep the non-movable `Window` in stable storage and use it on the opening

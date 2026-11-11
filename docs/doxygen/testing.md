@@ -136,6 +136,10 @@ supplying suitable report paths, restoring process-global state, and interpretin
 
 ## Module standard
 
+Validation code is held to the same standard as library code: readable, cohesive,
+well-documented, and behavior-preserving. Keep comments concise and update
+related docs when contracts or workflows change.
+
 Each correctness module owns one logical registration. Large suites may organize coherent behavioral case bodies into private included fragments when
 that keeps fixtures translation-unit-local, or into focused translation units when a real shared private test contract already exists:
 

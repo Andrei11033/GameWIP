@@ -65,6 +65,7 @@ namespace GameWIP::TestSupport
                 : handle_(handle)
             {
             }
+
             ~UniqueHandle() noexcept
             {
                 reset();
@@ -80,7 +81,7 @@ namespace GameWIP::TestSupport
 
             UniqueHandle &operator=(UniqueHandle &&other) noexcept
             {
-                if (this != &other)
+                if(this != &other)
                 {
                     reset(std::exchange(other.handle_, nullptr));
                 }
@@ -95,7 +96,7 @@ namespace GameWIP::TestSupport
 
             void reset(HANDLE handle = nullptr) noexcept
             {
-                if (handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE)
+                if(handle_ != nullptr && handle_ != INVALID_HANDLE_VALUE)
                 {
                     CloseHandle(handle_);
                 }
@@ -114,7 +115,7 @@ namespace GameWIP::TestSupport
                 SIZE_T requiredBytes = 0;
                 static_cast<void>(InitializeProcThreadAttributeList(nullptr, 1, 0, &requiredBytes));
 
-                if (requiredBytes == 0)
+                if(requiredBytes == 0)
                 {
                     nativeCode_ = GetLastError();
                     return;
@@ -123,22 +124,23 @@ namespace GameWIP::TestSupport
                 storage_.resize(requiredBytes);
                 list_ = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage_.data());
 
-                if (InitializeProcThreadAttributeList(list_, 1, 0, &requiredBytes) == FALSE)
+                if(InitializeProcThreadAttributeList(list_, 1, 0, &requiredBytes) == FALSE)
                 {
                     nativeCode_ = GetLastError();
                     list_ = nullptr;
                     return;
                 }
+
                 initialized_ = true;
 
-                if (UpdateProcThreadAttribute(
-                        list_,
-                        0,
-                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                        static_cast<void *>(const_cast<HANDLE *>(handles.data())),
-                        handles.size() * sizeof(HANDLE),
-                        nullptr,
-                        nullptr) == FALSE)
+                if(UpdateProcThreadAttribute(
+                       list_,
+                       0,
+                       PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                       static_cast<void *>(const_cast<HANDLE *>(handles.data())),
+                       handles.size() * sizeof(HANDLE),
+                       nullptr,
+                       nullptr) == FALSE)
                 {
                     nativeCode_ = GetLastError();
                     DeleteProcThreadAttributeList(list_);
@@ -149,7 +151,7 @@ namespace GameWIP::TestSupport
 
             ~StartupAttributeList() noexcept
             {
-                if (initialized_)
+                if(initialized_)
                 {
                     DeleteProcThreadAttributeList(list_);
                 }
@@ -184,15 +186,14 @@ namespace GameWIP::TestSupport
         {
             const HANDLE source = GetStdHandle(standardHandle);
 
-            if (source != nullptr && source != INVALID_HANDLE_VALUE)
+            if(source != nullptr && source != INVALID_HANDLE_VALUE)
             {
                 HANDLE duplicate = nullptr;
 
-                if (DuplicateHandle(GetCurrentProcess(), source, GetCurrentProcess(), &duplicate, 0, TRUE, DUPLICATE_SAME_ACCESS) != FALSE)
+                if(DuplicateHandle(GetCurrentProcess(), source, GetCurrentProcess(), &duplicate, 0, TRUE, DUPLICATE_SAME_ACCESS) != FALSE)
                 {
                     return UniqueHandle(duplicate);
                 }
-
                 return {};
             }
 
@@ -204,7 +205,7 @@ namespace GameWIP::TestSupport
 
         void appendInheritedHandle(std::vector<HANDLE> &handles, HANDLE handle)
         {
-            if (std::find(handles.begin(), handles.end(), handle) == handles.end())
+            if(std::find(handles.begin(), handles.end(), handle) == handles.end())
             {
                 handles.push_back(handle);
             }
@@ -218,11 +219,10 @@ namespace GameWIP::TestSupport
         {
             std::wstring text = path.wstring();
 
-            if (text.contains(L'\0'))
+            if(text.contains(L'\0'))
             {
                 throw std::invalid_argument("Child-process executable path contains an embedded null");
             }
-
             return text;
         }
 
@@ -233,7 +233,7 @@ namespace GameWIP::TestSupport
 
         [[nodiscard]] std::wstring quoteWindowsArgument(std::wstring_view text)
         {
-            if (!needsQuoting(text))
+            if(!needsQuoting(text))
             {
                 return std::wstring(text);
             }
@@ -242,15 +242,15 @@ namespace GameWIP::TestSupport
             quoted.push_back(L'"');
             std::size_t backslashes = 0;
 
-            for (wchar_t ch : text)
+            for(wchar_t ch : text)
             {
-                if (ch == L'\\')
+                if(ch == L'\\')
                 {
                     ++backslashes;
                     continue;
                 }
 
-                if (ch == L'"')
+                if(ch == L'"')
                 {
                     quoted.append(backslashes * 2 + 1, L'\\');
                     quoted.push_back(ch);
@@ -270,7 +270,7 @@ namespace GameWIP::TestSupport
         {
             std::wstring commandLine = quoteWindowsArgument(pathToWide(options.executablePath));
 
-            for (const std::string &argument : options.arguments)
+            for(const std::string &argument : options.arguments)
             {
                 commandLine.push_back(L' ');
                 commandLine += quoteWindowsArgument(Detail::Win32::utf8ToWide(argument));
@@ -287,7 +287,7 @@ namespace GameWIP::TestSupport
         {
             std::wstring lowered(text);
 
-            for (wchar_t &ch : lowered)
+            for(wchar_t &ch : lowered)
             {
                 ch = static_cast<wchar_t>(std::towlower(ch));
             }
@@ -297,7 +297,7 @@ namespace GameWIP::TestSupport
 
         [[nodiscard]] std::wstring environmentEntryName(std::wstring_view entry)
         {
-            if (!entry.empty() && entry.front() == L'=')
+            if(!entry.empty() && entry.front() == L'=')
             {
                 const std::size_t secondEquals = entry.find(L'=', 1);
                 return secondEquals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, secondEquals));
@@ -313,27 +313,25 @@ namespace GameWIP::TestSupport
 
         void applyEnvironmentOverride(std::vector<std::wstring> &entries, const Types::Process::EnvironmentOverride &variable)
         {
-            if (variable.name.empty() || variable.name.contains('='))
+            if(variable.name.empty() || variable.name.contains('='))
             {
                 throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
             }
-
             const std::wstring variableName = Detail::Win32::utf8ToWide(variable.name);
             const auto matchesName = [&variableName](const std::wstring &entry)
             {
                 return sameEnvironmentName(environmentEntryName(entry), variableName);
             };
 
-            if (!variable.value)
+            if(!variable.value)
             {
                 entries.erase(std::remove_if(entries.begin(), entries.end(), matchesName), entries.end());
                 return;
             }
-
             const std::wstring replacement = variableName + L"=" + Detail::Win32::utf8ToWide(*variable.value);
             const auto existing = std::find_if(entries.begin(), entries.end(), matchesName);
 
-            if (existing != entries.end())
+            if(existing != entries.end())
             {
                 *existing = replacement;
             }
@@ -348,7 +346,7 @@ namespace GameWIP::TestSupport
             std::vector<std::wstring> entries;
             LPWCH environmentStrings = GetEnvironmentStringsW();
 
-            if (environmentStrings == nullptr)
+            if(environmentStrings == nullptr)
             {
                 throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
             }
@@ -359,7 +357,7 @@ namespace GameWIP::TestSupport
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif
-                for (LPWCH current = environmentStrings; *current != L'\0'; current += std::wcslen(current) + 1)
+                for(LPWCH current = environmentStrings; *current != L'\0'; current += std::wcslen(current) + 1)
                 {
                     entries.emplace_back(current);
                 }
@@ -367,13 +365,13 @@ namespace GameWIP::TestSupport
 #pragma clang unsafe_buffer_usage end
 #endif
             }
-            catch (...)
+            catch(...)
             {
                 static_cast<void>(FreeEnvironmentStringsW(environmentStrings));
                 throw;
             }
 
-            if (FreeEnvironmentStringsW(environmentStrings) == FALSE)
+            if(FreeEnvironmentStringsW(environmentStrings) == FALSE)
             {
                 throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
             }
@@ -385,7 +383,7 @@ namespace GameWIP::TestSupport
         {
             std::vector<std::wstring> entries = options.inheritParentEnvironment ? inheritedEnvironmentEntries() : std::vector<std::wstring>{};
 
-            for (const Types::Process::EnvironmentOverride &variable : options.environmentOverrides)
+            for(const Types::Process::EnvironmentOverride &variable : options.environmentOverrides)
             {
                 applyEnvironmentOverride(entries, variable);
             }
@@ -400,14 +398,14 @@ namespace GameWIP::TestSupport
 
             std::wstring block;
 
-            for (const std::wstring &entry : entries)
+            for(const std::wstring &entry : entries)
             {
                 block += entry;
                 block.push_back(L'\0');
             }
             block.push_back(L'\0');
 
-            if (entries.empty())
+            if(entries.empty())
             {
                 block.push_back(L'\0');
             }
@@ -421,17 +419,17 @@ namespace GameWIP::TestSupport
 
         [[nodiscard]] DWORD timeoutMilliseconds(const std::optional<std::chrono::milliseconds> &timeout)
         {
-            if (!timeout)
+            if(!timeout)
             {
                 return INFINITE;
             }
+
             constexpr auto maxWait = static_cast<long long>((std::numeric_limits<DWORD>::max)() - 1);
 
-            if (timeout->count() > maxWait)
+            if(timeout->count() > maxWait)
             {
                 return (std::numeric_limits<DWORD>::max)() - 1;
             }
-
             return static_cast<DWORD>(timeout->count());
         }
 
@@ -461,7 +459,7 @@ namespace GameWIP::TestSupport
         {
             const auto setOutputFailure = [&outputStatus](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
             {
-                if (outputStatus.ok())
+                if(outputStatus.ok())
                 {
                     outputStatus.error = error;
                     outputStatus.nativeCode = nativeCode;
@@ -472,22 +470,22 @@ namespace GameWIP::TestSupport
             {
                 char buffer[4096];
                 {
-                    while (true)
+                    while(true)
                     {
                         DWORD bytesRead = 0;
 
-                        if (ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
+                        if(ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
                         {
                             const DWORD readError = GetLastError();
 
-                            if (readError != ERROR_BROKEN_PIPE)
+                            if(readError != ERROR_BROKEN_PIPE)
                             {
                                 setOutputFailure(Types::InfrastructureError::CaptureFailed, readError);
                             }
                             break;
                         }
 
-                        if (bytesRead == 0)
+                        if(bytesRead == 0)
                         {
                             break;
                         }
@@ -496,28 +494,28 @@ namespace GameWIP::TestSupport
                         const std::size_t available = retained < captureLimit ? captureLimit - retained : 0;
                         const std::size_t appendCount = std::min<std::size_t>(available, bytesRead);
 
-                        if (appendCount > 0)
+                        if(appendCount > 0)
                         {
                             outputBytes.append(buffer, appendCount);
                         }
 
-                        if (appendCount < bytesRead)
+                        if(appendCount < bytesRead)
                         {
                             outputTruncated = true;
                         }
                     }
                 }
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 setOutputFailure(Types::InfrastructureError::OutOfMemory);
             }
-            catch (...)
+            catch(...)
             {
                 setOutputFailure(Types::InfrastructureError::CaptureFailed);
             }
 
-            if (SetEvent(outputDoneHandle) == FALSE)
+            if(SetEvent(outputDoneHandle) == FALSE)
             {
                 setOutputFailure(Types::InfrastructureError::CaptureFailed, GetLastError());
             }
@@ -529,7 +527,7 @@ namespace GameWIP::TestSupport
             UniqueHandle &outputRead,
             Types::InfrastructureStatus &outputStatus) noexcept
         {
-            if (!outputReader.joinable())
+            if(!outputReader.joinable())
             {
                 return;
             }
@@ -537,7 +535,7 @@ namespace GameWIP::TestSupport
             DWORD outputWaitError = ERROR_SUCCESS;
             DWORD outputWait = WaitForSingleObject(outputDoneHandle, 2000);
 
-            if (outputWait != WAIT_OBJECT_0)
+            if(outputWait != WAIT_OBJECT_0)
             {
                 outputWaitError = outputWait == WAIT_FAILED ? GetLastError() : outputWait;
 
@@ -545,7 +543,7 @@ namespace GameWIP::TestSupport
                 static_cast<void>(CancelSynchronousIo(reinterpret_cast<HANDLE>(outputReader.native_handle())));
                 outputWait = WaitForSingleObject(outputDoneHandle, 2000);
 
-                if (outputWait != WAIT_OBJECT_0)
+                if(outputWait != WAIT_OBJECT_0)
                 {
                     outputRead.reset();
                     static_cast<void>(WaitForSingleObject(outputDoneHandle, INFINITE));
@@ -555,7 +553,7 @@ namespace GameWIP::TestSupport
 
             // The reader owns outputStatus until it exits. Even a timed-out
             // wait must join before reading or publishing a competing failure.
-            if (outputWaitError != ERROR_SUCCESS && outputStatus.ok())
+            if(outputWaitError != ERROR_SUCCESS && outputStatus.ok())
             {
                 outputStatus.error = Types::InfrastructureError::CaptureFailed;
                 outputStatus.nativeCode = outputWaitError;
@@ -580,7 +578,7 @@ namespace GameWIP::TestSupport
         };
         const auto setFailureIfSuccessful = [&result](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
         {
-            if (result.status.ok())
+            if(result.status.ok())
             {
                 result.status.error = error;
                 result.status.nativeCode = nativeCode;
@@ -591,18 +589,17 @@ namespace GameWIP::TestSupport
         {
             constexpr DWORD kTestTerminationCode = 0x54455354u;
 
-            if (options.waitTimeout && options.waitTimeout->count() < 0)
+            if(options.waitTimeout && options.waitTimeout->count() < 0)
             {
                 setFailure(Types::InfrastructureError::InvalidArgument);
                 return result;
             }
 
-            if (options.workingDirectory && options.workingDirectory->empty())
+            if(options.workingDirectory && options.workingDirectory->empty())
             {
                 setFailure(Types::InfrastructureError::InvalidArgument);
                 return result;
             }
-
             std::wstring commandLine = buildCommandLine(options);
             std::wstring environmentBlock;
             std::wstring workingDirectory;
@@ -611,22 +608,20 @@ namespace GameWIP::TestSupport
             // whole child process tree, not just the first process handle.
             UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
 
-            if (jobHandle.get() == nullptr)
+            if(jobHandle.get() == nullptr)
             {
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
-
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimits{};
             jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
-            if (SetInformationJobObject(jobHandle.get(), JobObjectExtendedLimitInformation, &jobLimits, static_cast<DWORD>(sizeof(jobLimits))) ==
-                FALSE)
+            if(SetInformationJobObject(jobHandle.get(), JobObjectExtendedLimitInformation, &jobLimits, static_cast<DWORD>(sizeof(jobLimits))) ==
+               FALSE)
             {
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
-
             // Standard handles must be inheritable for CreateProcessW, but the parent
             // read end of the capture pipe must be made non-inheritable before launch.
             SECURITY_ATTRIBUTES securityAttributes{};
@@ -636,12 +631,12 @@ namespace GameWIP::TestSupport
             UniqueHandle outputRead;
             UniqueHandle outputWrite;
 
-            if (options.captureOutput)
+            if(options.captureOutput)
             {
                 HANDLE outputReadRaw = nullptr;
                 HANDLE outputWriteRaw = nullptr;
 
-                if (CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
+                if(CreatePipe(&outputReadRaw, &outputWriteRaw, &securityAttributes, 0) == FALSE)
                 {
                     setFailure(Types::InfrastructureError::PipeCreationFailed, GetLastError());
                     return result;
@@ -649,7 +644,7 @@ namespace GameWIP::TestSupport
                 outputRead.reset(outputReadRaw);
                 outputWrite.reset(outputWriteRaw);
 
-                if (SetHandleInformation(outputRead.get(), HANDLE_FLAG_INHERIT, 0) == FALSE)
+                if(SetHandleInformation(outputRead.get(), HANDLE_FLAG_INHERIT, 0) == FALSE)
                 {
                     setFailure(Types::InfrastructureError::PipeCreationFailed, GetLastError());
                     return result;
@@ -658,27 +653,26 @@ namespace GameWIP::TestSupport
 
             UniqueHandle childInput = inheritableStandardHandle(STD_INPUT_HANDLE, GENERIC_READ);
 
-            if (childInput.get() == nullptr || childInput.get() == INVALID_HANDLE_VALUE)
+            if(childInput.get() == nullptr || childInput.get() == INVALID_HANDLE_VALUE)
             {
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
-
             UniqueHandle childOutput;
             UniqueHandle childError;
 
-            if (!options.captureOutput)
+            if(!options.captureOutput)
             {
                 childOutput = inheritableStandardHandle(STD_OUTPUT_HANDLE, GENERIC_WRITE);
 
-                if (childOutput.get() == nullptr || childOutput.get() == INVALID_HANDLE_VALUE)
+                if(childOutput.get() == nullptr || childOutput.get() == INVALID_HANDLE_VALUE)
                 {
                     setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                     return result;
                 }
                 childError = inheritableStandardHandle(STD_ERROR_HANDLE, GENERIC_WRITE);
 
-                if (childError.get() == nullptr || childError.get() == INVALID_HANDLE_VALUE)
+                if(childError.get() == nullptr || childError.get() == INVALID_HANDLE_VALUE)
                 {
                     setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                     return result;
@@ -694,12 +688,11 @@ namespace GameWIP::TestSupport
             appendInheritedHandle(inheritedHandles, options.captureOutput ? outputWrite.get() : childError.get());
             StartupAttributeList attributeList(inheritedHandles);
 
-            if (!attributeList.isValid())
+            if(!attributeList.isValid())
             {
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, attributeList.nativeCode());
                 return result;
             }
-
             STARTUPINFOEXW startupInfo{};
             startupInfo.StartupInfo.cb = sizeof(startupInfo);
             startupInfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
@@ -711,7 +704,7 @@ namespace GameWIP::TestSupport
             PROCESS_INFORMATION processInfo{};
             LPCWSTR currentDirectory = nullptr;
 
-            if (options.workingDirectory)
+            if(options.workingDirectory)
             {
                 workingDirectory = pathToWide(*options.workingDirectory);
                 currentDirectory = workingDirectory.c_str();
@@ -742,16 +735,15 @@ namespace GameWIP::TestSupport
             childOutput.reset();
             childError.reset();
 
-            if (created == FALSE)
+            if(created == FALSE)
             {
                 setFailure(Types::InfrastructureError::ProcessLaunchFailed, launchError);
                 return result;
             }
-
             UniqueHandle processHandle(processInfo.hProcess);
             UniqueHandle threadHandle(processInfo.hThread);
 
-            if (AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
+            if(AssignProcessToJobObject(jobHandle.get(), processHandle.get()) == FALSE)
             {
                 const DWORD assignmentError = GetLastError();
                 terminateProcessAndWait(processHandle.get(), kTestTerminationCode);
@@ -759,7 +751,6 @@ namespace GameWIP::TestSupport
                 result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                 return result;
             }
-
             // Output capture runs on a separate reader so a verbose child cannot block
             // forever on a full pipe while the parent waits for process exit.
             std::string outputBytes;
@@ -768,11 +759,11 @@ namespace GameWIP::TestSupport
             std::thread outputReader;
             UniqueHandle outputDoneEvent;
 
-            if (options.captureOutput)
+            if(options.captureOutput)
             {
                 outputDoneEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
 
-                if (outputDoneEvent.get() == nullptr)
+                if(outputDoneEvent.get() == nullptr)
                 {
                     const DWORD eventError = GetLastError();
                     terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
@@ -795,14 +786,14 @@ namespace GameWIP::TestSupport
                         std::ref(outputTruncated),
                         std::ref(outputStatus));
                 }
-                catch (const std::bad_alloc &)
+                catch(const std::bad_alloc &)
                 {
                     terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     setFailure(Types::InfrastructureError::OutOfMemory);
                     result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     return result;
                 }
-                catch (const std::system_error &error)
+                catch(const std::system_error &error)
                 {
                     terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     setFailure(
@@ -811,7 +802,7 @@ namespace GameWIP::TestSupport
                     result.outcome = Types::Process::Outcome::TerminatedDuringCleanup;
                     return result;
                 }
-                catch (...)
+                catch(...)
                 {
                     terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                     setFailure(Types::InfrastructureError::CaptureFailed);
@@ -825,13 +816,13 @@ namespace GameWIP::TestSupport
             bool resumeFailed = false;
             std::uint64_t resumeNativeCode = 0;
 
-            if (!resumeFailed && ResumeThread(threadHandle.get()) == static_cast<DWORD>(-1))
+            if(!resumeFailed && ResumeThread(threadHandle.get()) == static_cast<DWORD>(-1))
             {
                 resumeFailed = true;
                 resumeNativeCode = GetLastError();
             }
 
-            if (resumeFailed)
+            if(resumeFailed)
             {
                 terminateJobAndWait(jobHandle.get(), processHandle.get(), kTestTerminationCode);
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, resumeNativeCode);
@@ -842,21 +833,21 @@ namespace GameWIP::TestSupport
                 {
                     const DWORD waitResult = WaitForSingleObject(processHandle.get(), timeoutMilliseconds(options.waitTimeout));
 
-                    if (waitResult == WAIT_TIMEOUT)
+                    if(waitResult == WAIT_TIMEOUT)
                     {
                         result.outcome = Types::Process::Outcome::TimedOut;
 
-                        if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
+                        if(TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
                         {
                             setFailure(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
                         }
 
-                        if (WaitForSingleObject(processHandle.get(), INFINITE) == WAIT_FAILED)
+                        if(WaitForSingleObject(processHandle.get(), INFINITE) == WAIT_FAILED)
                         {
                             setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
                         }
                     }
-                    else if (waitResult != WAIT_OBJECT_0)
+                    else if(waitResult != WAIT_OBJECT_0)
                     {
                         const DWORD waitError = GetLastError();
                         setFailure(Types::InfrastructureError::WaitFailed, waitError);
@@ -869,13 +860,13 @@ namespace GameWIP::TestSupport
                         bool inspectionFailed = false;
                         std::uint64_t inspectionNativeCode = 0;
 
-                        if (!inspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) == FALSE)
+                        if(!inspectionFailed && GetExitCodeProcess(processHandle.get(), &exitCode) == FALSE)
                         {
                             inspectionFailed = true;
                             inspectionNativeCode = GetLastError();
                         }
 
-                        if (!inspectionFailed)
+                        if(!inspectionFailed)
                         {
                             result.exitCode = static_cast<std::uint32_t>(exitCode);
                             result.outcome = Types::Process::Outcome::Exited;
@@ -886,7 +877,7 @@ namespace GameWIP::TestSupport
                             result.outcome = Types::Process::Outcome::OutcomeUnavailable;
                         }
 
-                        if (TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
+                        if(TerminateJobObject(jobHandle.get(), kTestTerminationCode) == FALSE)
                         {
                             setFailureIfSuccessful(Types::InfrastructureError::ProcessCleanupFailed, GetLastError());
                         }
@@ -894,12 +885,12 @@ namespace GameWIP::TestSupport
                 }
             }
 
-            if (outputReader.joinable())
+            if(outputReader.joinable())
             {
                 finishOutputReader(outputReader, outputDoneEvent.get(), outputRead, outputStatus);
             }
 
-            if (!outputStatus.ok())
+            if(!outputStatus.ok())
             {
                 setFailureIfSuccessful(outputStatus.error, outputStatus.nativeCode);
             }
@@ -908,36 +899,37 @@ namespace GameWIP::TestSupport
             result.outputBytes = std::move(outputBytes);
             return result;
         }
-        catch (const NativeInfrastructureFailure &failure)
+        catch(const NativeInfrastructureFailure &failure)
         {
             setFailure(failure.error, failure.nativeCode);
             return result;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             setFailure(Types::InfrastructureError::OutOfMemory);
             return result;
         }
-        catch (const std::invalid_argument &)
+        catch(const std::invalid_argument &)
         {
             setFailure(Types::InfrastructureError::InvalidArgument);
             return result;
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             setFailure(Types::InfrastructureError::InvalidArgument);
             return result;
         }
-        catch (const std::system_error &error)
+        catch(const std::system_error &error)
         {
             setFailure(Types::InfrastructureError::PlatformFailure, static_cast<std::uint64_t>(static_cast<std::uint32_t>(error.code().value())));
             return result;
         }
-        catch (...)
+        catch(...)
         {
             setFailure(Types::InfrastructureError::PlatformFailure);
             return result;
         }
+
 #else
         (void)options;
         result.status.error = Types::InfrastructureError::Unsupported;

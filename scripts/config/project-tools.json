@@ -187,27 +187,6 @@
       "references": []
     },
     {
-      "id": "python-native",
-      "name": "Python (Native Windows)",
-      "category": "runtime",
-      "provider": {
-        "kind": "winget",
-        "package": "Python.Python.3.14"
-      },
-      "versionPolicy": "managed",
-      "detection": {
-        "command": "py",
-        "versionArguments": ["-3.14", "--version"],
-        "versionPattern": "Python ([0-9.]+)"
-      },
-      "capabilities": {
-        "detectInstalled": true,
-        "checkLatest": true,
-        "update": true
-      },
-      "references": []
-    },
-    {
       "id": "node",
       "name": "Node.js",
       "category": "runtime",
@@ -376,10 +355,11 @@
       "name": "Ruff",
       "category": "quality",
       "provider": {
-        "kind": "python",
-        "package": "ruff"
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-ruff"
       },
-      "versionPolicy": "exact",
+      "versionPolicy": "minimum",
       "requiredVersion": "0.17.1",
       "detection": {
         "command": "ruff",
@@ -395,7 +375,7 @@
         {
           "path": "docs/doxygen/project_contracts.md",
           "kind": "text",
-          "pattern": "| Ruff | {version} | Python |",
+          "pattern": "| Ruff | {version} | MSYS2 |",
           "expectedCount": 1
         }
       ]
@@ -482,10 +462,11 @@
       "name": "jsonschema",
       "category": "quality",
       "provider": {
-        "kind": "python",
-        "package": "jsonschema"
+        "kind": "msys2",
+        "environment": "ucrt64",
+        "package": "mingw-w64-ucrt-x86_64-python-jsonschema"
       },
-      "versionPolicy": "exact",
+      "versionPolicy": "minimum",
       "requiredVersion": "4.26.0",
       "detection": {
         "command": "python",
@@ -501,7 +482,7 @@
         {
           "path": "docs/doxygen/project_contracts.md",
           "kind": "text",
-          "pattern": "| jsonschema | {version} | Python |",
+          "pattern": "| jsonschema | {version} | MSYS2 |",
           "expectedCount": 1
         }
       ]

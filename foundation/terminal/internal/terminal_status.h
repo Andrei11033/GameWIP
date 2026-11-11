@@ -17,19 +17,19 @@ namespace GameWIP::Terminal::Detail
         {
             throw;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
         }
-        catch (const std::format_error &)
+        catch(const std::format_error &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
         }

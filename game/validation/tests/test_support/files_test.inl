@@ -1,5 +1,5 @@
 /// @file files_test.inl
-/// @brief Private TestSupport correctness cases grouped by behavioral responsibility.
+/// @brief Private TestSupport file and scoped-resource tests.
 
 /// @brief Verifies text helpers and scoped temporary/current-directory lifetime behavior.
 void testFileHelpers(TestSupport::Context &context, const std::filesystem::path &root)

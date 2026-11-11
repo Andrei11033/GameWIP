@@ -24,17 +24,17 @@ namespace
         std::vector<std::byte> payload(payloadSize, std::byte{0x5a});
         std::vector<std::byte> scratch(static_cast<std::size_t>(kSmallPayloadBytes));
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             IO::MemoryReader reader(payload);
             std::size_t totalRead = 0;
 
-            while (totalRead < payload.size())
+            while(totalRead < payload.size())
             {
                 IO::Types::ReadResult result = reader.read(std::span<std::byte>{scratch});
 
-                if (!result.status.ok() || result.bytesRead == 0)
+                if(!result.status.ok() || result.bytesRead == 0)
                 {
                     state.SkipWithError("MemoryReader benchmark read failed.");
                     return;
@@ -54,19 +54,19 @@ namespace
         std::vector<std::byte> payload(payloadSize, std::byte{0xa5});
         IO::MemoryWriter writer;
 
-        if (!writer.reserve(payloadSize).ok())
+        if(!writer.reserve(payloadSize).ok())
         {
             state.SkipWithError("MemoryWriter benchmark reserve failed.");
             return;
         }
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             writer.clear();
             IO::Types::WriteResult result = writer.write(payload);
 
-            if (!result.status.ok() || result.bytesWritten != payload.size())
+            if(!result.status.ok() || result.bytesWritten != payload.size())
             {
                 state.SkipWithError("MemoryWriter benchmark write failed.");
                 return;
@@ -83,13 +83,13 @@ namespace
         const auto payloadSize = static_cast<std::size_t>(state.range(0));
         std::vector<std::byte> payload(payloadSize, std::byte{0x3c});
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             IO::MemoryReader reader(payload);
             IO::Types::ReadAllBytesResult result = IO::readAllBytes(reader, payloadSize);
 
-            if (!result.status.ok() || result.bytes.size() != payload.size())
+            if(!result.status.ok() || result.bytes.size() != payload.size())
             {
                 state.SkipWithError("IO known-size read-all benchmark failed.");
                 return;

@@ -21,7 +21,7 @@ namespace
     {
         bool condition = passingCondition(state);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             benchmark::DoNotOptimize(condition);
@@ -34,7 +34,7 @@ namespace
     {
         bool condition = passingCondition(state);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             benchmark::DoNotOptimize(condition);
@@ -47,7 +47,7 @@ namespace
     {
         bool condition = passingCondition(state);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             benchmark::DoNotOptimize(condition);
@@ -60,7 +60,7 @@ namespace
     {
         bool condition = passingCondition(state);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             benchmark::DoNotOptimize(condition);
@@ -73,7 +73,7 @@ namespace
     {
         bool condition = passingCondition(state);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             benchmark::DoNotOptimize(condition);
@@ -86,7 +86,7 @@ namespace
     {
         bool condition = passingCondition(state);
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             benchmark::DoNotOptimize(condition);

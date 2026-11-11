@@ -14,7 +14,6 @@
 #include <array>
 #include <cstddef>
 #include <format>
-#include <iostream>
 #include <initializer_list>
 #include <limits>
 #include <span>
@@ -38,7 +37,7 @@ namespace
         std::vector<std::byte> bytes;
         bytes.reserve(values.size());
 
-        for (const unsigned int value : values)
+        for(const unsigned int value : values)
         {
             bytes.push_back(static_cast<std::byte>(value));
         }
@@ -52,7 +51,7 @@ namespace
         std::string bytes;
         bytes.reserve(values.size());
 
-        for (const unsigned int value : values)
+        for(const unsigned int value : values)
         {
             bytes.push_back(static_cast<char>(value));
         }
@@ -103,16 +102,15 @@ namespace
         /// @brief Copies at most maxChunkSize_ bytes and applies configured final-read EOF reporting.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
-            if (destination.empty())
+            if(destination.empty())
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
             }
 
-            if (position_ >= bytes_.size())
+            if(position_ >= bytes_.size())
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t remaining = bytes_.size() - position_;
             const std::size_t count = std::min(destination.size(), std::min(maxChunkSize_, remaining));
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
@@ -141,11 +139,10 @@ namespace
         /// @brief Reads remaining backing bytes from the internal position.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
-            if (position_ >= bytes_.size())
+            if(position_ >= bytes_.size())
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -176,11 +173,10 @@ namespace
         /// @brief Reads available backing bytes independently from the configured reported size.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
-            if (position_ >= bytes_.size())
+            if(position_ >= bytes_.size())
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -334,11 +330,10 @@ namespace
         /// @brief Reads all available backing bytes and reports EOF when exhausted.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
-            if (position_ >= bytes_.size())
+            if(position_ >= bytes_.size())
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -369,11 +364,10 @@ namespace
         /// @brief Returns backing bytes, then fails the next probe read.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
-            if (position_ >= bytes_.size())
+            if(position_ >= bytes_.size())
             {
                 return {.status = IO::makeStatus(ErrorCode::PermissionDenied), .bytesRead = 0, .endOfStream = false};
             }
-
             const std::size_t count = std::min(destination.size(), bytes_.size() - position_);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
             position_ += count;
@@ -410,24 +404,23 @@ namespace
         /// @brief Returns configured prefix progress, then the configured read failure.
         [[nodiscard]] IO::Types::ReadResult read(std::span<std::byte> destination) noexcept override
         {
-            if (destination.empty())
+            if(destination.empty())
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
             }
 
-            if (position_ >= bytes_.size())
+            if(position_ >= bytes_.size())
             {
                 return {.status = {}, .bytesRead = 0, .endOfStream = true};
             }
 
-            if (position_ >= failAfterBytes_)
+            if(position_ >= failAfterBytes_)
             {
                 const std::size_t count = std::min<std::size_t>(destination.size(), 1);
                 std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
                 position_ += count;
                 return {.status = IO::makeStatus(failureCode_), .bytesRead = count, .endOfStream = false};
             }
-
             const std::size_t remainingBeforeFailure = failAfterBytes_ - position_;
             const std::size_t count = std::min(destination.size(), remainingBeforeFailure);
             std::ranges::copy(bytes_.subspan(position_, count), destination.begin());
@@ -469,16 +462,15 @@ namespace
         {
             ++writeCalls_;
 
-            if (bytes.empty())
+            if(bytes.empty())
             {
                 return {.status = {}, .bytesWritten = 0};
             }
 
-            if (maxChunkSize_ == 0)
+            if(maxChunkSize_ == 0)
             {
                 return {.status = {}, .bytesWritten = 0};
             }
-
             const std::size_t count = std::min(maxChunkSize_, bytes.size());
             const std::span<const std::byte> accepted = bytes.first(count);
             bytes_.insert(bytes_.end(), accepted.begin(), accepted.end());

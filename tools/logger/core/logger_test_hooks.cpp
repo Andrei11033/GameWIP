@@ -47,11 +47,10 @@ namespace GameWIP::Logger::Detail::Core
 
     void pauseWorkerBeforeDeliveryForTest() noexcept
     {
-        if (!consumeTestHook(loggerTestHookState.pauseBeforeWorkerDelivery))
+        if(!consumeTestHook(loggerTestHookState.pauseBeforeWorkerDelivery))
         {
             return;
         }
-
         publishHookMilestone(loggerTestHookState.workerDeliveryReached);
         waitForHookMilestone(loggerTestHookState.releaseWorkerDelivery);
     }

@@ -52,11 +52,13 @@ body:
       placeholder: Describe the user, game, developer, or workflow problem.
     validations:
       required: true
+
   - type: textarea
     id: why
     attributes:
       label: Why now? (optional)
       description: If timing affects prioritization, why does this belong in the project now?
+
   - type: textarea
     id: goal
     attributes:
@@ -71,6 +73,7 @@ body:
     attributes:
       label: Constraints and requirements
       description: What existing contracts, platform limits, or scope boundaries must this respect?
+
   - type: textarea
     id: proposal
     attributes:
@@ -82,6 +85,7 @@ body:
     attributes:
       label: Options considered
       description: Note credible alternatives and why they are less suitable.
+
   - type: textarea
     id: acceptance
     attributes:

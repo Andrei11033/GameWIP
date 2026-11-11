@@ -22,7 +22,6 @@ function Get-GameWipPowerShellGalleryVersions
     $feed = [xml]$response.Value.Content
     return @(
         $feed.SelectNodes("//*[local-name()='entry']") |
-
             ForEach-Object { [string]$_.SelectSingleNode(".//*[local-name()='Version']").InnerText } |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
             Sort-Object { [version]$_ } -Descending -Unique
@@ -52,6 +51,7 @@ function Install-GameWipPowerShellGalleryTool
     {
         throw "PowerShell Gallery tool '$($Tool.id)' requires a version."
     }
+
     $root = Join-Path ((Get-GameWipManagedToolRoot)) 'powershell'
     $destination = Join-Path $root "$($Tool.provider.package)\$Version"
     $manifestName = "$($Tool.provider.package).psd1"
@@ -61,6 +61,7 @@ function Install-GameWipPowerShellGalleryTool
     {
         return
     }
+
     $archive = Join-Path $Script:OperationContext.Temp "$($Tool.provider.package).$Version.nupkg"
     $download = Invoke-GameWipDownload -Uri "https://www.powershellgallery.com/api/v2/package/$($Tool.provider.package)/$Version" -OutFile $archive -Label "$($Tool.provider.package) $Version"
 
@@ -68,6 +69,7 @@ function Install-GameWipPowerShellGalleryTool
     {
         throw "PowerShell Gallery download failed: $($download.Reason)"
     }
+
     $destinationParent = Split-Path -Parent $destination
     $staging = Join-Path $Script:OperationContext.Temp ('.{0}.{1}.{2}.incoming' -f $Tool.provider.package, $Version, [guid]::NewGuid().ToString('N'))
     $incoming = $null
@@ -84,6 +86,7 @@ function Install-GameWipPowerShellGalleryTool
         {
             throw "PowerShell Gallery package '$($Tool.provider.package) $Version' did not contain the expected module manifest '$manifestName'."
         }
+
         Initialize-GameWipManagedToolRoot
 
         if (-not (Test-Path -LiteralPath $destinationParent -PathType Container))

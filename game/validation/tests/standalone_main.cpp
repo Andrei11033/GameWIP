@@ -22,7 +22,7 @@ namespace
     /// @brief Returns whether the standalone runner was invoked only for help.
     [[nodiscard]] bool requestsHelp(GameWIP::Validation::ProcessArguments arguments) noexcept
     {
-        if (arguments.size() != 2 || arguments[1] == nullptr)
+        if(arguments.size() != 2 || arguments[1] == nullptr)
         {
             return false;
         }
@@ -49,13 +49,13 @@ namespace
         std::puts("Registered modules:");
         std::vector<std::string_view> moduleNames;
 
-        for (const GameWIP::Validation::Tests::Module &module : GameWIP::Validation::Tests::registeredModules())
+        for(const GameWIP::Validation::Tests::Module &module : GameWIP::Validation::Tests::registeredModules())
         {
             moduleNames.push_back(module.name);
         }
         std::ranges::sort(moduleNames);
 
-        for (const std::string_view moduleName : moduleNames)
+        for(const std::string_view moduleName : moduleNames)
         {
             std::printf("  %.*s\n", static_cast<int>(moduleName.size()), moduleName.data());
         }
@@ -69,22 +69,22 @@ namespace
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
         std::string_view targetArgument;
 
-        for (char *argument : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *argument : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (argument == nullptr || std::string_view{argument}.starts_with('-'))
+            if(argument == nullptr || std::string_view{argument}.starts_with('-'))
             {
                 continue;
             }
             const std::string_view candidate{argument};
 
-            if (candidate.rfind(".gamewip-validation-") != std::string_view::npos)
+            if(candidate.rfind(".gamewip-validation-") != std::string_view::npos)
             {
                 targetArgument = candidate;
                 break;
             }
         }
 
-        if (targetArgument.empty())
+        if(targetArgument.empty())
         {
             return std::nullopt;
         }
@@ -92,7 +92,7 @@ namespace
         const std::filesystem::path receipt = targetPath.parent_path() / ".gamewip-generic-launch-receipt.txt";
         std::ofstream output(receipt, std::ios::binary | std::ios::trunc);
 
-        if (!output)
+        if(!output)
         {
             return 3;
         }
@@ -103,20 +103,21 @@ namespace
 
 int main(int argc, char **argv)
 {
-    if (const std::optional<int> genericShellLaunch = runGenericShellLaunchProbe(argc, argv); genericShellLaunch.has_value())
+    if(const std::optional<int> genericShellLaunch = runGenericShellLaunchProbe(argc, argv); genericShellLaunch.has_value())
     {
         return *genericShellLaunch;
     }
 
-    if (requestsHelp(GameWIP::Validation::processArguments(argc, argv)))
+    if(requestsHelp(GameWIP::Validation::processArguments(argc, argv)))
     {
         printHelp();
         return EXIT_SUCCESS;
     }
+
     const GameWIP::Validation::TestResult result = GameWIP::Validation::Tests::run(argc, argv);
     // Routed child invocations preserve the module-owned protocol exit code;
     // normal aggregate runs expose only process success or failure.
-    if (result.handledChildInvocation)
+    if(result.handledChildInvocation)
     {
         return result.exitCode;
     }

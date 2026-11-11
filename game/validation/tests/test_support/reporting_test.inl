@@ -1,5 +1,5 @@
 /// @file reporting_test.inl
-/// @brief Private TestSupport correctness cases grouped by behavioral responsibility.
+/// @brief Private TestSupport reporting and expectation tests.
 
 /// @brief Verifies summary arithmetic, result predicates, defaults, and timer units.
 void testSummaryAndTimer(TestSupport::Context &context)
@@ -9,6 +9,7 @@ void testSummaryAndTimer(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ReportOptions default report", defaultOptions.writeReport));
     static_cast<void>(context.expectFalse("ReportOptions default append", defaultOptions.appendReport));
     static_cast<void>(context.expectFalse("ReportOptions default per-line flush", defaultOptions.flushReportEachLine));
+    static_cast<void>(context.expectTrue("ReportOptions default console writer is unset", defaultOptions.consoleWriter == nullptr));
     static_cast<void>(context.expectEq(
         "ReportOptions default console verbosity",
         TestSupport::Types::Reporting::ConsoleVerbosity::Full,
@@ -159,6 +160,42 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectTrue("Console-only path inspection succeeds", consoleOnlyExists.status.ok()));
     static_cast<void>(context.expectFalse("Console-only report writes no file", consoleOnlyExists.value));
 
+    const std::filesystem::path customConsolePath = root / "custom_console_report.txt";
+    TestSupport::Types::Reporting::Options customConsoleOptions = quietReport(customConsolePath);
+    customConsoleOptions.writeConsole = true;
+    customConsoleOptions.consoleWriter = &captureConsoleWriter;
+    g_consoleWriterCategory.clear();
+    g_consoleWriterLine.clear();
+    {
+        TestSupport::Context customConsole("ConsoleWriter", customConsoleOptions);
+        customConsole.pass("custom output");
+        static_cast<void>(customConsole.finalize());
+    }
+    static_cast<void>(context.expectEq("Custom console writer receives the report category", std::string("PASS"), g_consoleWriterCategory));
+    static_cast<void>(context.expectEq(
+        "Custom console writer receives the plain report line",
+        std::string("[PASS] [ConsoleWriter] custom output"),
+        g_consoleWriterLine));
+    const TestSupport::Types::TextResult customConsoleReport = TestSupport::readTextFile(customConsolePath);
+    static_cast<void>(context.expectTrue("Custom console report file read succeeds", customConsoleReport.status.ok()));
+    static_cast<void>(context.expectContains("Report file remains unstyled", customConsoleReport.text, "[PASS] [ConsoleWriter] custom output"));
+    static_cast<void>(context.expectFalse("Report file contains no terminal escape", customConsoleReport.text.contains('\x1b')));
+
+    TestSupport::Types::Reporting::Options failedConsoleOptions;
+    failedConsoleOptions.writeReport = false;
+    failedConsoleOptions.consoleWriter = &failConsoleWriter;
+    std::string failedConsoleOutput;
+    std::string failedConsoleError;
+    {
+        ScopedPromptStreams captured("");
+        TestSupport::Context failedConsole("FailedConsoleWriter", failedConsoleOptions);
+        failedConsole.pass("not duplicated");
+        failedConsoleOutput = captured.output.str();
+        failedConsoleError = captured.error.str();
+    }
+    static_cast<void>(context.expectFalse("Failed custom console writer does not duplicate output", failedConsoleOutput.contains("not duplicated")));
+    static_cast<void>(context.expectContains("Failed custom console writer is diagnosed", failedConsoleError, "[TEST OUTPUT] console writer failed"));
+
     const std::filesystem::path appendPath = root / "append_report.txt";
     TestSupport::Types::Reporting::Options firstOptions = quietReport(appendPath);
     firstOptions.appendReport = false;
@@ -281,6 +318,7 @@ void testPromptManualCheck(TestSupport::Context &context)
         promptWithInput("maybe\nYes\n") == TestSupport::Types::Reporting::ManualAnswer::Yes));
     static_cast<void>(
         context.expectTrue("promptManualCheck returns skipped on EOF", promptWithInput("") == TestSupport::Types::Reporting::ManualAnswer::Skipped));
+
     const auto promptReason = [&](std::string_view input, std::string_view expected)
     {
         ScopedPromptStreams streams(input);
@@ -305,25 +343,24 @@ void recordExpectedManualAnswer(
 {
     const TestSupport::Types::Reporting::ManualAnswer answer = TestSupport::promptManualCheck(question);
 
-    if (answer == expectedAnswer)
+    if(answer == expectedAnswer)
     {
         context.pass(name);
         return;
     }
 
-    if (answer == TestSupport::Types::Reporting::ManualAnswer::Skipped)
+    if(answer == TestSupport::Types::Reporting::ManualAnswer::Skipped)
     {
         context.skip(name, "manual check skipped by user");
         return;
     }
-
     context.fail(name, "manual answer did not match the requested response");
 }
 
 /// @brief Runs gated human prompt checks or records their disabled skip.
 void testManualPromptChecks(TestSupport::Context &context, const TestSupportTestOptions &options)
 {
-    if (!options.enableManualTests)
+    if(!options.enableManualTests)
     {
         context.skip("TestSupport manual prompt checks", "disabled by TestSupportTestOptions");
         return;

@@ -28,7 +28,7 @@ void testFixedEventQueue(TestSupport::Context &context)
     const auto *scale = scaleEvent.getIf<Desktop::Types::Events::ContentScaleChanged>();
     static_cast<void>(context.expectTrue("coalesced scale event has scale payload", scale != nullptr));
 
-    if (scale != nullptr)
+    if(scale != nullptr)
     {
         static_cast<void>(
             context.expectEq("coalesced scale keeps earliest predecessor", Desktop::Types::ContentScale{1.0F, 1.0F}, scale->previousScale));
@@ -64,7 +64,7 @@ void testFixedEventQueue(TestSupport::Context &context)
     const auto *moved = second.getIf<Desktop::Types::Events::ClientPositionChanged>();
     static_cast<void>(context.expectTrue("post-barrier movement remains", moved != nullptr));
 
-    if (moved != nullptr)
+    if(moved != nullptr)
     {
         static_cast<void>(context.expectEq("coalesced movement keeps latest payload", Desktop::Types::ScreenPosition{5, 6}, moved->position));
     }
@@ -107,7 +107,7 @@ void testStickyClose(TestSupport::Context &context)
     const auto *close = event.getIf<Desktop::Types::Events::CloseRequested>();
     static_cast<void>(context.expectTrue("typed close payload remains", close != nullptr));
 
-    if (close != nullptr)
+    if(close != nullptr)
     {
         static_cast<void>(context.expectEq("first close source wins", Desktop::Types::Events::CloseRequestSource::User, close->source));
     }
@@ -127,20 +127,18 @@ void testNativeEventTranslation(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("native event fixture opens", window.open(description, Desktop::Events::owned(64)).ok()));
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
-
     const auto handle = Desktop::Native::Win32::getHandle(window);
     static_cast<void>(context.expectTrue("native event fixture exposes HWND", handle.status.ok() && handle->window != nullptr));
 
-    if (!handle.status.ok() || handle->window == nullptr)
+    if(!handle.status.ok() || handle->window == nullptr)
     {
         static_cast<void>(window.close());
         return;
     }
-
     window.clearEvents();
     static_cast<void>(window.setClientSize({300, 210}));
     static_cast<void>(context.expectTrue(
@@ -235,12 +233,12 @@ void testNativeEventTranslation(TestSupport::Context &context)
     HGLOBAL dropMemory = GlobalAlloc(GHND, dropBytes);
     static_cast<void>(context.expectTrue("synthetic drop payload allocates", dropMemory != nullptr));
 
-    if (dropMemory != nullptr)
+    if(dropMemory != nullptr)
     {
         auto *drop = static_cast<DROPFILES *>(GlobalLock(dropMemory));
         static_cast<void>(context.expectTrue("synthetic drop payload locks", drop != nullptr));
 
-        if (drop != nullptr)
+        if(drop != nullptr)
         {
             drop->pFiles = sizeof(DROPFILES);
             drop->pt = {4, 6};
@@ -264,7 +262,7 @@ void testNativeEventTranslation(TestSupport::Context &context)
                 context.expectTrue("WM_DROPFILES translates to FilesDroppedEvent", consumeEventOfType<Desktop::Types::Events::FilesDropped>(window)));
         }
 
-        if (dropMemory != nullptr)
+        if(dropMemory != nullptr)
         {
             static_cast<void>(GlobalFree(dropMemory));
         }

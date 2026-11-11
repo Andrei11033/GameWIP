@@ -16,10 +16,11 @@ namespace GameWIP::Desktop::Detail
         /// @brief Removes one queued event while preserving FIFO order.
         void removeAt(ChildSurfaceState &state, std::size_t index) noexcept
         {
-            for (std::size_t current = index; current + 1 < state.eventCount; ++current)
+            for(std::size_t current = index; current + 1 < state.eventCount; ++current)
             {
                 state.eventStorage[physicalIndex(state, current)] = state.eventStorage[physicalIndex(state, current + 1)];
             }
+
             state.eventStorage[physicalIndex(state, state.eventCount - 1)] = {};
             --state.eventCount;
         }
@@ -45,7 +46,7 @@ namespace GameWIP::Desktop::Detail
         }
     } // namespace
 
-    /// @brief Returns whether a ChildSurface payload may replace a newer payload of the same type.
+    /// @brief Returns whether a ChildSurface payload may be replaced by a newer payload of the same type.
     bool isChildSurfaceEventCoalescible(const Types::ChildSurface::Events::Payload &data) noexcept
     {
         using namespace Types::ChildSurface::Events;
@@ -56,35 +57,35 @@ namespace GameWIP::Desktop::Detail
     /// @brief Enqueues a ChildSurface event, coalescing geometry bursts before dropping durable events.
     ChildSurfaceEnqueueResult enqueueChildSurfaceEvent(ChildSurfaceState &state, Types::ChildSurface::Events::Payload data) noexcept
     {
-        if (state.suppressEvents)
+        if(state.suppressEvents)
         {
             return ChildSurfaceEnqueueResult::Coalesced;
         }
 
-        if (state.eventStorage.empty())
+        if(state.eventStorage.empty())
         {
             ++state.droppedEvents;
             return ChildSurfaceEnqueueResult::Dropped;
         }
 
-        if (isChildSurfaceEventCoalescible(data))
+        if(isChildSurfaceEventCoalescible(data))
         {
-            for (std::size_t offset = state.eventCount; offset > 0; --offset)
+            for(std::size_t offset = state.eventCount; offset > 0; --offset)
             {
                 auto &queued = state.eventStorage[physicalIndex(state, offset - 1)];
 
-                if (!isChildSurfaceEventCoalescible(queued.data))
+                if(!isChildSurfaceEventCoalescible(queued.data))
                 {
                     break;
                 }
 
-                if (queued.data.index() == data.index())
+                if(queued.data.index() == data.index())
                 {
-                    if (auto *queuedScale = std::get_if<Types::ChildSurface::Events::ContentScaleChanged>(&queued.data))
+                    if(auto *queuedScale = std::get_if<Types::ChildSurface::Events::ContentScaleChanged>(&queued.data))
                     {
                         const auto &latestScale = std::get<Types::ChildSurface::Events::ContentScaleChanged>(data);
 
-                        if (mergeContentScaleChanged(*queuedScale, latestScale))
+                        if(mergeContentScaleChanged(*queuedScale, latestScale))
                         {
                             removeAt(state, offset - 1);
                         }
@@ -97,25 +98,25 @@ namespace GameWIP::Desktop::Detail
             }
         }
 
-        if (state.eventCount == state.eventStorage.size())
+        if(state.eventCount == state.eventStorage.size())
         {
             std::size_t replaceIndex = state.eventCount;
 
-            for (std::size_t index = 0; index < state.eventCount; ++index)
+            for(std::size_t index = 0; index < state.eventCount; ++index)
             {
-                if (isChildSurfaceEventCoalescible(state.eventStorage[physicalIndex(state, index)].data))
+                if(isChildSurfaceEventCoalescible(state.eventStorage[physicalIndex(state, index)].data))
                 {
                     replaceIndex = index;
                     break;
                 }
             }
 
-            if (replaceIndex == state.eventCount && std::holds_alternative<Types::ChildSurface::Events::NativeDestroyed>(data))
+            if(replaceIndex == state.eventCount && std::holds_alternative<Types::ChildSurface::Events::NativeDestroyed>(data))
             {
                 replaceIndex = 0;
             }
 
-            if (replaceIndex == state.eventCount)
+            if(replaceIndex == state.eventCount)
             {
                 ++state.droppedEvents;
                 return ChildSurfaceEnqueueResult::Dropped;

@@ -1,5 +1,5 @@
 /// @file output_test.inl
-/// @brief Logger normal output and UTF-8 truncation correctness suites.
+/// @brief Logger output and UTF-8 truncation tests.
 
 void testFileLoggingAndUtf8Truncation(TestContext &context)
 {

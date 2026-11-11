@@ -61,6 +61,7 @@ int main()
     const auto shutdown = GameWIP::Logger::shutdown();
     return shutdown.ok() ? 0 : 3;
 }
+
 ```
 
 Normal log calls are filterable and asynchronous. `flush()` drains accepted

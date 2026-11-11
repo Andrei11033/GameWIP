@@ -78,7 +78,6 @@ def generic_text_failures(path: Path, allow_trailing: bool) -> list[str]:
 
 
 def owner_syntax_failures(path: Path, policy_id: str) -> list[str]:
-
     try:
         text = path.read_text(encoding="utf-8")
 

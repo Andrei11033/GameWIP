@@ -37,7 +37,18 @@ PointerAlignment: Right
 ReferenceAlignment: Pointer
 DerivePointerAlignment: false
 
-SpaceBeforeParens: ControlStatements
+SpaceBeforeParens: Custom
+
+SpaceBeforeParensOptions:
+  AfterControlStatements: false
+  AfterForeachMacros: true
+  AfterFunctionDefinitionName: false
+  AfterFunctionDeclarationName: false
+  AfterIfMacros: true
+  AfterNot: false
+  AfterOverloadedOperator: false
+  BeforeNonEmptyParentheses: false
+
 SpaceBeforeCpp11BracedList: false
 Cpp11BracedListStyle: true
 SpacesInAngles: Never

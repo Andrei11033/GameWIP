@@ -22,6 +22,7 @@ namespace GameWIP::Desktop::Detail::Platform
         constexpr double kNoScroll = -1.0;
         // Selection2=10034 in Microsoft's UIAutomation IDL; older MinGW SDKs omit the named constant.
         constexpr PATTERNID kSelection2PatternId = 10034;
+
         // ------------------------------------------------------------
         // Geometry and native semantic mapping
         // ------------------------------------------------------------
@@ -44,7 +45,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::array ys{r.y, r.y, r.y + r.height, r.y + r.height};
             double left = std::numeric_limits<double>::max(), top = left, right = -left, bottom = -left;
 
-            for (unsigned i = 0; i < 4; ++i)
+            for(unsigned i = 0; i < 4; ++i)
             {
                 const double x = t.m11 * xs[i] + t.m21 * ys[i] + t.tx, y = t.m12 * xs[i] + t.m22 * ys[i] + t.ty;
                 left = std::min(left, x);
@@ -58,7 +59,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         int controlType(A::Role role) noexcept
         {
-            switch (role)
+            switch(role)
             {
             case A::Role::Button:
             case A::Role::ToggleButton:
@@ -157,7 +158,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         bool patternSupported(const A::Node &n, PATTERNID id) noexcept
         {
-            switch (id)
+            switch(id)
             {
             case UIA_InvokePatternId:
                 return n.actions.contains(A::ActionKind::Invoke);
@@ -205,16 +206,17 @@ namespace GameWIP::Desktop::Detail::Platform
 
         const A::TextAnnotation *annotationFor(const UiaQuery &q, std::size_t &source, std::size_t &index) noexcept
         {
-            if (!q)
+            if(!q)
             {
                 return nullptr;
             }
+
             const auto &sources = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->annotationSources;
             const auto reference = sources[q.index];
             source = reference.first;
             index = reference.second;
 
-            if (source >= q.snapshot->storage.nodes.size())
+            if(source >= q.snapshot->storage.nodes.size())
             {
                 return nullptr;
             }
@@ -253,7 +255,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const auto hr = stringValue(value, &out->bstrVal);
 
-            if (SUCCEEDED(hr))
+            if(SUCCEEDED(hr))
             {
                 out->vt = VT_BSTR;
             }
@@ -263,9 +265,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         std::span<const A::NodeId> relation(const A::Node &node, A::RelationKind kind) noexcept
         {
-            for (const auto &r : node.relations)
+            for(const auto &r : node.relations)
             {
-                if (r.kind == kind)
+                if(r.kind == kind)
                 {
                     return r.targets;
                 }
@@ -278,13 +280,14 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const auto nodeIndex = snapshot.findIndex(node.id), ancestorIndex = snapshot.findIndex(ancestor);
 
-            if (nodeIndex >= snapshot.storage.nodes.size() || ancestorIndex >= snapshot.storage.nodes.size())
+            if(nodeIndex >= snapshot.storage.nodes.size() || ancestorIndex >= snapshot.storage.nodes.size())
             {
                 return false;
             }
             const auto &layout = static_cast<const UiaSnapshot *>(snapshot.native.get())->layout;
             return layout[nodeIndex].ordinal > layout[ancestorIndex].ordinal && layout[nodeIndex].ordinal < layout[ancestorIndex].subtreeEnd;
         }
+
         // ------------------------------------------------------------
         // Native property notifications
         // ------------------------------------------------------------
@@ -295,13 +298,13 @@ namespace GameWIP::Desktop::Detail::Platform
             PROPERTYID id,
             const std::shared_ptr<AccessibilityRuntime> &runtime) noexcept
         {
-            if (!event.before || !event.after)
+            if(!event.before || !event.after)
             {
                 return;
             }
             const auto beforeIndex = event.before->findIndex(event.notification.node), afterIndex = event.after->findIndex(event.notification.node);
 
-            if (beforeIndex >= event.before->storage.nodes.size() || afterIndex >= event.after->storage.nodes.size())
+            if(beforeIndex >= event.before->storage.nodes.size() || afterIndex >= event.after->storage.nodes.size())
             {
                 return;
             }
@@ -309,7 +312,7 @@ namespace GameWIP::Desktop::Detail::Platform
             UiaQuery after{runtime, event.after, &event.after->storage.nodes[afterIndex], afterIndex};
             AccessibilityHostGeometry host;
 
-            if (runtime->readGeometry(host))
+            if(runtime->readGeometry(host))
             {
                 before.host = after.host = host;
             }
@@ -318,27 +321,27 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto current = runtime->snapshot.load();
             const auto *currentNode = current ? current->find(after.node->id) : nullptr;
 
-            if (!currentNode)
+            if(!currentNode)
             {
                 return;
             }
 
-            if (after.node->exposure == A::Exposure::RedactContent || currentNode->exposure == A::Exposure::RedactContent)
+            if(after.node->exposure == A::Exposure::RedactContent || currentNode->exposure == A::Exposure::RedactContent)
             {
                 protectedBefore.exposure = A::Exposure::RedactContent;
             }
 
-            if (currentNode->exposure == A::Exposure::RedactContent)
+            if(currentNode->exposure == A::Exposure::RedactContent)
             {
                 protectedAfter.exposure = A::Exposure::RedactContent;
             }
 
-            if (valueHidden(*after.node) || valueHidden(*currentNode))
+            if(valueHidden(*after.node) || valueHidden(*currentNode))
             {
                 protectedBefore.states.flags |= static_cast<std::uint64_t>(A::State::Sensitive);
             }
 
-            if (valueHidden(*currentNode))
+            if(valueHidden(*currentNode))
             {
                 protectedAfter.states.flags |= static_cast<std::uint64_t>(A::State::Sensitive);
             }
@@ -346,7 +349,7 @@ namespace GameWIP::Desktop::Detail::Platform
             after.node = &protectedAfter;
             VARIANT oldValue{}, newValue{};
 
-            if (SUCCEEDED(property(before, id, &oldValue)) && SUCCEEDED(property(after, id, &newValue)))
+            if(SUCCEEDED(property(before, id, &oldValue)) && SUCCEEDED(property(after, id, &newValue)))
             {
                 static_cast<void>(UiaRaiseAutomationPropertyChangedEvent(provider, id, oldValue, newValue));
             }
@@ -361,9 +364,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
     UiaSnapshot::~UiaSnapshot()
     {
-        for (auto *provider : providers)
+        for(auto *provider : providers)
         {
-            if (provider)
+            if(provider)
             {
                 provider->Release();
             }
@@ -372,7 +375,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     UiaState::~UiaState()
     {
-        for (auto [id, provider] : providers)
+        for(auto [id, provider] : providers)
         {
             static_cast<void>(id);
             provider->Release();
@@ -384,30 +387,30 @@ namespace GameWIP::Desktop::Detail::Platform
         UiaQuery result;
         result.runtime = runtime.lock();
 
-        if (!result.runtime || !result.runtime->live.load())
+        if(!result.runtime || !result.runtime->live.load())
         {
             return result;
         }
         result.snapshot = result.runtime->snapshot.load();
 
-        if (!result.snapshot)
+        if(!result.snapshot)
         {
             return result;
         }
         result.index = result.snapshot->findIndex(id);
 
-        if (result.index < result.snapshot->storage.nodes.size())
+        if(result.index < result.snapshot->storage.nodes.size())
         {
             result.node = &result.snapshot->storage.nodes[result.index];
         }
         AccessibilityHostGeometry host;
 
-        if (result.runtime->readGeometry(host))
+        if(result.runtime->readGeometry(host))
         {
             result.host = host;
         }
 
-        if (!result.runtime->live.load())
+        if(!result.runtime->live.load())
         {
             result.node = nullptr;
         }
@@ -421,6 +424,7 @@ namespace GameWIP::Desktop::Detail::Platform
         const auto *native = static_cast<const UiaSnapshot *>(snapshot.native.get());
         return native && index < native->providers.size() ? native->providers[index] : nullptr;
     }
+
     // ------------------------------------------------------------
     // Content exposure and cached bounds
     // ------------------------------------------------------------
@@ -445,19 +449,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     UiaRect clientRect(const UiaQuery &query, A::Rect rect) noexcept
     {
-        if (!query.host || !query.host->visible)
+        if(!query.host || !query.host->visible)
         {
             return {};
         }
         const auto &host = *query.host;
         const auto &layout = static_cast<const UiaSnapshot *>(query.snapshot->native.get())->layout[query.index];
 
-        if (!layout.visible)
+        if(!layout.visible)
         {
             return {};
         }
 
-        if (layout.clip)
+        if(layout.clip)
         {
             rect = intersection(rect, *layout.clip);
         }
@@ -469,9 +473,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         auto rect = static_cast<const UiaSnapshot *>(query.snapshot->native.get())->layout[query.index].bounds;
 
-        if (query.node->id == query.snapshot->storage.root && !query.node->geometry)
+        if(query.node->id == query.snapshot->storage.root && !query.node->geometry)
         {
-            if (!query.host)
+            if(!query.host)
             {
                 return {};
             }
@@ -483,7 +487,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT stringValue(std::u16string_view text, BSTR *out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
@@ -493,25 +497,25 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT nodeArray(const PublishedSnapshot &snapshot, std::span<const A::NodeId> ids, SAFEARRAY **out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         auto *array = SafeArrayCreateVector(VT_UNKNOWN, 0, static_cast<ULONG>(ids.size()));
 
-        if (!array)
+        if(!array)
         {
             return E_OUTOFMEMORY;
         }
 
-        for (std::size_t i = 0; i < ids.size(); ++i)
+        for(std::size_t i = 0; i < ids.size(); ++i)
         {
             LONG index = static_cast<LONG>(i);
             IUnknown *provider = providerFor(snapshot, ids[i]);
             const auto hr = SafeArrayPutElement(array, &index, provider);
 
-            if (FAILED(hr))
+            if(FAILED(hr))
             {
                 SafeArrayDestroy(array);
                 return hr;
@@ -520,26 +524,28 @@ namespace GameWIP::Desktop::Detail::Platform
         *out = array;
         return S_OK;
     }
+
     // ------------------------------------------------------------
     // Native property projection
     // ------------------------------------------------------------
 
     HRESULT property(const UiaQuery &q, PROPERTYID id, VARIANT *out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         VariantInit(out);
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         const auto &n = *q.node;
         const bool redact = n.exposure == A::Exposure::RedactContent;
 
-        switch (id)
+        switch(id)
         {
         case UIA_ControlTypePropertyId:
             return integer(out, controlType(n.role));
@@ -560,13 +566,14 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto result = std::to_chars(digits.begin(), digits.end(), n.id);
             const auto length = static_cast<std::size_t>(result.ptr - digits.data());
 
-            for (std::size_t i = 0; i < length; ++i)
+            for(std::size_t i = 0; i < length; ++i)
             {
                 wide[i] = static_cast<char16_t>(digits[i]);
             }
 
             return string(out, {wide.data(), length});
         }
+
         case UIA_FrameworkIdPropertyId:
             return string(out, u"GameWIP.Desktop");
         case UIA_IsControlElementPropertyId:
@@ -580,6 +587,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return boolean(out, q.host && q.host->focused && n.states.contains(A::State::Focused));
         }
+
         case UIA_IsPasswordPropertyId:
             return boolean(out, n.states.contains(A::State::Password) || n.role == A::Role::PasswordField);
         case UIA_IsRequiredForFormPropertyId:
@@ -591,6 +599,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto bounds = nodeBounds(q);
             return boolean(out, n.states.contains(A::State::Offscreen) || bounds.width <= 0 || bounds.height <= 0);
         }
+
         case UIA_NativeWindowHandlePropertyId:
             return integer(out, n.id == q.snapshot->storage.root ? static_cast<int>(q.runtime->nativeWindow.load() & 0xFFFFFFFFU) : 0);
         case UIA_CulturePropertyId:
@@ -604,17 +613,17 @@ namespace GameWIP::Desktop::Detail::Platform
             const std::array values{r.left, r.top, r.width, r.height};
             auto *array = SafeArrayCreateVector(VT_R8, 0, 4);
 
-            if (!array)
+            if(!array)
             {
                 return E_OUTOFMEMORY;
             }
 
-            for (LONG i = 0; i < 4; ++i)
+            for(LONG i = 0; i < 4; ++i)
             {
                 double value = values[static_cast<std::size_t>(i)];
                 const auto hr = SafeArrayPutElement(array, &i, &value);
 
-                if (FAILED(hr))
+                if(FAILED(hr))
                 {
                     SafeArrayDestroy(array);
                     return hr;
@@ -624,37 +633,38 @@ namespace GameWIP::Desktop::Detail::Platform
             out->parray = array;
             return S_OK;
         }
+
         case UIA_ValueValuePropertyId:
             return string(out, valueHidden(n) ? std::u16string_view{} : q.text().value);
         case UIA_ValueIsReadOnlyPropertyId:
         case UIA_RangeValueIsReadOnlyPropertyId:
             return boolean(out, contentReadOnly(n));
         case UIA_RangeValueValuePropertyId:
-            if (n.rangeValue && !valueHidden(n))
+            if(n.rangeValue && !valueHidden(n))
             {
                 return number(out, n.rangeValue->value);
             }
             break;
         case UIA_RangeValueMinimumPropertyId:
-            if (n.rangeValue && !valueHidden(n))
+            if(n.rangeValue && !valueHidden(n))
             {
                 return number(out, n.rangeValue->minimum);
             }
             break;
         case UIA_RangeValueMaximumPropertyId:
-            if (n.rangeValue && !valueHidden(n))
+            if(n.rangeValue && !valueHidden(n))
             {
                 return number(out, n.rangeValue->maximum);
             }
             break;
         case UIA_RangeValueSmallChangePropertyId:
-            if (n.rangeValue && !valueHidden(n))
+            if(n.rangeValue && !valueHidden(n))
             {
                 return number(out, n.rangeValue->smallChange);
             }
             break;
         case UIA_RangeValueLargeChangePropertyId:
-            if (n.rangeValue && !valueHidden(n))
+            if(n.rangeValue && !valueHidden(n))
             {
                 return number(out, n.rangeValue->largeChange);
             }
@@ -674,23 +684,23 @@ namespace GameWIP::Desktop::Detail::Platform
         case UIA_SelectionItemIsSelectedPropertyId:
             return boolean(out, n.states.contains(A::State::Selected));
         case UIA_SelectionCanSelectMultiplePropertyId:
-            if (n.selection)
+            if(n.selection)
             {
                 return boolean(out, n.selection->multiSelectable);
             }
             break;
         case UIA_SelectionIsSelectionRequiredPropertyId:
-            if (n.selection)
+            if(n.selection)
             {
                 return boolean(out, n.selection->selectionRequired);
             }
             break;
         case UIA_SelectionSelectionPropertyId:
-            if (n.selection)
+            if(n.selection)
             {
                 const auto hr = nodeArray(*q.snapshot, n.selection->selectedNodes, &out->parray);
 
-                if (SUCCEEDED(hr))
+                if(SUCCEEDED(hr))
                 {
                     out->vt = VT_ARRAY | VT_UNKNOWN;
                 }
@@ -705,7 +715,7 @@ namespace GameWIP::Desktop::Detail::Platform
             out->punkVal =
                 providerFor(*q.snapshot, id == UIA_SelectionItemSelectionContainerPropertyId ? layout.selectionContainer : layout.containingGrid);
 
-            if (out->punkVal)
+            if(out->punkVal)
             {
                 out->punkVal->AddRef();
             }
@@ -713,7 +723,7 @@ namespace GameWIP::Desktop::Detail::Platform
             break;
         }
         case UIA_Selection2ItemCountPropertyId:
-            if (n.selection)
+            if(n.selection)
             {
                 return integer(out, static_cast<int>(n.selection->selectedNodes.size()));
             }
@@ -721,18 +731,18 @@ namespace GameWIP::Desktop::Detail::Platform
         case UIA_Selection2FirstSelectedItemPropertyId:
         case UIA_Selection2LastSelectedItemPropertyId:
         case UIA_Selection2CurrentSelectedItemPropertyId:
-            if (n.selection)
+            if(n.selection)
             {
                 A::NodeId selected = n.selection->activeNode;
 
-                if (id != UIA_Selection2CurrentSelectedItemPropertyId && !n.selection->selectedNodes.empty())
+                if(id != UIA_Selection2CurrentSelectedItemPropertyId && !n.selection->selectedNodes.empty())
                 {
                     selected =
                         id == UIA_Selection2FirstSelectedItemPropertyId ? n.selection->selectedNodes.front() : n.selection->selectedNodes.back();
                 }
                 out->punkVal = providerFor(*q.snapshot, selected);
 
-                if (out->punkVal)
+                if(out->punkVal)
                 {
                     out->punkVal->AddRef();
                 }
@@ -740,43 +750,43 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             break;
         case UIA_ScrollHorizontalScrollPercentPropertyId:
-            if (n.scroll)
+            if(n.scroll)
             {
                 return number(out, n.scroll->horizontalScrollable ? n.scroll->horizontalPercent : kNoScroll);
             }
             break;
         case UIA_ScrollVerticalScrollPercentPropertyId:
-            if (n.scroll)
+            if(n.scroll)
             {
                 return number(out, n.scroll->verticalScrollable ? n.scroll->verticalPercent : kNoScroll);
             }
             break;
         case UIA_ScrollHorizontalViewSizePropertyId:
-            if (n.scroll)
+            if(n.scroll)
             {
                 return number(out, n.scroll->horizontalViewSize);
             }
             break;
         case UIA_ScrollVerticalViewSizePropertyId:
-            if (n.scroll)
+            if(n.scroll)
             {
                 return number(out, n.scroll->verticalViewSize);
             }
             break;
         case UIA_ScrollHorizontallyScrollablePropertyId:
-            if (n.scroll)
+            if(n.scroll)
             {
                 return boolean(out, n.scroll->horizontalScrollable);
             }
             break;
         case UIA_ScrollVerticallyScrollablePropertyId:
-            if (n.scroll)
+            if(n.scroll)
             {
                 return boolean(out, n.scroll->verticalScrollable);
             }
             break;
         case UIA_TableRowOrColumnMajorPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, RowOrColumnMajor_RowMajor);
             }
@@ -794,63 +804,64 @@ namespace GameWIP::Desktop::Detail::Platform
                                                                                                        : A::RelationKind::ColumnHeaders),
                 &out->parray);
 
-            if (SUCCEEDED(hr))
+            if(SUCCEEDED(hr))
             {
                 out->vt = VT_ARRAY | VT_UNKNOWN;
             }
 
             return hr;
         }
+
         case UIA_PositionInSetPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->positionInSet));
             }
             break;
         case UIA_SizeOfSetPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->setSize));
             }
             break;
         case UIA_LevelPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->level));
             }
             break;
         case UIA_GridRowCountPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->rowCount));
             }
             break;
         case UIA_GridColumnCountPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->columnCount));
             }
             break;
         case UIA_GridItemRowPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->rowIndex));
             }
             break;
         case UIA_GridItemColumnPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->columnIndex));
             }
             break;
         case UIA_GridItemRowSpanPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->rowSpan));
             }
             break;
         case UIA_GridItemColumnSpanPropertyId:
-            if (n.collection)
+            if(n.collection)
             {
                 return integer(out, static_cast<int>(n.collection->columnSpan));
             }
@@ -859,11 +870,11 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const auto ids = relation(n, A::RelationKind::LabelledBy);
 
-            if (!ids.empty())
+            if(!ids.empty())
             {
                 out->punkVal = providerFor(*q.snapshot, ids.front());
 
-                if (out->punkVal)
+                if(out->punkVal)
                 {
                     out->punkVal->AddRef();
                 }
@@ -882,13 +893,14 @@ namespace GameWIP::Desktop::Detail::Platform
                                                                   : A::RelationKind::FlowsFrom;
             const auto hr = nodeArray(*q.snapshot, relation(n, kind), &out->parray);
 
-            if (SUCCEEDED(hr))
+            if(SUCCEEDED(hr))
             {
                 out->vt = VT_ARRAY | VT_UNKNOWN;
             }
 
             return hr;
         }
+
         case UIA_IsInvokePatternAvailablePropertyId:
             return boolean(out, patternSupported(n, UIA_InvokePatternId));
         case UIA_IsValuePatternAvailablePropertyId:
@@ -939,12 +951,12 @@ namespace GameWIP::Desktop::Detail::Platform
             std::size_t source = 0, annotationIndex = 0;
             const auto *annotation = annotationFor(q, source, annotationIndex);
 
-            if (!annotation)
+            if(!annotation)
             {
                 break;
             }
 
-            if (id == UIA_AnnotationAnnotationTypeIdPropertyId)
+            if(id == UIA_AnnotationAnnotationTypeIdPropertyId)
             {
                 return integer(
                     out,
@@ -953,16 +965,16 @@ namespace GameWIP::Desktop::Detail::Platform
                                                                           : AnnotationType_Unknown);
             }
 
-            if (id == UIA_AnnotationAnnotationTypeNamePropertyId)
+            if(id == UIA_AnnotationAnnotationTypeNamePropertyId)
             {
                 return string(out, q.snapshot->textCache[source].annotationValues[annotationIndex]);
             }
 
-            if (id == UIA_AnnotationTargetPropertyId)
+            if(id == UIA_AnnotationTargetPropertyId)
             {
                 out->punkVal = providerFor(*q.snapshot, q.snapshot->storage.nodes[source].id);
 
-                if (out->punkVal)
+                if(out->punkVal)
                 {
                     out->punkVal->AddRef();
                 }
@@ -972,26 +984,29 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return string(out, {});
         }
+
         default:
             break;
         }
 
         return S_OK;
     }
+
     // ------------------------------------------------------------
     // Native action transport
     // ------------------------------------------------------------
 
     HRESULT action(const UiaQuery &q, A::ActionRequest request) noexcept
     {
-        if (!q || !q.runtime->live.load())
+        if(!q || !q.runtime->live.load())
         {
             return kUnavailable;
         }
+
         request.node = q.node->id;
         request.observedGeneration = q.snapshot->storage.generation;
 
-        switch (submitAccessibilityAction(*q.runtime, std::move(request)).acceptance)
+        switch(submitAccessibilityAction(*q.runtime, std::move(request)).acceptance)
         {
         case A::ActionAcceptance::Accepted:
             return S_OK;
@@ -1029,19 +1044,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::QueryInterface(REFIID iid, void **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
 
-        if (IsEqualIID(iid, IID_IUnknown) || IsEqualIID(iid, __uuidof(IRawElementProviderSimple)))
+        if(IsEqualIID(iid, IID_IUnknown) || IsEqualIID(iid, __uuidof(IRawElementProviderSimple)))
         {
             *out = static_cast<IRawElementProviderSimple *>(this);
         }
-#define DESKTOP_UIA_INTERFACE(Type) else if (IsEqualIID(iid, __uuidof(Type))) *out = static_cast<Type *>(this)
+#define DESKTOP_UIA_INTERFACE(Type) else if(IsEqualIID(iid, __uuidof(Type))) *out = static_cast<Type *>(this)
         DESKTOP_UIA_INTERFACE(IRawElementProviderFragment);
-        else if (root_ && IsEqualIID(iid, __uuidof(IRawElementProviderFragmentRoot)))
+        else if(root_ && IsEqualIID(iid, __uuidof(IRawElementProviderFragmentRoot)))
         {
             *out = static_cast<IRawElementProviderFragmentRoot *>(this);
         }
@@ -1064,15 +1079,16 @@ namespace GameWIP::Desktop::Detail::Platform
         DESKTOP_UIA_INTERFACE(IItemContainerProvider);
         DESKTOP_UIA_INTERFACE(IAnnotationProvider);
         DESKTOP_UIA_INTERFACE(ITextChildProvider);
-        else if (IsEqualIID(iid, __uuidof(ITextProvider)) || IsEqualIID(iid, __uuidof(ITextProvider2)))
+        else if(IsEqualIID(iid, __uuidof(ITextProvider)) || IsEqualIID(iid, __uuidof(ITextProvider2)))
         {
             *out = static_cast<ITextProvider2 *>(&text_);
         }
 #undef DESKTOP_UIA_INTERFACE
-        if (!*out)
+        if(!*out)
         {
             return E_NOINTERFACE;
         }
+
         AddRef();
         return S_OK;
     }
@@ -1086,7 +1102,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto remaining = references_.fetch_sub(1) - 1;
 
-        if (remaining == 0)
+        if(remaining == 0)
         {
             delete this;
         }
@@ -1096,7 +1112,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_ProviderOptions(ProviderOptions *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
@@ -1108,24 +1124,24 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::GetPatternProvider(PATTERNID id, IUnknown **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!(id == UIA_AnnotationPatternId || id == UIA_TextChildPatternId ? annotationSupported(q) : patternSupported(*q.node, id)))
+        if(!(id == UIA_AnnotationPatternId || id == UIA_TextChildPatternId ? annotationSupported(q) : patternSupported(*q.node, id)))
         {
             return S_OK;
         }
 
-        switch (id)
+        switch(id)
         {
         case UIA_InvokePatternId:
             *out = static_cast<IInvokeProvider *>(this);
@@ -1189,7 +1205,7 @@ namespace GameWIP::Desktop::Detail::Platform
             break;
         }
 
-        if (*out)
+        if(*out)
         {
             (*out)->AddRef();
         }
@@ -1204,72 +1220,74 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_HostRawElementProvider(IRawElementProviderSimple **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
         return root_ ? UiaHostProviderFromHwnd(reinterpret_cast<HWND>(q.runtime->nativeWindow.load()), out) : S_OK;
     }
+
     // ------------------------------------------------------------
     // Fragment navigation and geometry
     // ------------------------------------------------------------
 
     HRESULT NodeProvider::Navigate(NavigateDirection direction, IRawElementProviderFragment **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         A::NodeId target = 0;
 
-        switch (direction)
+        switch(direction)
         {
         case NavigateDirection_Parent:
             target = q.node->parent;
             break;
         case NavigateDirection_FirstChild:
-            if (!q.node->children.empty())
+            if(!q.node->children.empty())
             {
                 target = q.node->children.front();
             }
             break;
         case NavigateDirection_LastChild:
-            if (!q.node->children.empty())
+            if(!q.node->children.empty())
             {
                 target = q.node->children.back();
             }
             break;
         case NavigateDirection_NextSibling:
         case NavigateDirection_PreviousSibling:
-            if (const auto *parent = q.snapshot->find(q.node->parent))
+            if(const auto *parent = q.snapshot->find(q.node->parent))
             {
                 const auto children = parent->children;
 
-                for (std::size_t i = 0; i < children.size(); ++i)
+                for(std::size_t i = 0; i < children.size(); ++i)
                 {
-                    if (children[i] == id_)
+                    if(children[i] == id_)
                     {
-                        if (direction == NavigateDirection_NextSibling && i + 1 < children.size())
+                        if(direction == NavigateDirection_NextSibling && i + 1 < children.size())
                         {
                             target = children[i + 1];
                         }
 
-                        if (direction == NavigateDirection_PreviousSibling && i != 0)
+                        if(direction == NavigateDirection_PreviousSibling && i != 0)
                         {
                             target = children[i - 1];
                         }
@@ -1287,24 +1305,25 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::GetRuntimeId(SAFEARRAY **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
 
-        if (!query())
+        if(!query())
         {
             return kUnavailable;
         }
 
-        if (root_)
+        if(root_)
         {
             return S_OK;
         }
+
         auto *array = SafeArrayCreateVector(VT_I4, 0, 3);
 
-        if (!array)
+        if(!array)
         {
             return E_OUTOFMEMORY;
         }
@@ -1313,12 +1332,12 @@ namespace GameWIP::Desktop::Detail::Platform
             std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(id_)),
             std::bit_cast<std::int32_t>(static_cast<std::uint32_t>(id_ >> 32U))};
 
-        for (LONG i = 0; i < 3; ++i)
+        for(LONG i = 0; i < 3; ++i)
         {
             LONG value = values[static_cast<std::size_t>(i)];
             const auto hr = SafeArrayPutElement(array, &i, &value);
 
-            if (FAILED(hr))
+            if(FAILED(hr))
             {
                 SafeArrayDestroy(array);
                 return hr;
@@ -1330,24 +1349,25 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_BoundingRectangle(UiaRect *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = {};
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         *out = nodeBounds(q);
         return S_OK;
     }
 
     HRESULT NodeProvider::GetEmbeddedFragmentRoots(SAFEARRAY **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
@@ -1370,47 +1390,49 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_FragmentRoot(IRawElementProviderFragmentRoot **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         auto *provider = providerFor(*q.snapshot, q.snapshot->storage.root);
         return provider ? provider->QueryInterface(__uuidof(IRawElementProviderFragmentRoot), reinterpret_cast<void **>(out)) : kUnavailable;
     }
 
     HRESULT NodeProvider::ElementProviderFromPoint(double x, double y, IRawElementProviderFragment **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!std::isfinite(x) || !std::isfinite(y))
+        if(!std::isfinite(x) || !std::isfinite(y))
         {
             return E_INVALIDARG;
         }
+
         const auto rootBounds = nodeBounds(q);
 
-        if (x < rootBounds.left || y < rootBounds.top || x >= rootBounds.left + rootBounds.width || y >= rootBounds.top + rootBounds.height)
+        if(x < rootBounds.left || y < rootBounds.top || x >= rootBounds.left + rootBounds.width || y >= rootBounds.top + rootBounds.height)
         {
             return S_OK;
         }
 
-        if (!q.host || q.host->scaleX <= 0 || q.host->scaleY <= 0)
+        if(!q.host || q.host->scaleX <= 0 || q.host->scaleY <= 0)
         {
             return S_OK;
         }
@@ -1420,17 +1442,17 @@ namespace GameWIP::Desktop::Detail::Platform
         A::NodeId best = q.snapshot->storage.root;
         std::uint32_t bestOrder = 0, bestOrdinal = 0;
 
-        for (std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
+        for(std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
         {
             const auto &node = q.snapshot->storage.nodes[i];
 
-            if (!node.geometry || !node.geometry->hitTestable || !layout[i].visible)
+            if(!node.geometry || !node.geometry->hitTestable || !layout[i].visible)
             {
                 continue;
             }
             const auto &clip = layout[i].clip;
 
-            if (clip && (clientX < clip->x || clientY < clip->y || clientX >= clip->x + clip->width || clientY >= clip->y + clip->height))
+            if(clip && (clientX < clip->x || clientY < clip->y || clientX >= clip->x + clip->width || clientY >= clip->y + clip->height))
             {
                 continue;
             }
@@ -1440,12 +1462,12 @@ namespace GameWIP::Desktop::Detail::Platform
             const double localX = (t.m22 * (clientX - t.tx) - t.m21 * (clientY - t.ty)) / determinant;
             const double localY = (-t.m12 * (clientX - t.tx) + t.m11 * (clientY - t.ty)) / determinant;
 
-            if (localX < r.x || localY < r.y || localX >= r.x + r.width || localY >= r.y + r.height)
+            if(localX < r.x || localY < r.y || localX >= r.x + r.width || localY >= r.y + r.height)
             {
                 continue;
             }
 
-            if (layout[i].order > bestOrder || (layout[i].order == bestOrder && layout[i].ordinal >= bestOrdinal))
+            if(layout[i].order > bestOrder || (layout[i].order == bestOrder && layout[i].ordinal >= bestOrdinal))
             {
                 best = node.id;
                 bestOrder = layout[i].order;
@@ -1458,19 +1480,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::GetFocus(IRawElementProviderFragment **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.host || !q.host->focused)
+        if(!q.host || !q.host->focused)
         {
             return S_OK;
         }
@@ -1484,10 +1506,11 @@ namespace GameWIP::Desktop::Detail::Platform
         static_cast<void>(properties);
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         static_cast<UiaState *>(q.runtime->native.get())->listeners.fetch_add(1);
         return S_OK;
     }
@@ -1498,16 +1521,17 @@ namespace GameWIP::Desktop::Detail::Platform
         static_cast<void>(properties);
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         auto &listeners = static_cast<UiaState *>(q.runtime->native.get())->listeners;
         auto count = listeners.load();
 
-        for (unsigned i = 0; i < 8 && count != 0; ++i)
+        for(unsigned i = 0; i < 8 && count != 0; ++i)
         {
-            if (listeners.compare_exchange_weak(count, count - 1))
+            if(listeners.compare_exchange_weak(count, count - 1))
             {
                 break;
             }
@@ -1515,6 +1539,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return S_OK;
     }
+
     // ------------------------------------------------------------
     // Invoke, value, toggle, and expansion patterns
     // ------------------------------------------------------------
@@ -1526,21 +1551,23 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::SetValue(LPCWSTR value)
     {
-        if (!value)
+        if(!value)
         {
             return E_INVALIDARG;
         }
+
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (valueHidden(*q.node))
+        if(valueHidden(*q.node))
         {
             return kUnsupported;
         }
+
         // UIA supplies a readable NUL-terminated string; bound the native scan before conversion/allocation.
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -1550,17 +1577,18 @@ namespace GameWIP::Desktop::Detail::Platform
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
-        if (size > q.runtime->limits.maximumActionTextBytes)
+        if(size > q.runtime->limits.maximumActionTextBytes)
         {
             return E_INVALIDARG;
         }
         const std::u16string_view wide(reinterpret_cast<const char16_t *>(value), size);
         const auto measured = Unicode::Utf16::measureToUtf8(wide);
 
-        if (measured.outcome != Unicode::Types::MeasureOutcome::Measured || measured.requiredBytes > q.runtime->limits.maximumActionTextBytes)
+        if(measured.outcome != Unicode::Types::MeasureOutcome::Measured || measured.requiredBytes > q.runtime->limits.maximumActionTextBytes)
         {
             return E_INVALIDARG;
         }
+
         try
         {
             A::ActionRequest request;
@@ -1568,14 +1596,13 @@ namespace GameWIP::Desktop::Detail::Platform
             request.text.resize(measured.requiredBytes);
             const auto converted = Unicode::Utf16::convertToUtf8(wide, request.text);
 
-            if (converted.outcome != Unicode::Types::ConversionOutcome::Converted)
+            if(converted.outcome != Unicode::Types::ConversionOutcome::Converted)
             {
                 return E_INVALIDARG;
             }
-
             return action(q, std::move(request));
         }
-        catch (...)
+        catch(...)
         {
             return E_OUTOFMEMORY;
         }
@@ -1583,14 +1610,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_Value(BSTR *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
@@ -1600,17 +1627,18 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_IsReadOnly(BOOL *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = TRUE;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         *out = contentReadOnly(*q.node);
         return S_OK;
     }
@@ -1619,15 +1647,16 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->rangeValue || valueHidden(*q.node))
+        if(!q.node->rangeValue || valueHidden(*q.node))
         {
             return kUnsupported;
         }
+
         A::ActionRequest request;
         request.action = A::ActionKind::SetValue;
         request.value = value;
@@ -1636,19 +1665,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::rangeValue(double A::RangeValue::*member, double *out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = 0;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->rangeValue || valueHidden(*q.node))
+        if(!q.node->rangeValue || valueHidden(*q.node))
         {
             return kUnsupported;
         }
@@ -1688,17 +1717,18 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_ToggleState(ToggleState *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = ToggleState_Off;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         *out = q.node->states.contains(A::State::Mixed)                                                     ? ToggleState_Indeterminate
                : (q.node->states.contains(A::State::Checked) || q.node->states.contains(A::State::Pressed)) ? ToggleState_On
                                                                                                             : ToggleState_Off;
@@ -1717,66 +1747,66 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_ExpandCollapseState(ExpandCollapseState *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = ExpandCollapseState_LeafNode;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (patternSupported(*q.node, UIA_ExpandCollapsePatternId))
+        if(patternSupported(*q.node, UIA_ExpandCollapsePatternId))
         {
             *out = q.node->states.contains(A::State::Expanded) ? ExpandCollapseState_Expanded : ExpandCollapseState_Collapsed;
         }
 
         return S_OK;
     }
+
     // ------------------------------------------------------------
     // Selection patterns
     // ------------------------------------------------------------
 
     HRESULT NodeProvider::GetSelection(SAFEARRAY **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->selection)
+        if(!q.node->selection)
         {
             return kUnsupported;
         }
-
         return nodeArray(*q.snapshot, q.node->selection->selectedNodes, out);
     }
 
     HRESULT NodeProvider::get_CanSelectMultiple(BOOL *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = FALSE;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->selection)
+        if(!q.node->selection)
         {
             return kUnsupported;
         }
@@ -1786,19 +1816,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_IsSelectionRequired(BOOL *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = FALSE;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->selection)
+        if(!q.node->selection)
         {
             return kUnsupported;
         }
@@ -1813,32 +1843,32 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::selectedItem(unsigned kind, IRawElementProviderSimple **out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->selection)
+        if(!q.node->selection)
         {
             return kUnsupported;
         }
         const auto &selection = *q.node->selection;
         A::NodeId selected = selection.activeNode;
 
-        if (kind < 2 && !selection.selectedNodes.empty())
+        if(kind < 2 && !selection.selectedNodes.empty())
         {
             selected = kind == 0 ? selection.selectedNodes.front() : selection.selectedNodes.back();
         }
         *out = providerFor(*q.snapshot, selected);
 
-        if (*out)
+        if(*out)
         {
             (*out)->AddRef();
         }
@@ -1863,19 +1893,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_ItemCount(int *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = 0;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->selection)
+        if(!q.node->selection)
         {
             return kUnsupported;
         }
@@ -1895,38 +1925,40 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_IsSelected(BOOL *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = FALSE;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         *out = q.node->states.contains(A::State::Selected);
         return S_OK;
     }
 
     HRESULT NodeProvider::ancestor(bool selection, IRawElementProviderSimple **out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout[q.index];
         *out = providerFor(*q.snapshot, selection ? layout.selectionContainer : layout.containingGrid);
 
-        if (*out)
+        if(*out)
         {
             (*out)->AddRef();
         }
@@ -1938,6 +1970,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         return ancestor(true, out);
     }
+
     // ------------------------------------------------------------
     // Scroll patterns
     // ------------------------------------------------------------
@@ -1946,7 +1979,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto delta = [](ScrollAmount amount)
         {
-            switch (amount)
+            switch(amount)
             {
             case ScrollAmount_LargeDecrement:
                 return -10.0;
@@ -1963,28 +1996,30 @@ namespace GameWIP::Desktop::Detail::Platform
             return 0.0;
         };
 
-        if (horizontal < ScrollAmount_LargeDecrement || horizontal > ScrollAmount_SmallIncrement || vertical < ScrollAmount_LargeDecrement ||
-            vertical > ScrollAmount_SmallIncrement)
+        if(horizontal < ScrollAmount_LargeDecrement || horizontal > ScrollAmount_SmallIncrement || vertical < ScrollAmount_LargeDecrement ||
+           vertical > ScrollAmount_SmallIncrement)
         {
             return E_INVALIDARG;
         }
+
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->scroll)
+        if(!q.node->scroll)
         {
             return kUnsupported;
         }
 
-        if ((!q.node->scroll->horizontalScrollable && horizontal != ScrollAmount_NoAmount) ||
-            (!q.node->scroll->verticalScrollable && vertical != ScrollAmount_NoAmount))
+        if((!q.node->scroll->horizontalScrollable && horizontal != ScrollAmount_NoAmount) ||
+           (!q.node->scroll->verticalScrollable && vertical != ScrollAmount_NoAmount))
         {
             return kUnsupported;
         }
+
         A::ActionRequest request;
         request.action = A::ActionKind::ScrollBy;
         request.scroll = {delta(horizontal), delta(vertical), false, A::ScrollUnit::Step};
@@ -1995,26 +2030,27 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->scroll)
+        if(!q.node->scroll)
         {
             return kUnsupported;
         }
 
-        if (!std::isfinite(horizontal) || !std::isfinite(vertical) || horizontal < -1 || horizontal > 100 || vertical < -1 || vertical > 100 ||
-            (horizontal < 0 && horizontal != kNoScroll) || (vertical < 0 && vertical != kNoScroll))
+        if(!std::isfinite(horizontal) || !std::isfinite(vertical) || horizontal < -1 || horizontal > 100 || vertical < -1 || vertical > 100 ||
+           (horizontal < 0 && horizontal != kNoScroll) || (vertical < 0 && vertical != kNoScroll))
         {
             return E_INVALIDARG;
         }
 
-        if ((!q.node->scroll->horizontalScrollable && horizontal != kNoScroll) || (!q.node->scroll->verticalScrollable && vertical != kNoScroll))
+        if((!q.node->scroll->horizontalScrollable && horizontal != kNoScroll) || (!q.node->scroll->verticalScrollable && vertical != kNoScroll))
         {
             return kUnsupported;
         }
+
         A::ActionRequest request;
         request.action = A::ActionKind::ScrollTo;
         request.scroll = {horizontal, vertical, true, A::ScrollUnit::Percent};
@@ -2023,19 +2059,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::scrollValue(double A::ScrollInfo::*member, double *out, bool horizontal) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = 0;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->scroll)
+        if(!q.node->scroll)
         {
             return kUnsupported;
         }
@@ -2069,19 +2105,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_HorizontallyScrollable(BOOL *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = FALSE;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->scroll)
+        if(!q.node->scroll)
         {
             return kUnsupported;
         }
@@ -2091,19 +2127,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_VerticallyScrollable(BOOL *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = FALSE;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->scroll)
+        if(!q.node->scroll)
         {
             return kUnsupported;
         }
@@ -2115,49 +2151,51 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         return request(A::ActionKind::ScrollTo);
     }
+
     // ------------------------------------------------------------
     // Grid and table patterns
     // ------------------------------------------------------------
 
     HRESULT NodeProvider::GetItem(int row, int column, IRawElementProviderSimple **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->collection)
+        if(!q.node->collection)
         {
             return kUnsupported;
         }
         const auto &c = *q.node->collection;
 
-        if (row < 0 || column < 0 || static_cast<std::uint32_t>(row) >= c.rowCount || static_cast<std::uint32_t>(column) >= c.columnCount)
+        if(row < 0 || column < 0 || static_cast<std::uint32_t>(row) >= c.rowCount || static_cast<std::uint32_t>(column) >= c.columnCount)
         {
             return E_INVALIDARG;
         }
+
         const auto &nodes = q.snapshot->storage.nodes;
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout;
 
-        for (std::size_t i = 0; i < nodes.size(); ++i)
+        for(std::size_t i = 0; i < nodes.size(); ++i)
         {
-            if (const auto &n = nodes[i]; n.collection && patternSupported(n, UIA_GridItemPatternId) && layout[i].containingGrid == id_)
+            if(const auto &n = nodes[i]; n.collection && patternSupported(n, UIA_GridItemPatternId) && layout[i].containingGrid == id_)
             {
                 const auto &item = *n.collection;
 
-                if (static_cast<std::uint32_t>(row) >= item.rowIndex && static_cast<std::uint32_t>(row) - item.rowIndex < item.rowSpan &&
-                    static_cast<std::uint32_t>(column) >= item.columnIndex && static_cast<std::uint32_t>(column) - item.columnIndex < item.columnSpan)
+                if(static_cast<std::uint32_t>(row) >= item.rowIndex && static_cast<std::uint32_t>(row) - item.rowIndex < item.rowSpan &&
+                   static_cast<std::uint32_t>(column) >= item.columnIndex && static_cast<std::uint32_t>(column) - item.columnIndex < item.columnSpan)
                 {
                     *out = providerFor(*q.snapshot, n.id);
 
-                    if (*out)
+                    if(*out)
                     {
                         (*out)->AddRef();
                     }
@@ -2172,19 +2210,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::collectionValue(std::uint32_t A::CollectionInfo::*member, int *out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = 0;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.node->collection)
+        if(!q.node->collection)
         {
             return kUnsupported;
         }
@@ -2229,14 +2267,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::headers(A::RelationKind kind, SAFEARRAY **out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
@@ -2256,7 +2294,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_RowOrColumnMajor(RowOrColumnMajor *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
@@ -2273,6 +2311,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         return headers(A::RelationKind::ColumnHeaders, out);
     }
+
     // ------------------------------------------------------------
     // Virtualization and known-item lookup
     // ------------------------------------------------------------
@@ -2284,49 +2323,50 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::FindItemByProperty(IRawElementProviderSimple *start, PROPERTYID id, VARIANT value, IRawElementProviderSimple **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (id != 0 && id != UIA_NamePropertyId && id != UIA_ControlTypePropertyId && id != UIA_SelectionItemIsSelectedPropertyId &&
-            id != UIA_AutomationIdPropertyId)
+        if(id != 0 && id != UIA_NamePropertyId && id != UIA_ControlTypePropertyId && id != UIA_SelectionItemIsSelectedPropertyId &&
+           id != UIA_AutomationIdPropertyId)
         {
             return kUnsupported;
         }
 
-        if ((id == UIA_NamePropertyId || id == UIA_AutomationIdPropertyId) && value.vt != VT_BSTR)
+        if((id == UIA_NamePropertyId || id == UIA_AutomationIdPropertyId) && value.vt != VT_BSTR)
         {
             return E_INVALIDARG;
         }
 
-        if (id == UIA_ControlTypePropertyId && value.vt != VT_I4)
+        if(id == UIA_ControlTypePropertyId && value.vt != VT_I4)
         {
             return E_INVALIDARG;
         }
 
-        if (id == UIA_SelectionItemIsSelectedPropertyId && value.vt != VT_BOOL)
+        if(id == UIA_SelectionItemIsSelectedPropertyId && value.vt != VT_BOOL)
         {
             return E_INVALIDARG;
         }
+
         bool past = start == nullptr;
         const auto &layout = static_cast<const UiaSnapshot *>(q.snapshot->native.get())->layout;
         std::uint32_t startOrdinal = 0;
 
-        if (start)
+        if(start)
         {
             bool found = false;
 
-            for (std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
+            for(std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
             {
-                if (providerFor(*q.snapshot, q.snapshot->storage.nodes[i].id) == start)
+                if(providerFor(*q.snapshot, q.snapshot->storage.nodes[i].id) == start)
                 {
                     startOrdinal = layout[i].ordinal;
                     found = true;
@@ -2334,7 +2374,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
             }
 
-            if (!found)
+            if(!found)
             {
                 return E_INVALIDARG;
             }
@@ -2343,31 +2383,31 @@ namespace GameWIP::Desktop::Detail::Platform
         A::NodeId best = 0;
         std::uint32_t bestOrdinal = std::numeric_limits<std::uint32_t>::max();
 
-        for (std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
+        for(std::size_t i = 0; i < q.snapshot->storage.nodes.size(); ++i)
         {
             const auto &n = q.snapshot->storage.nodes[i];
 
-            if (!past || !descendant(*q.snapshot, n, id_) || (start && layout[i].ordinal <= startOrdinal))
+            if(!past || !descendant(*q.snapshot, n, id_) || (start && layout[i].ordinal <= startOrdinal))
             {
                 continue;
             }
             bool matches = id == 0;
 
-            if (id == UIA_ControlTypePropertyId)
+            if(id == UIA_ControlTypePropertyId)
             {
                 matches = controlType(n.role) == value.lVal;
             }
-            else if (id == UIA_SelectionItemIsSelectedPropertyId)
+            else if(id == UIA_SelectionItemIsSelectedPropertyId)
             {
                 matches = n.states.contains(A::State::Selected) == (value.boolVal != VARIANT_FALSE);
             }
-            else if (id == UIA_NamePropertyId)
+            else if(id == UIA_NamePropertyId)
             {
                 const auto &name = q.snapshot->textCache[i].name;
                 matches = n.exposure != A::Exposure::RedactContent && name.size() == SysStringLen(value.bstrVal) &&
                           std::equal(name.begin(), name.end(), reinterpret_cast<const char16_t *>(value.bstrVal));
             }
-            else if (id == UIA_AutomationIdPropertyId)
+            else if(id == UIA_AutomationIdPropertyId)
             {
                 std::array<char, 24> digits{};
                 const auto converted = std::to_chars(digits.begin(), digits.end(), n.id);
@@ -2375,24 +2415,24 @@ namespace GameWIP::Desktop::Detail::Platform
                 const std::wstring_view supplied(value.bstrVal, SysStringLen(value.bstrVal));
                 matches = supplied.size() == length;
 
-                for (std::size_t j = 0; matches && j < supplied.size(); ++j)
+                for(std::size_t j = 0; matches && j < supplied.size(); ++j)
                 {
                     matches = supplied[j] == static_cast<wchar_t>(static_cast<unsigned char>(digits[j]));
                 }
             }
 
-            if (matches && layout[i].ordinal < bestOrdinal)
+            if(matches && layout[i].ordinal < bestOrdinal)
             {
                 best = n.id;
                 bestOrdinal = layout[i].ordinal;
             }
         }
 
-        if (best != 0)
+        if(best != 0)
         {
             *out = providerFor(*q.snapshot, best);
 
-            if (*out)
+            if(*out)
             {
                 (*out)->AddRef();
             }
@@ -2407,30 +2447,31 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_AnnotationTypeId(int *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = AnnotationType_Unknown;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         std::size_t source = 0, index = 0;
         const auto *annotation = annotationFor(q, source, index);
 
-        if (!annotation)
+        if(!annotation)
         {
             return kUnsupported;
         }
 
-        if (annotation->kind == A::TextAnnotationKind::Spelling)
+        if(annotation->kind == A::TextAnnotationKind::Spelling)
         {
             *out = AnnotationType_SpellingError;
         }
-        else if (annotation->kind == A::TextAnnotationKind::Emphasis)
+        else if(annotation->kind == A::TextAnnotationKind::Emphasis)
         {
             *out = AnnotationType_Highlighted;
         }
@@ -2440,37 +2481,37 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_AnnotationTypeName(BSTR *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         std::size_t source = 0, index = 0;
 
-        if (!annotationFor(q, source, index))
+        if(!annotationFor(q, source, index))
         {
             return kUnsupported;
         }
-
         return stringValue(q.snapshot->textCache[source].annotationValues[index], out);
     }
 
     HRESULT NodeProvider::get_Author(BSTR *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
@@ -2485,26 +2526,27 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_Target(IRawElementProviderSimple **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         std::size_t source = 0, index = 0;
 
-        if (!annotationFor(q, source, index))
+        if(!annotationFor(q, source, index))
         {
             return kUnsupported;
         }
         *out = providerFor(*q.snapshot, q.snapshot->storage.nodes[source].id);
 
-        if (*out)
+        if(*out)
         {
             (*out)->AddRef();
         }
@@ -2519,24 +2561,26 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT NodeProvider::get_TextRange(ITextRangeProvider **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         std::size_t source = 0, index = 0;
         const auto *annotation = annotationFor(q, source, index);
 
-        if (!annotation)
+        if(!annotation)
         {
             return kUnsupported;
         }
+
         UiaQuery sourceQuery{q.runtime, q.snapshot, &q.snapshot->storage.nodes[source], source};
         return static_cast<UiaState *>(q.runtime->native.get())->range(sourceQuery, annotation->range, out);
     }
@@ -2551,19 +2595,19 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             const auto *data = static_cast<const WindowData *>(window.platform.get());
 
-            if (!data || !data->handle)
+            if(!data || !data->handle)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
             }
             auto native = std::make_shared<UiaState>();
             native->ranges.reserve(runtime->limits.maximumNativeTextRanges);
 
-            for (std::uint32_t i = 0; i < runtime->limits.maximumNativeTextRanges; ++i)
+            for(std::uint32_t i = 0; i < runtime->limits.maximumNativeTextRanges; ++i)
             {
                 native->ranges.push_back(std::make_unique<TextRangeProvider>());
             }
 
-            if (const auto module = GetModuleHandleW(L"uiautomationcore.dll"))
+            if(const auto module = GetModuleHandleW(L"uiautomationcore.dll"))
             {
                 native->raiseNotification = Base::Win32::loadProcedure<RaiseNotification>(module, "UiaRaiseNotificationEvent");
             }
@@ -2574,18 +2618,18 @@ namespace GameWIP::Desktop::Detail::Platform
             runtime->features.flags = (std::uint64_t{1} << static_cast<unsigned>(A::Feature::Count)) - 1;
             runtime->features.flags &= ~(std::uint64_t{1} << static_cast<unsigned>(A::Feature::AnnouncementLanguage));
 
-            if (!static_cast<UiaState *>(runtime->native.get())->raiseNotification)
+            if(!static_cast<UiaState *>(runtime->native.get())->raiseNotification)
             {
                 runtime->features.flags &= ~(std::uint64_t{1} << static_cast<unsigned>(A::Feature::Announcements));
             }
 
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
         }
@@ -2598,34 +2642,35 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             std::size_t missing = 0;
 
-            for (const auto &node : snapshot.storage.nodes)
+            for(const auto &node : snapshot.storage.nodes)
             {
-                if (!native.providers.contains(node.id))
+                if(!native.providers.contains(node.id))
                 {
                     ++missing;
                 }
             }
 
-            if (missing > runtime->limits.maximumNativeProviders - native.providers.size())
+            if(missing > runtime->limits.maximumNativeProviders - native.providers.size())
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
+
             auto result = std::make_shared<UiaSnapshot>();
             result->providers.reserve(snapshot.storage.nodes.size());
             result->layout.resize(snapshot.storage.nodes.size());
             result->annotationSources.resize(snapshot.storage.nodes.size(), {snapshot.storage.nodes.size(), 0});
 
-            for (std::size_t i = 0; i < snapshot.storage.nodes.size(); ++i)
+            for(std::size_t i = 0; i < snapshot.storage.nodes.size(); ++i)
             {
-                if (const auto &text = snapshot.storage.nodes[i].text)
+                if(const auto &text = snapshot.storage.nodes[i].text)
                 {
-                    for (std::size_t j = 0; j < text->annotations.size(); ++j)
+                    for(std::size_t j = 0; j < text->annotations.size(); ++j)
                     {
-                        if (const auto target = text->annotations[j].target; target != 0)
+                        if(const auto target = text->annotations[j].target; target != 0)
                         {
                             auto &reference = result->annotationSources[snapshot.findIndex(target)];
 
-                            if (reference.first == snapshot.storage.nodes.size())
+                            if(reference.first == snapshot.storage.nodes.size())
                             {
                                 reference = {i, j};
                             }
@@ -2639,7 +2684,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 std::map<A::NodeId, NodeProvider *> values;
                 ~Additions()
                 {
-                    for (auto [id, provider] : values)
+                    for(auto [id, provider] : values)
                     {
                         static_cast<void>(id);
                         provider->Release();
@@ -2648,16 +2693,16 @@ namespace GameWIP::Desktop::Detail::Platform
             } additions;
             try
             {
-                for (const auto &node : snapshot.storage.nodes)
+                for(const auto &node : snapshot.storage.nodes)
                 {
-                    if (!native.providers.contains(node.id))
+                    if(!native.providers.contains(node.id))
                     {
                         auto *provider = new NodeProvider(runtime, node.id, node.id == snapshot.storage.root);
                         try
                         {
                             additions.values.emplace(node.id, provider);
                         }
-                        catch (...)
+                        catch(...)
                         {
                             provider->Release();
                             throw;
@@ -2665,7 +2710,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     }
                 }
             }
-            catch (...)
+            catch(...)
             {
                 throw;
             }
@@ -2677,7 +2722,7 @@ namespace GameWIP::Desktop::Detail::Platform
             traversal.reserve(snapshot.storage.nodes.size());
             std::uint32_t ordinal = 0;
 
-            while (!pending.empty())
+            while(!pending.empty())
             {
                 const auto id = pending.back();
                 pending.pop_back();
@@ -2688,7 +2733,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 layout.subtreeEnd = ordinal;
                 traversal.push_back(index);
 
-                if (node.parent != 0)
+                if(node.parent != 0)
                 {
                     const auto parentIndex = snapshot.findIndex(node.parent);
                     const auto &parent = result->layout[parentIndex];
@@ -2700,36 +2745,37 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 layout.visible = layout.visible && !node.states.contains(A::State::Invisible);
 
-                if (node.geometry)
+                if(node.geometry)
                 {
                     layout.bounds = transformed(*node.geometry);
                     layout.visible = layout.visible && node.geometry->visible;
                     layout.order = node.geometry->hitTestOrder;
 
-                    if (node.geometry->clippingBounds)
+                    if(node.geometry->clippingBounds)
                     {
                         layout.clip = layout.clip ? intersection(*layout.clip, *node.geometry->clippingBounds) : node.geometry->clippingBounds;
                     }
                 }
 
-                for (auto child = node.children.rbegin(); child != node.children.rend(); ++child)
+                for(auto child = node.children.rbegin(); child != node.children.rend(); ++child)
                 {
                     pending.push_back(*child);
                 }
             }
 
-            for (auto index = traversal.rbegin(); index != traversal.rend(); ++index)
+            for(auto index = traversal.rbegin(); index != traversal.rend(); ++index)
             {
-                if (const auto parent = snapshot.storage.nodes[*index].parent; parent != 0)
+                if(const auto parent = snapshot.storage.nodes[*index].parent; parent != 0)
                 {
                     auto &layout = result->layout[snapshot.findIndex(parent)];
                     layout.subtreeEnd = std::max(layout.subtreeEnd, result->layout[*index].subtreeEnd);
                 }
             }
+
             // No fallible work after the identity registry merge: map node transfer does not allocate.
             native.providers.merge(additions.values);
 
-            for (const auto &node : snapshot.storage.nodes)
+            for(const auto &node : snapshot.storage.nodes)
             {
                 auto *provider = static_cast<IRawElementProviderSimple *>(native.providers.find(node.id)->second);
                 provider->AddRef();
@@ -2739,15 +2785,16 @@ namespace GameWIP::Desktop::Detail::Platform
             snapshot.native = std::move(result);
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
         }
     }
+
     // ------------------------------------------------------------
     // Native lifetime and notification delivery
     // ------------------------------------------------------------
@@ -2756,17 +2803,17 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         auto *native = static_cast<UiaState *>(runtime.native.get());
 
-        if (!native)
+        if(!native)
         {
             return;
         }
 
-        if (runtime.nativeThread == GetCurrentThreadId())
+        if(runtime.nativeThread == GetCurrentThreadId())
         {
             static_cast<void>(UiaReturnRawElementProvider(reinterpret_cast<HWND>(runtime.nativeWindow.load()), 0, 0, nullptr));
         }
 
-        for (auto [id, provider] : native->providers)
+        for(auto [id, provider] : native->providers)
         {
             static_cast<void>(id);
             static_cast<void>(UiaDisconnectProvider(static_cast<IRawElementProviderSimple *>(provider)));
@@ -2777,7 +2824,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     void wakeAccessibility(const AccessibilityRuntime &runtime) noexcept
     {
-        if (const auto message = wakeMessage())
+        if(const auto message = wakeMessage())
         {
             static_cast<void>(PostThreadMessageW(runtime.nativeThread, message, 0, 0));
         }
@@ -2785,28 +2832,29 @@ namespace GameWIP::Desktop::Detail::Platform
 
     bool accessibilityGetObject(WindowState &state, HWND hwnd, WPARAM wParam, LPARAM lParam, LRESULT &out) noexcept
     {
-        if (static_cast<LONG>(lParam) != UiaRootObjectId || !state.accessibility)
+        if(static_cast<LONG>(lParam) != UiaRootObjectId || !state.accessibility)
         {
             return false;
         }
         const auto runtime = state.accessibility->runtime.load();
 
-        if (!runtime || !runtime->live.load())
+        if(!runtime || !runtime->live.load())
         {
             return false;
         }
         const auto snapshot = runtime->snapshot.load();
 
-        if (!snapshot)
+        if(!snapshot)
         {
             return false;
         }
         auto *provider = providerFor(*snapshot, snapshot->storage.root);
 
-        if (!provider)
+        if(!provider)
         {
             return false;
         }
+
         static_cast<WindowData *>(state.platform.get())->accessibilityExposed = true;
         out = UiaReturnRawElementProvider(hwnd, wParam, lParam, provider);
         return true;
@@ -2814,7 +2862,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     void accessibilityWindowDestroyed(WindowState &state, HWND hwnd) noexcept
     {
-        if (auto *data = static_cast<WindowData *>(state.platform.get()); data && data->accessibilityExposed)
+        if(auto *data = static_cast<WindowData *>(state.platform.get()); data && data->accessibilityExposed)
         {
             static_cast<void>(UiaReturnRawElementProvider(hwnd, 0, 0, nullptr));
             data->accessibilityExposed = false;
@@ -2824,32 +2872,35 @@ namespace GameWIP::Desktop::Detail::Platform
 
     void deliverAccessibilityNotification(AccessibilityRuntime &runtime, const AccessibilityPendingNotification &event) noexcept
     {
-        if (!runtime.live.load() || !event.after || !UiaClientsAreListening())
+        if(!runtime.live.load() || !event.after || !UiaClientsAreListening())
         {
             return;
         }
         auto *provider = providerFor(*event.after, event.notification.node);
 
-        if (!provider)
+        if(!provider)
         {
             return;
         }
+
         const auto *node = event.after->find(event.notification.node);
 
-        if (!node)
+        if(!node)
         {
             return;
         }
+
         const auto currentSnapshot = runtime.snapshot.load();
         const auto *currentNode = currentSnapshot ? currentSnapshot->find(node->id) : nullptr;
 
-        if (!currentNode)
+        if(!currentNode)
         {
             return;
         }
+
         const auto &notification = event.notification;
 
-        switch (notification.kind)
+        switch(notification.kind)
         {
         case A::NotificationKind::TreeInvalidated:
         case A::NotificationKind::StructureChanged:
@@ -2859,25 +2910,25 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             AccessibilityHostGeometry host;
 
-            if (runtime.readGeometry(host) && host.focused && currentNode->states.contains(A::State::Focused))
+            if(runtime.readGeometry(host) && host.focused && currentNode->states.contains(A::State::Focused))
             {
                 static_cast<void>(UiaRaiseAutomationEvent(provider, UIA_AutomationFocusChangedEventId));
             }
             break;
         }
         case A::NotificationKind::SelectionChanged:
-            if (notification.property == A::PropertyKind::Text)
+            if(notification.property == A::PropertyKind::Text)
             {
-                if (!textHidden(*node) && !textHidden(*currentNode))
+                if(!textHidden(*node) && !textHidden(*currentNode))
                 {
                     static_cast<void>(UiaRaiseAutomationEvent(provider, UIA_Text_TextSelectionChangedEventId));
                 }
             }
-            else if (node->selection)
+            else if(node->selection)
             {
                 static_cast<void>(UiaRaiseAutomationEvent(provider, UIA_Selection_InvalidatedEventId));
             }
-            else if (node->states.contains(A::State::Selectable))
+            else if(node->states.contains(A::State::Selectable))
             {
                 const auto containerId =
                     static_cast<const UiaSnapshot *>(event.after->native.get())->layout[event.after->findIndex(node->id)].selectionContainer;
@@ -2894,7 +2945,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             break;
         case A::NotificationKind::TextChanged:
-            if (!textHidden(*node) && !textHidden(*currentNode))
+            if(!textHidden(*node) && !textHidden(*currentNode))
             {
                 static_cast<void>(UiaRaiseAutomationEvent(provider, UIA_Text_TextChangedEventId));
             }
@@ -2903,13 +2954,13 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             auto *native = static_cast<UiaState *>(runtime.native.get());
 
-            if (!native->raiseNotification || textHidden(*node) || textHidden(*currentNode))
+            if(!native->raiseNotification || textHidden(*node) || textHidden(*currentNode))
             {
                 break;
             }
             BSTR text = nullptr, activity = nullptr;
 
-            if (SUCCEEDED(stringValue(event.announcement, &text)) && SUCCEEDED(stringValue(u"GameWIP.Announcement", &activity)))
+            if(SUCCEEDED(stringValue(event.announcement, &text)) && SUCCEEDED(stringValue(u"GameWIP.Announcement", &activity)))
             {
                 static_cast<void>(native->raiseNotification(
                     provider,
@@ -2929,12 +2980,12 @@ namespace GameWIP::Desktop::Detail::Platform
             // Values exposed in property events are subject to the same redaction as direct queries.
             auto owningRuntime = static_cast<NodeProvider *>(provider)->query().runtime;
 
-            if (!owningRuntime)
+            if(!owningRuntime)
             {
                 break;
             }
 
-            switch (notification.property)
+            switch(notification.property)
             {
             case A::PropertyKind::Name:
                 propertyEvent(event, provider, UIA_NamePropertyId, owningRuntime);
@@ -2951,33 +3002,33 @@ namespace GameWIP::Desktop::Detail::Platform
                 propertyEvent(event, provider, UIA_IsOffscreenPropertyId, owningRuntime);
                 break;
             case A::PropertyKind::State:
-                for (const auto id :
-                     {UIA_IsEnabledPropertyId,
-                      UIA_IsOffscreenPropertyId,
-                      UIA_IsPasswordPropertyId,
-                      UIA_ValueIsReadOnlyPropertyId,
-                      UIA_RangeValueIsReadOnlyPropertyId,
-                      UIA_IsValuePatternAvailablePropertyId,
-                      UIA_IsRangeValuePatternAvailablePropertyId,
-                      UIA_IsTextPatternAvailablePropertyId,
-                      UIA_IsTextPattern2AvailablePropertyId,
-                      UIA_IsKeyboardFocusablePropertyId,
-                      UIA_HasKeyboardFocusPropertyId,
-                      UIA_ToggleToggleStatePropertyId,
-                      UIA_ExpandCollapseExpandCollapseStatePropertyId,
-                      UIA_SelectionItemIsSelectedPropertyId,
-                      UIA_IsRequiredForFormPropertyId,
-                      UIA_IsDataValidForFormPropertyId})
+                for(const auto id :
+                    {UIA_IsEnabledPropertyId,
+                     UIA_IsOffscreenPropertyId,
+                     UIA_IsPasswordPropertyId,
+                     UIA_ValueIsReadOnlyPropertyId,
+                     UIA_RangeValueIsReadOnlyPropertyId,
+                     UIA_IsValuePatternAvailablePropertyId,
+                     UIA_IsRangeValuePatternAvailablePropertyId,
+                     UIA_IsTextPatternAvailablePropertyId,
+                     UIA_IsTextPattern2AvailablePropertyId,
+                     UIA_IsKeyboardFocusablePropertyId,
+                     UIA_HasKeyboardFocusPropertyId,
+                     UIA_ToggleToggleStatePropertyId,
+                     UIA_ExpandCollapseExpandCollapseStatePropertyId,
+                     UIA_SelectionItemIsSelectedPropertyId,
+                     UIA_IsRequiredForFormPropertyId,
+                     UIA_IsDataValidForFormPropertyId})
                 {
                     propertyEvent(event, provider, id, owningRuntime);
                 }
                 break;
             case A::PropertyKind::Range:
-                for (const auto id :
-                     {UIA_RangeValueMinimumPropertyId,
-                      UIA_RangeValueMaximumPropertyId,
-                      UIA_RangeValueSmallChangePropertyId,
-                      UIA_RangeValueLargeChangePropertyId})
+                for(const auto id :
+                    {UIA_RangeValueMinimumPropertyId,
+                     UIA_RangeValueMaximumPropertyId,
+                     UIA_RangeValueSmallChangePropertyId,
+                     UIA_RangeValueLargeChangePropertyId})
                 {
                     propertyEvent(event, provider, id, owningRuntime);
                 }
@@ -2986,32 +3037,32 @@ namespace GameWIP::Desktop::Detail::Platform
                 static_cast<void>(UiaRaiseStructureChangedEvent(provider, StructureChangeType_ChildrenInvalidated, nullptr, 0));
                 break;
             case A::PropertyKind::Metadata:
-                for (const auto id :
-                     {UIA_HelpTextPropertyId,
-                      UIA_CulturePropertyId,
-                      UIA_AccessKeyPropertyId,
-                      UIA_AcceleratorKeyPropertyId,
-                      UIA_IsTextPatternAvailablePropertyId,
-                      UIA_IsSelectionPatternAvailablePropertyId,
-                      UIA_IsValuePatternAvailablePropertyId,
-                      UIA_PositionInSetPropertyId,
-                      UIA_SizeOfSetPropertyId,
-                      UIA_LevelPropertyId,
-                      UIA_GridRowCountPropertyId,
-                      UIA_GridColumnCountPropertyId})
+                for(const auto id :
+                    {UIA_HelpTextPropertyId,
+                     UIA_CulturePropertyId,
+                     UIA_AccessKeyPropertyId,
+                     UIA_AcceleratorKeyPropertyId,
+                     UIA_IsTextPatternAvailablePropertyId,
+                     UIA_IsSelectionPatternAvailablePropertyId,
+                     UIA_IsValuePatternAvailablePropertyId,
+                     UIA_PositionInSetPropertyId,
+                     UIA_SizeOfSetPropertyId,
+                     UIA_LevelPropertyId,
+                     UIA_GridRowCountPropertyId,
+                     UIA_GridColumnCountPropertyId})
                 {
                     propertyEvent(event, provider, id, owningRuntime);
                 }
                 static_cast<void>(UiaRaiseStructureChangedEvent(provider, StructureChangeType_ChildrenInvalidated, nullptr, 0));
                 break;
             case A::PropertyKind::Scroll:
-                for (const auto id :
-                     {UIA_ScrollHorizontalScrollPercentPropertyId,
-                      UIA_ScrollVerticalScrollPercentPropertyId,
-                      UIA_ScrollHorizontalViewSizePropertyId,
-                      UIA_ScrollVerticalViewSizePropertyId,
-                      UIA_ScrollHorizontallyScrollablePropertyId,
-                      UIA_ScrollVerticallyScrollablePropertyId})
+                for(const auto id :
+                    {UIA_ScrollHorizontalScrollPercentPropertyId,
+                     UIA_ScrollVerticalScrollPercentPropertyId,
+                     UIA_ScrollHorizontalViewSizePropertyId,
+                     UIA_ScrollVerticalViewSizePropertyId,
+                     UIA_ScrollHorizontallyScrollablePropertyId,
+                     UIA_ScrollVerticallyScrollablePropertyId})
                 {
                     propertyEvent(event, provider, id, owningRuntime);
                 }
@@ -3036,7 +3087,7 @@ namespace GameWIP::Desktop::TestHooks
         const auto snapshot = runtime && runtime->live.load() ? runtime->snapshot.load() : nullptr;
         auto *provider = snapshot ? Detail::Platform::providerFor(*snapshot, node) : nullptr;
 
-        if (provider)
+        if(provider)
         {
             provider->AddRef();
         }

@@ -7,7 +7,7 @@ void testDiagnosticConfiguration(TestContext &context)
 #if ASSERT_CHECKS_ENABLED
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "diagnostics"))
+    if(!initFileLogger(context, "diagnostics"))
     {
         context.fail("diagnostics logger init", "Logger::init failed");
         return;
@@ -38,7 +38,7 @@ void testDiagnosticMessageEvaluation(TestContext &context)
 #if ASSERT_CHECKS_ENABLED
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "diagnostic_message_evaluation"))
+    if(!initFileLogger(context, "diagnostic_message_evaluation"))
     {
         context.fail("diagnostic message evaluation logger init", "Logger::init failed");
         return;
@@ -94,7 +94,7 @@ void testUtf8DiagnosticTruncation(TestContext &context)
 #if ASSERT_CHECKS_ENABLED && ASSERT_DIAGNOSTICS
     ScopedLoggerShutdown loggerShutdown;
 
-    if (!initFileLogger(context, "utf8_truncation"))
+    if(!initFileLogger(context, "utf8_truncation"))
     {
         context.fail("UTF-8 truncation logger init", "Logger::init failed");
         return;
@@ -103,7 +103,7 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     std::string message;
     message.reserve(1'600);
 
-    for (int index = 0; index < 400; ++index)
+    for(int index = 0; index < 400; ++index)
     {
         message += "\xF0\x9F\x98\x80";
     }
@@ -115,7 +115,7 @@ void testUtf8DiagnosticTruncation(TestContext &context)
     const std::string statusText = TestSupport::formatInfrastructureStatus(logText.status);
     context.expectTrue("truncated diagnostic remains valid UTF-8", logText.status.ok(), statusText);
 
-    if (!logText.status.ok())
+    if(!logText.status.ok())
     {
         return;
     }

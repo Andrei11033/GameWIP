@@ -15,7 +15,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <format>
-#include <iostream>
 #include <limits>
 
 namespace
@@ -63,11 +62,11 @@ namespace
                 Base::wouldMultiplyOverflow(left, right)));
         };
 
-        for (const Case &test : cases)
+        for(const Case &test : cases)
         {
             check(test, test.left, test.right);
 
-            if (test.left != test.right)
+            if(test.left != test.right)
             {
                 check(test, test.right, test.left);
             }
@@ -81,7 +80,7 @@ namespace
         // Borrow the existing system module; the lookup helper does not own its lifetime.
         const HMODULE module = GetModuleHandleW(L"kernel32.dll");
 
-        if (!context.expectTrue("system module is already loaded", module != nullptr))
+        if(!context.expectTrue("system module is already loaded", module != nullptr))
         {
             return;
         }
@@ -96,7 +95,7 @@ namespace
         const ProcessIdFunction processId = Base::Win32::loadProcedure<ProcessIdFunction>(module, "GetCurrentProcessId");
         static_cast<void>(context.expectTrue("known export resolves", processId != nullptr));
 
-        if (processId != nullptr)
+        if(processId != nullptr)
         {
             static_cast<void>(context.expectEq("resolved procedure returns this process id", GetCurrentProcessId(), processId()));
         }

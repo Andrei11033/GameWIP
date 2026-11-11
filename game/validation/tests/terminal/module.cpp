@@ -20,20 +20,20 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value == nullptr)
+            if(value == nullptr)
             {
                 continue;
             }
             const std::string_view argument(value);
 
-            if (argument == "--terminal-test-child=reentrant-format" || argument == "--terminal-test-child=session-reentrant-format")
+            if(argument == "--terminal-test-child=reentrant-format" || argument == "--terminal-test-child=session-reentrant-format")
             {
                 return true;
             }
 #if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
-            if (argument == "--terminal-test-child=cancellation-signal-failure")
+            if(argument == "--terminal-test-child=cancellation-signal-failure")
             {
                 return true;
             }

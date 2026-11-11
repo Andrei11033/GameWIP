@@ -82,6 +82,8 @@ third is used only when another selector is required.
 
 The quality-hygiene selector may be `standard`, `deep`, a configured check ID,
 `list`, or `status`.
+Unicode verification and regeneration accept `-ClangFormatPath` when a specific
+formatter is required.
 
 ```powershell
 .\gamewip.bat git status
@@ -136,7 +138,6 @@ module implementation.
 | `-Command <value>` | Explicitly bind the second positional selector when scripting. |
 | `-Target <value>` | Explicitly bind the third positional selector when scripting. |
 | `-PythonPath <path>` | Override Python resolution for supported maintenance work. |
-| `-PythonHostPath <path>` | Override the native Python host used to provision managed Python tools. |
 | `-ClangFormatPath <path>` | Override clang-format resolution. |
 | `-UnicodeDataPath <path>` | Override the pinned Unicode source-data directory. |
 | `-RefreshUnicodeData` | Refresh official Unicode data before verification/regeneration. |

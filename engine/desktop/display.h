@@ -42,7 +42,6 @@ namespace GameWIP::Desktop::Types::Display
         bool interlaced = false;                 ///< Whether scanout is interlaced.
         friend constexpr bool operator==(Mode, Mode) noexcept = default;
     };
-
 } // namespace GameWIP::Desktop::Types::Display
 
 /// @brief Stateless desktop-display operations.

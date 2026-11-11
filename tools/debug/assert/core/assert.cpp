@@ -47,14 +47,13 @@ namespace
     /// adjusts a bounded-copy cut point and intentionally does not rescan the whole fragment.
     std::size_t utf8PrefixBoundary(std::string_view text, std::size_t maxBytes) noexcept
     {
-        if (maxBytes >= text.size())
+        if(maxBytes >= text.size())
         {
             return text.size();
         }
-
         std::size_t boundary = maxBytes;
 
-        while (boundary > 0 && isUtf8ContinuationByte(text[boundary]))
+        while(boundary > 0 && isUtf8ContinuationByte(text[boundary]))
         {
             --boundary;
         }
@@ -73,14 +72,14 @@ namespace
         /// @param text UTF-8 text fragment to append.
         void append(std::string_view text) noexcept
         {
-            if (truncated || text.empty())
+            if(truncated || text.empty())
             {
                 return;
             }
 
             const std::size_t remainingBytes = storage.size() - usedBytes;
 
-            if (text.size() <= remainingBytes)
+            if(text.size() <= remainingBytes)
             {
                 std::ranges::copy(text, std::span{storage}.subspan(usedBytes, text.size()).begin());
                 usedBytes += text.size();
@@ -90,7 +89,7 @@ namespace
             // Once a fragment is cut, later fragments must not make the diagnostic look complete.
             const std::size_t prefixBytes = utf8PrefixBoundary(text, remainingBytes);
 
-            if (prefixBytes > 0)
+            if(prefixBytes > 0)
             {
                 std::ranges::copy(text.substr(0, prefixBytes), std::span{storage}.subspan(usedBytes, prefixBytes).begin());
                 usedBytes += prefixBytes;
@@ -106,7 +105,7 @@ namespace
             std::array<char, 32> number;
             const auto result = std::to_chars(number.data(), std::to_address(number.end()), value);
 
-            if (result.ec == std::errc{})
+            if(result.ec == std::errc{})
             {
                 const auto digitsWritten = static_cast<std::size_t>(std::distance(number.data(), result.ptr));
                 append(std::string_view(number).substr(0, digitsWritten));
@@ -120,11 +119,10 @@ namespace
         /// @brief Applies a visible ASCII truncation suffix without cutting the retained UTF-8 prefix.
         void finish() noexcept
         {
-            if (!truncated)
+            if(!truncated)
             {
                 return;
             }
-
             constexpr std::string_view suffix = "... [truncated]";
             static_assert(suffix.size() < kCapacityBytes);
             // The retained prefix leaves room for the suffix without cutting a UTF-8 scalar.
@@ -196,34 +194,34 @@ namespace
         failureMessage.append(sourceText(kind));
         failureMessage.append(" failed");
 
-        if (!conditionText.empty())
+        if(!conditionText.empty())
         {
             failureMessage.append(": ");
             failureMessage.append(conditionText);
         }
 
-        if (!message.empty())
+        if(!message.empty())
         {
             failureMessage.append("\nMessage: ");
             failureMessage.append(message);
         }
 
-        if (!file.empty() || line > 0 || !function.empty())
+        if(!file.empty() || line > 0 || !function.empty())
         {
             failureMessage.append("\nLocation: ");
 
-            if (!file.empty())
+            if(!file.empty())
             {
                 failureMessage.append(file);
             }
 
-            if (line > 0)
+            if(line > 0)
             {
                 failureMessage.append(":");
                 failureMessage.appendInt(line);
             }
 
-            if (!function.empty())
+            if(!function.empty())
             {
                 failureMessage.append(" (");
                 failureMessage.append(function);
@@ -234,6 +232,7 @@ namespace
         failureMessage.finish();
         return failureMessage;
     }
+
 #else
     /// @brief Returns the tiny generic failure text used when diagnostic payloads are compiled out.
     /// @param kind Failure kind to label.
@@ -248,6 +247,7 @@ namespace
     {
         return kind == FailureKind::Assert ? "Assert failed" : "Check failed";
     }
+
 #endif
 
     // ------------------------------------------------------------
@@ -267,7 +267,7 @@ namespace
             // A queued message could remain pending when the process aborts.
             GameWIP::Logger::report(level, sourceText(kind), message);
         }
-        catch (...) // NOLINT(bugprone-empty-catch) -- Failure reporting must preserve this noexcept boundary.
+        catch(...) // NOLINT(bugprone-empty-catch) -- Failure reporting must preserve this noexcept boundary.
         {
         }
     }
@@ -277,7 +277,7 @@ namespace
     /// @param message Message text to show.
     void showPopupIfEnabled(FailureKind kind, std::string_view message) noexcept
     {
-        if (!popupEnabled(kind))
+        if(!popupEnabled(kind))
         {
             return;
         }
@@ -309,9 +309,9 @@ namespace
             {"always_ignore", FailureAction::AlwaysIgnore},
         }};
 
-        for (const NamedAction &candidate : actions)
+        for(const NamedAction &candidate : actions)
         {
-            if (text == candidate.name)
+            if(text == candidate.name)
             {
                 action = candidate.action;
                 return true;
@@ -342,18 +342,18 @@ namespace
     FailureAction selectInteractiveAction(std::string_view message) noexcept
     {
         // Forced actions take precedence over UI suppression so child tests can exercise every action.
-        if (const char *testActionText = std::getenv("INTERNAL_ASSERT_TEST_ACTION"))
+        if(const char *testActionText = std::getenv("INTERNAL_ASSERT_TEST_ACTION"))
         {
             FailureAction testAction = FailureAction::Abort;
 
-            if (parseFailureAction(testActionText, testAction))
+            if(parseFailureAction(testActionText, testAction))
             {
                 return testAction;
             }
         }
 
         // Suppressed UI selects Abort without consulting the debugger or opening a dialog.
-        if (popupsSuppressedByEnvironment())
+        if(popupsSuppressedByEnvironment())
         {
             return FailureAction::Abort;
         }
@@ -369,7 +369,7 @@ namespace
     /// @param alwaysIgnoreFlag Per-call-site flag to set for Always Ignore. Null means no site can be suppressed.
     void applyInteractiveAction(FailureAction action, std::atomic_bool *alwaysIgnoreFlag) noexcept
     {
-        switch (action)
+        switch(action)
         {
         case FailureAction::Break:
             // Interactive Break permits continuation when execution resumes in the debugger.
@@ -383,7 +383,7 @@ namespace
             return;
 
         case FailureAction::AlwaysIgnore:
-            if (alwaysIgnoreFlag != nullptr)
+            if(alwaysIgnoreFlag != nullptr)
             {
                 // This flag suppresses future reports; it does not publish any associated data.
                 alwaysIgnoreFlag->store(true, std::memory_order_relaxed);
@@ -407,11 +407,13 @@ namespace
     {
         return message.view();
     }
+
 #else
     std::string_view failureTextView(std::string_view message) noexcept
     {
         return message;
     }
+
 #endif
 
     /// @brief Formats and reports a non-interactive failure, then shows its configured popup.
@@ -482,7 +484,7 @@ namespace GameWIP::Debug::Assert::Detail
         // Ordinary fatal assertions break only when debugger detection reports an attached debugger.
         const bool debuggerAttached = Detail::Platform::isDebuggerAttached();
 
-        if (debuggerAttached)
+        if(debuggerAttached)
         {
             Detail::Platform::debugBreak();
         }

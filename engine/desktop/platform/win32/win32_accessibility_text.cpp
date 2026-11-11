@@ -13,6 +13,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         constexpr HRESULT kUnavailable = static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
         constexpr HRESULT kUnsupported = static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
+
         // ------------------------------------------------------------
         // Range offsets and native arrays
         // ------------------------------------------------------------
@@ -53,7 +54,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             auto q = owner.query();
 
-            if (q && (!q.node->text || textHidden(*q.node)))
+            if(q && (!q.node->text || textHidden(*q.node)))
             {
                 q.node = nullptr;
             }
@@ -63,13 +64,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
         HRESULT makeRange(const UiaQuery &q, A::TextRange range, ITextRangeProvider **out) noexcept
         {
-            if (!out)
+            if(!out)
             {
                 return E_POINTER;
             }
             *out = nullptr;
 
-            if (!q)
+            if(!q)
             {
                 return kUnavailable;
             }
@@ -79,36 +80,37 @@ namespace GameWIP::Desktop::Detail::Platform
 
         HRESULT ranges(const UiaQuery &q, std::span<const A::TextRange> selection, SAFEARRAY **out) noexcept
         {
-            if (!out)
+            if(!out)
             {
                 return E_POINTER;
             }
             *out = nullptr;
 
-            if (!q)
+            if(!q)
             {
                 return kUnavailable;
             }
+
             auto *array = SafeArrayCreateVector(VT_UNKNOWN, 0, static_cast<ULONG>(selection.size()));
 
-            if (!array)
+            if(!array)
             {
                 return E_OUTOFMEMORY;
             }
 
-            for (std::size_t i = 0; i < selection.size(); ++i)
+            for(std::size_t i = 0; i < selection.size(); ++i)
             {
                 ITextRangeProvider *range = nullptr;
                 auto hr = makeRange(q, selection[i], &range);
 
-                if (SUCCEEDED(hr))
+                if(SUCCEEDED(hr))
                 {
                     LONG index = static_cast<LONG>(i);
                     hr = SafeArrayPutElement(array, &index, range);
                     range->Release();
                 }
 
-                if (FAILED(hr))
+                if(FAILED(hr))
                 {
                     SafeArrayDestroy(array);
                     return hr;
@@ -117,6 +119,7 @@ namespace GameWIP::Desktop::Detail::Platform
             *out = array;
             return S_OK;
         }
+
         // ------------------------------------------------------------
         // Text units and effective attributes
         // ------------------------------------------------------------
@@ -125,7 +128,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             document = {0, static_cast<std::uint32_t>(q.textContent().utf8.size())};
 
-            switch (unit)
+            switch(unit)
             {
             case TextUnit_Character:
                 return q.text().graphemes;
@@ -155,7 +158,7 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             auto hr = mixed ? UiaGetReservedMixedAttributeValue(&out->punkVal) : UiaGetReservedNotSupportedValue(&out->punkVal);
 
-            if (SUCCEEDED(hr))
+            if(SUCCEEDED(hr))
             {
                 out->vt = VT_UNKNOWN;
             }
@@ -168,28 +171,28 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             VariantInit(out);
 
-            if (id == UIA_IsReadOnlyAttributeId)
+            if(id == UIA_IsReadOnlyAttributeId)
             {
                 out->vt = VT_BOOL;
                 out->boolVal = contentReadOnly(*q.node) ? VARIANT_TRUE : VARIANT_FALSE;
                 return S_OK;
             }
 
-            if (id == UIA_IsHiddenAttributeId)
+            if(id == UIA_IsHiddenAttributeId)
             {
                 out->vt = VT_BOOL;
                 out->boolVal = q.node->states.contains(A::State::Invisible) ? VARIANT_TRUE : VARIANT_FALSE;
                 return S_OK;
             }
 
-            if (id == UIA_TextFlowDirectionsAttributeId)
+            if(id == UIA_TextFlowDirectionsAttributeId)
             {
-                if (q.textContent().direction == A::TextDirection::Mixed)
+                if(q.textContent().direction == A::TextDirection::Mixed)
                 {
                     return reserved(out, true);
                 }
 
-                if (q.textContent().direction == A::TextDirection::Unspecified)
+                if(q.textContent().direction == A::TextDirection::Unspecified)
                 {
                     return reserved(out, false);
                 }
@@ -198,15 +201,16 @@ namespace GameWIP::Desktop::Detail::Platform
                 return S_OK;
             }
 
-            if (id != UIA_CultureAttributeId && id != UIA_IsItalicAttributeId && id != UIA_FontWeightAttributeId &&
-                id != UIA_AnnotationTypesAttributeId && id != UIA_AnnotationObjectsAttributeId)
+            if(id != UIA_CultureAttributeId && id != UIA_IsItalicAttributeId && id != UIA_FontWeightAttributeId &&
+               id != UIA_AnnotationTypesAttributeId && id != UIA_AnnotationObjectsAttributeId)
             {
                 return reserved(out, false);
             }
+
             const A::TextAnnotation *selected = nullptr;
             std::size_t annotationIndex = 0;
 
-            for (std::size_t i = 0; i < q.textContent().annotations.size(); ++i)
+            for(std::size_t i = 0; i < q.textContent().annotations.size(); ++i)
             {
                 const auto &annotation = q.textContent().annotations[i];
                 const bool relevant =
@@ -216,17 +220,17 @@ namespace GameWIP::Desktop::Detail::Platform
                     (id == UIA_AnnotationTypesAttributeId && annotation.kind == A::TextAnnotationKind::Spelling) ||
                     (id == UIA_AnnotationObjectsAttributeId && annotation.target != 0);
 
-                if (!relevant || !overlap(bounds, annotation.range))
+                if(!relevant || !overlap(bounds, annotation.range))
                 {
                     continue;
                 }
 
-                if (bounds.begin < annotation.range.begin || bounds.end > annotation.range.end)
+                if(bounds.begin < annotation.range.begin || bounds.end > annotation.range.end)
                 {
                     return reserved(out, true);
                 }
 
-                if (selected)
+                if(selected)
                 {
                     const bool same = id == UIA_CultureAttributeId
                                           ? LocaleNameToLCID(reinterpret_cast<LPCWSTR>(q.text().annotationValues[annotationIndex].c_str()), 0) ==
@@ -234,7 +238,7 @@ namespace GameWIP::Desktop::Detail::Platform
                                           : selected->kind == annotation.kind && selected->value == annotation.value &&
                                                 (id != UIA_AnnotationObjectsAttributeId || selected->target == annotation.target);
 
-                    if (!same)
+                    if(!same)
                     {
                         return reserved(out, true);
                     }
@@ -243,13 +247,13 @@ namespace GameWIP::Desktop::Detail::Platform
                 annotationIndex = i;
             }
 
-            if (id == UIA_CultureAttributeId)
+            if(id == UIA_CultureAttributeId)
             {
                 const auto &language = selected                         ? q.text().annotationValues[annotationIndex]
                                        : !q.text().textLanguage.empty() ? q.text().textLanguage
                                                                         : q.text().language;
 
-                if (language.empty())
+                if(language.empty())
                 {
                     return reserved(out, false);
                 }
@@ -258,45 +262,46 @@ namespace GameWIP::Desktop::Detail::Platform
                 return S_OK;
             }
 
-            if (id == UIA_IsItalicAttributeId)
+            if(id == UIA_IsItalicAttributeId)
             {
                 out->vt = VT_BOOL;
                 out->boolVal = selected && selected->value == "italic" ? VARIANT_TRUE : VARIANT_FALSE;
                 return S_OK;
             }
 
-            if (id == UIA_FontWeightAttributeId)
+            if(id == UIA_FontWeightAttributeId)
             {
                 out->vt = VT_I4;
                 out->lVal = selected && selected->value == "bold" ? 700 : 400;
                 return S_OK;
             }
 
-            if (id == UIA_AnnotationObjectsAttributeId)
+            if(id == UIA_AnnotationObjectsAttributeId)
             {
                 const std::span<const A::NodeId> ids = selected ? std::span<const A::NodeId>(&selected->target, 1) : std::span<const A::NodeId>{};
                 const auto hr = nodeArray(*q.snapshot, ids, &out->parray);
 
-                if (SUCCEEDED(hr))
+                if(SUCCEEDED(hr))
                 {
                     out->vt = VT_ARRAY | VT_UNKNOWN;
                 }
 
                 return hr;
             }
+
             auto *array = SafeArrayCreateVector(VT_I4, 0, selected ? 1U : 0U);
 
-            if (!array)
+            if(!array)
             {
                 return E_OUTOFMEMORY;
             }
 
-            if (selected)
+            if(selected)
             {
                 LONG index = 0, type = AnnotationType_SpellingError;
                 const auto hr = SafeArrayPutElement(array, &index, &type);
 
-                if (FAILED(hr))
+                if(FAILED(hr))
                 {
                     SafeArrayDestroy(array);
                     return hr;
@@ -309,12 +314,12 @@ namespace GameWIP::Desktop::Detail::Platform
 
         bool attributeEquals(const VARIANT &a, const VARIANT &b) noexcept
         {
-            if (a.vt != b.vt)
+            if(a.vt != b.vt)
             {
                 return false;
             }
 
-            switch (a.vt)
+            switch(a.vt)
             {
             case VT_BOOL:
                 return a.boolVal == b.boolVal;
@@ -334,7 +339,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Compares effective scalar attributes across cached annotation boundaries without allocating query indexes.
         HRESULT attribute(const UiaQuery &q, A::TextRange bounds, TEXTATTRIBUTEID id, VARIANT *out) noexcept
         {
-            if ((id != UIA_CultureAttributeId && id != UIA_IsItalicAttributeId && id != UIA_FontWeightAttributeId) || bounds.begin == bounds.end)
+            if((id != UIA_CultureAttributeId && id != UIA_IsItalicAttributeId && id != UIA_FontWeightAttributeId) || bounds.begin == bounds.end)
             {
                 return attributeSegment(q, bounds, id, out);
             }
@@ -344,16 +349,16 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto &formats = q.text().formats;
             auto position = std::ranges::upper_bound(formats, bounds.begin);
 
-            if (position != formats.begin())
+            if(position != formats.begin())
             {
                 --position;
             }
 
-            for (; position != formats.end() && position + 1 != formats.end() && *position < bounds.end; ++position)
+            for(; position != formats.end() && position + 1 != formats.end() && *position < bounds.end; ++position)
             {
                 const A::TextRange segment{std::max(*position, bounds.begin), std::min(*(position + 1), bounds.end)};
 
-                if (segment.begin >= segment.end)
+                if(segment.begin >= segment.end)
                 {
                     continue;
                 }
@@ -361,14 +366,14 @@ namespace GameWIP::Desktop::Detail::Platform
                 VARIANT candidate{};
                 const auto hr = attributeSegment(q, segment, id, &candidate);
 
-                if (FAILED(hr))
+                if(FAILED(hr))
                 {
                     VariantClear(&candidate);
                     VariantClear(out);
                     return hr;
                 }
 
-                if (!found)
+                if(!found)
                 {
                     *out = candidate;
                     VariantInit(&candidate);
@@ -379,7 +384,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     const bool equal = attributeEquals(*out, candidate);
                     VariantClear(&candidate);
 
-                    if (!equal)
+                    if(!equal)
                     {
                         VariantClear(out);
                         return reserved(out, true);
@@ -397,22 +402,22 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT UiaState::range(const UiaQuery &q, A::TextRange rangeBounds, ITextRangeProvider **out) noexcept
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
 
-        if (!q || !q.runtime->live.load())
+        if(!q || !q.runtime->live.load())
         {
             return kUnavailable;
         }
 
-        for (auto &slot : ranges)
+        for(auto &slot : ranges)
         {
             bool expected = true;
 
-            if (!slot->available.compare_exchange_strong(expected, false))
+            if(!slot->available.compare_exchange_strong(expected, false))
             {
                 continue;
             }
@@ -428,6 +433,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_QUOTA);
     }
+
     // ------------------------------------------------------------
     // Text and Text2 pattern queries
     // ------------------------------------------------------------
@@ -449,24 +455,24 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextPattern::GetSelection(SAFEARRAY **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = textQuery(owner_);
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.textContent().selection.empty())
+        if(!q.textContent().selection.empty())
         {
             return ranges(q, q.textContent().selection, out);
         }
 
-        if (!q.textContent().caret)
+        if(!q.textContent().caret)
         {
             return S_OK;
         }
@@ -476,62 +482,65 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextPattern::GetVisibleRanges(SAFEARRAY **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = textQuery(owner_);
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         std::size_t count = 0;
 
-        for (const auto &fragment : q.textContent().fragments)
+        for(const auto &fragment : q.textContent().fragments)
         {
             const auto r = clientRect(q, fragment.bounds);
 
-            if (r.width > 0 && r.height > 0)
+            if(r.width > 0 && r.height > 0)
             {
                 ++count;
             }
         }
         // Without layout the document range is the only meaningful range; do not fabricate per-line geometry.
-        if (q.textContent().fragments.empty())
+        if(q.textContent().fragments.empty())
         {
             const auto r = nodeBounds(q);
             const A::TextRange whole{0, static_cast<std::uint32_t>(q.textContent().utf8.size())};
             return ranges(q, r.width > 0 && r.height > 0 ? std::span<const A::TextRange>(&whole, 1) : std::span<const A::TextRange>{}, out);
         }
+
         auto *array = SafeArrayCreateVector(VT_UNKNOWN, 0, static_cast<ULONG>(count));
 
-        if (!array)
+        if(!array)
         {
             return E_OUTOFMEMORY;
         }
+
         LONG index = 0;
 
-        for (const auto &fragment : q.textContent().fragments)
+        for(const auto &fragment : q.textContent().fragments)
         {
             const auto r = clientRect(q, fragment.bounds);
 
-            if (r.width <= 0 || r.height <= 0)
+            if(r.width <= 0 || r.height <= 0)
             {
                 continue;
             }
             ITextRangeProvider *range = nullptr;
             auto hr = makeRange(q, fragment.range, &range);
 
-            if (SUCCEEDED(hr))
+            if(SUCCEEDED(hr))
             {
                 hr = SafeArrayPutElement(array, &index, range);
                 range->Release();
                 ++index;
             }
 
-            if (FAILED(hr))
+            if(FAILED(hr))
             {
                 SafeArrayDestroy(array);
                 return hr;
@@ -548,47 +557,49 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextPattern::RangeFromPoint(UiaPoint point, ITextRangeProvider **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = textQuery(owner_);
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!std::isfinite(point.x) || !std::isfinite(point.y))
+        if(!std::isfinite(point.x) || !std::isfinite(point.y))
         {
             return E_INVALIDARG;
         }
+
         const A::TextFragment *best = nullptr;
         double distance = std::numeric_limits<double>::max();
 
-        for (const auto &fragment : q.textContent().fragments)
+        for(const auto &fragment : q.textContent().fragments)
         {
             const auto r = clientRect(q, fragment.bounds);
 
-            if (r.width <= 0 || r.height <= 0)
+            if(r.width <= 0 || r.height <= 0)
             {
                 continue;
             }
             const double x = std::clamp(point.x, r.left, r.left + r.width), y = std::clamp(point.y, r.top, r.top + r.height);
             const double candidate = std::hypot(point.x - x, point.y - y);
 
-            if (candidate < distance)
+            if(candidate < distance)
             {
                 best = &fragment;
                 distance = candidate;
             }
         }
 
-        if (!best)
+        if(!best)
         {
             return kUnsupported;
         }
+
         // The snapshot has fragment rectangles, not glyph advances. Fine-grained callers supply grapheme-sized fragments.
         const auto offset = best->range.begin;
         return makeRange(q, {offset, offset}, out);
@@ -602,19 +613,19 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextPattern::get_SupportedTextSelection(SupportedTextSelection *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = SupportedTextSelection_None;
         const auto q = textQuery(owner_);
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (q.node->actions.contains(A::ActionKind::SetTextSelection) || !q.textContent().selection.empty() || q.textContent().caret)
+        if(q.node->actions.contains(A::ActionKind::SetTextSelection) || !q.textContent().selection.empty() || q.textContent().caret)
         {
             *out = q.node->selection && q.node->selection->multiSelectable ? SupportedTextSelection_Multiple : SupportedTextSelection_Single;
         }
@@ -624,26 +635,26 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextPattern::RangeFromAnnotation(IRawElementProviderSimple *annotation, ITextRangeProvider **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = textQuery(owner_);
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!annotation)
+        if(!annotation)
         {
             return E_INVALIDARG;
         }
 
-        for (const auto &a : q.textContent().annotations)
+        for(const auto &a : q.textContent().annotations)
         {
-            if (a.target != 0 && providerFor(*q.snapshot, a.target) == annotation)
+            if(a.target != 0 && providerFor(*q.snapshot, a.target) == annotation)
             {
                 return makeRange(q, a.range, out);
             }
@@ -654,7 +665,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextPattern::GetCaretRange(BOOL *active, ITextRangeProvider **out)
     {
-        if (!active || !out)
+        if(!active || !out)
         {
             return E_POINTER;
         }
@@ -662,15 +673,16 @@ namespace GameWIP::Desktop::Detail::Platform
         *out = nullptr;
         const auto q = textQuery(owner_);
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!q.textContent().caret)
+        if(!q.textContent().caret)
         {
             return kUnsupported;
         }
+
         *active = q.host && q.host->focused && q.node->states.contains(A::State::Focused);
         return makeRange(q, {*q.textContent().caret, *q.textContent().caret}, out);
     }
@@ -683,7 +695,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         auto q = queryNode(runtime, node);
         // Immutable ranges never silently reinterpret byte offsets against a newer document.
-        if (q && (!q.node->text || textHidden(*q.node) || q.snapshot->storage.generation != snapshot->storage.generation))
+        if(q && (!q.node->text || textHidden(*q.node) || q.snapshot->storage.generation != snapshot->storage.generation))
         {
             q.node = nullptr;
         }
@@ -693,15 +705,15 @@ namespace GameWIP::Desktop::Detail::Platform
 
     TextRangeProvider *TextRangeProvider::peer(ITextRangeProvider *other) const noexcept
     {
-        if (!other || !lease)
+        if(!other || !lease)
         {
             return nullptr;
         }
 
-        for (const auto &slot : lease->ranges)
+        for(const auto &slot : lease->ranges)
         {
-            if (static_cast<ITextRangeProvider *>(slot.get()) == other && slot->node == node && slot->snapshot &&
-                slot->snapshot->storage.generation == snapshot->storage.generation)
+            if(static_cast<ITextRangeProvider *>(slot.get()) == other && slot->node == node && slot->snapshot &&
+               slot->snapshot->storage.generation == snapshot->storage.generation)
             {
                 return slot.get();
             }
@@ -712,13 +724,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::QueryInterface(REFIID iid, void **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
 
-        if (!IsEqualIID(iid, IID_IUnknown) && !IsEqualIID(iid, __uuidof(ITextRangeProvider)))
+        if(!IsEqualIID(iid, IID_IUnknown) && !IsEqualIID(iid, __uuidof(ITextRangeProvider)))
         {
             return E_NOINTERFACE;
         }
@@ -736,10 +748,11 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto remaining = references.fetch_sub(1) - 1;
 
-        if (remaining != 0)
+        if(remaining != 0)
         {
             return remaining;
         }
+
         auto keepAlive = std::move(lease);
         snapshot.reset();
         runtime.reset();
@@ -756,23 +769,23 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::Compare(ITextRangeProvider *other, BOOL *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = FALSE;
 
-        if (!query())
+        if(!query())
         {
             return kUnavailable;
         }
 
-        if (!other)
+        if(!other)
         {
             return E_INVALIDARG;
         }
 
-        if (const auto *range = peer(other))
+        if(const auto *range = peer(other))
         {
             *out = bounds.load() == range->bounds.load();
         }
@@ -786,24 +799,25 @@ namespace GameWIP::Desktop::Detail::Platform
         TextPatternRangeEndpoint target,
         int *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = 0;
 
-        if (!query())
+        if(!query())
         {
             return kUnavailable;
         }
 
-        if (!validEndpoint(endpoint) || !validEndpoint(target))
+        if(!validEndpoint(endpoint) || !validEndpoint(target))
         {
             return E_INVALIDARG;
         }
+
         const auto *range = peer(other);
 
-        if (!range)
+        if(!range)
         {
             return E_INVALIDARG;
         }
@@ -811,6 +825,7 @@ namespace GameWIP::Desktop::Detail::Platform
         *out = a < b ? -1 : a > b ? 1 : 0;
         return S_OK;
     }
+
     // ------------------------------------------------------------
     // Range expansion and search
     // ------------------------------------------------------------
@@ -819,26 +834,28 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         std::array<std::uint32_t, 2> document{};
         const auto units = unitIndex(q, unit, document);
 
-        if (units.empty())
+        if(units.empty())
         {
             return E_INVALIDARG;
         }
+
         auto old = bounds.load();
 
-        for (unsigned attempt = 0; attempt < 8; ++attempt)
+        for(unsigned attempt = 0; attempt < 8; ++attempt)
         {
             const auto range = unpack(old);
             const auto start = std::min(unitAt(units, range.begin), units.size() > 1 ? units.size() - 2 : 0);
             const auto end = units.size() > 1 ? start + 1 : start;
 
-            if (bounds.compare_exchange_weak(old, pack({units[start], units[end]})))
+            if(bounds.compare_exchange_weak(old, pack({units[start], units[end]})))
             {
                 return S_OK;
             }
@@ -849,32 +866,33 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::FindAttribute(TEXTATTRIBUTEID id, VARIANT value, BOOL backward, ITextRangeProvider **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (value.vt != VT_BOOL && value.vt != VT_I4 && value.vt != VT_R8 && value.vt != VT_BSTR)
+        if(value.vt != VT_BOOL && value.vt != VT_I4 && value.vt != VT_R8 && value.vt != VT_BSTR)
         {
             return kUnsupported;
         }
+
         const auto range = unpack(bounds.load());
         const auto &formats = q.text().formats;
         bool found = false;
         A::TextRange match{};
 
-        for (std::size_t i = 0; i + 1 < formats.size(); ++i)
+        for(std::size_t i = 0; i + 1 < formats.size(); ++i)
         {
             const A::TextRange segment{std::max(formats[i], range.begin), std::min(formats[i + 1], range.end)};
 
-            if (segment.begin >= segment.end)
+            if(segment.begin >= segment.end)
             {
                 continue;
             }
@@ -883,20 +901,20 @@ namespace GameWIP::Desktop::Detail::Platform
             const bool equal = SUCCEEDED(hr) && attributeEquals(candidate, value);
             VariantClear(&candidate);
 
-            if (FAILED(hr))
+            if(FAILED(hr))
             {
                 return hr;
             }
 
-            if (equal)
+            if(equal)
             {
-                if (!found || backward)
+                if(!found || backward)
                 {
                     match = segment;
                 }
                 found = true;
 
-                if (!backward)
+                if(!backward)
                 {
                     break;
                 }
@@ -908,68 +926,71 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::FindText(BSTR text, BOOL backward, BOOL ignoreCase, ITextRangeProvider **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         const auto length = SysStringLen(text);
 
-        if (length == 0 || length > static_cast<UINT>(std::numeric_limits<int>::max()))
+        if(length == 0 || length > static_cast<UINT>(std::numeric_limits<int>::max()))
         {
             return E_INVALIDARG;
         }
+
         const auto range = unpack(bounds.load());
         const auto &cache = q.text();
         const auto beginWide = wideOffset(cache, range.begin), endWide = wideOffset(cache, range.end);
 
-        if (length > endWide - beginWide)
+        if(length > endWide - beginWide)
         {
             return S_OK;
         }
+
         bool found = false;
         A::TextRange match{};
 
-        for (auto it = std::ranges::lower_bound(cache.graphemes, range.begin); it != cache.graphemes.end() && *it <= range.end; ++it)
+        for(auto it = std::ranges::lower_bound(cache.graphemes, range.begin); it != cache.graphemes.end() && *it <= range.end; ++it)
         {
             const auto start = wideOffset(cache, *it);
 
-            if (start > endWide - length)
+            if(start > endWide - length)
             {
                 break;
             }
 
-            if (CompareStringOrdinal(
-                    reinterpret_cast<LPCWSTR>(std::u16string_view(cache.text).substr(start, length).data()),
-                    static_cast<int>(length),
-                    text,
-                    static_cast<int>(length),
-                    ignoreCase) != CSTR_EQUAL)
+            if(CompareStringOrdinal(
+                   reinterpret_cast<LPCWSTR>(std::u16string_view(cache.text).substr(start, length).data()),
+                   static_cast<int>(length),
+                   text,
+                   static_cast<int>(length),
+                   ignoreCase) != CSTR_EQUAL)
             {
                 continue;
             }
             const auto endPosition = std::ranges::lower_bound(cache.utf16Offsets, start + length);
 
-            if (endPosition == cache.utf16Offsets.end() || *endPosition != start + length)
+            if(endPosition == cache.utf16Offsets.end() || *endPosition != start + length)
             {
                 continue;
             }
             const auto end = cache.scalars[static_cast<std::size_t>(endPosition - cache.utf16Offsets.begin())];
 
-            if (!std::ranges::binary_search(cache.graphemes, end))
+            if(!std::ranges::binary_search(cache.graphemes, end))
             {
                 continue;
             }
             match = {*it, end};
             found = true;
 
-            if (!backward)
+            if(!backward)
             {
                 break;
             }
@@ -977,13 +998,14 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return found ? makeRange(q, match, out) : S_OK;
     }
+
     // ------------------------------------------------------------
     // Range content and geometry
     // ------------------------------------------------------------
 
     HRESULT TextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID id, VARIANT *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
@@ -994,61 +1016,63 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::GetBoundingRectangles(SAFEARRAY **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         const auto range = unpack(bounds.load());
         std::size_t count = 0;
 
-        for (const auto &f : q.textContent().fragments)
+        for(const auto &f : q.textContent().fragments)
         {
-            if (range.begin != range.end && overlap(range, f.range))
+            if(range.begin != range.end && overlap(range, f.range))
             {
                 const auto r = clientRect(q, f.bounds);
 
-                if (r.width > 0 && r.height > 0)
+                if(r.width > 0 && r.height > 0)
                 {
                     ++count;
                 }
             }
         }
 
-        if (count > static_cast<std::size_t>(LONG_MAX) / 4)
+        if(count > static_cast<std::size_t>(LONG_MAX) / 4)
         {
             return E_OUTOFMEMORY;
         }
         auto *array = SafeArrayCreateVector(VT_R8, 0, static_cast<ULONG>(count * 4));
 
-        if (!array)
+        if(!array)
         {
             return E_OUTOFMEMORY;
         }
+
         LONG index = 0;
 
-        for (const auto &f : q.textContent().fragments)
+        for(const auto &f : q.textContent().fragments)
         {
-            if (range.begin != range.end && overlap(range, f.range))
+            if(range.begin != range.end && overlap(range, f.range))
             {
                 const auto r = clientRect(q, f.bounds);
 
-                if (r.width <= 0 || r.height <= 0)
+                if(r.width <= 0 || r.height <= 0)
                 {
                     continue;
                 }
                 // Fragment geometry is application-owned; never assume a proportional glyph layout.
-                for (double value : {r.left, r.top, r.width, r.height})
+                for(double value : {r.left, r.top, r.width, r.height})
                 {
                     const auto hr = SafeArrayPutElement(array, &index, &value);
 
-                    if (FAILED(hr))
+                    if(FAILED(hr))
                     {
                         SafeArrayDestroy(array);
                         return hr;
@@ -1063,20 +1087,21 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::GetEnclosingElement(IRawElementProviderSimple **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         *out = providerFor(*q.snapshot, node);
 
-        if (!*out)
+        if(!*out)
         {
             return kUnavailable;
         }
@@ -1086,65 +1111,69 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::GetText(int maximumLength, BSTR *out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (maximumLength < -1)
+        if(maximumLength < -1)
         {
             return E_INVALIDARG;
         }
+
         const auto range = unpack(bounds.load());
         const auto start = wideOffset(q.text(), range.begin), end = wideOffset(q.text(), range.end);
         auto length = end - start;
 
-        if (maximumLength >= 0)
+        if(maximumLength >= 0)
         {
             length = std::min(length, static_cast<std::uint32_t>(maximumLength));
         }
         // Do not return half a surrogate pair when the client supplies a UTF-16 length cap.
-        if (length > 0 && start + length < end && q.text().text[start + length - 1] >= 0xD800 && q.text().text[start + length - 1] <= 0xDBFF)
+        if(length > 0 && start + length < end && q.text().text[start + length - 1] >= 0xD800 && q.text().text[start + length - 1] <= 0xDBFF)
         {
             --length;
         }
 
         return stringValue(std::u16string_view(q.text().text).substr(start, length), out);
     }
+
     // ------------------------------------------------------------
     // Range movement
     // ------------------------------------------------------------
 
     HRESULT TextRangeProvider::Move(TextUnit unit, int count, int *moved)
     {
-        if (!moved)
+        if(!moved)
         {
             return E_POINTER;
         }
         *moved = 0;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         std::array<std::uint32_t, 2> document{};
         const auto units = unitIndex(q, unit, document);
 
-        if (units.empty())
+        if(units.empty())
         {
             return E_INVALIDARG;
         }
+
         auto old = bounds.load();
 
-        for (unsigned attempt = 0; attempt < 8; ++attempt)
+        for(unsigned attempt = 0; attempt < 8; ++attempt)
         {
             const auto range = unpack(old);
             const bool degenerate = range.begin == range.end;
@@ -1154,12 +1183,12 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto index = static_cast<std::size_t>(destination);
             const A::TextRange next{units[index], degenerate ? units[index] : units[std::min(index + 1, units.size() - 1)]};
 
-            if (count == 0)
+            if(count == 0)
             {
                 return S_OK;
             }
 
-            if (bounds.compare_exchange_weak(old, pack(next)))
+            if(bounds.compare_exchange_weak(old, pack(next)))
             {
                 *moved = static_cast<int>(destination - static_cast<std::int64_t>(initial));
                 return S_OK;
@@ -1171,49 +1200,51 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::MoveEndpointByUnit(TextPatternRangeEndpoint endpoint, TextUnit unit, int count, int *moved)
     {
-        if (!moved)
+        if(!moved)
         {
             return E_POINTER;
         }
         *moved = 0;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
 
-        if (!validEndpoint(endpoint))
+        if(!validEndpoint(endpoint))
         {
             return E_INVALIDARG;
         }
+
         std::array<std::uint32_t, 2> document{};
         const auto units = unitIndex(q, unit, document);
 
-        if (units.empty())
+        if(units.empty())
         {
             return E_INVALIDARG;
         }
+
         auto old = bounds.load();
 
-        for (unsigned attempt = 0; attempt < 8; ++attempt)
+        for(unsigned attempt = 0; attempt < 8; ++attempt)
         {
             auto range = unpack(old);
             const auto offset = endpointOffset(range, endpoint);
             auto initial = static_cast<std::int64_t>(std::ranges::lower_bound(units, offset) - units.begin());
 
-            if (count > 0 && initial < static_cast<std::int64_t>(units.size()) && units[static_cast<std::size_t>(initial)] != offset)
+            if(count > 0 && initial < static_cast<std::int64_t>(units.size()) && units[static_cast<std::size_t>(initial)] != offset)
             {
                 --initial;
             }
             const auto destination = std::clamp(initial + count, std::int64_t{0}, static_cast<std::int64_t>(units.size() - 1));
 
-            if (count == 0)
+            if(count == 0)
             {
                 return S_OK;
             }
 
-            if (endpoint == TextPatternRangeEndpoint_Start)
+            if(endpoint == TextPatternRangeEndpoint_Start)
             {
                 range.begin = units[static_cast<std::size_t>(destination)];
                 range.end = std::max(range.begin, range.end);
@@ -1224,7 +1255,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 range.begin = std::min(range.begin, range.end);
             }
 
-            if (bounds.compare_exchange_weak(old, pack(range)))
+            if(bounds.compare_exchange_weak(old, pack(range)))
             {
                 *moved = static_cast<int>(destination - initial);
                 return S_OK;
@@ -1236,29 +1267,30 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::MoveEndpointByRange(TextPatternRangeEndpoint endpoint, ITextRangeProvider *other, TextPatternRangeEndpoint target)
     {
-        if (!query())
+        if(!query())
         {
             return kUnavailable;
         }
 
-        if (!validEndpoint(endpoint) || !validEndpoint(target))
+        if(!validEndpoint(endpoint) || !validEndpoint(target))
         {
             return E_INVALIDARG;
         }
+
         const auto *range = peer(other);
 
-        if (!range)
+        if(!range)
         {
             return E_INVALIDARG;
         }
         const auto offset = endpointOffset(unpack(range->bounds.load()), target);
         auto old = bounds.load();
 
-        for (unsigned attempt = 0; attempt < 8; ++attempt)
+        for(unsigned attempt = 0; attempt < 8; ++attempt)
         {
             auto next = unpack(old);
 
-            if (endpoint == TextPatternRangeEndpoint_Start)
+            if(endpoint == TextPatternRangeEndpoint_Start)
             {
                 next.begin = offset;
                 next.end = std::max(next.begin, next.end);
@@ -1269,7 +1301,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 next.begin = std::min(next.begin, next.end);
             }
 
-            if (bounds.compare_exchange_weak(old, pack(next)))
+            if(bounds.compare_exchange_weak(old, pack(next)))
             {
                 return S_OK;
             }
@@ -1277,6 +1309,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return HRESULT_FROM_WIN32(ERROR_BUSY);
     }
+
     // ------------------------------------------------------------
     // Selection and scrolling requests
     // ------------------------------------------------------------
@@ -1285,10 +1318,11 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         A::ActionRequest request;
         request.action = A::ActionKind::SetTextSelection;
         request.range = unpack(bounds.load());
@@ -1315,10 +1349,11 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         A::ActionRequest request;
         request.action = A::ActionKind::ScrollTo;
         request.range = unpack(bounds.load());
@@ -1328,43 +1363,45 @@ namespace GameWIP::Desktop::Detail::Platform
 
     HRESULT TextRangeProvider::GetChildren(SAFEARRAY **out)
     {
-        if (!out)
+        if(!out)
         {
             return E_POINTER;
         }
         *out = nullptr;
         const auto q = query();
 
-        if (!q)
+        if(!q)
         {
             return kUnavailable;
         }
+
         const auto range = unpack(bounds.load());
         std::size_t count = 0;
 
-        for (const auto &a : q.textContent().annotations)
+        for(const auto &a : q.textContent().annotations)
         {
-            if (a.target != 0 && overlap(range, a.range))
+            if(a.target != 0 && overlap(range, a.range))
             {
                 ++count;
             }
         }
         auto *array = SafeArrayCreateVector(VT_UNKNOWN, 0, static_cast<ULONG>(count));
 
-        if (!array)
+        if(!array)
         {
             return E_OUTOFMEMORY;
         }
+
         LONG index = 0;
 
-        for (const auto &a : q.textContent().annotations)
+        for(const auto &a : q.textContent().annotations)
         {
-            if (a.target != 0 && overlap(range, a.range))
+            if(a.target != 0 && overlap(range, a.range))
             {
                 IUnknown *provider = providerFor(*q.snapshot, a.target);
                 const auto hr = SafeArrayPutElement(array, &index, provider);
 
-                if (FAILED(hr))
+                if(FAILED(hr))
                 {
                     SafeArrayDestroy(array);
                     return hr;

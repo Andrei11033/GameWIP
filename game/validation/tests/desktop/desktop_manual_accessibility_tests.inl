@@ -2,7 +2,7 @@
 /// @brief Opt-in assistive-client validation over a renderer-independent semantic fixture.
 void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test::DesktopTestOptions &options)
 {
-    if (!beginManualSuite(context, options, "Desktop accessibility UI Automation"))
+    if(!beginManualSuite(context, options, "Desktop accessibility UI Automation"))
     {
         return;
     }
@@ -14,22 +14,24 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     description.activation.requestFocus = true;
     description.windowed.clientSize = {800, 450};
 
-    if (!requireManualStatus(context, "accessibility demo opens", window.open(description)))
+    if(!requireManualStatus(context, "accessibility demo opens", window.open(description)))
     {
         return;
     }
     auto bridge = window.accessibility();
 
-    if (!requireManualStatus(context, "accessibility demo enables", bridge.enable()))
+    if(!requireManualStatus(context, "accessibility demo enables", bridge.enable()))
     {
         return;
     }
+
     const std::array<A::NodeId, 3> children{2, 3, 4};
     std::array<A::Node, 4> nodes{};
     nodes[0].id = 1;
     nodes[0].role = A::Role::Window;
     nodes[0].name = "Accessibility demo";
     nodes[0].children = children;
+
     nodes[1].id = 2;
     nodes[1].parent = 1;
     nodes[1].role = A::Role::Button;
@@ -39,6 +41,7 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     nodes[1].actions.flags =
         (std::uint64_t{1} << static_cast<unsigned>(A::ActionKind::Focus)) | (std::uint64_t{1} << static_cast<unsigned>(A::ActionKind::Invoke));
     nodes[1].geometry = A::Geometry{{24, 24, 180, 40}};
+
     nodes[2].id = 3;
     nodes[2].parent = 1;
     nodes[2].role = A::Role::Document;
@@ -47,50 +50,53 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
     const A::TextFragment fragment{{0, static_cast<std::uint32_t>(sample.size())}, {24, 100, 700, 40}};
     nodes[2].text = A::TextContent{sample, A::TextDirection::LeftToRight, "en-US", {}, {&fragment, 1}};
     nodes[2].geometry = A::Geometry{{24, 100, 700, 40}};
+
     nodes[3].id = 4;
     nodes[3].parent = 1;
     nodes[3].role = A::Role::PasswordField;
     nodes[3].name = "Password";
     nodes[3].value = "MUST NOT BE EXPOSED";
     nodes[3].geometry = A::Geometry{{24, 180, 180, 40}};
+
     A::Generation generation = 1;
 
-    if (!requireManualStatus(context, "accessibility semantic fixture publishes", bridge.publish({generation, 1, nodes})))
+    if(!requireManualStatus(context, "accessibility semantic fixture publishes", bridge.publish({generation, 1, nodes})))
     {
         return;
     }
+
     std::size_t invocations = 0;
     std::string count;
     const auto observe = [&]
     {
         A::ActionRequest request;
 
-        while (bridge.popAction(request))
+        while(bridge.popAction(request))
         {
-            if (request.node != 2)
+            if(request.node != 2)
             {
                 continue;
             }
 
-            if (request.action == A::ActionKind::Focus)
+            if(request.action == A::ActionKind::Focus)
             {
                 static_cast<void>(window.requestFocus());
             }
 
-            if (request.action == A::ActionKind::Invoke)
+            if(request.action == A::ActionKind::Invoke)
             {
                 count = std::format("Invoked {} times", ++invocations);
                 nodes[1].description = count;
                 static_cast<void>(bridge.publish({++generation, 1, nodes}));
 
-                if (bridge.features().supports(A::Feature::Announcements))
+                if(bridge.features().supports(A::Feature::Announcements))
                 {
                     static_cast<void>(bridge.announce({2, "Accessibility action received", "en-US"}));
                 }
             }
         }
 
-        if (manualStatusWindow)
+        if(manualStatusWindow)
         {
             manualStatusWindow->setObservation(
                 std::format("Semantic-only fixture over the renderer-free host; invoke requests received={}", invocations));
@@ -126,10 +132,11 @@ void testManualAccessibility(TestSupport::Context &context, const GameWIP::Test:
         "to its client area?",
         observe);
 
-    if (!requireManualStatus(context, "accessibility demo disables", bridge.disable()))
+    if(!requireManualStatus(context, "accessibility demo disables", bridge.disable()))
     {
         return;
     }
+
     recordManualCheck(
         context,
         window,

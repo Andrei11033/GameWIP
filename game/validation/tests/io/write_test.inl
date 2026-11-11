@@ -1,5 +1,5 @@
 /// @file write_test.inl
-/// @brief Focused io write correctness suites.
+/// @brief Focused IO write tests.
 
 /// @brief Verifies complete byte writes, partial progress, zero progress, and invalid backend counts.
 void testWriteAllBytes(TestSupport::Context &context)

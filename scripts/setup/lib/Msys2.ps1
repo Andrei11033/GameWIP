@@ -15,6 +15,7 @@ function Invoke-GameWipMsys2
     {
         throw "MSYS2 bash was not found at $bash."
     }
+
     Invoke-GameWipSetupNative -FilePath $bash -ArgumentList @('-lc', $Command) | Out-Null
 }
 
@@ -26,7 +27,9 @@ function Invoke-GameWipMsys2PacmanWithRetry
     {
         try
         {
-            Write-GameWipOperationEvent -Phase execute -Step pacman -Severity info -Message "pacman attempt $attempt of $MaxAttempts"; Invoke-GameWipMsys2 -MsysRoot $MsysRoot -Command $Command; return
+            Write-GameWipOperationEvent -Phase execute -Step pacman -Severity info -Message "pacman attempt $attempt of $MaxAttempts"
+            Invoke-GameWipMsys2 -MsysRoot $MsysRoot -Command $Command
+            return
         }
 
         catch
@@ -54,6 +57,7 @@ function Get-GameWipMissingMsys2Package
     {
         return $Packages
     }
+
     $installedNames = [System.Collections.Generic.HashSet[string]]::new([string[]]$installed.Packages)
     return @($Packages | Where-Object { -not $installedNames.Contains($_) })
 }
@@ -76,13 +80,16 @@ function Get-GameWipMsys2PackageConfig
             'common'
             {
                 'Common'
-            } 'ucrt64'
+            }
+            'ucrt64'
             {
                 'Ucrt64'
-            } 'clang64'
+            }
+            'clang64'
             {
                 'Clang64'
-            } default
+            }
+            default
             {
                 throw "Unknown MSYS2 environment '$($toolInfo.provider.environment)'."
             }
@@ -103,13 +110,16 @@ function Get-GameWipMsys2PackageConfig
                 'common'
                 {
                     'Common'
-                } 'ucrt64'
+                }
+                'ucrt64'
                 {
                     'Ucrt64'
-                } 'clang64'
+                }
+                'clang64'
                 {
                     'Clang64'
-                } default
+                }
+                default
                 {
                     throw "Unknown MSYS2 dependency environment '$($dependency.environment)'."
                 }

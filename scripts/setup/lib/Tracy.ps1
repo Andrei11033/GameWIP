@@ -23,6 +23,7 @@ function Get-GameWipTracySourcePath
     {
         throw "The locked Tracy source is not ready at $($status[0].SourcePath). Run 'setup.bat deps' first."
     }
+
     $sourcePath = [IO.Path]::GetFullPath([string]$status[0].SourcePath)
 
     if (-not (Test-Path -LiteralPath (Join-Path $sourcePath 'CMakeLists.txt') -PathType Leaf))
@@ -53,6 +54,7 @@ function Get-GameWipTracyVersion
         {
             throw "Could not read Tracy $name version from $header."
         }
+
         $match.Groups[1].Value
     }
 
@@ -208,6 +210,7 @@ inline void* memmem(const void* haystack, std::size_t haystackSize, const char* 
         {
             return const_cast<void*>(haystack);
         }
+
         haystack = static_cast<const char*>(haystack) + 1;
         --remaining;
     }
@@ -242,6 +245,7 @@ function Invoke-GameWipTracyToolBuild
     {
         throw "UCRT64 CMake is required to build Tracy tools: $cmake"
     }
+
     $compilers = @(
         (Join-Path $ucrtBin 'gcc.exe'),
         (Join-Path $ucrtBin 'g++.exe'),
@@ -432,6 +436,7 @@ function Invoke-GameWipTracyToolBuild
             }
             throw
         }
+
         Add-GameWipOperationChange -Message "Installed verified Tracy tools for locked client $version."
     }
 

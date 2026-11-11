@@ -45,6 +45,7 @@ function Assert-GameWipSetupOptionCatalog
         {
             throw "Setup option '$id' has an invalid identifier."
         }
+
         $optionIds[$id.ToLowerInvariant()] = $id
 
         if ($option.Kind -in @('string', 'integer', 'choice', 'string-list') -and [string]::IsNullOrWhiteSpace([string]$option.ValueName))
@@ -124,8 +125,23 @@ function Assert-GameWipSetupActionCatalog
 
     if ((($requiredActionIds | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
-        throw "Setup action catalog drift. Required: $($requiredActionIds -join ', '); configured: $($actionIds -join ', ')."
+        $missingActions = @($requiredActionIds | Where-Object { $actionIds -cnotcontains $_ })
+        $unexpectedActions = @($actionIds | Where-Object { $requiredActionIds -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingActions.Count -gt 0)
+        {
+            $differences += "missing required actions: $($missingActions -join ', ')"
+        }
+
+        if ($unexpectedActions.Count -gt 0)
+        {
+            $differences += "unexpected configured actions: $($unexpectedActions -join ', ')"
+        }
+
+        throw "Setup action catalog drift: $($differences -join '; ')."
     }
+
     $duplicateKeys = @($actions | Where-Object { $_.ContainsKey('Key') } | ForEach-Object { [string]$_.Key } | Group-Object | Where-Object Count -gt 1)
 
     if ($duplicateKeys.Count -ne 0)
@@ -212,6 +228,7 @@ function Initialize-GameWipSetupManagedToolRoot
     {
         return
     }
+
     $root = Get-GameWipManagedToolRoot
 
     if (Test-Path -LiteralPath $root)
@@ -434,6 +451,7 @@ function Invoke-GameWipSetupEnvironmentCheck
         }
         throw "$($failures.Count) environment check(s) failed. Run '.\setup.bat repair'."
     }
+
     Write-GameWipStatusLine -Status OK -Text 'Complete selected development environment is ready.' -Semantic Success -Indent 2
 }
 
@@ -451,42 +469,52 @@ function Get-GameWipSetupPlan
         {
             return @('Install/verify MSYS2 toolchains.', 'Install or repair exact declared project tools.', 'Prepare the repository and development configuration.', 'Prepare or reuse the locked dependency cache.', 'Apply selected editor integrations.', 'Build matching Tracy tools.', 'Build docs unless skipped.', 'Verify complete environment.')
         }
+
         'repair'
         {
             return @('Reapply declared environment state without advancing project pins.', 'Prepare or reuse the locked dependency cache.', 'Verify complete environment.')
         }
+
         'update'
         {
             return @('Update MSYS2/environment packages without advancing exact project pins.', 'Install or update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.', 'Refresh integrations.', 'Verify complete environment.')
         }
+
         'deps'
         {
             return @(Get-GameWipDependencyPreparationPlan)
         }
+
         'tool'
         {
             return @('Install, update, or repair tools at versions already declared by the checkout.', 'Do not modify project pins.')
         }
+
         'msys2'
         {
             return @('Install/repair declared UCRT64 and CLANG64 packages.')
         }
+
         'repo'
         {
             return @('Prepare the Git checkout and development configuration.')
         }
+
         'editor'
         {
             return @('Apply selected editor/IDE integrations.')
         }
+
         'vs'
         {
             return @('Install/repair Visual Studio using .vsconfig.')
         }
+
         'profiler'
         {
             return @('Prepare or reuse the locked Tracy source, then build/install matching profiler tools.')
         }
+
         'doc'
         {
             return @(
@@ -680,6 +708,7 @@ function Show-GameWipSetupMenu
         {
             return
         }
+
         Invoke-GameWipSetupOperation -SelectedAction ([string]$choice.Value) | Out-Null
     }
 }

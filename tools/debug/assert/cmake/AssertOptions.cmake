@@ -35,7 +35,6 @@ function(internal_assert_public_option output_variable option_value)
         set(${output_variable} "$<IF:${ASSERT_RELEASE_CONFIG_EXPRESSION},0,1>" PARENT_SCOPE)
     else()
         internal_assert_resolve_auto_option(resolved_value "${option_value}")
-
         set(${output_variable} ${resolved_value} PARENT_SCOPE)
     endif()
 endfunction()

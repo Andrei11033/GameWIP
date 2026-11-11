@@ -20,7 +20,7 @@ namespace GameWIP::Terminal
 
         [[nodiscard]] bool validLineEnding(Types::Output::LineEnding lineEnding) noexcept
         {
-            switch (lineEnding)
+            switch(lineEnding)
             {
             case Types::Output::LineEnding::Native:
             case Types::Output::LineEnding::Lf:
@@ -33,7 +33,7 @@ namespace GameWIP::Terminal
 
         [[nodiscard]] std::string_view lineEndingText(Types::Output::LineEnding lineEnding) noexcept
         {
-            switch (lineEnding)
+            switch(lineEnding)
             {
             case Types::Output::LineEnding::Native:
                 return Detail::Platform::nativeLineEnding();
@@ -48,15 +48,16 @@ namespace GameWIP::Terminal
 
         [[nodiscard]] IO::Types::Status statusWithMessage(ErrorCode code, std::string_view message) noexcept
         {
-            if (message.empty())
+            if(message.empty())
             {
                 return IO::makeStatus(code);
             }
+
             try
             {
                 return IO::makeStatus(code, 0, std::string(message));
             }
-            catch (...)
+            catch(...)
             {
                 return IO::makeStatus(code);
             }
@@ -69,7 +70,7 @@ namespace GameWIP::Terminal
 
         void rollbackString(std::string &text, std::size_t previousSize) noexcept
         {
-            while (text.size() > previousSize)
+            while(text.size() > previousSize)
             {
                 text.pop_back();
             }
@@ -88,11 +89,10 @@ namespace GameWIP::Terminal
 
     IO::Types::Status OutputBuffer::setLineEnding(Types::Output::LineEnding lineEnding) noexcept
     {
-        if (!validLineEnding(lineEnding))
+        if(!validLineEnding(lineEnding))
         {
             return invalidArgumentStatus("Unknown terminal line ending.");
         }
-
         lineEnding_ = lineEnding;
         return IO::successStatus();
     }
@@ -104,7 +104,7 @@ namespace GameWIP::Terminal
             text_.reserve(bytes);
             return IO::successStatus();
         }
-        catch (...)
+        catch(...)
         {
             return Detail::exceptionStatus();
         }
@@ -132,7 +132,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status OutputBuffer::appendText(std::string_view utf8Text) noexcept
     {
-        if (!validUtf8(utf8Text))
+        if(!validUtf8(utf8Text))
         {
             return IO::makeStatus(ErrorCode::EncodingFailed);
         }
@@ -143,7 +143,7 @@ namespace GameWIP::Terminal
             text_.append(utf8Text);
             return IO::successStatus();
         }
-        catch (...)
+        catch(...)
         {
             rollbackString(text_, previousSize);
             return Detail::exceptionStatus();
@@ -152,7 +152,7 @@ namespace GameWIP::Terminal
 
     IO::Types::Status OutputBuffer::appendLine(std::string_view utf8Text) noexcept
     {
-        if (!validUtf8(utf8Text))
+        if(!validUtf8(utf8Text))
         {
             return IO::makeStatus(ErrorCode::EncodingFailed);
         }
@@ -164,7 +164,7 @@ namespace GameWIP::Terminal
             text_.append(lineEndingText(lineEnding_));
             return IO::successStatus();
         }
-        catch (...)
+        catch(...)
         {
             rollbackString(text_, previousSize);
             return Detail::exceptionStatus();
@@ -178,20 +178,19 @@ namespace GameWIP::Terminal
         {
             std::vformat_to(std::back_inserter(text_), format, arguments);
 
-            if (appendLineEnding)
+            if(appendLineEnding)
             {
                 text_.append(lineEndingText(lineEnding_));
             }
 
-            if (!validUtf8(std::string_view(text_).substr(previousSize)))
+            if(!validUtf8(std::string_view(text_).substr(previousSize)))
             {
                 rollbackString(text_, previousSize);
                 return IO::makeStatus(ErrorCode::EncodingFailed);
             }
-
             return IO::successStatus();
         }
-        catch (...)
+        catch(...)
         {
             rollbackString(text_, previousSize);
             return Detail::exceptionStatus();
@@ -209,7 +208,7 @@ namespace GameWIP::Terminal
         {
             return Terminal::writeText(stream, text_, options);
         }
-        catch (...)
+        catch(...)
         {
             return Detail::exceptionStatus();
         }
@@ -223,13 +222,10 @@ namespace GameWIP::Terminal
     IO::Types::Status OutputBuffer::flushTo(Types::Output::Stream stream, const Types::Output::TextOptions &options) noexcept
     {
         IO::Types::Status status = writeTo(stream, options);
-
-        if (status.ok())
+        if(status.ok())
         {
             clear();
         }
-
         return status;
     }
-
 } // namespace GameWIP::Terminal

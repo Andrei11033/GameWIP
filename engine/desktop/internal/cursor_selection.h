@@ -13,7 +13,6 @@ namespace GameWIP::Desktop::Detail
     [[nodiscard]] constexpr bool isBetterDpiCandidate(std::uint32_t candidateDpi, std::uint32_t currentDpi, std::uint32_t targetDpi) noexcept
     {
         const std::uint32_t candidateDistance = candidateDpi > targetDpi ? candidateDpi - targetDpi : targetDpi - candidateDpi;
-
         const std::uint32_t currentDistance = currentDpi > targetDpi ? currentDpi - targetDpi : targetDpi - currentDpi;
 
         return candidateDistance < currentDistance || (candidateDistance == currentDistance && candidateDpi > currentDpi);
@@ -24,9 +23,9 @@ namespace GameWIP::Desktop::Detail
     {
         std::size_t best = 0;
 
-        for (std::size_t i = 1; i < intendedDpis.size(); ++i)
+        for(std::size_t i = 1; i < intendedDpis.size(); ++i)
         {
-            if (isBetterDpiCandidate(intendedDpis[i], intendedDpis[best], targetDpi))
+            if(isBetterDpiCandidate(intendedDpis[i], intendedDpis[best], targetDpi))
             {
                 best = i;
             }

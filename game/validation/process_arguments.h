@@ -14,10 +14,11 @@ namespace GameWIP::Validation
     /// @note The language runtime owns @p argv and provides @p argc accessible argument pointers for the process lifetime.
     [[nodiscard]] inline ProcessArguments processArguments(int argc, char **argv) noexcept
     {
-        if (argc <= 0 || argv == nullptr)
+        if(argc <= 0 || argv == nullptr)
         {
             return {};
         }
+
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif

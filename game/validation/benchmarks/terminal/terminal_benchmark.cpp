@@ -20,20 +20,20 @@ namespace
     {
         Terminal::OutputBuffer buffer;
 
-        if (!buffer.reserve(kChunk.size() * 64).ok())
+        if(!buffer.reserve(kChunk.size() * 64).ok())
         {
             state.SkipWithError("Terminal OutputBuffer reserve failed.");
             return;
         }
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             buffer.clear();
 
-            for (std::size_t index = 0; index < 64; ++index)
+            for(std::size_t index = 0; index < 64; ++index)
             {
-                if (!buffer.appendText(kChunk).ok())
+                if(!buffer.appendText(kChunk).ok())
                 {
                     state.SkipWithError("Terminal OutputBuffer append failed.");
                     return;
@@ -52,20 +52,20 @@ namespace
     {
         Terminal::OutputBuffer buffer;
 
-        if (!buffer.reserve(4096).ok())
+        if(!buffer.reserve(4096).ok())
         {
             state.SkipWithError("Terminal OutputBuffer reserve failed.");
             return;
         }
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             buffer.clear();
 
-            for (std::uint32_t index = 0; index < 64; ++index)
+            for(std::uint32_t index = 0; index < 64; ++index)
             {
-                if (!buffer.print("frame={} entity={} ", index, index * 3U).ok())
+                if(!buffer.print("frame={} entity={} ", index, index * 3U).ok())
                 {
                     state.SkipWithError("Terminal OutputBuffer formatting failed.");
                     return;
@@ -82,20 +82,20 @@ namespace
     {
         Terminal::OutputBuffer buffer;
 
-        if (!buffer.setLineEnding(Terminal::Types::Output::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
+        if(!buffer.setLineEnding(Terminal::Types::Output::LineEnding::Lf).ok() || !buffer.reserve(4096).ok())
         {
             state.SkipWithError("Terminal OutputBuffer setup failed.");
             return;
         }
 
-        for (auto iteration : state)
+        for(auto iteration : state)
         {
             static_cast<void>(iteration);
             buffer.clear();
 
-            for (std::size_t index = 0; index < 64; ++index)
+            for(std::size_t index = 0; index < 64; ++index)
             {
-                if (!buffer.appendLine(kChunk).ok())
+                if(!buffer.appendLine(kChunk).ok())
                 {
                     state.SkipWithError("Terminal OutputBuffer line append failed.");
                     return;

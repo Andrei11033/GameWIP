@@ -35,6 +35,7 @@ function Invoke-GameWipDocumentationBuild
             Get-Content -LiteralPath $warningLog
             throw 'Doxygen emitted warnings.'
         }
+
         $index = Join-Path $RepositoryRoot 'build\docs\docs\doxygen\html\index.html'
         Write-Host "  Ready: $index"
 

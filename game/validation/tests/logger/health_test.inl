@@ -1,5 +1,5 @@
 /// @file health_test.inl
-/// @brief Logger lifecycle health and statistics correctness suites.
+/// @brief Logger lifecycle, health, and statistics tests.
 
 void testQueryDefaultsAndLifecycle(TestContext &context)
 {
@@ -34,7 +34,7 @@ void testShutdownAndHealthEpoch(TestContext &context)
     std::thread healthObserver(
         [&]
         {
-            while (observeHealth.load(std::memory_order_acquire))
+            while(observeHealth.load(std::memory_order_acquire))
             {
                 const Logger::Types::Health::Snapshot snapshot = Logger::getHealth();
                 const bool healthy = snapshot.state == Logger::Types::Health::State::Healthy &&
@@ -46,7 +46,7 @@ void testShutdownAndHealthEpoch(TestContext &context)
                                     snapshot.lastFailureSource == Logger::Types::Health::FailureSource::File &&
                                     snapshot.lastError != IO::Types::ErrorCode::Success && snapshot.failureCount > 0;
 
-                if (!healthy && !failed)
+                if(!healthy && !failed)
                 {
                     healthSnapshotsCoherent.store(false, std::memory_order_release);
                 }

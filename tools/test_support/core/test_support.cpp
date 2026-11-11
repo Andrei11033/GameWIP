@@ -17,7 +17,7 @@ namespace GameWIP::TestSupport
     {
         std::string_view errorName = "PlatformFailure";
 
-        switch (status.error)
+        switch(status.error)
         {
         case Types::InfrastructureError::None:
             errorName = "None";

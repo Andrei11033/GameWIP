@@ -10,6 +10,8 @@
 #include "desktop/internal/progress_dialog_state.h"
 #include "desktop/internal/window_platform.h"
 
+#include "desktop/native/win32.h"
+
 #include <dwmapi.h>
 #include <shellapi.h>
 #include <shellscalingapi.h>
@@ -62,6 +64,8 @@ namespace GameWIP::Desktop::Detail::Platform
         WindowState *owner = nullptr;
         HINSTANCE instance = nullptr;
         HWND handle = nullptr;
+        GameWIP::Desktop::Native::Win32::MessageSink messageSink = nullptr;
+        void *messageSinkContext = nullptr;
         DWORD ownerThreadId = 0;
         HCURSOR cursor = nullptr;
         HICON largeIcon = nullptr;
@@ -168,10 +172,11 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] UINT dpiForWindow(HWND window) noexcept;
     [[nodiscard]] bool logicalToPhysicalChecked(std::int32_t value, UINT dpi, LONG &output) noexcept;
     [[nodiscard]] LONG logicalToPhysical(std::int32_t value, UINT dpi) noexcept;
-    /// @}
     [[nodiscard]] std::int32_t physicalToLogical(LONG value, UINT dpi) noexcept;
     [[nodiscard]] Types::PixelSize logicalToPhysicalSize(Types::LogicalSize value, UINT dpi) noexcept;
     [[nodiscard]] Types::LogicalSize physicalToLogicalSize(std::uint32_t width, std::uint32_t height, UINT dpi) noexcept;
+    /// @}
+
     [[nodiscard]] HCURSOR loadCursor(Types::CursorShape shape) noexcept;
     void releaseCustomCursorBinding(HWND window) noexcept;
     void refreshCustomCursorForDpi(WindowState &state, std::uint32_t dpi) noexcept;

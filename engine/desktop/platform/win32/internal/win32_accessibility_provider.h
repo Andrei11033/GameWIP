@@ -49,18 +49,21 @@ namespace GameWIP::Desktop::Detail::Platform
         {
             return node != nullptr;
         }
+
         [[nodiscard]] const AccessibilityTextCache &text() const noexcept
         {
             return snapshot->textCache[index];
         }
+
         /// @brief Returns document content after textQuery() or TextRangeProvider::query() has validated text exposure.
         /// @details Terminates if the validated-query precondition is violated.
         [[nodiscard]] const A::TextContent &textContent() const noexcept
         {
-            if (node && node->text)
+            if(node && node->text)
             {
                 return *node->text;
             }
+
             std::terminate();
         }
     };
@@ -158,10 +161,12 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override;
         ULONG STDMETHODCALLTYPE AddRef() override;
         ULONG STDMETHODCALLTYPE Release() override;
+
         HRESULT STDMETHODCALLTYPE get_ProviderOptions(ProviderOptions *out) override;
         HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID id, IUnknown **out) override;
         HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID id, VARIANT *out) override;
         HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple **out) override;
+
         HRESULT STDMETHODCALLTYPE Navigate(NavigateDirection direction, IRawElementProviderFragment **out) override;
         HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE get_BoundingRectangle(UiaRect *out) override;
@@ -170,23 +175,30 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE get_FragmentRoot(IRawElementProviderFragmentRoot **out) override;
         HRESULT STDMETHODCALLTYPE ElementProviderFromPoint(double x, double y, IRawElementProviderFragment **out) override;
         HRESULT STDMETHODCALLTYPE GetFocus(IRawElementProviderFragment **out) override;
+
         HRESULT STDMETHODCALLTYPE AdviseEventAdded(EVENTID id, SAFEARRAY *properties) override;
         HRESULT STDMETHODCALLTYPE AdviseEventRemoved(EVENTID id, SAFEARRAY *properties) override;
+
         HRESULT STDMETHODCALLTYPE Invoke() override;
+
         HRESULT STDMETHODCALLTYPE SetValue(LPCWSTR value) override;
         HRESULT STDMETHODCALLTYPE get_Value(BSTR *out) override;
         HRESULT STDMETHODCALLTYPE get_IsReadOnly(BOOL *out) override;
+
         HRESULT STDMETHODCALLTYPE SetValue(double value) override;
         HRESULT STDMETHODCALLTYPE get_Value(double *out) override;
         HRESULT STDMETHODCALLTYPE get_Maximum(double *out) override;
         HRESULT STDMETHODCALLTYPE get_Minimum(double *out) override;
         HRESULT STDMETHODCALLTYPE get_LargeChange(double *out) override;
         HRESULT STDMETHODCALLTYPE get_SmallChange(double *out) override;
+
         HRESULT STDMETHODCALLTYPE Toggle() override;
         HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState *out) override;
+
         HRESULT STDMETHODCALLTYPE Expand() override;
         HRESULT STDMETHODCALLTYPE Collapse() override;
         HRESULT STDMETHODCALLTYPE get_ExpandCollapseState(ExpandCollapseState *out) override;
+
         HRESULT STDMETHODCALLTYPE GetSelection(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE get_CanSelectMultiple(BOOL *out) override;
         HRESULT STDMETHODCALLTYPE get_IsSelectionRequired(BOOL *out) override;
@@ -194,11 +206,13 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE get_LastSelectedItem(IRawElementProviderSimple **out) override;
         HRESULT STDMETHODCALLTYPE get_CurrentSelectedItem(IRawElementProviderSimple **out) override;
         HRESULT STDMETHODCALLTYPE get_ItemCount(int *out) override;
+
         HRESULT STDMETHODCALLTYPE Select() override;
         HRESULT STDMETHODCALLTYPE AddToSelection() override;
         HRESULT STDMETHODCALLTYPE RemoveFromSelection() override;
         HRESULT STDMETHODCALLTYPE get_IsSelected(BOOL *out) override;
         HRESULT STDMETHODCALLTYPE get_SelectionContainer(IRawElementProviderSimple **out) override;
+
         HRESULT STDMETHODCALLTYPE Scroll(ScrollAmount horizontal, ScrollAmount vertical) override;
         HRESULT STDMETHODCALLTYPE SetScrollPercent(double horizontal, double vertical) override;
         HRESULT STDMETHODCALLTYPE get_HorizontalScrollPercent(double *out) override;
@@ -207,28 +221,37 @@ namespace GameWIP::Desktop::Detail::Platform
         HRESULT STDMETHODCALLTYPE get_VerticalViewSize(double *out) override;
         HRESULT STDMETHODCALLTYPE get_HorizontallyScrollable(BOOL *out) override;
         HRESULT STDMETHODCALLTYPE get_VerticallyScrollable(BOOL *out) override;
+
         HRESULT STDMETHODCALLTYPE ScrollIntoView() override;
+
         HRESULT STDMETHODCALLTYPE GetItem(int row, int column, IRawElementProviderSimple **out) override;
         HRESULT STDMETHODCALLTYPE get_RowCount(int *out) override;
         HRESULT STDMETHODCALLTYPE get_ColumnCount(int *out) override;
+
         HRESULT STDMETHODCALLTYPE get_Row(int *out) override;
         HRESULT STDMETHODCALLTYPE get_Column(int *out) override;
         HRESULT STDMETHODCALLTYPE get_RowSpan(int *out) override;
         HRESULT STDMETHODCALLTYPE get_ColumnSpan(int *out) override;
         HRESULT STDMETHODCALLTYPE get_ContainingGrid(IRawElementProviderSimple **out) override;
+
         HRESULT STDMETHODCALLTYPE GetRowHeaders(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE GetColumnHeaders(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE get_RowOrColumnMajor(RowOrColumnMajor *out) override;
+
         HRESULT STDMETHODCALLTYPE GetRowHeaderItems(SAFEARRAY **out) override;
         HRESULT STDMETHODCALLTYPE GetColumnHeaderItems(SAFEARRAY **out) override;
+
         HRESULT STDMETHODCALLTYPE Realize() override;
+
         HRESULT STDMETHODCALLTYPE
         FindItemByProperty(IRawElementProviderSimple *start, PROPERTYID id, VARIANT value, IRawElementProviderSimple **out) override;
+
         HRESULT STDMETHODCALLTYPE get_AnnotationTypeId(int *out) override;
         HRESULT STDMETHODCALLTYPE get_AnnotationTypeName(BSTR *out) override;
         HRESULT STDMETHODCALLTYPE get_Author(BSTR *out) override;
         HRESULT STDMETHODCALLTYPE get_DateTime(BSTR *out) override;
         HRESULT STDMETHODCALLTYPE get_Target(IRawElementProviderSimple **out) override;
+
         HRESULT STDMETHODCALLTYPE get_TextContainer(IRawElementProviderSimple **out) override;
         HRESULT STDMETHODCALLTYPE get_TextRange(ITextRangeProvider **out) override;
 

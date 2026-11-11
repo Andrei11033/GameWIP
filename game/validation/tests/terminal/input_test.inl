@@ -1,5 +1,5 @@
 /// @file input_test.inl
-/// @brief Focused terminal input correctness suites.
+/// @brief Focused Terminal input tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 /// @brief Verifies byte, text, and line reads across UTF-8, timeout, truncation, and EOF paths.
@@ -163,12 +163,11 @@ void testWin32EventDecoder(TestSupport::Context &context)
         static_cast<void>(context.expectTrue(std::format("{} status", label), decoded.status.ok()));
         static_cast<void>(context.expectEq(std::format("{} disposition", label), Hooks::Win32KeyDecodeDisposition::Produced, decoded.disposition));
 
-        if (!decoded.event.has_value())
+        if(!decoded.event.has_value())
         {
             context.fail(label, "decoder produced no portable event");
             return nullptr;
         }
-
         const Terminal::Types::Events::Key *key = decoded.event->getIf<Terminal::Types::Events::Key>();
         static_cast<void>(context.expectTrue(std::format("{} payload", label), key != nullptr));
         return key;
@@ -179,12 +178,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, 'A', u'a');
         const Terminal::Types::Events::Key *key = expectKeyEvent("character A", decoded);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             const auto *character = std::get_if<Terminal::Types::Events::CharacterKey>(&key->key);
             static_cast<void>(context.expectTrue("character A alternative", character != nullptr));
 
-            if (character != nullptr)
+            if(character != nullptr)
             {
                 static_cast<void>(context.expectEq("character A scalar", U'a', character->value));
             }
@@ -198,12 +197,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, 'A', static_cast<char16_t>(0x0001), LEFT_CTRL_PRESSED);
         const Terminal::Types::Events::Key *key = expectKeyEvent("Ctrl+A", decoded);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             const auto *character = std::get_if<Terminal::Types::Events::CharacterKey>(&key->key);
             static_cast<void>(context.expectTrue("Ctrl+A character alternative", character != nullptr));
 
-            if (character != nullptr)
+            if(character != nullptr)
             {
                 static_cast<void>(context.expectEq("Ctrl+A normalized scalar", U'a', character->value));
             }
@@ -218,12 +217,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, 'Q', u'@', RIGHT_ALT_PRESSED | LEFT_CTRL_PRESSED);
         const Terminal::Types::Events::Key *key = expectKeyEvent("AltGr character", decoded);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             const auto *character = std::get_if<Terminal::Types::Events::CharacterKey>(&key->key);
             static_cast<void>(context.expectTrue("AltGr character alternative", character != nullptr));
 
-            if (character != nullptr)
+            if(character != nullptr)
             {
                 static_cast<void>(context.expectEq("AltGr translated scalar", U'@', character->value));
             }
@@ -241,12 +240,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, VK_LCONTROL, u'\0', LEFT_CTRL_PRESSED);
         const Terminal::Types::Events::Key *key = expectKeyEvent("left control", decoded);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             const auto *modifier = std::get_if<Terminal::Types::Events::ModifierKey>(&key->key);
             static_cast<void>(context.expectTrue("left control modifier alternative", modifier != nullptr));
 
-            if (modifier != nullptr)
+            if(modifier != nullptr)
             {
                 static_cast<void>(context.expectEq("left control logical key", Terminal::Types::Events::ModifierKey::Control, *modifier));
             }
@@ -262,7 +261,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult left = Hooks::decodeWin32KeyRecord(true, VK_CONTROL, u'\0', LEFT_CTRL_PRESSED);
         const Terminal::Types::Events::Key *key = expectKeyEvent("generic left control", left);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             static_cast<void>(context.expectEq("generic left control press", Terminal::Types::Events::KeyAction::Press, key->action));
             static_cast<void>(context.expectEq("generic left control location", Terminal::Types::Events::KeyLocation::Left, key->location));
@@ -272,7 +271,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
             Hooks::decodeWin32KeyRecord(true, VK_CONTROL, u'\0', LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED | ENHANCED_KEY);
         key = expectKeyEvent("generic right control", right);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             static_cast<void>(context.expectEq("other-side control is a press", Terminal::Types::Events::KeyAction::Press, key->action));
             static_cast<void>(context.expectEq("generic right control location", Terminal::Types::Events::KeyLocation::Right, key->location));
@@ -287,7 +286,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult character = Hooks::decodeWin32KeyRecord(true, 'A', u'a');
         const Terminal::Types::Events::Key *key = expectKeyEvent("Super+A", character);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             static_cast<void>(context.expectTrue(
                 "tracked super accompanies following key",
@@ -300,12 +299,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult dedicated = Hooks::decodeWin32KeyRecord(true, VK_LEFT, u'\0', ENHANCED_KEY);
         const Terminal::Types::Events::Key *key = expectKeyEvent("dedicated left arrow", dedicated);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             const auto *named = std::get_if<Terminal::Types::Events::NamedKey>(&key->key);
             static_cast<void>(context.expectTrue("left arrow named alternative", named != nullptr));
 
-            if (named != nullptr)
+            if(named != nullptr)
             {
                 static_cast<void>(context.expectEq("left arrow logical key", Terminal::Types::Events::NamedKey::ArrowLeft, *named));
             }
@@ -316,7 +315,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult numpad = Hooks::decodeWin32KeyRecord(true, VK_LEFT);
         key = expectKeyEvent("numpad left arrow", numpad);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             static_cast<void>(context.expectEq("numpad arrow location", Terminal::Types::Events::KeyLocation::Numpad, key->location));
         }
@@ -327,12 +326,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult decoded = Hooks::decodeWin32KeyRecord(true, VK_F24);
         const Terminal::Types::Events::Key *key = expectKeyEvent("F24", decoded);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             const auto *function = std::get_if<Terminal::Types::Events::FunctionKey>(&key->key);
             static_cast<void>(context.expectTrue("F24 function alternative", function != nullptr));
 
-            if (function != nullptr)
+            if(function != nullptr)
             {
                 static_cast<void>(context.expectEq("F24 number", std::uint16_t{24}, function->number));
             }
@@ -344,7 +343,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult first = Hooks::decodeWin32KeyRecord(true, 'A', u'a', 0, 3);
         const Terminal::Types::Events::Key *key = expectKeyEvent("combined repeat press", first);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             static_cast<void>(context.expectEq("combined repeat first action", Terminal::Types::Events::KeyAction::Press, key->action));
             static_cast<void>(context.expectEq("combined repeat press count", std::uint32_t{1}, key->repeatCount));
@@ -353,12 +352,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const std::optional<Terminal::Types::Event> pending = Hooks::takePendingWin32KeyEvent();
         static_cast<void>(context.expectTrue("combined repeat retains follow-up event", pending.has_value()));
 
-        if (pending.has_value())
+        if(pending.has_value())
         {
             const Terminal::Types::Events::Key *repeat = pending->getIf<Terminal::Types::Events::Key>();
             static_cast<void>(context.expectTrue("combined repeat follow-up payload", repeat != nullptr));
 
-            if (repeat != nullptr)
+            if(repeat != nullptr)
             {
                 static_cast<void>(context.expectEq("combined repeat action", Terminal::Types::Events::KeyAction::Repeat, repeat->action));
                 static_cast<void>(context.expectEq("combined repeat count", std::uint32_t{2}, repeat->repeatCount));
@@ -368,7 +367,7 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult released = Hooks::decodeWin32KeyRecord(false, 'A', u'a');
         key = expectKeyEvent("character release", released);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             static_cast<void>(context.expectEq("character release action", Terminal::Types::Events::KeyAction::Release, key->action));
         }
@@ -382,12 +381,12 @@ void testWin32EventDecoder(TestSupport::Context &context)
         const Hooks::Win32KeyDecodeResult low = Hooks::decodeWin32KeyRecord(true, VK_PACKET, static_cast<char16_t>(0xde00));
         const Terminal::Types::Events::Key *key = expectKeyEvent("surrogate pair", low);
 
-        if (key != nullptr)
+        if(key != nullptr)
         {
             const auto *character = std::get_if<Terminal::Types::Events::CharacterKey>(&key->key);
             static_cast<void>(context.expectTrue("surrogate pair character alternative", character != nullptr));
 
-            if (character != nullptr)
+            if(character != nullptr)
             {
                 static_cast<void>(context.expectEq("surrogate pair scalar", static_cast<char32_t>(0x1f600), character->value));
             }
@@ -414,11 +413,10 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     HANDLE firstWrite = nullptr;
     static_cast<void>(context.expectTrue("create first stdin pipe", CreatePipe(&firstRead, &firstWrite, nullptr, 0) != FALSE));
 
-    if (firstRead == nullptr || firstWrite == nullptr)
+    if(firstRead == nullptr || firstWrite == nullptr)
     {
         return;
     }
-
     static_cast<void>(context.expectTrue("install first stdin pipe", SetStdHandle(STD_INPUT_HANDLE, firstRead) != FALSE));
     DWORD bytesWritten = 0;
     static_cast<void>(context.expectTrue("write first stdin pipe", WriteFile(firstWrite, "AB", 2, &bytesWritten, nullptr) != FALSE));
@@ -447,7 +445,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     HANDLE failedProbeWrite = nullptr;
     static_cast<void>(context.expectTrue("create failed-probe stdin pipe", CreatePipe(&failedProbeRead, &failedProbeWrite, nullptr, 0) != FALSE));
 
-    if (failedProbeRead == nullptr || failedProbeWrite == nullptr)
+    if(failedProbeRead == nullptr || failedProbeWrite == nullptr)
     {
         static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
         CloseHandle(firstRead);
@@ -485,17 +483,17 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     HANDLE replacementRead = nullptr;
     HANDLE replacementWrite = nullptr;
 
-    for (std::size_t attempt = 0; attempt < 256; ++attempt)
+    for(std::size_t attempt = 0; attempt < 256; ++attempt)
     {
         HANDLE candidateRead = nullptr;
         HANDLE candidateWrite = nullptr;
 
-        if (CreatePipe(&candidateRead, &candidateWrite, nullptr, 0) == FALSE)
+        if(CreatePipe(&candidateRead, &candidateWrite, nullptr, 0) == FALSE)
         {
             break;
         }
 
-        if (candidateRead == reusedValue)
+        if(candidateRead == reusedValue)
         {
             replacementRead = candidateRead;
             replacementWrite = candidateWrite;
@@ -505,14 +503,13 @@ void testInputEndpointReplacement(TestSupport::Context &context)
         CloseHandle(candidateWrite);
     }
 
-    if (replacementRead == nullptr)
+    if(replacementRead == nullptr)
     {
         context.skip("stdin numeric handle reuse", "Win32 did not reuse the released handle value within 256 attempts");
         static_cast<void>(SetStdHandle(STD_INPUT_HANDLE, originalInput));
         Hooks::reset();
         return;
     }
-
     static_cast<void>(context.expectTrue("install reused stdin handle", SetStdHandle(STD_INPUT_HANDLE, replacementRead) != FALSE));
     bytesWritten = 0;
     static_cast<void>(context.expectTrue("write replacement stdin pipe", WriteFile(replacementWrite, "C", 1, &bytesWritten, nullptr) != FALSE));
@@ -533,7 +530,7 @@ void testInputEndpointReplacement(TestSupport::Context &context)
     Hooks::reset();
 }
 
-/// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
+/// @brief Runs a child test for cancellation when the stop callback cannot signal its event.
 int runCancellationSignalFailureChild()
 {
     Hooks::reset();
@@ -548,17 +545,18 @@ int runCancellationSignalFailureChild()
         });
     const auto setupDeadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
 
-    while (Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < setupDeadline)
+    while(Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < setupDeadline)
     {
         std::this_thread::yield();
     }
 
-    if (Hooks::consoleWaitCallCount() == initialWaits)
+    if(Hooks::consoleWaitCallCount() == initialWaits)
     {
         stopSource.request_stop();
         reader.join();
         return 3;
     }
+
     std::cout << "Native wait reached; requesting cancellation.\n" << std::flush;
     const auto cancellationStarted = std::chrono::steady_clock::now();
     stopSource.request_stop();
@@ -575,7 +573,7 @@ int runCancellationSignalFailureChild()
     return passed ? 0 : 1;
 }
 
-/// @brief Verifies bounded cancellation observation when the stop callback cannot signal its event.
+/// @brief Verifies bounded cancellation after the native signal fails.
 void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath)
 {
     Hooks::reset();
@@ -589,12 +587,12 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
     static_cast<void>(context.expectTrue("infinite cancellation child infrastructure succeeds", childResult.status.ok()));
     static_cast<void>(context.expectEq("infinite cancellation child exits", TestSupport::Types::Process::Outcome::Exited, childResult.outcome));
 
-    if (childResult.outcome == TestSupport::Types::Process::Outcome::Exited)
+    if(childResult.outcome == TestSupport::Types::Process::Outcome::Exited)
     {
         static_cast<void>(context.expectEq("infinite cancellation child returns success", std::uint32_t{0}, childResult.exitCode));
     }
 
-    if (!childResult.status.ok() || childResult.outcome != TestSupport::Types::Process::Outcome::Exited || childResult.exitCode != 0)
+    if(!childResult.status.ok() || childResult.outcome != TestSupport::Types::Process::Outcome::Exited || childResult.exitCode != 0)
     {
         context.info(
             std::format(
@@ -609,7 +607,7 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
     {
         std::stop_source stopSource;
 
-        if (forceSignalFailure)
+        if(forceSignalFailure)
         {
             Hooks::forceNextCancellationSignalFailure();
         }
@@ -623,7 +621,7 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
             });
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{2};
 
-        while (Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < deadline)
+        while(Hooks::consoleWaitCallCount() == initialWaits && std::chrono::steady_clock::now() < deadline)
         {
             std::this_thread::yield();
         }

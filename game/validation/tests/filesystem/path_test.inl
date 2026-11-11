@@ -1,5 +1,5 @@
 /// @file path_test.inl
-/// @brief Focused filesystem path correctness suites.
+/// @brief Focused FileSystem path tests.
 
 /// @brief Verifies explicit UTF-8 path conversion with non-ASCII fixture names.
 void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem::path &root)
@@ -7,11 +7,10 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
     const std::string utf8Name = std::string{"unicode_"} + "\xD1\x84\xD0\xB0\xD0\xB9\xD0\xBB.txt";
     const auto namePath = FileSystem::pathFromUtf8(utf8Name);
 
-    if (!expectStatus(context, "pathFromUtf8 succeeds for non-ASCII filename", namePath.status))
+    if(!expectStatus(context, "pathFromUtf8 succeeds for non-ASCII filename", namePath.status))
     {
         return;
     }
-
     const std::filesystem::path path = root / "unicode" / namePath.path;
     static_cast<void>(context.expectTrue("write non-ASCII path succeeds", FileSystem::writeAllText(path, "text").status.ok()));
     const auto roundTrip = FileSystem::pathToUtf8(path.filename());
@@ -22,7 +21,7 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
     const auto namePath8 = FileSystem::pathFromUtf8(std::u8string_view(utf8Name8));
     static_cast<void>(context.expectTrue("pathFromUtf8 accepts explicit char8_t text", namePath8.status.ok()));
 
-    if (namePath8.status.ok())
+    if(namePath8.status.ok())
     {
         const auto roundTrip8 = FileSystem::pathToUtf8(namePath8.path);
         static_cast<void>(context.expectTrue("char8_t path conversion round-trips", roundTrip8.status.ok()));

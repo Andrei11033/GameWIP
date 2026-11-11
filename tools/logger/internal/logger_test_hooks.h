@@ -44,6 +44,5 @@ namespace GameWIP::Logger::TestHooks
     /// @brief Releases the worker delivery pause.
     /// @warning Test-only API.
     LOGGER_TEST_EXPORT void releaseWorkerDeliveryPause() noexcept;
-
 } // namespace GameWIP::Logger::TestHooks
 #endif

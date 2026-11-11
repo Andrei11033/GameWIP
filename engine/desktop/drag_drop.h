@@ -33,11 +33,13 @@ namespace GameWIP::Desktop::Types::DragDrop
         {
             return value != 0;
         }
+
         /// @brief Returns the invalid id (`value` 0).
         [[nodiscard]] static constexpr SessionId invalid() noexcept
         {
             return {};
         }
+
         friend constexpr bool operator==(SessionId, SessionId) noexcept = default;
     };
 
@@ -51,11 +53,13 @@ namespace GameWIP::Desktop::Types::DragDrop
         {
             return value != 0;
         }
+
         /// @brief Returns the invalid id (`value` 0).
         [[nodiscard]] static constexpr RegionId invalid() noexcept
         {
             return {};
         }
+
         friend constexpr bool operator==(RegionId, RegionId) noexcept = default;
     };
 
@@ -72,14 +76,17 @@ namespace GameWIP::Desktop::Types::DragDrop
     {
         return static_cast<Effect>(static_cast<std::uint8_t>(left) | static_cast<std::uint8_t>(right));
     }
+
     [[nodiscard]] constexpr Effect operator&(Effect left, Effect right) noexcept
     {
         return static_cast<Effect>(static_cast<std::uint8_t>(left) & static_cast<std::uint8_t>(right));
     }
+
     constexpr Effect &operator|=(Effect &left, Effect right) noexcept
     {
         return left = left | right;
     }
+
     constexpr Effect &operator&=(Effect &left, Effect right) noexcept
     {
         return left = left & right;
@@ -100,16 +107,19 @@ namespace GameWIP::Desktop::Types::DragDrop
         {
             return {Effect::Copy, Effect::Copy};
         }
+
         /// @brief Copy or move.
         [[nodiscard]] static constexpr EffectPolicy copyMove(Effect preferred = Effect::Copy) noexcept
         {
             return {Effect::Copy | Effect::Move, preferred};
         }
+
         /// @brief Copy, move, or link.
         [[nodiscard]] static constexpr EffectPolicy all(Effect preferred = Effect::Copy) noexcept
         {
             return {Effect::Copy | Effect::Move | Effect::Link, preferred};
         }
+
         /// @brief Arbitrary mask and preference.
         [[nodiscard]] static constexpr EffectPolicy allow(Effect allowed, Effect preferred) noexcept
         {
@@ -306,6 +316,7 @@ namespace GameWIP::Desktop
         DragDropTarget &operator=(const DragDropTarget &) = delete;
         DragDropTarget(DragDropTarget &&) = delete;
         DragDropTarget &operator=(DragDropTarget &&) = delete;
+
         /// @brief Revokes native registration and releases retained portable state.
         ~DragDropTarget() noexcept;
 

@@ -886,7 +886,6 @@ def fail_closed_ctest_presets(failures: list[str]) -> set[str]:
     resolved: dict[str, str | None] = {}
 
     def action_for(name: str, active: set[str]) -> str | None:
-
         if name in resolved:
             return resolved[name]
 
@@ -1060,7 +1059,6 @@ def check_quality_contract(failures: list[str]) -> None:
 
 
 def main() -> int:
-
     if len(sys.argv) >= 2 and sys.argv[1] == "--fix-source-documentation":
         return fix_source_documentation_layout(sys.argv[2:])
 

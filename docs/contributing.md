@@ -132,22 +132,22 @@ the official repository, project settings, releases, or branding.
 Open a pull request before merging into `master`. `CODEOWNERS` routes review to
 the maintainer, and required checks must pass before the merge.
 
-Use this format for pull request titles:
+Prefer this format for pull request titles and commit subjects:
 
 ```text
-area: imperative summary
+action(area): imperative summary
 ```
 
-Use the pull request title as the squash commit subject. GitHub adds the pull
-request suffix automatically:
+For example:
 
 ```text
-area: imperative summary (#123)
+refactor(validation): split accessibility tests
 ```
 
-The pull request title uses the primary area. Issue titles use their work type.
-The pull request title becomes the squash commit subject; do not duplicate it
-in a separate body section.
+This is a style preference, not an enforced rule. Keep the action and area
+specific to the change. Issue titles use their work type instead.
+For squash merges, the pull request title becomes the commit subject and GitHub
+adds its pull-request suffix.
 
 Use the repository pull-request template. Keep `Summary` focused on what
 changed and why, record checks and results under `Validation`, add `Linked
@@ -216,24 +216,25 @@ After a pull request is merged, delete the feature branch unless more work will 
 
 ## Squash commit messages
 
-The pull request title and squash commit subject use the same area prefix. The
-squash commit keeps GitHub's pull request suffix:
+The pull request title and squash commit subject use the preferred
+`action(area): imperative summary` style. The squash commit keeps GitHub's
+pull-request suffix:
 
 ```text
-area: imperative summary (#123)
+action(area): imperative summary (#123)
 ```
 
 Use a subject that states the change:
 
 ```text
-desktop: keep window construction state available during callbacks (#123)
+fix(desktop): keep window construction state available during callbacks (#123)
 ```
 
 Add a short body when the reason, an important discovery, or a non-obvious
 tradeoff is not clear from the subject. For example:
 
 ```text
-desktop: keep window construction state available during callbacks (#123)
+fix(desktop): keep window construction state available during callbacks (#123)
 
 CreateWindowExW can dispatch messages before the HWND is published as an open
 Window. Keep construction state available during that period while delaying

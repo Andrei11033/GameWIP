@@ -68,7 +68,6 @@ namespace GameWIP::Desktop::Types::Shell
             return index < static_cast<std::uint8_t>(Capability::Count) && (flags & (std::uint64_t{1} << index)) != 0;
         }
     };
-
 } // namespace GameWIP::Desktop::Types::Shell
 
 namespace GameWIP::Desktop
@@ -150,7 +149,6 @@ namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Shell
 {
-
     /// @brief Returns cached backend and environment shell capabilities.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept;
 

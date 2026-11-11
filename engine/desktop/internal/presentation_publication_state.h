@@ -183,7 +183,7 @@ namespace GameWIP::Desktop::Detail
         {
             std::uint32_t current = flags_.load(std::memory_order_relaxed);
 
-            while (!flags_.compare_exchange_weak(current, (current & ~mask) | value, std::memory_order_release, std::memory_order_relaxed))
+            while(!flags_.compare_exchange_weak(current, (current & ~mask) | value, std::memory_order_release, std::memory_order_relaxed))
             {
             }
         }

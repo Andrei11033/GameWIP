@@ -1,10 +1,20 @@
+# Correctness-test modules, installed consumer checks, and export validation.
+
+# ------------------------------------------------------------
+# Shared test modules
+# ------------------------------------------------------------
+
 # The shared object library contains registration and runner code used by both test processes.
 add_library(GameWIPTestModules OBJECT registry.cpp runner.cpp)
 target_compile_features(GameWIPTestModules PUBLIC cxx_std_23)
 target_include_directories(GameWIPTestModules PUBLIC "${PROJECT_SOURCE_DIR}/game")
-target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess)
+target_link_libraries(GameWIPTestModules PUBLIC GameWIPValidationProcess PRIVATE Terminal)
 
 if(GAMEWIP_BUILD_TESTS)
+    # ------------------------------------------------------------
+    # Standalone correctness-test process
+    # ------------------------------------------------------------
+
     # The standalone executable exposes focused module selection to developers and CTest.
     add_executable(GameWIPTests standalone_main.cpp)
     if(WIN32)
@@ -45,6 +55,10 @@ if(GAMEWIP_BUILD_TESTS)
         PROPERTIES LABELS "validation;packages" RUN_SERIAL TRUE TIMEOUT 600
     )
 
+    # ------------------------------------------------------------
+    # Exported ABI checks
+    # ------------------------------------------------------------
+
     # Export checks keep installed libraries from accidentally exposing private implementation symbols.
     add_test(
         NAME validation.packages.assert_interface
@@ -73,6 +87,7 @@ if(GAMEWIP_BUILD_TESTS)
 
     gamewip_add_export_validation(Terminal terminal.txt "${TERMINAL_ENABLE_TEST_HOOKS}")
     gamewip_add_export_validation(Desktop desktop.txt "${DESKTOP_ENABLE_TEST_HOOKS}")
+    gamewip_add_export_validation(Input input.txt FALSE)
     gamewip_add_export_validation(Logger logger.txt "${LOGGER_ENABLE_TEST_HOOKS}")
     get_target_property(assert_target_type Assert TYPE)
     if(NOT assert_target_type STREQUAL "INTERFACE_LIBRARY")

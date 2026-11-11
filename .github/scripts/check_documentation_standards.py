@@ -198,7 +198,6 @@ def check_project_registration(errors: list[str]) -> None:
 
 
 def check_library_child_titles(errors: list[str]) -> None:
-
     for root, library_name, landing_name in LIBRARY_DOCS:
         for path in sorted((ROOT / root).glob("*.md")):
             if path.name == landing_name:
@@ -215,7 +214,6 @@ def check_library_child_titles(errors: list[str]) -> None:
 
 
 def check_required_library_docs(errors: list[str]) -> None:
-
     for root, _library_name, landing_name in LIBRARY_DOCS:
         required_files = (landing_name, *REQUIRED_LIBRARY_DOCS)
 
@@ -248,7 +246,6 @@ def check_required_library_docs(errors: list[str]) -> None:
 
 
 def check_source_file_headers(errors: list[str]) -> None:
-
     for source_root in DOCUMENTED_SOURCE_ROOTS:
         for path in sorted((ROOT / source_root).rglob("*")):
             if not path.is_file() or not path.name.endswith((".h", ".h.in", ".cpp", ".inl")):
@@ -294,7 +291,6 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
 
 
 def check_explanatory_documentation(files: list[Path], errors: list[str]) -> None:
-
     for path in files:
         text = manual_markup(path)
 

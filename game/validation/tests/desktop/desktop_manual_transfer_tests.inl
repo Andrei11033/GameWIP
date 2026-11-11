@@ -21,43 +21,43 @@ int runShellLaunchProbeChild(int argc, char **argv)
     std::string_view expectedTarget;
     std::filesystem::path receiptPath;
 
-    for (char *argument : arguments)
+    for(char *argument : arguments)
     {
-        if (argument != nullptr && std::string_view{argument}.starts_with(targetPrefix))
+        if(argument != nullptr && std::string_view{argument}.starts_with(targetPrefix))
         {
             expectedTarget = std::string_view{argument}.substr(targetPrefix.size());
         }
 
-        if (argument != nullptr && std::string_view{argument}.starts_with(receiptPrefix))
+        if(argument != nullptr && std::string_view{argument}.starts_with(receiptPrefix))
         {
             receiptPath = std::filesystem::path(std::string_view{argument}.substr(receiptPrefix.size()));
         }
     }
 
-    for (char *argument : arguments)
+    for(char *argument : arguments)
     {
-        if (argument == nullptr || !std::string_view{argument}.starts_with(prefix))
+        if(argument == nullptr || !std::string_view{argument}.starts_with(prefix))
         {
             continue;
         }
         const std::string_view token = std::string_view{argument}.substr(prefix.size());
 
-        if (token.empty() || token.size() > 64 ||
-            !std::ranges::all_of(
-                token,
-                [](char value)
-                {
-                    return (value >= '0' && value <= '9') || value == '-';
-                }))
+        if(token.empty() || token.size() > 64 ||
+           !std::ranges::all_of(
+               token,
+               [](char value)
+               {
+                   return (value >= '0' && value <= '9') || value == '-';
+               }))
         {
             return 2;
         }
 
-        if (!expectedTarget.empty())
+        if(!expectedTarget.empty())
         {
             std::string receivedArguments;
 
-            for (char *received : arguments)
+            for(char *received : arguments)
             {
                 receivedArguments += received == nullptr ? "<null>" : received;
                 receivedArguments.push_back('\n');
@@ -65,13 +65,13 @@ int runShellLaunchProbeChild(int argc, char **argv)
             const std::filesystem::path expectedArgumentsPath = receiptPath.empty() ? shellLaunchReceiptPath(token) : receiptPath;
             static_cast<void>(TestSupport::writeTextFile(expectedArgumentsPath.string() + ".arguments", receivedArguments));
 
-            if (arguments.size() < 5 || arguments.back() == nullptr || std::string_view{arguments.back()} != expectedTarget)
+            if(arguments.size() < 5 || arguments.back() == nullptr || std::string_view{arguments.back()} != expectedTarget)
             {
                 return 4;
             }
         }
 
-        if (receiptPath.empty())
+        if(receiptPath.empty())
         {
             receiptPath = shellLaunchReceiptPath(token);
         }
@@ -89,7 +89,7 @@ void testManualFilesAndShell(
     bool includeWindow = true,
     bool includeShell = true)
 {
-    if (!beginManualSuite(context, options, "Window files and shell behavior"))
+    if(!beginManualSuite(context, options, "Window files and shell behavior"))
     {
         return;
     }
@@ -100,14 +100,14 @@ void testManualFilesAndShell(
     description.fileDropEnabled = includeWindow && capabilities.supports(Desktop::Types::Capability::FileDrop);
     Desktop::Window window;
 
-    if (!openManualWindow(context, window, "GameWIP file and shell validation", description))
+    if(!openManualWindow(context, window, "GameWIP file and shell validation", description))
     {
         return;
     }
 
-    if (includeWindow)
+    if(includeWindow)
     {
-        if (capabilities.supports(Desktop::Types::Capability::FileDrop))
+        if(capabilities.supports(Desktop::Types::Capability::FileDrop))
         {
             const auto runDrop = [&](std::string_view name, std::string_view instruction, std::size_t minimumPaths)
             {
@@ -118,19 +118,19 @@ void testManualFilesAndShell(
                 {
                     Desktop::Types::Event event;
 
-                    while (window.popEvent(event))
+                    while(window.popEvent(event))
                     {
-                        if (const auto *drop = event.getIf<Desktop::Types::Events::FilesDropped>())
+                        if(const auto *drop = event.getIf<Desktop::Types::Events::FilesDropped>())
                         {
                             ++groupedEvents;
                             pathCount += drop->paths.size();
                             std::string pathList;
 
-                            for (const auto &path : drop->paths)
+                            for(const auto &path : drop->paths)
                             {
                                 const std::u8string utf8 = path.generic_u8string();
 
-                                if (!pathList.empty())
+                                if(!pathList.empty())
                                 {
                                     pathList.append("\r\n");
                                 }
@@ -143,7 +143,7 @@ void testManualFilesAndShell(
                                 drop->clientPosition.has_value(),
                                 pathList);
 
-                            if (manualStatusWindow != nullptr)
+                            if(manualStatusWindow != nullptr)
                             {
                                 manualStatusWindow->setObservation(observation);
                             }
@@ -153,16 +153,17 @@ void testManualFilesAndShell(
                 };
                 static_cast<void>(window.setTitle("Waiting for file drop..."));
 
-                if (manualStatusWindow != nullptr)
+                if(manualStatusWindow != nullptr)
                 {
                     manualStatusWindow->setObservation("Waiting for FilesDroppedEvent.");
                 }
                 const TestSupport::Types::Reporting::ManualAnswer answer = recordManualCheck(context, window, name, instruction, observeDrops);
 
-                if (answer != TestSupport::Types::Reporting::ManualAnswer::Yes)
+                if(answer != TestSupport::Types::Reporting::ManualAnswer::Yes)
                 {
                     return;
                 }
+
                 static_cast<void>(context.expectEq("file drop produces one grouped event", std::size_t{1}, groupedEvents));
                 static_cast<void>(context.expectTrue("file drop retains expected paths", pathCount >= minimumPaths));
             };
@@ -177,7 +178,7 @@ void testManualFilesAndShell(
             const TestSupport::Types::Reporting::ManualAnswer disabledAnswer =
                 recordManualCheck(context, window, "disabled file drops", "Try dropping a file. Was it rejected with no observable drop behavior?");
 
-            if (disabledAnswer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+            if(disabledAnswer == TestSupport::Types::Reporting::ManualAnswer::Yes)
             {
                 static_cast<void>(
                     context.expectFalse("disabled file drops queue no event", consumeEventOfType<Desktop::Types::Events::FilesDropped>(window)));
@@ -188,15 +189,15 @@ void testManualFilesAndShell(
             context.skip("Window file drops", "backend does not advertise FileDrop");
         }
 
-        if (capabilities.supports(Desktop::Types::Capability::WindowIcon))
+        if(capabilities.supports(Desktop::Types::Capability::WindowIcon))
         {
             const auto makeIcon = [](std::uint32_t extent)
             {
                 std::vector<std::byte> pixels(static_cast<std::size_t>(extent) * extent * 4u);
 
-                for (std::uint32_t y = 0; y < extent; ++y)
+                for(std::uint32_t y = 0; y < extent; ++y)
                 {
-                    for (std::uint32_t x = 0; x < extent; ++x)
+                    for(std::uint32_t x = 0; x < extent; ++x)
                     {
                         const bool cyan = x < std::max(2u, extent / 5u) || y < std::max(2u, extent / 5u) || x == y || x + y + 1u == extent;
                         const std::size_t offset = (static_cast<std::size_t>(y) * extent + x) * 4u;
@@ -222,18 +223,18 @@ void testManualFilesAndShell(
         }
     }
 
-    if (includeShell)
+    if(includeShell)
     {
         const auto shellCapabilityResult = Desktop::Shell::getCapabilities();
 
-        if (!requireManualStatus(context, "shell capability query", shellCapabilityResult.status))
+        if(!requireManualStatus(context, "shell capability query", shellCapabilityResult.status))
         {
             return;
         }
         const auto &shellCapabilities = *shellCapabilityResult;
         Desktop::ShellEventQueue shellQueue;
 
-        if (requireManualStatus(context, "shell event queue setup", shellQueue.open(Desktop::Types::Shell::QueueConfiguration::owned(64))))
+        if(requireManualStatus(context, "shell event queue setup", shellQueue.open(Desktop::Types::Shell::QueueConfiguration::owned(64))))
         {
             bool taskbarCommandSeen = false;
             bool trayCommandSeen = false;
@@ -243,39 +244,39 @@ void testManualFilesAndShell(
             {
                 Desktop::Types::Shell::Event event;
 
-                while (shellQueue.popEvent(event))
+                while(shellQueue.popEvent(event))
                 {
                     ++shellEventCount;
 
-                    if (const auto *trayActivation = event.getIf<Desktop::Types::Shell::Events::TrayActivated>())
+                    if(const auto *trayActivation = event.getIf<Desktop::Types::Shell::Events::TrayActivated>())
                     {
                         shellObservation =
                             std::format("Tray activation: icon={} kind={}", trayActivation->iconId.value, static_cast<int>(trayActivation->kind));
                     }
-                    else if (const auto *trayCommand = event.getIf<Desktop::Types::Shell::Events::TrayCommandInvoked>())
+                    else if(const auto *trayCommand = event.getIf<Desktop::Types::Shell::Events::TrayCommandInvoked>())
                     {
                         trayCommandSeen = trayCommandSeen || trayCommand->commandId.value == 702;
                         shellObservation = std::format("Tray command: icon={} command={}", trayCommand->iconId.value, trayCommand->commandId.value);
                     }
-                    else if (const auto *taskbarCommand = event.getIf<Desktop::Types::Shell::Events::TaskbarThumbnailButtonInvoked>())
+                    else if(const auto *taskbarCommand = event.getIf<Desktop::Types::Shell::Events::TaskbarThumbnailButtonInvoked>())
                     {
                         taskbarCommandSeen = taskbarCommandSeen || taskbarCommand->commandId.value == 701;
                         shellObservation =
                             std::format("Taskbar command: window={} command={}", taskbarCommand->windowId.value, taskbarCommand->commandId.value);
                     }
-                    else if (const auto *notification = event.getIf<Desktop::Types::Shell::Events::NotificationActivated>())
+                    else if(const auto *notification = event.getIf<Desktop::Types::Shell::Events::NotificationActivated>())
                     {
                         shellObservation = std::format("Notification activation: id={}", notification->notificationId.value);
                     }
                 }
 
-                if (manualStatusWindow != nullptr)
+                if(manualStatusWindow != nullptr)
                 {
                     manualStatusWindow->setObservation(std::format("Shell events received={} {}", shellEventCount, shellObservation));
                 }
             };
 
-            if (shellCapabilities.supports(Desktop::Types::Shell::Capability::TaskbarThumbnailButtons))
+            if(shellCapabilities.supports(Desktop::Types::Shell::Capability::TaskbarThumbnailButtons))
             {
                 Desktop::Types::Taskbar::ThumbnailButton thumbnailButton{{701}, "Shell manual command"};
                 Desktop::Types::Taskbar::Description taskbarDescription;
@@ -284,7 +285,7 @@ void testManualFilesAndShell(
                 Desktop::TaskbarItem taskbar;
                 const IO::Types::Status taskbarStatus = taskbar.open(window, taskbarDescription, shellQueue);
 
-                if (taskbarStatus.ok())
+                if(taskbarStatus.ok())
                 {
                     using Desktop::Types::Shell::Progress;
                     using Desktop::Types::Shell::ProgressState;
@@ -295,9 +296,9 @@ void testManualFilesAndShell(
                         std::pair<std::string_view, Progress>{"error 65 percent", {ProgressState::Error, 0.65}},
                         std::pair<std::string_view, Progress>{"normal 100 percent", {ProgressState::Normal, 1.0}}};
 
-                    for (const auto &[label, progress] : progressCases)
+                    for(const auto &[label, progress] : progressCases)
                     {
-                        if (requireManualStatus(context, std::format("taskbar progress {} applies", label), taskbar.setProgress(progress)))
+                        if(requireManualStatus(context, std::format("taskbar progress {} applies", label), taskbar.setProgress(progress)))
                         {
                             recordManualCheck(
                                 context,
@@ -315,7 +316,7 @@ void testManualFilesAndShell(
                         "command event is shown in the diagnostics.",
                         drainShellEvents);
 
-                    if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+                    if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
                     {
                         static_cast<void>(context.expectTrue("thumbnail command 701 reaches shell queue", taskbarCommandSeen));
                     }
@@ -343,11 +344,11 @@ void testManualFilesAndShell(
             trayDescription.menu.items = std::span{&trayCommand, 1};
             Desktop::TrayIcon tray;
 
-            if (shellCapabilities.supports(Desktop::Types::Shell::Capability::TrayMenu))
+            if(shellCapabilities.supports(Desktop::Types::Shell::Capability::TrayMenu))
             {
                 const IO::Types::Status trayStatus = tray.open(trayDescription, shellQueue);
 
-                if (trayStatus.ok())
+                if(trayStatus.ok())
                 {
                     const auto answer = recordManualCheck(
                         context,
@@ -357,7 +358,7 @@ void testManualFilesAndShell(
                         "command, and answer yes only if diagnostics show command=702.",
                         drainShellEvents);
 
-                    if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+                    if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
                     {
                         static_cast<void>(context.expectTrue("tray command 702 reaches shell queue", trayCommandSeen));
                     }
@@ -375,18 +376,18 @@ void testManualFilesAndShell(
 
             Desktop::NotificationCenter notificationCenter;
 
-            if (shellCapabilities.supports(Desktop::Types::Shell::Capability::Notifications))
+            if(shellCapabilities.supports(Desktop::Types::Shell::Capability::Notifications))
             {
                 const IO::Types::Status notificationOpenStatus = notificationCenter.open(shellQueue);
 
-                if (notificationOpenStatus.ok())
+                if(notificationOpenStatus.ok())
                 {
                     Desktop::Types::Notifications::Description notificationDescription;
                     notificationDescription.title = "GameWIP shell manual validation";
                     notificationDescription.body = "Verify the notification appearance and dismissal.";
                     const auto published = notificationCenter.publish(notificationDescription);
 
-                    if (published.status.ok())
+                    if(published.status.ok())
                     {
                         recordManualCheck(
                             context,
@@ -416,7 +417,7 @@ void testManualFilesAndShell(
             std::array<wchar_t, 32768> executableText{};
             const DWORD executableLength = GetModuleFileNameW(nullptr, executableText.data(), static_cast<DWORD>(executableText.size()));
 
-            if (!context.expectTrue("shell launch executable resolves", executableLength > 0 && executableLength < executableText.size()))
+            if(!context.expectTrue("shell launch executable resolves", executableLength > 0 && executableLength < executableText.size()))
             {
                 return;
             }
@@ -445,21 +446,22 @@ void testManualFilesAndShell(
             {
                 const auto receipt = TestSupport::readTextFile(launchReceipt);
 
-                if (receipt.status.ok() && receipt.text == launchToken)
+                if(receipt.status.ok() && receipt.text == launchToken)
                 {
                     return true;
                 }
 
-                if (genericLaunchReceipt.empty())
+                if(genericLaunchReceipt.empty())
                 {
                     return false;
                 }
                 const auto genericReceipt = TestSupport::readTextFile(genericLaunchReceipt);
 
-                if (genericReceipt.status.ok() && !genericReceipt.text.empty())
+                if(genericReceipt.status.ok() && !genericReceipt.text.empty())
                 {
                     return true;
                 }
+
                 // The generic Applications command is a separate process.  A
                 // successful launch is established by a non-empty receipt;
                 // tolerate a transient read result while that child is still
@@ -470,9 +472,9 @@ void testManualFilesAndShell(
             };
             const auto waitForLaunch = [&]
             {
-                for (int attempt = 0; attempt < 20; ++attempt)
+                for(int attempt = 0; attempt < 20; ++attempt)
                 {
-                    if (launchReceived())
+                    if(launchReceived())
                     {
                         return true;
                     }
@@ -485,7 +487,7 @@ void testManualFilesAndShell(
             {
                 drainShellEvents();
 
-                if (manualStatusWindow != nullptr)
+                if(manualStatusWindow != nullptr)
                 {
                     manualStatusWindow->setObservation(
                         launchReceived() ? "Controlled shell launch receipt received." : "Waiting for controlled shell launch receipt.");
@@ -496,11 +498,11 @@ void testManualFilesAndShell(
             Desktop::Types::JumpLists::Description jumpListDescription;
             jumpListDescription.tasks = jumpTasks;
 
-            if (shellCapabilities.supports(Desktop::Types::Shell::Capability::JumpLists))
+            if(shellCapabilities.supports(Desktop::Types::Shell::Capability::JumpLists))
             {
                 const IO::Types::Status jumpListStatus = Desktop::JumpLists::publish(jumpListDescription);
 
-                if (jumpListStatus.ok())
+                if(jumpListStatus.ok())
                 {
                     const auto answer = recordManualCheck(
                         context,
@@ -510,7 +512,7 @@ void testManualFilesAndShell(
                         "validation executable. The diagnostics must show a controlled launch receipt.",
                         observeLaunch);
 
-                    if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+                    if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
                     {
                         static_cast<void>(context.expectTrue("jump-list task launches controlled helper", launchReceived()));
                     }
@@ -532,7 +534,7 @@ void testManualFilesAndShell(
             const std::string scheme = std::format("gamewip-validation-{}", GetCurrentProcessId());
             TestSupport::ScopedTemporaryDirectory registrationFixtures("desktop-manual-shell-registration");
 
-            if (!context.expectTrue("shell registration fixtures create", registrationFixtures.status().ok()))
+            if(!context.expectTrue("shell registration fixtures create", registrationFixtures.status().ok()))
             {
                 return;
             }
@@ -542,24 +544,25 @@ void testManualFilesAndShell(
             receiptCleanup.genericPath = genericLaunchReceipt;
             static_cast<void>(TestSupport::removeIfExists(genericLaunchReceipt));
 
-            if (!context.expectTrue(
-                    "shell file fixture writes",
-                    TestSupport::writeTextFile(fileProbe, "Controlled GameWIP shell validation fixture.\n").ok()) ||
-                !context.expectTrue(
-                    "shell URI link fixture writes",
-                    TestSupport::writeTextFile(
-                        uriProbe,
-                        std::format(
-                            "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><title>GameWIP URI validation</title>"
-                            "<body><p><a target=\"_blank\" rel=\"noopener\" href=\"{}://probe\">Launch the controlled GameWIP validation "
-                            "helper</a></p>"
-                            "<p>Address-bar fallback: <code>{}://probe</code></p></body></html>",
-                            scheme,
-                            scheme))
-                        .ok()))
+            if(!context.expectTrue(
+                   "shell file fixture writes",
+                   TestSupport::writeTextFile(fileProbe, "Controlled GameWIP shell validation fixture.\n").ok()) ||
+               !context.expectTrue(
+                   "shell URI link fixture writes",
+                   TestSupport::writeTextFile(
+                       uriProbe,
+                       std::format(
+                           "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><title>GameWIP URI validation</title>"
+                           "<body><p><a target=\"_blank\" rel=\"noopener\" href=\"{}://probe\">Launch the controlled GameWIP validation "
+                           "helper</a></p>"
+                           "<p>Address-bar fallback: <code>{}://probe</code></p></body></html>",
+                           scheme,
+                           scheme))
+                       .ok()))
             {
                 return;
             }
+
             const std::array<Desktop::Types::Shell::LaunchArgumentView, 4> fileLaunchArguments{
                 launchArguments[0],
                 launchArguments[1],
@@ -578,11 +581,11 @@ void testManualFilesAndShell(
                 Desktop::Types::Shell::LaunchActionView{Desktop::Types::Shell::PathTargetView{std::cref(executable)}, fileLaunchArguments};
             fileRegistration.conflictPolicy = Desktop::Types::Registration::ConflictPolicy::Coexist;
 
-            if (shellCapabilities.supports(Desktop::Types::Shell::Capability::FileAssociationRegistration))
+            if(shellCapabilities.supports(Desktop::Types::Shell::Capability::FileAssociationRegistration))
             {
                 const auto registration = Desktop::Registration::registerFileExtension(fileRegistration);
 
-                if (registration.status.ok())
+                if(registration.status.ok())
                 {
                     const auto answer = recordManualCheck(
                         context,
@@ -594,11 +597,11 @@ void testManualFilesAndShell(
                             fileProbe.string()),
                         observeLaunch);
 
-                    if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+                    if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
                     {
                         const bool launched = waitForLaunch();
 
-                        if (!launched)
+                        if(!launched)
                         {
                             const auto receipt = TestSupport::readTextFile(genericLaunchReceipt);
                             context.fail(
@@ -639,11 +642,11 @@ void testManualFilesAndShell(
                 Desktop::Types::Shell::LaunchActionView{Desktop::Types::Shell::PathTargetView{std::cref(executable)}, uriLaunchArguments};
             uriRegistration.conflictPolicy = Desktop::Types::Registration::ConflictPolicy::Coexist;
 
-            if (shellCapabilities.supports(Desktop::Types::Shell::Capability::UriSchemeRegistration))
+            if(shellCapabilities.supports(Desktop::Types::Shell::Capability::UriSchemeRegistration))
             {
                 const auto registration = Desktop::Registration::registerUriScheme(uriRegistration);
 
-                if (registration.status.ok())
+                if(registration.status.ok())
                 {
                     const auto answer = recordManualCheck(
                         context,
@@ -660,7 +663,7 @@ void testManualFilesAndShell(
                             scheme),
                         observeLaunch);
 
-                    if (answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+                    if(answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
                     {
                         static_cast<void>(context.expectTrue("URI association launches controlled helper", launchReceived()));
                     }
@@ -681,7 +684,7 @@ void testManualFilesAndShell(
         }
     }
 
-    if (!includeWindow)
+    if(!includeWindow)
     {
         static_cast<void>(window.close());
         return;
@@ -703,9 +706,9 @@ void testManualFilesAndShell(
     recordManualCheck(context, window, "topmost policy", "Does the Window remain above ordinary Windows without breaking activation?");
     static_cast<void>(window.setAlwaysOnTop(false));
 
-    for (const bool resizable : {false, true})
+    for(const bool resizable : {false, true})
     {
-        for (const bool maximizable : {false, true})
+        for(const bool maximizable : {false, true})
         {
             static_cast<void>(window.setResizable(true));
             Desktop::Types::Controls controls = window.controls();
@@ -713,7 +716,7 @@ void testManualFilesAndShell(
             const IO::Types::Status controlsStatus = window.setControls(controls);
             const IO::Types::Status resizeStatus = window.setResizable(resizable);
 
-            if (!resizable && maximizable)
+            if(!resizable && maximizable)
             {
                 static_cast<void>(
                     context.expectTrue("invalid nonresizable/maximizable combination is rejected", !controlsStatus.ok() || !resizeStatus.ok()));
@@ -754,7 +757,7 @@ void testManualFilesAndShell(
     ownedDescription.owner = window.id();
     Desktop::Window owned;
 
-    if (openManualWindow(context, owned, "GameWIP owned taskbar validation", ownedDescription))
+    if(openManualWindow(context, owned, "GameWIP owned taskbar validation", ownedDescription))
     {
         recordManualCheck(
             context,
@@ -798,33 +801,33 @@ struct ManualDragDropCapture
         namespace DDEvents = Desktop::Types::DragDrop::Events;
         Desktop::Types::DragDrop::Event event;
 
-        while (target.popEvent(event))
+        while(target.popEvent(event))
         {
-            if (event.getIf<DDEvents::Entered>() != nullptr)
+            if(event.getIf<DDEvents::Entered>() != nullptr)
             {
                 ++entered;
             }
-            else if (const auto *movement = event.getIf<DDEvents::Moved>())
+            else if(const auto *movement = event.getIf<DDEvents::Moved>())
             {
                 ++moved;
 
-                if (movement->previousRegion != movement->region)
+                if(movement->previousRegion != movement->region)
                 {
                     ++regionTransitions;
                 }
             }
-            else if (event.getIf<DDEvents::Left>() != nullptr)
+            else if(event.getIf<DDEvents::Left>() != nullptr)
             {
                 ++left;
             }
-            else if (auto *drop = event.getIf<DDEvents::Dropped>())
+            else if(auto *drop = event.getIf<DDEvents::Dropped>())
             {
                 ++dropped;
                 lastDrop.emplace(std::move(*drop));
             }
         }
 
-        if (manualStatusWindow != nullptr)
+        if(manualStatusWindow != nullptr)
         {
             manualStatusWindow->setObservation(observation(target));
         }
@@ -842,29 +845,29 @@ struct ManualDragDropCapture
             target.eventQueueInfo().pendingEvents,
             target.eventQueueInfo().droppedEvents);
 
-        if (lastDrop)
+        if(lastDrop)
         {
-            for (const auto &item : lastDrop->payload)
+            for(const auto &item : lastDrop->payload)
             {
-                if (const auto *value = std::get_if<Desktop::Types::DataTransfer::Text>(&item))
+                if(const auto *value = std::get_if<Desktop::Types::DataTransfer::Text>(&item))
                 {
                     text += std::format("\r\nText ({} UTF-8 bytes): {}", value->text.size(), value->text);
                 }
-                else if (const auto *files = std::get_if<Desktop::Types::DataTransfer::FileList>(&item))
+                else if(const auto *files = std::get_if<Desktop::Types::DataTransfer::FileList>(&item))
                 {
                     text += std::format("\r\nFiles: {}", files->paths.size());
 
-                    for (const auto &path : files->paths)
+                    for(const auto &path : files->paths)
                     {
                         const auto name = path.u8string();
                         text += "\r\n" + std::string(name.begin(), name.end());
                     }
                 }
-                else if (const auto *image = std::get_if<Desktop::Types::DataTransfer::Image>(&item))
+                else if(const auto *image = std::get_if<Desktop::Types::DataTransfer::Image>(&item))
                 {
                     text += std::format("\r\nImage: {} x {}, {} RGBA bytes", image->size.width, image->size.height, image->rgba8.size());
                 }
-                else if (const auto *custom = std::get_if<Desktop::Types::DataTransfer::CustomData>(&item))
+                else if(const auto *custom = std::get_if<Desktop::Types::DataTransfer::CustomData>(&item))
                 {
                     text += std::format("\r\nCustom: {}, {} bytes", custom->formatName, custom->bytes.size());
                 }
@@ -879,11 +882,11 @@ struct ManualDragDropCapture
 {
     int key = VK_LBUTTON;
 
-    if (button == Desktop::Types::DragDrop::TriggerButton::Right)
+    if(button == Desktop::Types::DragDrop::TriggerButton::Right)
     {
         key = VK_RBUTTON;
     }
-    else if (button == Desktop::Types::DragDrop::TriggerButton::Middle)
+    else if(button == Desktop::Types::DragDrop::TriggerButton::Middle)
     {
         key = VK_MBUTTON;
     }
@@ -894,11 +897,11 @@ struct ManualDragDropCapture
 [[nodiscard]] bool manualPointerInside(const Desktop::Window &window) noexcept
 {
     const auto native = Desktop::Native::Win32::getHandle(window);
-
-    if (!native.status.ok() || native->window == nullptr)
+    if(!native.status.ok() || native->window == nullptr)
     {
         return false;
     }
+
     POINT pointer{};
     RECT client{};
     return GetCursorPos(&pointer) != FALSE && ScreenToClient(native->window, &pointer) != FALSE && GetClientRect(native->window, &client) != FALSE &&
@@ -925,14 +928,15 @@ ManualDragDropRun runManualDragDropSource(
 {
     ManualDragDropRun run;
 
-    if (!manualCaseSelected(name))
+    if(!manualCaseSelected(name))
     {
         return run;
     }
+
     bool wasDown = manualDragButtonDown(description.triggerButton);
     const auto effectName = [](Desktop::Types::DragDrop::Effect effect) -> std::string_view
     {
-        switch (effect)
+        switch(effect)
         {
         case Desktop::Types::DragDrop::Effect::None:
             return "None";
@@ -946,38 +950,39 @@ ManualDragDropRun runManualDragDropSource(
             return "Combined";
         }
     };
+
     const auto observe = [&]
     {
-        if (target != nullptr && capture != nullptr)
+        if(target != nullptr && capture != nullptr)
         {
             capture->drain(*target);
         }
 
-        if (targetWindow != nullptr)
+        if(targetWindow != nullptr)
         {
             paintManualValidationSurface(*targetWindow, ManualSurfaceLayout::DragDropTarget);
         }
         const bool down = manualDragButtonDown(description.triggerButton);
 
-        if (!wasDown && down && manualPointerInside(source))
+        if(!wasDown && down && manualPointerInside(source))
         {
             run.attempted = true;
             ++run.attempts;
 
-            if (target != nullptr && capture != nullptr)
+            if(target != nullptr && capture != nullptr)
             {
                 capture->clear(*target);
             }
             run.result = Desktop::DragDrop::beginDrag(source, description);
 
-            if (target != nullptr && capture != nullptr)
+            if(target != nullptr && capture != nullptr)
             {
                 capture->drain(*target);
             }
         }
         wasDown = down;
 
-        if (manualStatusWindow != nullptr)
+        if(manualStatusWindow != nullptr)
         {
             manualStatusWindow->setObservation(
                 std::format(
@@ -994,16 +999,17 @@ ManualDragDropRun runManualDragDropSource(
                     target != nullptr && capture != nullptr ? capture->observation(*target) : std::string{}));
         }
     };
+
     const std::string retryInstruction =
         std::string(instruction) +
         " Retry with a fresh press in the source if you miss. Confirm the last attempt; its named effect remains in diagnostics.";
     run.answer = recordManualCheck(context, source, name, retryInstruction, observe, ManualSurfaceLayout::DragDropSource);
 
-    if (run.answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
+    if(run.answer == TestSupport::Types::Reporting::ManualAnswer::Yes)
     {
         static_cast<void>(context.expectTrue(std::format("{} starts from the requested source button", name), run.attempted));
 
-        if (run.attempted)
+        if(run.attempted)
         {
             static_cast<void>(context.expectTrue(std::format("{} completes without a native error", name), run.result.status.ok()));
         }
@@ -1019,11 +1025,10 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     namespace Transfer = Desktop::Types::DataTransfer;
     using TestSupport::Types::Reporting::ManualAnswer;
 
-    if (!beginManualSuite(context, options, "Window native data drag and drop"))
+    if(!beginManualSuite(context, options, "Window native data drag and drop"))
     {
         return;
     }
-
     context.manual(
         "This suite requires an interactive Windows desktop. Keep both GameWIP Windows visible. "
         "Answer skip when a requested foreign diagnostic provider or consumer is unavailable.");
@@ -1038,8 +1043,8 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     Desktop::Window sourceWindow;
     Desktop::Window targetWindow;
 
-    if (!requireManualStatus(context, "drag source Window setup", sourceWindow.open(sourceDescription, Desktop::Events::owned(64))) ||
-        !requireManualStatus(context, "drop target Window setup", targetWindow.open(targetDescription, Desktop::Events::owned(128))))
+    if(!requireManualStatus(context, "drag source Window setup", sourceWindow.open(sourceDescription, Desktop::Events::owned(64))) ||
+       !requireManualStatus(context, "drop target Window setup", targetWindow.open(targetDescription, Desktop::Events::owned(128))))
     {
         return;
     }
@@ -1055,21 +1060,22 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
          {DD::RegionId{2}, Desktop::Types::LogicalRect{{120, 90}, {360, 180}}, allFormats, DD::EffectPolicy::allow(allEffects, DD::Effect::Move)}}};
     Desktop::DragDropTarget target;
 
-    if (!requireManualStatus(
-            context,
-            "native DragDrop target setup",
-            target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(128))))
+    if(!requireManualStatus(
+           context,
+           "native DragDrop target setup",
+           target.open(targetWindow, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(128))))
     {
         static_cast<void>(targetWindow.close());
         static_cast<void>(sourceWindow.close());
         return;
     }
+
     paintManualValidationSurface(sourceWindow, ManualSurfaceLayout::DragDropSource);
     paintManualValidationSurface(targetWindow, ManualSurfaceLayout::DragDropTarget);
 
     TestSupport::ScopedTemporaryDirectory fixtures("desktop-drag-interop");
 
-    if (!context.expectTrue("drag fixture directory creates", fixtures.status().ok()))
+    if(!context.expectTrue("drag fixture directory creates", fixtures.status().ok()))
     {
         return;
     }
@@ -1081,23 +1087,24 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     const auto textPage = fixtures.path() / "unicode-drag.html";
     constexpr std::string_view unicodeText = kManualInteropText;
 
-    if (!context.expectTrue(
-            "controlled drag fixtures write",
-            TestSupport::writeTextFile(singleFile, "single file fixture\n").ok() &&
-                TestSupport::writeTextFile(unicodeFile, "Unicode file fixture\n").ok() &&
-                TestSupport::writeTextFile(readme, "GameWIP outbound README fixture\n").ok() &&
-                TestSupport::writeTextFile(cmake, "# GameWIP outbound CMake fixture\n").ok() && TestSupport::createDirectories(copyDirectory).ok() &&
-                TestSupport::writeTextFile(
-                    textPage,
-                    std::format(
-                        "<!doctype html><meta charset=\"utf-8\"><title>GameWIP drag fixture</title><p>Select this exact text and drag it into the "
-                        "GameWIP target:</p><p>{}</p><p>Drop outbound text into this box:</p><div contenteditable=\"true\" style=\"border:2px solid "
-                        "green;min-height:200px\"></div>",
-                        unicodeText))
-                    .ok()))
+    if(!context.expectTrue(
+           "controlled drag fixtures write",
+           TestSupport::writeTextFile(singleFile, "single file fixture\n").ok() &&
+               TestSupport::writeTextFile(unicodeFile, "Unicode file fixture\n").ok() &&
+               TestSupport::writeTextFile(readme, "GameWIP outbound README fixture\n").ok() &&
+               TestSupport::writeTextFile(cmake, "# GameWIP outbound CMake fixture\n").ok() && TestSupport::createDirectories(copyDirectory).ok() &&
+               TestSupport::writeTextFile(
+                   textPage,
+                   std::format(
+                       "<!doctype html><meta charset=\"utf-8\"><title>GameWIP drag fixture</title><p>Select this exact text and drag it into the "
+                       "GameWIP target:</p><p>{}</p><p>Drop outbound text into this box:</p><div contenteditable=\"true\" style=\"border:2px solid "
+                       "green;min-height:200px\"></div>",
+                       unicodeText))
+                   .ok()))
     {
         return;
     }
+
     context.info(std::format("Drag fixtures: {}", fixtures.path().string()));
     const std::array<GameWIP::FileSystem::Types::Path, 2> files{{readme, cmake}};
     const std::array<std::byte, 16> pixels{
@@ -1125,7 +1132,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
          Transfer::CustomView{customName, customBytes}}};
     const std::array<Transfer::ItemView, 1> textItem{{Transfer::TextView{unicodeText}}};
 
-    for (const DD::TriggerButton button : {DD::TriggerButton::Left, DD::TriggerButton::Right, DD::TriggerButton::Middle})
+    for(const DD::TriggerButton button : {DD::TriggerButton::Left, DD::TriggerButton::Right, DD::TriggerButton::Middle})
     {
         const DD::Result result = Desktop::DragDrop::beginDrag(sourceWindow, DD::Description{textItem, DD::EffectPolicy::source(allEffects), button});
         static_cast<void>(context.expectEq("unheld configured trigger is InvalidArgument", ErrorCode::InvalidArgument, result.status.code));
@@ -1144,7 +1151,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "Answer yes only if the Windows stayed responsive and the diagnostics report a drop.",
         DD::Description{allItems, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
 
-    if (sameProcess.answer == ManualAnswer::Yes && sameProcess.attempted)
+    if(sameProcess.answer == ManualAnswer::Yes && sameProcess.attempted)
     {
         static_cast<void>(context.expectEq("same-process source reports Dropped", DD::Outcome::Dropped, sameProcess.result.outcome));
         static_cast<void>(context.expectEq("Region 2 selects Move", DD::Effect::Move, sameProcess.result.effect));
@@ -1153,12 +1160,12 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         static_cast<void>(context.expectEq("target receives one terminal drop", std::size_t{1}, capture.dropped));
         static_cast<void>(context.expectTrue("target owns the completed payload", capture.lastDrop.has_value()));
 
-        if (capture.lastDrop)
+        if(capture.lastDrop)
         {
             static_cast<void>(context.expectEq("drop selects Region 2", DD::RegionId{2}, capture.lastDrop->region));
             static_cast<void>(context.expectEq("drop materializes all four formats", std::size_t{4}, capture.lastDrop->payload.size()));
 
-            if (capture.lastDrop->payload.size() == 4)
+            if(capture.lastDrop->payload.size() == 4)
             {
                 const auto *text = std::get_if<Transfer::Text>(&capture.lastDrop->payload[0]);
                 const auto *fileList = std::get_if<Transfer::FileList>(&capture.lastDrop->payload[1]);
@@ -1196,7 +1203,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         EffectCase{allEffects, allEffects, DD::Effect::Move, DD::Effect::Move, "Copy|Move|Link preferred Move"},
         EffectCase{DD::Effect::Copy, DD::Effect::Move, DD::Effect::Move, DD::Effect::None, "no intersection"}};
 
-    for (const EffectCase &effectCase : effectCases)
+    for(const EffectCase &effectCase : effectCases)
     {
         std::array<Transfer::FormatView, 1> formats{{Transfer::FormatView::text()}};
         std::array<DD::RegionDescription, 1> effectRegion{
@@ -1213,7 +1220,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             std::format("Hold LEFT in the source, drag to the blue target, and release. Expected effect: {}.", effectCase.label),
             DD::Description{textItem, DD::EffectPolicy::source(effectCase.source), DD::TriggerButton::Left});
 
-        if (run.answer == ManualAnswer::Yes && run.attempted)
+        if(run.answer == ManualAnswer::Yes && run.attempted)
         {
             const DD::Outcome expectedOutcome = effectCase.expected == DD::Effect::None ? DD::Outcome::Cancelled : DD::Outcome::Dropped;
             static_cast<void>(context.expectEq(std::format("{} outcome", effectCase.label), expectedOutcome, run.result.outcome));
@@ -1223,7 +1230,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
 
     static_cast<void>(target.setRegions(regions));
 
-    for (const DD::TriggerButton button : {DD::TriggerButton::Right, DD::TriggerButton::Middle})
+    for(const DD::TriggerButton button : {DD::TriggerButton::Right, DD::TriggerButton::Middle})
     {
         capture.clear(target);
         const std::string_view buttonName = button == DD::TriggerButton::Right ? "RIGHT" : "MIDDLE";
@@ -1237,7 +1244,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             std::format("Hold {} in the source, drag to either target region, then release that same button.", buttonName),
             DD::Description{textItem, DD::EffectPolicy::source(allEffects), button});
 
-        if (run.answer == ManualAnswer::Yes && run.attempted)
+        if(run.answer == ManualAnswer::Yes && run.attempted)
         {
             static_cast<void>(context.expectEq(std::format("{} trigger drops", buttonName), DD::Outcome::Dropped, run.result.outcome));
         }
@@ -1255,7 +1262,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "held.",
         DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
 
-    if (cancellation.answer == ManualAnswer::Yes && cancellation.attempted)
+    if(cancellation.answer == ManualAnswer::Yes && cancellation.attempted)
     {
         static_cast<void>(context.expectEq("Escape reports Cancelled", DD::Outcome::Cancelled, cancellation.result.outcome));
         static_cast<void>(context.expectEq("cancelled drag reports no effect", DD::Effect::None, cancellation.result.effect));
@@ -1264,7 +1271,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         static_cast<void>(context.expectEq("cancellation queues no drop", std::size_t{0}, capture.dropped));
     }
 
-    for (const std::string_view modifier : {"Ctrl", "Shift", "Alt"})
+    for(const std::string_view modifier : {"Ctrl", "Shift", "Alt"})
     {
         capture.clear(target);
         const ManualDragDropRun run = runManualDragDropSource(
@@ -1277,7 +1284,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             std::format("Hold LEFT in the source, keep {} held, drop in green Region 2, then release {}.", modifier, modifier),
             DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
 
-        if (run.answer == ManualAnswer::Yes && run.attempted)
+        if(run.answer == ManualAnswer::Yes && run.attempted)
         {
             static_cast<void>(context.expectEq(std::format("{} does not override target preference", modifier), DD::Effect::Move, run.result.effect));
         }
@@ -1288,11 +1295,11 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         capture.drain(target);
         paintManualValidationSurface(targetWindow, ManualSurfaceLayout::DragDropTarget);
 
-        if (capture.lastDrop)
+        if(capture.lastDrop)
         {
-            for (const auto &item : capture.lastDrop->payload)
+            for(const auto &item : capture.lastDrop->payload)
             {
-                if (const auto *image = std::get_if<Transfer::Image>(&item))
+                if(const auto *image = std::get_if<Transfer::Image>(&item))
                 {
                     paintManualImagePreview(targetWindow, *image);
                 }
@@ -1304,11 +1311,11 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         capture.clear(target);
         const ManualAnswer answer = recordManualCheck(context, targetWindow, name, instruction, observeForeign, ManualSurfaceLayout::DragDropTarget);
 
-        if (answer == ManualAnswer::Yes)
+        if(answer == ManualAnswer::Yes)
         {
             static_cast<void>(context.expectEq(std::format("{} yields one complete drop", name), std::size_t{1}, capture.dropped));
 
-            if (expected != nullptr)
+            if(expected != nullptr)
             {
                 static_cast<void>(context.expectTrue(
                     std::format("{} matches exact controlled payload", name),
@@ -1316,6 +1323,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             }
         }
     };
+
     const Transfer::Item expectedSingle = Transfer::FileList{{singleFile}};
     const Transfer::Item expectedMultiple = Transfer::FileList{{unicodeFile, singleFile}};
     const Transfer::Item expectedText = Transfer::Text{std::string(unicodeText)};
@@ -1357,7 +1365,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         observeForeign,
         ManualSurfaceLayout::DragDropTarget);
 
-    if (malformed == ManualAnswer::Yes)
+    if(malformed == ManualAnswer::Yes)
     {
         static_cast<void>(context.expectEq("malformed provider queues no successful drop", std::size_t{0}, capture.dropped));
     }
@@ -1375,13 +1383,13 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             instruction,
             DD::Description{items, effects, DD::TriggerButton::Left});
 
-        if (run.answer == ManualAnswer::Yes && run.attempted)
+        if(run.answer == ManualAnswer::Yes && run.attempted)
         {
             static_cast<void>(context.expectEq(std::format("{} reports Dropped", name), DD::Outcome::Dropped, run.result.outcome));
 
-            if (name == "GameWIP files to Explorer")
+            if(name == "GameWIP files to Explorer")
             {
-                for (const auto &path : files)
+                for(const auto &path : files)
                 {
                     const auto original = TestSupport::readTextFile(path);
                     const auto copy = TestSupport::readTextFile(copyDirectory / path.filename());
@@ -1392,6 +1400,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
             }
         }
     };
+
     const std::array<Transfer::ItemView, 1> fileItem{{Transfer::FileListView{files}}};
     const std::array<Transfer::ItemView, 1> imageItem{{Transfer::ImageView::packed({2, 2}, pixels)}};
     const std::array<Transfer::ItemView, 1> customItem{{Transfer::CustomView{customName, customBytes}}};
@@ -1430,7 +1439,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
         "cross both target regions, then drop. Answer yes only if geometry/presentation stayed coherent with no deadlock.",
         DD::Description{textItem, DD::EffectPolicy::source(allEffects), DD::TriggerButton::Left});
 
-    if (modalGeometry.answer == ManualAnswer::Yes && modalGeometry.attempted)
+    if(modalGeometry.answer == ManualAnswer::Yes && modalGeometry.attempted)
     {
         static_cast<void>(context.expectEq("modal geometry scenario drops", DD::Outcome::Dropped, modalGeometry.result.outcome));
     }

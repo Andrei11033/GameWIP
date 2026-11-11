@@ -48,6 +48,9 @@ namespace GameWIP::TestSupport
             InfrastructureStatus failureStatus;    ///< First report-sink infrastructure failure, if any.
         };
 
+        /// @brief Receives a category and formatted line without a line ending; return true when written successfully.
+        using ConsoleWriter = bool (*)(std::string_view category, std::string_view line) noexcept;
+
         /// @brief Runtime report-output settings shared by test suites.
         struct Options
         {
@@ -56,6 +59,7 @@ namespace GameWIP::TestSupport
             bool appendReport = false;                                  ///< Appends instead of truncating when the report sink opens.
             bool flushReportEachLine = false;                           ///< Flushes report-file output after each written line.
             ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full; ///< Categories mirrored to stdout.
+            ConsoleWriter consoleWriter = nullptr;                      ///< Optional console-only writer; null uses plain stdout.
             std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report-file destination.
         };
 
@@ -99,17 +103,17 @@ namespace GameWIP::TestSupport
 
         template <typename Value> [[nodiscard]] std::string valueToString(const Value &value)
         {
-            if constexpr (std::is_same_v<std::remove_cvref_t<Value>, bool>)
+            if constexpr(std::is_same_v<std::remove_cvref_t<Value>, bool>)
             {
                 return value ? "true" : "false";
             }
-            else if constexpr (requires(std::ostream &stream, const Value &streamValue) { stream << streamValue; })
+            else if constexpr(requires(std::ostream &stream, const Value &streamValue) { stream << streamValue; })
             {
                 std::ostringstream stream;
                 stream << value;
                 return stream.str();
             }
-            else if constexpr (std::is_enum_v<Value>)
+            else if constexpr(std::is_enum_v<Value>)
             {
                 // to_string promotes narrow underlying types instead of rendering them as characters.
                 return std::to_string(std::to_underlying(value));
@@ -345,7 +349,7 @@ namespace GameWIP::TestSupport
     template <typename Expected, typename Actual>
     bool Context::expectEq(std::string_view name, const Expected &expected, const Actual &actual, std::source_location location)
     {
-        if (expected == actual)
+        if(expected == actual)
         {
             pass(name);
             return true;
@@ -360,7 +364,7 @@ namespace GameWIP::TestSupport
     template <typename Unexpected, typename Actual>
     bool Context::expectNe(std::string_view name, const Unexpected &unexpected, const Actual &actual, std::source_location location)
     {
-        if (unexpected != actual)
+        if(unexpected != actual)
         {
             pass(name);
             return true;
@@ -379,11 +383,11 @@ namespace GameWIP::TestSupport
 
         try
         {
-            if constexpr (std::is_invocable_v<SuiteFunction, Context &>)
+            if constexpr(std::is_invocable_v<SuiteFunction, Context &>)
             {
                 std::forward<SuiteFunction>(function)(context);
             }
-            else if constexpr (std::is_invocable_v<SuiteFunction>)
+            else if constexpr(std::is_invocable_v<SuiteFunction>)
             {
                 std::forward<SuiteFunction>(function)();
             }
@@ -392,11 +396,11 @@ namespace GameWIP::TestSupport
                 static_assert(std::is_invocable_v<SuiteFunction, Context &>, "SuiteFunction must be invocable with Context& or with no arguments.");
             }
         }
-        catch (const std::exception &exception)
+        catch(const std::exception &exception)
         {
             context.fail("uncaught exception", exception.what());
         }
-        catch (...)
+        catch(...)
         {
             context.fail("uncaught exception", "unknown exception");
         }

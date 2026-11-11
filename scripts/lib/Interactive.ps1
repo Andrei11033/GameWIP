@@ -40,7 +40,6 @@ function Read-GameWipNamedChoice
     return [string]$result.Value
 }
 
-
 function Get-GameWipInteractiveContext
 {
     $branch = '<none>'
@@ -144,6 +143,7 @@ function Read-GameWipConfiguredMenuItem
     {
         throw "Interactive menu '$MenuId' is not registered exactly once."
     }
+
     $menu = $menuMatches[0]
     return Read-GameWipActionMenuItem `
         -Title ([string]$menu.Title) `
@@ -195,7 +195,10 @@ function Show-GameWipDevelopmentMenu
             }
             'doc'
             {
-                Invoke-GameWipInteractiveOperation -Label 'doc' -Body { Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body { Invoke-GameWipConfigurePreset -Name docs; Invoke-GameWipBuildPreset -Name docs } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'doc' -Body { Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body {
+                        Invoke-GameWipConfigurePreset -Name docs
+                        Invoke-GameWipBuildPreset -Name docs
+                    } | Out-Null } | Out-Null
             }
         }
     }
@@ -266,21 +269,32 @@ function Show-GameWipValidationMenu
             }
             'cov'
             {
-                Invoke-GameWipInteractiveOperation -Label 'cov' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage -Fresh; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'cov' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body {
+                        Invoke-GameWipConfigurePreset -Name coverage -Fresh
+                        Invoke-GameWipBuildPreset -Name coverage
+                        Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
+                        Invoke-GameWipBuildTarget -Name coverage -Target coverage
+                    } | Out-Null } | Out-Null
             }
             'asan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body {
+                        Invoke-GameWipConfigurePreset -Name asan -Fresh
+                        Invoke-GameWipBuildPreset -Name asan
+                        Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
+                    } | Out-Null } | Out-Null
             }
             'ubsan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body {
+                        Invoke-GameWipConfigurePreset -Name ubsan -Fresh
+                        Invoke-GameWipBuildPreset -Name ubsan
+                        Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild
+                    } | Out-Null } | Out-Null
             }
         }
     }
 }
-
-
 
 function Show-GameWipHygieneMenu
 {
@@ -359,7 +373,10 @@ function Show-GameWipQualityMenu
             }
             'analyze'
             {
-                Invoke-GameWipInteractiveOperation -Label 'analyze' -Body { Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body { Invoke-GameWipConfigurePreset -Name analyze; Invoke-GameWipBuildPreset -Name analyze } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'analyze' -Body { Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body {
+                        Invoke-GameWipConfigurePreset -Name analyze
+                        Invoke-GameWipBuildPreset -Name analyze
+                    } | Out-Null } | Out-Null
             }
             'links'
             {
@@ -368,7 +385,6 @@ function Show-GameWipQualityMenu
         }
     }
 }
-
 
 function Show-GameWipToolUpdatesMenu
 {
@@ -527,7 +543,6 @@ function Show-GameWipGitHubWorkflowsMenu
     }
 }
 
-
 function Show-GameWipUnicodeDataMenu
 {
     while ($true)
@@ -617,7 +632,6 @@ function Show-GameWipDependencyMenu
     }
 }
 
-
 function Show-GameWipAdvancedValidationMenu
 {
     while ($true)
@@ -646,15 +660,28 @@ function Show-GameWipAdvancedValidationMenu
             }
             'cov'
             {
-                Invoke-GameWipInteractiveOperation -Label 'cov' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage -Fresh; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'cov' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body {
+                        Invoke-GameWipConfigurePreset -Name coverage -Fresh
+                        Invoke-GameWipBuildPreset -Name coverage
+                        Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
+                        Invoke-GameWipBuildTarget -Name coverage -Target coverage
+                    } | Out-Null } | Out-Null
             }
             'asan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body {
+                        Invoke-GameWipConfigurePreset -Name asan -Fresh
+                        Invoke-GameWipBuildPreset -Name asan
+                        Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
+                    } | Out-Null } | Out-Null
             }
             'ubsan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body {
+                        Invoke-GameWipConfigurePreset -Name ubsan -Fresh
+                        Invoke-GameWipBuildPreset -Name ubsan
+                        Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild
+                    } | Out-Null } | Out-Null
             }
         }
     }
@@ -742,7 +769,8 @@ function Show-GameWipMenu
             }
             'help'
             {
-                Show-GameWipHelp; Show-GameWipProjectCatalog
+                Show-GameWipHelp
+                Show-GameWipProjectCatalog
             }
         }
     }

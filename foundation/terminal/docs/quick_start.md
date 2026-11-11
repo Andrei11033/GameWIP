@@ -40,6 +40,7 @@ int main()
     const auto status = GameWIP::Terminal::writeLine("Hello from GameWIP");
     return status.ok() ? 0 : 1;
 }
+
 ```
 
 Select stderr explicitly:

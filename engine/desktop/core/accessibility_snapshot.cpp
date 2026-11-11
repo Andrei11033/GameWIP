@@ -2,6 +2,7 @@
 /// @brief Owned authoring storage and indexed immutable snapshot inspection.
 
 #include "desktop/internal/accessibility_state.h"
+
 #include <algorithm>
 #include <new>
 
@@ -13,7 +14,7 @@ namespace GameWIP::Desktop::Detail
 
     std::string_view OwnedAccessibilityNode::copyString(std::string_view source)
     {
-        if (source.empty())
+        if(source.empty())
         {
             return {};
         }
@@ -26,7 +27,7 @@ namespace GameWIP::Desktop::Detail
         A::ExtensionValue result;
         result.kind = source.kind;
 
-        switch (source.kind)
+        switch(source.kind)
         {
         case A::ExtensionValueKind::Boolean:
             result.booleanValue = source.booleanValue;
@@ -52,7 +53,7 @@ namespace GameWIP::Desktop::Detail
             auto &items = extensionLists.back();
             items.reserve(source.listValue.size());
 
-            for (const auto &item : source.listValue)
+            for(const auto &item : source.listValue)
             {
                 items.push_back(copyExtension(item));
             }
@@ -74,40 +75,44 @@ namespace GameWIP::Desktop::Detail
         node.language = copyString(source.language);
         node.accessKey = copyString(source.accessKey);
         node.keyboardShortcut = copyString(source.keyboardShortcut);
+
         children.assign(source.children.begin(), source.children.end());
         node.children = children;
+
         relations.reserve(source.relations.size());
 
-        for (const auto &relation : source.relations)
+        for(const auto &relation : source.relations)
         {
             relationTargets.emplace_back(relation.targets.begin(), relation.targets.end());
             relations.push_back({relation.kind, relationTargets.back()});
         }
         node.relations = relations;
+
         extensions.reserve(source.extensions.size());
 
-        for (const auto &extension : source.extensions)
+        for(const auto &extension : source.extensions)
         {
             extensions.push_back({copyString(extension.namespaceName), copyString(extension.name), copyExtension(extension.value)});
         }
         node.extensions = extensions;
 
-        if (source.selection)
+        if(source.selection)
         {
             selectedNodes.assign(source.selection->selectedNodes.begin(), source.selection->selectedNodes.end());
             node.selection->selectedNodes = selectedNodes;
         }
 
-        if (source.text)
+        if(source.text)
         {
             node.text->utf8 = copyString(source.text->utf8);
             node.text->language = copyString(source.text->language);
             annotations.assign(source.text->annotations.begin(), source.text->annotations.end());
 
-            for (auto &annotation : annotations)
+            for(auto &annotation : annotations)
             {
                 annotation.value = copyString(annotation.value);
             }
+
             fragments.assign(source.text->fragments.begin(), source.text->fragments.end());
             textSelection.assign(source.text->selection.begin(), source.text->selection.end());
             node.text->annotations = annotations;
@@ -151,7 +156,7 @@ namespace GameWIP::Desktop::Accessibility
             std::uint64_t nodeBytes = 0, values = 0;
             const auto string = [&](std::string_view text)
             {
-                if (text.size() > limits.maximumTextBytesPerNode)
+                if(text.size() > limits.maximumTextBytesPerNode)
                 {
                     return false;
                 }
@@ -159,52 +164,54 @@ namespace GameWIP::Desktop::Accessibility
                 return nodeBytes <= limits.maximumTextBytesPerNode;
             };
 
-            for (auto text : {node.name, node.description, node.helpText, node.value, node.language, node.accessKey, node.keyboardShortcut})
+            for(auto text : {node.name, node.description, node.helpText, node.value, node.language, node.accessKey, node.keyboardShortcut})
             {
-                if (!string(text))
+                if(!string(text))
                 {
                     return false;
                 }
             }
 
-            if (node.children.size() > limits.maximumChildrenPerNode || node.relations.size() > limits.maximumRelationsPerNode ||
-                node.extensions.size() > limits.maximumExtensionsPerNode)
+            if(node.children.size() > limits.maximumChildrenPerNode || node.relations.size() > limits.maximumRelationsPerNode ||
+               node.extensions.size() > limits.maximumExtensionsPerNode)
             {
                 return false;
             }
+
             std::uint64_t targets = 0;
 
-            for (const auto &relation : node.relations)
+            for(const auto &relation : node.relations)
             {
                 targets += relation.targets.size();
 
-                if (targets > limits.maximumRelationTargetsPerNode)
+                if(targets > limits.maximumRelationTargetsPerNode)
                 {
                     return false;
                 }
             }
+
             const auto extension = [&](const auto &self, const A::ExtensionValue &value, std::uint32_t depth) -> bool
             {
-                if (depth > limits.maximumExtensionDepth || ++values > limits.maximumExtensionValuesPerNode)
+                if(depth > limits.maximumExtensionDepth || ++values > limits.maximumExtensionValuesPerNode)
                 {
                     return false;
                 }
 
-                if (value.kind == A::ExtensionValueKind::Utf8)
+                if(value.kind == A::ExtensionValueKind::Utf8)
                 {
                     return string(value.utf8Value);
                 }
 
-                if (value.kind == A::ExtensionValueKind::List)
+                if(value.kind == A::ExtensionValueKind::List)
                 {
-                    if (value.listValue.size() > limits.maximumExtensionListItems)
+                    if(value.listValue.size() > limits.maximumExtensionListItems)
                     {
                         return false;
                     }
 
-                    for (const auto &item : value.listValue)
+                    for(const auto &item : value.listValue)
                     {
-                        if (!self(self, item, depth + 1))
+                        if(!self(self, item, depth + 1))
                         {
                             return false;
                         }
@@ -214,37 +221,38 @@ namespace GameWIP::Desktop::Accessibility
                 return value.kind <= A::ExtensionValueKind::List;
             };
 
-            for (const auto &value : node.extensions)
+            for(const auto &value : node.extensions)
             {
-                if (!string(value.namespaceName) || !string(value.name) || !extension(extension, value.value, 0))
+                if(!string(value.namespaceName) || !string(value.name) || !extension(extension, value.value, 0))
                 {
                     return false;
                 }
             }
 
-            if (node.selection && node.selection->selectedNodes.size() > limits.maximumNodes)
+            if(node.selection && node.selection->selectedNodes.size() > limits.maximumNodes)
             {
                 return false;
             }
 
-            if (node.text)
+            if(node.text)
             {
                 const auto &text = *node.text;
 
-                if (text.annotations.size() > limits.maximumTextAnnotationsPerNode || text.fragments.size() > limits.maximumTextFragmentsPerNode ||
-                    text.selection.size() > limits.maximumTextSelectionsPerNode || !string(text.utf8) || !string(text.language))
+                if(text.annotations.size() > limits.maximumTextAnnotationsPerNode || text.fragments.size() > limits.maximumTextFragmentsPerNode ||
+                   text.selection.size() > limits.maximumTextSelectionsPerNode || !string(text.utf8) || !string(text.language))
                 {
                     return false;
                 }
 
-                for (const auto &annotation : text.annotations)
+                for(const auto &annotation : text.annotations)
                 {
-                    if (!string(annotation.value))
+                    if(!string(annotation.value))
                     {
                         return false;
                     }
                 }
             }
+
             bytes += nodeBytes;
             return bytes <= limits.maximumTotalTextBytes;
         }
@@ -276,20 +284,21 @@ namespace GameWIP::Desktop::Accessibility
 
     IO::Types::Status SnapshotBuilder::setGeneration(A::Generation generation) noexcept
     {
-        if (generation == 0)
+        if(generation == 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         try
         {
-            if (!state_)
+            if(!state_)
             {
                 state_ = std::make_unique<Detail::SnapshotBuilderState>();
             }
             state_->generation = generation;
             return {};
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
@@ -297,20 +306,21 @@ namespace GameWIP::Desktop::Accessibility
 
     IO::Types::Status SnapshotBuilder::setRoot(A::NodeId root) noexcept
     {
-        if (root == 0)
+        if(root == 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         try
         {
-            if (!state_)
+            if(!state_)
             {
                 state_ = std::make_unique<Detail::SnapshotBuilderState>();
             }
             state_->root = root;
             return {};
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
@@ -318,37 +328,36 @@ namespace GameWIP::Desktop::Accessibility
 
     IO::Types::Status SnapshotBuilder::addNode(const A::Node &node) noexcept
     {
-        if (validate({}, limits_).issue == A::ValidationIssue::InvalidLimits || node.id == 0)
+        if(validate({}, limits_).issue == A::ValidationIssue::InvalidLimits || node.id == 0)
         {
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
+
         try
         {
-            if (state_ && state_->nodes.size() >= limits_.maximumNodes)
+            if(state_ && state_->nodes.size() >= limits_.maximumNodes)
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
 
-            if (state_ && state_->nodeIds.contains(node.id))
+            if(state_ && state_->nodeIds.contains(node.id))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
-
             std::uint64_t bytes = state_ ? state_->textBytes : 0;
 
-            if (!boundedNode(node, limits_, bytes))
+            if(!boundedNode(node, limits_, bytes))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
-
             auto owned = std::make_shared<Detail::OwnedAccessibilityNode>(node);
 
-            if (!state_)
+            if(!state_)
             {
                 state_ = std::make_unique<Detail::SnapshotBuilderState>();
             }
 
-            if (state_->nodes.size() == state_->nodes.capacity())
+            if(state_->nodes.size() == state_->nodes.capacity())
             {
                 const auto capacity =
                     std::min<std::size_t>(limits_.maximumNodes, std::max<std::size_t>(state_->nodes.size() + 1, state_->nodes.capacity() * 2));
@@ -362,11 +371,11 @@ namespace GameWIP::Desktop::Accessibility
             state_->textBytes = bytes;
             return {};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
         }
@@ -381,6 +390,7 @@ namespace GameWIP::Desktop::Accessibility
     {
         return state_ ? state_->view() : A::SnapshotView{};
     }
+
     // ------------------------------------------------------------
     // Immutable snapshot inspection
     // ------------------------------------------------------------

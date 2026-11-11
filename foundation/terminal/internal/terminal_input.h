@@ -11,7 +11,6 @@
 
 namespace GameWIP::Terminal::Detail
 {
-
     /// @brief Runs Terminal-owned grapheme-aware line editing through the active managed input owner.
     [[nodiscard]] Types::Input::LineResult managedTerminalLineRead(
         Types::Input::Stream input,

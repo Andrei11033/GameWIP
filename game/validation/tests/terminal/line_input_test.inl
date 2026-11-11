@@ -1,5 +1,5 @@
 /// @file line_input_test.inl
-/// @brief Focused terminal line input correctness suites.
+/// @brief Focused Terminal line-input tests.
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 /// @brief Verifies the managed Unicode line editor over deterministic structured events.
@@ -42,7 +42,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         const IO::Types::Status openStatus = session.open(sessionOptions);
         static_cast<void>(context.expectTrue("managed line session opens", openStatus.ok()));
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return Terminal::Types::Input::LineResult{.status = openStatus};
         }
@@ -77,7 +77,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         const IO::Types::Status openStatus = session.open(sessionOptions);
         static_cast<void>(context.expectTrue("managed echo session opens", openStatus.ok()));
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return EchoRunResult{.line = {.status = openStatus}};
         }
@@ -189,7 +189,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         static_cast<void>(context.expectEq("wrapped left/home edit text", std::string{"bcXdY"}, result.line.line));
         static_cast<void>(context.expectTrue("wrapped edit performs cursor redraw", !result.cursorSets.empty()));
 
-        if (!result.cursorSets.empty())
+        if(!result.cursorSets.empty())
         {
             static_cast<void>(context.expectEq("wrapped redraw rebuilds stable origin column", std::uint32_t{3}, result.cursorSets.front().column));
             static_cast<void>(context.expectEq("wrapped redraw rebuilds stable origin row", std::uint32_t{2}, result.cursorSets.front().row));
@@ -233,7 +233,7 @@ void testManagedLineEditing(TestSupport::Context &context)
         static_cast<void>(context.expectEq("resize redraw preserves editable text", std::string{"Zabcd"}, result.line.line));
         static_cast<void>(context.expectTrue("resize redraw performs cursor positioning", !result.cursorSets.empty()));
 
-        if (!result.cursorSets.empty())
+        if(!result.cursorSets.empty())
         {
             static_cast<void>(context.expectEq("resize redraw rebuilds reflowed origin column", std::uint32_t{0}, result.cursorSets.front().column));
             static_cast<void>(context.expectEq("resize redraw rebuilds reflowed origin row", std::uint32_t{2}, result.cursorSets.front().row));

@@ -69,12 +69,12 @@ namespace GameWIP
     {
         outWindow = nullptr;
 
-        if (nativeManager == nullptr)
+        if(nativeManager == nullptr)
         {
             return WindowResult::NotCreated;
         }
 
-        if (description.role == WindowRole::MainGame && nativeManager->mainWindow != nullptr)
+        if(description.role == WindowRole::MainGame && nativeManager->mainWindow != nullptr)
         {
             return WindowResult::OperationNotAllowed;
         }
@@ -82,7 +82,7 @@ namespace GameWIP
         auto window = std::make_unique<Window>();
         WindowResult createResult = window->create(description);
 
-        if (createResult != WindowResult::Success)
+        if(createResult != WindowResult::Success)
         {
             return createResult;
         }
@@ -90,13 +90,13 @@ namespace GameWIP
         Window *createdWindow = window.get();
         HWND handle = toNativeHandle(*createdWindow);
 
-        if (handle == nullptr)
+        if(handle == nullptr)
         {
             createdWindow->destroy();
             return WindowResult::PlatformCallFailed;
         }
 
-        if (description.role == WindowRole::MainGame)
+        if(description.role == WindowRole::MainGame)
         {
             nativeManager->mainWindow = createdWindow;
             nativeManager->rawInputWindow = createdWindow;
@@ -106,7 +106,7 @@ namespace GameWIP
         nativeManager->windowsByHandle.emplace(handle, createdWindow);
         nativeManager->windows.push_back(std::move(window));
 
-        if (createdWindow->focused())
+        if(createdWindow->focused())
         {
             nativeManager->focusedWindow = createdWindow;
             nativeManager->toolInputWindow = createdWindow->getRole() == WindowRole::Tool ? createdWindow : nullptr;
@@ -118,7 +118,7 @@ namespace GameWIP
 
     WindowResult WindowManager::destroyWindow(Window &window)
     {
-        if (nativeManager == nullptr)
+        if(nativeManager == nullptr)
         {
             return WindowResult::NotCreated;
         }
@@ -131,30 +131,29 @@ namespace GameWIP
                 return candidate.get() == &window;
             });
 
-        if (windowIt == nativeManager->windows.end())
+        if(windowIt == nativeManager->windows.end())
         {
             return WindowResult::NotCreated;
         }
-
         Window *windowPtr = windowIt->get();
         HWND handle = toNativeHandle(*windowPtr);
 
-        if (handle != nullptr)
+        if(handle != nullptr)
         {
             nativeManager->windowsByHandle.erase(handle);
         }
 
-        if (nativeManager->focusedWindow == windowPtr)
+        if(nativeManager->focusedWindow == windowPtr)
         {
             nativeManager->focusedWindow = nullptr;
         }
 
-        if (nativeManager->toolInputWindow == windowPtr)
+        if(nativeManager->toolInputWindow == windowPtr)
         {
             nativeManager->toolInputWindow = nullptr;
         }
 
-        if (nativeManager->rawInputWindow == windowPtr)
+        if(nativeManager->rawInputWindow == windowPtr)
         {
             nativeManager->rawInputWindow = nullptr;
             nativeManager->rawInputRegistered = false;
@@ -162,7 +161,7 @@ namespace GameWIP
 
         bool destroyingMainWindow = nativeManager->mainWindow == windowPtr;
 
-        if (destroyingMainWindow)
+        if(destroyingMainWindow)
         {
             nativeManager->mainWindow = nullptr;
             nativeManager->quitRequested = true;
@@ -179,32 +178,31 @@ namespace GameWIP
 
     void WindowManager::pollEvents(Input::InputState &gameInput, Input::InputDeviceRegistry &inputDevices, Input::InputState *toolInput)
     {
-        if (nativeManager == nullptr)
+        if(nativeManager == nullptr)
         {
             return;
         }
 
-        if (!nativeManager->rawInputRegistered && nativeManager->rawInputWindow != nullptr)
+        if(!nativeManager->rawInputRegistered && nativeManager->rawInputWindow != nullptr)
         {
             unsigned long rawInputError = 0;
             HWND rawInputHandle = toNativeHandle(*nativeManager->rawInputWindow);
 
-            if (!Win32Input::registerInputDevices(rawInputHandle, inputDevices, rawInputError))
+            if(!Win32Input::registerInputDevices(rawInputHandle, inputDevices, rawInputError))
             {
                 nativeManager->quitRequested = true;
                 (void)rawInputError;
                 return;
             }
-
             nativeManager->rawInputRegistered = true;
         }
 
         std::vector<Window *> pendingDestroy = std::move(nativeManager->pendingDestroy);
         nativeManager->pendingDestroy.clear();
 
-        for (Window *window : pendingDestroy)
+        for(Window *window : pendingDestroy)
         {
-            if (window != nullptr && window != nativeManager->mainWindow && containsWindow(nativeManager->windows, window))
+            if(window != nullptr && window != nativeManager->mainWindow && containsWindow(nativeManager->windows, window))
             {
                 destroyWindow(*window);
             }
@@ -212,9 +210,9 @@ namespace GameWIP
 
         MSG message{};
 
-        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
+        while(PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
         {
-            if (message.message == WM_QUIT)
+            if(message.message == WM_QUIT)
             {
                 nativeManager->quitRequested = true;
                 continue;
@@ -223,7 +221,7 @@ namespace GameWIP
             Window *targetWindow = nullptr;
             auto targetIt = nativeManager->windowsByHandle.find(message.hwnd);
 
-            if (targetIt != nativeManager->windowsByHandle.end())
+            if(targetIt != nativeManager->windowsByHandle.end())
             {
                 targetWindow = targetIt->second;
             }
@@ -233,9 +231,9 @@ namespace GameWIP
             const bool mainFocusLost = targetIsMain && message.message == WM_KILLFOCUS;
             const bool toolFocusLost = targetWasFocusedTool && message.message == WM_KILLFOCUS;
 
-            if (message.message == WM_SETFOCUS && targetWindow != nullptr)
+            if(message.message == WM_SETFOCUS && targetWindow != nullptr)
             {
-                if (nativeManager->toolInputWindow != nullptr && nativeManager->toolInputWindow != targetWindow && toolInput != nullptr)
+                if(nativeManager->toolInputWindow != nullptr && nativeManager->toolInputWindow != targetWindow && toolInput != nullptr)
                 {
                     toolInput->clear();
                 }
@@ -244,12 +242,12 @@ namespace GameWIP
                 nativeManager->toolInputWindow = targetWindow->getRole() == WindowRole::Tool ? targetWindow : nullptr;
             }
 
-            if (message.message == WM_KILLFOCUS && targetWindow == nativeManager->focusedWindow)
+            if(message.message == WM_KILLFOCUS && targetWindow == nativeManager->focusedWindow)
             {
                 nativeManager->focusedWindow = nullptr;
             }
 
-            if (targetIsMain && targetWindow->focused())
+            if(targetIsMain && targetWindow->focused())
             {
                 Win32Input::handleMessage(
                     static_cast<unsigned int>(message.message),
@@ -259,7 +257,7 @@ namespace GameWIP
                     inputDevices);
             }
 
-            if (toolInput != nullptr && targetWindow != nullptr && targetWindow->getRole() == WindowRole::Tool && targetWindow->focused())
+            if(toolInput != nullptr && targetWindow != nullptr && targetWindow->getRole() == WindowRole::Tool && targetWindow->focused())
             {
                 nativeManager->toolInputWindow = targetWindow;
                 Win32Input::handleUiMessage(
@@ -272,43 +270,43 @@ namespace GameWIP
             TranslateMessage(&message);
             DispatchMessageW(&message);
 
-            if (mainFocusLost)
+            if(mainFocusLost)
             {
                 gameInput.clear();
             }
 
-            if (toolFocusLost)
+            if(toolFocusLost)
             {
-                if (toolInput != nullptr)
+                if(toolInput != nullptr)
                 {
                     toolInput->clear();
                 }
 
-                if (nativeManager->toolInputWindow == targetWindow)
+                if(nativeManager->toolInputWindow == targetWindow)
                 {
                     nativeManager->toolInputWindow = nullptr;
                 }
             }
         }
 
-        if (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->focused())
+        if(nativeManager->mainWindow != nullptr && nativeManager->mainWindow->focused())
         {
             Win32Input::updateGamepads(gameInput, inputDevices);
         }
 
-        if (nativeManager->mainWindow != nullptr && nativeManager->mainWindow->shouldClose())
+        if(nativeManager->mainWindow != nullptr && nativeManager->mainWindow->shouldClose())
         {
             nativeManager->quitRequested = true;
         }
 
-        for (const std::unique_ptr<Window> &window : nativeManager->windows)
+        for(const std::unique_ptr<Window> &window : nativeManager->windows)
         {
             Window *windowPtr = window.get();
 
-            if (windowPtr != nativeManager->mainWindow && windowPtr->shouldClose())
+            if(windowPtr != nativeManager->mainWindow && windowPtr->shouldClose())
             {
-                if (std::find(nativeManager->pendingDestroy.begin(), nativeManager->pendingDestroy.end(), windowPtr) ==
-                    nativeManager->pendingDestroy.end())
+                if(std::find(nativeManager->pendingDestroy.begin(), nativeManager->pendingDestroy.end(), windowPtr) ==
+                   nativeManager->pendingDestroy.end())
                 {
                     nativeManager->pendingDestroy.push_back(windowPtr);
                 }
@@ -341,14 +339,13 @@ namespace GameWIP
     {
         outWindows.clear();
 
-        if (nativeManager == nullptr)
+        if(nativeManager == nullptr)
         {
             return;
         }
-
         outWindows.reserve(nativeManager->windows.size());
 
-        for (const std::unique_ptr<Window> &window : nativeManager->windows)
+        for(const std::unique_ptr<Window> &window : nativeManager->windows)
         {
             outWindows.push_back(window.get());
         }

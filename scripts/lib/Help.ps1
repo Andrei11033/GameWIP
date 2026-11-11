@@ -18,6 +18,7 @@ function Show-GameWipProjectCatalog
         {
             continue
         }
+
         Write-Host "  $((Get-Culture).TextInfo.ToTitleCase($group)):"
 
         foreach ($action in $items)
@@ -31,6 +32,7 @@ function Show-GameWipProjectCatalog
         Write-GameWipSection ((Get-Culture).TextInfo.ToTitleCase($kind) + ' presets')
         Get-GameWipVisiblePresetName -Kind $kind | ForEach-Object { Write-Host "  $_" }
     }
+
     Write-GameWipSection 'Validation modules'
     Write-Host '  all'
     @(Get-GameWipValidationModuleName) | ForEach-Object { Write-Host "  $_" }
@@ -61,36 +63,42 @@ function Show-GameWipProjectCatalog
             }
         }
     }
+
     Write-GameWipSection 'Project commands'
 
     foreach ($command in $CommandConfig.ProjectCommands)
     {
         Write-Host ("  {0,-24} {1}" -f $command.Id, $command.Name)
     }
+
     Write-GameWipSection 'Bundles'
 
     foreach ($bundleInfo in $CommandConfig.Bundles)
     {
         Write-Host ("  {0,-24} {1}" -f $bundleInfo.Id, $bundleInfo.Name)
     }
+
     Write-GameWipSection 'Benchmark profiles'
 
     foreach ($benchmarkProfile in $CommandConfig.BenchmarkProfiles)
     {
         Write-Host ("  {0,-12} {1}" -f $benchmarkProfile.Id, $benchmarkProfile.Name)
     }
+
     Write-GameWipSection 'Hygiene profiles'
 
     foreach ($hygieneProfile in $HygieneConfig.Profiles)
     {
         Write-Host ("  {0,-12} {1}" -f $hygieneProfile.Id, $hygieneProfile.Title)
     }
+
     Write-GameWipSection 'Hygiene checks'
 
     foreach ($check in $HygieneConfig.Checks)
     {
         Write-Host ("  {0,-24} [{1,-9}] {2}" -f $check.Id, $check.Availability, $check.Title)
     }
+
     Show-GameWipWorkflowCatalog
 }
 
@@ -248,9 +256,11 @@ function Show-GameWipHelp
         {
             continue
         }
+
         Write-Host "  $($action.Id):"
         Show-GameWipOptionDefinitions -OptionDefinitions $CommandConfig.Options -OptionIds $specific
     }
+
     Write-Host ''
     Write-Host 'Use .\gamewip.bat list to discover valid IDs.'
 }

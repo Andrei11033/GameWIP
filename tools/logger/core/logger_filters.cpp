@@ -11,15 +11,15 @@ namespace GameWIP::Logger::Detail::Core
         /// @details The direct table handles dense SourceId ranges; the sorted table keeps sparse source sets compact.
         template <typename Registry> [[nodiscard]] auto *findSourceInRegistry(Registry &registry, SourceId source)
         {
-            if (!registry.directSourceLookup.empty() && source >= registry.directSourceBase)
+            if(!registry.directSourceLookup.empty() && source >= registry.directSourceBase)
             {
                 const SourceId offset = source - registry.directSourceBase;
 
-                if (offset < registry.directSourceLookup.size())
+                if(offset < registry.directSourceLookup.size())
                 {
                     const std::size_t index = registry.directSourceLookup[offset];
 
-                    if (index != kInvalidSourceIndex)
+                    if(index != kInvalidSourceIndex)
                     {
                         return &registry.sources[index];
                     }
@@ -35,11 +35,10 @@ namespace GameWIP::Logger::Detail::Core
                     return candidate.id < id;
                 });
 
-            if (position != registry.sources.end() && position->id == source)
+            if(position != registry.sources.end() && position->id == source)
             {
                 return &(*position);
             }
-
             return static_cast<decltype(&registry.sources[0])>(nullptr);
         }
     } // namespace
@@ -78,17 +77,16 @@ namespace GameWIP::Logger::Detail::Core
         registry.directSourceLookup.clear();
         registry.directSourceBase = 0;
 
-        if (registry.sources.empty())
+        if(registry.sources.empty())
         {
             return;
         }
-
         const SourceId minSource = registry.sources.front().id;
         const SourceId maxSource = registry.sources.back().id;
         const std::uint64_t span64 = static_cast<std::uint64_t>(maxSource) - static_cast<std::uint64_t>(minSource) + 1u;
         const std::uint64_t densityLimit = std::max<std::uint64_t>(64u, static_cast<std::uint64_t>(registry.sources.size()) * 4u);
 
-        if (span64 > densityLimit || span64 > 4096u)
+        if(span64 > densityLimit || span64 > 4096u)
         {
             return;
         }
@@ -96,7 +94,7 @@ namespace GameWIP::Logger::Detail::Core
         registry.directSourceBase = minSource;
         registry.directSourceLookup.assign(static_cast<std::size_t>(span64), kInvalidSourceIndex);
 
-        for (std::size_t index = 0; index < registry.sources.size(); ++index)
+        for(std::size_t index = 0; index < registry.sources.size(); ++index)
         {
             registry.directSourceLookup[registry.sources[index].id - minSource] = index;
         }
@@ -116,11 +114,10 @@ namespace GameWIP::Logger::Detail::Core
     /// @return True when the source is unknown or registered and enabled.
     bool sourceEnabledRuntime(const SourceRegistry *registry, SourceId source)
     {
-        if (!registry)
+        if(!registry)
         {
             return true;
         }
-
         const RegisteredSource *registeredSource = findSource(*registry, source);
         return registeredSource == nullptr || registeredSource->enabled.load(std::memory_order_acquire);
     }
@@ -129,28 +126,27 @@ namespace GameWIP::Logger::Detail::Core
     /// @return True when the logger is running, output is enabled, minLevel passes, and the level is enabled.
     bool shouldLogRuntime(LogLevel level)
     {
-        if (!isValidLevel(level))
+        if(!isValidLevel(level))
         {
             return false;
         }
 
         const std::uint32_t runtimeState = loggerState().runtimeStateBits.load(std::memory_order_acquire);
 
-        if ((runtimeState & kRuntimeStateRunningBit) == 0)
+        if((runtimeState & kRuntimeStateRunningBit) == 0)
         {
             return false;
         }
 
-        if (runtimeStateOutput(runtimeState) == OutputMode::None)
+        if(runtimeStateOutput(runtimeState) == OutputMode::None)
         {
             return false;
         }
 
-        if (toLevelValue(level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
+        if(toLevelValue(level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
         {
             return false;
         }
-
         const std::uint8_t bit = levelBit(level);
         return bit != 0 && (runtimeStateLevelMask(runtimeState) & bit) != 0;
     }
@@ -169,24 +165,23 @@ namespace GameWIP::Logger::Detail::Core
     {
         const std::uint32_t runtimeState = loggerState().runtimeStateBits.load(std::memory_order_acquire);
 
-        if (!isValidLevel(entry.level) || (runtimeState & kRuntimeStateRunningBit) == 0 || runtimeStateOutput(runtimeState) == OutputMode::None)
+        if(!isValidLevel(entry.level) || (runtimeState & kRuntimeStateRunningBit) == 0 || runtimeStateOutput(runtimeState) == OutputMode::None)
         {
             return {};
         }
 
-        if (toLevelValue(entry.level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
+        if(toLevelValue(entry.level) < toLevelValue(runtimeStateMinLevel(runtimeState)))
         {
             return {};
         }
-
         const std::uint8_t levelMaskBit = levelBit(entry.level);
 
-        if (levelMaskBit == 0 || (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0)
+        if(levelMaskBit == 0 || (runtimeStateLevelMask(runtimeState) & levelMaskBit) == 0)
         {
             return {};
         }
 
-        if (entry.usesRegisteredSource && !::GameWIP::Logger::Detail::Core::sourceEnabledRuntime(entry.sourceId))
+        if(entry.usesRegisteredSource && !::GameWIP::Logger::Detail::Core::sourceEnabledRuntime(entry.sourceId))
         {
             return {};
         }
@@ -206,7 +201,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             registry.reset();
 
-            if (definitions.empty() && filters.empty())
+            if(definitions.empty() && filters.empty())
             {
                 return true;
             }
@@ -215,16 +210,16 @@ namespace GameWIP::Logger::Detail::Core
             std::vector<RegisteredSource> &sources = preparedRegistry->sources;
             sources.reserve(definitions.size());
 
-            for (const SourceDefinition &definition : definitions)
+            for(const SourceDefinition &definition : definitions)
             {
-                if (definition.name.empty())
+                if(definition.name.empty())
                 {
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                     return false;
                 }
-                const auto validation = GameWIP::Unicode::Utf8::validate(definition.name);
 
-                if (validation.outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
+                const auto validation = GameWIP::Unicode::Utf8::validate(definition.name);
+                if(validation.outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
                 {
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed);
                     return false;
@@ -247,16 +242,15 @@ namespace GameWIP::Logger::Detail::Core
                     return left.id == right.id;
                 });
 
-            if (duplicateSource != sources.end())
+            if(duplicateSource != sources.end())
             {
                 outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                 return false;
             }
-
             std::vector<SourceId> filteredSources;
             filteredSources.reserve(filters.size());
 
-            for (const SourceFilter &filter : filters)
+            for(const SourceFilter &filter : filters)
             {
                 auto sourcePosition = std::lower_bound(
                     sources.begin(),
@@ -267,7 +261,7 @@ namespace GameWIP::Logger::Detail::Core
                         return candidate.id < id;
                     });
 
-                if (sourcePosition == sources.end() || sourcePosition->id != filter.source)
+                if(sourcePosition == sources.end() || sourcePosition->id != filter.source)
                 {
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                     return false;
@@ -278,7 +272,7 @@ namespace GameWIP::Logger::Detail::Core
 
             std::sort(filteredSources.begin(), filteredSources.end());
 
-            if (std::adjacent_find(filteredSources.begin(), filteredSources.end()) != filteredSources.end())
+            if(std::adjacent_find(filteredSources.begin(), filteredSources.end()) != filteredSources.end())
             {
                 outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                 return false;
@@ -288,13 +282,13 @@ namespace GameWIP::Logger::Detail::Core
             registry = std::move(preparedRegistry);
             return true;
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             registry.reset();
             outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
             return false;
         }
-        catch (...)
+        catch(...)
         {
             registry.reset();
             outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
@@ -311,18 +305,17 @@ namespace GameWIP::Logger::Detail::Core
         outMask = kAllLevelMask;
         std::uint8_t seenLevels = 0;
 
-        for (const LevelFilter &filter : filters)
+        for(const LevelFilter &filter : filters)
         {
             const std::uint8_t bit = levelBit(filter.level);
 
-            if (bit == 0 || (seenLevels & bit) != 0)
+            if(bit == 0 || (seenLevels & bit) != 0)
             {
                 return false;
             }
-
             seenLevels |= bit;
 
-            if (filter.enabled)
+            if(filter.enabled)
             {
                 outMask = static_cast<std::uint8_t>(outMask | bit);
             }
@@ -365,18 +358,18 @@ GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId sour
         const auto registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
         const auto *registeredSource = registry ? ::GameWIP::Logger::Detail::Core::findSource(*registry, source) : nullptr;
 
-        if (registeredSource == nullptr)
+        if(registeredSource == nullptr)
         {
             return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::NotFound);
         }
         registeredSource->enabled.store(enabled, std::memory_order_release);
         return {};
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
     }
@@ -393,10 +386,9 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
     {
         std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
         const auto registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
-
-        if (registry)
+        if(registry)
         {
-            for (const auto &source : registry->sources)
+            for(const auto &source : registry->sources)
             {
                 source.enabled.store(true, std::memory_order_release);
             }
@@ -404,11 +396,11 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
 
         return {};
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
     }
@@ -418,7 +410,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, b
 {
     const std::uint8_t bit = ::GameWIP::Logger::Detail::Core::levelBit(level);
 
-    if (bit == 0)
+    if(bit == 0)
     {
         return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
     }
@@ -431,7 +423,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, b
         ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
         return {};
     }
-    catch (...)
+    catch(...)
     {
         return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
     }
@@ -451,7 +443,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetLevelFilters() noexcept
         ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
         return {};
     }
-    catch (...)
+    catch(...)
     {
         return GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::Unknown);
     }

@@ -24,11 +24,11 @@ namespace GameWIP::Desktop
         /// @brief Returns a stable nonzero identity for the calling thread.
         [[nodiscard]] std::uint64_t currentThreadToken() noexcept
         {
-            if (callingThreadToken == 0)
+            if(callingThreadToken == 0)
             {
                 callingThreadToken = nextThreadToken.fetch_add(1, std::memory_order_relaxed);
 
-                if (callingThreadToken == 0)
+                if(callingThreadToken == 0)
                 {
                     callingThreadToken = nextThreadToken.fetch_add(1, std::memory_order_relaxed);
                 }
@@ -58,12 +58,12 @@ namespace GameWIP::Desktop
         /// @brief Validates state presence, owner-thread access, and native liveness.
         [[nodiscard]] IO::Types::Status requireLiveState(const Detail::ProgressDialogState *state, bool owned) noexcept
         {
-            if (state == nullptr)
+            if(state == nullptr)
             {
                 return error(ErrorCode::NotOpen);
             }
 
-            if (!owned)
+            if(!owned)
             {
                 return error(ErrorCode::ResourceBusy);
             }
@@ -80,14 +80,14 @@ namespace GameWIP::Desktop
 
     ProgressDialog::~ProgressDialog() noexcept
     {
-        if (!state_)
+        if(!state_)
         {
             return;
         }
 
-        if (state_->platform && !ownedByCurrentThread())
+        if(state_->platform && !ownedByCurrentThread())
         {
-            if (Detail::Platform::deferProgressCleanupToOwner(state_))
+            if(Detail::Platform::deferProgressCleanupToOwner(state_))
             {
                 ownerThreadToken_.store(0, std::memory_order_release);
                 return;
@@ -96,34 +96,34 @@ namespace GameWIP::Desktop
         }
         else
         {
-            if (!Detail::Platform::closeProgressBestEffort(*state_) && Detail::Platform::deferProgressCleanupToOwner(state_))
+            if(!Detail::Platform::closeProgressBestEffort(*state_) && Detail::Platform::deferProgressCleanupToOwner(state_))
             {
                 ownerThreadToken_.store(0, std::memory_order_release);
                 return;
             }
             state_.reset();
         }
+
         ownerThreadToken_.store(0, std::memory_order_release);
     }
 
     IO::Types::Status ProgressDialog::open(const Types::Dialogs::Progress::Description &description) noexcept
     {
-        if (state_)
+        if(state_)
         {
             return error(ErrorCode::AlreadyOpen);
         }
 
-        if (!validMode(description.presentationMode) || !std::isfinite(description.progress) || description.progress < 0.0 ||
-            description.progress > 1.0)
+        if(!validMode(description.presentationMode) || !std::isfinite(description.progress) || description.progress < 0.0 ||
+           description.progress > 1.0)
         {
             return error(ErrorCode::InvalidArgument);
         }
 
-        for (std::string_view text : {description.title, description.heading, description.message})
+        for(std::string_view text : {description.title, description.heading, description.message})
         {
             IO::Types::Status status = validateText(text);
-
-            if (!status.ok())
+            if(!status.ok())
             {
                 return status;
             }
@@ -131,16 +131,16 @@ namespace GameWIP::Desktop
 
         Detail::WindowState *ownerState = nullptr;
 
-        if (description.owner != nullptr)
+        if(description.owner != nullptr)
         {
             ownerState = Detail::WindowAccess::state(*description.owner);
 
-            if (ownerState == nullptr || !Detail::Platform::hasLiveNativeWindow(*ownerState))
+            if(ownerState == nullptr || !Detail::Platform::hasLiveNativeWindow(*ownerState))
             {
                 return error(ErrorCode::NotOpen);
             }
 
-            if (!Detail::Platform::ownedByCurrentThread(*ownerState))
+            if(!Detail::Platform::ownedByCurrentThread(*ownerState))
             {
                 return error(ErrorCode::ResourceBusy);
             }
@@ -148,7 +148,7 @@ namespace GameWIP::Desktop
 
         try
         {
-            if (Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
             {
                 return error(ErrorCode::OutOfMemory);
             }
@@ -163,9 +163,9 @@ namespace GameWIP::Desktop
 
             IO::Types::Status status = Detail::Platform::openProgress(*candidate, description);
 
-            if (!status.ok())
+            if(!status.ok())
             {
-                if (!Detail::Platform::closeProgressBestEffort(*candidate))
+                if(!Detail::Platform::closeProgressBestEffort(*candidate))
                 {
                     // The candidate remains private to this failed open. Its
                     // owner-thread dispatcher retains any cleanup that could
@@ -175,17 +175,16 @@ namespace GameWIP::Desktop
 
                 return status;
             }
-
             const std::uint64_t token = candidate->ownerToken;
             state_ = std::move(candidate);
             ownerThreadToken_.store(token, std::memory_order_release);
             return IO::successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return error(ErrorCode::OutOfMemory);
         }
-        catch (...)
+        catch(...)
         {
             return error(ErrorCode::Unknown);
         }
@@ -210,10 +209,11 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         status = validateText(title);
         return status.ok() ? Detail::Platform::setProgressTitle(*state_, title) : status;
     }
@@ -222,10 +222,11 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         status = validateText(heading);
         return status.ok() ? Detail::Platform::setProgressHeading(*state_, heading) : status;
     }
@@ -234,10 +235,11 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
+
         status = validateText(message);
         return status.ok() ? Detail::Platform::setProgressMessage(*state_, message) : status;
     }
@@ -246,18 +248,19 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (!validMode(mode))
+        if(!validMode(mode))
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         status = Detail::Platform::setProgressMode(*state_, mode);
 
-        if (status.ok())
+        if(status.ok())
         {
             state_->mode = mode;
         }
@@ -269,18 +272,19 @@ namespace GameWIP::Desktop
     {
         IO::Types::Status status = requireLiveState(state_.get(), ownedByCurrentThread());
 
-        if (!status.ok())
+        if(!status.ok())
         {
             return status;
         }
 
-        if (!std::isfinite(progress) || progress < 0.0 || progress > 1.0)
+        if(!std::isfinite(progress) || progress < 0.0 || progress > 1.0)
         {
             return error(ErrorCode::InvalidArgument);
         }
+
         status = Detail::Platform::setProgressValue(*state_, progress);
 
-        if (status.ok())
+        if(status.ok())
         {
             state_->progress = progress;
         }
@@ -295,7 +299,7 @@ namespace GameWIP::Desktop
 
     void ProgressDialog::clearCancelRequest() noexcept
     {
-        if (ownedByCurrentThread() && state_)
+        if(ownedByCurrentThread() && state_)
         {
             state_->cancelRequested = false;
         }
@@ -303,17 +307,17 @@ namespace GameWIP::Desktop
 
     IO::Types::Status ProgressDialog::close() noexcept
     {
-        if (!state_)
+        if(!state_)
         {
             return IO::successStatus();
         }
 
-        if (!ownedByCurrentThread())
+        if(!ownedByCurrentThread())
         {
             return error(ErrorCode::ResourceBusy);
         }
 
-        if (!state_->platform)
+        if(!state_->platform)
         {
             state_.reset();
             ownerThreadToken_.store(0, std::memory_order_release);
@@ -322,7 +326,7 @@ namespace GameWIP::Desktop
 
         const Detail::Platform::ProgressCloseResult result = Detail::Platform::closeProgress(*state_);
 
-        if (result.resourceClosed)
+        if(result.resourceClosed)
         {
             state_.reset();
             ownerThreadToken_.store(0, std::memory_order_release);

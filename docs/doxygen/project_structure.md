@@ -16,7 +16,7 @@ and workflow pages describe the behavior inside each area.
 | --- | --- |
 | `foundation/` | Internal Base mechanisms and low-level reusable libraries such as Unicode, IO, FileSystem, and Terminal. |
 | `tools/` | Diagnostics, assertions, logging, validation support, and development tooling libraries. |
-| `engine/` | The maintained Desktop library and retained engine reference code. See the engine section below for build status. |
+| `engine/` | The maintained Desktop and Input libraries and retained engine reference code. See the engine section below for build status. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
 | `external/` | CMake integration for optional FetchContent dependencies. |
@@ -50,6 +50,12 @@ IO
 IO + FileSystem
   -> Desktop
 
+IO + Unicode
+  -> Input
+
+Input::Platform::Win32::Attachment (optional Windows integration)
+  -> Desktop::Native::Win32 (message sink routing)
+
 IO + FileSystem + Terminal
   -> Logger
 
@@ -66,6 +72,10 @@ Reusable libraries + optional validation modules
 An arrow points from a dependency to the library that consumes it. Lower-level
 libraries must not depend on the game executable, runtime facade, validation
 runner, or benchmark runner.
+
+Input offers portable device capture with an optional Windows attachment. Desktop integration is
+available on Windows only through `Input::Platform::Win32::attachToWindow()`; Input remains independent
+on other platforms and in contexts where Desktop is not used.
 
 Unicode has no dependency on another reusable GameWIP library. It owns
 platform-neutral scalar, encoding, conversion, and grapheme algorithms without
@@ -92,10 +102,9 @@ keeps its portable result contracts free of unrelated higher-level dependencies.
 
 ## Engine libraries and reference code
 
-Desktop is the maintained engine library. Input, Action, and WindowManager remain
-source-tree reference code excluded from normal builds. These
-reference components are outside the installed API, maintained correctness
-modules and generated manual.
+Desktop and Input are maintained engine libraries. Action and WindowManager remain
+source-tree reference code excluded from normal builds. These reference components
+are outside the installed API, maintained correctness modules and generated manual.
 
 Validation code may use libraries and approved internal hooks. Installed
 consumers must not see internal headers, test-hook headers, source-tree-only

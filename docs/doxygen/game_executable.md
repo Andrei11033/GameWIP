@@ -24,6 +24,9 @@ integration code and reusable libraries.
 | `game/main.cpp` | Process entry point and startup sequencing. |
 | `game/runtime/game.h` | Source-tree runtime facade called after startup work succeeds. |
 | `game/runtime/game.cpp` | Runtime facade implementation. |
+| `game/runtime/display_report.h` | Startup display inspection entry point. |
+| `game/runtime/display_report.cpp` | Display, mode, and HDR/color report formatting and logging. |
+| `game/runtime/profiling.h` | Tracy hooks and zone colors; no-ops when Tracy is disabled. |
 | `game/runtime/version.h.in` | Template for generated build and release identity. |
 | `game/validation/validation.h` | Compile-time facade that keeps `main.cpp` stable when startup validation is disabled. |
 | `game/validation/types.h` | Result types shared by embedded and standalone validation runners. |
@@ -74,9 +77,16 @@ ordinary game runtime begins.
 5. Stop startup when correctness validation fails.
 6. Run startup benchmarks when they were compiled into the executable.
 7. Stop startup when Google Benchmark rejects its arguments.
-8. Enter `GameWIP::Game::run()`, which initializes runtime services, opens the
-   game window, and runs the event loop.
+8. Enter `GameWIP::Game::run()`, which initializes Desktop and Input services,
+   opens the game window, attaches Input on Windows, and runs the event loop.
 9. Return the runtime facade's exit code.
+
+## Input and Desktop integration
+
+On Windows, `game/runtime/game.cpp` initializes the Input system after opening the Desktop window
+and calls `GameWIP::Input::Platform::Win32::attachToWindow()` to register the native attachment
+with the message pump. Input captures are then processed during frame updates within the main
+event loop. See @ref input_library and @ref desktop_native_interop for contracts and error handling.
 
 Utility-only help and version queries bypass validation and runtime startup. A
 help or `--version` token combined with other arguments is not treated as the
@@ -109,38 +119,44 @@ startup wiring into runtime composition.
 
 1. Initialize Logger console output at Debug severity.
 2. Enumerate connected displays and query each display's active mode, supported
-   modes, and HDR/color information. Emit one report per display containing
-   its inventory, available modes, and color capabilities. If querying supported
+   modes, and HDR/color information. Emit one Info report per display containing
+   its inventory, active mode, and color capabilities, plus a Debug report of
+   its supported modes grouped by resolution. If querying supported
    modes fails, the display report includes the diagnostic and startup continues
    without the mode list.
-3. Open a visible, focused fullscreen window on the default display,
+3. Open Input, then a visible, focused fullscreen window on the default display,
    using the mode request configured in `runtimeWindowDescription()`.
    Desktop owns mode application and restoration; see @ref desktop_fullscreen_monitors.
+   On Windows, attach Input to the window.
 4. Report that the window is active and describe the manual exit path.
 5. Wait for and pump window events at intervals of up to 16 milliseconds until
    the window receives a close request. On Windows, `Alt+F4` is the expected
    manual exit path.
-6. Close the window, report shutdown, and shut Logger down.
+6. Report how long the window was open, close it, log the final exit code, and
+   shut Logger down.
 
 The final Window close releases current-thread display-color resources before
 `GameWIP::Game::run()` returns. Process-level Desktop regression children verify
 that standalone color discovery, `WM_CLOSE`, and owner-thread cleanup do not
 replace the intended successful process exit code.
 
-Failure to initialize Logger, enumerate displays, open or close the window, or
-pump events returns `EXIT_FAILURE`. Once Logger has started, shutdown is still
-attempted on every runtime failure, and a normal-path shutdown failure also
-changes the result to `EXIT_FAILURE`. A failed HDR or color query appears in the
+Failure to initialize Logger, enumerate displays, open Input, open or close the
+window, attach Input, or pump events returns `EXIT_FAILURE`. Once Logger has
+started, shutdown is still attempted on every runtime failure, and a
+normal-path shutdown failure also changes the result to `EXIT_FAILURE`. A failed
+HDR or color query appears in the
 startup report for that display but does not prevent the window from opening.
 The facade ignores `argc` and `argv`; it neither retains nor
 interprets them.
 
 Tracy-enabled builds identify display discovery, window open and close, the
 event wait/pump, individual game frames, and Logger lifetime with named zones
-and messages. The Game runtime zone covers `GameWIP::Game::run()`; the Logger
-shutdown zone is inside `finishRuntime()`, so it also covers shutdown on error
-and failure exit paths. A frame mark is emitted after each successful
-event-pump cycle.
+and messages, and plot each event wait as `Event wait (ms)`. The Game runtime
+zone covers `GameWIP::Game::run()`; the Logger shutdown zone is inside
+`finishRuntime()`, so it also covers shutdown on error and failure exit paths.
+A frame mark is emitted after each successful event-pump cycle. Call sites use
+the hooks in `game/runtime/profiling.h` without checking
+`GAMEWIP_TRACY_ENABLED`.
 
 Use @ref GameWIP::Game for the generated source API reference.
 
@@ -201,7 +217,7 @@ installed consumer API.
 `game/` may compose reusable libraries, including Logger and Desktop, validation
 objects, Google Benchmark, Tracy instrumentation, and generated project
 metadata. It must not become the implementation owner for behavior that belongs
-existing library. The runtime consumes Desktop's public display, renderer/color,
+in an existing library. The runtime consumes Desktop's public display, renderer/color,
 window-lifetime, and event-pump interfaces; Desktop retains the platform-specific
 display and window mechanics.
 

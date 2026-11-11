@@ -51,6 +51,7 @@ function Install-GameWipGitHubReleaseTool
     {
         throw "GitHub release tool '$($Tool.id)' lacks an upstream release tag."
     }
+
     $platformKey = if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
     {
         'linux-amd64'
@@ -65,6 +66,7 @@ function Install-GameWipGitHubReleaseTool
     {
         throw "No verified '$platformKey' asset is declared for '$($Tool.id)'."
     }
+
     $download = Join-Path $Script:OperationContext.Temp $asset.archive
     $uri = "https://github.com/$($Tool.provider.repository)/releases/download/$($Tool.provider.releaseTag)/$($asset.archive)"
     $downloadResult = Invoke-GameWipDownload -Uri $uri -OutFile $download -Label "$($Tool.id) $Version"
@@ -73,6 +75,7 @@ function Install-GameWipGitHubReleaseTool
     {
         throw "Download failed for '$($Tool.id)': $($downloadResult.Reason)"
     }
+
     $actualHash = Get-GameWipFileSha256 -Path $download
 
     if ($actualHash -ne $asset.sha256)
@@ -117,6 +120,7 @@ function Install-GameWipGitHubReleaseTool
         {
             throw "Release archive did not contain '$($Tool.id)'."
         }
+
         $executableName = $binary.Name
         Copy-Item -LiteralPath $binary.FullName -Destination (Join-Path $candidateRoot $executableName)
     }

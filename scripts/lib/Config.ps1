@@ -45,6 +45,7 @@ function ConvertTo-GameWipHashtable
         $items = @($Value | ForEach-Object { ConvertTo-GameWipHashtable -Value $_ })
         return , $items
     }
+
     $result = @{}
 
     foreach ($property in $Value.PSObject.Properties)
@@ -164,6 +165,7 @@ function Resolve-GameWipCommandConfigValue
         {
             throw "Command configuration value '$Path' does not exist."
         }
+
         $value = $value[$segment]
     }
 
@@ -232,12 +234,10 @@ function Assert-GameWipProjectToolConfig
                 {
                     throw "MSYS2 tool '$($toolInfo.id)' must declare its managed environment."
                 }
-
                 if (-not $toolInfo.provider.Contains('package'))
                 {
                     throw "MSYS2 tool '$($toolInfo.id)' must declare its pacman package."
                 }
-
                 foreach ($dependency in $providerDependencies)
                 {
                     if (-not $dependency.Contains('environment'))
@@ -252,7 +252,6 @@ function Assert-GameWipProjectToolConfig
                 {
                     throw "npm tool '$($toolInfo.id)' must declare its package."
                 }
-
                 foreach ($dependency in $providerDependencies)
                 {
                     if (-not $dependency.Contains('version'))
@@ -308,12 +307,10 @@ function Assert-GameWipProjectToolConfig
             {
                 throw "Tool '$($toolInfo.id)' reference path '$($reference.path)' resolves outside the repository."
             }
-
             if (-not (Test-Path -LiteralPath $referencePath -PathType Leaf))
             {
                 throw "Tool '$($toolInfo.id)' references missing path '$($reference.path)'."
             }
-
             $expectedCount = if ($reference.Contains('expectedCount'))
             {
                 [int]$reference.expectedCount
@@ -399,13 +396,16 @@ function Get-GameWipVisiblePresetName
         'configure'
         {
             'configurePresets'
-        } 'build'
+        }
+        'build'
         {
             'buildPresets'
-        } 'test'
+        }
+        'test'
         {
             'testPresets'
-        } default
+        }
+        default
         {
             throw "Unknown preset kind '$Kind'."
         }
@@ -574,6 +574,7 @@ function Assert-GameWipOptionCatalog
         {
             throw "Project option '$id' has an invalid identifier."
         }
+
         $optionIds[$id.ToLowerInvariant()] = $id
 
         if ($option.Kind -in @('string', 'integer', 'choice', 'string-list') -and [string]::IsNullOrWhiteSpace([string]$option.ValueName))
@@ -664,8 +665,23 @@ function Assert-GameWipCommandConfig
 
     if ((($requiredActions | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
     {
-        throw "Project action catalog drift. Required: $($requiredActions -join ', '); configured: $($actionIds -join ', ')."
+        $missingActions = @($requiredActions | Where-Object { $actionIds -cnotcontains $_ })
+        $unexpectedActions = @($actionIds | Where-Object { $requiredActions -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingActions.Count -gt 0)
+        {
+            $differences += "missing required actions: $($missingActions -join ', ')"
+        }
+
+        if ($unexpectedActions.Count -gt 0)
+        {
+            $differences += "unexpected configured actions: $($unexpectedActions -join ', ')"
+        }
+
+        throw "Project action catalog drift: $($differences -join '; ')."
     }
+
     $actionNames = @{}
 
     foreach ($action in $actions)
@@ -677,6 +693,7 @@ function Assert-GameWipCommandConfig
         {
             throw "Project action name '$canonical' is duplicated."
         }
+
         $actionNames[$canonicalKey] = $canonical
     }
     $requiredMenus = @(
@@ -688,8 +705,23 @@ function Assert-GameWipCommandConfig
 
     if ((($requiredMenus | Sort-Object) -join "`n") -cne (($menuIds | Sort-Object) -join "`n"))
     {
-        throw "Interactive menu catalog drift. Required: $($requiredMenus -join ', '); configured: $($menuIds -join ', ')."
+        $missingMenus = @($requiredMenus | Where-Object { $menuIds -cnotcontains $_ })
+        $unexpectedMenus = @($menuIds | Where-Object { $requiredMenus -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingMenus.Count -gt 0)
+        {
+            $differences += "missing required menus: $($missingMenus -join ', ')"
+        }
+
+        if ($unexpectedMenus.Count -gt 0)
+        {
+            $differences += "unexpected configured menus: $($unexpectedMenus -join ', ')"
+        }
+
+        throw "Interactive menu catalog drift: $($differences -join '; ')."
     }
+
     $supportedMenuHandlers = @(
         'menu-development', 'menu-validation', 'menu-quality', 'menu-hygiene', 'menu-tools', 'menu-tool-updates',
         'menu-git-workspace', 'menu-github-workflows', 'menu-advanced', 'menu-advanced-validation',
@@ -724,8 +756,23 @@ function Assert-GameWipCommandConfig
 
     if ((($supportedMenuHandlers | Sort-Object) -join "`n") -cne (($configuredMenuHandlers | Sort-Object) -join "`n"))
     {
-        throw "Interactive menu handler catalog drift. Supported: $($supportedMenuHandlers -join ', '); configured: $($configuredMenuHandlers -join ', ')."
+        $missingHandlers = @($supportedMenuHandlers | Where-Object { $configuredMenuHandlers -cnotcontains $_ })
+        $unsupportedHandlers = @($configuredMenuHandlers | Where-Object { $supportedMenuHandlers -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingHandlers.Count -gt 0)
+        {
+            $differences += "missing supported handlers: $($missingHandlers -join ', ')"
+        }
+
+        if ($unsupportedHandlers.Count -gt 0)
+        {
+            $differences += "unsupported configured handlers: $($unsupportedHandlers -join ', ')"
+        }
+
+        throw "Interactive menu handler catalog drift: $($differences -join '; ')."
     }
+
     Assert-GameWipUniqueId -Label 'bundle' -Items $bundles
     Assert-GameWipUniqueId -Label 'manual workflow' -Items $workflows
     Assert-GameWipUniqueId -Label 'benchmark profile' -Items $benchmarkProfiles
@@ -749,7 +796,21 @@ function Assert-GameWipCommandConfig
 
     if (($discoveredModules -join "`n") -ne ($configuredModules -join "`n"))
     {
-        throw "Validation module catalog drift. Configured: $($configuredModules -join ', '); discovered: $($discoveredModules -join ', ')."
+        $missingModules = @($discoveredModules | Where-Object { $configuredModules -cnotcontains $_ })
+        $staleModules = @($configuredModules | Where-Object { $discoveredModules -cnotcontains $_ })
+        $differences = @()
+
+        if ($missingModules.Count -gt 0)
+        {
+            $differences += "missing from configuration: $($missingModules -join ', ')"
+        }
+
+        if ($staleModules.Count -gt 0)
+        {
+            $differences += "no longer discovered: $($staleModules -join ', ')"
+        }
+
+        throw "Validation module catalog drift: $($differences -join '; ')."
     }
 
     if ($configuredModules -notcontains $CommandConfig.DefaultModule -and $CommandConfig.DefaultModule -ne 'all')
@@ -805,12 +866,10 @@ function Assert-GameWipCommandConfig
             {
                 throw "Boolean validation builder option '$($module.Id)/$($option.Id)' must not contain '{value}'."
             }
-
             if ($option.Kind -ne 'boolean' -and -not $hasValue)
             {
                 throw "Validation builder option '$($module.Id)/$($option.Id)' must contain '{value}'."
             }
-
             if ($option.Kind -eq 'choice' -and @($option.Choices) -notcontains [string]$option.Default)
             {
                 throw "Default for validation builder option '$($module.Id)/$($option.Id)' is not one of its choices."
@@ -851,32 +910,26 @@ function Assert-GameWipCommandConfig
             {
                 throw "Unknown bundle step kind '$($step.Kind)' in bundle '$($bundle.Id)'."
             }
-
             if ($step.Kind -eq 'Configure' -and $configurePresets -notcontains $step.Preset)
             {
                 throw "Bundle '$($bundle.Id)' references unknown configure preset '$($step.Preset)'."
             }
-
             if ($step.Kind -in @('Build', 'BuildTarget') -and $buildPresets -notcontains $step.Preset)
             {
                 throw "Bundle '$($bundle.Id)' references unknown build preset '$($step.Preset)'."
             }
-
             if ($step.Kind -eq 'CTest' -and $testPresets -notcontains $step.Preset)
             {
                 throw "Bundle '$($bundle.Id)' references unknown test preset '$($step.Preset)'."
             }
-
             if ($step.Kind -eq 'ProjectCommand' -and $commandIds -notcontains $step.Command)
             {
                 throw "Bundle '$($bundle.Id)' references unknown project command '$($step.Command)'."
             }
-
             if ($step.Kind -eq 'Benchmark' -and $step.ContainsKey('Profile') -and @($benchmarkProfiles | ForEach-Object { $_.Id }) -notcontains $step.Profile)
             {
                 throw "Bundle '$($bundle.Id)' references unknown benchmark profile '$($step.Profile)'."
             }
-
             if ($step.Kind -eq 'Bundle' -and $bundleIds -notcontains $step.Bundle)
             {
                 throw "Bundle '$($bundle.Id)' references unknown bundle '$($step.Bundle)'."

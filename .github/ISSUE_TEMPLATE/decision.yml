@@ -90,6 +90,7 @@ body:
       description: What criteria will determine whether a direction is accepted?
     validations:
       required: true
+
   - type: textarea
     id: validation
     attributes:

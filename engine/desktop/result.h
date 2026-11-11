@@ -29,7 +29,7 @@ namespace GameWIP::Desktop::Types
         /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] const Value &operator*() const & noexcept
         {
-            if (!status.ok() || !value.has_value())
+            if(!status.ok() || !value.has_value())
             {
                 std::terminate();
             }
@@ -40,7 +40,7 @@ namespace GameWIP::Desktop::Types
         /// @pre ok() is true; otherwise the process terminates.
         [[nodiscard]] Value &operator*() & noexcept
         {
-            if (!status.ok() || !value.has_value())
+            if(!status.ok() || !value.has_value())
             {
                 std::terminate();
             }

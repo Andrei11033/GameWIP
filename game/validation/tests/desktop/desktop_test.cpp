@@ -8,16 +8,21 @@
 #include "validation/process_arguments.h"
 #include "validation/tests/runner_helpers.h"
 
-#include "test_support/test_support.h"
-#include "desktop/child_surface.h"
+#ifndef DESKTOP_INTERNAL_TEST_HOOKS
+#define DESKTOP_INTERNAL_TEST_HOOKS 0
+#endif
+
 #include "desktop/accessibility.h"
+#include "desktop/child_surface.h"
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
 #include "desktop/data_transfer.h"
-#include "desktop/drag_drop.h"
 #include "desktop/dialogs.h"
-#include "desktop/internal/drag_drop_state.h"
+#include "desktop/drag_drop.h"
 #include "desktop/internal/cursor_selection.h"
+#if DESKTOP_INTERNAL_TEST_HOOKS
+#include "desktop/internal/desktop_test_hooks.h"
+#endif
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/shell.h"
@@ -28,21 +33,14 @@
 #include "desktop/shell_tray.h"
 #include "desktop/shell_types.h"
 #include "desktop/window.h"
-#include "unicode/unicode.h"
 #include "filesystem/file.h"
+#include "test_support/test_support.h"
+#include "unicode/unicode.h"
 
+#include <propkey.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
-#include <propkey.h>
-
-#ifndef DESKTOP_INTERNAL_TEST_HOOKS
-#define DESKTOP_INTERNAL_TEST_HOOKS 0
-#endif
-
-#if DESKTOP_INTERNAL_TEST_HOOKS
-#include "desktop/internal/desktop_test_hooks.h"
-#endif
 
 #include <algorithm>
 #include <array>
@@ -54,7 +52,6 @@
 #include <filesystem>
 #include <format>
 #include <functional>
-#include <iostream>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -117,52 +114,45 @@ namespace
     [[nodiscard]] int runStandaloneColorShutdownChild() noexcept
     {
         const auto primary = Desktop::Display::getPrimaryMonitor();
-
-        if (!primary.ok())
+        if(!primary.ok())
         {
             return 2;
         }
-
         return Desktop::Display::getColorInfo(primary->id).ok() ? 0 : 3;
     }
 
     [[nodiscard]] int runWindowColorShutdownChild() noexcept
     {
         const auto primary = Desktop::Display::getPrimaryMonitor();
-
-        if (!primary.ok() || !Desktop::Display::getColorInfo(primary->id).ok())
+        if(!primary.ok() || !Desktop::Display::getColorInfo(primary->id).ok())
         {
             return 2;
         }
-
         Desktop::Types::Description description;
         description.title = "Desktop color shutdown child";
         description.windowed.clientSize = {160, 100};
         description.activation.visible = false;
         Desktop::Window window;
 
-        if (!window.open(description, Desktop::Events::owned(4)).ok())
+        if(!window.open(description, Desktop::Events::owned(4)).ok())
         {
             return 3;
         }
 
-        if (!Desktop::Display::getColorInfo(window).ok())
+        if(!Desktop::Display::getColorInfo(window).ok())
         {
             return 4;
         }
-
         const auto handle = Desktop::Native::Win32::getHandle(window);
-
-        if (!handle.status.ok() || handle->window == nullptr || PostMessageW(static_cast<HWND>(handle->window), WM_CLOSE, 0, 0) == FALSE)
+        if(!handle.status.ok() || handle->window == nullptr || PostMessageW(static_cast<HWND>(handle->window), WM_CLOSE, 0, 0) == FALSE)
         {
             return 5;
         }
 
-        if (!Desktop::Events::poll().status.ok() || !window.hasCloseRequest())
+        if(!Desktop::Events::poll().status.ok() || !window.hasCloseRequest())
         {
             return 6;
         }
-
         return window.close().ok() ? 0 : 7;
     }
 
@@ -179,13 +169,13 @@ namespace
                 description.windowed.clientSize = {160, 100};
                 description.activation.visible = false;
 
-                if (!window->open(description, Desktop::Events::owned(4)).ok())
+                if(!window->open(description, Desktop::Events::owned(4)).ok())
                 {
                     workerResult = 2;
                     return;
                 }
 
-                if (!Desktop::Display::getColorInfo(*window).status.ok())
+                if(!Desktop::Display::getColorInfo(*window).status.ok())
                 {
                     workerResult = 3;
                     return;
@@ -194,12 +184,12 @@ namespace
             });
         owner.join();
 
-        if (workerResult != 0)
+        if(workerResult != 0)
         {
             return workerResult;
         }
 
-        if (!survivingWindow || survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+        if(!survivingWindow || survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
         {
             return 4;
         }
@@ -223,7 +213,7 @@ namespace
                 description.windowed.clientSize = {160, 100};
                 description.activation.visible = false;
 
-                if (!window->open(description, Desktop::Events::owned(4)).ok())
+                if(!window->open(description, Desktop::Events::owned(4)).ok())
                 {
                     workerResult = 2;
                     return;
@@ -233,13 +223,14 @@ namespace
                 std::array formats{Transfer::FormatView::text()};
                 std::array regions{DD::RegionDescription{DD::RegionId{1}, std::nullopt, formats, DD::EffectPolicy::copy()}};
 
-                if (!target->open(*window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok())
+                if(!target->open(*window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(2)).ok())
                 {
                     workerResult = 3;
                     return;
                 }
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                if (forceRepeatedRevocationFailure)
+                if(forceRepeatedRevocationFailure)
                 {
                     Desktop::TestHooks::failDragDropRevocations(64);
                 }
@@ -252,28 +243,28 @@ namespace
             });
         owner.join();
 
-        if (workerResult != 0)
+        if(workerResult != 0)
         {
             return workerResult;
         }
 
-        if (!survivingWindow || !survivingTarget)
+        if(!survivingWindow || !survivingTarget)
         {
             return 4;
         }
 
-        if (survivingTarget->isOpen() || survivingTarget->lifetimeState() != Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize ||
-            survivingTarget->windowId() != retainedWindowId)
+        if(survivingTarget->isOpen() || survivingTarget->lifetimeState() != Desktop::Types::LifetimeState::NativeDestroyedPendingFinalize ||
+           survivingTarget->windowId() != retainedWindowId)
         {
             return 5;
         }
 
-        if (survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
+        if(survivingWindow->lifetimeState() != Desktop::Types::LifetimeState::Closed)
         {
             return 6;
         }
 
-        if (!survivingTarget->close().ok())
+        if(!survivingTarget->close().ok())
         {
             return 7;
         }
@@ -294,13 +285,14 @@ namespace
                 description.title = "Desktop owner-exit ProgressDialog child";
                 description.message = "Dispatcher teardown must finalize this presentation";
 
-                if (!progress->open(description).ok())
+                if(!progress->open(description).ok())
                 {
                     workerResult = 2;
                     return;
                 }
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                if (forceCloseFailure)
+                if(forceCloseFailure)
                 {
                     Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Close);
                 }
@@ -311,12 +303,12 @@ namespace
             });
         owner.join();
 
-        if (workerResult != 0)
+        if(workerResult != 0)
         {
             return workerResult;
         }
 
-        if (!survivingProgress || survivingProgress->ownedByCurrentThread() || survivingProgress->isOpen())
+        if(!survivingProgress || survivingProgress->ownedByCurrentThread() || survivingProgress->isOpen())
         {
             return 3;
         }
@@ -335,11 +327,10 @@ namespace
         windowDescription.windowed.clientSize = {160, 100};
         windowDescription.activation.visible = false;
 
-        if (!owner.open(windowDescription, Desktop::Events::owned(4)).ok())
+        if(!owner.open(windowDescription, Desktop::Events::owned(4)).ok())
         {
             return 2;
         }
-
         Desktop::ProgressDialog progress;
         Desktop::Types::Dialogs::Progress::Description progressDescription;
         progressDescription.title = "Deferred pump failure progress";
@@ -347,7 +338,7 @@ namespace
         progressDescription.owner = &owner;
         progressDescription.blocksOwner = true;
 
-        if (!progress.open(progressDescription).ok())
+        if(!progress.open(progressDescription).ok())
         {
             static_cast<void>(owner.close());
             return 3;
@@ -355,13 +346,12 @@ namespace
 
         Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
 
-        if (!Desktop::TestHooks::destroyNativeProgressDialog(progress).ok())
+        if(!Desktop::TestHooks::destroyNativeProgressDialog(progress).ok())
         {
             static_cast<void>(progress.close());
             static_cast<void>(owner.close());
             return 4;
         }
-
         const Desktop::Types::Events::PumpResult waitResult = Desktop::Events::wait();
         static_cast<void>(progress.close());
         static_cast<void>(owner.close());
@@ -372,34 +362,34 @@ namespace
 #if DESKTOP_INTERNAL_TEST_HOOKS
     [[nodiscard]] int runProgressRestoreMessageLazinessChild() noexcept
     {
-        if (Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted())
+        if(Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted())
         {
             return 2;
         }
-
         Desktop::Window window;
         Desktop::Types::Description description;
         description.title = "Progress restore registration laziness";
         description.windowed.clientSize = {160, 100};
         description.activation.visible = false;
 
-        if (!window.open(description, Desktop::Events::owned(4)).ok())
+        if(!window.open(description, Desktop::Events::owned(4)).ok())
         {
             return 3;
         }
 
-        if (!Desktop::Events::poll().status.ok())
+        if(!Desktop::Events::poll().status.ok())
         {
             return 4;
         }
 
-        if (!window.close().ok())
+        if(!window.close().ok())
         {
             return 5;
         }
 
         return Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted() ? 6 : 0;
     }
+
 #endif
 
     void testDesktopProcessShutdown(TestSupport::Context &context, const std::filesystem::path &executablePath)
@@ -419,7 +409,7 @@ namespace
 #endif
         };
 
-        for (const std::string_view argument : childArguments)
+        for(const std::string_view argument : childArguments)
         {
             TestSupport::Types::Process::Options child;
             child.executablePath = executablePath;
@@ -429,7 +419,7 @@ namespace
             const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(child);
             const std::string name = std::format("{} exits cleanly", argument);
 
-            if (!result.status.ok())
+            if(!result.status.ok())
             {
                 context.fail(name, TestSupport::formatInfrastructureStatus(result.status));
                 continue;
@@ -464,7 +454,7 @@ namespace GameWIP::Test
 {
     int runDesktopTests(int argc, char **argv, const DesktopTestOptions &options)
     {
-        if (hasArgument(argc, argv, "--desktop-test-child=result-empty-arrow"))
+        if(hasArgument(argc, argv, "--desktop-test-child=result-empty-arrow"))
         {
             std::set_terminate(
                 []
@@ -475,7 +465,7 @@ namespace GameWIP::Test
             return static_cast<int>(result->width);
         }
 
-        if (hasArgument(argc, argv, "--desktop-test-child=result-failed-dereference"))
+        if(hasArgument(argc, argv, "--desktop-test-child=result-failed-dereference"))
         {
             std::set_terminate(
                 []
@@ -486,71 +476,74 @@ namespace GameWIP::Test
             return static_cast<int>((*result).width);
         }
 
-        if (hasArgument(argc, argv, "--desktop-test-child=accessibility-client"))
+        if(hasArgument(argc, argv, "--desktop-test-child=accessibility-client"))
         {
             return runAccessibilityClientChild();
         }
 
-        if (hasArgument(argc, argv, kStandaloneColorChildArgument))
+        if(hasArgument(argc, argv, kStandaloneColorChildArgument))
         {
             return runStandaloneColorShutdownChild();
         }
 
-        if (hasArgument(argc, argv, kWindowColorChildArgument))
+        if(hasArgument(argc, argv, kWindowColorChildArgument))
         {
             return runWindowColorShutdownChild();
         }
 
-        if (hasArgument(argc, argv, kOwnerExitColorChildArgument))
+        if(hasArgument(argc, argv, kOwnerExitColorChildArgument))
         {
             return runOwnerExitColorShutdownChild();
         }
 
-        if (hasArgument(argc, argv, kOwnerExitDragDropChildArgument))
+        if(hasArgument(argc, argv, kOwnerExitDragDropChildArgument))
         {
             return runOwnerExitDragDropShutdownChild(false);
         }
 
-        if (hasArgument(argc, argv, kOwnerExitDragDropFailureChildArgument))
+        if(hasArgument(argc, argv, kOwnerExitDragDropFailureChildArgument))
         {
             return runOwnerExitDragDropShutdownChild(true);
         }
 
-        if (hasArgument(argc, argv, kOwnerExitProgressChildArgument))
+        if(hasArgument(argc, argv, kOwnerExitProgressChildArgument))
         {
             return runOwnerExitProgressShutdownChild(false);
         }
 
-        if (hasArgument(argc, argv, kOwnerExitProgressFailureChildArgument))
+        if(hasArgument(argc, argv, kOwnerExitProgressFailureChildArgument))
         {
             return runOwnerExitProgressShutdownChild(true);
         }
 
-        if (hasArgument(argc, argv, kDeferredPumpFailureWaitChildArgument))
+        if(hasArgument(argc, argv, kDeferredPumpFailureWaitChildArgument))
         {
             return runDeferredPumpFailureWaitChild();
         }
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
-        if (hasArgument(argc, argv, "--desktop-test-child=cold-com-apartment"))
+        if(hasArgument(argc, argv, "--desktop-test-child=cold-com-apartment"))
         {
             return runColdApartmentChild();
         }
 
-        if (hasArgument(argc, argv, "--desktop-test-child=jump-list-publication"))
+        if(hasArgument(argc, argv, "--desktop-test-child=jump-list-publication"))
         {
             return runJumpListPublicationChild(GameWIP::Validation::currentExecutablePath());
         }
 
-        if (hasArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
+        if(hasArgument(argc, argv, kProgressRestoreMessageLazinessChildArgument))
         {
             return runProgressRestoreMessageLazinessChild();
         }
+
 #endif
 
-        if (hasArgument(argc, argv, "--desktop-test-child=shell-launch-probe"))
+        if(hasArgument(argc, argv, "--desktop-test-child=shell-launch-probe"))
         {
             return runShellLaunchProbeChild(argc, argv);
         }
+
         const HRESULT manualShellIdentityStatus =
             options.enableManualTests ? SetCurrentProcessExplicitAppUserModelID(kManualTestAppUserModelId) : S_OK;
         std::optional<std::string_view> selectedManualSuite;
@@ -561,18 +554,19 @@ namespace GameWIP::Test
         constexpr std::string_view manualCasePrefix = "--desktop-manual-case=";
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value != nullptr && std::string_view(value).starts_with(manualSuitePrefix))
+            if(value != nullptr && std::string_view(value).starts_with(manualSuitePrefix))
             {
                 selectedManualSuite = std::string_view(value).substr(manualSuitePrefix.size());
             }
 
-            if (value != nullptr && std::string_view(value).starts_with(manualCasePrefix))
+            if(value != nullptr && std::string_view(value).starts_with(manualCasePrefix))
             {
                 manualCaseSelection = std::string_view(value).substr(manualCasePrefix.size());
             }
         }
+
         constexpr std::array manualSuiteNames{
             std::string_view{"lifecycle"},     std::string_view{"accessibility"},   std::string_view{"multiple-windows"},
             std::string_view{"custom-chrome"}, std::string_view{"layered-pointer"}, std::string_view{"dpi"},
@@ -590,7 +584,7 @@ namespace GameWIP::Test
         manualObservationCounts = {};
         manualStatusWindow = &statusWindow;
 
-        if (options.enableManualTests)
+        if(options.enableManualTests)
         {
             runner.runSuite(
                 "Window manual shell identity",
@@ -600,7 +594,7 @@ namespace GameWIP::Test
                 });
         }
 
-        if (manualOnly && !options.enableManualTests)
+        if(manualOnly && !options.enableManualTests)
         {
             runner.runSuite(
                 "Desktop manual selection",
@@ -610,7 +604,7 @@ namespace GameWIP::Test
                 });
         }
 
-        if (!manualOnly)
+        if(!manualOnly)
         {
             runner.runSuite("Window passive values and closed state", testPassiveValuesAndClosedState);
             runner.runSuite("Desktop result access preconditions", testResultAccessPreconditions);
@@ -702,9 +696,9 @@ namespace GameWIP::Test
                 });
             runner.runSuite("Window monitors and display modes", testMonitors);
         }
-        const bool validManualSelection = !selectedManualSuite || std::ranges::find(manualSuiteNames, *selectedManualSuite) != manualSuiteNames.end();
 
-        if (!validManualSelection)
+        const bool validManualSelection = !selectedManualSuite || std::ranges::find(manualSuiteNames, *selectedManualSuite) != manualSuiteNames.end();
+        if(!validManualSelection)
         {
             runner.runSuite(
                 "Window manual suite selection",
@@ -713,12 +707,23 @@ namespace GameWIP::Test
                     context.fail("Window manual suite selector", std::format("unknown suite '{}'", *selectedManualSuite));
                 });
         }
+
+        // Track manual suite names for consolidated skip reporting
+        std::vector<std::string_view> pendingManualSkips;
+
         const auto runManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
-            if (!validManualSelection || (selectedManualSuite && *selectedManualSuite != selector))
+            if(!validManualSelection || (selectedManualSuite && *selectedManualSuite != selector))
             {
                 return;
             }
+
+            if(!options.enableManualTests)
+            {
+                pendingManualSkips.push_back(displayName);
+                return;
+            }
+
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)
@@ -726,12 +731,20 @@ namespace GameWIP::Test
                     suite(context, options);
                 });
         };
+
         const auto runSelectedManualSuite = [&](std::string_view displayName, std::string_view selector, auto suite)
         {
-            if (!validManualSelection || !selectedManualSuite || *selectedManualSuite != selector)
+            if(!validManualSelection || !selectedManualSuite || *selectedManualSuite != selector)
             {
                 return;
             }
+
+            if(!options.enableManualTests)
+            {
+                pendingManualSkips.push_back(displayName);
+                return;
+            }
+
             runner.runSuite(
                 displayName,
                 [&](TestSupport::Context &context)
@@ -739,6 +752,7 @@ namespace GameWIP::Test
                     suite(context, options);
                 });
         };
+
         runManualSuite("Window manual visible lifecycle", "lifecycle", testManualVisibleLifecycle);
         runManualSuite("Desktop manual accessibility", "accessibility", testManualAccessibility);
         runManualSuite("Window manual multiple windows", "multiple-windows", testManualMultipleWindows);
@@ -811,7 +825,18 @@ namespace GameWIP::Test
         runManualSuite("Window manual HDR and advanced color", "hdr", testManualHdrAndAdvancedColor);
         runManualSuite("Window manual modern Windows capabilities", "modern", testManualModernWindowsCapabilities);
 
-        if (options.enableManualTests && manualCaseSelection && manualCasesSelected == 0)
+        // Report all skipped manual tests in one consolidated message
+        if(!pendingManualSkips.empty())
+        {
+            runner.runSuite(
+                "Desktop manual tests",
+                [&](TestSupport::Context &context)
+                {
+                    context.skip("Desktop manual tests", std::format("{} manual tests disabled by DesktopTestOptions", pendingManualSkips.size()));
+                });
+        }
+
+        if(options.enableManualTests && manualCaseSelection && manualCasesSelected == 0)
         {
             runner.runSuite(
                 "Desktop manual case selection",
@@ -820,9 +845,10 @@ namespace GameWIP::Test
                     context.fail("manual case selector matched no scenarios", *manualCaseSelection);
                 });
         }
+
         const TestSupport::Types::Reporting::Summary result = runner.result();
 
-        if (options.enableManualTests)
+        if(options.enableManualTests)
         {
             runner.summary(
                 std::format(

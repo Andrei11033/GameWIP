@@ -290,8 +290,6 @@ namespace GameWIP::Terminal
             };
         } // namespace Output
 
-        /// @brief Configuration retained by one persistent Terminal input session.
-
         /// @brief Result returned by terminal size queries.
         struct SizeResult
         {
@@ -348,7 +346,6 @@ namespace GameWIP::Terminal
                 /// @note Cursor position queries may consume a terminal response from the corresponding input stream.
                 IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
             };
-
         } // namespace Cursor
     } // namespace Types
 

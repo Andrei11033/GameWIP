@@ -26,6 +26,9 @@ envelopes provide `kind()`, `is<T>()` and `getIf<T>()`.
 Except `wakeEventWait()`, operations on an open Window require the owner thread by default. Wrong-thread explicit close returns `ResourceBusy`.
 Cached getters are owner-thread-only and unsynchronized unless the renderer-facing presentation facility is explicitly enabled.
 
+Message sinks attached via `Native::Win32::attachMessageSink()` are invoked on the owner thread during message processing; they do not
+make Window state accessible to other threads. See @ref project_public_api_contract for owner-thread lifecycle classification.
+
 After owner-thread `Renderer::enableConcurrentPresentationReads(window)` succeeds, the cached
 presentation getters (@ref desktop_renderer_integration) are also safe for concurrent reads. Each
 compound result is coherent; separate calls may observe successive states. This does not make

@@ -1,5 +1,5 @@
 /// @file utf16_test.inl
-/// @brief Focused unicode utf16 correctness suites.
+/// @brief Focused Unicode UTF-16 tests.
 
 /// @brief Verifies strict UTF-16 decode, encode, and whole-range validation edge cases.
 void testUtf16CodecAndValidation(TestSupport::Context &context)
@@ -42,7 +42,7 @@ void testUtf16CodecAndValidation(TestSupport::Context &context)
         EncodeCase{static_cast<char32_t>(0x10FFFF), {static_cast<char16_t>(0xDBFF), static_cast<char16_t>(0xDFFF)}, 2},
     };
 
-    for (const EncodeCase &testCase : encodeCases)
+    for(const EncodeCase &testCase : encodeCases)
     {
         const std::string name = std::format("UTF-16 encode U+{:04X}", static_cast<std::uint32_t>(testCase.scalar));
         const Unicode::Types::Utf16::EncodeResult encoded = Unicode::Utf16::encodeScalar(testCase.scalar);
@@ -53,11 +53,11 @@ void testUtf16CodecAndValidation(TestSupport::Context &context)
             std::ranges::equal(std::span{testCase.expected}.first(testCase.count), encodedCodeUnits(encoded))));
     }
 
-    for (const char32_t invalidScalar : {
-             static_cast<char32_t>(0xD800),
-             static_cast<char32_t>(0xDFFF),
-             static_cast<char32_t>(0x110000),
-         })
+    for(const char32_t invalidScalar : {
+            static_cast<char32_t>(0xD800),
+            static_cast<char32_t>(0xDFFF),
+            static_cast<char32_t>(0x110000),
+        })
     {
         const std::string name = std::format("invalid scalar UTF-16 U+{:04X}", static_cast<std::uint32_t>(invalidScalar));
         const Unicode::Types::Utf16::EncodeResult encoded = Unicode::Utf16::encodeScalar(invalidScalar);

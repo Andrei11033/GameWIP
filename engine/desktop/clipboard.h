@@ -62,6 +62,7 @@ namespace GameWIP::Desktop::Clipboard
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return `Result<bool>`; value is present on success and false means ordinary absence.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<bool> hasFormat(Types::DataTransfer::FormatView format, std::chrono::milliseconds timeout) noexcept;
+
     /// @brief Enumerates formats using the default timeout.
     /// @return `Result<vector<Format>>`; value is present only when enumeration succeeds.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<Types::DataTransfer::Format>> getFormats() noexcept;
@@ -69,6 +70,7 @@ namespace GameWIP::Desktop::Clipboard
     /// @param timeout Zero for one attempt, positive for bounded retry, or invalid when negative.
     /// @return `Result<vector<Format>>`; failed enumeration does not expose a partial value.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<Types::DataTransfer::Format>> getFormats(std::chrono::milliseconds timeout) noexcept;
+
     /// @brief Reads strict UTF-8 text using the default timeout.
     /// @return `Result<string>`; absence reports NotFound.
     [[nodiscard]] DESKTOP_EXPORT Types::Result<std::string> readText() noexcept;
@@ -101,6 +103,7 @@ namespace GameWIP::Desktop::Clipboard
     [[nodiscard]] DESKTOP_EXPORT Types::Result<std::vector<std::byte>> readCustomData(
         std::string_view formatName,
         std::chrono::milliseconds timeout) noexcept;
+
     /// @brief Replaces Clipboard contents with UTF-8 text using the default timeout.
     /// @param text Valid UTF-8 without embedded U+0000; empty text is valid.
     /// @return Status and exact publication progress.
@@ -158,6 +161,7 @@ namespace GameWIP::Desktop::Clipboard
     [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::WriteResult write(
         std::span<const Types::DataTransfer::ItemView> items,
         std::chrono::milliseconds timeout) noexcept;
+
     /// @brief Clears Clipboard contents using the default timeout.
     /// @return Status and whether the external clear completed.
     [[nodiscard]] DESKTOP_EXPORT Types::Clipboard::ClearResult clear() noexcept;

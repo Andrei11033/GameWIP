@@ -67,6 +67,7 @@ namespace GameWIP::Desktop::Types::Notifications
         {
             return value;
         }
+
         /// @brief URI media; borrows `value`.
         [[nodiscard]] inline MediaView uri(std::string_view value) noexcept
         {
@@ -133,7 +134,6 @@ namespace GameWIP::Desktop::Types::Notifications
         std::string_view badge;                  ///< Optional UTF-8 badge or glyph text.
         std::optional<Shell::Progress> progress; ///< Optional normalized notification progress.
     };
-
 } // namespace GameWIP::Desktop::Types::Notifications
 
 namespace GameWIP::Desktop

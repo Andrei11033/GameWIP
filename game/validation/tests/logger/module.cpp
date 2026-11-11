@@ -16,16 +16,16 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value == nullptr)
+            if(value == nullptr)
             {
                 continue;
             }
 
             const std::string_view argument(value);
 
-            if (argument == "--logger-test-child=fatal-terminate" || argument == "--logger-test-child=report-no-drain")
+            if(argument == "--logger-test-child=fatal-terminate" || argument == "--logger-test-child=report-no-drain")
             {
                 return true;
             }

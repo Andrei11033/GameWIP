@@ -61,7 +61,7 @@ void testPassiveValuesAndClosedState(TestSupport::Context &context)
 
     const auto capabilities = Desktop::getCapabilities();
     static_cast<void>(context.expectTrue("capability query succeeds", capabilities.status.ok()));
-    if (capabilities.ok())
+    if(capabilities.ok())
     {
         static_cast<void>(context.expectTrue("Win32 supports multiple windows", capabilities->supports(Desktop::Types::Capability::MultipleWindows)));
         static_cast<void>(
@@ -184,7 +184,7 @@ void testNativeConstructionLifecycle(TestSupport::Context &context)
     Desktop::Window normal;
     static_cast<void>(context.expectTrue("visible Window opens", normal.open(visible, Desktop::Events::owned(8)).ok()));
 
-    if (normal.isOpen())
+    if(normal.isOpen())
     {
         const Desktop::Types::Events::PumpResult result = Desktop::Events::poll();
         static_cast<void>(context.expectTrue("visible Window creation leaves no deferred pump failure", result.status.ok()));
@@ -195,7 +195,7 @@ void testNativeConstructionLifecycle(TestSupport::Context &context)
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("primary monitor resolves for initial borderless mode", primary.ok()));
 
-    if (!primary.ok())
+    if(!primary.ok())
     {
         return;
     }
@@ -207,7 +207,7 @@ void testNativeConstructionLifecycle(TestSupport::Context &context)
     Desktop::Window fullscreen;
     static_cast<void>(context.expectTrue("initial borderless-fullscreen Window opens", fullscreen.open(borderless, Desktop::Events::owned(8)).ok()));
 
-    if (fullscreen.isOpen())
+    if(fullscreen.isOpen())
     {
         const Desktop::Types::Events::PumpResult pollResult = Desktop::Events::poll();
         static_cast<void>(context.expectTrue("borderless creation poll succeeds", pollResult.status.ok()));
@@ -241,7 +241,7 @@ void testFailureInjection(TestSupport::Context &context)
         Desktop::Types::Event event;
         static_cast<void>(context.expectFalse("failed native creation queues no NativeDestroyed event", candidate.popEvent(event)));
 
-        if (point == FailurePoint::WindowUserDataInstallation)
+        if(point == FailurePoint::WindowUserDataInstallation)
         {
             static_cast<void>(
                 context.expectTrue("same Window reopens after userdata failure", candidate.open(description, Desktop::Events::owned(8)).ok()));
@@ -260,7 +260,7 @@ void testFailureInjection(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("open succeeds after injected rollback", window.open(description, Desktop::Events::owned(16)).ok()));
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
@@ -350,7 +350,7 @@ void testFailureInjection(TestSupport::Context &context)
     const auto callbackHandle = Desktop::Native::Win32::getHandle(window);
     static_cast<void>(context.expectTrue("callback failure fixture exposes HWND", callbackHandle.status.ok() && callbackHandle->window != nullptr));
 
-    if (callbackHandle.status.ok() && callbackHandle->window != nullptr)
+    if(callbackHandle.status.ok() && callbackHandle->window != nullptr)
     {
         static_cast<void>(SendMessageW(callbackHandle->window, WM_SHOWWINDOW, FALSE, 0));
         Desktop::TestHooks::failNext(FailurePoint::Cursor);
@@ -381,7 +381,7 @@ void testThreadingContracts(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("threading fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
@@ -424,7 +424,7 @@ void testExceptionalLifetime(TestSupport::Context &context)
     Desktop::Window unexpected;
     static_cast<void>(context.expectTrue("unexpected-destruction fixture opens", unexpected.open(description, Desktop::Events::owned(1)).ok()));
 
-    if (unexpected.isOpen())
+    if(unexpected.isOpen())
     {
         static_cast<void>(context.expectTrue(
             "unexpected-destruction fixture enables concurrent reads",
@@ -468,7 +468,7 @@ void testExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("deferred-destruction fixture opens", deferred->open(description, Desktop::Events::owned(4)).ok()));
     HWND deferredHandle = nullptr;
 
-    if (deferred->isOpen())
+    if(deferred->isOpen())
     {
         deferredHandle = Desktop::Native::Win32::getHandle(*deferred)->window;
     }
@@ -489,7 +489,7 @@ void testExceptionalLifetime(TestSupport::Context &context)
         {
             auto owned = std::make_unique<Desktop::Window>();
 
-            if (owned->open(description, Desktop::Events::owned(4)).ok())
+            if(owned->open(description, Desktop::Events::owned(4)).ok())
             {
                 ownerExitHandle = Desktop::Native::Win32::getHandle(*owned)->window;
             }
@@ -499,7 +499,7 @@ void testExceptionalLifetime(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("owner-exit fixture created a native HWND", ownerExitHandle != nullptr));
     static_cast<void>(context.expectFalse("thread-local dispatcher destroys HWND on owner exit", IsWindow(ownerExitHandle) != FALSE));
 
-    if (survivingObject)
+    if(survivingObject)
     {
         static_cast<void>(context.expectEq(
             "portable object observes Closed after owner exit",
@@ -522,10 +522,11 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     const IO::Types::Status openStatus = owner.open(description, Desktop::Events::owned(32));
     static_cast<void>(context.expectTrue("hidden native Window opens", openStatus.ok()));
 
-    if (!openStatus.ok())
+    if(!openStatus.ok())
     {
         return;
     }
+
     static_cast<void>(context.expectTrue("open Window has an id", owner.id().isValid()));
     static_cast<void>(context.expectEq("open Window reports Open lifetime", Desktop::Types::LifetimeState::Open, owner.lifetimeState()));
     static_cast<void>(context.expectEq("title cache matches", std::string_view{description.title}, owner.title()));
@@ -555,12 +556,12 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     const auto screenPoint = owner.clientToScreen(localPoint);
     static_cast<void>(context.expectTrue("client-to-screen conversion succeeds", screenPoint.status.ok()));
 
-    if (screenPoint.status.ok())
+    if(screenPoint.status.ok())
     {
         const auto roundTrip = owner.screenToClient(*screenPoint);
         static_cast<void>(context.expectTrue("screen-to-client conversion succeeds", roundTrip.status.ok()));
 
-        if (roundTrip.status.ok())
+        if(roundTrip.status.ok())
         {
             static_cast<void>(context.expectEq("coordinate conversion round trips", localPoint, *roundTrip));
         }
@@ -576,7 +577,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     const bool fullscreenMonitorResolved = fullscreenMonitor != nullptr && GetMonitorInfoW(fullscreenMonitor, &fullscreenMonitorInfo) != FALSE;
     static_cast<void>(context.expectTrue("borderless native monitor resolves", fullscreenMonitorResolved));
 
-    if (fullscreenMonitorResolved)
+    if(fullscreenMonitorResolved)
     {
         RECT ignoredWindowedSuggestion{17, 23, 657, 503};
         const UINT currentDpi = GetDpiForWindow(handle->window);
@@ -586,7 +587,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         const bool fullscreenRectResolved = GetWindowRect(handle->window, &fullscreenRect) != FALSE;
         static_cast<void>(context.expectTrue("borderless bounds remain queryable after DPI notification", fullscreenRectResolved));
 
-        if (fullscreenRectResolved)
+        if(fullscreenRectResolved)
         {
             static_cast<void>(context.expectTrue(
                 "fullscreen DPI notification preserves exact monitor bounds",
@@ -609,13 +610,14 @@ void testHiddenNativeWindow(TestSupport::Context &context)
         const bool repairedRectResolved = GetWindowRect(handle->window, &fullscreenRect) != FALSE;
         static_cast<void>(context.expectTrue("repaired borderless bounds remain queryable", repairedRectResolved));
 
-        if (repairedRectResolved)
+        if(repairedRectResolved)
         {
             static_cast<void>(context.expectTrue(
                 "repeated borderless request repairs exact monitor bounds",
                 EqualRect(&fullscreenRect, &fullscreenMonitorInfo.rcMonitor) != FALSE));
         }
     }
+
     static_cast<void>(context.expectTrue("windowed placement restores", owner.setWindowMode(Desktop::Types::WindowModes::windowed()).ok()));
     static_cast<void>(context.expectEq("windowed mode is cached", Desktop::Types::WindowMode::Windowed, owner.windowMode()));
 
@@ -690,16 +692,16 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     controls.minimizable = true;
     static_cast<void>(context.expectTrue("maximize restores after resize", owner.setControls(controls).ok()));
 
+    // Capability-gated behavior is checked last so unsupported features remain explicit skips or stable errors.
     const auto capabilitiesResult = Desktop::getCapabilities();
     const Desktop::Types::Capabilities capabilities = capabilitiesResult.value_or({});
-    // Capability-gated behavior is checked last so unsupported features remain explicit skips or stable errors.
     static_cast<void>(context.expectFalse(
         "Win32 does not advertise cross-application pointer regions",
         capabilities.supports(Desktop::Types::Capability::PointerRegions)));
     static_cast<void>(
         context.expectEq("unsupported pointer regions expose zero native limit", std::uint32_t{0}, capabilities.maximumPointerInputRegions));
 
-    if (capabilities.supports(Desktop::Types::Capability::SystemBackdrop))
+    if(capabilities.supports(Desktop::Types::Capability::SystemBackdrop))
     {
         static_cast<void>(
             context.expectTrue("runtime-supported system backdrop applies", owner.setBackdropEffect(Desktop::Types::BackdropEffect::Automatic).ok()));
@@ -728,7 +730,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     Desktop::Window child;
     static_cast<void>(context.expectTrue("same-thread owned Window opens", child.open(childDescription, Desktop::Events::owned(16)).ok()));
 
-    if (child.isOpen())
+    if(child.isOpen())
     {
         static_cast<void>(context.expectEq("owner identity is cached", owner.id(), child.ownerId()));
         const HWND childHandle = Desktop::Native::Win32::getHandle(child)->window;
@@ -752,7 +754,7 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     }
     static_cast<void>(context.expectTrue("owner closes", owner.close().ok()));
 
-    if (child.isOpen())
+    if(child.isOpen())
     {
         static_cast<void>(context.expectFalse("closing owner clears child owner identity", child.ownerId().has_value()));
         static_cast<void>(context.expectTrue(
@@ -770,11 +772,11 @@ void testHiddenNativeWindow(TestSupport::Context &context)
     Desktop::Window alphaWindow;
     const IO::Types::Status alphaStatus = alphaWindow.open(alphaDescription, Desktop::Events::owned(4));
 
-    if (capabilities.supports(Desktop::Types::Capability::TransparentFramebuffer))
+    if(capabilities.supports(Desktop::Types::Capability::TransparentFramebuffer))
     {
         static_cast<void>(context.expectTrue("runtime-supported transparent framebuffer opens", alphaStatus.ok()));
 
-        if (alphaWindow.isOpen())
+        if(alphaWindow.isOpen())
         {
             static_cast<void>(alphaWindow.close());
         }
@@ -789,15 +791,14 @@ void testHiddenNativeWindow(TestSupport::Context &context)
 void testInitialMonitorGeometry(TestSupport::Context &context)
 {
     const auto monitors = Desktop::Display::getMonitors();
-
-    if (!context.expectTrue("initial geometry monitor enumeration succeeds", monitors.ok()))
+    if(!context.expectTrue("initial geometry monitor enumeration succeeds", monitors.ok()))
     {
         return;
     }
 
-    for (const auto &monitor : *monitors)
+    for(const auto &monitor : *monitors)
     {
-        for (const auto placement : {Desktop::Types::PlacementKind::Centered, Desktop::Types::PlacementKind::Explicit})
+        for(const auto placement : {Desktop::Types::PlacementKind::Centered, Desktop::Types::PlacementKind::Explicit})
         {
             Desktop::Types::Description description;
             description.title = "Initial monitor geometry validation";
@@ -805,7 +806,7 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
             description.windowed.clientSize = {240, 160};
             description.windowed.placement.kind = placement;
 
-            if (placement == Desktop::Types::PlacementKind::Centered)
+            if(placement == Desktop::Types::PlacementKind::Centered)
             {
                 description.windowed.placement.monitor = monitor.id;
             }
@@ -816,7 +817,7 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
 
             Desktop::Window window;
 
-            if (!context.expectTrue("hidden initial geometry fixture opens", window.open(description).ok()))
+            if(!context.expectTrue("hidden initial geometry fixture opens", window.open(description).ok()))
             {
                 continue;
             }
@@ -826,7 +827,7 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
             static_cast<void>(context.expectFalse("initial geometry correction keeps the window hidden", window.visible()));
             static_cast<void>(context.expectEq("initial geometry uses the selected monitor", monitor.id, window.currentMonitor()));
 
-            if (placement == Desktop::Types::PlacementKind::Explicit)
+            if(placement == Desktop::Types::PlacementKind::Explicit)
             {
                 static_cast<void>(context.expectEq(
                     "initial explicit client origin is preserved",
@@ -841,16 +842,16 @@ void testInitialMonitorGeometry(TestSupport::Context &context)
 
 void testResultAccessPreconditions(TestSupport::Context &context)
 {
-    for (const std::string_view argument : {"--desktop-test-child=result-empty-arrow", "--desktop-test-child=result-failed-dereference"})
+    for(const std::string_view argument : {"--desktop-test-child=result-empty-arrow", "--desktop-test-child=result-failed-dereference"})
     {
         TestSupport::Types::Process::Options child;
         child.executablePath = GameWIP::Validation::currentExecutablePath();
         child.arguments = {std::string(argument)};
         child.waitTimeout = std::chrono::seconds(10);
         child.captureOutput = true;
-        const auto result = TestSupport::runChildProcess(child);
 
-        if (!context.expectTrue("result precondition child starts", result.status.ok()))
+        const auto result = TestSupport::runChildProcess(child);
+        if(!context.expectTrue("result precondition child starts", result.status.ok()))
         {
             continue;
         }

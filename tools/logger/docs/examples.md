@@ -12,7 +12,9 @@ config.logDirectory = "logs";
 
 const auto result = GameWIP::Logger::init(config);
 if (!result.status.ok())
+{
     return;
+}
 
 if (!result.outputSetupStatus.ok())
 {
@@ -25,7 +27,10 @@ if (!result.outputSetupStatus.ok())
 ```cpp
 const auto status = GameWIP::Logger::setLevelFilter(GameWIP::Logger::Types::Level::Debug, false);
 if (!status.ok())
+{
     return;
+}
+
 ```
 
 ## Emergency report

@@ -14,6 +14,7 @@ function Initialize-GameWipTestPresetBuild
     {
         throw '-CleanBuild cannot be combined with -SkipBuild because a recreated preset must be configured and built.'
     }
+
     $testFile = Join-Path $RepositoryRoot "build\$Name\CTestTestfile.cmake"
 
     if ($NoBuild)
@@ -82,6 +83,7 @@ function Invoke-GameWipStressModule
     {
         throw "Manual tests cannot run through 'stress' because stress launches concurrent validation processes. Use 'wizard' or 'module' instead."
     }
+
     Initialize-GameWipRunLog
     $command = Get-GameWipProjectCommand -Id 'test-all'
     Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
@@ -235,6 +237,7 @@ function Invoke-GameWipStressModule
         $launched = $nextRun - 1
         throw "$failed of $launched launched stress runs failed. Logs are in $Script:OperationContext.Run.Root"
     }
+
     Write-GameWipSemanticText -Object 'Stress complete:' -Semantic Success -NoNewline
     Write-Host " $completed runs passed."
 }
@@ -350,6 +353,7 @@ function Read-GameWipValidationBuilderOptionResult
         {
             return Read-GameWipYesNo -Prompt $Option.Title -Default ([bool]$Option.Default)
         }
+
         'choice'
         {
             $choiceResult = Read-GameWipMenuChoiceResult -Prompt $Option.Title -Choices ([string[]]$Option.Choices) -Default ([string]$Option.Default)
@@ -358,13 +362,14 @@ function Read-GameWipValidationBuilderOptionResult
             {
                 return New-GameWipChoiceResult -Status Cancelled -Value $null
             }
-
             return $choiceResult.Value
         }
+
         'integer'
         {
             return Read-GameWipIntegerValue -Prompt $Option.Title -Default ([int]$Option.Default)
         }
+
         'text'
         {
             return Read-GameWipTextValue -Prompt $Option.Title -Default ([string]$Option.Default)
@@ -383,6 +388,7 @@ function Invoke-GameWipValidationCommandWizard
     {
         return
     }
+
     $selectedModule = [string]$moduleResult.Value
 
     $skippedModules = @()
@@ -395,6 +401,7 @@ function Invoke-GameWipValidationCommandWizard
         {
             return
         }
+
         $skippedModules = @($skipResult.Value)
     }
     $verboseTests = Read-GameWipYesNo -Prompt 'Mirror full test output to stdout?' -Default $false
@@ -445,7 +452,6 @@ function Invoke-GameWipValidationCommandWizard
                 {
                     return
                 }
-
                 if ($null -ne $value)
                 {
                     foreach ($argument in @(ConvertTo-GameWipValidationBuilderArguments -Option $option -Value $value))

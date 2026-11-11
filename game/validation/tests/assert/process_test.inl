@@ -13,7 +13,7 @@ int runAssertFailureChild()
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
 
-    if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
+    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
@@ -37,7 +37,7 @@ int runInteractiveAbortChild()
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
 
-    if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
+    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
@@ -61,7 +61,7 @@ int runInteractiveBreakChild()
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
 
-    if (const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
+    if(const char *childLogDirectory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str()))
     {
         config.output = Logger::Types::OutputMode::File;
         config.logDirectory = childLogDirectory;
@@ -114,7 +114,7 @@ void expectAbnormalChildExit(TestContext &context, std::string_view argument, st
 void testAssertFailureChild(TestContext &context, const AssertTestOptions &options)
 {
 #if ASSERT_ENABLED
-    if (!options.enableChildCrashTests)
+    if(!options.enableChildCrashTests)
     {
         context.skip("ASSERT failure child test", "disabled by AssertTestOptions");
         return;
@@ -122,18 +122,19 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
 
     const std::filesystem::path childLogDirectory = context.logRoot / "assert_child";
 
-    if (!requireInfrastructure(context, "create ASSERT child log directory", TestSupport::createDirectories(childLogDirectory)))
+    if(!requireInfrastructure(context, "create ASSERT child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
     }
+
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
         pathText(childLogDirectory));
     const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
 
-    if (!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
-        !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
+    if(!requireInfrastructure(context, "set ASSERT child log directory", childLogDirectoryOverride.status()) ||
+       !requireInfrastructure(context, "suppress ASSERT child popup", suppressPopupOverride.status()))
     {
         return;
     }
@@ -165,7 +166,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
 void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &options)
 {
 #if ASSERT_ENABLED
-    if (!options.enableChildCrashTests)
+    if(!options.enableChildCrashTests)
     {
         context.skip("ASSERT_INTERACTIVE abort child test", "disabled by AssertTestOptions");
         return;
@@ -173,18 +174,19 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
 
     const std::filesystem::path childLogDirectory = context.logRoot / "interactive_abort_child";
 
-    if (!requireInfrastructure(context, "create interactive Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
+    if(!requireInfrastructure(context, "create interactive Abort child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
     }
+
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
         pathText(childLogDirectory));
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "abort");
 
-    if (!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
-        !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
+    if(!requireInfrastructure(context, "set interactive Abort child log directory", childLogDirectoryOverride.status()) ||
+       !requireInfrastructure(context, "set interactive Abort action", testAction.status()))
     {
         return;
     }
@@ -216,7 +218,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
 void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &options)
 {
 #if ASSERT_ENABLED
-    if (!options.enableChildCrashTests)
+    if(!options.enableChildCrashTests)
     {
         context.skip("ASSERT_INTERACTIVE break child test", "disabled by AssertTestOptions");
         return;
@@ -224,18 +226,19 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
 
     const std::filesystem::path childLogDirectory = context.logRoot / "interactive_break_child";
 
-    if (!requireInfrastructure(context, "create interactive Break child log directory", TestSupport::createDirectories(childLogDirectory)))
+    if(!requireInfrastructure(context, "create interactive Break child log directory", TestSupport::createDirectories(childLogDirectory)))
     {
         return;
     }
+
     const ScopedEnvironmentVariable childLogDirectoryOverride(
         context.processState,
         kChildLogDirectoryEnvironmentVariable,
         pathText(childLogDirectory));
     const ScopedEnvironmentVariable testAction(context.processState, kTestActionEnvironmentVariable, "break");
 
-    if (!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
-        !requireInfrastructure(context, "set interactive Break action", testAction.status()))
+    if(!requireInfrastructure(context, "set interactive Break child log directory", childLogDirectoryOverride.status()) ||
+       !requireInfrastructure(context, "set interactive Break action", testAction.status()))
     {
         return;
     }
@@ -275,7 +278,7 @@ void testUnreachableChild(TestContext &context)
 #if ASSERT_ENABLED || !ASSERT_UNREACHABLE_ASSUME
     const ScopedEnvironmentVariable suppressPopupOverride(context.processState, kSuppressPopupEnvironmentVariable, "1");
 
-    if (!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
+    if(!requireInfrastructure(context, "suppress UNREACHABLE child popup", suppressPopupOverride.status()))
     {
         return;
     }

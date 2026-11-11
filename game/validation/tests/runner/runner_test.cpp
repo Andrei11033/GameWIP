@@ -7,11 +7,11 @@
 #include "validation/tests/runner/runner_test.h"
 
 #include "validation/executable_path.h"
-
-#include "validation/tests/runner_helpers.h"
-#include "test_support/test_support.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
+#include "validation/tests/runner_helpers.h"
+
+#include "test_support/test_support.h"
 
 #include <algorithm>
 #include <array>
@@ -136,9 +136,9 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for (char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
-            if (value != nullptr && std::string_view(value) == expected)
+            if(value != nullptr && std::string_view(value) == expected)
             {
                 return true;
             }
@@ -159,7 +159,7 @@ namespace
 
     bool throwsChildMatcher(int argc, char **argv)
     {
-        if (hasProbeArgument(argc, argv, "--probe-child=throw"))
+        if(hasProbeArgument(argc, argv, "--probe-child=throw"))
         {
             throw std::runtime_error("expected matcher exception");
         }
@@ -190,7 +190,7 @@ namespace
         argumentStorage.reserve(arguments.size() + 1);
         argumentStorage.emplace_back("runner-tests");
 
-        for (const std::string_view argument : arguments)
+        for(const std::string_view argument : arguments)
         {
             argumentStorage.emplace_back(argument);
         }
@@ -198,7 +198,7 @@ namespace
         std::vector<char *> argumentPointers;
         argumentPointers.reserve(argumentStorage.size());
 
-        for (std::string &argument : argumentStorage)
+        for(std::string &argument : argumentStorage)
         {
             argumentPointers.push_back(argument.data());
         }
@@ -340,7 +340,7 @@ namespace
     {
         const TestSupport::ScopedTemporaryDirectory workspace("runner_report");
 
-        if (!context.expectTrue("report workspace is available", workspace.status().ok()))
+        if(!context.expectTrue("report workspace is available", workspace.status().ok()))
         {
             return;
         }
@@ -352,7 +352,7 @@ namespace
         {
             const TestSupport::ScopedCurrentPath currentPath(processState, workspace.path());
 
-            if (!context.expectTrue("report workspace becomes current", currentPath.status().ok()))
+            if(!context.expectTrue("report workspace becomes current", currentPath.status().ok()))
             {
                 return;
             }

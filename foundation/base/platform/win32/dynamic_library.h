@@ -25,7 +25,7 @@ namespace GameWIP::Base::Win32
         requires std::is_pointer_v<FunctionType> && std::is_function_v<std::remove_pointer_t<FunctionType>>
     [[nodiscard]] FunctionType loadProcedure(HMODULE module, const char *name) noexcept
     {
-        if (module == nullptr || name == nullptr)
+        if(module == nullptr || name == nullptr)
         {
             return nullptr;
         }

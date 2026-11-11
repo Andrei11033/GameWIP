@@ -1,9 +1,19 @@
+# Shared benchmark module registration and the optional standalone benchmark process.
+
+# ------------------------------------------------------------
+# Shared benchmark modules
+# ------------------------------------------------------------
+
 # Registration is shared with the standalone executable and optional embedded startup run.
 add_library(GameWIPBenchmarkModules OBJECT runner.cpp)
 target_compile_features(GameWIPBenchmarkModules PUBLIC cxx_std_23)
 target_include_directories(GameWIPBenchmarkModules PUBLIC "${PROJECT_SOURCE_DIR}/game")
 target_link_libraries(GameWIPBenchmarkModules PUBLIC GameWIPValidationProcess)
 target_link_libraries(GameWIPBenchmarkModules PUBLIC benchmark::benchmark)
+
+# ------------------------------------------------------------
+# Standalone benchmark process
+# ------------------------------------------------------------
 
 if(GAMEWIP_BUILD_BENCHMARKS)
     # Keep the benchmark executable beside the other validation binaries for consistent discovery.
@@ -14,4 +24,5 @@ if(GAMEWIP_BUILD_BENCHMARKS)
     gamewip_copy_runtime_dependencies(GameWIPBenchmarks)
 endif()
 
+# Benchmark subdirectories register their modules with the shared registry.
 gamewip_add_validation_module_directories("${CMAKE_CURRENT_SOURCE_DIR}")

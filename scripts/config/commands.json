@@ -64,12 +64,6 @@
       "description": "Override the Python interpreter used by supported maintenance operations."
     },
     {
-      "id": "PythonHostPath",
-      "kind": "string",
-      "valueName": "path",
-      "description": "Override the native Python host used to provision managed Python tools."
-    },
-    {
       "id": "ClangFormatPath",
       "kind": "string",
       "valueName": "path",
@@ -215,13 +209,13 @@
     }
   ],
   "actionOptions": {
-    "ready": ["PythonPath", "PythonHostPath", "ClangFormatPath"],
+    "ready": ["PythonPath", "ClangFormatPath"],
     "git": [],
     "workflow": ["WorkflowKind", "ItemNumber", "ReleaseCommit"],
-    "unicode": ["PythonPath", "UnicodeDataPath", "RefreshUnicodeData"],
+    "unicode": ["PythonPath", "ClangFormatPath", "UnicodeDataPath", "RefreshUnicodeData"],
     "format": ["ClangFormatPath"],
     "quality": ["PythonPath", "ClangFormatPath", "FailFast", "ChangedOnly", "FailOnFindings"],
-    "tool": ["PythonPath", "PythonHostPath"],
+    "tool": ["PythonPath"],
     "links": ["PythonPath"],
     "deps": [],
     "config": ["CleanBuild", "Offline"],
@@ -1019,6 +1013,9 @@
     },
     {
       "id": "filesystem"
+    },
+    {
+      "id": "input"
     },
     {
       "id": "io"

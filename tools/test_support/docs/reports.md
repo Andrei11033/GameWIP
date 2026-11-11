@@ -2,8 +2,15 @@
 
 Reporting types live under `TestSupport::Types::Reporting` and are declared in `test_support/reporting.h`.
 
-`Types::Reporting::Options` configures console mirroring and the report-file sink. `Types::Reporting::ConsoleVerbosity` controls only console
-categories. Report-file output receives the complete report while enabled.
+`Types::Reporting::Options` configures console mirroring and the report-file sink. `Types::Reporting::ConsoleVerbosity` controls console categories.
+An optional `consoleWriter` receives a category and formatted line without a line ending. It returns whether the line was written successfully.
+
+Validation supplies a Terminal writer that colors complete report lines, including runner-owned status lines: passes green, failures red, skips
+yellow, manual checks and summaries cyan, info gray, metrics blue, and stress reports magenta. Result lines are green when there are no failures
+and red otherwise. Terminal's `Auto` style mode leaves redirected output plain; standalone TestSupport is plain by default. Report files always
+remain plain and receive the complete report while enabled.
+
+If a custom writer returns `false`, TestSupport reports the failure and does not retry the line, since it may have been partially written.
 
 `Context` owns per-suite counts and expectations. `Runner` aggregates completed suites. `Types::Reporting::Summary` contains passed/failed/skipped
 counts, and `Types::Reporting::SuiteResult` adds the suite name and elapsed milliseconds.

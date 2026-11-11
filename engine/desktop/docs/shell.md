@@ -69,28 +69,40 @@ values, this owner-thread example binds a passive icon before publishing a menu:
 namespace D = GameWIP::Desktop;
 D::ShellEventQueue queue;
 if (!queue.open().ok())
+{
     return;
+}
 
 D::TrayIcon tray;
 D::Types::Tray::Description description;
 description.icons = iconImages;
 description.tooltip = "Example editor";
 if (!tray.open(description).ok())
+{
     return;
+}
+
 if (!tray.bindEventQueue(queue).ok())
+{
     return;
+}
 
 const std::array<D::Types::Tray::MenuItem, 1> items{
     D::Types::Tray::MenuItems::command(D::Types::Shell::CommandId{1}, "Quit")};
 if (!tray.setMenu({items}).ok())
+{
     return;
+}
 
 bool quit = false;
 while (!quit)
 {
     const auto pump = D::Events::wait(std::chrono::milliseconds{16});
     if (!pump.status.ok())
+    {
         break;
+    }
+
     D::Types::Shell::Event event;
     while (queue.popEvent(event))
     {
@@ -103,7 +115,9 @@ while (!quit)
 }
 const auto closed = tray.close();
 if (closed.ok())
+{
     static_cast<void>(queue.close());
+}
 ```
 
 ## Notifications
@@ -137,6 +151,7 @@ GameWIP::Desktop::Types::Result<GameWIP::Desktop::Types::Shell::NotificationId> 
     description.body = "The exported file is ready.";
     return center.publish(description);
 }
+
 ```
 
 ## Jump lists and recent items
@@ -175,6 +190,7 @@ GameWIP::IO::Types::Status publishEditorTasks(
     description.tasks = tasks;
     return D::JumpLists::publish(description);
 }
+
 ```
 
 ## Current-user registration
@@ -229,6 +245,7 @@ GameWIP::Desktop::Types::Registration::Result registerExampleUri(
     description.conflictPolicy = D::Types::Registration::ConflictPolicy::ReplaceOwned;
     return D::Registration::registerUriScheme(description);
 }
+
 ```
 
 Inspect both `status` and `conflicts`. Registration only changes shell metadata; the application

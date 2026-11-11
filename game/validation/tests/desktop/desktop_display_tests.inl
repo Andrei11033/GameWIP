@@ -19,15 +19,14 @@ void testDisplayColorInformation(TestSupport::Context &context)
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("display-color primary monitor resolves", primary.ok()));
 
-    if (!primary.ok())
+    if(!primary.ok())
     {
         return;
     }
-
     const auto primaryColor = Feedback::getColorInfo(primary->id);
     static_cast<void>(context.expectTrue("native display-color query succeeds", primaryColor.ok()));
 
-    if (primaryColor.ok())
+    if(primaryColor.ok())
     {
         static_cast<void>(context.expectEq("display-color result retains monitor identity", primary->id, primaryColor->monitor));
         static_cast<void>(context.expectTrue(
@@ -48,15 +47,14 @@ void testDisplayColorInformation(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(context.expectTrue("display-color Window fixture opens", window.open(description, Desktop::Events::owned(8)).ok()));
 
-    if (!window.isOpen())
+    if(!window.isOpen())
     {
         return;
     }
-
     const auto windowColor = Feedback::getColorInfo(window);
     static_cast<void>(context.expectTrue("Window display-color query succeeds", windowColor.ok()));
 
-    if (windowColor.ok())
+    if(windowColor.ok())
     {
         static_cast<void>(context.expectEq("Window color query uses its cached monitor", window.currentMonitor(), windowColor->monitor));
     }
@@ -160,7 +158,7 @@ void testMonitors(TestSupport::Context &context)
     const auto primary = Desktop::Display::getPrimaryMonitor();
     static_cast<void>(context.expectTrue("primary monitor query succeeds", primary.ok()));
 
-    if (!primary.ok())
+    if(!primary.ok())
     {
         return;
     }
@@ -174,7 +172,7 @@ void testMonitors(TestSupport::Context &context)
     const auto preferred = Desktop::Display::getPreferredMode(primary->id);
     static_cast<void>(context.expectTrue("DisplayConfig preferred mode succeeds", preferred.ok()));
 
-    if (preferred.ok())
+    if(preferred.ok())
     {
         static_cast<void>(
             context.expectTrue("preferred mode has a physical resolution", preferred->resolution.width != 0 && preferred->resolution.height != 0));

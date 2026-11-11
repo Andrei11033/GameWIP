@@ -1,5 +1,5 @@
 /// @file reports_test.inl
-/// @brief Logger synchronous report, flush, and fatal-channel correctness suites.
+/// @brief Logger reporting, flushing, and fatal-channel tests.
 
 void testReportsAndHealth(TestContext &context)
 {
@@ -69,7 +69,7 @@ void testReportNoDrainScenario(TestContext &context)
     const auto initialized = Logger::init(config.ready());
     expectStarted(context, "report no-drain init", initialized);
 
-    if (!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
+    if(!initialized.status.ok() || initialized.outcome != Logger::Types::Init::Outcome::Started)
     {
         return;
     }
@@ -105,11 +105,12 @@ void testReportNoDrainScenario(TestContext &context)
 void testReportDoesNotDrainAsyncBacklog(TestContext &context, const LoggerTestOptions &options)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
-    if (!options.enableChildCrashTests)
+    if(!options.enableChildCrashTests)
     {
         context.skip("report no-drain child", "child tests disabled by LoggerTestOptions");
         return;
     }
+
     const auto directory = testDirectory(context, "report-no-drain-child");
     TestSupport::Types::Process::Options childOptions;
     childOptions.executablePath = std::filesystem::path(context.executablePath);
@@ -137,10 +138,11 @@ int runReportNoDrainChild()
 {
     const char *directory = std::getenv(std::string(kChildLogDirectoryEnvironmentVariable).c_str());
 
-    if (directory == nullptr)
+    if(directory == nullptr)
     {
         return 2;
     }
+
     TestSupport::Types::Reporting::Options options;
     options.writeReport = false;
     TestSupport::Runner runner(options);

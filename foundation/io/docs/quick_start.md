@@ -47,7 +47,6 @@ int main()
     constexpr std::uint64_t maximumConfigBytes = 16 * 1024;
     GameWIP::IO::Types::ReadAllTextResult readResult =
         GameWIP::IO::readAllText(reader, maximumConfigBytes);
-
     if (!readResult.status.ok())
     {
         // readResult.text remains valid UTF-8 and may contain the complete valid prefix.
@@ -57,7 +56,6 @@ int main()
     GameWIP::IO::MemoryWriter writer;
     GameWIP::IO::Types::WriteResult writeResult =
         GameWIP::IO::writeAllText(writer, readResult.text);
-
     if (!writeResult.status.ok())
     {
         // writeResult.bytesWritten reports total accepted progress.
@@ -67,6 +65,7 @@ int main()
     GameWIP::IO::Types::CopyTextResult copy = writer.copyText();
     return copy.status.ok() && copy.text == source ? 0 : 1;
 }
+
 ```
 
 `MemoryReader` is non-owning. Its source must remain alive and at a stable address until the reader is no longer used. Direct construction from

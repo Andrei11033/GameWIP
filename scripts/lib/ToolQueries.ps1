@@ -52,6 +52,7 @@ function Get-GameWipGitHubReleaseQuery
     {
         return New-GameWipToolQueryResult -State unavailable -Provider githubRelease -Version $null -Reason $http.Reason -Attempts $http.Attempts
     }
+
     $release = $http.Value
     $tag = [string]$release.tag_name
 
@@ -59,6 +60,7 @@ function Get-GameWipGitHubReleaseQuery
     {
         return New-GameWipToolQueryResult -State invalidResponse -Provider githubRelease -Version $null -Reason 'latest release has no tag_name' -Attempts $http.Attempts
     }
+
     $version = ConvertFrom-GameWipGitHubReleaseTag -Tag $tag
     $assets = @{}
 
@@ -78,6 +80,7 @@ function Get-GameWipGitHubReleaseQuery
             $assets[$key] = @{ archive = [string]$asset.name; sha256 = $digest.Groups[1].Value }
         }
     }
+
     $metadata = [pscustomobject]@{ Version = $version; Tag = $tag; Assets = $assets }
 
     if ($assets.Count -lt @($Tool.provider.assets.Keys).Count)
@@ -103,6 +106,7 @@ function Get-GameWipToolLatestQuery
         {
             return Get-GameWipGitHubReleaseQuery -Tool $Tool
         }
+
         'python'
         {
             $http = Invoke-GameWipHttpJson -Uri "https://pypi.org/pypi/$($Tool.provider.package)/json"
@@ -117,9 +121,9 @@ function Get-GameWipToolLatestQuery
             {
                 return New-GameWipToolQueryResult -State invalidResponse -Provider python -Version $null -Reason 'PyPI response did not contain info.version' -Attempts $http.Attempts
             }
-
             return New-GameWipToolQueryResult -State resolved -Provider python -Version $version -Attempts $http.Attempts
         }
+
         'npm'
         {
             $npm = Resolve-GameWipToolCommand -Command 'npm'
@@ -134,14 +138,13 @@ function Get-GameWipToolLatestQuery
             {
                 return $query
             }
-
             if ([string]::IsNullOrWhiteSpace($query.Output))
             {
                 return New-GameWipToolQueryResult -State invalidResponse -Provider npm -Version $null -Reason 'npm returned an empty version'
             }
-
             return New-GameWipToolQueryResult -State resolved -Provider npm -Version $query.Output
         }
+
         'msys2'
         {
             $bash = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'usr\bin\bash.exe'
@@ -162,9 +165,9 @@ function Get-GameWipToolLatestQuery
             {
                 return New-GameWipToolQueryResult -State invalidResponse -Provider msys2 -Version $null -Reason 'pacman output did not contain a version'
             }
-
             return New-GameWipToolQueryResult -State resolved -Provider msys2 -Version $match.Groups[1].Value
         }
+
         'winget'
         {
             $winget = Resolve-GameWipToolCommand -Command 'winget'
@@ -185,9 +188,9 @@ function Get-GameWipToolLatestQuery
             {
                 return New-GameWipToolQueryResult -State invalidResponse -Provider winget -Version $null -Reason 'winget output did not contain Version'
             }
-
             return New-GameWipToolQueryResult -State resolved -Provider winget -Version $match.Groups[1].Value
         }
+
         'powershellGallery'
         {
             try
@@ -198,7 +201,6 @@ function Get-GameWipToolLatestQuery
                 {
                     throw "PowerShell Gallery returned no versions for '$($Tool.provider.package)'."
                 }
-
                 return New-GameWipToolQueryResult -State resolved -Provider powershellGallery -Version $version -Attempts 1
             }
 

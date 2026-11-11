@@ -28,12 +28,12 @@ namespace GameWIP::IO
         {
             const auto oldSize = destination.size();
 
-            if (sourceOffset > oldSize || sourceSize > oldSize - sourceOffset)
+            if(sourceOffset > oldSize || sourceSize > oldSize - sourceOffset)
             {
                 return makeStatus(Types::ErrorCode::InvalidArgument);
             }
 
-            if (sourceSize > destination.max_size() - oldSize)
+            if(sourceSize > destination.max_size() - oldSize)
             {
                 return makeStatus(Types::ErrorCode::SizeLimitExceeded);
             }
@@ -43,15 +43,15 @@ namespace GameWIP::IO
             {
                 destination.resize(oldSize + sourceSize);
             }
-            catch (const std::bad_alloc &)
+            catch(const std::bad_alloc &)
             {
                 return makeStatus(Types::ErrorCode::OutOfMemory);
             }
-            catch (const std::length_error &)
+            catch(const std::length_error &)
             {
                 return makeStatus(Types::ErrorCode::SizeLimitExceeded);
             }
-            catch (...)
+            catch(...)
             {
                 return makeStatus(Types::ErrorCode::Unknown);
             }
@@ -74,7 +74,7 @@ namespace GameWIP::IO
 
     std::string_view errorCodeName(Types::ErrorCode code) noexcept
     {
-        switch (code)
+        switch(code)
         {
         case Types::ErrorCode::Success:
             return "Success";
@@ -212,7 +212,7 @@ namespace GameWIP::IO
 
     Types::Status Writer::flush(Types::FlushMode mode) noexcept
     {
-        if (!isValidFlushMode(mode))
+        if(!isValidFlushMode(mode))
         {
             return makeStatus(Types::ErrorCode::InvalidArgument);
         }
@@ -257,26 +257,25 @@ namespace GameWIP::IO
 
     Types::ReadResult MemoryReader::read(std::span<std::byte> destination) noexcept
     {
-        if (!open_)
+        if(!open_)
         {
             return {.status = makeStatus(Types::ErrorCode::NotOpen), .bytesRead = 0, .endOfStream = false};
         }
 
-        if (position_ > bytes_.size())
+        if(position_ > bytes_.size())
         {
             return {.status = makeStatus(Types::ErrorCode::InvalidArgument), .bytesRead = 0, .endOfStream = false};
         }
 
-        if (destination.empty())
+        if(destination.empty())
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = position_ >= bytes_.size()};
         }
 
-        if (position_ >= bytes_.size())
+        if(position_ >= bytes_.size())
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
-
         const auto available = bytes_.size() - position_;
         const auto count = std::min(destination.size(), available);
 
@@ -284,7 +283,7 @@ namespace GameWIP::IO
         const std::span target = destination.first(count);
         const std::less<const std::byte *> pointerLess;
 
-        if (pointerLess(source.data(), target.data()) && pointerLess(target.data(), std::to_address(source.end())))
+        if(pointerLess(source.data(), target.data()) && pointerLess(target.data(), std::to_address(source.end())))
         {
             std::ranges::copy_backward(source, target.end());
         }
@@ -305,7 +304,7 @@ namespace GameWIP::IO
 
     Types::PositionResult MemoryReader::position() const noexcept
     {
-        if (!open_)
+        if(!open_)
         {
             return {.status = makeStatus(Types::ErrorCode::NotOpen), .position = 0};
         }
@@ -315,7 +314,7 @@ namespace GameWIP::IO
 
     Types::SizeResult MemoryReader::size() const noexcept
     {
-        if (!open_)
+        if(!open_)
         {
             return {.status = makeStatus(Types::ErrorCode::NotOpen), .sizeBytes = 0};
         }
@@ -325,26 +324,24 @@ namespace GameWIP::IO
 
     Types::Status MemoryReader::seek(std::int64_t offset, Types::SeekOrigin origin) noexcept
     {
-        if (!open_)
+        if(!open_)
         {
             return makeStatus(Types::ErrorCode::NotOpen);
         }
 
-        if (bytes_.size() > static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
+        if(bytes_.size() > static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
         {
             return makeStatus(Types::ErrorCode::SizeLimitExceeded);
         }
-
         const auto size = static_cast<std::int64_t>(bytes_.size());
 
-        if (position_ > static_cast<std::size_t>(size))
+        if(position_ > static_cast<std::size_t>(size))
         {
             return makeStatus(Types::ErrorCode::InvalidArgument);
         }
-
         std::int64_t base = 0;
 
-        switch (origin)
+        switch(origin)
         {
         case Types::SeekOrigin::Begin:
             base = 0;
@@ -362,11 +359,10 @@ namespace GameWIP::IO
             return makeStatus(Types::ErrorCode::InvalidArgument);
         }
 
-        if (offset < -base || offset > size - base)
+        if(offset < -base || offset > size - base)
         {
             return makeStatus(Types::ErrorCode::SeekFailed);
         }
-
         const auto target = base + offset;
         position_ = static_cast<std::size_t>(target);
 
@@ -385,26 +381,24 @@ namespace GameWIP::IO
 
     Types::WriteResult MemoryWriter::write(std::span<const std::byte> bytes) noexcept
     {
-        if (!open_)
+        if(!open_)
         {
             return {.status = makeStatus(Types::ErrorCode::NotOpen), .bytesWritten = 0};
         }
 
-        if (bytes.empty())
+        if(bytes.empty())
         {
             return {.status = {}, .bytesWritten = 0};
         }
 
         const auto oldSize = bytes_.size();
-
-        if (bytes.size() > bytes_.max_size() - oldSize)
+        if(bytes.size() > bytes_.max_size() - oldSize)
         {
             return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded), .bytesWritten = 0};
         }
 
         try
         {
-
             // Detect self-aliasing before appending can reallocate the vector. The source offset,
             // rather than the input pointer, remains usable after storage moves.
             const std::byte *const inputBegin = bytes.data();
@@ -412,32 +406,30 @@ namespace GameWIP::IO
             const std::byte *const ownEnd = ownBegin == nullptr ? nullptr : std::to_address(std::span{bytes_}.end());
             const std::less<const std::byte *> pointerLess;
 
-            if (ownBegin != nullptr && !pointerLess(inputBegin, ownBegin) && pointerLess(inputBegin, ownEnd))
+            if(ownBegin != nullptr && !pointerLess(inputBegin, ownBegin) && pointerLess(inputBegin, ownEnd))
             {
                 const auto sourceOffset = static_cast<std::size_t>(inputBegin - ownBegin);
                 Types::Status appendStatus = appendAliasedBytes(bytes_, sourceOffset, bytes.size());
-
-                if (!appendStatus.ok())
+                if(!appendStatus.ok())
                 {
                     return {.status = std::move(appendStatus), .bytesWritten = 0};
                 }
 
                 return {.status = {}, .bytesWritten = bytes.size()};
             }
-
             bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
 
             return {.status = {}, .bytesWritten = bytes.size()};
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return {.status = makeStatus(Types::ErrorCode::OutOfMemory), .bytesWritten = 0};
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded), .bytesWritten = 0};
         }
-        catch (...)
+        catch(...)
         {
             return {.status = makeStatus(Types::ErrorCode::Unknown), .bytesWritten = 0};
         }
@@ -445,12 +437,12 @@ namespace GameWIP::IO
 
     Types::Status MemoryWriter::flush(Types::FlushMode mode) noexcept
     {
-        if (!isValidFlushMode(mode))
+        if(!isValidFlushMode(mode))
         {
             return makeStatus(Types::ErrorCode::InvalidArgument);
         }
 
-        if (!open_)
+        if(!open_)
         {
             return makeStatus(Types::ErrorCode::NotOpen);
         }
@@ -466,7 +458,7 @@ namespace GameWIP::IO
 
     Types::PositionResult MemoryWriter::position() const noexcept
     {
-        if (!open_)
+        if(!open_)
         {
             return {.status = makeStatus(Types::ErrorCode::NotOpen), .position = 0};
         }
@@ -476,7 +468,7 @@ namespace GameWIP::IO
 
     Types::Status MemoryWriter::reserve(std::size_t capacity) noexcept
     {
-        if (capacity > bytes_.max_size())
+        if(capacity > bytes_.max_size())
         {
             return makeStatus(Types::ErrorCode::SizeLimitExceeded);
         }
@@ -486,15 +478,15 @@ namespace GameWIP::IO
             bytes_.reserve(capacity);
             return successStatus();
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             return makeStatus(Types::ErrorCode::OutOfMemory);
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             return makeStatus(Types::ErrorCode::SizeLimitExceeded);
         }
-        catch (...)
+        catch(...)
         {
             return makeStatus(Types::ErrorCode::Unknown);
         }
@@ -510,20 +502,19 @@ namespace GameWIP::IO
         Types::CopyTextResult result;
         const auto view = bytes();
 
-        if (view.empty())
+        if(view.empty())
         {
             return result;
         }
 
-        if (view.size() > result.text.max_size())
+        if(view.size() > result.text.max_size())
         {
             result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
             return result;
         }
-
         const std::string_view textView(reinterpret_cast<const char *>(view.data()), view.size());
 
-        if (Unicode::Utf8::validate(textView).outcome != Unicode::Types::ValidationOutcome::Valid)
+        if(Unicode::Utf8::validate(textView).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             result.status = makeStatus(Types::ErrorCode::EncodingFailed);
             return result;
@@ -533,15 +524,15 @@ namespace GameWIP::IO
         {
             result.text.assign(textView.data(), textView.size());
         }
-        catch (const std::bad_alloc &)
+        catch(const std::bad_alloc &)
         {
             result.status = makeStatus(Types::ErrorCode::OutOfMemory);
         }
-        catch (const std::length_error &)
+        catch(const std::length_error &)
         {
             result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
         }
-        catch (...)
+        catch(...)
         {
             result.status = makeStatus(Types::ErrorCode::Unknown);
         }
@@ -573,5 +564,4 @@ namespace GameWIP::IO
     {
         bytes_.clear();
     }
-
 } // namespace GameWIP::IO

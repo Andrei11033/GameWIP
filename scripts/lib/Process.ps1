@@ -32,7 +32,8 @@ function ConvertTo-GameWipNativeArgument
     {
         if ($character -eq '\')
         {
-            ++$backslashes; continue
+            ++$backslashes
+            continue
         }
 
         if ($character -eq '"')
@@ -45,7 +46,8 @@ function ConvertTo-GameWipNativeArgument
 
         if ($backslashes -gt 0)
         {
-            [void]$builder.Append('\' * $backslashes); $backslashes = 0
+            [void]$builder.Append('\' * $backslashes)
+            $backslashes = 0
         }
         [void]$builder.Append($character)
     }
@@ -107,12 +109,14 @@ function Resolve-GameWipOwnedProcessLaunch
     {
         return [pscustomobject]@{ FilePath = $launch.FilePath; ArgumentLine = $launch.ArgumentLine; OwnProcessGroup = $false }
     }
+
     $setsid = Get-Command -Name setsid -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 
     if ($null -eq $setsid)
     {
         return [pscustomobject]@{ FilePath = $launch.FilePath; ArgumentLine = $launch.ArgumentLine; OwnProcessGroup = $false }
     }
+
     $argumentLine = ConvertTo-GameWipNativeArgument -Argument $launch.FilePath
 
     if (-not [string]::IsNullOrWhiteSpace([string]$launch.ArgumentLine))
@@ -140,6 +144,7 @@ function Write-GameWipProcessNewOutput
     {
         return
     }
+
     $lines = @(Get-Content -LiteralPath $Path -ErrorAction SilentlyContinue)
 
     if ($lines.Count -le $LineCount.Value)
@@ -164,8 +169,6 @@ function Write-GameWipProcessNewOutput
     }
     $LineCount.Value = $lines.Count
 }
-
-
 
 function Start-GameWipOwnedProcess
 {

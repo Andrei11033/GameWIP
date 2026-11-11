@@ -10,7 +10,7 @@ if(GAMEWIP_BUILD_GAME)
         VERBATIM
     )
 
-    add_executable(GameWIP main.cpp runtime/game.cpp)
+    add_executable(GameWIP main.cpp runtime/game.cpp runtime/display_report.cpp)
     add_dependencies(GameWIP GameWIPVersionHeader)
 
     # Keep executable-only compile settings and generated include paths local to GameWIP.
@@ -30,7 +30,7 @@ if(GAMEWIP_BUILD_GAME)
         target_link_libraries(GameWIP PRIVATE Tracy::TracyClient)
     endif()
 
-    target_link_libraries(GameWIP PRIVATE GameWIP::Logger GameWIP::Desktop)
+    target_link_libraries(GameWIP PRIVATE GameWIP::Logger GameWIP::Desktop GameWIP::Input)
 
     set_target_properties(GameWIP PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 

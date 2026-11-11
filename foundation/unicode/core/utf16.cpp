@@ -16,7 +16,7 @@ namespace GameWIP::Unicode::Utf16
 
     Types::Utf16::EncodeResult encodeScalar(char32_t scalar) noexcept
     {
-        if (!isScalarValue(scalar))
+        if(!isScalarValue(scalar))
         {
             return {};
         }
@@ -33,11 +33,11 @@ namespace GameWIP::Unicode::Utf16
     {
         std::size_t codeUnitOffset = 0;
 
-        while (codeUnitOffset < text.size())
+        while(codeUnitOffset < text.size())
         {
             const Types::Utf16::DecodeResult decoded = Internal::decodeUtf16Scalar(text.subspan(codeUnitOffset));
 
-            if (decoded.outcome == Types::DecodeOutcome::Incomplete)
+            if(decoded.outcome == Types::DecodeOutcome::Incomplete)
             {
                 return {
                     .validPrefixCodeUnits = codeUnitOffset,
@@ -45,7 +45,7 @@ namespace GameWIP::Unicode::Utf16
                 };
             }
 
-            if (decoded.outcome == Types::DecodeOutcome::InvalidEncoding)
+            if(decoded.outcome == Types::DecodeOutcome::InvalidEncoding)
             {
                 return {
                     .validPrefixCodeUnits = codeUnitOffset,

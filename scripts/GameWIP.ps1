@@ -11,7 +11,6 @@ param(
     [Parameter(Position = 1)][string]$Command,
     [Parameter(Position = 2)][string]$Target,
     [string]$PythonPath,
-    [string]$PythonHostPath,
     [string]$ClangFormatPath,
     [string]$UnicodeDataPath,
     [switch]$RefreshUnicodeData,
@@ -57,7 +56,6 @@ $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 
 # Map command-line values to the operation helpers' shared context.
-$PythonProviderHostPath = $PythonHostPath
 $UnicodeDataRoot = $UnicodeDataPath
 $WorkflowNumber = $ItemNumber
 $Filter = $NameFilter
@@ -106,12 +104,14 @@ if ($PSBoundParameters.ContainsKey('Verbose') -and [bool]$PSBoundParameters.Verb
 
 if ($Action -eq 'help')
 {
-    Show-GameWipHelp; exit 0
+    Show-GameWipHelp
+    exit 0
 }
 
 if ($Action -eq 'list')
 {
-    Show-GameWipProjectCatalog; exit 0
+    Show-GameWipProjectCatalog
+    exit 0
 }
 
 if ($Action -eq 'menu')
@@ -197,7 +197,6 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown unicode command '$verb'."
             }
-
             if ($verb -eq 'regenerate')
             {
                 Invoke-GameWipMutation -Summary 'Regenerate the tracked Unicode property table.' -Risk tracked -Plan @('Verify/download pinned Unicode input.', 'Generate and format a candidate.', 'Replace the tracked table only if content changes.') -Body { Invoke-GameWipUnicodeAction -Name regenerate } | Out-Null
@@ -226,7 +225,6 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown format command '$verb'."
             }
-
             if ($verb -eq 'apply')
             {
                 Invoke-GameWipMutation -Summary 'Apply repository C/C++ formatting.' -Risk tracked -Plan @('Rewrite maintained C/C++ files with the repository clang-format policy.') -Body { Invoke-GameWipFormat -Mode apply } | Out-Null
@@ -251,7 +249,6 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown quality command '$verb'."
             }
-
             if ($verb -eq 'fix')
             {
                 Invoke-GameWipMutation -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' -Risk tracked -Plan @('Validate every tool required by the quality workflow before mutation.', 'Apply deterministic formatter changes and normalize maintained text to LF.', 'Run all independent quality checks and aggregate failures.') -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed } | Out-Null
@@ -368,7 +365,6 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown deps command '$verb'. Use 'check' or 'prepare'."
             }
-
             if ($verb -eq 'prepare')
             {
                 Invoke-GameWipDependencyPreparationOperation
@@ -554,23 +550,42 @@ $result = Invoke-GameWipOperation `
 
         'doc'
         {
-            Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body { Invoke-GameWipConfigurePreset -Name docs; Invoke-GameWipBuildPreset -Name docs } | Out-Null
+            Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body {
+                Invoke-GameWipConfigurePreset -Name docs
+                Invoke-GameWipBuildPreset -Name docs
+            } | Out-Null
         }
         'analyze'
         {
-            Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body { Invoke-GameWipConfigurePreset -Name analyze; Invoke-GameWipBuildPreset -Name analyze } | Out-Null
+            Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body {
+                Invoke-GameWipConfigurePreset -Name analyze
+                Invoke-GameWipBuildPreset -Name analyze
+            } | Out-Null
         }
         'cov'
         {
-            Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest with new profile data.', 'Generate coverage target.') -Body { Invoke-GameWipConfigurePreset -Name coverage -Fresh; Invoke-GameWipBuildPreset -Name coverage; Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild; Invoke-GameWipBuildTarget -Name coverage -Target coverage } | Out-Null
+            Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest with new profile data.', 'Generate coverage target.') -Body {
+                Invoke-GameWipConfigurePreset -Name coverage -Fresh
+                Invoke-GameWipBuildPreset -Name coverage
+                Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
+                Invoke-GameWipBuildTarget -Name coverage -Target coverage
+            } | Out-Null
         }
         'asan'
         {
-            Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name asan -Fresh; Invoke-GameWipBuildPreset -Name asan; Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild } | Out-Null
+            Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body {
+                Invoke-GameWipConfigurePreset -Name asan -Fresh
+                Invoke-GameWipBuildPreset -Name asan
+                Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
+            } | Out-Null
         }
         'ubsan'
         {
-            Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body { Invoke-GameWipConfigurePreset -Name ubsan -Fresh; Invoke-GameWipBuildPreset -Name ubsan; Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild } | Out-Null
+            Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body {
+                Invoke-GameWipConfigurePreset -Name ubsan -Fresh
+                Invoke-GameWipBuildPreset -Name ubsan
+                Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild
+            } | Out-Null
         }
         'bench'
         {
@@ -587,7 +602,6 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown bench command '$verb'."
             }
-
             if ($verb -eq 'compare' -and ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate)))
             {
                 throw 'bench compare requires -BaselinePath and -CandidatePath.'
@@ -626,7 +640,6 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown history command '$verb'."
             }
-
             if ($verb -eq 'list')
             {
                 Show-GameWipRunList -All:($Target -eq 'all')

@@ -36,6 +36,7 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] Types::DragDrop::Result beginNativeDrag(WindowState &, const Types::DragDrop::Description &) noexcept;
     /// @brief Prepares source payloads for OLE data transfer.
     [[nodiscard]] IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &) noexcept;
+
     [[nodiscard]] IO::Types::Status testDragDropOleInitialization() noexcept;
     [[nodiscard]] IO::Types::Status testDragDropMaterialization() noexcept;
     [[nodiscard]] Types::DragDrop::Result testDroppedDragDropSourceResult(Types::DragDrop::Effect, Types::DragDrop::Effect) noexcept;

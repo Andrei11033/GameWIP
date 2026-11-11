@@ -13,34 +13,32 @@ IO::Types::Status DirectoryCursor::open(const Types::Path &path, const Types::Di
 {
     try
     {
-        if (state_)
+        if(state_)
         {
             return IO::makeStatus(ErrorCode::AlreadyOpen);
         }
 
-        if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
+        if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
-
         Detail::Platform::DirectoryCursorOpenResult opened = Detail::Platform::openDirectoryCursor(path, options.symlinkPolicy);
 
-        if (!opened.status.ok())
+        if(!opened.status.ok())
         {
             return std::move(opened.status);
         }
-
         options_ = options;
         emittedEntries_ = 0;
         limitReached_ = false;
         state_ = std::move(opened.state);
         return IO::successStatus();
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return IO::makeStatus(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return IO::makeStatus(ErrorCode::Unknown);
     }
@@ -55,50 +53,49 @@ Types::Directory::CursorNextResult DirectoryCursor::next() noexcept
 {
     try
     {
-        if (!state_)
+        if(!state_)
         {
             return {.status = IO::makeStatus(ErrorCode::NotOpen)};
         }
 
-        if (limitReached_)
+        if(limitReached_)
         {
             return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
         }
 
-        while (true)
+        while(true)
         {
             Detail::Platform::DirectoryCursorNextResult next = Detail::Platform::readDirectoryCursor(*state_);
 
-            if (!next.status.ok())
+            if(!next.status.ok())
             {
                 return {.status = next.status};
             }
 
-            if (!next.hasEntry)
+            if(!next.hasEntry)
             {
                 return {.status = IO::successStatus()};
             }
 
-            if ((!options_.includeHidden && next.hidden) || !includeDirectoryEntryKind(next.entry.info.kind, options_))
+            if((!options_.includeHidden && next.hidden) || !includeDirectoryEntryKind(next.entry.info.kind, options_))
             {
                 continue;
             }
 
-            if (emittedEntries_ >= options_.maxEntries)
+            if(emittedEntries_ >= options_.maxEntries)
             {
                 limitReached_ = true;
                 return {.status = IO::makeStatus(ErrorCode::SizeLimitExceeded)};
             }
-
             ++emittedEntries_;
             return {.status = IO::successStatus(), .entry = std::move(next.entry), .hasEntry = true};
         }
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return {.status = IO::makeStatus(ErrorCode::OutOfMemory)};
     }
-    catch (...)
+    catch(...)
     {
         return {.status = IO::makeStatus(ErrorCode::Unknown)};
     }
@@ -137,7 +134,7 @@ Types::Lock::Mode FileLock::mode() const noexcept
 
 IO::Types::Status FileLock::unlock() noexcept
 {
-    if (!active())
+    if(!active())
     {
         state_.reset();
         return IO::successStatus();
@@ -145,7 +142,7 @@ IO::Types::Status FileLock::unlock() noexcept
 
     IO::Types::Status status = Detail::Platform::unlockFile(*state_);
 
-    if (status.ok())
+    if(status.ok())
     {
         state_.reset();
     }
@@ -173,12 +170,12 @@ FileReader::~FileReader() noexcept
 
 IO::Types::Status FileReader::open(const Types::Path &path, const Types::File::ReaderOpenOptions &options) noexcept
 {
-    if (isOpen())
+    if(isOpen())
     {
         return IO::makeStatus(ErrorCode::AlreadyOpen);
     }
 
-    if (!isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
+    if(!isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
@@ -186,7 +183,7 @@ IO::Types::Status FileReader::open(const Types::Path &path, const Types::File::R
     std::unique_ptr<Detail::FileState> newState;
     IO::Types::Status status = Detail::Platform::openReader(newState, path, options);
 
-    if (status.ok())
+    if(status.ok())
     {
         state_ = std::move(newState);
     }
@@ -206,7 +203,7 @@ bool FileReader::canSeek() const noexcept
 
 IO::Types::ReadResult FileReader::read(std::span<std::byte> destination) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
@@ -216,7 +213,7 @@ IO::Types::ReadResult FileReader::read(std::span<std::byte> destination) noexcep
 
 IO::Types::Status FileReader::close() noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         state_.reset();
         return IO::successStatus();
@@ -224,7 +221,7 @@ IO::Types::Status FileReader::close() noexcept
 
     IO::Types::Status status = Detail::Platform::closeFile(*state_);
 
-    if (status.ok())
+    if(status.ok())
     {
         state_.reset();
     }
@@ -234,7 +231,7 @@ IO::Types::Status FileReader::close() noexcept
 
 IO::Types::PositionResult FileReader::position() const noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
@@ -244,7 +241,7 @@ IO::Types::PositionResult FileReader::position() const noexcept
 
 IO::Types::SizeResult FileReader::size() const noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return sizeFailure(ErrorCode::NotOpen);
     }
@@ -254,7 +251,7 @@ IO::Types::SizeResult FileReader::size() const noexcept
 
 IO::Types::Status FileReader::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return IO::makeStatus(ErrorCode::NotOpen);
     }
@@ -264,14 +261,14 @@ IO::Types::Status FileReader::seek(std::int64_t offset, IO::Types::SeekOrigin or
 
 Types::Lock::Result FileReader::tryLockShared() noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Shared);
 
-    if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
+    if(!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};
     }
@@ -296,20 +293,20 @@ FileWriter::~FileWriter() noexcept
 
 IO::Types::Status FileWriter::open(const Types::Path &path, const Types::File::WriterOpenOptions &options) noexcept
 {
-    if (isOpen())
+    if(isOpen())
     {
         return IO::makeStatus(ErrorCode::AlreadyOpen);
     }
 
-    if (!isValidFileWriterMode(options.mode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
-        !IO::isValidFlushMode(options.flushOnClose))
+    if(!isValidFileWriterMode(options.mode) || !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) ||
+       !IO::isValidFlushMode(options.flushOnClose))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
 
     IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
 
-    if (!parentStatus.ok())
+    if(!parentStatus.ok())
     {
         return parentStatus;
     }
@@ -317,7 +314,7 @@ IO::Types::Status FileWriter::open(const Types::Path &path, const Types::File::W
     std::unique_ptr<Detail::FileState> newState;
     IO::Types::Status status = Detail::Platform::openWriter(newState, path, options);
 
-    if (status.ok())
+    if(status.ok())
     {
         state_ = std::move(newState);
     }
@@ -337,7 +334,7 @@ bool FileWriter::canSeek() const noexcept
 
 IO::Types::WriteResult FileWriter::write(std::span<const std::byte> bytes) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return writeFailure(ErrorCode::NotOpen);
     }
@@ -347,7 +344,7 @@ IO::Types::WriteResult FileWriter::write(std::span<const std::byte> bytes) noexc
 
 IO::Types::Status FileWriter::flush(IO::Types::FlushMode mode) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return IO::makeStatus(ErrorCode::NotOpen);
     }
@@ -357,7 +354,7 @@ IO::Types::Status FileWriter::flush(IO::Types::FlushMode mode) noexcept
 
 IO::Types::Status FileWriter::close() noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         state_.reset();
         return IO::successStatus();
@@ -365,7 +362,7 @@ IO::Types::Status FileWriter::close() noexcept
 
     IO::Types::Status status = Detail::Platform::closeFile(*state_);
 
-    if (status.ok())
+    if(status.ok())
     {
         state_.reset();
     }
@@ -375,7 +372,7 @@ IO::Types::Status FileWriter::close() noexcept
 
 IO::Types::PositionResult FileWriter::position() const noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
@@ -385,7 +382,7 @@ IO::Types::PositionResult FileWriter::position() const noexcept
 
 IO::Types::SizeResult FileWriter::size() const noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return sizeFailure(ErrorCode::NotOpen);
     }
@@ -395,7 +392,7 @@ IO::Types::SizeResult FileWriter::size() const noexcept
 
 IO::Types::Status FileWriter::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return IO::makeStatus(ErrorCode::NotOpen);
     }
@@ -405,14 +402,14 @@ IO::Types::Status FileWriter::seek(std::int64_t offset, IO::Types::SeekOrigin or
 
 Types::Lock::Result FileWriter::tryLockExclusive() noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Exclusive);
 
-    if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
+    if(!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};
     }
@@ -439,30 +436,30 @@ File::~File() noexcept
 
 IO::Types::Status File::open(const Types::Path &path, const Types::File::OpenOptions &options) noexcept
 {
-    if (isOpen())
+    if(isOpen())
     {
         return IO::makeStatus(ErrorCode::AlreadyOpen);
     }
 
-    if (!isValidFileAccess(options.access) || !isValidFileOpenMode(options.mode) || !isValidInitialPosition(options.initialPosition) ||
-        !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) || !IO::isValidFlushMode(options.flushOnClose))
+    if(!isValidFileAccess(options.access) || !isValidFileOpenMode(options.mode) || !isValidInitialPosition(options.initialPosition) ||
+       !isValidFileShare(options.share) || !isValidSymlinkPolicy(options.symlinkPolicy) || !IO::isValidFlushMode(options.flushOnClose))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
 
-    if (modeRequiresWrite(options.mode) && !opensForWrite(options.access))
+    if(modeRequiresWrite(options.mode) && !opensForWrite(options.access))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
 
-    if (options.flushOnClose != IO::Types::FlushMode::None && !opensForWrite(options.access))
+    if(options.flushOnClose != IO::Types::FlushMode::None && !opensForWrite(options.access))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
     }
 
     IO::Types::Status parentStatus = validateParentDirectory(path, options.createParentDirectories, options.symlinkPolicy);
 
-    if (!parentStatus.ok())
+    if(!parentStatus.ok())
     {
         return parentStatus;
     }
@@ -470,7 +467,7 @@ IO::Types::Status File::open(const Types::Path &path, const Types::File::OpenOpt
     std::unique_ptr<Detail::FileState> newState;
     IO::Types::Status status = Detail::Platform::openFile(newState, path, options);
 
-    if (status.ok())
+    if(status.ok())
     {
         state_ = std::move(newState);
     }
@@ -495,7 +492,7 @@ Types::File::Access File::access() const noexcept
 
 IO::Types::ReadResult File::read(std::span<std::byte> destination) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
@@ -505,7 +502,7 @@ IO::Types::ReadResult File::read(std::span<std::byte> destination) noexcept
 
 IO::Types::WriteResult File::write(std::span<const std::byte> bytes) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return writeFailure(ErrorCode::NotOpen);
     }
@@ -515,7 +512,7 @@ IO::Types::WriteResult File::write(std::span<const std::byte> bytes) noexcept
 
 IO::Types::Status File::flush(IO::Types::FlushMode mode) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return IO::makeStatus(ErrorCode::NotOpen);
     }
@@ -525,7 +522,7 @@ IO::Types::Status File::flush(IO::Types::FlushMode mode) noexcept
 
 IO::Types::Status File::close() noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         state_.reset();
         return IO::successStatus();
@@ -533,7 +530,7 @@ IO::Types::Status File::close() noexcept
 
     IO::Types::Status status = Detail::Platform::closeFile(*state_);
 
-    if (status.ok())
+    if(status.ok())
     {
         state_.reset();
     }
@@ -543,7 +540,7 @@ IO::Types::Status File::close() noexcept
 
 IO::Types::PositionResult File::position() const noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
@@ -553,7 +550,7 @@ IO::Types::PositionResult File::position() const noexcept
 
 IO::Types::SizeResult File::size() const noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return sizeFailure(ErrorCode::NotOpen);
     }
@@ -563,7 +560,7 @@ IO::Types::SizeResult File::size() const noexcept
 
 IO::Types::Status File::seek(std::int64_t offset, IO::Types::SeekOrigin origin) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return IO::makeStatus(ErrorCode::NotOpen);
     }
@@ -573,7 +570,7 @@ IO::Types::Status File::seek(std::int64_t offset, IO::Types::SeekOrigin origin) 
 
 IO::Types::Status File::resize(std::uint64_t sizeBytes) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return IO::makeStatus(ErrorCode::NotOpen);
     }
@@ -583,7 +580,7 @@ IO::Types::Status File::resize(std::uint64_t sizeBytes) noexcept
 
 IO::Types::Status File::resizeWithoutPositionRestore(std::uint64_t sizeBytes) noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return IO::makeStatus(ErrorCode::NotOpen);
     }
@@ -593,14 +590,14 @@ IO::Types::Status File::resizeWithoutPositionRestore(std::uint64_t sizeBytes) no
 
 Types::Lock::Result File::tryLockShared() noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Shared);
 
-    if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
+    if(!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};
     }
@@ -613,14 +610,14 @@ Types::Lock::Result File::tryLockShared() noexcept
 
 Types::Lock::Result File::tryLockExclusive() noexcept
 {
-    if (!isOpen())
+    if(!isOpen())
     {
         return {.status = IO::makeStatus(ErrorCode::NotOpen)};
     }
 
     Detail::Platform::NativeLockResult result = Detail::Platform::tryLockFile(*state_, Types::Lock::Mode::Exclusive);
 
-    if (!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
+    if(!result.status.ok() || result.outcome == Types::Lock::Outcome::WouldBlock)
     {
         return {.status = std::move(result.status), .outcome = result.outcome};
     }

@@ -99,11 +99,11 @@ namespace GameWIP::FileSystem::Detail::Platform
     } // namespace TestHooks
 #endif
 
-    /// @brief Result returned by backend entry metadata queries.
     // ------------------------------------------------------------
     // Native operation results
     // ------------------------------------------------------------
 
+    /// @brief Result returned by backend entry metadata queries.
     struct EntryQueryResult
     {
         /// @brief Success or portable/backend-native failure status.

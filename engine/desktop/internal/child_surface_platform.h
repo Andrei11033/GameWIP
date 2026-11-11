@@ -24,6 +24,7 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] bool hasLiveNativeChildSurface(const ChildSurfaceState &state) noexcept;
     /// @brief Returns the native module and child HWND for owner-thread interop.
     [[nodiscard]] NativeHandleView childSurfaceNativeHandle(const ChildSurfaceState &state) noexcept;
+
     /// @brief Applies a logical child rectangle and refreshes cached screen geometry.
     [[nodiscard]] IO::Types::Status setChildSurfaceRect(ChildSurfaceState &state, Types::LogicalRect rect) noexcept;
     /// @brief Converts a child-client logical point into screen pixels.
@@ -34,6 +35,7 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] Types::Result<Types::LogicalPosition> childSurfaceScreenToClient(
         const ChildSurfaceState &state,
         Types::ScreenPosition position) noexcept;
+
     /// @brief Shows or hides the native child surface.
     [[nodiscard]] IO::Types::Status showChildSurface(ChildSurfaceState &state, bool visible) noexcept;
     /// @brief Enables or disables native input delivery to the child surface.

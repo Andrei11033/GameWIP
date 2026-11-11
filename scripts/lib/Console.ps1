@@ -20,18 +20,22 @@ function Get-GameWipSemanticColor
         {
             return [ConsoleColor]::Green
         }
+
         'Failure'
         {
             return [ConsoleColor]::Red
         }
+
         'Warning'
         {
             return [ConsoleColor]::Yellow
         }
+
         'Accent'
         {
             return [ConsoleColor]::Cyan
         }
+
         'Muted'
         {
             return [ConsoleColor]::DarkGray
@@ -151,6 +155,7 @@ function Read-GameWipActionMenuItem
     {
         return New-GameWipChoiceResult -Status Cancelled -Value $null
     }
+
     $selected = $Items | Where-Object { [string]$_.Key -ieq [string]$choice.Value } | Select-Object -First 1
     return New-GameWipChoiceResult -Status Selected -Value ([string]$selected.Handler)
 }
@@ -190,7 +195,6 @@ function New-GameWipChoiceResult
     [pscustomobject]@{ Status = $Status; Value = $Value }
 }
 
-
 function Read-GameWipConsoleKey
 {
     param([Parameter(Mandatory = $true)][string]$Purpose)
@@ -216,6 +220,7 @@ function Read-GameWipActionKey
             Write-Host 'ESC'
             return New-GameWipChoiceResult -Status Cancelled -Value $null
         }
+
         $value = $key.KeyChar.ToString()
         Write-Host $value
 
@@ -223,6 +228,7 @@ function Read-GameWipActionKey
         {
             return New-GameWipChoiceResult -Status Selected -Value $value
         }
+
         Write-GameWipHost 'Invalid selection.' -ForegroundColor Yellow
     }
 }
@@ -241,6 +247,7 @@ function Read-GameWipIndexedChoiceResult
     {
         return New-GameWipChoiceResult -Status Cancelled -Value $null
     }
+
     Write-Host ''
     Write-Host $Prompt
 
@@ -300,6 +307,7 @@ function Read-GameWipIndexedChoiceResult
         {
             return New-GameWipChoiceResult -Status Selected -Value $Choices[($number - 1)]
         }
+
         $message = if ($AllowMultiple)
         {
             'Enter one or more listed numbers separated by commas, or Q.'
@@ -368,6 +376,7 @@ function Read-GameWipMenuChoiceResult
             Write-Host 'Enter'
             return New-GameWipChoiceResult -Status Selected -Value $Default
         }
+
         $selectionKey = $key.KeyChar.ToString().ToLowerInvariant()
         Write-Host $selectionKey
         $index = [array]::IndexOf($keys, $selectionKey)
@@ -376,6 +385,7 @@ function Read-GameWipMenuChoiceResult
         {
             return New-GameWipChoiceResult -Status Selected -Value $Choices[$index]
         }
+
         Write-GameWipHost 'Invalid selection.' -ForegroundColor Yellow
     }
 }
@@ -415,6 +425,7 @@ function Read-GameWipIntegerValue
         {
             return $parsed
         }
+
         Write-GameWipHost 'Enter a positive integer.' -ForegroundColor Yellow
     }
 }
@@ -448,6 +459,7 @@ function Read-GameWipYesNo
             Write-Host 'Enter'
             return $Default
         }
+
         $value = $key.KeyChar.ToString().ToLowerInvariant()
         Write-Host $value
 
@@ -460,6 +472,7 @@ function Read-GameWipYesNo
         {
             return $false
         }
+
         Write-GameWipHost 'Enter y or n, or ESC to cancel.' -ForegroundColor Yellow
     }
 }
@@ -477,6 +490,7 @@ function Read-GameWipMultiChoiceResult
     {
         return Read-GameWipIndexedMultiChoiceResult -Prompt $Prompt -Choices $Choices
     }
+
     $selected = New-Object System.Collections.Generic.HashSet[string]
 
     while ($true)
@@ -510,6 +524,7 @@ function Read-GameWipMultiChoiceResult
             Write-Host 'Enter'
             return New-GameWipChoiceResult -Status Selected -Value @($Choices | Where-Object { $selected.Contains($_) })
         }
+
         $selectionKey = $key.KeyChar.ToString().ToLowerInvariant()
         Write-Host $selectionKey
         $index = [array]::IndexOf($keys, $selectionKey)
@@ -540,6 +555,7 @@ function ConvertTo-GameWipMultiChoiceIndexes
     {
         return @()
     }
+
     $indexes = [System.Collections.Generic.HashSet[int]]::new()
 
     foreach ($token in @($InputText -split ','))
@@ -551,6 +567,7 @@ function ConvertTo-GameWipMultiChoiceIndexes
         {
             throw "Enter comma-separated numbers from 1 to $ChoiceCount."
         }
+
         [void]$indexes.Add($number)
     }
 
@@ -569,6 +586,7 @@ function Read-GameWipIndexedMultiChoiceResult
     {
         return New-GameWipChoiceResult -Status Cancelled -Value $null
     }
+
     $selected = [System.Collections.Generic.HashSet[int]]::new()
 
     while ($true)

@@ -55,6 +55,7 @@ GameWIP::IO::Types::Status saveAndLoadSettings()
 
     return GameWIP::IO::successStatus();
 }
+
 ```
 
 Text helpers enforce strict UTF-8 (@ref io_utf8_policy). Use the byte helpers for arbitrary content.
@@ -92,6 +93,7 @@ GameWIP::IO::Types::Status inspectPrefix(const GameWIP::FileSystem::Types::Path&
     status = reader.close();
     return status;
 }
+
 ```
 
 Close explicitly when close or configured flush-on-close failure must be observed. Destructors perform best-effort cleanup and cannot report failure.
@@ -109,6 +111,7 @@ GameWIP::IO::Types::Status replaceSave(std::string_view json)
 
     return GameWIP::FileSystem::writeAllTextAtomic("saves/profile.json", json, options);
 }
+
 ```
 
 There is no non-atomic fallback. Failure before commit preserves an existing destination. A late parent-directory flush failure can be returned after

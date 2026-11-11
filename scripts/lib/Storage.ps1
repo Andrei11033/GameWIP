@@ -66,6 +66,7 @@ function Update-GameWipProcessPath
             }
         }
     }
+
     $env:Path = $entries -join [IO.Path]::PathSeparator
 }
 
@@ -119,6 +120,7 @@ function Get-GameWipCanonicalPath
     {
         return $canonical
     }
+
     [char[]]$trimCharacters = @([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) | Select-Object -Unique
     return $canonical.TrimEnd($trimCharacters)
 }
@@ -193,12 +195,14 @@ function Invoke-GameWipOwnedTreeRemoval
     {
         return
     }
+
     $canonicalPath = Assert-GameWipSafeChildPath -Path $Path -OwnedRoot $OwnedRoot
 
     if ($RequireMarker -and -not (Test-Path -LiteralPath (Join-Path $canonicalPath $MarkerName) -PathType Leaf))
     {
         throw "Refusing to delete unmarked GameWIP tree '$canonicalPath'."
     }
+
     Assert-GameWipNoReparsePointInOwnedTree -Path $canonicalPath
 
     if (-not $SuppressMutationTracking)
@@ -214,6 +218,7 @@ function Complete-GameWipOperationTemp
     {
         return
     }
+
     $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
     Invoke-GameWipOwnedTreeRemoval -Path $Script:OperationContext.Temp -OwnedRoot $tempRoot -RequireMarker -SuppressMutationTracking
     $Script:OperationContext.Temp = $null

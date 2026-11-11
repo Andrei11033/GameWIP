@@ -220,7 +220,7 @@ namespace GameWIP::Debug::Assert::Detail
 #else
         *static_cast<volatile int *>(nullptr) = 0;
 
-        for (;;)
+        for(;;)
         {
         }
 #endif
@@ -320,11 +320,11 @@ namespace GameWIP::Debug::Assert::Detail
 #define ASSERT(condition) \
     do \
     { \
-        if (!(condition)) [[unlikely]] \
+        if(!(condition)) [[unlikely]] \
         { \
             ASSERT_INTERNAL_ASSERT_FAILURE(condition, ""); \
         } \
-    } while (false)
+    } while(false)
 
 /// @def ASSERT_MSG(condition, message)
 /// @brief Fatal debug assertion with a custom diagnostic message.
@@ -335,11 +335,11 @@ namespace GameWIP::Debug::Assert::Detail
 #define ASSERT_MSG(condition, message) \
     do \
     { \
-        if (!(condition)) [[unlikely]] \
+        if(!(condition)) [[unlikely]] \
         { \
             ASSERT_INTERNAL_ASSERT_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
         } \
-    } while (false)
+    } while(false)
 
 /// @def ASSERT_INTERACTIVE(condition)
 /// @brief Fatal debug assertion with interactive developer failure choices.
@@ -354,14 +354,14 @@ namespace GameWIP::Debug::Assert::Detail
     do \
     { \
         static std::atomic_bool assertAlwaysIgnored{false}; \
-        if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
+        if(!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
         { \
-            if (!(condition)) [[unlikely]] \
+            if(!(condition)) [[unlikely]] \
             { \
                 ASSERT_INTERNAL_INTERACTIVE_ASSERT_FAILURE(condition, "", &assertAlwaysIgnored); \
             } \
         } \
-    } while (false)
+    } while(false)
 
 /// @def ASSERT_INTERACTIVE_MSG(condition, message)
 /// @brief ASSERT_INTERACTIVE with a custom diagnostic message.
@@ -371,14 +371,14 @@ namespace GameWIP::Debug::Assert::Detail
     do \
     { \
         static std::atomic_bool assertAlwaysIgnored{false}; \
-        if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
+        if(!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
         { \
-            if (!(condition)) [[unlikely]] \
+            if(!(condition)) [[unlikely]] \
             { \
                 ASSERT_INTERNAL_INTERACTIVE_ASSERT_FAILURE(condition, message, &assertAlwaysIgnored); \
             } \
         } \
-    } while (false)
+    } while(false)
 
 /// @def VERIFY(condition)
 /// @brief Assertion-style check that always evaluates condition.
@@ -405,15 +405,15 @@ namespace GameWIP::Debug::Assert::Detail
     do \
     { \
         const bool assertCondition_ = static_cast<bool>(condition); \
-        if (!assertCondition_) [[unlikely]] \
+        if(!assertCondition_) [[unlikely]] \
         { \
             static std::atomic_bool assertAlwaysIgnored{false}; \
-            if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
+            if(!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
             { \
                 ASSERT_INTERNAL_INTERACTIVE_ASSERT_FAILURE(condition, "", &assertAlwaysIgnored); \
             } \
         } \
-    } while (false)
+    } while(false)
 
 /// @def VERIFY_INTERACTIVE_MSG(condition, message)
 /// @brief VERIFY_INTERACTIVE with a custom diagnostic message.
@@ -423,15 +423,15 @@ namespace GameWIP::Debug::Assert::Detail
     do \
     { \
         const bool assertCondition_ = static_cast<bool>(condition); \
-        if (!assertCondition_) [[unlikely]] \
+        if(!assertCondition_) [[unlikely]] \
         { \
             static std::atomic_bool assertAlwaysIgnored{false}; \
-            if (!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
+            if(!assertAlwaysIgnored.load(std::memory_order_relaxed)) \
             { \
                 ASSERT_INTERNAL_INTERACTIVE_ASSERT_FAILURE(condition, message, &assertAlwaysIgnored); \
             } \
         } \
-    } while (false)
+    } while(false)
 
 /// @def UNREACHABLE()
 /// @brief Marks a code path that should never execute.
@@ -446,7 +446,7 @@ namespace GameWIP::Debug::Assert::Detail
             ASSERT_INTERNAL_FILE_TEXT, \
             ASSERT_INTERNAL_LINE_VALUE, \
             ASSERT_INTERNAL_FUNCTION_TEXT); \
-    } while (false)
+    } while(false)
 #else
 /// @def ASSERT(condition)
 /// @brief Debug assertion compiled out when ASSERT_ENABLED is 0.
@@ -513,11 +513,11 @@ namespace GameWIP::Debug::Assert::Detail
 #define CHECK(condition) \
     do \
     { \
-        if (!(condition)) [[unlikely]] \
+        if(!(condition)) [[unlikely]] \
         { \
             ASSERT_INTERNAL_CHECK_FAILURE(condition, ""); \
         } \
-    } while (false)
+    } while(false)
 
 /// @def CHECK_MSG(condition, message)
 /// @brief Recoverable check with a custom diagnostic message.
@@ -526,11 +526,11 @@ namespace GameWIP::Debug::Assert::Detail
 #define CHECK_MSG(condition, message) \
     do \
     { \
-        if (!(condition)) [[unlikely]] \
+        if(!(condition)) [[unlikely]] \
         { \
             ASSERT_INTERNAL_CHECK_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
         } \
-    } while (false)
+    } while(false)
 
 /// @def CHECK_ONCE(condition)
 /// @brief Recoverable check that reports only the first failure at this call site.
@@ -543,15 +543,15 @@ namespace GameWIP::Debug::Assert::Detail
 #define CHECK_ONCE(condition) \
     do \
     { \
-        if (!(condition)) [[unlikely]] \
+        if(!(condition)) [[unlikely]] \
         { \
             static std::atomic_bool assertCheckReported_{false}; \
-            if (!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
+            if(!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
             { \
                 ASSERT_INTERNAL_CHECK_FAILURE(condition, ""); \
             } \
         } \
-    } while (false)
+    } while(false)
 
 /// @def CHECK_ONCE_MSG(condition, message)
 /// @brief CHECK_ONCE with a custom diagnostic message.
@@ -560,15 +560,15 @@ namespace GameWIP::Debug::Assert::Detail
 #define CHECK_ONCE_MSG(condition, message) \
     do \
     { \
-        if (!(condition)) [[unlikely]] \
+        if(!(condition)) [[unlikely]] \
         { \
             static std::atomic_bool assertCheckReported_{false}; \
-            if (!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
+            if(!assertCheckReported_.load(std::memory_order_relaxed) && !assertCheckReported_.exchange(true, std::memory_order_relaxed)) \
             { \
                 ASSERT_INTERNAL_CHECK_FAILURE(condition, ASSERT_INTERNAL_MESSAGE_TEXT(message)); \
             } \
         } \
-    } while (false)
+    } while(false)
 
 /// @def ENSURE(condition)
 /// @brief Evaluates condition once, reports when false, and returns the boolean result.
@@ -581,7 +581,7 @@ namespace GameWIP::Debug::Assert::Detail
         [&](const char *assertFunction_) -> bool \
         { \
             const bool assertCondition_ = static_cast<bool>(condition); \
-            if (!assertCondition_) [[unlikely]] \
+            if(!assertCondition_) [[unlikely]] \
             { \
                 ASSERT_INTERNAL_CHECK_FAILURE_AT(condition, "", assertFunction_); \
             } \
@@ -598,7 +598,7 @@ namespace GameWIP::Debug::Assert::Detail
         [&](const char *assertFunction_) -> bool \
         { \
             const bool assertCondition_ = static_cast<bool>(condition); \
-            if (!assertCondition_) [[unlikely]] \
+            if(!assertCondition_) [[unlikely]] \
             { \
                 ASSERT_INTERNAL_CHECK_FAILURE_AT(condition, message, assertFunction_); \
             } \
@@ -658,5 +658,5 @@ namespace GameWIP::Debug::Assert::Detail
     do \
     { \
         ::GameWIP::Debug::Assert::Detail::debugBreakInline(); \
-    } while (false)
+    } while(false)
 /// @}

@@ -1,5 +1,5 @@
 /// @file output_test.inl
-/// @brief Focused terminal output correctness suites.
+/// @brief Focused Terminal output tests.
 
 /// @brief Verifies formatter reentry without allowing a deadlock to hang the parent suite.
 void testReentrantFormatting(TestSupport::Context &context, const std::filesystem::path &executablePath)
@@ -149,6 +149,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         "styled write emits SGR and reset",
         std::string{"\x1b[1;91mhot\x1b[0m"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
+
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     static_cast<void>(context.expectTrue("redirected styled output falls back to plain text", Terminal::writeText("redirected", styledOptions).ok()));
@@ -193,6 +194,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("formatted print succeeds", Terminal::print("value {}", 42).ok()));
     static_cast<void>(
         context.expectEq("formatted print capture", std::string{"value 42"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
+
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(
         context.expectEq("formatted print failure returns status", ErrorCode::InvalidArgument, Terminal::print("{}", TerminalThrowingFormat{}).code));
@@ -205,6 +207,7 @@ void testTextAndStyleOutput(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("formatted println succeeds", Terminal::println(printLineOptions, "line {}", 7).ok()));
     static_cast<void>(
         context.expectEq("formatted println capture", std::string{"line 7\n"}, Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
+
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     static_cast<void>(context.expectEq(
         "formatted println failure returns status",
@@ -314,6 +317,7 @@ void testSegmentedAndByteOutput(TestSupport::Context &context)
         "segmented write preserves order",
         std::string{"a\x1b[1mb\x1b[0mc\n"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
+
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     const std::array<Terminal::Types::Output::Segment, 1> plainSegments{Terminal::textSegment("plain")};
     Hooks::forceNextOutputCapabilityFailure(ErrorCode::StatFailed);
@@ -376,6 +380,7 @@ void testSegmentedAndByteOutput(TestSupport::Context &context)
         Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(unsupportedSegments)).code));
     static_cast<void>(
         context.expectTrue("unsupported segment batch emits nothing", Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
+
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);

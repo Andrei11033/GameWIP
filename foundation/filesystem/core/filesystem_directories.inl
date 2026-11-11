@@ -7,11 +7,11 @@ IO::Types::Status createDirectory(const Types::Path &path, const Types::Director
     {
         return Detail::Platform::createDirectory(path, options);
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return IO::makeStatus(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return IO::makeStatus(ErrorCode::Unknown);
     }
@@ -23,11 +23,11 @@ IO::Types::Status createDirectories(const Types::Path &path, const Types::Direct
     {
         return Detail::Platform::createDirectories(path, options);
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return IO::makeStatus(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return IO::makeStatus(ErrorCode::Unknown);
     }
@@ -40,35 +40,35 @@ Types::Directory::ListResult listDirectory(const Types::Path &path, const Types:
         DirectoryCursor cursor;
         IO::Types::Status openStatus = cursor.open(path, options);
 
-        if (!openStatus.ok())
+        if(!openStatus.ok())
         {
             return listDirectoryFailure(std::move(openStatus));
         }
 
         Types::Directory::ListResult result{.status = IO::successStatus()};
 
-        while (true)
+        while(true)
         {
             Types::Directory::CursorNextResult next = cursor.next();
 
-            if (!next.status.ok())
+            if(!next.status.ok())
             {
                 result.status = std::move(next.status);
                 return result;
             }
 
-            if (!next.hasEntry)
+            if(!next.hasEntry)
             {
                 return result;
             }
             result.entries.push_back(std::move(next.entry));
         }
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return listDirectoryFailure(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return listDirectoryFailure(ErrorCode::Unknown);
     }
@@ -78,23 +78,22 @@ IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::Rem
 {
     try
     {
-        if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
+        if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
         {
             return IO::makeStatus(ErrorCode::InvalidArgument);
         }
 
-        if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+        if(options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
         {
             return IO::makeStatus(ErrorCode::Unsupported);
         }
-
         return Detail::Platform::removeEmptyDirectory(path, options);
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return IO::makeStatus(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return IO::makeStatus(ErrorCode::Unknown);
     }
@@ -104,38 +103,35 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
 {
     try
     {
-        if (path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
+        if(path.empty() || !isValidSymlinkPolicy(options.symlinkPolicy))
         {
             return removeTreeFailure(ErrorCode::InvalidArgument);
         }
-
         Detail::Platform::EntryQueryResult existing = queryEntry(path, options.symlinkPolicy);
 
-        if (!existing.status.ok())
+        if(!existing.status.ok())
         {
-            if (existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
+            if(existing.status.code == ErrorCode::NotFound && options.succeedIfMissing)
             {
                 return {.status = IO::successStatus(), .removedEntries = 0};
             }
-
             return removeTreeFailure(std::move(existing.status));
         }
 
-        if (existing.info.kind != Types::EntryKind::Directory)
+        if(existing.info.kind != Types::EntryKind::Directory)
         {
             return removeTreeFailure(ErrorCode::NotDirectory);
         }
 
-        if (options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
+        if(options.symlinkPolicy != Types::SymlinkPolicy::DoNotFollow && finalEntryIsSymlink(path))
         {
             return removeTreeFailure(ErrorCode::Unsupported);
         }
 
-        if (options.maxEntries == 0)
+        if(options.maxEntries == 0)
         {
             return removeTreeFailure(ErrorCode::SizeLimitExceeded);
         }
-
         struct RemovalFrame
         {
             Types::Path path;
@@ -149,22 +145,21 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
 
         std::uint64_t removedEntries = 0;
 
-        while (!pending.empty())
+        while(!pending.empty())
         {
-            if (removedEntries >= options.maxEntries)
+            if(removedEntries >= options.maxEntries)
             {
                 return removeTreeFailure(ErrorCode::SizeLimitExceeded, removedEntries);
             }
-
             RemovalFrame &current = pending.back();
 
-            if (current.info.kind == Types::EntryKind::Directory)
+            if(current.info.kind == Types::EntryKind::Directory)
             {
-                if (!current.cursor)
+                if(!current.cursor)
                 {
                     Detail::Platform::DirectoryCursorOpenResult opened;
 
-                    if (pending.size() == 1)
+                    if(pending.size() == 1)
                     {
                         opened = Detail::Platform::openDirectoryCursor(current.path, Types::SymlinkPolicy::DoNotFollow);
                     }
@@ -174,7 +169,7 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
                         opened = Detail::Platform::openChildDirectoryCursor(*parent.cursor, current.path, Types::SymlinkPolicy::DoNotFollow);
                     }
 
-                    if (!opened.status.ok())
+                    if(!opened.status.ok())
                     {
                         return removeTreeFailure(opened.status, removedEntries);
                     }
@@ -183,12 +178,12 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
 
                 Detail::Platform::DirectoryCursorNextResult child = Detail::Platform::readDirectoryCursor(*current.cursor);
 
-                if (!child.status.ok())
+                if(!child.status.ok())
                 {
                     return removeTreeFailure(child.status, removedEntries);
                 }
 
-                if (child.hasEntry)
+                if(child.hasEntry)
                 {
                     pending.push_back(RemovalFrame{.path = std::move(child.entry.path), .info = child.entry.info});
                     continue;
@@ -203,7 +198,7 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
                           Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow})
                     : removeFile(current.path, Types::RemoveOptions{.succeedIfMissing = false, .symlinkPolicy = Types::SymlinkPolicy::DoNotFollow});
 
-            if (!removeStatus.ok())
+            if(!removeStatus.ok())
             {
                 return removeTreeFailure(removeStatus, removedEntries);
             }
@@ -213,11 +208,11 @@ Types::Directory::RemoveTreeResult removeDirectoryTree(const Types::Path &path, 
 
         return {.status = IO::successStatus(), .removedEntries = removedEntries};
     }
-    catch (const std::bad_alloc &)
+    catch(const std::bad_alloc &)
     {
         return removeTreeFailure(ErrorCode::OutOfMemory);
     }
-    catch (...)
+    catch(...)
     {
         return removeTreeFailure(ErrorCode::Unknown);
     }

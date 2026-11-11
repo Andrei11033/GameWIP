@@ -33,11 +33,15 @@ return exitCode;
 ```cpp
 const auto write = TS::writeTextFile(path, "Grüße λ");
 if (!write.ok())
+{
     return;
+}
 
 const TS::Types::TextResult read = TS::readTextFile(path);
 if (read.status.ok())
+{
     context.expectContains("fixture", read.text, "λ");
+}
 ```
 
 Malformed UTF-8 returns `Types::InfrastructureError::EncodingFailed`. `writeTextFile()` performs that validation before creating parents or truncating
@@ -58,9 +62,13 @@ options.environmentOverrides = {
 
 const TS::Types::Process::Result result = TS::runChildProcess(options);
 if (!result.status.ok())
+{
     context.fail("child infrastructure", TS::formatInfrastructureStatus(result.status));
+}
 else if (result.outcome == TS::Types::Process::Outcome::Exited)
+{
     context.expectEq("child exit", std::uint32_t{0}, result.exitCode);
+}
 ```
 
 `result.outputBytes` is arbitrary combined stdout/stderr bytes. A caller may decode it only when the child protocol itself guarantees an encoding.
@@ -82,15 +90,21 @@ context.pass("setup complete");
 ```cpp
 TS::ScopedTemporaryDirectory workspace("fixture");
 if (!workspace.status().ok())
+{
     return;
+}
 
 TS::ScopedProcessState processState;
 if (!processState.status().ok())
+{
     return;
+}
 
 const auto path = workspace.path() / "sample.txt";
 if (!TS::writeTextFile(path, "alpha beta alpha").ok())
+{
     return;
+}
 
 const TS::Types::BoolResult exists = TS::fileExists(path);
 static_cast<void>(context.expectTrue("sample exists", exists.status.ok() && exists.value));
@@ -99,7 +113,9 @@ static_cast<void>(context.expectFileOccurrenceCount("alpha count", path, "alpha"
 {
     TS::ScopedCurrentPath currentPath(processState, workspace.path());
     if (currentPath.status().ok())
+    {
         static_cast<void>(TS::writeTextFile("relative.txt", "fixture"));
+    }
 }
 ```
 
@@ -111,13 +127,17 @@ The current directory is process-global; use `ScopedCurrentPath` only while the 
 {
     TS::ScopedEnvironmentVariable value(processState, "GAMEWIP_TEST_MODE", "enabled");
     if (!value.status().ok())
+    {
         return;
+    }
 }
 
 {
     TS::ScopedUnsetEnvironmentVariable unset(processState, "GAMEWIP_TEST_MODE");
     if (!unset.status().ok())
+    {
         return;
+    }
 }
 ```
 
@@ -130,7 +150,9 @@ the restoration status must be observed before scope exit.
 const TS::Types::Reporting::ManualAnswer answer =
     TS::promptManualCheck("Did the expected UI appear?");
 if (answer == TS::Types::Reporting::ManualAnswer::No)
+{
     context.fail("manual UI", "expected UI was not observed");
+}
 
 {
     TS::Section section(context, "startup");
@@ -175,7 +197,9 @@ try
         [](std::size_t workerIndex)
         {
             if (workerIndex == 1)
+            {
                 throw std::runtime_error("worker failed");
+            }
         });
 }
 catch (const std::runtime_error&)

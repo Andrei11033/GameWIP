@@ -267,6 +267,8 @@ GameWIP::Desktop::TrayIcon::close
 GameWIP::Desktop::TrayIcon::setIcon
 GameWIP::Desktop::TrayIcon::setTooltip
 GameWIP::Desktop::TrayIcon::setMenu
+GameWIP::Desktop::Native::Win32::attachMessageSink
+GameWIP::Desktop::Native::Win32::detachMessageSink
 GameWIP::Desktop::NotificationCenter::NotificationCenter
 GameWIP::Desktop::NotificationCenter::~NotificationCenter
 GameWIP::Desktop::NotificationCenter::open
