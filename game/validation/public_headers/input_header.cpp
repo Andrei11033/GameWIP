@@ -3,4 +3,4 @@
 
 #include "input/input.h"
 
-static_assert(GameWIP::Input::Types::DeviceId{}.isValid() == false);
+static_assert(GameWIP::Input::Types::DeviceId{}.isValid());
