@@ -121,9 +121,8 @@ startup wiring into runtime composition.
 `run()` performs this runtime sequence:
 
 1. Initialize Logger console output at Debug severity and register the runtime's
-   Startup, Display, Input, Window, Shutdown, and Diagnostics areas. Their names
-   and RGB label colors are defined in `game/runtime/logging.h` before logging
-   begins.
+   Startup, Display, Input, Window, and Shutdown areas. Their names and RGB
+   label colors are defined in `game/runtime/logging.h` before logging begins.
 2. Enumerate connected displays and query each display's active mode, supported
    modes, and HDR/color information. Emit one Info report per display containing
    its inventory, active mode, and color capabilities, plus a Debug report of

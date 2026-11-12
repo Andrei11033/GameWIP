@@ -81,12 +81,12 @@ namespace
     }
 
     /// @brief Formats the inventory, active mode, and color capabilities of one display.
-    [[nodiscard]] std::string formatDisplayReport(const Display::Info &monitor)
+    [[nodiscard]] std::string formatDisplayReport(
+        const Display::Info &monitor,
+        const GameWIP::Desktop::Types::Result<Display::Mode> &activeMode,
+        const GameWIP::Desktop::Types::Result<std::vector<Display::Mode>> &supportedModes,
+        const GameWIP::Desktop::Types::Result<Display::ColorInfo> &colorInfo)
     {
-        const auto activeMode = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
-        const auto supportedModes = GameWIP::Desktop::Display::getModes(monitor.id);
-        const auto colorInfo = GameWIP::Desktop::Display::getColorInfo(monitor.id);
-
         std::string report;
         std::format_to(
             std::back_inserter(report),
@@ -116,6 +116,10 @@ namespace
                 activeMode->bitsPerPixel,
                 activeMode->interlaced ? ", interlaced" : "");
         }
+        else
+        {
+            std::format_to(std::back_inserter(report), "\n  active mode query failed: {}", activeMode.status.message);
+        }
 
         if(colorInfo.ok())
         {
@@ -142,10 +146,10 @@ namespace
     }
 
     /// @brief Formats the grouped supported-mode list, or an empty string when none can be queried.
-    [[nodiscard]] std::string formatSupportedModeReport(const Display::Info &monitor)
+    [[nodiscard]] std::string formatSupportedModeReport(
+        const Display::Info &monitor,
+        const GameWIP::Desktop::Types::Result<std::vector<Display::Mode>> &supportedModes)
     {
-        const auto supportedModes = GameWIP::Desktop::Display::getModes(monitor.id);
-
         if(!supportedModes.ok() || supportedModes->empty())
         {
             return {};
@@ -170,12 +174,21 @@ namespace GameWIP::Game
         }
         Logger::debug(Logging::Area::Display, "Enumerated {} connected display(s)", Logger::number(monitors->size()));
 
+        if(!Logger::shouldLog(Logger::Types::Level::Debug, Logging::Area::Display))
+        {
+            return monitors;
+        }
+
         for(const Desktop::Types::Display::Info &monitor : *monitors)
         {
-            Logger::debug(Logging::Area::Display, "{}", formatDisplayReport(monitor));
+            const auto activeMode = Desktop::Display::getCurrentMode(monitor.id);
+            const auto supportedModes = Desktop::Display::getModes(monitor.id);
+            const auto colorInfo = Desktop::Display::getColorInfo(monitor.id);
+
+            Logger::debug(Logging::Area::Display, "{}", formatDisplayReport(monitor, activeMode, supportedModes, colorInfo));
 
             // The full mode list is long, so it is kept at Debug to leave normal startup output short.
-            if(const std::string modes = formatSupportedModeReport(monitor); !modes.empty())
+            if(const std::string modes = formatSupportedModeReport(monitor, supportedModes); !modes.empty())
             {
                 Logger::debug(Logging::Area::Display, "{}", modes);
             }

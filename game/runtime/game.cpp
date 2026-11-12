@@ -43,13 +43,15 @@ namespace
     {
         const std::string_view statusMessage = status.message.empty() ? std::string_view{"<none>"} : std::string_view{status.message};
         const std::string_view errorCode = GameWIP::IO::errorCodeName(status.code);
-        const std::string message = std::format("{}: {} (code={}, nativeCode={})", action, statusMessage, errorCode, status.nativeCode);
 
+#if GAMEWIP_TRACY_ENABLED
+        const std::string message = std::format("{}: {} (code={}, nativeCode={})", action, statusMessage, errorCode, status.nativeCode);
         GameWIP::Profiling::message(message);
+#endif
 
         Logger::error(
             area,
-            Logger::record().field("action", action).field("native_code", status.nativeCode),
+            Logger::record().field("action", action).field("error_code", errorCode).field("native_code", status.nativeCode),
             "{}: \"{}\" (code={}, nativeCode={})",
             action,
             Logger::quoted(statusMessage),
