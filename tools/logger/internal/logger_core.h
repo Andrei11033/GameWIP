@@ -452,12 +452,14 @@ namespace GameWIP::Logger::Detail::Core
     {
         SourceId id = 0;
         std::string name;
+        std::optional<Color> color;
         mutable std::atomic<bool> enabled{true};
 
         RegisteredSource() = default;
-        RegisteredSource(SourceId source, std::string displayName, bool sourceEnabled)
+        RegisteredSource(SourceId source, std::string displayName, std::optional<Color> sourceColor, bool sourceEnabled)
             : id(source)
             , name(std::move(displayName))
+            , color(sourceColor)
             , enabled(sourceEnabled)
         {
         }
@@ -465,6 +467,7 @@ namespace GameWIP::Logger::Detail::Core
         RegisteredSource(const RegisteredSource &other)
             : id(other.id)
             , name(other.name)
+            , color(other.color)
             , enabled(other.enabled.load(std::memory_order_relaxed))
         {
         }
@@ -472,6 +475,7 @@ namespace GameWIP::Logger::Detail::Core
         RegisteredSource(RegisteredSource &&other) noexcept
             : id(other.id)
             , name(std::move(other.name))
+            , color(other.color)
             , enabled(other.enabled.load(std::memory_order_relaxed))
         {
         }
@@ -482,6 +486,7 @@ namespace GameWIP::Logger::Detail::Core
             {
                 id = other.id;
                 name = other.name;
+                color = other.color;
                 enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
             }
 
@@ -494,6 +499,7 @@ namespace GameWIP::Logger::Detail::Core
             {
                 id = other.id;
                 name = std::move(other.name);
+                color = other.color;
                 enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
             }
 
@@ -533,6 +539,7 @@ namespace GameWIP::Logger::Detail::Core
     {
         bool valid = false;
         std::time_t second = 0;
+        std::string formatText;
         std::string text;
     };
 
@@ -554,6 +561,7 @@ namespace GameWIP::Logger::Detail::Core
     // Process-wide logger state
     // ------------------------------------------------------------
 
+    // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding): Keep lifecycle and queue fields grouped by subsystem.
     struct LoggerState
     {
         LogLevel minLevel = LogLevel::Info;
@@ -566,7 +574,15 @@ namespace GameWIP::Logger::Detail::Core
         FormatPolicy formatPolicy = FormatPolicy::StrictBounded;
         std::size_t inlineMessageCapacity = kDefaultInlineMessageCapacity;
         std::size_t workerBatchSize = kDefaultWorkerBatchSize;
+        std::size_t sourceNameWidth = 0;
         bool consoleColorEnabled = true;
+        Theme theme{};
+        FieldLayout fieldLayout = FieldLayout::Adaptive;
+        std::string timestampFormat = "%H:%M:%S.%f";
+        AtomicSharedPointer<const std::string> layoutTemplate;
+        std::atomic<std::size_t> maxRecordFieldsAtomic{8};
+        std::atomic<std::size_t> maxFieldKeyLengthAtomic{64};
+        std::atomic<std::size_t> maxFieldValueLengthAtomic{512};
         bool debugOutputEnabled = true;
         bool fatalPopupEnabled = true;
         bool flushFileEveryBatch = false;
@@ -673,7 +689,6 @@ namespace GameWIP::Logger::Detail::Core
     struct LogStyle
     {
         const char *text = "UNKNOWN";
-        Terminal::Types::Style::Request terminalStyle{};
         bool useStderr = true;
     };
 
@@ -838,13 +853,15 @@ namespace GameWIP::Logger::Detail::Core
         std::string_view message,
         bool unknownSource = false,
         bool alreadyTruncated = false,
-        const FlushDeadline *deadline = nullptr);
+        const FlushDeadline *deadline = nullptr,
+        Color sourceColor = Color::White);
     ReportSinkProgress writeReportSynchronously(
         LogLevel level,
         SourceId source,
         std::string_view message,
         bool alreadyTruncated = false,
         const FlushDeadline *deadline = nullptr);
+    Status writeDebugOutputInternal(LogLevel level, std::string_view source, std::string_view message) noexcept;
     SinkWriteResult writeLogEntry(
         const QueuedLogEntry &entry,
         TimestampCache &timestampCache,
@@ -863,6 +880,7 @@ namespace GameWIP::Logger::Detail::Core
         std::size_t inlineMessageCapacity,
         std::size_t workerBatchSize,
         std::uint8_t levelMask,
+        std::shared_ptr<const std::string> &&layoutTemplate,
         std::shared_ptr<SourceRegistry> sourceRegistry,
         std::unique_ptr<QueueSlot[]> &&ring,
         std::size_t ringSize,

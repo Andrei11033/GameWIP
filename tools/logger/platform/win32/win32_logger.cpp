@@ -316,7 +316,7 @@ namespace GameWIP::Logger::Detail::Platform
             std::ranges::copy(timeFormat, formatBuffer);
         }
 
-        char timeBuffer[64]{};
+        char timeBuffer[128]{};
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wformat-nonliteral"
@@ -364,5 +364,10 @@ namespace GameWIP::Logger::Detail::Platform
             return {};
         }
         return {static_cast<std::size_t>(counters.WorkingSetSize), static_cast<std::size_t>(counters.PrivateUsage), true};
+    }
+
+    std::uint32_t currentProcessId() noexcept
+    {
+        return static_cast<std::uint32_t>(GetCurrentProcessId());
     }
 } // namespace GameWIP::Logger::Detail::Platform

@@ -15,6 +15,24 @@ namespace GameWIP::Logger::Detail::Core
         return state;
     }
 
+    FieldLayout getFieldLayoutForFormatting() noexcept
+    {
+        return loggerState().fieldLayout;
+    }
+
+    std::shared_ptr<const std::string> getLayoutTemplateForFormatting() noexcept
+    {
+        return loggerState().layoutTemplate.load(std::memory_order_acquire);
+    }
+
+    RecordLimits getRecordLimitsForFormatting() noexcept
+    {
+        return {
+            loggerState().maxRecordFieldsAtomic.load(std::memory_order_acquire),
+            loggerState().maxFieldKeyLengthAtomic.load(std::memory_order_acquire),
+            loggerState().maxFieldValueLengthAtomic.load(std::memory_order_acquire)};
+    }
+
     std::uint8_t toLevelValue(LogLevel level)
     {
         return static_cast<std::uint8_t>(level);
@@ -250,27 +268,25 @@ namespace GameWIP::Logger::Detail::Core
 
     LogStyle getLogStyle(LogLevel level)
     {
-        const auto colored = [](const char *text, Terminal::Types::Style::BasicColor color, bool stderrStream)
+        const auto styled = [](const char *text, bool stderrStream)
         {
-            Terminal::Types::Style::Request style;
-            style.foreground = Terminal::basicColor(color);
-            return LogStyle{text, style, stderrStream};
+            return LogStyle{text, stderrStream};
         };
 
         switch(level)
         {
         case LogLevel::Trace:
-            return colored("TRACE", Terminal::Types::Style::BasicColor::BrightBlack, false);
+            return styled("TRACE", false);
         case LogLevel::Debug:
-            return colored("DEBUG", Terminal::Types::Style::BasicColor::Cyan, false);
+            return styled("DEBUG", false);
         case LogLevel::Info:
-            return {"INFO", {}, false};
+            return {"INFO", false};
         case LogLevel::Warn:
-            return colored("WARN", Terminal::Types::Style::BasicColor::Yellow, false);
+            return styled("WARN", false);
         case LogLevel::Error:
-            return colored("ERROR", Terminal::Types::Style::BasicColor::Red, true);
+            return styled("ERROR", true);
         case LogLevel::Fatal:
-            return colored("FATAL", Terminal::Types::Style::BasicColor::Red, true);
+            return styled("FATAL", true);
         }
 
         return {};
@@ -341,6 +357,7 @@ namespace GameWIP::Logger::Detail::Core
         std::size_t inlineMessageCapacity,
         std::size_t workerBatchSize,
         std::uint8_t levelMask,
+        std::shared_ptr<const std::string> &&layoutTemplate,
         std::shared_ptr<SourceRegistry> sourceRegistry,
         std::unique_ptr<QueueSlot[]> &&ring,
         std::size_t ringSize,
@@ -359,7 +376,17 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().formatPolicy = config.formatPolicy;
         loggerState().inlineMessageCapacity = inlineMessageCapacity;
         loggerState().workerBatchSize = workerBatchSize;
+
+        loggerState().sourceNameWidth = 0;
         loggerState().consoleColorEnabled = config.enableConsoleColor;
+        loggerState().theme = config.theme;
+        loggerState().fieldLayout = config.fieldLayout;
+        loggerState().timestampFormat = config.timestampFormat;
+        loggerState().layoutTemplate.store(std::move(layoutTemplate), std::memory_order_release);
+        loggerState().maxRecordFieldsAtomic.store(config.maxRecordFields, std::memory_order_release);
+        loggerState().maxFieldKeyLengthAtomic.store(config.maxFieldKeyLength, std::memory_order_release);
+        loggerState().maxFieldValueLengthAtomic.store(config.maxFieldValueLength, std::memory_order_release);
+
         loggerState().debugOutputEnabled = config.enableDebugOutput;
         loggerState().fatalPopupEnabled = config.enableFatalPopup;
         loggerState().flushFileEveryBatch = config.flushFileEveryBatch;
@@ -369,6 +396,18 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().enabledLevelMask = levelMask;
 
         loggerState().sourceRegistry.store(std::move(sourceRegistry), std::memory_order_release);
+        {
+            std::lock_guard<std::mutex> timestampLock(loggerState().debugTimestampMutex);
+            loggerState().debugTimestampCache = {};
+        }
+        if(const auto registry = loggerState().sourceRegistry.load(std::memory_order_acquire))
+        {
+            for(const RegisteredSource &source : registry->sources)
+            {
+                loggerState().sourceNameWidth = std::max(loggerState().sourceNameWidth, source.name.size());
+            }
+        }
+
         loggerState().ringMessageArena = std::move(ringArena);
         loggerState().batchMessageArena = std::move(batchArena);
         loggerState().logRing = std::move(ring);

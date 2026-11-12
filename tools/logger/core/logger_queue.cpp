@@ -164,6 +164,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().hardQueueSize = 0;
         loggerState().workerBatchSize = 0;
         loggerState().inlineMessageCapacity = 0;
+        loggerState().layoutTemplate.store(std::shared_ptr<const std::string>{}, std::memory_order_release);
     }
 
     /// @brief Clears logical entry state while applying the configured heap-retention policy.

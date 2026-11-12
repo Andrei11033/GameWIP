@@ -65,6 +65,7 @@ namespace GameWIP::Logger::Detail::Core
             std::size_t maxMessageLength = 0;
             std::size_t inlineMessageCapacity = 0;
             std::size_t workerBatchSize = 0;
+            std::shared_ptr<const std::string> layoutTemplate;
             std::uint8_t levelMask = kAllLevelMask;
             std::shared_ptr<SourceRegistry> sourceRegistry;
         };
@@ -84,11 +85,26 @@ namespace GameWIP::Logger::Detail::Core
             Types::Init::Adjustment &adjustments,
             Status &outStatus)
         {
-            if(!isValidOutputMode(config.output) || !isValidLevel(config.minLevel) || !isValidFormatPolicy(config.formatPolicy))
+            if(!isValidOutputMode(config.output) || !isValidLevel(config.minLevel) || !isValidFormatPolicy(config.formatPolicy) ||
+               !Detail::isValidFieldLayout(config.fieldLayout) || !Detail::isValidTheme(config.theme) ||
+               !Detail::isValidTimestampFormat(config.timestampFormat) || !Detail::isValidLayoutTemplate(config.layout.text))
             {
                 outStatus = IO::makeStatus(ErrorCode::InvalidArgument);
                 return false;
             }
+
+            if(Unicode::Utf8::validate(config.layout.text).outcome != Unicode::Types::ValidationOutcome::Valid)
+            {
+                outStatus = IO::makeStatus(ErrorCode::EncodingFailed);
+                return false;
+            }
+            if(Unicode::Utf8::validate(config.timestampFormat).outcome != Unicode::Types::ValidationOutcome::Valid)
+            {
+                outStatus = IO::makeStatus(ErrorCode::EncodingFailed);
+                return false;
+            }
+
+            prepared.layoutTemplate = std::make_shared<const std::string>(Detail::compileLayoutTemplate(config.layout.text));
 
             if(!config.logDirectory.empty() && !validUtf8(config.logDirectory))
             {
@@ -204,6 +220,7 @@ namespace GameWIP::Logger::Detail::Core
                 prepared.inlineMessageCapacity,
                 prepared.workerBatchSize,
                 prepared.levelMask,
+                std::move(prepared.layoutTemplate),
                 std::move(prepared.sourceRegistry),
                 {},
                 0,
@@ -225,6 +242,7 @@ namespace GameWIP::Logger::Detail::Core
                 prepared.inlineMessageCapacity,
                 prepared.workerBatchSize,
                 prepared.levelMask,
+                std::move(prepared.layoutTemplate),
                 std::move(prepared.sourceRegistry),
                 std::move(storage.ring),
                 storage.ringSize,

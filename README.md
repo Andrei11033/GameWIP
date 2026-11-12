@@ -81,10 +81,10 @@ docs/         Product direction and developer documentation.
 build/        Setup-managed dependency caches and generated build output.
 ```
 
-`engine/desktop` is the supported, maintained engine library. `engine/input` and
-`engine/action`, along with `engine/window_manager`, are retained reference
-sources excluded from normal builds. None of these legacy components
-should be used for new code; see the [engine boundary in the developer manual](docs/doxygen/project_structure.md#engine-libraries-and-reference-code).
+`engine/desktop` and `engine/input` are the supported, maintained engine
+libraries. `engine/action` and `engine/window_manager` remain reference sources
+excluded from normal builds and are not supported consumer APIs. See the
+[engine boundary in the developer manual](docs/doxygen/project_structure.md#engine-libraries-and-reference-code).
 
 ## License
 

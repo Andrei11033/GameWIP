@@ -32,6 +32,10 @@ capacity.
 The worker drains entries in reservation order, writes console records, batches file records, and flushes according to configuration and explicit
 synchronization requests.
 
+Configured layout templates are compiled during `init()`, and a per-record template is compiled when selected. The worker executes those prepared
+instructions for each output line. The timestamp format is rendered and cached per second; `%f` is substituted with the current millisecond value
+for each line.
+
 Runtime filters are checked again on the worker. A record accepted before a filter update can therefore be suppressed before reaching a sink.
 Consequently, `queued` can exceed `written` even when no queue-drop counter changes.
 

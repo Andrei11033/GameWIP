@@ -14,8 +14,8 @@ Query `getOutputCapabilities()` for planning, but still handle the operation sta
 
 ## Styled output is plain
 
-`Types::Style::Mode::Auto` falls back to plain text when preparation or the complete requested style is unavailable. Use
-`Types::Style::Mode::Required` only when failure is preferable to plain output.
+Check `getOutputCapabilities()` to see what the endpoint reports. `Types::Style::Mode::Auto` uses the fallback behavior described in @ref
+terminal_styling; `Types::Style::Mode::Required` returns `Unsupported` when the exact requested style is unavailable.
 
 ## A style sequence appears without its reset
 

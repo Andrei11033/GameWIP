@@ -144,7 +144,7 @@ void testAssertFailureChild(TestContext &context, const AssertTestOptions &optio
     const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
     context.expectTrue(
         "ASSERT failure child logs fatal through Logger",
-        childLogContents.contains("[FATAL][Assert]: Assert failed"),
+        childLogContents.contains("[Assert][FATAL] Assert failed"),
         "assert failure missing from child log");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
@@ -196,7 +196,7 @@ void testInteractiveAbortChild(TestContext &context, const AssertTestOptions &op
     const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
     context.expectTrue(
         "ASSERT_INTERACTIVE abort child logs fatal",
-        childLogContents.contains("[FATAL][Assert]: Assert failed"),
+        childLogContents.contains("[Assert][FATAL] Assert failed"),
         "interactive abort child fatal missing");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
@@ -248,7 +248,7 @@ void testInteractiveBreakChild(TestContext &context, const AssertTestOptions &op
     const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
     context.expectTrue(
         "ASSERT_INTERACTIVE break child logs fatal",
-        childLogContents.contains("[FATAL][Assert]: Assert failed"),
+        childLogContents.contains("[Assert][FATAL] Assert failed"),
         "interactive break child fatal missing");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(

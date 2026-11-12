@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <format>
 #include <iterator>
+#include <memory>
 #include <new>
 #include <string>
 #include <string_view>
@@ -20,6 +21,20 @@ namespace GameWIP::Logger
     /// @cond INTERNAL
     namespace Detail::Core
     {
+        // Internal message markers use bytes that cannot occur in valid UTF-8 input.
+        // This keeps formatting metadata unambiguous without reserving valid text.
+        namespace Protocol
+        {
+            inline constexpr char kStyleBegin = static_cast<char>(0xFF);
+            inline constexpr char kStyleEnd = static_cast<char>(0xFE);
+            inline constexpr char kStyleScopeBegin = static_cast<char>(0xF8);
+            inline constexpr char kStyleScopeEnd = static_cast<char>(0xF7);
+            inline constexpr char kFieldBegin = static_cast<char>(0xFD);
+            inline constexpr char kFieldEnd = static_cast<char>(0xFC);
+            inline constexpr char kLayoutBegin = static_cast<char>(0xFB);
+            inline constexpr char kLayoutSeparator = static_cast<char>(0xFA);
+        } // namespace Protocol
+
         /// @brief Converts enum sources to SourceId while preserving string-like sources.
         template <typename Source> constexpr decltype(auto) normalizeSource(Source &&source) noexcept
         {
@@ -69,6 +84,16 @@ namespace GameWIP::Logger
         LOGGER_EXPORT std::size_t getMaxMessageLengthForFormatting();
         LOGGER_EXPORT Types::FormatPolicy getFormatPolicyForFormatting();
         LOGGER_EXPORT void releaseFormatScratchIfNeeded(std::string &scratch) noexcept;
+        LOGGER_EXPORT std::uint32_t currentProcessId() noexcept;
+        LOGGER_EXPORT FieldLayout getFieldLayoutForFormatting() noexcept;
+        LOGGER_EXPORT std::shared_ptr<const std::string> getLayoutTemplateForFormatting() noexcept;
+        struct RecordLimits
+        {
+            std::size_t maxFields = 8;
+            std::size_t maxKeyLength = 64;
+            std::size_t maxValueLength = 512;
+        };
+        LOGGER_EXPORT RecordLimits getRecordLimitsForFormatting() noexcept;
 
         /// @brief RAII handle for one nested use of the per-thread formatting scratch buffer.
         /// @details Public formatting templates use this so early returns and exceptions release scratch consistently.
@@ -158,6 +183,27 @@ namespace GameWIP::Logger
             }
 
             appendTruncationSuffix(scratch, maxMessageLength);
+        }
+
+        /// @brief Removes a suffix added by Logger before a Record adds its own metadata.
+        inline void removeTruncationSuffix(std::string &scratch) noexcept
+        {
+            constexpr std::string_view suffix = "... [truncated]";
+            if(scratch.ends_with(suffix))
+            {
+                scratch.resize(scratch.size() - suffix.size());
+            }
+        }
+
+        /// @brief Enforces the final Record message bound and places one truncation suffix at the end.
+        inline bool applyRecordMessageLimit(std::string &message, bool alreadyTruncated, std::size_t maxMessageLength)
+        {
+            const bool truncated = alreadyTruncated || message.size() > maxMessageLength;
+            if(truncated)
+            {
+                truncateScratch(message, maxMessageLength);
+            }
+            return truncated;
         }
 
         /// @brief Applies Logger's retained-message byte limit after an unbounded formatting pass.
@@ -310,6 +356,7 @@ namespace GameWIP::Logger
                 FormatScratchLease lease;
                 std::string &scratch = lease.text();
                 const bool truncated = formatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
+
                 enqueuePreformattedMessage(level, source, scratch, truncated);
             }
             catch(const std::format_error &)
@@ -331,6 +378,7 @@ namespace GameWIP::Logger
                 FormatScratchLease lease;
                 std::string &scratch = lease.text();
                 const bool truncated = runtimeFormatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, args...);
+
                 enqueuePreformattedMessage(level, source, scratch, truncated);
             }
             catch(const std::format_error &)
@@ -366,6 +414,7 @@ namespace GameWIP::Logger
                 FormatScratchLease lease;
                 std::string &scratch = lease.text();
                 const bool truncated = formatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, std::forward<Args>(args)...);
+
                 return reportPreformattedMessage(level, normalizeSource(source), scratch, showPopup, truncated, timeout);
             }
             catch(const std::format_error &)
@@ -400,6 +449,7 @@ namespace GameWIP::Logger
                 FormatScratchLease lease;
                 std::string &scratch = lease.text();
                 const bool truncated = runtimeFormatWithPolicy(scratch, getMaxMessageLengthForFormatting(), format, args...);
+
                 return reportPreformattedMessage(level, normalizeSource(source), scratch, showPopup, truncated, timeout);
             }
             catch(const std::format_error &)

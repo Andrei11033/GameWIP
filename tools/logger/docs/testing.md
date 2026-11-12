@@ -28,8 +28,9 @@ output, filters, reports, health, and process/manual cases easier to scan withou
 
 ## Package and header validation
 
-Project validation must check self-containment of `logger/types.h`, `logger/config.h`,
-`logger/logger.h`, and `logger/logger_macros.h`, plus installed `GameWIP::Logger` consumption, exact IO/Terminal dependency resolution,
+Project validation must check self-containment of `logger/types.h`, `logger/config.h`, `logger/logger.h`, `logger/record.h`,
+`logger/message_format.h`, `logger/logging.h`, `logger/reports.h`, and `logger/logger_macros.h`. It must also check installed
+`GameWIP::Logger` consumption, exact IO/Terminal dependency resolution,
 exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 
 ## Performance review

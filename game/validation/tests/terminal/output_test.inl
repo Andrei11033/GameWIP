@@ -150,6 +150,40 @@ void testTextAndStyleOutput(TestSupport::Context &context)
         std::string{"\x1b[1;91mhot\x1b[0m"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    auto basicColorCapabilities = terminalOutputCapabilities();
+    basicColorCapabilities.style.rgbColor = false;
+    setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, basicColorCapabilities);
+    Terminal::Types::Style::Request rgbStyle;
+    rgbStyle.foreground = Terminal::rgbColor(200, 40, 180);
+    Terminal::Types::Output::TextOptions rgbOptions;
+    rgbOptions.style = rgbStyle;
+    static_cast<void>(context.expectTrue("RGB style falls back to a basic color", Terminal::writeText("fallback", rgbOptions).ok()));
+    static_cast<void>(context.expectEq(
+        "RGB style uses the nearest basic color",
+        std::string{"\x1b[35mfallback\x1b[0m"},
+        Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
+
+    Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
+    const std::array<Terminal::Types::Output::Segment, 1> rgbSegments{Terminal::styledTextSegment("segment", rgbStyle)};
+    static_cast<void>(context.expectTrue(
+        "RGB segment falls back to a basic color",
+        Terminal::writeSegments(std::span<const Terminal::Types::Output::Segment>(rgbSegments)).ok()));
+    static_cast<void>(context.expectEq(
+        "RGB segment uses the nearest basic color",
+        std::string{"\x1b[35msegment\x1b[0m"},
+        Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
+
+    Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
+    rgbOptions.styleMode = Terminal::Types::Style::Mode::Required;
+    Hooks::setPreparedOutputCapabilitiesOverride(Terminal::Types::Output::Stream::Stdout, basicColorCapabilities);
+    static_cast<void>(context.expectEq(
+        "required RGB style fails when exact RGB is unavailable",
+        ErrorCode::Unsupported,
+        Terminal::writeText("must-not-write", rgbOptions).code));
+    static_cast<void>(context.expectTrue(
+        "required unsupported RGB style writes nothing",
+        Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout).empty()));
+
     Hooks::reset();
     setupCapturedOutput(Terminal::Types::Output::Stream::Stdout, redirectedOutputCapabilities());
     static_cast<void>(context.expectTrue("redirected styled output falls back to plain text", Terminal::writeText("redirected", styledOptions).ok()));

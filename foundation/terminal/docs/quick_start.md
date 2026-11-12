@@ -165,7 +165,8 @@ options.style.bold = true;
 const auto status = writeLine("ready", options);
 ```
 
-`Types::Style::Mode::Auto` falls back to plain text. Use `Types::Style::Mode::Required` only when lack of the requested style must fail the operation.
+`Types::Style::Mode::Auto` is best-effort; `Types::Style::Mode::Required` fails when the exact requested style is unavailable. See
+@ref terminal_styling for RGB fallback behavior.
 
 ## Failure handling
 

@@ -130,7 +130,9 @@ What R00 established:
 - [x] `foundation/io` exists with status/result and stream contracts.
 - [x] `foundation/filesystem` exists with path, file, directory, metadata, and atomic-write helpers.
 - [x] `foundation/terminal` exists with console IO and Win32 backend coverage.
-- [x] `tools/logger` exists with async logging, sinks, filters, reports, macros, and validation hooks.
+- [x] `tools/logger` provides asynchronous structured logging, registered
+  sources, configurable colored layouts, sinks, filters, synchronous reports,
+  macros, and validation hooks.
 - [x] `tools/debug/assert` exists with assertion macros integrated with Logger.
 - [x] `tools/test_support` exists with validation suites, reports, explicit infrastructure status/value results, non-throwing state guards, and
   child-process outcomes.
@@ -154,8 +156,11 @@ R01 is complete when:
 - [x] A native Win32 window can be created, shown, resized, focused, and closed.
 - [x] Window lifecycle errors are reported through project status/result types.
 - [x] Window event queues, high-DPI behavior, native renderer attachment, and renderer occlusion feedback boundaries are documented and validated.
-- [ ] `engine/input` captures keyboard and mouse input from the active window.
-- [ ] Input snapshots are stable across frame boundaries.
+- [x] `engine/input` captures keyboard and mouse input from the active window
+  through its supported Windows attachment; the portable and synthetic APIs
+  support deterministic capture elsewhere.
+- [x] Input publishes reusable frame snapshots with state and event
+  transitions.
 - [ ] `engine/action` maps raw input to named actions.
 - [ ] Actions support press, release, held, and analog-style values where relevant.
 - [ ] User action bindings can be saved and loaded.
@@ -164,15 +169,27 @@ R01 is complete when:
 - [ ] Binding storage and composition live at the appropriate game or configuration layer.
 - [ ] Any binding-data schema has its own compatibility version rather than using the GameWIP project version.
 - [ ] `engine/window_manager` composes window ownership and runtime polling.
-- [ ] `GameWIP::Game::run()` enters a minimal runtime loop using the desktop/input/action path.
-- [ ] The runtime loop can exit cleanly through window close and an explicit action.
-- [ ] Logger and Assert integration exists for engine startup failures.
-- [ ] Correctness tests cover action mapping, input-state transitions that can be tested deterministically, and lifecycle edge cases.
+- [x] `GameWIP::Game::run()` initializes Logger and Input, opens a Desktop
+  window, attaches Input on Windows, and runs an event loop.
+- [ ] The runtime loop captures Input frames and routes them through Action.
+- [x] The runtime loop exits cleanly after a window-close request.
+- [ ] The runtime loop can also exit through an explicit action.
+- [x] Once initialized, Logger reports expected runtime startup and lifecycle
+  failures.
+- [ ] Assert integration covers engine startup failures.
+- [x] Input correctness tests cover deterministic state transitions and
+  lifecycle behavior.
+- [ ] Correctness tests cover Action mapping and its lifecycle edge cases.
 - [x] Manual validation exists for behavior that requires a real window.
-- [ ] Every new engine library has public API documentation, a quick start, examples, validation guidance, troubleshooting guidance, and backend
-  notes. Desktop meets this gate; the remaining R01 libraries do not yet.
-- [ ] Package and installed-consumer validation cover every installable new engine library. Desktop meets this gate; the remaining R01 libraries do not
-  yet.
+- [ ] Every new engine library has public API documentation, a quick start,
+  examples, validation guidance, troubleshooting guidance, and backend notes.
+  Desktop meets this gate. Input has a landing page and quick start but still
+  needs the remaining focused guides; Action and WindowManager remain reference
+  code.
+- [x] Package and installed-consumer validation cover the maintained Desktop
+  and Input libraries.
+- [ ] Add package and installed-consumer validation if Action or WindowManager
+  is promoted from reference code to a maintained installable library.
 - [TBD] WindowManager multi-window policy and Input controller support.
 
 Binding persistence in R01 is configuration persistence, not creation or world

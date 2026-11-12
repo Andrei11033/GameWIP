@@ -42,6 +42,7 @@ target_sources(
     PRIVATE
         core/logger_config.cpp
         core/logger_filters.cpp
+        core/logger_logging.cpp
         core/logger_format.cpp
         core/logger_queue.cpp
         core/logger_reports.cpp
@@ -57,8 +58,15 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/config.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/record.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/message_format.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/logging.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/reports.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/detail/log_templates.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/detail/report_templates.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/detail/formatting.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/detail/layout_template.h"
                 "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
 )
 
@@ -112,6 +120,10 @@ if(GAMEWIP_BUILD_DOCS AND COMMAND gamewip_register_doxygen_library)
             "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/config.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/record.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/message_format.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/logging.h"
+            "${CMAKE_CURRENT_SOURCE_DIR}/reports.h"
             "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
         DOCS "${CMAKE_CURRENT_SOURCE_DIR}/docs"
     )

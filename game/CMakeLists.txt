@@ -30,7 +30,7 @@ if(GAMEWIP_BUILD_GAME)
         target_link_libraries(GameWIP PRIVATE Tracy::TracyClient)
     endif()
 
-    target_link_libraries(GameWIP PRIVATE GameWIP::Logger GameWIP::Desktop GameWIP::Input)
+    target_link_libraries(GameWIP PRIVATE GameWIP::Logger GameWIP::Desktop GameWIP::Input GameWIP::Terminal)
 
     set_target_properties(GameWIP PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 

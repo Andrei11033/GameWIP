@@ -11,11 +11,9 @@ shared-library symbol policy.
 
 Individual APIs stay in their library manuals and generated reference pages.
 
-IO, FileSystem, and Terminal install focused public headers alongside their
-umbrella headers. The declarations have the same API, ABI, and
-runtime semantics regardless of include style. Logger installs private
-formatting support required by `logger/logger.h`; that detail header is not a
-standalone entry point.
+IO, FileSystem, Terminal, TestSupport, and Logger install focused public
+headers alongside umbrella headers. The declarations have the same API, ABI,
+and runtime semantics regardless of include style.
 
 ## Packages and targets
 
@@ -130,8 +128,8 @@ dependencies.
 
 Shared-library exports are declaration-driven and checked against reviewed symbol-root allowlists.
 
-`Detail` symbols may be exported only when public templates, macros, or ABI-safe bridges require an out-of-line implementation symbol. They remain
-implementation support, are hidden from generated API documentation when practical, and carry no independent compatibility guarantee.
+`Detail` symbols and headers may be exposed only when public templates, macros, or ABI-safe bridges require implementation support. They remain
+implementation details, are hidden from generated API documentation when practical, and carry no independent compatibility guarantee.
 
 Test-hook symbols may exist in validation builds, but their headers are not installed and they are not production API.
 

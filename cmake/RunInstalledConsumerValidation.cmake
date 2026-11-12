@@ -69,10 +69,17 @@ set(expected_gamewip_headers
     io/stream.h
     io/transfer.h
     logger/config.h
+    logger/detail/log_templates.h
+    logger/detail/report_templates.h
     logger/detail/formatting.h
+    logger/detail/layout_template.h
     logger/logger.h
+    logger/message_format.h
     logger/logger_export.h
     logger/logger_macros.h
+    logger/logging.h
+    logger/record.h
+    logger/reports.h
     logger/types.h
     terminal/input.h
     terminal/output.h

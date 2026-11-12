@@ -42,7 +42,10 @@ add_executable(GameWIPIsolatedConsumer main.cpp ../consumer_probe.h)
 # Add focused header probes only for the selected package so every installed
 # target is checked independently.
 if(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Logger")
-    target_sources(GameWIPIsolatedConsumer PRIVATE logger_config.cpp logger_macros.cpp logger_types.cpp)
+    target_sources(
+        GameWIPIsolatedConsumer
+        PRIVATE logger_config.cpp logger_logging.cpp logger_macros.cpp logger_message_format.cpp logger_record.cpp logger_reports.cpp logger_types.cpp
+    )
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Terminal")
     target_sources(GameWIPIsolatedConsumer PRIVATE terminal_style.cpp)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")

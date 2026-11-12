@@ -147,6 +147,10 @@ gamewip_register_doxygen_library(
     PAGE_ID logger
     PUBLIC_HEADERS
         "${CMAKE_CURRENT_SOURCE_DIR}/logger.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/record.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/message_format.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/logging.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/reports.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/logger_macros.h"
     DOCS
         "${CMAKE_CURRENT_SOURCE_DIR}/docs"

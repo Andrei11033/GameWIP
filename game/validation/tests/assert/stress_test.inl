@@ -55,7 +55,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
 #if ASSERT_DIAGNOSTICS
     context.expectEq("CHECK_ONCE thread stress logs once", countOccurrences(contents, "threaded check once stress"), std::size_t{1});
 #else
-    context.expectEq("CHECK_ONCE thread stress logs generic once", countOccurrences(contents, "[ERROR][Check]: Check failed"), std::size_t{1});
+    context.expectEq("CHECK_ONCE thread stress logs generic once", countOccurrences(contents, "[Check][ERROR] Check failed"), std::size_t{1});
 #endif
 #else
     context.skip("CHECK_ONCE thread stress", "ASSERT_CHECKS_ENABLED=0");
