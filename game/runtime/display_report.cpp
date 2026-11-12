@@ -3,9 +3,8 @@
 
 #include "runtime/display_report.h"
 
+#include "runtime/logging.h"
 #include "runtime/profiling.h"
-
-#include "logger/logger.h"
 
 #include <cstdint>
 #include <format>
@@ -169,16 +168,16 @@ namespace GameWIP::Game
         {
             return monitors;
         }
-        Logger::debug("Startup", "Enumerated {} connected display(s)", monitors->size());
+        Logger::debug(Logging::Area::Display, "Enumerated {} connected display(s)", Logger::number(monitors->size()));
 
         for(const Desktop::Types::Display::Info &monitor : *monitors)
         {
-            Logger::debug("Startup", "{}", formatDisplayReport(monitor));
+            Logger::debug(Logging::Area::Display, "{}", formatDisplayReport(monitor));
 
             // The full mode list is long, so it is kept at Debug to leave normal startup output short.
             if(const std::string modes = formatSupportedModeReport(monitor); !modes.empty())
             {
-                Logger::debug("Startup", "{}", modes);
+                Logger::debug(Logging::Area::Display, "{}", modes);
             }
         }
 

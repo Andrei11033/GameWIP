@@ -278,10 +278,13 @@ GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats() noexcept
             memory.queueStorageBytes = queueStorageBytesUnlocked();
             memory.messageArenaBytes = messageArenaBytesUnlocked();
             memory.sourceRegistryBytes = publishedSourceRegistryBytes();
+            const auto layoutTemplate = loggerState().layoutTemplate.load(std::memory_order_acquire);
+            const std::size_t layoutTemplateBytes = layoutTemplate ? layoutTemplate->capacity() : 0;
+            const std::size_t timestampFormatBytes = loggerState().timestampFormat.capacity();
             memory.entryTextHeapCapacityAvailable = entryTextHeapCapacityAvailableUnlocked();
             memory.entryTextHeapCapacityBytes = memory.entryTextHeapCapacityAvailable ? entryTextHeapCapacityBytesUnlocked() : 0;
             memory.loggerRetainedBytes = sizeof(LoggerState) + memory.queueStorageBytes + memory.messageArenaBytes + memory.sourceRegistryBytes +
-                                         memory.entryTextHeapCapacityBytes;
+                                         memory.entryTextHeapCapacityBytes + layoutTemplateBytes + timestampFormatBytes;
         }
 
         const auto process = GameWIP::Logger::Detail::Platform::queryProcessMemory();

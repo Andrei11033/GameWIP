@@ -9,8 +9,9 @@ find_package(Logger ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 ```
 
-The package installs `logger/types.h`, `logger/config.h`, `logger/logger.h`, `logger/logger_macros.h`, the generated `logger/logger_export.h`
-header, and `GameWIP::Logger`.
+The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` umbrella, and focused
+`logger/record.h`, `logger/message_format.h`, `logger/logging.h`, and `logger/reports.h` headers. It also installs optional
+`logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h` header, and `GameWIP::Logger`.
 
 `logger.h` exposes `IO::Types::Status`, so IO is a public package dependency and `LoggerConfig.cmake` resolves the exact matching IO package. Terminal
 remains an installed dependency used by Logger's console implementation. FileSystem and Unicode are private implementation dependencies.
@@ -20,8 +21,8 @@ remains an installed dependency used by Logger's console implementation. FileSys
 `LOGGER_EXPORT` marks installed production/runtime ABI. Source-tree validation
 uses `LOGGER_TEST_EXPORT` from an internal header that is never installed.
 
-Public templates in `logger.h` call exported `GameWIP::Logger::Detail::Core` bridges. Those symbols support the public inline/template API but are not
-source-level consumer APIs.
+Public templates in the Logger headers call exported `GameWIP::Logger::Detail::Core` bridges. Those symbols support the public inline/template API
+but are not source-level consumer APIs.
 
 Initialization, report, and health vocabulary is organized under `Types::Init`,
 `Types::Report`, and `Types::Health`. Runtime filter reset operations use the

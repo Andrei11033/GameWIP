@@ -38,4 +38,7 @@ namespace GameWIP::Logger::Detail::Platform
 
     /// @brief Queries process memory counters for Logger diagnostic snapshots.
     [[nodiscard]] ProcessMemory queryProcessMemory();
+
+    /// @brief Returns the current process identifier.
+    [[nodiscard]] std::uint32_t currentProcessId() noexcept;
 } // namespace GameWIP::Logger::Detail::Platform

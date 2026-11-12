@@ -8,6 +8,7 @@
 #include "runtime/game.h"
 
 #include "runtime/display_report.h"
+#include "runtime/logging.h"
 #include "runtime/profiling.h"
 
 #include "logger/logger.h"
@@ -28,6 +29,9 @@
 namespace
 {
     namespace Color = GameWIP::Profiling::Color;
+    namespace Logger = GameWIP::Logger;
+    namespace GameLogging = GameWIP::Game::Logging;
+    using LogArea = GameLogging::Area;
 
     /// @brief Window name shared by the runtime's log messages.
     inline constexpr std::string_view kWindowName = "Borderless fullscreen window";
@@ -35,23 +39,35 @@ namespace
     inline constexpr std::chrono::milliseconds kEventWaitInterval{16};
 
     /// @brief Logs a failed operation with its error code and mirrors it to the profiler timeline.
-    void reportFailure(std::string_view category, std::string_view action, const GameWIP::IO::Types::Status &status)
+    void reportFailure(LogArea area, std::string_view action, const GameWIP::IO::Types::Status &status)
     {
-        const std::string message = std::format(
-            "{}: {} (code={}, nativeCode={})",
-            action,
-            status.message.empty() ? "<none>" : status.message,
-            GameWIP::IO::errorCodeName(status.code),
-            status.nativeCode);
+        const std::string_view statusMessage = status.message.empty() ? std::string_view{"<none>"} : std::string_view{status.message};
+        const std::string_view errorCode = GameWIP::IO::errorCodeName(status.code);
+        const std::string message = std::format("{}: {} (code={}, nativeCode={})", action, statusMessage, errorCode, status.nativeCode);
+
         GameWIP::Profiling::message(message);
-        GameWIP::Logger::error(category, "{}", message);
+
+        Logger::error(
+            area,
+            Logger::record().field("action", action).field("native_code", status.nativeCode),
+            "{}: \"{}\" (code={}, nativeCode={})",
+            action,
+            Logger::quoted(statusMessage),
+            Logger::code(errorCode),
+            Logger::number(status.nativeCode));
     }
 
     /// @brief Starts console logging so every later startup failure has a diagnostic sink.
-    [[nodiscard]] GameWIP::Logger::Types::Init::Result initializeLogger()
+    [[nodiscard]] Logger::Types::Init::Result initializeLogger()
     {
         GAMEWIP_PROFILE_ZONE("Init Logger", Color::kInitialization);
-        return GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
+
+        Logger::Types::Config config = Logger::defaultConfig();
+        config.output = Logger::Types::OutputMode::Console;
+        config.minLevel = Logger::Types::Level::Debug;
+        config.sources = GameLogging::kSources;
+
+        return Logger::init(config);
     }
 
     /// @brief Describes the borderless fullscreen runtime window.
@@ -89,14 +105,14 @@ namespace
 
             if(!events.status.ok())
             {
-                reportFailure("Window", "Event pump failed", events.status);
+                reportFailure(LogArea::Window, "Event pump failed", events.status);
                 {
                     GAMEWIP_PROFILE_ZONE("Close window after event-pump failure", Color::kShutdown);
                     const GameWIP::IO::Types::Status closeStatus = window.close();
 
                     if(!closeStatus.ok())
                     {
-                        reportFailure("Window", "Failed to close window after event-pump failure", closeStatus);
+                        reportFailure(LogArea::Window, "Failed to close window after event-pump failure", closeStatus);
                     }
                 }
 
@@ -123,11 +139,11 @@ namespace
         // The logger cannot record anything once it is shut down, so the final result is logged first.
         if(primaryExitCode == EXIT_SUCCESS)
         {
-            GameWIP::Logger::info("Shutdown", "Exiting with code {}", primaryExitCode);
+            Logger::info(LogArea::Shutdown, "Exiting with code {}", Logger::number(primaryExitCode));
         }
         else
         {
-            GameWIP::Logger::error("Shutdown", "Exiting with failure code {}", primaryExitCode);
+            Logger::error(LogArea::Shutdown, "Exiting with failure code {}", Logger::number(primaryExitCode));
         }
 
         const GameWIP::IO::Types::Status shutdownStatus = GameWIP::Logger::shutdown();
@@ -149,7 +165,7 @@ namespace
 
         if(!monitors.ok())
         {
-            reportFailure("Window", "Failed to enumerate displays", monitors.status);
+            reportFailure(LogArea::Display, "Failed to enumerate displays", monitors.status);
             return EXIT_FAILURE;
         }
 
@@ -161,18 +177,18 @@ namespace
 
         if(!inputOpenStatus.ok())
         {
-            reportFailure("Input", "Failed to open input system", inputOpenStatus);
+            reportFailure(LogArea::Input, "Failed to open input system", inputOpenStatus);
             return EXIT_FAILURE;
         }
 
-        GameWIP::Logger::info("Input", "Input system opened");
+        Logger::info(LogArea::Input, Logger::record().field("state", "opened"), "Input system opened");
 
         GameWIP::Desktop::Window window;
         const GameWIP::IO::Types::Status openStatus = openRuntimeWindow(window);
 
         if(!openStatus.ok())
         {
-            reportFailure("Window", std::format("{} failed to open", kWindowName), openStatus);
+            reportFailure(LogArea::Window, std::format("{} failed to open", kWindowName), openStatus);
             return EXIT_FAILURE;
         }
 
@@ -183,23 +199,23 @@ namespace
 
         if(!inputAttachStatus.ok())
         {
-            reportFailure("Input", "Failed to attach Input to Desktop Window", inputAttachStatus);
+            reportFailure(LogArea::Input, "Failed to attach Input to Desktop Window", inputAttachStatus);
 
             // Close explicitly so the window lifecycle is logged before the logger shuts down.
             const GameWIP::IO::Types::Status cleanupStatus = closeRuntimeWindow(window);
 
             if(!cleanupStatus.ok())
             {
-                reportFailure("Window", "Failed to close window after input attach failure", cleanupStatus);
+                reportFailure(LogArea::Window, "Failed to close window after input attach failure", cleanupStatus);
             }
 
             return EXIT_FAILURE;
         }
 
-        GameWIP::Logger::info("Input", "Input attached to window");
+        Logger::info(LogArea::Input, Logger::record().field("state", "attached"), "Input attached to window");
 #endif
 
-        GameWIP::Logger::info("Startup", "{} is active; press Alt+F4 to exit", kWindowName);
+        Logger::info(LogArea::Startup, "{} is active; press Alt+F4 to exit", kWindowName);
 
         const auto runStart = std::chrono::steady_clock::now();
 
@@ -209,7 +225,8 @@ namespace
         }
 
         GameWIP::Logger::info(
-            "Window",
+            LogArea::Window,
+            Logger::record().field("elapsed_seconds", std::chrono::duration<double>(std::chrono::steady_clock::now() - runStart).count()),
             "Close requested after {:.1f}s; shutting down",
             std::chrono::duration<double>(std::chrono::steady_clock::now() - runStart).count());
 
@@ -218,11 +235,11 @@ namespace
 
         if(!closeStatus.ok())
         {
-            reportFailure("Window", std::format("{} failed to close", kWindowName), closeStatus);
+            reportFailure(LogArea::Window, std::format("{} failed to close", kWindowName), closeStatus);
             return EXIT_FAILURE;
         }
 
-        GameWIP::Logger::info("Window", "{} closed", kWindowName);
+        Logger::info(LogArea::Window, Logger::record().field("state", "closed"), "{} closed", kWindowName);
         GameWIP::Profiling::message("Borderless fullscreen window closed");
 
         return EXIT_SUCCESS;
@@ -245,7 +262,7 @@ namespace GameWIP::Game
             std::fputs("GameWIP: Logger initialization failed.\n", stderr);
             return EXIT_FAILURE;
         }
-        Logger::info("Startup", "Logger initialized");
+        Logger::info(LogArea::Startup, "Logger initialized");
         return finishRuntime(runSession());
     }
 } // namespace GameWIP::Game

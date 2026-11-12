@@ -195,6 +195,13 @@ void testFatalPopupFailure(TestContext &context)
     context.expectFalse("fatal popup failure returned directly", result.status.ok());
     context.expectEq("fatal popup partial delivery", result.delivery, Logger::Types::Report::Delivery::Partial);
     context.expectEq("fatal popup health source", Logger::getHealth().lastFailureSource, Logger::Types::Health::FailureSource::FatalPopup);
+
+    static_cast<void>(Logger::shutdown());
+    expectStarted(context, "fatal Record popup init", Logger::init(config.ready()));
+    GameWIP::Logger::TestHooks::forceNextFatalPopupFailure();
+    const Logger::Types::Report::Result recordResult = Logger::reportFatal(kTestSource, Logger::record().field("record", true), "record popup");
+    context.expectFalse("fatal Record still attempts popup", recordResult.status.ok());
+    context.expectEq("fatal Record popup delivery", recordResult.delivery, Logger::Types::Report::Delivery::Partial);
 #else
     context.skip("fatal popup failure hook test", "LOGGER_INTERNAL_TEST_HOOKS=0");
 #endif

@@ -96,6 +96,10 @@ gamewip_add_public_header_check(InputNativeDesktopWin32 input_native_desktop_win
 gamewip_add_public_header_check(LoggerTypes logger_types_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(LoggerConfig logger_config_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(Logger logger_header.cpp GameWIP::Logger)
+gamewip_add_public_header_check(LoggerRecord logger_record_header.cpp GameWIP::Logger)
+gamewip_add_public_header_check(LoggerMessageFormat logger_message_format_header.cpp GameWIP::Logger)
+gamewip_add_public_header_check(LoggerLogging logger_logging_header.cpp GameWIP::Logger)
+gamewip_add_public_header_check(LoggerReports logger_reports_header.cpp GameWIP::Logger)
 gamewip_add_public_header_check(LoggerMacros logger_macros_header.cpp GameWIP::Logger)
 
 # ------------------------------------------------------------

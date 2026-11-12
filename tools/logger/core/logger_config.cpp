@@ -1,7 +1,7 @@
 /// @file logger_config.cpp
 /// @brief Logger public configuration presets.
 
-#include "logger/logger.h"
+#include "logger/config.h"
 
 // ------------------------------------------------------------
 // Configuration presets

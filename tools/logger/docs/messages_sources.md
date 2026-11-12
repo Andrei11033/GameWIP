@@ -23,6 +23,9 @@ Source enums use an unsigned underlying type no wider than `SourceId`; the publi
 enums at overload resolution, before deeper source assertions. `defineSource()` only creates a definition, while `Config::sources` performs
 registration at init.
 
+The optional third argument to `defineSource(id, name, color)` sets only the registered area label's foreground color. Use the compile-time
+friendly `Logger::Color::rgb(red, green, blue)` factory or the predefined `Logger::Color::...` constants.
+
 ## Message forms
 
 Preformatted text, compile-time checked `std::format_string`, and explicit `runtimeFormat()` forms are supported. Formatting happens on the caller
@@ -34,6 +37,19 @@ severity and source filters; calls using a string source apply the severity filt
 handle concurrent filter changes before a record is accepted.
 
 Use `LOGGER_*` or `shouldLog()` around expensive arguments because C++ evaluates direct function arguments before Logger can filter them.
+
+Use `Logger::record()` for opt-in fields and metadata:
+
+```cpp
+Logger::info(Area::Input,
+    Logger::record().field("device", "Keyboard").field("id", 12).threadId().sourceLocation(),
+    "Device connected");
+```
+
+Fields accept formattable scalar values, are limited by `maxRecordFields`, `maxFieldKeyLength`, and `maxFieldValueLength`, and appear before
+the message in compact output. Record calls support preformatted text, compile-time formats, and explicit `runtimeFormat()` calls. The same
+forms work with synchronous reports. `Logger::code(value)`, `path(value)`, `number(value)`, and `quoted(value)` mark exact format arguments for
+their configured theme colors. `Logger::color(value, color)` supplies a color for one argument. Markers are removed from file and debugger text.
 
 ## Message limits
 

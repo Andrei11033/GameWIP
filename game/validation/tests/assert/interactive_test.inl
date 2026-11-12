@@ -38,7 +38,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
     const std::string contents = readFile(context, loggerLogFilePath(context));
     context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
     context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
-    context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.contains("[FATAL][Assert]: Assert failed"), "interactive fatal missing");
+    context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.contains("[Assert][FATAL] Assert failed"), "interactive fatal missing");
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "ASSERT_INTERACTIVE ignore_once logs message",

@@ -212,7 +212,7 @@ namespace GameWIP::Logger::Detail::Core
 
             for(const SourceDefinition &definition : definitions)
             {
-                if(definition.name.empty())
+                if(definition.name.empty() || (definition.color && !GameWIP::Logger::Detail::isValidColor(*definition.color)))
                 {
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                     return false;
@@ -224,7 +224,7 @@ namespace GameWIP::Logger::Detail::Core
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::EncodingFailed);
                     return false;
                 }
-                sources.emplace_back(definition.id, std::string(definition.name), true);
+                sources.emplace_back(definition.id, std::string(definition.name), definition.color, true);
             }
 
             std::sort(

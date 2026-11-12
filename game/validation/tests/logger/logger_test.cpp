@@ -20,6 +20,14 @@
 #include "logger/internal/logger_test_hooks.h"
 #endif
 
+#ifndef TERMINAL_INTERNAL_TEST_HOOKS
+#define TERMINAL_INTERNAL_TEST_HOOKS 0
+#endif
+
+#if TERMINAL_INTERNAL_TEST_HOOKS
+#include "terminal/internal/terminal_test_hooks.h"
+#endif
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -375,6 +383,62 @@ namespace GameWIP::Test
                     [&]
                     {
                         testFileLoggingAndUtf8Truncation(context);
+                    });
+                runCase(
+                    context,
+                    "configurable timestamp formatting",
+                    [&]
+                    {
+                        testConfigurableTimestampFormatting(context);
+                    });
+                runCase(
+                    context,
+                    "marked values and record fields",
+                    [&]
+                    {
+                        testMarkedValuesAndRecordFields(context);
+                    });
+                runCase(
+                    context,
+                    "custom record layouts and ownership",
+                    [&]
+                    {
+                        testCustomRecordLayoutsAndOwnership(context);
+                    });
+                runCase(
+                    context,
+                    "record field limits",
+                    [&]
+                    {
+                        testRecordFieldLimits(context);
+                    });
+                runCase(
+                    context,
+                    "Record formatting honors message bounds",
+                    [&]
+                    {
+                        testRecordFormattingHonorsMessageBound(context);
+                    });
+                runCase(
+                    context,
+                    "layout alignment",
+                    [&]
+                    {
+                        testLayoutAlignment(context);
+                    });
+                runCase(
+                    context,
+                    "truncated compiled layout fallback",
+                    [&]
+                    {
+                        testTruncatedCompiledLayoutFallsBackSafely(context);
+                    });
+                runCase(
+                    context,
+                    "console theme and area colors",
+                    [&]
+                    {
+                        testConsoleThemeAndAreaColors(context);
                     });
                 runCase(
                     context,

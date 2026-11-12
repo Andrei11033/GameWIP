@@ -5,9 +5,13 @@ GameWIP::Logger::resetSourceFilters
 GameWIP::Logger::debug
 GameWIP::Logger::defaultConfig
 GameWIP::Logger::Detail::Core::enqueuePreformattedMessage
+GameWIP::Logger::Detail::Core::currentProcessId
 GameWIP::Logger::Detail::Core::formatScratch
+GameWIP::Logger::Detail::Core::getFieldLayoutForFormatting
 GameWIP::Logger::Detail::Core::getFormatPolicyForFormatting
+GameWIP::Logger::Detail::Core::getLayoutTemplateForFormatting
 GameWIP::Logger::Detail::Core::getMaxMessageLengthForFormatting
+GameWIP::Logger::Detail::Core::getRecordLimitsForFormatting
 GameWIP::Logger::Detail::Core::recordAllocationFailure
 GameWIP::Logger::Detail::Core::recordFormatFailure
 GameWIP::Logger::Detail::Core::releaseFormatScratchIfNeeded

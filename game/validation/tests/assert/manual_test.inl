@@ -99,7 +99,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         const std::string childLogContents = readDirectoryFiles(context, childLogDirectory);
         context.expectTrue(
             "manual assert UI Abort child logs fatal",
-            childLogContents.contains("[FATAL][Assert]: Assert failed"),
+            childLogContents.contains("[Assert][FATAL] Assert failed"),
             "manual abort child fatal missing");
         context.expectTrue(
             "manual assert UI Abort child logs message",

@@ -7,6 +7,10 @@ namespace GameWIP::Logger::Detail::Core
 {
     namespace
     {
+        // ------------------------------------------------------------
+        // Deadline and report-result helpers
+        // ------------------------------------------------------------
+
         [[nodiscard]] bool deadlineExpired(const FlushDeadline *deadline) noexcept
         {
             return deadline != nullptr && std::chrono::steady_clock::now() >= *deadline;
@@ -108,9 +112,362 @@ namespace GameWIP::Logger::Detail::Core
         return true;
     }
 
-    static Status writeConsoleLine(const LogStyle &style, std::string_view line)
+    // ------------------------------------------------------------
+    // Console color resolution and rendering
+    // ------------------------------------------------------------
+
+    static Color approximateBasicColor(Color color)
     {
-        const std::array<Terminal::Types::Output::Segment, 1> segments{Terminal::styledTextSegment(line, style.terminalStyle)};
+        if(color.kind != Color::Kind::Rgb)
+        {
+            return color;
+        }
+        constexpr std::array<std::array<int, 3>, 16> palette{
+            {{{0, 0, 0}},
+             {{128, 0, 0}},
+             {{0, 128, 0}},
+             {{128, 128, 0}},
+             {{0, 0, 128}},
+             {{128, 0, 128}},
+             {{0, 128, 128}},
+             {{192, 192, 192}},
+             {{128, 128, 128}},
+             {{255, 0, 0}},
+             {{0, 255, 0}},
+             {{255, 255, 0}},
+             {{0, 0, 255}},
+             {{255, 0, 255}},
+             {{0, 255, 255}},
+             {{255, 255, 255}}}};
+        const std::array<int, 3> requested{color.red, color.green, color.blue};
+        std::size_t closestIndex = 0;
+        int closestDistance = std::numeric_limits<int>::max();
+        for(std::size_t index = 0; index < palette.size(); ++index)
+        {
+            const int red = requested[0] - palette[index][0];
+            const int green = requested[1] - palette[index][1];
+            const int blue = requested[2] - palette[index][2];
+            const int distance = red * red + green * green + blue * blue;
+            if(distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestIndex = index;
+            }
+        }
+        color.kind = Color::Kind::Basic;
+        color.basic = static_cast<Color::Basic>(closestIndex);
+        return color;
+    }
+
+    static Terminal::Types::Style::Request terminalStyle(Color color, const Terminal::Types::Style::Capabilities &capabilities)
+    {
+        Terminal::Types::Style::Request style;
+        if(color.kind == Color::Kind::Rgb && !capabilities.rgbColor && capabilities.basicColor)
+        {
+            color = approximateBasicColor(color);
+        }
+        switch(color.kind)
+        {
+        case Color::Kind::Default:
+            style.foreground = Terminal::defaultColor();
+            break;
+        case Color::Kind::Basic:
+            style.foreground = Terminal::basicColor(static_cast<Terminal::Types::Style::BasicColor>(color.basic));
+            break;
+        case Color::Kind::Rgb:
+            style.foreground = Terminal::rgbColor(color.red, color.green, color.blue);
+            break;
+        }
+        return style;
+    }
+
+    static Color levelColor(LogLevel level)
+    {
+        const Theme &theme = loggerState().theme;
+        switch(level)
+        {
+        case LogLevel::Trace:
+            return theme.trace;
+        case LogLevel::Debug:
+            return theme.debug;
+        case LogLevel::Info:
+            return theme.info;
+        case LogLevel::Warn:
+            return theme.warn;
+        case LogLevel::Error:
+            return theme.error;
+        case LogLevel::Fatal:
+            return theme.fatal;
+        }
+        return theme.message;
+    }
+
+    static Color markedValueColor(char role, Color explicitColor)
+    {
+        switch(role)
+        {
+        case 'C':
+            return loggerState().theme.code;
+        case 'P':
+            return loggerState().theme.path;
+        case 'N':
+            return loggerState().theme.number;
+        case 'Q':
+            return loggerState().theme.quoted;
+        case 'F':
+            return loggerState().theme.field;
+        case 'X':
+            return explicitColor;
+        default:
+            return loggerState().theme.message;
+        }
+    }
+
+    static Color semanticColor(char role, Color severityColor, Color sourceColor)
+    {
+        switch(role)
+        {
+        case 'T':
+            return loggerState().theme.timestamp;
+        case 'L':
+            return severityColor;
+        case 'A':
+            return sourceColor;
+        case 'M':
+            return loggerState().theme.messageUsesSeverityColor ? severityColor : loggerState().theme.message;
+        default:
+            return markedValueColor(role, {});
+        }
+    }
+
+    static std::string plainOutputText(std::string_view text)
+    {
+        if(!text.empty() && text.front() == Protocol::kLayoutBegin)
+        {
+            const std::size_t payloadBegin = text.find(Protocol::kLayoutBegin, 1);
+            if(payloadBegin == std::string_view::npos)
+            {
+                return {};
+            }
+            text.remove_prefix(payloadBegin + 1);
+        }
+
+        std::string result;
+        result.reserve(text.size());
+        for(std::size_t index = 0; index < text.size(); ++index)
+        {
+            if(text[index] == Protocol::kStyleBegin)
+            {
+                const std::size_t headerLength = index + 1 < text.size() && text[index + 1] == 'X' ? 7 : 2;
+                index = std::min(text.size() - 1, index + headerLength - 1);
+                continue;
+            }
+            if(text[index] == Protocol::kStyleScopeBegin)
+            {
+                ++index;
+                continue;
+            }
+            if(text[index] != Protocol::kStyleEnd && text[index] != Protocol::kStyleScopeEnd && text[index] != Protocol::kLayoutBegin &&
+               text[index] != Protocol::kLayoutSeparator)
+            {
+                result.push_back(text[index]);
+            }
+        }
+        return result;
+    }
+
+    static Status writeConsoleLine(const LogStyle &logStyle, std::string_view line, Color severityColor, Color sourceColor)
+    {
+        using Terminal::Types::Output::Segment;
+        // Default layouts and ordinary marked messages stay on the stack; only unusually segmented layouts need growth.
+        std::array<Segment, 16> fixedSegments{
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({}),
+            Terminal::textSegment({})};
+        std::size_t fixedCount = 0;
+        bool usesDynamicSegments = false;
+        std::vector<Segment> dynamicSegments;
+        const auto appendSegment = [&](Segment segment)
+        {
+            if(usesDynamicSegments)
+            {
+                dynamicSegments.push_back(segment);
+            }
+            else if(fixedCount < fixedSegments.size())
+            {
+                fixedSegments[fixedCount++] = segment;
+            }
+            else
+            {
+                dynamicSegments.reserve(fixedSegments.size() * 2);
+                dynamicSegments.insert(dynamicSegments.end(), fixedSegments.begin(), fixedSegments.end());
+                dynamicSegments.push_back(segment);
+                usesDynamicSegments = true;
+            }
+        };
+
+        const auto stream = logStyle.useStderr ? Terminal::Types::Output::Stream::Stderr : Terminal::Types::Output::Stream::Stdout;
+        const Color plainMessageColor = loggerState().theme.messageUsesSeverityColor ? severityColor : loggerState().theme.message;
+        bool needsRgbCapabilities = severityColor.kind == Color::Kind::Rgb || sourceColor.kind == Color::Kind::Rgb ||
+                                    loggerState().theme.timestamp.kind == Color::Kind::Rgb || plainMessageColor.kind == Color::Kind::Rgb;
+        if(!needsRgbCapabilities)
+        {
+            for(std::size_t index = 0; index + 1 < line.size(); ++index)
+            {
+                if(line[index] == Protocol::kStyleScopeBegin)
+                {
+                    if(semanticColor(line[index + 1], severityColor, sourceColor).kind == Color::Kind::Rgb)
+                    {
+                        needsRgbCapabilities = true;
+                        break;
+                    }
+                    ++index;
+                    continue;
+                }
+                if(line[index] != Protocol::kStyleBegin)
+                {
+                    continue;
+                }
+                const char role = line[index + 1];
+                Color markedColor{};
+                if(role == 'X')
+                {
+                    if(index + 7 <= line.size())
+                    {
+                        markedColor.kind = static_cast<Color::Kind>(static_cast<unsigned char>(line[index + 2]));
+                    }
+                }
+                else if(role == 'T')
+                {
+                    markedColor = loggerState().theme.timestamp;
+                }
+                else if(role == 'L')
+                {
+                    markedColor = severityColor;
+                }
+                else if(role == 'A')
+                {
+                    markedColor = sourceColor;
+                }
+                else
+                {
+                    markedColor = markedValueColor(role, {});
+                }
+                if(markedColor.kind == Color::Kind::Rgb)
+                {
+                    needsRgbCapabilities = true;
+                    break;
+                }
+            }
+        }
+
+        const Terminal::Types::Style::Capabilities capabilities =
+            needsRgbCapabilities ? Terminal::getOutputCapabilities(stream).capabilities.style : Terminal::Types::Style::Capabilities{};
+        const auto styleFor = [&capabilities](Color color)
+        {
+            return terminalStyle(color, capabilities);
+        };
+
+        const auto appendStyledText = [&](std::string_view text, Color baseColor)
+        {
+            std::array<Color, Detail::kMaxLayoutColorScopeDepth> colorScopes{};
+            std::size_t colorScopeDepth = 0;
+            std::size_t plainStart = 0;
+            std::size_t index = 0;
+            const auto currentColor = [&]
+            {
+                return colorScopeDepth == 0 ? baseColor : colorScopes[colorScopeDepth - 1];
+            };
+            while(index < text.size())
+            {
+                if(text[index] == Protocol::kStyleScopeBegin && index + 1 < text.size())
+                {
+                    if(index > plainStart)
+                    {
+                        appendSegment(Terminal::styledTextSegment(text.substr(plainStart, index - plainStart), styleFor(currentColor())));
+                    }
+                    if(colorScopeDepth < colorScopes.size())
+                    {
+                        colorScopes[colorScopeDepth++] = semanticColor(text[index + 1], severityColor, sourceColor);
+                    }
+                    index += 2;
+                    plainStart = index;
+                    continue;
+                }
+                if(text[index] == Protocol::kStyleScopeEnd)
+                {
+                    if(index > plainStart)
+                    {
+                        appendSegment(Terminal::styledTextSegment(text.substr(plainStart, index - plainStart), styleFor(currentColor())));
+                    }
+                    if(colorScopeDepth > 0)
+                    {
+                        --colorScopeDepth;
+                    }
+                    ++index;
+                    plainStart = index;
+                    continue;
+                }
+                if(text[index] != Protocol::kStyleBegin)
+                {
+                    ++index;
+                    continue;
+                }
+                if(index > plainStart)
+                {
+                    appendSegment(Terminal::styledTextSegment(text.substr(plainStart, index - plainStart), styleFor(currentColor())));
+                }
+                if(index + 1 >= text.size())
+                {
+                    index = text.size();
+                    plainStart = index;
+                    break;
+                }
+                const char role = text[index + 1];
+                Color explicitColor{};
+                std::size_t valueStart = index + 2;
+                if(role == 'X')
+                {
+                    if(index + 7 > text.size())
+                    {
+                        index = text.size();
+                        plainStart = index;
+                        break;
+                    }
+                    explicitColor.kind = static_cast<Color::Kind>(static_cast<unsigned char>(text[index + 2]));
+                    explicitColor.basic = static_cast<Color::Basic>(static_cast<unsigned char>(text[index + 3]));
+                    explicitColor.red = static_cast<std::uint8_t>(text[index + 4]);
+                    explicitColor.green = static_cast<std::uint8_t>(text[index + 5]);
+                    explicitColor.blue = static_cast<std::uint8_t>(text[index + 6]);
+                    valueStart = index + 7;
+                }
+                const std::size_t markerEnd = text.find(Protocol::kStyleEnd, valueStart);
+                const std::size_t valueEnd = markerEnd == std::string_view::npos ? text.size() : markerEnd;
+                const Color markedColor = role == 'X' ? explicitColor : semanticColor(role, severityColor, sourceColor);
+                appendSegment(Terminal::styledTextSegment(text.substr(valueStart, valueEnd - valueStart), styleFor(markedColor)));
+                index = markerEnd == std::string_view::npos ? text.size() : markerEnd + 1;
+                plainStart = index;
+            }
+            if(plainStart < text.size())
+            {
+                appendSegment(Terminal::styledTextSegment(text.substr(plainStart), styleFor(currentColor())));
+            }
+        };
+
+        appendStyledText(line, plainMessageColor);
         Terminal::Types::Output::SegmentOptions options;
         options.styleMode = loggerState().consoleColorEnabledAtomic.load(std::memory_order_acquire) ? Terminal::Types::Style::Mode::Auto
                                                                                                     : Terminal::Types::Style::Mode::Never;
@@ -118,11 +475,17 @@ namespace GameWIP::Logger::Detail::Core
         options.lineEnding = Terminal::Types::Output::LineEnding::Native;
         options.flushMode =
             loggerState().flushConsoleEveryWriteAtomic.load(std::memory_order_acquire) ? IO::Types::FlushMode::Data : IO::Types::FlushMode::None;
-        const auto stream = style.useStderr ? Terminal::Types::Output::Stream::Stderr : Terminal::Types::Output::Stream::Stdout;
+
+        const std::span<const Segment> segments =
+            usesDynamicSegments ? std::span<const Segment>(dynamicSegments) : std::span<const Segment>(fixedSegments).first(fixedCount);
         return Terminal::writeSegments(stream, segments, options);
     }
 
 #if LOGGER_INTERNAL_TEST_HOOKS
+    // ------------------------------------------------------------
+    // File sink operations
+    // ------------------------------------------------------------
+
     Status forcedFileStatus(ErrorCode code) noexcept
     {
         return IO::makeStatus(code, 1);
@@ -172,13 +535,18 @@ namespace GameWIP::Logger::Detail::Core
         return writer.flush(IO::Types::FlushMode::Data);
     }
 
+    // ------------------------------------------------------------
+    // Synchronous report sink delivery
+    // ------------------------------------------------------------
+
     ReportSinkProgress writeReportSynchronously(
         LogLevel level,
         std::string_view source,
         std::string_view message,
         bool unknownSource,
         bool alreadyTruncated,
-        const FlushDeadline *deadline)
+        const FlushDeadline *deadline,
+        Color sourceColor)
     {
         ReportSinkProgress progress;
 
@@ -205,15 +573,14 @@ namespace GameWIP::Logger::Detail::Core
             {
                 return progress;
             }
+
             std::string boundedScratch;
             bool truncatedNow = false;
             const std::string_view messageText = boundedMessageView(message, alreadyTruncated, boundedScratch, truncatedNow);
             const bool truncated = alreadyTruncated || truncatedNow;
-
             TimestampCache timestamp;
             std::string line;
             const LogStyle style = getLogStyle(level);
-
             buildLogLine(line, getTimestampText(timestamp), style.text, source, messageText);
 
             Status consoleStatus;
@@ -233,7 +600,7 @@ namespace GameWIP::Logger::Detail::Core
 
                 if((consoleOutput) && (!markSinkTimedOutIfExpired(deadline, progress)))
                 {
-                    consoleStatus = writeConsoleLine(style, line);
+                    consoleStatus = writeConsoleLine(style, line, levelColor(level), sourceColor);
 
                     if(consoleStatus.ok())
                     {
@@ -250,7 +617,7 @@ namespace GameWIP::Logger::Detail::Core
                     if(!markSinkTimedOutIfExpired(deadline, progress) && loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire) &&
                        loggerState().logFile.isOpen())
                     {
-                        std::string fileLine(line);
+                        std::string fileLine = plainOutputText(line);
                         fileLine.push_back('\n');
                         fileStatus = writeFileForLogger(loggerState().logFile, fileLine);
 
@@ -318,8 +685,24 @@ namespace GameWIP::Logger::Detail::Core
     {
         const auto registry = loadSourceRegistry();
         bool unknown = false;
-        return writeReportSynchronously(level, findSourceName(registry.get(), source, unknown), message, unknown, alreadyTruncated, deadline);
+        Color sourceColor = loggerState().theme.area;
+        if(const RegisteredSource *registered = registry ? findSource(*registry, source) : nullptr; registered && registered->color)
+        {
+            sourceColor = *registered->color;
+        }
+        return writeReportSynchronously(
+            level,
+            findSourceName(registry.get(), source, unknown),
+            message,
+            unknown,
+            alreadyTruncated,
+            deadline,
+            sourceColor);
     }
+
+    // ------------------------------------------------------------
+    // Normal queued sink delivery
+    // ------------------------------------------------------------
 
     SinkWriteResult writeLogEntry(const QueuedLogEntry &entry, TimestampCache &timestamp, std::string &lineScratch, std::string &fileBatchScratch)
     {
@@ -336,6 +719,7 @@ namespace GameWIP::Logger::Detail::Core
         {
             return result;
         }
+
         const auto registry = entry.usesRegisteredSource ? loadSourceRegistry() : std::shared_ptr<SourceRegistry>{};
         const std::uint8_t bit = levelBit(entry.level);
 
@@ -344,9 +728,12 @@ namespace GameWIP::Logger::Detail::Core
         {
             return result;
         }
+
         const LogStyle style = getLogStyle(entry.level);
         bool unknown = false;
         const std::string_view source = resolveSourceText(entry, registry.get(), unknown);
+        const RegisteredSource *registeredSource = entry.usesRegisteredSource && registry ? findSource(*registry, entry.sourceId) : nullptr;
+        const Color sourceColor = registeredSource && registeredSource->color ? *registeredSource->color : loggerState().theme.area;
 
         buildLogLine(lineScratch, getTimestampText(timestamp), style.text, source, entry.message.view());
 
@@ -355,7 +742,7 @@ namespace GameWIP::Logger::Detail::Core
             Status consoleStatus;
             {
                 std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-                consoleStatus = writeConsoleLine(style, lineScratch);
+                consoleStatus = writeConsoleLine(style, lineScratch, levelColor(entry.level), sourceColor);
             }
 
             result.acceptedImmediateSink = consoleStatus.ok();
@@ -368,7 +755,7 @@ namespace GameWIP::Logger::Detail::Core
 
         if((hasFileOutput(mode)) && (loggerState().fileOutputAvailableAtomic.load(std::memory_order_acquire)))
         {
-            fileBatchScratch.append(lineScratch);
+            fileBatchScratch.append(plainOutputText(lineScratch));
             fileBatchScratch.push_back('\n');
             result.queuedFile = true;
         }
@@ -380,6 +767,10 @@ namespace GameWIP::Logger::Detail::Core
 
         return result;
     }
+
+    // ------------------------------------------------------------
+    // Sink flushing and report orchestration
+    // ------------------------------------------------------------
 
     bool flushFileBatch(std::string &fileBatchScratch, bool forceFlush)
     {
@@ -533,17 +924,19 @@ namespace GameWIP::Logger::Detail::Core
         return flushSinksInternal(deadline);
     }
 
-    Types::Report::Result reportPreformattedMessageImpl(
+    static Types::Report::Result reportPreformattedMessageImpl(
         LogLevel level,
         std::string_view source,
         std::string_view message,
         bool showPopup,
         bool alreadyTruncated,
         const std::chrono::milliseconds *timeout,
-        bool unknownSource)
+        bool unknownSource,
+        Color sourceColor)
     {
         Types::Report::Result result;
 
+        // Validate the request before taking Logger's lifecycle lock.
         if(!isValidLevel(level))
         {
             result.status = IO::makeStatus(ErrorCode::InvalidArgument);
@@ -557,7 +950,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 
         if(Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
-           Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
+           Unicode::Utf8::validate(plainOutputText(message)).outcome != Unicode::Types::ValidationOutcome::Valid)
         {
             result.status = IO::makeStatus(ErrorCode::EncodingFailed);
             return result;
@@ -582,7 +975,8 @@ namespace GameWIP::Logger::Detail::Core
         const std::string_view reportMessage = boundedMessageView(message, alreadyTruncated, boundedScratch, truncatedNow);
         const bool truncated = alreadyTruncated || truncatedNow;
 
-        ReportSinkProgress normal = writeReportSynchronously(level, source, reportMessage, unknownSource, truncated, deadline);
+        // Deliver to the configured sinks, then mirror to debugger output when enabled.
+        ReportSinkProgress normal = writeReportSynchronously(level, source, reportMessage, unknownSource, truncated, deadline, sourceColor);
         result.status = firstFailure(std::move(result.status), normal.status);
         std::size_t eligible = normal.eligible;
         std::size_t delivered = normal.delivered;
@@ -599,7 +993,7 @@ namespace GameWIP::Logger::Detail::Core
 
             if(!markReportTimedOutIfExpired(deadline, result))
             {
-                const Status debugStatus = GameWIP::Logger::writeDebugOutput(level, source, reportMessage);
+                const Status debugStatus = writeDebugOutputInternal(level, source, reportMessage);
                 if(debugStatus.ok())
                 {
                     ++delivered;
@@ -618,6 +1012,7 @@ namespace GameWIP::Logger::Detail::Core
         }
 #endif
 
+        // Flush report sinks before showing the fatal popup, then summarize delivery.
         if(result.outcome != Types::Report::Outcome::TimedOut)
         {
             const Types::FlushResult flushed = flushSinksInternal(deadline);
@@ -645,7 +1040,11 @@ namespace GameWIP::Logger::Detail::Core
                 else
 #endif
                 {
-                    popupStatus = GameWIP::Logger::Detail::Platform::showFatalPopup(reportMessage);
+                    TimestampCache popupTimestamp;
+                    std::string popupLine;
+                    buildLogLine(popupLine, getTimestampText(popupTimestamp), getLogStyle(level).text, source, reportMessage);
+                    popupLine = plainOutputText(popupLine);
+                    popupStatus = GameWIP::Logger::Detail::Platform::showFatalPopup(popupLine);
                 }
 
                 if(popupStatus.ok())
@@ -668,47 +1067,14 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
+std::uint32_t GameWIP::Logger::Detail::Core::currentProcessId() noexcept
+{
+    return GameWIP::Logger::Detail::Platform::currentProcessId();
+}
+
 // ------------------------------------------------------------
-// Queue submission
+// Synchronous reporting
 // ------------------------------------------------------------
-
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, std::string_view source, std::string_view message) noexcept
-{
-    enqueuePreformattedMessage(level, source, message, false);
-}
-
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(
-    LogLevel level,
-    std::string_view source,
-    std::string_view message,
-    bool truncated) noexcept
-{
-    try
-    {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message, truncated));
-    }
-    catch(...)
-    {
-        countAllocationFailure();
-    }
-}
-
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message) noexcept
-{
-    enqueuePreformattedMessage(level, source, message, false);
-}
-
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool truncated) noexcept
-{
-    try
-    {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message, truncated));
-    }
-    catch(...)
-    {
-        countAllocationFailure();
-    }
-}
 
 GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPreformattedMessage(
     LogLevel level,
@@ -721,7 +1087,7 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPref
     return reportBoundary(
         [&]
         {
-            return reportPreformattedMessageImpl(level, source, message, showPopup, truncated, timeout, false);
+            return reportPreformattedMessageImpl(level, source, message, showPopup, truncated, timeout, false, loggerState().theme.area);
         });
 }
 
@@ -739,68 +1105,14 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPref
             const auto registry = loadSourceRegistry();
             bool unknown = false;
             const std::string_view sourceText = findSourceName(registry.get(), source, unknown);
-            return reportPreformattedMessageImpl(level, sourceText, message, showPopup, truncated, timeout, unknown);
+            Color sourceColor = loggerState().theme.area;
+            if(const RegisteredSource *registered = registry ? findSource(*registry, source) : nullptr; registered && registered->color)
+            {
+                sourceColor = *registered->color;
+            }
+            return reportPreformattedMessageImpl(level, sourceText, message, showPopup, truncated, timeout, unknown, sourceColor);
         });
 }
-
-// ------------------------------------------------------------
-// Asynchronous logging
-// ------------------------------------------------------------
-
-void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message) noexcept
-{
-    if(!shouldLog(level))
-    {
-        return;
-    }
-
-    try
-    {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message));
-    }
-    catch(...)
-    {
-        countAllocationFailure();
-    }
-}
-
-void GameWIP::Logger::log(LogLevel level, SourceId source, std::string_view message) noexcept
-{
-    if(!shouldLog(level, source))
-    {
-        return;
-    }
-
-    try
-    {
-        enqueueAndWakeWorker(makePendingEntry(level, source, message));
-    }
-    catch(...)
-    {
-        countAllocationFailure();
-    }
-}
-
-#define LOGGER_DEFINE_LEVEL(name, levelValue) \
-    void GameWIP::Logger::name(std::string_view source, std::string_view message) noexcept \
-    { \
-        log(levelValue, source, message); \
-    } \
-    void GameWIP::Logger::name(SourceId source, std::string_view message) noexcept \
-    { \
-        log(levelValue, source, message); \
-    }
-LOGGER_DEFINE_LEVEL(trace, LogLevel::Trace)
-LOGGER_DEFINE_LEVEL(debug, LogLevel::Debug)
-LOGGER_DEFINE_LEVEL(info, LogLevel::Info)
-LOGGER_DEFINE_LEVEL(warn, LogLevel::Warn)
-LOGGER_DEFINE_LEVEL(error, LogLevel::Error)
-LOGGER_DEFINE_LEVEL(fatal, LogLevel::Fatal)
-#undef LOGGER_DEFINE_LEVEL
-
-// ------------------------------------------------------------
-// Synchronous reporting
-// ------------------------------------------------------------
 
 GameWIP::Logger::Types::Report::Result GameWIP::Logger::report(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
@@ -910,7 +1222,7 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(
 // Debugger output
 // ------------------------------------------------------------
 
-GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message) noexcept
+Status GameWIP::Logger::Detail::Core::writeDebugOutputInternal(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if(!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
     {
@@ -920,12 +1232,6 @@ GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std
     if(!isValidLevel(level))
     {
         return IO::makeStatus(ErrorCode::InvalidArgument);
-    }
-
-    if(Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
-       Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
-    {
-        return IO::makeStatus(ErrorCode::EncodingFailed);
     }
 
     try
@@ -942,6 +1248,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std
 
         std::string line;
         buildLogLine(line, timestamp, getLogStyle(level).text, source, messageText);
+        line = plainOutputText(line);
         line.push_back('\n');
 
         const Status status = GameWIP::Logger::Detail::Platform::writeDebugOutput(line);
@@ -960,4 +1267,18 @@ GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std
     {
         return IO::makeStatus(ErrorCode::Unknown);
     }
+}
+
+GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std::string_view source, std::string_view message) noexcept
+{
+    if(!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
+    {
+        return {};
+    }
+    if(Unicode::Utf8::validate(source).outcome != Unicode::Types::ValidationOutcome::Valid ||
+       Unicode::Utf8::validate(message).outcome != Unicode::Types::ValidationOutcome::Valid)
+    {
+        return IO::makeStatus(ErrorCode::EncodingFailed);
+    }
+    return GameWIP::Logger::Detail::Core::writeDebugOutputInternal(level, source, message);
 }

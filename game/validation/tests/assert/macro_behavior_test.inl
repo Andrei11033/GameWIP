@@ -107,7 +107,7 @@ void testCheckOnceLogging(TestContext &context)
 
     context.expectEq("CHECK_ONCE reports without queueing", stats.queued, std::size_t{0});
     context.expectEq("CHECK_ONCE writes one failure synchronously", stats.written, std::size_t{1});
-    context.expectTrue("CHECK_ONCE log contains error failure", contents.contains("[ERROR][Check]: Check failed"), "check failure missing from log");
+    context.expectTrue("CHECK_ONCE log contains error failure", contents.contains("[Check][ERROR] Check failed"), "check failure missing from log");
 #else
     context.skip("CHECK_ONCE logger test", "ASSERT_CHECKS_ENABLED=0");
 #endif

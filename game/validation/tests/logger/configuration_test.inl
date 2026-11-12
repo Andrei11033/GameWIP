@@ -81,15 +81,80 @@ void testInitResultModel(TestContext &context)
     invalidPolicy.formatPolicy = static_cast<Logger::Types::FormatPolicy>(99);
     context.expectEq("invalid format policy rejected", Logger::init(invalidPolicy).status.code, IO::Types::ErrorCode::InvalidArgument);
 
+    Logger::Types::Config invalidTheme = makeConsoleConfig();
+    invalidTheme.theme.error = {.kind = Logger::Color::Kind::Basic, .basic = static_cast<Logger::Color::Basic>(99)};
+    context.expectEq("invalid theme color rejected", Logger::init(invalidTheme).status.code, IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config invalidFieldLayout = makeConsoleConfig();
+    invalidFieldLayout.fieldLayout = static_cast<Logger::FieldLayout>(99);
+    context.expectEq("invalid field layout rejected", Logger::init(invalidFieldLayout).status.code, IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config invalidLayout = makeConsoleConfig();
+    invalidLayout.layout = {"unknown {placeholder}"};
+    context.expectEq("invalid runtime layout rejected", Logger::init(invalidLayout).status.code, IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config invalidTimestampFormat = makeConsoleConfig();
+    invalidTimestampFormat.timestampFormat = "%H:%M:%S%";
+    context.expectEq(
+        "timestamp format with a dangling directive rejected",
+        Logger::init(invalidTimestampFormat).status.code,
+        IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config emptyTimestampFormat = makeConsoleConfig();
+    emptyTimestampFormat.timestampFormat = {};
+    context.expectEq("empty timestamp format rejected", Logger::init(emptyTimestampFormat).status.code, IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config invalidAlignment = makeConsoleConfig();
+    invalidAlignment.layout = {"{area:aligned}"};
+    context.expectEq("legacy area-only alignment syntax rejected", Logger::init(invalidAlignment).status.code, IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config invalidAutomaticWidth = makeConsoleConfig();
+    invalidAutomaticWidth.layout = {"{message:<auto}"};
+    context.expectEq(
+        "automatic width on a free-form value rejected",
+        Logger::init(invalidAutomaticWidth).status.code,
+        IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config invalidAlignmentWidth = makeConsoleConfig();
+    invalidAlignmentWidth.layout = {"{level:>x}"};
+    context.expectEq(
+        "invalid placeholder alignment width rejected",
+        Logger::init(invalidAlignmentWidth).status.code,
+        IO::Types::ErrorCode::InvalidArgument);
+
+    Logger::Types::Config unclosedColorScope = makeConsoleConfig();
+    unclosedColorScope.layout = {"{@area}[{area}]"};
+    context.expectEq(
+        "unclosed runtime layout color scope rejected",
+        Logger::init(unclosedColorScope).status.code,
+        IO::Types::ErrorCode::InvalidArgument);
+
     const std::string invalidUtf8{"\xC3\x28", 2};
     Logger::Types::Config invalidDirectory = makeConsoleConfig();
     invalidDirectory.logDirectory = invalidUtf8;
     context.expectEq("invalid UTF-8 directory rejected", Logger::init(invalidDirectory).status.code, IO::Types::ErrorCode::EncodingFailed);
 
+    Logger::Types::Config invalidLayoutEncoding = makeConsoleConfig();
+    invalidLayoutEncoding.layout = {invalidUtf8};
+    context.expectEq("invalid UTF-8 layout rejected", Logger::init(invalidLayoutEncoding).status.code, IO::Types::ErrorCode::EncodingFailed);
+
+    Logger::Types::Config invalidTimestampEncoding = makeConsoleConfig();
+    invalidTimestampEncoding.timestampFormat = invalidUtf8;
+    context.expectEq(
+        "invalid UTF-8 timestamp format rejected",
+        Logger::init(invalidTimestampEncoding).status.code,
+        IO::Types::ErrorCode::EncodingFailed);
+
     std::array invalidUtf8Sources{Logger::Types::SourceDefinition{1, std::string_view{"\xC3\x28", 2}}};
     Logger::Types::Config invalidSourceText = makeConsoleConfig();
     invalidSourceText.sources = invalidUtf8Sources;
     context.expectEq("invalid UTF-8 source rejected", Logger::init(invalidSourceText).status.code, IO::Types::ErrorCode::EncodingFailed);
+
+    const Logger::Color invalidColorValue{.kind = static_cast<Logger::Color::Kind>(99)};
+    std::array invalidColorSources{Logger::Types::SourceDefinition{1, "InvalidColor", invalidColorValue}};
+    Logger::Types::Config invalidColorConfig = makeConsoleConfig();
+    invalidColorConfig.sources = invalidColorSources;
+    context.expectEq("invalid source color rejected", Logger::init(invalidColorConfig).status.code, IO::Types::ErrorCode::InvalidArgument);
 }
 
 void testFileFallbackAndSetupStatus(TestContext &context)
