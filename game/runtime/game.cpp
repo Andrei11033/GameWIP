@@ -14,13 +14,13 @@
 #include "logger/logger.h"
 #include "desktop/window.h"
 #include "input/input.h"
+#include "terminal/terminal.h"
 
 #if defined(_WIN32)
 #include "input/native/desktop_win32.h"
 #endif
 
 #include <chrono>
-#include <cstdio>
 #include <cstdlib>
 #include <format>
 #include <string>
@@ -31,12 +31,19 @@ namespace
     namespace Color = GameWIP::Profiling::Color;
     namespace Logger = GameWIP::Logger;
     namespace GameLogging = GameWIP::Game::Logging;
+    namespace Terminal = GameWIP::Terminal;
     using LogArea = GameLogging::Area;
 
     /// @brief Window name shared by the runtime's log messages.
     inline constexpr std::string_view kWindowName = "Borderless fullscreen window";
     /// @brief Longest wait for window events before the loop runs another frame.
     inline constexpr std::chrono::milliseconds kEventWaitInterval{16};
+
+    /// @brief Writes a final diagnostic without relying on Logger availability.
+    void writeEmergencyMessage(std::string_view message) noexcept
+    {
+        static_cast<void>(Terminal::writeLine(Terminal::Types::Output::Stream::Stderr, message));
+    }
 
     /// @brief Logs a failed operation with its error code and mirrors it to the profiler timeline.
     void reportFailure(LogArea area, std::string_view action, const GameWIP::IO::Types::Status &status)
@@ -152,7 +159,7 @@ namespace
 
         if(primaryExitCode == EXIT_SUCCESS && !shutdownStatus.ok())
         {
-            std::fputs("GameWIP: Logger shutdown failed.\n", stderr);
+            writeEmergencyMessage("GameWIP: Logger shutdown failed.");
             return EXIT_FAILURE;
         }
         return primaryExitCode;
@@ -261,7 +268,7 @@ namespace GameWIP::Game
 
         if(!loggerInit.status.ok() || loggerInit.outcome != Logger::Types::Init::Outcome::Started)
         {
-            std::fputs("GameWIP: Logger initialization failed.\n", stderr);
+            writeEmergencyMessage("GameWIP: Logger initialization failed.");
             return EXIT_FAILURE;
         }
         Logger::info(LogArea::Startup, "Logger initialized");
