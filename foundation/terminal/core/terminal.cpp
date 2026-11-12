@@ -46,6 +46,7 @@ namespace GameWIP::Terminal
         {
             IO::Types::Status status = IO::successStatus();
             bool emitStyle = false;
+            Types::Style::Request style{};
         };
 
         /// @brief Per-output-stream serialization, reusable assembly storage, and nested scope depth.
@@ -238,6 +239,60 @@ namespace GameWIP::Terminal
                    (!style.strikethrough || capabilities.strikethrough);
         }
 
+        /// @brief Approximates an unsupported RGB color with the nearest portable basic color.
+        [[nodiscard]] Types::Style::Color fallbackColor(Types::Style::Color color, const Types::Style::Capabilities &capabilities) noexcept
+        {
+            if(color.kind() != Types::Style::ColorKind::Rgb || capabilities.rgbColor || !capabilities.basicColor)
+            {
+                return color;
+            }
+
+            constexpr std::array<std::array<int, 3>, 16> palette{
+                {{{0, 0, 0}},
+                 {{128, 0, 0}},
+                 {{0, 128, 0}},
+                 {{128, 128, 0}},
+                 {{0, 0, 128}},
+                 {{128, 0, 128}},
+                 {{0, 128, 128}},
+                 {{192, 192, 192}},
+                 {{128, 128, 128}},
+                 {{255, 0, 0}},
+                 {{0, 255, 0}},
+                 {{255, 255, 0}},
+                 {{0, 0, 255}},
+                 {{255, 0, 255}},
+                 {{0, 255, 255}},
+                 {{255, 255, 255}}}};
+            const std::array<int, 3> requested{color.red(), color.green(), color.blue()};
+            std::size_t closestIndex = 0;
+            int closestDistance = std::numeric_limits<int>::max();
+
+            for(std::size_t index = 0; index < palette.size(); ++index)
+            {
+                const int red = requested[0] - palette[index][0];
+                const int green = requested[1] - palette[index][1];
+                const int blue = requested[2] - palette[index][2];
+                const int distance = red * red + green * green + blue * blue;
+
+                if(distance < closestDistance)
+                {
+                    closestDistance = distance;
+                    closestIndex = index;
+                }
+            }
+
+            return basicColor(static_cast<Types::Style::BasicColor>(closestIndex));
+        }
+
+        /// @brief Replaces unsupported RGB colors when automatic styling can use basic colors.
+        [[nodiscard]] Types::Style::Request fallbackColors(Types::Style::Request style, const Types::Style::Capabilities &capabilities) noexcept
+        {
+            style.foreground = fallbackColor(style.foreground, capabilities);
+            style.background = fallbackColor(style.background, capabilities);
+            return style;
+        }
+
         /// @brief Returns whether a stream supports at least one style feature.
         [[nodiscard]] bool anyStyleSupported(const Types::Style::Capabilities &capabilities) noexcept
         {
@@ -420,9 +475,11 @@ namespace GameWIP::Terminal
                 return {};
             }
 
-            if(styleSupported(style, capabilities))
+            const Types::Style::Request resolvedStyle = mode == Types::Style::Mode::Auto ? fallbackColors(style, capabilities) : style;
+
+            if(styleSupported(resolvedStyle, capabilities))
             {
-                return {.status = IO::successStatus(), .emitStyle = true};
+                return {.status = IO::successStatus(), .emitStyle = true, .style = resolvedStyle};
             }
 
             if(mode == Types::Style::Mode::Required)
@@ -564,7 +621,7 @@ namespace GameWIP::Terminal
                 return status.ok() ? flushIfRequested(stream, options.flushMode) : status;
             }
 
-            const StyleSequence prefix = makeStyleSequence(options.style);
+            const StyleSequence prefix = makeStyleSequence(plan.style);
             state.assembly.clear();
             state.assembly.append(prefix.bytes.data(), prefix.size);
             state.assembly.append(utf8Text);
@@ -607,7 +664,7 @@ namespace GameWIP::Terminal
 
             if(plan.emitStyle)
             {
-                const StyleSequence prefix = makeStyleSequence(options.style);
+                const StyleSequence prefix = makeStyleSequence(plan.style);
                 state.assembly.append(prefix.bytes.data(), prefix.size);
             }
             state.assembly.append(utf8Text);
@@ -784,10 +841,15 @@ namespace GameWIP::Terminal
                     const bool allStylesSupported = std::all_of(
                         segments.begin(),
                         segments.end(),
-                        [&capabilityResult](const Types::Output::Segment &segment)
+                        [&capabilityResult, &options](const Types::Output::Segment &segment)
                         {
-                            return segment.kind() != Types::Output::SegmentKind::StyledText || isDefaultStyle(segment.style()) ||
-                                   styleSupported(segment.style(), capabilityResult.capabilities.style);
+                            if(segment.kind() != Types::Output::SegmentKind::StyledText || isDefaultStyle(segment.style()))
+                            {
+                                return true;
+                            }
+
+                            const StylePlan plan = stylePlanForCapabilities(options.styleMode, segment.style(), capabilityResult.capabilities.style);
+                            return plan.status.ok() && plan.emitStyle;
                         });
 
                     if((!allStylesSupported) && (capabilityResult.capabilities.kind != Types::StreamKind::Redirected))
@@ -835,7 +897,7 @@ namespace GameWIP::Terminal
 
                     if(plan.emitStyle)
                     {
-                        const StyleSequence prefix = makeStyleSequence(segment.style());
+                        const StyleSequence prefix = makeStyleSequence(plan.style);
                         state.assembly.append(prefix.bytes.data(), prefix.size);
                     }
                     state.assembly.append(segment.text());

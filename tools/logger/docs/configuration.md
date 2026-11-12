@@ -23,8 +23,8 @@ config.timestampFormat = "%Y-%m-%d %H:%M:%S.%f";
 
 `Config::theme` controls the semantic foreground colors. By default, the timestamp and field names use muted gray, the area uses normal white,
 Trace uses bright green, and unmarked message text follows the severity color. Set `theme.messageUsesSeverityColor` to `false` to use
-`theme.message` instead, which is normal white by default. RGB colors are approximated to a basic terminal color when required; redirected
-output remains plain. The default line format is `[HH:MM:SS.mmm][Area][LEVEL] message`, with INFO and WARN padded to the five-character
+`theme.message` instead, which is normal white by default. Logger passes theme and source colors to Terminal; redirected output remains plain. The
+default line format is `[HH:MM:SS.mmm][Area][LEVEL] message`, with INFO and WARN padded to the five-character
 severity width. Files and debugger output use that same text layout without terminal color sequences. The custom layout template is validated and
 compiled during `init()`; a per-record layout is compiled when `Record::layout()` is called.
 

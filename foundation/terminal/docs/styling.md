@@ -1,6 +1,6 @@
 @page terminal_styling Styling
 
-Terminal accepts portable style requests and emits them only when the selected endpoint reports support.
+Terminal accepts portable style requests and resolves them against the selected endpoint's reported capabilities.
 
 ## Color and style values
 
@@ -18,8 +18,10 @@ stored in each `Types::Output::Segment`; `Types::Output::SegmentOptions::styleMo
 ## Style modes
 
 - `Never` emits plain text and skips style capability work.
-- `Auto` prepares when useful and falls back to plain text when the requested style cannot be honored.
-- `Required` returns preparation or `Unsupported` failure without normal text emission when the complete requested style is unavailable.
+- `Auto` prepares when useful, approximates RGB colors to the nearest basic color when RGB is unavailable, and falls back to plain text when the
+  requested style still cannot be honored.
+- `Required` preserves the exact request and returns preparation or `Unsupported` failure without normal text emission when any requested feature is
+  unavailable.
 
 Terminal treats a style request as a whole. It does not silently emit only a supported subset of attributes.
 

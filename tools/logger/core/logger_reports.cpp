@@ -116,56 +116,9 @@ namespace GameWIP::Logger::Detail::Core
     // Console color resolution and rendering
     // ------------------------------------------------------------
 
-    static Color approximateBasicColor(Color color)
-    {
-        if(color.kind != Color::Kind::Rgb)
-        {
-            return color;
-        }
-        constexpr std::array<std::array<int, 3>, 16> palette{
-            {{{0, 0, 0}},
-             {{128, 0, 0}},
-             {{0, 128, 0}},
-             {{128, 128, 0}},
-             {{0, 0, 128}},
-             {{128, 0, 128}},
-             {{0, 128, 128}},
-             {{192, 192, 192}},
-             {{128, 128, 128}},
-             {{255, 0, 0}},
-             {{0, 255, 0}},
-             {{255, 255, 0}},
-             {{0, 0, 255}},
-             {{255, 0, 255}},
-             {{0, 255, 255}},
-             {{255, 255, 255}}}};
-        const std::array<int, 3> requested{color.red, color.green, color.blue};
-        std::size_t closestIndex = 0;
-        int closestDistance = std::numeric_limits<int>::max();
-        for(std::size_t index = 0; index < palette.size(); ++index)
-        {
-            const int red = requested[0] - palette[index][0];
-            const int green = requested[1] - palette[index][1];
-            const int blue = requested[2] - palette[index][2];
-            const int distance = red * red + green * green + blue * blue;
-            if(distance < closestDistance)
-            {
-                closestDistance = distance;
-                closestIndex = index;
-            }
-        }
-        color.kind = Color::Kind::Basic;
-        color.basic = static_cast<Color::Basic>(closestIndex);
-        return color;
-    }
-
-    static Terminal::Types::Style::Request terminalStyle(Color color, const Terminal::Types::Style::Capabilities &capabilities)
+    static Terminal::Types::Style::Request terminalStyle(Color color)
     {
         Terminal::Types::Style::Request style;
-        if(color.kind == Color::Kind::Rgb && !capabilities.rgbColor && capabilities.basicColor)
-        {
-            color = approximateBasicColor(color);
-        }
         switch(color.kind)
         {
         case Color::Kind::Default:
@@ -321,64 +274,9 @@ namespace GameWIP::Logger::Detail::Core
 
         const auto stream = logStyle.useStderr ? Terminal::Types::Output::Stream::Stderr : Terminal::Types::Output::Stream::Stdout;
         const Color plainMessageColor = loggerState().theme.messageUsesSeverityColor ? severityColor : loggerState().theme.message;
-        bool needsRgbCapabilities = severityColor.kind == Color::Kind::Rgb || sourceColor.kind == Color::Kind::Rgb ||
-                                    loggerState().theme.timestamp.kind == Color::Kind::Rgb || plainMessageColor.kind == Color::Kind::Rgb;
-        if(!needsRgbCapabilities)
+        const auto styleFor = [](Color color)
         {
-            for(std::size_t index = 0; index + 1 < line.size(); ++index)
-            {
-                if(line[index] == Protocol::kStyleScopeBegin)
-                {
-                    if(semanticColor(line[index + 1], severityColor, sourceColor).kind == Color::Kind::Rgb)
-                    {
-                        needsRgbCapabilities = true;
-                        break;
-                    }
-                    ++index;
-                    continue;
-                }
-                if(line[index] != Protocol::kStyleBegin)
-                {
-                    continue;
-                }
-                const char role = line[index + 1];
-                Color markedColor{};
-                if(role == 'X')
-                {
-                    if(index + 7 <= line.size())
-                    {
-                        markedColor.kind = static_cast<Color::Kind>(static_cast<unsigned char>(line[index + 2]));
-                    }
-                }
-                else if(role == 'T')
-                {
-                    markedColor = loggerState().theme.timestamp;
-                }
-                else if(role == 'L')
-                {
-                    markedColor = severityColor;
-                }
-                else if(role == 'A')
-                {
-                    markedColor = sourceColor;
-                }
-                else
-                {
-                    markedColor = markedValueColor(role, {});
-                }
-                if(markedColor.kind == Color::Kind::Rgb)
-                {
-                    needsRgbCapabilities = true;
-                    break;
-                }
-            }
-        }
-
-        const Terminal::Types::Style::Capabilities capabilities =
-            needsRgbCapabilities ? Terminal::getOutputCapabilities(stream).capabilities.style : Terminal::Types::Style::Capabilities{};
-        const auto styleFor = [&capabilities](Color color)
-        {
-            return terminalStyle(color, capabilities);
+            return terminalStyle(color);
         };
 
         const auto appendStyledText = [&](std::string_view text, Color baseColor)

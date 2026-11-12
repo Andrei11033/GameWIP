@@ -59,13 +59,15 @@ Redirected endpoints are byte-oriented:
 - byte input performs no text interpretation.
 
 `Types::Style::Mode::Auto` omits style sequences on redirected output that does not advertise the requested style. `Types::Style::Mode::Required`
-returns `Unsupported` without normal text emission when the style cannot be honored.
+returns `Unsupported` without normal text emission when the exact requested style cannot be honored. See @ref terminal_styling for RGB fallback
+behavior on styled output.
 
 ## Current Win32 behavior
 
 Real-console output converts already-validated UTF-8 to UTF-16 and uses the native Unicode console path. Redirected text output writes the
-same bytes unchanged; byte output remains arbitrary binary. The reported style set is conservative; enabling virtual-terminal
-processing does not by itself promise RGB, dim, italic, or strikethrough support.
+same bytes unchanged; byte output remains arbitrary binary. Enabling virtual-terminal processing advertises basic and RGB colors, bold, underline,
+and inverse styling. The Windows Console may approximate RGB requests to its 16-color palette; other terminal hosts may render the requested RGB
+color directly. Dim, italic, and strikethrough remain unsupported by this backend.
 
 Named-pipe input reports byte/text/line input plus non-blocking reads, finite deadlines, and cooperative cancellation. Regular redirected files report
 byte/text/line input without bounded-wait guarantees.
