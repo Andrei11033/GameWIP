@@ -26,6 +26,7 @@ integration code and reusable libraries.
 | `game/runtime/game.cpp` | Runtime facade implementation. |
 | `game/runtime/display_report.h` | Startup display inspection entry point. |
 | `game/runtime/display_report.cpp` | Display, mode, and HDR/color report formatting and logging. |
+| `game/runtime/logging.h` | Typed runtime log areas and their compile-time names and colors. |
 | `game/runtime/profiling.h` | Tracy hooks and zone colors; no-ops when Tracy is disabled. |
 | `game/runtime/version.h.in` | Template for generated build and release identity. |
 | `game/validation/validation.h` | Compile-time facade that keeps `main.cpp` stable when startup validation is disabled. |
@@ -77,16 +78,18 @@ ordinary game runtime begins.
 5. Stop startup when correctness validation fails.
 6. Run startup benchmarks when they were compiled into the executable.
 7. Stop startup when Google Benchmark rejects its arguments.
-8. Enter `GameWIP::Game::run()`, which initializes Desktop and Input services,
+8. Enter `GameWIP::Game::run()`, which composes Desktop and Input services,
    opens the game window, attaches Input on Windows, and runs the event loop.
 9. Return the runtime facade's exit code.
 
 ## Input and Desktop integration
 
-On Windows, `game/runtime/game.cpp` initializes the Input system after opening the Desktop window
-and calls `GameWIP::Input::Platform::Win32::attachToWindow()` to register the native attachment
-with the message pump. Input captures are then processed during frame updates within the main
-event loop. See @ref input_library and @ref desktop_native_interop for contracts and error handling.
+On Windows, `game/runtime/game.cpp` initializes the Input system after opening
+the Desktop window and calls
+`GameWIP::Input::Platform::Win32::attachToWindow()` to route native window
+messages to Input. The current runtime does not yet capture or consume Input
+frames, or map them to actions; those remain R01 work. See @ref input_library
+and @ref desktop_native_interop for contracts and error handling.
 
 Utility-only help and version queries bypass validation and runtime startup. A
 help or `--version` token combined with other arguments is not treated as the
@@ -117,7 +120,10 @@ startup wiring into runtime composition.
 
 `run()` performs this runtime sequence:
 
-1. Initialize Logger console output at Debug severity.
+1. Initialize Logger console output at Debug severity and register the runtime's
+   Startup, Display, Input, Window, Shutdown, and Diagnostics areas. Their names
+   and RGB label colors are defined in `game/runtime/logging.h` before logging
+   begins.
 2. Enumerate connected displays and query each display's active mode, supported
    modes, and HDR/color information. Emit one Info report per display containing
    its inventory, active mode, and color capabilities, plus a Debug report of
@@ -148,6 +154,13 @@ HDR or color query appears in the
 startup report for that display but does not prevent the window from opening.
 The facade ignores `argc` and `argv`; it neither retains nor
 interprets them.
+
+Runtime messages use the registered area IDs, so the console can group and
+color each subsystem consistently. The default line layout places the padded
+area before the padded severity, followed by the message. Structured records
+add searchable fields to diagnostic messages, while explicitly marked format
+arguments distinguish values such as error codes, paths, and numbers. Logger's
+configuration and formatting options are documented in @ref logger.
 
 Tracy-enabled builds identify display discovery, window open and close, the
 event wait/pump, individual game frames, and Logger lifetime with named zones

@@ -1,8 +1,10 @@
 @page project_reusable_libraries Reusable libraries
 
-These are the supported, documented C++ libraries in GameWIP. Each library has
-a quick start, conceptual guides, examples, troubleshooting, validation notes,
-and generated reference pages for its public symbols.
+This page indexes the supported, documented C++ libraries in GameWIP and lists
+internal foundation support separately. Supported libraries have a landing
+page and quick start; focused guides cover their concepts, examples, validation,
+troubleshooting, and package boundaries where those topics apply. Generated
+reference pages describe their public symbols.
 
 Start with a library's landing page when you need to understand its model or
 decide whether it is the right dependency. Use its generated namespace and
@@ -34,8 +36,9 @@ project_structure.
 
 ## Tool libraries
 
-- @subpage logger - Asynchronous diagnostics, synchronous emergency reports,
-  sinks, filtering, health, and lifecycle.
+- @subpage logger - Asynchronous structured logging with registered sources,
+  configurable colored layouts, synchronous emergency reports, sinks,
+  filtering, health, and lifecycle.
 - @subpage assert - Fatal assertions, recoverable checks, debug breaks, and
   optional interactive failure handling.
 - @subpage test_support - Reusable test runners, expectations, reports,
