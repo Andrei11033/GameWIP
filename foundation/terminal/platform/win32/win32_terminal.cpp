@@ -657,11 +657,11 @@ namespace GameWIP::Terminal::Detail::Platform
             return (mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
         }
 
-        /// @brief Populates the exact style subset supported by the current Win32 VT path.
+        /// @brief Populates style features emitted by the current Win32 VT path.
         void setStyleCapabilities(Terminal::Types::Style::Capabilities &capabilities, bool virtualTerminal) noexcept
         {
             capabilities.basicColor = virtualTerminal;
-            capabilities.rgbColor = false;
+            capabilities.rgbColor = virtualTerminal;
             capabilities.bold = virtualTerminal;
             capabilities.dim = false;
             capabilities.italic = false;
