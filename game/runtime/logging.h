@@ -21,11 +21,12 @@ namespace GameWIP::Game::Logging
     };
 
     /// @brief Source definitions installed before runtime logging begins.
+    /// @details RGB values match distinct basic terminal colors when RGB output is unavailable.
     inline constexpr std::array kSources{
-        Logger::defineSource(Area::Startup, "Startup", Logger::Color::rgb(120, 175, 255)),
-        Logger::defineSource(Area::Display, "Display", Logger::Color::rgb(75, 195, 220)),
-        Logger::defineSource(Area::Input, "Input", Logger::Color::rgb(190, 140, 245)),
-        Logger::defineSource(Area::Window, "Window", Logger::Color::rgb(255, 180, 95)),
-        Logger::defineSource(Area::Shutdown, "Shutdown", Logger::Color::rgb(155, 160, 175)),
+        Logger::defineSource(Area::Startup, "Startup", Logger::Color::rgb(0, 0, 255)),
+        Logger::defineSource(Area::Display, "Display", Logger::Color::rgb(0, 255, 255)),
+        Logger::defineSource(Area::Input, "Input", Logger::Color::rgb(255, 0, 255)),
+        Logger::defineSource(Area::Window, "Window", Logger::Color::rgb(255, 255, 0)),
+        Logger::defineSource(Area::Shutdown, "Shutdown", Logger::Color::rgb(128, 128, 128)),
     };
 } // namespace GameWIP::Game::Logging
