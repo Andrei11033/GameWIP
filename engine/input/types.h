@@ -14,6 +14,10 @@
 /// @brief Public passive data types shared by the GameWIP Input API.
 namespace GameWIP::Input::Types
 {
+    // ------------------------------------------------------------
+    // Session identities
+    // ------------------------------------------------------------
+
     /// @brief Runtime identity for one device in one open session.
     /// @details Runtime IDs are opaque lookup tokens valid only for the open session. Use persistent keys or control identities for bindings.
     struct DeviceId
@@ -59,6 +63,10 @@ namespace GameWIP::Input::Types
         friend constexpr bool operator==(ComponentId, ComponentId) noexcept = default;
     };
 
+    // ------------------------------------------------------------
+    // Text and spatial identities
+    // ------------------------------------------------------------
+
     /// @brief Runtime identity for a text-input surface.
     struct SurfaceId
     {
@@ -81,6 +89,10 @@ namespace GameWIP::Input::Types
 
         friend constexpr bool operator==(SpaceId, SpaceId) noexcept = default;
     };
+
+    // ------------------------------------------------------------
+    // Typed observations
+    // ------------------------------------------------------------
 
     /// @brief Two-component value used for typed input observations.
     /// @tparam T Component storage type.
@@ -129,9 +141,12 @@ namespace GameWIP::Input::Types
     /// @brief A coherent spatial observation with independently valid parts.
     struct Spatial
     {
-        Vector3F64 position{};           ///< Position in referenceSpace when positionValid is true.
-        QuaternionF64 orientation{};     ///< Orientation in referenceSpace when orientationValid is true.
-        SpaceId referenceSpace{};        ///< Space in which valid spatial values are expressed.
+        // Observation values and reference space
+        Vector3F64 position{};       ///< Position in referenceSpace when positionValid is true.
+        QuaternionF64 orientation{}; ///< Orientation in referenceSpace when orientationValid is true.
+        SpaceId referenceSpace{};    ///< Space in which valid spatial values are expressed.
+
+        // Validity and tracking state
         bool positionValid = false;      ///< Whether position contains a valid observation.
         bool orientationValid = false;   ///< Whether orientation contains a valid observation.
         bool positionTracked = false;    ///< Whether position is actively tracked rather than inferred.
@@ -142,6 +157,10 @@ namespace GameWIP::Input::Types
 
     /// @brief Numeric scalar returned by component queries.
     using Scalar = std::variant<std::int64_t, std::uint64_t, float, double>;
+
+    // ------------------------------------------------------------
+    // Value representation
+    // ------------------------------------------------------------
 
     /// @brief Typed value carried by an element state or event.
     /// @details The alternative index is intentionally kept in lockstep with ValueKind. A monostate represents no value.
@@ -210,6 +229,10 @@ namespace GameWIP::Input::Types
         Relative  ///< Value is a delta since the previous observation.
     };
 
+    // ------------------------------------------------------------
+    // Value and source metadata
+    // ------------------------------------------------------------
+
     /// @brief Unit metadata for numeric values.
     enum class Unit : std::uint8_t
     {
@@ -266,8 +289,35 @@ namespace GameWIP::Input::Types
         LinuxEvdev,         ///< Linux evdev.
         LinuxHidraw,        ///< Linux hidraw.
         Synthetic,          ///< Explicit software producer.
-        OpenXr              ///< OpenXR runtime.
+        OpenXr,             ///< OpenXR runtime.
+        DirectInput         ///< Microsoft DirectInput.
     };
+
+    // ------------------------------------------------------------
+    // Backend status
+    // ------------------------------------------------------------
+
+    /// @brief Startup state of one native input backend.
+    enum class BackendStatus : std::uint8_t
+    {
+        Enabled,     ///< Initialized and capturing.
+        Disabled,    ///< Excluded by configuration; not initialized or polled.
+        Unavailable, ///< Selected, but its runtime or dependency is unavailable.
+        Unsupported, ///< Not implemented or not supported on this platform.
+        Failed       ///< Selected, but initialization failed.
+    };
+
+    /// @brief Startup status and optional failure detail for one backend.
+    struct BackendInfo
+    {
+        BackendKind backend = BackendKind::Synthetic;      ///< Backend category.
+        BackendStatus status = BackendStatus::Unsupported; ///< Startup outcome.
+        std::string detail{};                              ///< Concise reason when unavailable or failed.
+    };
+
+    // ------------------------------------------------------------
+    // Event causes and value provenance
+    // ------------------------------------------------------------
 
     /// @brief Cause attached to a published event.
     enum class EventCause : std::uint8_t
@@ -303,6 +353,10 @@ namespace GameWIP::Input::Types
         NativeApiProcessed, ///< Produced by a native API after its own processing.
         Synthetic           ///< Produced by an explicit software source.
     };
+
+    // ------------------------------------------------------------
+    // Control identities and selectors
+    // ------------------------------------------------------------
 
     /// @brief Vocabulary domain for a recognized standard control.
     /// @note This is a naming domain, not a device class or backend selection.
@@ -392,6 +446,10 @@ namespace GameWIP::Input::Types
         }
     };
 
+    // ------------------------------------------------------------
+    // Element and device descriptors
+    // ------------------------------------------------------------
+
     /// @brief Numeric range, unit, and native-storage metadata.
     struct NumericInfo
     {
@@ -415,13 +473,18 @@ namespace GameWIP::Input::Types
     /// @brief Stable descriptor for one input element.
     struct ElementInfo
     {
-        ElementId id{};                                              ///< Runtime element identity.
-        std::string name{};                                          ///< Human-readable UTF-8 name.
-        std::string persistentKey{};                                 ///< Producer-owned persistent descriptor key.
-        ControlIdentity identity{};                                  ///< Portable standard or canonical HID identity.
-        ValueKind kind = ValueKind::None;                            ///< Typed value kind.
-        ReportingMode reporting = ReportingMode::Absolute;           ///< Absolute or relative reporting.
-        std::vector<ComponentInfo> components{};                     ///< Component metadata in index order.
+        // Identity
+        ElementId id{};              ///< Runtime element identity.
+        std::string name{};          ///< Human-readable UTF-8 name.
+        std::string persistentKey{}; ///< Producer-owned persistent descriptor key.
+        ControlIdentity identity{};  ///< Portable standard or canonical HID identity.
+
+        // Value description
+        ValueKind kind = ValueKind::None;                  ///< Typed value kind.
+        ReportingMode reporting = ReportingMode::Absolute; ///< Absolute or relative reporting.
+        std::vector<ComponentInfo> components{};           ///< Component metadata in index order.
+
+        // Source ownership
         BackendKind authoritativeBackend = BackendKind::Synthetic;   ///< Backend that owns the value.
         ValueProvenance provenance = ValueProvenance::NativeDecoded; ///< Value provenance category.
     };
@@ -446,6 +509,7 @@ namespace GameWIP::Input::Types
     /// sources. Ambiguous sources remain separate rather than being guessed.
     struct DeviceInfo
     {
+        // Device identity
         DeviceId id{};                                                    ///< Runtime device identity.
         DeviceOrigin origin = DeviceOrigin::Physical;                     ///< Physical, virtual, or service origin.
         std::string name{};                                               ///< Human-readable UTF-8 device name.
@@ -454,11 +518,19 @@ namespace GameWIP::Input::Types
         IdentityConfidence identityConfidence = IdentityConfidence::None; ///< Confidence in persistentKey.
         std::optional<std::uint16_t> vendorId{};                          ///< Optional vendor identifier.
         std::optional<std::uint16_t> productId{};                         ///< Optional product identifier.
-        bool connected = false;                                           ///< Whether the descriptor represents a connected source.
-        std::uint64_t descriptorRevision = 0;                             ///< Revision at which this descriptor was published.
-        std::vector<SourceInfo> sources{};                                ///< Backend sources contributing to the device.
-        std::vector<ElementInfo> elements{};                              ///< Elements exposed by the device.
+
+        // Connection state
+        bool connected = false;               ///< Whether the descriptor represents a connected source.
+        std::uint64_t descriptorRevision = 0; ///< Revision at which this descriptor was published.
+
+        // Contributing sources and controls
+        std::vector<SourceInfo> sources{};   ///< Backend sources contributing to the device.
+        std::vector<ElementInfo> elements{}; ///< Elements exposed by the device.
     };
+
+    // ------------------------------------------------------------
+    // Capture and event data
+    // ------------------------------------------------------------
 
     /// @brief Monotonic clock used for portable input timestamps.
     using Clock = std::chrono::steady_clock;
@@ -466,7 +538,10 @@ namespace GameWIP::Input::Types
     /// @brief Observation timestamp with optional native clock correlation.
     struct Timestamp
     {
-        Clock::time_point receivedAt{};      ///< Portable receipt time; zero means unspecified.
+        // Portable timestamp
+        Clock::time_point receivedAt{}; ///< Portable receipt time; zero means unspecified.
+
+        // Optional native clock correlation
         std::uint64_t nativeTicks = 0;       ///< Optional backend-native tick value.
         std::uint64_t nativeFrequency = 0;   ///< Optional native ticks per second.
         std::uint64_t nativeClockDomain = 0; ///< Optional native clock-domain identity.
@@ -475,13 +550,16 @@ namespace GameWIP::Input::Types
     /// @brief Latest value and interval transition counters for one element.
     struct ElementState
     {
+        // Current state
         ElementId id{};                                  ///< Runtime element identity.
         Value value{};                                   ///< Latest typed value, retained when validity is not Valid.
         ValueValidity validity = ValueValidity::Unknown; ///< Quality of value.
         Timestamp lastObservation{};                     ///< Timestamp of the latest source observation.
-        std::uint32_t becameTrueCount = 0;               ///< Boolean false-to-true transitions in the last frame interval.
-        std::uint32_t becameFalseCount = 0;              ///< Boolean true-to-false transitions in the last frame interval.
-        std::uint32_t repeatCount = 0;                   ///< Repeated reports in the last frame interval.
+
+        // Interval transitions
+        std::uint32_t becameTrueCount = 0;  ///< Boolean false-to-true transitions in the last frame interval.
+        std::uint32_t becameFalseCount = 0; ///< Boolean true-to-false transitions in the last frame interval.
+        std::uint32_t repeatCount = 0;      ///< Repeated reports in the last frame interval.
     };
 
     /// @brief Kind of event published in a frame.
@@ -531,12 +609,19 @@ namespace GameWIP::Input::Types
     /// @brief One ordered event in a captured frame.
     struct Event
     {
-        std::uint64_t sequence = 0;                 ///< Monotonic event sequence within the open session.
-        Timestamp timestamp{};                      ///< Event observation time.
+        // Event ordering and timing
+        std::uint64_t sequence = 0; ///< Monotonic event sequence within the open session.
+        Timestamp timestamp{};      ///< Event observation time.
+
+        // Event category and payload
         EventKind kind = EventKind::ElementChanged; ///< Event category.
         EventCause cause = EventCause::Reported;    ///< Why the event was published.
         EventPayload data{};                        ///< Category-specific payload.
     };
+
+    // ------------------------------------------------------------
+    // Session health and configuration
+    // ------------------------------------------------------------
 
     /// @brief Health counters accumulated during the current open session.
     struct Health
@@ -550,11 +635,17 @@ namespace GameWIP::Input::Types
     /// @brief Open-time behavior and bounded-storage configuration.
     struct Configuration
     {
+        // Event and text capture
         std::size_t eventCapacity = 4096;                                          ///< Maximum queued events between captures.
         bool enableText = true;                                                    ///< Whether text events are accepted.
         std::size_t maximumPendingTextBytes = std::size_t{64} * std::size_t{1024}; ///< Maximum UTF-8 text retained between captures.
-        bool captureRawReports = false;                                            ///< Whether native raw reports are retained in frames.
-        std::size_t rawReportCapacity = 256;                                       ///< Maximum raw reports retained between captures.
-        std::size_t maximumRawReportBytes = 4096;                                  ///< Maximum bytes per retained raw report.
+
+        // Raw report capture
+        bool captureRawReports = false;           ///< Whether native raw reports are retained in frames.
+        std::size_t rawReportCapacity = 256;      ///< Maximum raw reports retained between captures.
+        std::size_t maximumRawReportBytes = 4096; ///< Maximum bytes per retained raw report.
+
+        // Native backend selection
+        std::optional<std::vector<BackendKind>> enabledBackends{}; ///< Native backends to enable; unset tries every available backend.
     };
 } // namespace GameWIP::Input::Types

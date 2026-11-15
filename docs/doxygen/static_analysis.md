@@ -163,6 +163,8 @@ and `game/`, whether or not a first-party file has been added to Git yet.
 `check` is non-mutating; `apply` reports the maintained files whose content
 changed.
 
+Manual grouping and function-phase spacing are defined in @ref project_documentation.
+
 Review formatter output before committing:
 
 ```powershell

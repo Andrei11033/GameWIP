@@ -13,6 +13,7 @@ if(GAMEWIP_BUILD_DOCS)
     set(GAMEWIP_DOXYGEN_MAINPAGE "${GAMEWIP_DOXYGEN_ROOT}/index.md")
 
     gamewip_register_doxygen_inputs(
+        # Project manuals and workflow pages
         "${GAMEWIP_DOXYGEN_ROOT}/index.md"
         "${GAMEWIP_DOXYGEN_ROOT}/getting_started.md"
         "${GAMEWIP_DOXYGEN_ROOT}/environment_setup.md"
@@ -40,16 +41,28 @@ if(GAMEWIP_BUILD_DOCS)
         "${GAMEWIP_DOXYGEN_ROOT}/documentation.md"
         "${GAMEWIP_DOXYGEN_ROOT}/extending.md"
         "${GAMEWIP_DOXYGEN_ROOT}/cmake_infrastructure.md"
+        "${GAMEWIP_DOXYGEN_ROOT}/platform_backend_contract.md"
+
+        # Repository records
         "${PROJECT_SOURCE_DIR}/docs/contributing.md"
         "${PROJECT_SOURCE_DIR}/docs/decisions.md"
-        "${GAMEWIP_DOXYGEN_ROOT}/platform_backend_contract.md"
         "${PROJECT_SOURCE_DIR}/docs/roadmap.md"
         "${PROJECT_SOURCE_DIR}/docs/versioning.md"
         "${PROJECT_SOURCE_DIR}/docs/vision.md"
+
         # Executable-owned source interfaces are documented for contributors and
         # maintainers. They are not installed consumer APIs.
         "${PROJECT_SOURCE_DIR}/game/runtime/game.h"
+        "${PROJECT_SOURCE_DIR}/game/runtime/diagnostics/display_report.h"
+        "${PROJECT_SOURCE_DIR}/game/runtime/diagnostics/runtime_diagnostics.h"
+        "${PROJECT_SOURCE_DIR}/game/runtime/lifecycle/logger_lifecycle.h"
+        "${PROJECT_SOURCE_DIR}/game/runtime/options/runtime_options.h"
+        "${PROJECT_SOURCE_DIR}/game/runtime/window/window_loop.h"
+
+        # Generated version interface
         "${PROJECT_BINARY_DIR}/generated/gamewip/version.h"
+
+        # Validation interfaces
         "${PROJECT_SOURCE_DIR}/game/validation/types.h"
         "${PROJECT_SOURCE_DIR}/game/validation/validation.h"
         "${PROJECT_SOURCE_DIR}/game/validation/benchmarks/runner.h"

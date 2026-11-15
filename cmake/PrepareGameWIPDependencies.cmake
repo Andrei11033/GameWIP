@@ -20,6 +20,7 @@ set(_manifest_entries "")
 file(MAKE_DIRECTORY "${_fetchcontent_root}")
 file(MAKE_DIRECTORY "${_staging_root}")
 
+# Prepare pinned Git dependencies in the shared source cache.
 foreach(gamewip_dependency IN ITEMS tracy benchmark)
     gamewip_get_dependency("${gamewip_dependency}" _repository _commit _cache_directory)
 
@@ -40,6 +41,7 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
         )
     endif()
 
+    # Reuse a verified checkout or stage a clean fetch before publishing it.
     if(_cached_commit STREQUAL _commit)
         message(STATUS "GameWIP dependency '${gamewip_dependency}' is already cached at " "${_final_source_directory}")
     else()
@@ -97,6 +99,7 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
         message(STATUS "Cached '${gamewip_dependency}' at ${_final_source_directory}")
     endif()
 
+    # Add the verified checkout to the cache manifest.
     if(_manifest_entries)
         string(APPEND _manifest_entries ",\n")
     endif()
@@ -111,6 +114,25 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
         "    }"
     )
 endforeach()
+
+# Prepare the pinned GameInput package archive.
+gamewip_get_archive_dependency(gameinput _gameinput_url _gameinput_sha512 _gameinput_cache_directory _gameinput_archive_file _gameinput_validation_file)
+gamewip_prepare_archive_dependency(gameinput _gameinput_source_directory)
+
+# Publish cache metadata for the prepared dependencies.
+if(_manifest_entries)
+    string(APPEND _manifest_entries ",\n")
+endif()
+
+string(
+    APPEND _manifest_entries
+    "    \"gameinput\": {\n"
+    "      \"url\": \"${_gameinput_url}\",\n"
+    "      \"sha512\": \"${_gameinput_sha512}\",\n"
+    "      \"archiveFile\": \"archives/${_gameinput_archive_file}\",\n"
+    "      \"sourceDirectory\": \"fetchcontent/${_gameinput_cache_directory}-src\"\n"
+    "    }"
+)
 
 file(
     WRITE "${_cache_root}/cache-manifest.json"

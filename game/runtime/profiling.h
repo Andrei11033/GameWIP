@@ -20,6 +20,7 @@ namespace GameWIP::Profiling::Color
     inline constexpr auto kInitialization = 0x72B7B2;
     inline constexpr auto kFrame = 0x54A24B;
     inline constexpr auto kWait = 0x9D9DA1;
+    inline constexpr auto kInput = 0x9D755D;
     inline constexpr auto kShutdown = 0xE45756;
     inline constexpr auto kValidation = 0xF58518;
     inline constexpr auto kBenchmark = 0xB279A2;

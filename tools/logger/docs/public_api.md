@@ -49,7 +49,7 @@ filtering only; `(level, SourceId)` and enum-source forms also apply the registe
 and explicit runtime-format forms. Accepted hot-path message text is valid UTF-8 by contract and is not rescanned unconditionally.
 
 The default text layout is `[HH:MM:SS.mmm][Area][LEVEL] message`; area labels align to the widest registered source, and the five-character
-severity column is padded. For example, `[14:01:10.241][Startup    ][INFO ] Logger initialized`. Trace is bright green by default.
+severity column is padded. For example, `[14:01:10.241][Startup    ][INFO ] Logger started`. Trace is bright green by default.
 Console output colors timestamp, severity, area, message,
 and explicitly marked format arguments independently. By default, unmarked message text follows the severity color; set
 `Theme::messageUsesSeverityColor` to `false` to use `Theme::message`, which is normal white by default. Timestamps and field names use muted gray.
@@ -73,7 +73,7 @@ Logger::info(Area::Input,
 ```
 
 `Layouts::adaptive()`, `compact()`, `expanded()`, and `parenthesized()` select field presentation globally with `Config::fieldLayout` or for a
-single `Record`. Adaptive is the default: short fields appear before the message; long or multiline fields move to continuation lines.
+single `Record`. Adaptive is the default: short fields follow the message in parentheses; long or multiline fields move to continuation lines.
 
 For advanced output, `makeLayout()` creates a compile-time-validated `LayoutTemplate`. The built-in layout uses the same renderer. Set
 `Config::layout` for all records or pass the template to `Record::layout()` for one record. Supported names are `time`, `level`, `area`,

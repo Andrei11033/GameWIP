@@ -33,9 +33,11 @@ namespace GameWIP::Logger
     class Record
     {
     public:
+        // Field values
         /// @brief Adds a formatted key-value field when the key and configured limits allow it.
         template <typename Value> Record &field(std::string_view key, Value &&value)
         {
+            // Reject invalid keys and fields beyond the configured limit.
             if(key.empty() || GameWIP::Unicode::Utf8::validate(key).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
             {
                 return *this;
@@ -46,6 +48,7 @@ namespace GameWIP::Logger
                 return *this;
             }
 
+            // Bound the key and format the value within its configured limit.
             key = key.substr(0, Detail::Core::utf8PrefixBoundary(key, limits.maxKeyLength));
             if(key.empty())
             {
@@ -61,6 +64,7 @@ namespace GameWIP::Logger
             static_cast<void>(std::format_to_n(std::back_inserter(text), boundedOutputLimit, "{}", std::forward<Value>(value)));
             text.resize(Detail::Core::utf8PrefixBoundary(text, limits.maxValueLength));
 
+            // Retain only valid UTF-8 field values.
             if(GameWIP::Unicode::Utf8::validate(text).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
             {
                 return *this;
@@ -69,6 +73,10 @@ namespace GameWIP::Logger
             fields_.emplace_back(key, std::move(text));
             return *this;
         }
+
+        // ------------------------------------------------------------
+        // Source metadata
+        // ------------------------------------------------------------
 
         /// @brief Includes the current thread identifier in this record.
         Record &threadId() noexcept
@@ -114,6 +122,10 @@ namespace GameWIP::Logger
             return *this;
         }
 
+        // ------------------------------------------------------------
+        // Field layout
+        // ------------------------------------------------------------
+
         /// @brief Selects a built-in layout for this record's fields.
         Record &layout(FieldLayout value) noexcept
         {
@@ -138,20 +150,30 @@ namespace GameWIP::Logger
         {
         }
 
+        // ------------------------------------------------------------
+        // Message formatting
+        // ------------------------------------------------------------
+
         [[nodiscard]] std::string prefix() const
         {
+            // Start with the formatted record fields.
             std::string result = fieldText();
 
+            // Append selected call-site and runtime metadata.
             if(includeFile_ || includeFunction_ || includeLine_ || includeThreadId_ || includeProcessId_)
             {
+                // Separate existing fields from optional metadata.
                 if(!result.empty())
                 {
                     result.append(" | ");
                 }
+
+                // Format the selected call-site location.
                 if(includeFile_)
                 {
                     result.append(location_.file_name());
                 }
+
                 if(includeLine_)
                 {
                     if(includeFile_)
@@ -160,6 +182,7 @@ namespace GameWIP::Logger
                     }
                     result.append(std::format("{}", location_.line()));
                 }
+
                 if(includeFunction_)
                 {
                     if(includeFile_ || includeLine_)
@@ -169,6 +192,7 @@ namespace GameWIP::Logger
                     result.append(location_.function_name());
                 }
 
+                // Append selected runtime identifiers.
                 if(includeThreadId_)
                 {
                     if(!result.empty())
@@ -177,6 +201,7 @@ namespace GameWIP::Logger
                     }
                     result.append(std::format("thread={}", std::this_thread::get_id()));
                 }
+
                 if(includeProcessId_)
                 {
                     if(!result.empty())
@@ -187,10 +212,12 @@ namespace GameWIP::Logger
                 }
             }
 
+            // Add the prefix-to-message separator when content exists.
             if(!result.empty())
             {
                 result.append(": ");
             }
+
             return result;
         }
 
@@ -215,8 +242,11 @@ namespace GameWIP::Logger
 
         [[nodiscard]] std::string decorate(std::string_view message, FieldLayout defaultLayout, LayoutTemplate defaultTemplate = {}) const
         {
+            // Build metadata before selecting the configured field layout.
             std::string prefixText = prefix();
             const std::string_view selectedTemplate = customLayout_.empty() ? defaultTemplate.text : std::string_view(customLayout_);
+
+            // Apply a validated custom template when one is available.
             if(!selectedTemplate.empty())
             {
                 if(!prefixText.empty())
@@ -247,6 +277,7 @@ namespace GameWIP::Logger
                 return result;
             }
 
+            // Use the built-in layout when no custom template was selected.
             if(prefixText.empty())
             {
                 return std::string(message);
@@ -267,6 +298,7 @@ namespace GameWIP::Logger
                 expanded = expanded || totalFieldBytes > 96;
             }
 
+            // Render either a multiline record or the selected inline layout.
             if(expanded)
             {
                 std::string result(message);
@@ -274,18 +306,24 @@ namespace GameWIP::Logger
                 result.append(prefixText);
                 return result;
             }
-            if(selected == FieldLayout::Parenthesized)
+
+            if(selected == FieldLayout::Adaptive || selected == FieldLayout::Parenthesized)
             {
-                return std::format("({}) {}", prefixText, message);
+                return std::format("{} ({})", message, prefixText);
             }
             return std::format("{}: {}", prefixText, message);
         }
 
+        // Stored fields and call site
         std::vector<std::pair<std::string, std::string>> fields_;
         std::source_location location_;
+
+        // Field layout selection
         FieldLayout layout_ = FieldLayout::Adaptive;
         std::string customLayout_;
         bool hasLayout_ = false;
+
+        // Optional call-site metadata
         bool includeThreadId_ = false;
         bool includeProcessId_ = false;
         bool includeFile_ = false;

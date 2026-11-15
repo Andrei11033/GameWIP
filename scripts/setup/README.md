@@ -63,7 +63,7 @@ and exact pins through a staged, source-preserving compare-and-set plan; setup
 does not silently advance those pins.
 
 The dependency cache follows the same pinned-lock policy. Complete, repair, and
-update setup actions prepare or reuse the sources recorded in
+update setup actions prepare or reuse the sources and packages recorded in
 `../config/dependencies.json`; they do not select newer dependency versions.
 The read-only environment check verifies that every cached source and manifest
 entry matches the current lock file. The explicit `setup.bat deps`

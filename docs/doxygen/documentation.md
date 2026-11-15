@@ -389,18 +389,45 @@ Internal helper comments may be shorter than public API comments, but still
 explain the helper's purpose, contract, and reason for existing when nearby code
 does not make that clear.
 
-Inside non-trivial functions, blank lines can separate phases such as validation,
-input preparation, the main operation, fallback or error handling, state
-publication, and cleanup.
+### Manual source organization
 
-This spacing is for function-body flow. Section separators belong to larger
-file-level groups, not to every unrelated step or statement.
+Apply these rules to maintained first-party code in every language. They
+supplement formatters and cover logical grouping and spacing formatters do not
+choose. Use each language's native structures and comment syntax, and leave
+formatter-managed alignment to the configured formatter. File boundaries
+follow @ref project_structure.
 
-Other maintained first-party languages use their own documentation conventions:
+- Use the same domain terms for related responsibilities across files. Let each
+  file's role determine its order; interfaces and implementations do not need
+  to mirror one another.
+- Group declarations, state, configuration fields, and assignments by
+  responsibility. Label each group with a concise native comment, usually a
+  line comment. Leave one blank line between groups and none between a label
+  and its first member.
+  The first group may follow its opening delimiter directly. Order groups by
+  meaning; use alphabetical order when it helps scan a lookup set. Keep
+  platform-gated declarations adjacent to their guard directives, without
+  blank lines inside a short guard block. Use a single comment for groups
+  inside declarations or functions; reserve three-line separators for
+  file-level sections.
+- In non-trivial functions, mark each logical phase with a concise native
+  comment and separate phases with one blank line. The first phase may follow
+  the block opener directly. Separate independent conditions and assignment
+  groups with one blank line; keep each condition with its handling and keep
+  multi-branch chains together. Do not use file-level section separators
+  inside function bodies.
+- Put API contracts on declarations or in their owning docs. Implementation
+  comments add local context instead of repeating those contracts.
+
+Use the language-specific documentation and comment conventions alongside
+these shared grouping rules:
 
 Python files start with a concise module docstring that identifies purpose and
 ownership. JavaScript files start with a concise file-purpose or ownership
 comment when generated or vendor ownership does not already cover the role.
+CSS stylesheets group selectors by responsibility and use block comments for
+substantial sections. Batch entry points remain thin; `rem` comments explain
+non-obvious routing or command contracts.
 PowerShell entry points and libraries identify the file purpose and document
 non-obvious command contracts, side effects, or failure behavior near the owning
 function. Shared CMake modules identify purpose and document helper inputs,
@@ -408,15 +435,17 @@ side effects, target ownership, generated files, source-tree versus installed
 behavior, platform scope, dependency visibility, and failure conditions when
 those are not obvious from the function name. YAML comments explain only
 non-obvious policy or security constraints. JSON uses its schema and owning
-documentation rather than comment-like fields. Generated and vendored sources
-follow their generator or upstream contract.
+documentation rather than comments; JSONC comments explain only non-obvious
+setting constraints. Generated and vendored sources follow their generator or
+upstream contract.
 
 These standards do not require a CI check for every style preference. Automate
 a rule only when doing so protects a meaningful contract or prevents recurring
 drift.
 
-Long maintained source files may use section separators as a short
-responsibility map:
+Use section separators as a short responsibility map in files with multiple
+major groups. Use the language's ordinary comment syntax and exactly 60
+hyphens on each divider line; for example:
 
 ```cpp
 // ------------------------------------------------------------
@@ -424,12 +453,20 @@ responsibility map:
 // ------------------------------------------------------------
 ```
 
-Use exactly 60 hyphens, the language's ordinary line-comment marker, and a
-concise noun phrase. Public headers group consumer concerns; implementations
-group mechanisms; validation sources group suites, fixtures, and runners; CMake
-files group configuration, target contracts, dependencies, generated artifacts,
-installation, and documentation registration. The same domain terms should be
-used across layers when they describe the same responsibility.
+```powershell
+# ------------------------------------------------------------
+# Dependency cache
+# ------------------------------------------------------------
+```
+
+Use a concise noun phrase. Match group names to the file's role: interfaces
+group consumer concerns, implementations group mechanisms, validation sources
+group suites and fixtures, and build files group configuration, targets,
+dependencies, generated artifacts, and installation. Use the same domain terms
+across layers for shared responsibilities.
+
+Leave one blank line above and below each separator. When a separator directly
+follows an opening `{`, the leading blank line may be omitted.
 
 Place a separator where it helps a new reader scan the file before reading the
 details. A section holds a coherent set of related declarations or steps, not a
@@ -467,8 +504,9 @@ and put broader separators outside them. A single symbol or a repeated file,
 namespace, or type name does not need a group.
 
 The repository standards check enforces separator shape and the blank line after
-a Doxygen `@{`. `gamewip quality fix` normalizes those mechanically safe details;
-malformed three-line separator structures still need manual fixes.
+a Doxygen `@{`. Group placement, header/source alignment, and function-phase
+spacing remain manual review. `gamewip quality fix` normalizes mechanically safe
+details; malformed three-line separator structures still need manual fixes.
 
 ## Editorial standard
 

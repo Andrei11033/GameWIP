@@ -38,6 +38,7 @@ function Get-GameWipDependencyCommit
 
 function Get-GameWipDependencyCacheStatus
 {
+    # Load the lock and cache manifest used to validate every dependency.
     $lock = Get-GameWipDependencyLock
     $cacheRoot = Get-GameWipDependencyCacheRoot
     $manifestPath = Join-Path $cacheRoot 'cache-manifest.json'
@@ -59,12 +60,68 @@ function Get-GameWipDependencyCacheStatus
         @{}
     }
 
+    # Check each cached archive or source checkout against the lock.
     $results = foreach ($entry in $lock.dependencies.GetEnumerator())
     {
         $dependencyId = [string]$entry.Key
         $dependency = $entry.Value
         $cacheDirectory = [string]$dependency.cacheDirectory
+        $manifestEntry = if (
+            $manifestDependencies -is [System.Collections.IDictionary] `
+                -and $manifestDependencies.Contains($dependencyId)
+        )
+        {
+            $manifestDependencies[$dependencyId]
+        }
+        else
+        {
+            $null
+        }
 
+        if ($dependency.Contains('url'))
+        {
+            # Verify the pinned package archive and extracted source.
+            $archivePath = Join-Path $cacheRoot "archives\$([string]$dependency.archiveFile)"
+            $sourcePath = Join-Path $cacheRoot "fetchcontent\$cacheDirectory-src"
+            $validationPath = Join-Path $sourcePath ([string]$dependency.validationFile)
+            $sourcePresent = Test-Path -LiteralPath $validationPath -PathType Leaf
+            $actualSha512 = if (Test-Path -LiteralPath $archivePath -PathType Leaf)
+            {
+                (Get-FileHash -LiteralPath $archivePath -Algorithm SHA512).Hash
+            }
+            else
+            {
+                ''
+            }
+
+            $manifestMatches = (
+                $null -ne $manifestEntry `
+                    -and [string]$manifestEntry.url -eq [string]$dependency.url `
+                    -and [string]$manifestEntry.sha512 -eq [string]$dependency.sha512 `
+                    -and [string]$manifestEntry.archiveFile -eq "archives/$([string]$dependency.archiveFile)"
+            )
+            $hashMatches = [string]::Equals(
+                $actualSha512,
+                [string]$dependency.sha512,
+                [StringComparison]::OrdinalIgnoreCase
+            )
+
+            [PSCustomObject]@{
+                Id = $dependencyId
+                Url = [string]$dependency.url
+                ExpectedSha512 = [string]$dependency.sha512
+                ActualSha512 = $actualSha512
+                ArchivePath = $archivePath
+                SourcePath = $sourcePath
+                SourcePresent = $sourcePresent
+                ManifestMatches = $manifestMatches
+                ContentMatches = $hashMatches
+                Ready = ($sourcePresent -and $manifestMatches -and $hashMatches)
+            }
+            continue
+        }
+
+        # Verify the pinned source checkout.
         $sourcePath = Join-Path `
             $cacheRoot `
             "fetchcontent\$cacheDirectory-src"
@@ -88,18 +145,6 @@ function Get-GameWipDependencyCacheStatus
             [StringComparison]::OrdinalIgnoreCase
         )
 
-        $manifestEntry = if (
-            $manifestDependencies -is [System.Collections.IDictionary] `
-                -and $manifestDependencies.Contains($dependencyId)
-        )
-        {
-            $manifestDependencies[$dependencyId]
-        }
-        else
-        {
-            $null
-        }
-
         $manifestMatches = (
             $null -ne $manifestEntry `
                 -and [string]$manifestEntry.repository -eq [string]$dependency.repository `
@@ -114,7 +159,8 @@ function Get-GameWipDependencyCacheStatus
             SourcePath = $sourcePath
             SourcePresent = $sourcePresent
             ManifestMatches = $manifestMatches
-            CommitMatches = $commitMatches
+            ContentMatches = $commitMatches
+            ExpectedSha512 = ''
             Ready = (
                 $sourcePresent `
                     -and $manifestMatches `
@@ -150,7 +196,11 @@ function Test-GameWipDependencyCache
                     $reasons += 'cache manifest does not match dependencies.json'
                 }
 
-                if (-not $_.CommitMatches)
+                if (-not $_.ContentMatches -and $_.ExpectedSha512)
+                {
+                    $reasons += "archive SHA-512 mismatch; expected $($_.ExpectedSha512), found $($_.ActualSha512)"
+                }
+                elseif (-not $_.ContentMatches)
                 {
                     $reasons += "source commit mismatch; expected $($_.ExpectedCommit), found $($_.ActualCommit)"
                 }
@@ -254,7 +304,7 @@ function Get-GameWipDependencyPreparationPlan
 {
     return @(
         'Read the pinned dependency lock file.',
-        'Fetch or reuse Tracy and Google Benchmark in the shared local cache.',
+        'Fetch or reuse pinned source and package dependencies in the shared local cache.',
         'Verify the resulting cache manifest.'
     )
 }

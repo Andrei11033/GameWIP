@@ -7,15 +7,22 @@
 
 #include <algorithm>
 #include <array>
+#include <format>
 #include <new>
+#include <span>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
+
+#include <setupapi.h>
 
 namespace GameWIP::Input::Platform::Win32::Detail
 {
     // ------------------------------------------------------------
     // Shared identity and descriptor helpers
     // ------------------------------------------------------------
+
     std::atomic<Attachment::Impl *> processRegistrationOwner{nullptr};
 
     [[nodiscard]] IO::Types::Status status(ErrorCode code) noexcept
@@ -56,9 +63,19 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return Types::BackendKind::Win32Hid;
         }
 
-        if(role == DeviceRole::Pointer)
+        if(role == DeviceRole::Pointer || role == DeviceRole::MessageKeyboard)
         {
             return Types::BackendKind::Win32WindowMessage;
+        }
+
+        if(role == DeviceRole::GameInputController || role == DeviceRole::GameInputGamepad)
+        {
+            return Types::BackendKind::GameInput;
+        }
+
+        if(role == DeviceRole::DirectInputKeyboard || role == DeviceRole::DirectInputMouse || role == DeviceRole::DirectInputController)
+        {
+            return Types::BackendKind::DirectInput;
         }
 
         return Types::BackendKind::Win32RawInput;
@@ -97,6 +114,21 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             return "Win32 Window Messages";
         }
+
+        if(role == DeviceRole::MessageKeyboard)
+        {
+            return "Win32 Window Messages";
+        }
+
+        if(role == DeviceRole::GameInputController || role == DeviceRole::GameInputGamepad)
+        {
+            return "Microsoft GameInput";
+        }
+
+        if(role == DeviceRole::DirectInputKeyboard || role == DeviceRole::DirectInputMouse || role == DeviceRole::DirectInputController)
+        {
+            return "Microsoft DirectInput";
+        }
         return role == DeviceRole::Hid ? "Win32 HID" : "Win32 Raw Input";
     }
 
@@ -107,10 +139,16 @@ namespace GameWIP::Input::Platform::Win32::Detail
         case DeviceRole::Keyboard:
         case DeviceRole::Mouse:
         case DeviceRole::Pointer:
+        case DeviceRole::MessageKeyboard:
             return {};
         case DeviceRole::Gamepad:
             return "xinput:slot:" + std::to_string(slot);
         case DeviceRole::Hid:
+        case DeviceRole::GameInputController:
+        case DeviceRole::GameInputGamepad:
+        case DeviceRole::DirectInputKeyboard:
+        case DeviceRole::DirectInputMouse:
+        case DeviceRole::DirectInputController:
             return {};
         }
 
@@ -224,6 +262,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
     // ------------------------------------------------------------
     // Device source and descriptor lifecycle
     // ------------------------------------------------------------
+
     static void appendDeviceEvent(
         System::Impl &state,
         Types::EventKind kind,
@@ -237,6 +276,41 @@ namespace GameWIP::Input::Platform::Win32::Detail
             .cause = cause,
             .data = Types::DeviceEvent{device, revision},
         });
+    }
+
+    // Keep active-device counts and connection events consistent across providers.
+    static void publishDeviceRegistration(
+        System::Impl &state,
+        const Types::DeviceInfo &descriptor,
+        bool newLogicalDevice,
+        bool logicalWasConnected,
+        bool connected) noexcept
+    {
+        if(newLogicalDevice)
+        {
+            if(!connected)
+            {
+                return;
+            }
+
+            ++state.health.activeDeviceCount;
+            appendDeviceEvent(state, Types::EventKind::DeviceConnected, Types::EventCause::Reported, descriptor.id, descriptor.descriptorRevision);
+            return;
+        }
+
+        if(!logicalWasConnected && connected)
+        {
+            ++state.health.activeDeviceCount;
+            appendDeviceEvent(
+                state,
+                Types::EventKind::DeviceConnected,
+                Types::EventCause::Resynchronized,
+                descriptor.id,
+                descriptor.descriptorRevision);
+            return;
+        }
+
+        appendDeviceEvent(state, Types::EventKind::DeviceChanged, Types::EventCause::SourceChanged, descriptor.id, descriptor.descriptorRevision);
     }
 
     void appendElementEvent(
@@ -422,6 +496,16 @@ namespace GameWIP::Input::Platform::Win32::Detail
         ElementRole role,
         std::optional<Types::HidControlId> hid)
     {
+        std::string sourcePrefix;
+        if(binding.sourceIndex < device.sources.size() && !device.sources[binding.sourceIndex].persistentKey.empty())
+        {
+            sourcePrefix = device.sources[binding.sourceIndex].persistentKey + ":";
+            if(!key.starts_with(sourcePrefix))
+            {
+                key.insert(0, sourcePrefix);
+            }
+        }
+
         if(!hid.has_value() && standard.has_value())
         {
             if(standard->domain == Types::StandardDomain::Keyboard)
@@ -441,8 +525,14 @@ namespace GameWIP::Input::Platform::Win32::Detail
             const auto existing = std::find_if(
                 device.elements.begin(),
                 device.elements.end(),
-                [&identity, standard, bindingRole](const Types::ElementInfo &candidate)
+                [&identity, &sourcePrefix, standard, bindingRole](const Types::ElementInfo &candidate)
                 {
+                    const bool sameSource = sourcePrefix.empty() || candidate.persistentKey.starts_with(sourcePrefix);
+                    if(!sameSource)
+                    {
+                        return false;
+                    }
+
                     if(candidate.identity == identity)
                     {
                         return true;
@@ -450,9 +540,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
                     // Raw keyboard/mouse and HID collections can describe
                     // the same standard control with different collection
-                    // metadata. Share that canonical element only across
-                    // those two backend representations; same-backend
-                    // duplicates keep their HID identities distinct.
+                    // metadata. Share that canonical element only when both
+                    // reports come from the same native interface.
                     return standard.has_value() && candidate.identity.standard == standard &&
                            ((candidate.authoritativeBackend == Types::BackendKind::Win32RawInput && bindingRole == DeviceRole::Hid) ||
                             (candidate.authoritativeBackend == Types::BackendKind::Win32Hid && bindingRole != DeviceRole::Hid));
@@ -479,7 +568,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
             .reporting = reporting,
             .components = std::move(components),
             .authoritativeBackend = backendFor(binding.role),
-            .provenance = binding.role == DeviceRole::Gamepad ? Types::ValueProvenance::NativeApiProcessed : Types::ValueProvenance::NativeDecoded,
+            .provenance = (binding.role == DeviceRole::Gamepad || binding.role == DeviceRole::GameInputController ||
+                           binding.role == DeviceRole::GameInputGamepad || binding.role == DeviceRole::DirectInputKeyboard ||
+                           binding.role == DeviceRole::DirectInputMouse || binding.role == DeviceRole::DirectInputController)
+                              ? Types::ValueProvenance::NativeApiProcessed
+                              : Types::ValueProvenance::NativeDecoded,
         });
         state.states.push_back({
             .id = id,
@@ -648,7 +741,19 @@ namespace GameWIP::Input::Platform::Win32::Detail
     // ------------------------------------------------------------
     // Logical device discovery and report decoding
     // ------------------------------------------------------------
-    [[nodiscard]] std::string rawDeviceName(HANDLE nativeDevice);
+
+    struct HidDeviceStrings
+    {
+        std::string product;
+        std::string manufacturer;
+    };
+
+    [[nodiscard]] std::string containerPersistentKey(std::wstring_view nativePath) noexcept;
+
+    [[nodiscard]] std::string rawDeviceName(HANDLE nativeDevice, std::wstring *outNativePath = nullptr);
+    [[nodiscard]] HidDeviceStrings queryHidDeviceStrings(std::wstring_view nativePath) noexcept;
+    [[nodiscard]] std::string hidDeviceFallbackName(bool hasNativeInfo, USAGE usagePage, USAGE usage);
+    [[nodiscard]] bool isGenericDeviceName(std::string_view name) noexcept;
     [[nodiscard]] bool hidDeviceInfo(HANDLE nativeDevice, RID_DEVICE_INFO &outInfo) noexcept;
     [[nodiscard]] bool hidPreparsedData(HANDLE nativeDevice, std::vector<std::byte> &outPreparsedData, HIDP_CAPS &outCaps) noexcept;
     [[nodiscard]] std::optional<Types::StandardId> standardFromHid(
@@ -662,6 +767,131 @@ namespace GameWIP::Input::Platform::Win32::Detail
     [[nodiscard]] Types::Value hidValue(const Attachment::Impl::DeviceBinding::HidElement &element, ULONG value) noexcept;
     [[nodiscard]] std::string hidElementName(USAGE usagePage, USAGE usage, std::uint32_t component);
 
+    namespace
+    {
+        // Save discovery mutations so failed registration can restore the session.
+        class DeviceRegistrationRollback final
+        {
+        public:
+            DeviceRegistrationRollback(System::Impl &state, Attachment::Impl &attachment) noexcept
+                : state_(state)
+                , attachment_(attachment)
+            {
+                // Session collection sizes
+                initialDeviceCount_ = state_.devices.size();
+                initialStateCount_ = state_.states.size();
+                initialBindingCount_ = attachment_.devices.size();
+                initialEventCount_ = state_.pendingEvents.size();
+
+                // Session counters and health
+                initialDeviceSlot_ = state_.nextDeviceSlot;
+                initialElementSlot_ = state_.nextElementSlot;
+                initialDeviceRevision_ = state_.deviceRevision;
+                initialDroppedEvents_ = state_.pendingDroppedEvents;
+                initialDiscontinuity_ = state_.pendingDiscontinuity;
+                initialHealth_ = state_.health;
+            }
+
+            void saveMergedDevice(const Types::DeviceInfo &descriptor)
+            {
+                // Preserve the descriptor fields updated while merging a source.
+                initialMergedName_ = descriptor.name;
+                initialMergedManufacturer_ = descriptor.manufacturer;
+
+                hasMergedDevice_ = true;
+                mergedDeviceId_ = descriptor.id;
+
+                initialMergedSourceCount_ = descriptor.sources.size();
+                initialMergedElementCount_ = descriptor.elements.size();
+
+                initialMergedConnected_ = descriptor.connected;
+                initialMergedRevision_ = descriptor.descriptorRevision;
+                initialMergedConfidence_ = descriptor.identityConfidence;
+
+                initialMergedVendorId_ = descriptor.vendorId;
+                initialMergedProductId_ = descriptor.productId;
+            }
+
+            void restore() noexcept
+            {
+                // Remove newly registered devices before restoring a merged one.
+                state_.devices.resize(initialDeviceCount_);
+                if(hasMergedDevice_)
+                {
+                    const std::size_t deviceIndex = state_.findDeviceIndex(mergedDeviceId_);
+                    if(deviceIndex != state_.devices.size())
+                    {
+                        Types::DeviceInfo &descriptor = state_.devices[deviceIndex];
+                        descriptor.sources.resize(initialMergedSourceCount_);
+                        descriptor.elements.resize(initialMergedElementCount_);
+
+                        descriptor.connected = initialMergedConnected_;
+                        descriptor.descriptorRevision = initialMergedRevision_;
+                        descriptor.identityConfidence = initialMergedConfidence_;
+
+                        descriptor.vendorId = initialMergedVendorId_;
+                        descriptor.productId = initialMergedProductId_;
+
+                        descriptor.name.swap(initialMergedName_);
+                        descriptor.manufacturer.swap(initialMergedManufacturer_);
+                    }
+                }
+
+                // Restore event, binding, and state collections.
+                state_.states.resize(initialStateCount_);
+                attachment_.devices.resize(initialBindingCount_);
+                state_.pendingEvents.resize(initialEventCount_);
+
+                // Restore counters and health changed during registration.
+                state_.nextDeviceSlot = initialDeviceSlot_;
+                state_.nextElementSlot = initialElementSlot_;
+                state_.deviceRevision = initialDeviceRevision_;
+                state_.pendingDroppedEvents = initialDroppedEvents_;
+                state_.pendingDiscontinuity = initialDiscontinuity_;
+                state_.health = initialHealth_;
+            }
+
+        private:
+            System::Impl &state_;
+            Attachment::Impl &attachment_;
+
+            // Session collection sizes
+            std::size_t initialDeviceCount_ = 0;
+            std::size_t initialStateCount_ = 0;
+            std::size_t initialBindingCount_ = 0;
+            std::size_t initialEventCount_ = 0;
+
+            // Session counters and health
+            std::uint32_t initialDeviceSlot_ = 0;
+            std::uint32_t initialElementSlot_ = 0;
+            std::uint64_t initialDeviceRevision_ = 0;
+            std::uint64_t initialDroppedEvents_ = 0;
+            bool initialDiscontinuity_ = false;
+            Types::Health initialHealth_{};
+
+            // Merged descriptor identity
+            bool hasMergedDevice_ = false;
+            Types::DeviceId mergedDeviceId_{};
+
+            // Merged descriptor names
+            std::string initialMergedName_;
+            std::string initialMergedManufacturer_;
+
+            // Merged descriptor collections
+            std::size_t initialMergedSourceCount_ = 0;
+            std::size_t initialMergedElementCount_ = 0;
+
+            // Merged descriptor state
+            bool initialMergedConnected_ = false;
+            std::uint64_t initialMergedRevision_ = 0;
+            Types::IdentityConfidence initialMergedConfidence_ = Types::IdentityConfidence::None;
+
+            // Merged descriptor hardware identity
+            std::optional<std::uint16_t> initialMergedVendorId_{};
+            std::optional<std::uint16_t> initialMergedProductId_{};
+        };
+    } // namespace
+
     void addDevice(
         System::Impl &state,
         Attachment::Impl &attachment,
@@ -670,71 +900,30 @@ namespace GameWIP::Input::Platform::Win32::Detail
         std::string name,
         std::string manufacturer,
         bool connected,
-        Types::SourceInfo source)
+        Types::SourceInfo source,
+        std::string_view logicalPersistentKey,
+        Types::IdentityConfidence logicalIdentityConfidence)
     {
-        const std::size_t initialDeviceCount = state.devices.size();
-        const std::size_t initialStateCount = state.states.size();
-        const std::size_t initialBindingCount = attachment.devices.size();
-        const std::size_t initialEventCount = state.pendingEvents.size();
-        const std::uint32_t initialDeviceSlot = state.nextDeviceSlot;
-        const std::uint32_t initialElementSlot = state.nextElementSlot;
-        const std::uint64_t initialDeviceRevision = state.deviceRevision;
-        const std::uint64_t initialDroppedEvents = state.pendingDroppedEvents;
-        const bool initialDiscontinuity = state.pendingDiscontinuity;
-        const Types::Health initialHealth = state.health;
-        Types::DeviceId mergedDeviceId{};
-        std::size_t initialMergedSourceCount = 0;
-        std::size_t initialMergedElementCount = 0;
-        bool initialMergedConnected = false;
-        std::uint64_t initialMergedRevision = 0;
-        Types::IdentityConfidence initialMergedConfidence = Types::IdentityConfidence::None;
-        std::optional<std::uint16_t> initialMergedVendorId{};
-        std::optional<std::uint16_t> initialMergedProductId{};
-        bool mergedDevice = false;
-
-        const auto rollback = [&] noexcept
-        {
-            state.devices.resize(initialDeviceCount);
-            if(mergedDevice)
-            {
-                const std::size_t deviceIndex = state.findDeviceIndex(mergedDeviceId);
-                if(deviceIndex != state.devices.size())
-                {
-                    Types::DeviceInfo &descriptor = state.devices[deviceIndex];
-                    descriptor.sources.resize(initialMergedSourceCount);
-                    descriptor.elements.resize(initialMergedElementCount);
-                    descriptor.connected = initialMergedConnected;
-                    descriptor.descriptorRevision = initialMergedRevision;
-                    descriptor.identityConfidence = initialMergedConfidence;
-                    descriptor.vendorId = initialMergedVendorId;
-                    descriptor.productId = initialMergedProductId;
-                }
-            }
-            state.states.resize(initialStateCount);
-            attachment.devices.resize(initialBindingCount);
-            state.pendingEvents.resize(initialEventCount);
-            state.nextDeviceSlot = initialDeviceSlot;
-            state.nextElementSlot = initialElementSlot;
-            state.deviceRevision = initialDeviceRevision;
-            state.pendingDroppedEvents = initialDroppedEvents;
-            state.pendingDiscontinuity = initialDiscontinuity;
-            state.health = initialHealth;
-        };
+        DeviceRegistrationRollback transaction{state, attachment};
 
         try
         {
+            // Fill in source metadata needed for grouping.
             if(source.backend == Types::BackendKind::Synthetic)
             {
                 source.backend = backendFor(role);
             }
+
             if(source.backendName.empty())
             {
                 source.backendName = defaultSourceName(role);
             }
+
             if(source.persistentKey.empty())
             {
                 source.persistentKey = deviceKey(role, slot);
             }
+
             if(source.identityConfidence == Types::IdentityConfidence::None && !source.persistentKey.empty())
             {
                 source.identityConfidence =
@@ -742,23 +931,22 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
             source.active = connected;
 
-            Types::DeviceInfo *descriptor = findLogicalDevice(state, source.persistentKey);
+            // Resolve the identity used to group backend sources.
+            const std::string_view deviceIdentity = logicalPersistentKey.empty() ? std::string_view{source.persistentKey} : logicalPersistentKey;
+            const Types::IdentityConfidence deviceIdentityConfidence =
+                logicalIdentityConfidence == Types::IdentityConfidence::None ? source.identityConfidence : logicalIdentityConfidence;
+
+            // Find or create the shared logical device.
+            Types::DeviceInfo *descriptor = findLogicalDevice(state, deviceIdentity);
             const bool newLogicalDevice = descriptor == nullptr;
             const bool logicalWasConnected = descriptor != nullptr && descriptor->connected;
 
             if(!newLogicalDevice)
             {
-                mergedDevice = true;
-                mergedDeviceId = descriptor->id;
-                initialMergedSourceCount = descriptor->sources.size();
-                initialMergedElementCount = descriptor->elements.size();
-                initialMergedConnected = descriptor->connected;
-                initialMergedRevision = descriptor->descriptorRevision;
-                initialMergedConfidence = descriptor->identityConfidence;
-                initialMergedVendorId = descriptor->vendorId;
-                initialMergedProductId = descriptor->productId;
+                transaction.saveMergedDevice(*descriptor);
             }
 
+            // Create or update the logical descriptor and source binding.
             const Types::DeviceId logicalId = newLogicalDevice ? Types::DeviceId{state.instance, state.nextDeviceSlot++, 1} : descriptor->id;
             DeviceBinding binding{
                 .role = role,
@@ -771,11 +959,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
             {
                 Types::DeviceInfo nextDescriptor{
                     .id = binding.id,
-                    .origin = role == DeviceRole::Pointer ? Types::DeviceOrigin::OperatingSystemService : Types::DeviceOrigin::Physical,
+                    .origin = (role == DeviceRole::Pointer || role == DeviceRole::MessageKeyboard) ? Types::DeviceOrigin::OperatingSystemService
+                                                                                                   : Types::DeviceOrigin::Physical,
                     .name = std::move(name),
                     .manufacturer = std::move(manufacturer),
-                    .persistentKey = source.persistentKey,
-                    .identityConfidence = source.identityConfidence,
+                    .persistentKey = std::string(deviceIdentity),
+                    .identityConfidence = deviceIdentityConfidence,
                     .vendorId = source.vendorId,
                     .productId = source.productId,
                     .connected = connected,
@@ -794,19 +983,37 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 {
                     descriptor->identityConfidence = registeredSource.identityConfidence;
                 }
+
+                if(static_cast<unsigned int>(deviceIdentityConfidence) > static_cast<unsigned int>(descriptor->identityConfidence))
+                {
+                    descriptor->identityConfidence = deviceIdentityConfidence;
+                }
+
                 if(!descriptor->vendorId.has_value())
                 {
                     descriptor->vendorId = registeredSource.vendorId;
                 }
+
                 if(!descriptor->productId.has_value())
                 {
                     descriptor->productId = registeredSource.productId;
+                }
+
+                if(isGenericDeviceName(descriptor->name) && !isGenericDeviceName(name))
+                {
+                    descriptor->name = std::move(name);
+                }
+
+                if(descriptor->manufacturer.empty() && !manufacturer.empty())
+                {
+                    descriptor->manufacturer = std::move(manufacturer);
                 }
                 descriptor->connected = descriptor->connected || connected;
                 descriptor->descriptorRevision = ++state.deviceRevision;
             }
 
-            if(role == DeviceRole::Keyboard)
+            // Add standard controls for recognized device roles.
+            if(role == DeviceRole::Keyboard || role == DeviceRole::MessageKeyboard || role == DeviceRole::DirectInputKeyboard)
             {
                 constexpr std::array<std::pair<std::uint32_t, std::uint32_t>, 3> keyboardUsageRanges = {
                     std::pair{0x04U, 0x31U},
@@ -843,7 +1050,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     {},
                     ElementRole::Standard);
             }
-            else if(role == DeviceRole::Mouse)
+            else if(role == DeviceRole::Mouse || role == DeviceRole::DirectInputMouse)
             {
                 const std::array<std::pair<Types::StandardId, std::string_view>, 5> buttons{
                     {{Standard::Mouse::Left, "Left Button"},
@@ -905,7 +1112,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                      component(1, "Y", numericInfo(Types::NumericStorage::Signed32, {}, {}, Types::Unit::Pixel))},
                     ElementRole::PointerPosition);
             }
-            else
+            else if(role == DeviceRole::Gamepad || role == DeviceRole::GameInputGamepad)
             {
                 const std::array<std::pair<Types::StandardId, std::string_view>, 14> buttons{
                     {{Standard::Gamepad::South, "South"},
@@ -984,44 +1191,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     ElementRole::Trigger);
             }
 
+            // Attach the source binding and publish the device change.
             attachment.devices.push_back(std::move(binding));
-
-            if(newLogicalDevice && connected)
-            {
-                ++state.health.activeDeviceCount;
-                appendDeviceEvent(
-                    state,
-                    Types::EventKind::DeviceConnected,
-                    Types::EventCause::Reported,
-                    attachment.devices.back().id,
-                    descriptor->descriptorRevision);
-            }
-            else if(!newLogicalDevice)
-            {
-                if(!logicalWasConnected && connected)
-                {
-                    ++state.health.activeDeviceCount;
-                    appendDeviceEvent(
-                        state,
-                        Types::EventKind::DeviceConnected,
-                        Types::EventCause::Resynchronized,
-                        descriptor->id,
-                        descriptor->descriptorRevision);
-                }
-                else
-                {
-                    appendDeviceEvent(
-                        state,
-                        Types::EventKind::DeviceChanged,
-                        Types::EventCause::SourceChanged,
-                        descriptor->id,
-                        descriptor->descriptorRevision);
-                }
-            }
+            publishDeviceRegistration(state, *descriptor, newLogicalDevice, logicalWasConnected, connected);
         }
         catch(...)
         {
-            rollback();
+            transaction.restore();
             throw;
         }
     }
@@ -1041,9 +1217,16 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const std::uint32_t slot = static_cast<std::uint32_t>(attachment.devices.size() + 1);
         const bool keyboard = role == DeviceRole::Keyboard;
         const std::string label = keyboard ? "Keyboard" : "Mouse";
-        const std::string path = rawDeviceName(nativeDevice);
-        const std::string persistentKey = path.empty() ? std::string{} : "win32:device:path:" + path;
-        const std::string displayName = path.empty() ? label : label + " (" + path + ")";
+        std::wstring nativePath;
+        const std::string path = rawDeviceName(nativeDevice, &nativePath);
+        const std::string pathKey = path.empty() ? std::string{} : "win32:device:path:" + path;
+        const std::string containerKey = containerPersistentKey(nativePath);
+        const std::string logicalKey = containerKey.empty() ? pathKey : containerKey;
+        const Types::IdentityConfidence logicalConfidence =
+            pathKey.empty() ? Types::IdentityConfidence::None
+                            : (containerKey.empty() ? Types::IdentityConfidence::ConnectionPath : Types::IdentityConfidence::DeviceUnique);
+        const HidDeviceStrings deviceStrings = queryHidDeviceStrings(nativePath);
+        const std::string displayName = deviceStrings.product.empty() ? label : deviceStrings.product;
 
         addDevice(
             state,
@@ -1051,15 +1234,17 @@ namespace GameWIP::Input::Platform::Win32::Detail
             role,
             slot,
             displayName,
-            {},
+            deviceStrings.manufacturer,
             true,
             Types::SourceInfo{
                 .backend = Types::BackendKind::Win32RawInput,
                 .backendName = "Win32 Raw Input",
                 .active = true,
-                .persistentKey = persistentKey,
-                .identityConfidence = path.empty() ? Types::IdentityConfidence::None : Types::IdentityConfidence::ConnectionPath,
-            });
+                .persistentKey = pathKey,
+                .identityConfidence = pathKey.empty() ? Types::IdentityConfidence::None : Types::IdentityConfidence::ConnectionPath,
+            },
+            logicalKey,
+            logicalConfidence);
         DeviceBinding &binding = attachment.devices.back();
         binding.nativeDevice = nativeDevice;
         return true;
@@ -1086,76 +1271,32 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return false;
         }
 
-        const std::string nativeName = rawDeviceName(nativeDevice);
-        const std::string persistentKey = nativeName.empty() ? std::string{} : "win32:device:path:" + nativeName;
-        const std::size_t initialDeviceCount = state.devices.size();
-        const std::size_t initialStateCount = state.states.size();
-        const std::size_t initialBindingCount = attachment.devices.size();
-        const std::size_t initialEventCount = state.pendingEvents.size();
-        const std::uint32_t initialDeviceSlot = state.nextDeviceSlot;
-        const std::uint32_t initialElementSlot = state.nextElementSlot;
-        const std::uint64_t initialDeviceRevision = state.deviceRevision;
-        const std::uint64_t initialDroppedEvents = state.pendingDroppedEvents;
-        const bool initialDiscontinuity = state.pendingDiscontinuity;
-        const Types::Health initialHealth = state.health;
-        Types::DeviceId mergedDeviceId{};
-        std::size_t initialMergedSourceCount = 0;
-        std::size_t initialMergedElementCount = 0;
-        bool initialMergedConnected = false;
-        std::uint64_t initialMergedRevision = 0;
-        Types::IdentityConfidence initialMergedConfidence = Types::IdentityConfidence::None;
-        std::optional<std::uint16_t> initialMergedVendorId{};
-        std::optional<std::uint16_t> initialMergedProductId{};
-        bool mergedDevice = false;
+        std::wstring nativePath;
+        const std::string nativeName = rawDeviceName(nativeDevice, &nativePath);
+        const HidDeviceStrings deviceStrings = queryHidDeviceStrings(nativePath);
+        const std::string sourcePersistentKey = nativeName.empty() ? std::string{} : "win32:device:path:" + nativeName;
+        const std::string containerKey = containerPersistentKey(nativePath);
+        const std::string logicalPersistentKey = containerKey.empty() ? sourcePersistentKey : containerKey;
+        const Types::IdentityConfidence logicalIdentityConfidence =
+            sourcePersistentKey.empty()
+                ? Types::IdentityConfidence::None
+                : (containerKey.empty() ? Types::IdentityConfidence::ConnectionPath : Types::IdentityConfidence::DeviceUnique);
 
-        const auto rollback = [&] noexcept
-        {
-            state.devices.resize(initialDeviceCount);
-            if(mergedDevice)
-            {
-                const std::size_t deviceIndex = state.findDeviceIndex(mergedDeviceId);
-                if(deviceIndex != state.devices.size())
-                {
-                    Types::DeviceInfo &descriptor = state.devices[deviceIndex];
-                    descriptor.sources.resize(initialMergedSourceCount);
-                    descriptor.elements.resize(initialMergedElementCount);
-                    descriptor.connected = initialMergedConnected;
-                    descriptor.descriptorRevision = initialMergedRevision;
-                    descriptor.identityConfidence = initialMergedConfidence;
-                    descriptor.vendorId = initialMergedVendorId;
-                    descriptor.productId = initialMergedProductId;
-                }
-            }
-            state.states.resize(initialStateCount);
-            attachment.devices.resize(initialBindingCount);
-            state.pendingEvents.resize(initialEventCount);
-            state.nextDeviceSlot = initialDeviceSlot;
-            state.nextElementSlot = initialElementSlot;
-            state.deviceRevision = initialDeviceRevision;
-            state.pendingDroppedEvents = initialDroppedEvents;
-            state.pendingDiscontinuity = initialDiscontinuity;
-            state.health = initialHealth;
-        };
+        DeviceRegistrationRollback transaction{state, attachment};
 
         try
         {
-            Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, persistentKey);
+            // Find or create the shared logical device.
+            Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, logicalPersistentKey);
             const bool newLogicalDevice = logicalDescriptor == nullptr;
             const bool logicalWasConnected = logicalDescriptor != nullptr && logicalDescriptor->connected;
 
             if(!newLogicalDevice)
             {
-                mergedDevice = true;
-                mergedDeviceId = logicalDescriptor->id;
-                initialMergedSourceCount = logicalDescriptor->sources.size();
-                initialMergedElementCount = logicalDescriptor->elements.size();
-                initialMergedConnected = logicalDescriptor->connected;
-                initialMergedRevision = logicalDescriptor->descriptorRevision;
-                initialMergedConfidence = logicalDescriptor->identityConfidence;
-                initialMergedVendorId = logicalDescriptor->vendorId;
-                initialMergedProductId = logicalDescriptor->productId;
+                transaction.saveMergedDevice(*logicalDescriptor);
             }
 
+            // Build or merge the logical descriptor and source binding.
             const Types::DeviceId deviceId = newLogicalDevice ? Types::DeviceId{state.instance, state.nextDeviceSlot++, 1} : logicalDescriptor->id;
             DeviceBinding binding{
                 .role = DeviceRole::Hid,
@@ -1169,8 +1310,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 .backend = Types::BackendKind::Win32Hid,
                 .backendName = "Win32 HID",
                 .active = true,
-                .persistentKey = persistentKey,
-                .identityConfidence = nativeName.empty() ? Types::IdentityConfidence::None : Types::IdentityConfidence::ConnectionPath,
+                .persistentKey = sourcePersistentKey,
+                .identityConfidence = sourcePersistentKey.empty() ? Types::IdentityConfidence::None : Types::IdentityConfidence::ConnectionPath,
                 .vendorId = static_cast<std::uint16_t>(nativeInfo.hid.dwVendorId),
                 .productId = static_cast<std::uint16_t>(nativeInfo.hid.dwProductId),
             };
@@ -1179,10 +1320,11 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 Types::DeviceInfo nextDescriptor{
                     .id = deviceId,
                     .origin = Types::DeviceOrigin::Physical,
-                    .name = "HID Device " + std::to_string(nativeInfo.hid.usUsagePage) + ":" + std::to_string(nativeInfo.hid.usUsage),
-                    .manufacturer = {},
-                    .persistentKey = persistentKey,
-                    .identityConfidence = source.identityConfidence,
+                    .name = deviceStrings.product.empty() ? hidDeviceFallbackName(true, nativeInfo.hid.usUsagePage, nativeInfo.hid.usUsage)
+                                                          : deviceStrings.product,
+                    .manufacturer = deviceStrings.manufacturer,
+                    .persistentKey = logicalPersistentKey,
+                    .identityConfidence = logicalIdentityConfidence,
                     .vendorId = source.vendorId,
                     .productId = source.productId,
                     .connected = true,
@@ -1198,25 +1340,43 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 logicalDescriptor->sources.push_back(std::move(source));
                 logicalDescriptor->connected = true;
                 logicalDescriptor->descriptorRevision = ++state.deviceRevision;
+                if(static_cast<unsigned int>(logicalIdentityConfidence) > static_cast<unsigned int>(logicalDescriptor->identityConfidence))
+                {
+                    logicalDescriptor->identityConfidence = logicalIdentityConfidence;
+                }
+
                 if(!logicalDescriptor->vendorId.has_value())
                 {
                     logicalDescriptor->vendorId = logicalDescriptor->sources.back().vendorId;
                 }
+
                 if(!logicalDescriptor->productId.has_value())
                 {
                     logicalDescriptor->productId = logicalDescriptor->sources.back().productId;
+                }
+
+                if(!deviceStrings.product.empty() && isGenericDeviceName(logicalDescriptor->name))
+                {
+                    logicalDescriptor->name = deviceStrings.product;
+                }
+
+                if(logicalDescriptor->manufacturer.empty() && !deviceStrings.manufacturer.empty())
+                {
+                    logicalDescriptor->manufacturer = deviceStrings.manufacturer;
                 }
             }
 
             Types::DeviceInfo &descriptor = *logicalDescriptor;
 
+            // Read and validate the HID button and value capabilities.
             constexpr std::size_t maximumElements = 4096;
             const std::size_t buttonCount = capabilities.NumberInputButtonCaps;
             const std::size_t valueCount = capabilities.NumberInputValueCaps;
+            // Restore partial registration if the HID layout cannot be represented safely.
             if((buttonCount == 0 && valueCount == 0) || buttonCount > maximumElements || valueCount > maximumElements ||
                buttonCount + valueCount > maximumElements)
             {
-                rollback();
+                transaction.restore();
                 return false;
             }
             std::vector<HIDP_BUTTON_CAPS> buttonCaps(buttonCount);
@@ -1227,18 +1387,19 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 if(HidP_GetButtonCaps(HidP_Input, buttonCaps.data(), &count, reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsedData.data())) !=
                    HIDP_STATUS_SUCCESS)
                 {
-                    rollback();
+                    transaction.restore();
                     return false;
                 }
                 buttonCaps.resize(count);
             }
+
             if(valueCount != 0)
             {
                 USHORT count = static_cast<USHORT>(valueCount);
                 if(HidP_GetValueCaps(HidP_Input, valueCaps.data(), &count, reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsedData.data())) !=
                    HIDP_STATUS_SUCCESS)
                 {
-                    rollback();
+                    transaction.restore();
                     return false;
                 }
                 valueCaps.resize(count);
@@ -1248,6 +1409,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             binding.elements.reserve(std::min(maximumElements, buttonCount + valueCount));
             binding.hidElements.reserve(std::min(maximumElements, buttonCount + valueCount));
 
+            // Add button controls.
             auto addButton = [&](USAGE usage, const HIDP_BUTTON_CAPS &caps, std::uint32_t component)
             {
                 const Types::HidControlId hid{
@@ -1263,9 +1425,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     descriptor,
                     binding,
                     hidElementName(caps.UsagePage, usage, component),
-                    persistentKey.empty()
+                    sourcePersistentKey.empty()
                         ? std::string{}
-                        : persistentKey + ":control:" + std::to_string(caps.UsagePage) + ":" + std::to_string(usage) + ":" +
+                        : sourcePersistentKey + ":control:" + std::to_string(caps.UsagePage) + ":" + std::to_string(usage) + ":" +
                               std::to_string(caps.LinkCollection) + ":" + std::to_string(caps.ReportID) + ":" + std::to_string(component),
                     standard,
                     Types::ValueKind::Boolean,
@@ -1292,7 +1454,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 const std::uint32_t last = caps.IsRange ? caps.Range.UsageMax : first;
                 if(last < first || last - first >= maximumElements || elementCount + (last - first + 1) > maximumElements)
                 {
-                    rollback();
+                    transaction.restore();
                     return false;
                 }
 
@@ -1303,6 +1465,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 }
             }
 
+            // Add numeric controls.
             auto addValue = [&](USAGE usage, const HIDP_VALUE_CAPS &caps, std::uint32_t componentIndex)
             {
                 const bool signedValue = caps.LogicalMin < 0;
@@ -1327,9 +1490,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     descriptor,
                     binding,
                     hidElementName(caps.UsagePage, usage, componentIndex),
-                    persistentKey.empty()
+                    sourcePersistentKey.empty()
                         ? std::string{}
-                        : persistentKey + ":control:" + std::to_string(caps.UsagePage) + ":" + std::to_string(usage) + ":" +
+                        : sourcePersistentKey + ":control:" + std::to_string(caps.UsagePage) + ":" + std::to_string(usage) + ":" +
                               std::to_string(caps.LinkCollection) + ":" + std::to_string(caps.ReportID) + ":" + std::to_string(componentIndex),
                     standard,
                     signedValue ? Types::ValueKind::SignedInteger : Types::ValueKind::UnsignedInteger,
@@ -1359,7 +1522,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 const std::uint32_t last = caps.IsRange ? caps.Range.UsageMax : first;
                 if(last < first || last - first >= maximumElements || elementCount + (last - first + 1) > maximumElements)
                 {
-                    rollback();
+                    transaction.restore();
                     return false;
                 }
                 std::uint32_t componentIndex = 0;
@@ -1370,7 +1533,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 }
             }
 
-            addNormalizedGamepadElements(state, descriptor, binding, capabilities, persistentKey);
+            // Add normalized controller controls and publish the device.
+            addNormalizedGamepadElements(state, descriptor, binding, capabilities, sourcePersistentKey);
 
             binding.hidPreparsedData = std::move(preparsedData);
             binding.hidReportLength = capabilities.InputReportByteLength;
@@ -1378,36 +1542,17 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 HidP_MaxUsageListLength(HidP_Input, 0, reinterpret_cast<PHIDP_PREPARSED_DATA>(binding.hidPreparsedData.data()));
             if(usageCapacity > maximumElements)
             {
-                rollback();
+                transaction.restore();
                 return false;
             }
             binding.hidUsageScratch.resize(std::max<ULONG>(usageCapacity, 1));
             attachment.devices.push_back(std::move(binding));
-
-            if(newLogicalDevice)
-            {
-                ++state.health.activeDeviceCount;
-                appendDeviceEvent(state, Types::EventKind::DeviceConnected, Types::EventCause::Reported, deviceId, descriptor.descriptorRevision);
-            }
-            else if(!logicalWasConnected)
-            {
-                ++state.health.activeDeviceCount;
-                appendDeviceEvent(
-                    state,
-                    Types::EventKind::DeviceConnected,
-                    Types::EventCause::Resynchronized,
-                    deviceId,
-                    descriptor.descriptorRevision);
-            }
-            else
-            {
-                appendDeviceEvent(state, Types::EventKind::DeviceChanged, Types::EventCause::SourceChanged, deviceId, descriptor.descriptorRevision);
-            }
+            publishDeviceRegistration(state, descriptor, newLogicalDevice, logicalWasConnected, true);
             return true;
         }
         catch(const std::bad_alloc &)
         {
-            rollback();
+            transaction.restore();
             return false;
         }
     }
@@ -1422,71 +1567,32 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         RID_DEVICE_INFO nativeInfo{};
         const bool hasNativeInfo = hidDeviceInfo(nativeDevice, nativeInfo);
-        const std::string nativeName = rawDeviceName(nativeDevice);
-        const std::size_t initialDeviceCount = state.devices.size();
-        const std::size_t initialStateCount = state.states.size();
-        const std::size_t initialBindingCount = attachment.devices.size();
-        const std::size_t initialEventCount = state.pendingEvents.size();
-        const std::uint32_t initialDeviceSlot = state.nextDeviceSlot;
-        const std::uint64_t initialDeviceRevision = state.deviceRevision;
-        const std::uint64_t initialDroppedEvents = state.pendingDroppedEvents;
-        const bool initialDiscontinuity = state.pendingDiscontinuity;
-        const Types::Health initialHealth = state.health;
-        Types::DeviceId mergedDeviceId{};
-        std::size_t initialMergedSourceCount = 0;
-        bool initialMergedConnected = false;
-        std::uint64_t initialMergedRevision = 0;
-        Types::IdentityConfidence initialMergedConfidence = Types::IdentityConfidence::None;
-        std::optional<std::uint16_t> initialMergedVendorId{};
-        std::optional<std::uint16_t> initialMergedProductId{};
-        bool mergedDevice = false;
+        std::wstring nativePath;
+        const std::string nativeName = rawDeviceName(nativeDevice, &nativePath);
+        const HidDeviceStrings deviceStrings = queryHidDeviceStrings(nativePath);
+        const std::string sourcePersistentKey = nativeName.empty() ? std::string{} : "win32:device:path:" + nativeName;
+        const std::string containerKey = containerPersistentKey(nativePath);
+        const std::string logicalPersistentKey = containerKey.empty() ? sourcePersistentKey : containerKey;
+        const Types::IdentityConfidence logicalIdentityConfidence =
+            sourcePersistentKey.empty()
+                ? Types::IdentityConfidence::None
+                : (containerKey.empty() ? Types::IdentityConfidence::ConnectionPath : Types::IdentityConfidence::DeviceUnique);
 
-        const auto rollback = [&] noexcept
-        {
-            state.devices.resize(initialDeviceCount);
-            if(mergedDevice)
-            {
-                const std::size_t deviceIndex = state.findDeviceIndex(mergedDeviceId);
-                if(deviceIndex != state.devices.size())
-                {
-                    Types::DeviceInfo &descriptor = state.devices[deviceIndex];
-                    descriptor.sources.resize(initialMergedSourceCount);
-                    descriptor.connected = initialMergedConnected;
-                    descriptor.descriptorRevision = initialMergedRevision;
-                    descriptor.identityConfidence = initialMergedConfidence;
-                    descriptor.vendorId = initialMergedVendorId;
-                    descriptor.productId = initialMergedProductId;
-                }
-            }
-            state.states.resize(initialStateCount);
-            attachment.devices.resize(initialBindingCount);
-            state.pendingEvents.resize(initialEventCount);
-            state.nextDeviceSlot = initialDeviceSlot;
-            state.deviceRevision = initialDeviceRevision;
-            state.pendingDroppedEvents = initialDroppedEvents;
-            state.pendingDiscontinuity = initialDiscontinuity;
-            state.health = initialHealth;
-        };
+        DeviceRegistrationRollback transaction{state, attachment};
 
         try
         {
-            const std::string persistentKey = nativeName.empty() ? std::string{} : "win32:device:path:" + nativeName;
-            Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, persistentKey);
+            // Find or create the shared logical device.
+            Types::DeviceInfo *logicalDescriptor = findLogicalDevice(state, logicalPersistentKey);
             const bool newLogicalDevice = logicalDescriptor == nullptr;
             const bool logicalWasConnected = logicalDescriptor != nullptr && logicalDescriptor->connected;
 
             if(!newLogicalDevice)
             {
-                mergedDevice = true;
-                mergedDeviceId = logicalDescriptor->id;
-                initialMergedSourceCount = logicalDescriptor->sources.size();
-                initialMergedConnected = logicalDescriptor->connected;
-                initialMergedRevision = logicalDescriptor->descriptorRevision;
-                initialMergedConfidence = logicalDescriptor->identityConfidence;
-                initialMergedVendorId = logicalDescriptor->vendorId;
-                initialMergedProductId = logicalDescriptor->productId;
+                transaction.saveMergedDevice(*logicalDescriptor);
             }
 
+            // Build or merge the opaque HID source binding.
             const Types::DeviceId deviceId = newLogicalDevice ? Types::DeviceId{state.instance, state.nextDeviceSlot++, 1} : logicalDescriptor->id;
             DeviceBinding binding{
                 .role = DeviceRole::Hid,
@@ -1498,14 +1604,15 @@ namespace GameWIP::Input::Platform::Win32::Detail
             };
             binding.hidOpaque = true;
             const std::string deviceName =
-                hasNativeInfo ? "HID Device " + std::to_string(nativeInfo.hid.usUsagePage) + ":" + std::to_string(nativeInfo.hid.usUsage)
-                              : "Opaque HID Device";
+                deviceStrings.product.empty()
+                    ? hidDeviceFallbackName(hasNativeInfo, hasNativeInfo ? nativeInfo.hid.usUsagePage : 0, hasNativeInfo ? nativeInfo.hid.usUsage : 0)
+                    : deviceStrings.product;
             Types::SourceInfo source{
                 .backend = Types::BackendKind::Win32Hid,
                 .backendName = "Win32 HID",
                 .active = true,
-                .persistentKey = persistentKey,
-                .identityConfidence = nativeName.empty() ? Types::IdentityConfidence::None : Types::IdentityConfidence::ConnectionPath,
+                .persistentKey = sourcePersistentKey,
+                .identityConfidence = sourcePersistentKey.empty() ? Types::IdentityConfidence::None : Types::IdentityConfidence::ConnectionPath,
                 .vendorId = hasNativeInfo ? std::optional<std::uint16_t>{static_cast<std::uint16_t>(nativeInfo.hid.dwVendorId)} : std::nullopt,
                 .productId = hasNativeInfo ? std::optional<std::uint16_t>{static_cast<std::uint16_t>(nativeInfo.hid.dwProductId)} : std::nullopt,
             };
@@ -1515,9 +1622,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     .id = deviceId,
                     .origin = Types::DeviceOrigin::Physical,
                     .name = deviceName,
-                    .manufacturer = {},
-                    .persistentKey = persistentKey,
-                    .identityConfidence = source.identityConfidence,
+                    .manufacturer = deviceStrings.manufacturer,
+                    .persistentKey = logicalPersistentKey,
+                    .identityConfidence = logicalIdentityConfidence,
                     .vendorId = source.vendorId,
                     .productId = source.productId,
                     .connected = true,
@@ -1533,34 +1640,31 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 logicalDescriptor->sources.push_back(std::move(source));
                 logicalDescriptor->connected = true;
                 logicalDescriptor->descriptorRevision = ++state.deviceRevision;
+                if(static_cast<unsigned int>(logicalIdentityConfidence) > static_cast<unsigned int>(logicalDescriptor->identityConfidence))
+                {
+                    logicalDescriptor->identityConfidence = logicalIdentityConfidence;
+                }
+
+                if(!deviceStrings.product.empty() && isGenericDeviceName(logicalDescriptor->name))
+                {
+                    logicalDescriptor->name = deviceStrings.product;
+                }
+
+                if(logicalDescriptor->manufacturer.empty() && !deviceStrings.manufacturer.empty())
+                {
+                    logicalDescriptor->manufacturer = deviceStrings.manufacturer;
+                }
             }
 
+            // Attach the source and publish the device change.
             attachment.devices.push_back(std::move(binding));
             Types::DeviceInfo &descriptor = *logicalDescriptor;
-            if(newLogicalDevice)
-            {
-                ++state.health.activeDeviceCount;
-                appendDeviceEvent(state, Types::EventKind::DeviceConnected, Types::EventCause::Reported, deviceId, descriptor.descriptorRevision);
-            }
-            else if(!logicalWasConnected)
-            {
-                ++state.health.activeDeviceCount;
-                appendDeviceEvent(
-                    state,
-                    Types::EventKind::DeviceConnected,
-                    Types::EventCause::Resynchronized,
-                    deviceId,
-                    descriptor.descriptorRevision);
-            }
-            else
-            {
-                appendDeviceEvent(state, Types::EventKind::DeviceChanged, Types::EventCause::SourceChanged, deviceId, descriptor.descriptorRevision);
-            }
+            publishDeviceRegistration(state, descriptor, newLogicalDevice, logicalWasConnected, true);
             return true;
         }
         catch(const std::bad_alloc &)
         {
-            rollback();
+            transaction.restore();
             return false;
         }
     }
@@ -1613,11 +1717,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 element.x = normalized * 2.0F - 1.0F;
                 changed = true;
             }
+
             if(element.sourceY == source.id)
             {
                 element.y = normalized * 2.0F - 1.0F;
                 changed = true;
             }
+
             if(changed)
             {
                 publish(state, element.id, Types::Vector2F32{element.x, element.y}, false);
@@ -1627,6 +1733,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void publishHidReport(System::Impl &state, Attachment::Impl &attachment, DeviceBinding &device, std::span<const std::byte> report) noexcept
     {
+        appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
+
         if(report.empty())
         {
             ++state.health.totalInvalidReports;
@@ -1636,7 +1744,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         if(device.hidOpaque)
         {
-            appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
             (void)attachment;
             return;
         }
@@ -1649,12 +1756,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
         auto preparsed = reinterpret_cast<PHIDP_PREPARSED_DATA>(device.hidPreparsedData.data());
         ULONG usageLength = 0;
+        const BYTE reportId = std::to_integer<BYTE>(report.front());
         const bool hasButtons = std::any_of(
             device.hidElements.begin(),
             device.hidElements.end(),
-            [](const Attachment::Impl::DeviceBinding::HidElement &element)
+            [reportId](const Attachment::Impl::DeviceBinding::HidElement &element)
             {
-                return element.button;
+                return element.button && (element.reportId == 0 || element.reportId == reportId);
             });
         if(hasButtons)
         {
@@ -1677,7 +1785,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         for(const Attachment::Impl::DeviceBinding::HidElement &element : device.hidElements)
         {
-            if(element.reportId != 0 && std::to_integer<BYTE>(report[0]) != element.reportId)
+            if(element.reportId != 0 && reportId != element.reportId)
             {
                 continue;
             }
@@ -1716,7 +1824,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
             publishNormalizedGamepad(state, device, element, value);
         }
 
-        appendRawReport(state, state.configuration, device.id, Types::BackendKind::Win32Hid, report);
         (void)attachment;
     }
 
@@ -1845,15 +1952,23 @@ namespace GameWIP::Input::Platform::Win32::Detail
             const RAWINPUTDEVICELIST &device = devices[index];
             if(device.dwType == RIM_TYPEKEYBOARD)
             {
-                (void)addRawDevice(state, attachment, DeviceRole::Keyboard, device.hDevice);
+                if(attachment.rawInputEnabled)
+                {
+                    (void)addRawDevice(state, attachment, DeviceRole::Keyboard, device.hDevice);
+                }
                 continue;
             }
+
             if(device.dwType == RIM_TYPEMOUSE)
             {
-                (void)addRawDevice(state, attachment, DeviceRole::Mouse, device.hDevice);
+                if(attachment.rawInputEnabled)
+                {
+                    (void)addRawDevice(state, attachment, DeviceRole::Mouse, device.hDevice);
+                }
                 continue;
             }
-            if(device.dwType != RIM_TYPEHID)
+
+            if(device.dwType != RIM_TYPEHID || !attachment.hidEnabled)
             {
                 continue;
             }
@@ -1869,7 +1984,28 @@ namespace GameWIP::Input::Platform::Win32::Detail
     // ------------------------------------------------------------
     // Native device metadata and attachment cleanup
     // ------------------------------------------------------------
-    [[nodiscard]] std::string rawDeviceName(HANDLE nativeDevice)
+
+    [[nodiscard]] static std::string utf16ToUtf8(std::span<const wchar_t> value)
+    {
+        std::u16string codeUnits;
+        codeUnits.reserve(value.size());
+        for(const wchar_t character : value)
+        {
+            codeUnits.push_back(static_cast<char16_t>(character));
+        }
+
+        const auto measured = GameWIP::Unicode::Utf16::measureToUtf8(codeUnits);
+        if(measured.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
+        {
+            return {};
+        }
+
+        std::string result(measured.requiredBytes, '\0');
+        const auto converted = GameWIP::Unicode::Utf16::convertToUtf8(codeUnits, std::span<char>(result.data(), result.size()));
+        return converted.outcome == GameWIP::Unicode::Types::ConversionOutcome::Converted ? result : std::string{};
+    }
+
+    [[nodiscard]] std::string rawDeviceName(HANDLE nativeDevice, std::wstring *outNativePath)
     {
         UINT characterCount = 0;
         if(GetRawInputDeviceInfoW(nativeDevice, RIDI_DEVICENAME, nullptr, &characterCount) == static_cast<UINT>(-1) || characterCount == 0)
@@ -1888,32 +2024,188 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             --received;
         }
+
         if(received == 0)
         {
             return {};
         }
 
-        std::u16string codeUnits;
-        codeUnits.reserve(received);
-        for(const wchar_t value : std::span<const wchar_t>(buffer).first(received))
+        const std::wstring nativePath(buffer.data(), received);
+        if(outNativePath != nullptr)
         {
-            codeUnits.push_back(static_cast<char16_t>(value));
+            *outNativePath = nativePath;
         }
 
-        const auto measured = GameWIP::Unicode::Utf16::measureToUtf8(codeUnits);
-        if(measured.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
-        {
-            return {};
-        }
+        return utf16ToUtf8(std::span<const wchar_t>(nativePath.data(), nativePath.size()));
+    }
 
-        std::string result(measured.requiredBytes, '\0');
-        const auto converted = GameWIP::Unicode::Utf16::convertToUtf8(codeUnits, std::span<char>(result.data(), result.size()));
-        if(converted.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
+    [[nodiscard]] std::string containerPersistentKey(std::wstring_view nativePath) noexcept
+    {
+        if(nativePath.empty())
         {
             return {};
         }
 
-        return result;
+        try
+        {
+            const HDEVINFO deviceInfoSet = SetupDiGetClassDevsW(nullptr, nullptr, nullptr, DIGCF_ALLCLASSES | DIGCF_DEVICEINTERFACE);
+            if(deviceInfoSet == INVALID_HANDLE_VALUE)
+            {
+                return {};
+            }
+
+            struct DeviceInfoSetGuard
+            {
+                HDEVINFO value;
+                ~DeviceInfoSetGuard()
+                {
+                    (void)SetupDiDestroyDeviceInfoList(value);
+                }
+            } guard{deviceInfoSet};
+
+            const std::wstring path(nativePath);
+            SP_DEVICE_INTERFACE_DATA interfaceData{};
+            interfaceData.cbSize = sizeof(interfaceData);
+            if(!SetupDiOpenDeviceInterfaceW(deviceInfoSet, path.c_str(), 0, &interfaceData))
+            {
+                return {};
+            }
+
+            DWORD detailSize = 0;
+            SP_DEVINFO_DATA deviceData{};
+            deviceData.cbSize = sizeof(deviceData);
+            (void)SetupDiGetDeviceInterfaceDetailW(deviceInfoSet, &interfaceData, nullptr, 0, &detailSize, nullptr);
+            if(GetLastError() != ERROR_INSUFFICIENT_BUFFER || detailSize < sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W))
+            {
+                return {};
+            }
+
+            std::vector<std::byte> detailBuffer(detailSize);
+            auto *detail = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W *>(detailBuffer.data());
+            detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
+            deviceData = {};
+            deviceData.cbSize = sizeof(deviceData);
+            if(!SetupDiGetDeviceInterfaceDetailW(deviceInfoSet, &interfaceData, detail, detailSize, nullptr, &deviceData))
+            {
+                return {};
+            }
+
+            // DEVPKEY_Device_ContainerId identifies the physical device that owns this interface.
+            constexpr DEVPROPKEY kContainerIdKey{
+                {0x8C7ED206, 0x3F8A, 0x4827, {0xB3, 0xAB, 0xAE, 0x9E, 0x1F, 0xAE, 0xFC, 0x6C}},
+                2,
+            };
+            GUID containerId{};
+            DEVPROPTYPE propertyType = 0;
+            DWORD propertySize = 0;
+            if(!SetupDiGetDevicePropertyW(
+                   deviceInfoSet,
+                   &deviceData,
+                   &kContainerIdKey,
+                   &propertyType,
+                   reinterpret_cast<PBYTE>(&containerId),
+                   sizeof(containerId),
+                   &propertySize,
+                   0) ||
+               propertyType != DEVPROP_TYPE_GUID || propertySize != sizeof(containerId) ||
+               (containerId.Data1 == 0 && containerId.Data2 == 0 && containerId.Data3 == 0 &&
+                std::ranges::all_of(
+                    containerId.Data4,
+                    [](BYTE byte)
+                    {
+                        return byte == 0;
+                    })))
+            {
+                return {};
+            }
+
+            return std::format(
+                "win32:container:{:08X}-{:04X}-{:04X}-{:02X}{:02X}-{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
+                static_cast<unsigned int>(containerId.Data1),
+                static_cast<unsigned int>(containerId.Data2),
+                static_cast<unsigned int>(containerId.Data3),
+                static_cast<unsigned int>(containerId.Data4[0]),
+                static_cast<unsigned int>(containerId.Data4[1]),
+                static_cast<unsigned int>(containerId.Data4[2]),
+                static_cast<unsigned int>(containerId.Data4[3]),
+                static_cast<unsigned int>(containerId.Data4[4]),
+                static_cast<unsigned int>(containerId.Data4[5]),
+                static_cast<unsigned int>(containerId.Data4[6]),
+                static_cast<unsigned int>(containerId.Data4[7]));
+        }
+        catch(...)
+        {
+            return {};
+        }
+    }
+
+    [[nodiscard]] std::string queryHidString(HANDLE collection, auto query)
+    {
+        std::array<wchar_t, 2046> buffer{};
+        if(query(collection, buffer.data(), static_cast<ULONG>(sizeof(buffer))) == FALSE)
+        {
+            return {};
+        }
+
+        const auto terminator = std::find(buffer.begin(), buffer.end(), L'\0');
+        if(terminator == buffer.begin())
+        {
+            return {};
+        }
+
+        const std::size_t length = static_cast<std::size_t>(terminator - buffer.begin());
+        return utf16ToUtf8(std::span<const wchar_t>(buffer.data(), length));
+    }
+
+    [[nodiscard]] HidDeviceStrings queryHidDeviceStrings(std::wstring_view nativePath) noexcept
+    {
+        if(nativePath.empty())
+        {
+            return {};
+        }
+
+        try
+        {
+            const std::wstring path(nativePath);
+            const HANDLE collection =
+                CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if(collection == INVALID_HANDLE_VALUE)
+            {
+                return {};
+            }
+
+            struct HandleGuard
+            {
+                HANDLE value;
+                ~HandleGuard()
+                {
+                    (void)CloseHandle(value);
+                }
+            } guard{collection};
+
+            return HidDeviceStrings{
+                .product = queryHidString(collection, HidD_GetProductString),
+                .manufacturer = queryHidString(collection, HidD_GetManufacturerString),
+            };
+        }
+        catch(const std::bad_alloc &)
+        {
+            return {};
+        }
+    }
+
+    [[nodiscard]] std::string hidDeviceFallbackName(bool hasNativeInfo, USAGE usagePage, USAGE usage)
+    {
+        if(!hasNativeInfo)
+        {
+            return "Opaque HID Device";
+        }
+        return "HID Device " + std::to_string(usagePage) + ":" + std::to_string(usage);
+    }
+
+    [[nodiscard]] bool isGenericDeviceName(std::string_view name) noexcept
+    {
+        return name.empty() || name == "Keyboard" || name == "Mouse" || name == "Opaque HID Device" || name.starts_with("HID Device ");
     }
 
     [[nodiscard]] bool hidDeviceInfo(HANDLE nativeDevice, RID_DEVICE_INFO &outInfo) noexcept

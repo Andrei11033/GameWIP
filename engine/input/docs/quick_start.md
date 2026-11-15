@@ -45,6 +45,17 @@ if (window.open(description).ok() && input.open().ok())
 
 Manual attachment to non-Desktop windows uses `Attachment::attach(input, hwnd)`.
 
+By default, Windows tries each available input backend. Set
+`Configuration::enabledBackends` before `System::open()` to select
+`Win32RawInput`, `Win32Hid`, `XInput`, `GameInput`, `DirectInput`, or
+`Win32WindowMessage`; an empty list disables them all. `Attachment::backends()`
+reports which providers started, were disabled, or were unavailable. A disabled
+provider is not initialized or polled.
+
+The window-message provider supplies a keyboard fallback without physical-device
+identity. Raw Input preserves physical-device identity for keyboard and mouse
+reports.
+
 ## Open and attach
 
 Keep the `System`, `Attachment`, and `Frame` in stable storage. Attach after opening
@@ -135,11 +146,13 @@ while (appIsRunning)
 }
 ```
 
-`appIsRunning` represents the application's existing loop condition. An
-unfiltered query selects the first matching connected control. Pass a device
-ID to target a specific device. Use `Query::findElementByPersistentKey` for
-producer-defined binding keys, or `Query::findHid` for HID controls outside
-the standard vocabulary. Runtime IDs are valid only for the current open session.
+`appIsRunning` represents the application's existing loop condition. Query
+helpers search connected devices by default and return the first match; pass a
+device ID to restrict the search. Selectors filter lookup results by the
+criteria supplied, not the live controls captured by a backend. Controls
+outside the standard vocabulary remain available through HID identities or
+producer-defined persistent keys. Runtime IDs are valid only for the current
+open session.
 
 ## Mice and pointer position
 

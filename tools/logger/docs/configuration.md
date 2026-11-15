@@ -40,7 +40,7 @@ config.maxFieldValueLength = 512;
 ```
 
 Registered area labels can set an optional color using `defineSource(id, name, color)`. `Record::layout()` overrides the configured field
-presentation for one call. Adaptive places short fields inline before the message and moves long or multiline field sets to continuation lines.
+presentation for one call. Adaptive places short fields in parentheses after the message and moves long or multiline field sets to continuation lines.
 
 The built-in layout and custom layouts use the same template renderer. A custom compile-time template can replace the complete line layout:
 

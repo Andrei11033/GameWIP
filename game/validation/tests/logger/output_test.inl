@@ -127,8 +127,8 @@ void testMarkedValuesAndRecordFields(TestContext &context)
     static_cast<void>(Logger::shutdown());
     const std::string contents = readWholeFile(context, logFile);
 
-    context.expectContains("rich record fields retained", contents, "device=Keyboard id=12");
-    context.expectContains("rich report fields retained", contents, "report=true: Emergency report");
+    context.expectContains("adaptive Record fields follow the message", contents, "Device connected (device=Keyboard id=12");
+    context.expectContains("rich report fields retained", contents, "Emergency report (report=true)");
     context.expectContains("rich record source metadata retained", contents, "thread=");
     context.expectContains("marked values retain plain text", contents, "Loaded code 404 from settings.ini with 128 bytes and ready");
     context.expectContains("valid control characters survive plain output", contents, controlText);
@@ -138,7 +138,7 @@ void testMarkedValuesAndRecordFields(TestContext &context)
     context.expectContains("Record runtime report API", contents, "runtime report 44");
     context.expectContains("compact Record layout", contents, "layout=compact: Compact layout");
     context.expectContains("expanded Record layout", contents, "Expanded layout\n    layout=expanded");
-    context.expectContains("parenthesized Record layout", contents, "(layout=parenthesized) Parenthesized layout");
+    context.expectContains("parenthesized Record layout", contents, "Parenthesized layout (layout=parenthesized)");
     context.expectFalse(
         "internal marker bytes stripped from file",
         contents.contains(static_cast<char>(0xFF)) || contents.contains(static_cast<char>(0xFE)) || contents.contains(static_cast<char>(0xFD)) ||

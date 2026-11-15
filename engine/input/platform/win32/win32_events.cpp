@@ -2,6 +2,7 @@
 /// @brief Win32 observation publication, focus handling, and text translation.
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
+#include "input/platform/win32/internal/win32_keyboard_mapping.h"
 
 #include "unicode/unicode.h"
 
@@ -14,8 +15,9 @@
 namespace GameWIP::Input::Platform::Win32::Detail
 {
     // ------------------------------------------------------------
-    // Focus, keyboard, gamepad, and text event translation
+    // Focus and value publication
     // ------------------------------------------------------------
+
     void invalidateFocus(System::Impl &state, Attachment::Impl &attachment) noexcept
     {
         for(std::size_t bindingIndex = 0; bindingIndex < attachment.devices.size(); ++bindingIndex)
@@ -67,6 +69,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
 
         attachment.pendingHighSurrogate = 0;
+        attachment.windowKeyboardTransitionHead = 0;
+        attachment.windowKeyboardTransitionCount = 0;
+        attachment.rawKeyboardTransitions.fill({});
+        attachment.rawKeyboardTransitionNext = 0;
     }
 
     [[nodiscard]] static Types::Value zeroFor(const Types::ElementInfo &info) noexcept
@@ -146,67 +152,20 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return findElement(device, standard);
     }
 
+    // ------------------------------------------------------------
+    // Keyboard mapping and fallback
+    // ------------------------------------------------------------
+
     [[nodiscard]] static std::uint32_t keyboardUsage(unsigned int scanCode, bool extended, bool extendedPause, unsigned int virtualKey) noexcept
     {
         if(virtualKey == VK_PAUSE || extendedPause)
         {
             return 0x48;
         }
-
-        if(extended)
+        const std::uint32_t usage = keyboardUsageForScanCode(scanCode, extended, extendedPause);
+        if(usage != 0 || extended || scanCode < 0x59)
         {
-            switch(scanCode)
-            {
-            case 0x1C:
-                return 0x58;
-            case 0x1D:
-                return 0xE4;
-            case 0x35:
-                return 0x54;
-            case 0x37:
-                return 0x46;
-            case 0x38:
-                return 0xE6;
-            case 0x47:
-                return 0x4A;
-            case 0x48:
-                return 0x52;
-            case 0x49:
-                return 0x4B;
-            case 0x4B:
-                return 0x50;
-            case 0x4D:
-                return 0x4F;
-            case 0x4F:
-                return 0x4D;
-            case 0x50:
-                return 0x51;
-            case 0x51:
-                return 0x4E;
-            case 0x52:
-                return 0x49;
-            case 0x53:
-                return 0x4C;
-            case 0x5B:
-                return 0xE3;
-            case 0x5C:
-                return 0xE7;
-            case 0x5D:
-                return 0x65;
-            default:
-                return 0;
-            }
-        }
-
-        constexpr std::array<std::uint32_t, 0x59> scanToUsage{
-            0,    0x29, 0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x2D, 0x2E, 0x2A, 0x2B, 0x14, 0x1A, 0x08, 0x15, 0x17, 0x1C, 0x18,
-            0x0C, 0x12, 0x13, 0x2F, 0x30, 0x28, 0xE0, 0x04, 0x16, 0x07, 0x09, 0x0A, 0x0B, 0x0D, 0x0E, 0x0F, 0x33, 0x34, 0x35, 0x2C, 0xE1, 0x31, 0x1D,
-            0x1B, 0x06, 0x19, 0x05, 0x11, 0x10, 0x36, 0x37, 0x38, 0xE2, 0x55, 0xE6, 0x39, 0x3A, 0x3B, 0x3C, 0x3D, 0x3E, 0x3F, 0x40, 0x41, 0x42, 0x43,
-            0x44, 0x45, 0x53, 0x47, 0x5F, 0x60, 0x61, 0x5C, 0x5D, 0x5E, 0x59, 0x5A, 0x5B, 0x62, 0x63, 0x54, 0x55, 0x56, 0x57, 0x58};
-
-        if(scanCode < scanToUsage.size())
-        {
-            return scanToUsage[scanCode];
+            return usage;
         }
 
         if(virtualKey != 0)
@@ -238,6 +197,172 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
         return keyboardUsage(mapped & 0xFFU, (mapped & 0xFF00U) == 0xE000U, false, keyboard.VKey);
     }
+
+    void noteRawKeyboardTransition(Attachment::Impl &attachment, std::uint32_t usage, bool extended, bool pressed, std::uint32_t messageTime) noexcept
+    {
+        if(usage == 0)
+        {
+            return;
+        }
+
+        auto &transition = attachment.rawKeyboardTransitions[attachment.rawKeyboardTransitionNext];
+        transition = {
+            .usage = usage,
+            .messageTime = messageTime,
+            .extended = extended,
+            .pressed = pressed,
+            .valid = true,
+        };
+        attachment.rawKeyboardTransitionNext = (attachment.rawKeyboardTransitionNext + 1) % attachment.rawKeyboardTransitions.size();
+    }
+
+    void queueWindowKeyboardTransition(
+        System::Impl &state,
+        Attachment::Impl &attachment,
+        std::uint32_t usage,
+        bool extended,
+        bool pressed,
+        std::uint32_t messageTime) noexcept
+    {
+        if(usage == 0 || attachment.system == nullptr)
+        {
+            return;
+        }
+
+        if(attachment.windowKeyboardTransitionCount == attachment.windowKeyboardTransitions.size())
+        {
+            ++state.health.totalDroppedEvents;
+            ++state.pendingDroppedEvents;
+            state.pendingDiscontinuity = true;
+            attachment.windowKeyboardTransitionOverflow = true;
+            return;
+        }
+
+        const std::size_t index =
+            (attachment.windowKeyboardTransitionHead + attachment.windowKeyboardTransitionCount) % attachment.windowKeyboardTransitions.size();
+        attachment.windowKeyboardTransitions[index] = {
+            .usage = usage,
+            .messageTime = messageTime,
+            .captureDelay = 1,
+            .extended = extended,
+            .pressed = pressed,
+            .valid = true,
+        };
+        ++attachment.windowKeyboardTransitionCount;
+    }
+
+    [[nodiscard]] static bool closeMessageTime(std::uint32_t left, std::uint32_t right) noexcept
+    {
+        constexpr std::uint32_t kDeduplicationWindowMilliseconds = 50;
+        return std::min(left - right, right - left) <= kDeduplicationWindowMilliseconds;
+    }
+
+    [[nodiscard]] static bool matchesRawKeyboardTransition(
+        Attachment::Impl &attachment,
+        const Attachment::Impl::KeyboardTransition &windowTransition) noexcept
+    {
+        for(Attachment::Impl::KeyboardTransition &rawTransition : attachment.rawKeyboardTransitions)
+        {
+            if(!rawTransition.valid || rawTransition.matched || rawTransition.usage != windowTransition.usage ||
+               rawTransition.extended != windowTransition.extended || rawTransition.pressed != windowTransition.pressed ||
+               !closeMessageTime(rawTransition.messageTime, windowTransition.messageTime))
+            {
+                continue;
+            }
+
+            rawTransition.matched = true;
+            return true;
+        }
+        return false;
+    }
+
+    [[nodiscard]] static bool hasKeyboardTransition(const System::Impl &state, const Attachment::Impl::KeyboardTransition &transition) noexcept
+    {
+        for(const Types::Event &event : state.pendingEvents)
+        {
+            if(event.kind != Types::EventKind::ElementChanged)
+            {
+                continue;
+            }
+
+            const auto *elementEvent = std::get_if<Types::ElementEvent>(&event.data);
+            const Types::ElementInfo *element = elementEvent == nullptr ? nullptr : state.findElement(elementEvent->id);
+            const bool *value = elementEvent == nullptr ? nullptr : std::get_if<bool>(&elementEvent->value);
+            if(element != nullptr && value != nullptr && *value == transition.pressed && element->identity.standard.has_value() &&
+               element->identity.standard->domain == Types::StandardDomain::Keyboard && element->identity.standard->code == transition.usage)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void processWindowKeyboardTransitions(System::Impl &state, Attachment::Impl &attachment)
+    {
+        const std::size_t queuedCount = attachment.windowKeyboardTransitionCount;
+        for(std::size_t index = 0; index < queuedCount; ++index)
+        {
+            Attachment::Impl::KeyboardTransition transition = attachment.windowKeyboardTransitions[attachment.windowKeyboardTransitionHead];
+            attachment.windowKeyboardTransitionHead = (attachment.windowKeyboardTransitionHead + 1) % attachment.windowKeyboardTransitions.size();
+            --attachment.windowKeyboardTransitionCount;
+
+            if(matchesRawKeyboardTransition(attachment, transition) || hasKeyboardTransition(state, transition))
+            {
+                continue;
+            }
+
+            if(transition.captureDelay != 0)
+            {
+                --transition.captureDelay;
+                const std::size_t tail = (attachment.windowKeyboardTransitionHead + attachment.windowKeyboardTransitionCount) %
+                                         attachment.windowKeyboardTransitions.size();
+                attachment.windowKeyboardTransitions[tail] = transition;
+                ++attachment.windowKeyboardTransitionCount;
+                continue;
+            }
+
+            DeviceBinding *keyboard = findDevice(attachment, DeviceRole::MessageKeyboard, 0);
+            if(keyboard == nullptr)
+            {
+                addDevice(
+                    state,
+                    attachment,
+                    DeviceRole::MessageKeyboard,
+                    0,
+                    "Window Message Keyboard",
+                    {},
+                    true,
+                    Types::SourceInfo{
+                        .backend = Types::BackendKind::Win32WindowMessage,
+                        .backendName = "Win32 Window Messages",
+                        .active = true,
+                    });
+                keyboard = findDevice(attachment, DeviceRole::MessageKeyboard, 0);
+            }
+
+            if(keyboard == nullptr)
+            {
+                ++state.health.totalInvalidReports;
+                state.pendingDiscontinuity = true;
+                continue;
+            }
+
+            const Types::StandardId standard{Types::StandardDomain::Keyboard, transition.usage};
+            ElementBinding *element = standardElement(*keyboard, standard);
+            if(element == nullptr)
+            {
+                ++state.health.totalInvalidReports;
+                state.pendingDiscontinuity = true;
+                continue;
+            }
+
+            publish(state, element->id, transition.pressed, false);
+        }
+    }
+
+    // ------------------------------------------------------------
+    // XInput helpers
+    // ------------------------------------------------------------
 
     [[nodiscard]] float xInputTrigger(BYTE value) noexcept
     {
@@ -291,6 +416,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
+    // ------------------------------------------------------------
+    // Raw report capture
+    // ------------------------------------------------------------
+
     void appendRawReport(
         System::Impl &state,
         const Types::Configuration &configuration,
@@ -331,6 +460,10 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
+    // ------------------------------------------------------------
+    // Text input
+    // ------------------------------------------------------------
+
     [[nodiscard]] static bool validScalar(char32_t scalar) noexcept
     {
         return scalar <= 0x10FFFF && (scalar < 0xD800 || scalar > 0xDFFF);
@@ -350,12 +483,15 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return;
         }
 
+        // Validate the UTF-8 text before creating an event.
         if(GameWIP::Unicode::Utf8::validate(utf8).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
             return;
         }
+
+        // Enforce the pending-text limit for committed input.
         const bool committed = kind == Types::EventKind::TextCommitted;
         if(committed && (state.pendingTextUtf8.size() > state.configuration.maximumPendingTextBytes ||
                          utf8.size() > state.configuration.maximumPendingTextBytes - state.pendingTextUtf8.size()))
@@ -364,6 +500,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return;
         }
 
+        // Publish the event and retain committed text for the session.
         try
         {
             Types::Event event{
@@ -400,12 +537,15 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
     void appendText(System::Impl &state, Attachment::Impl &attachment, char32_t scalar) noexcept
     {
+        // Reject invalid Unicode scalars before encoding.
         if(!validScalar(scalar))
         {
             ++state.health.totalInvalidReports;
             state.pendingDiscontinuity = true;
             return;
         }
+
+        // Encode the scalar and reject conversion failures.
         const auto encoded = GameWIP::Unicode::Utf8::encodeScalar(scalar);
         if(encoded.outcome != GameWIP::Unicode::Types::EncodeOutcome::Encoded)
         {
@@ -413,6 +553,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
             state.pendingDiscontinuity = true;
             return;
         }
+
+        // Publish the encoded character as committed text.
         appendTextUtf8(state, attachment, std::string_view(encoded.bytes.data(), encoded.byteCount), Types::EventKind::TextCommitted);
     }
 
@@ -424,6 +566,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         Types::EventKind kind,
         LONG cursorPosition) noexcept
     {
+        // Query and validate the native UTF-16 composition size.
         const LONG byteCount = ImmGetCompositionStringW(context, compositionFlag, nullptr, 0);
         if(byteCount < 0 || (byteCount % static_cast<LONG>(sizeof(wchar_t))) != 0)
         {
@@ -434,6 +577,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
 
         try
         {
+            // Read and validate the composition code units.
             const std::size_t codeUnitCount = static_cast<std::size_t>(byteCount) / sizeof(wchar_t);
             std::vector<char16_t> codeUnits(codeUnitCount);
             if(byteCount != 0 && ImmGetCompositionStringW(context, compositionFlag, codeUnits.data(), static_cast<DWORD>(byteCount)) != byteCount)
@@ -442,6 +586,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 state.pendingDiscontinuity = true;
                 return;
             }
+
             const std::span<const char16_t> text(codeUnits.data(), codeUnits.size());
             if(GameWIP::Unicode::Utf16::validate(text).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
             {
@@ -449,6 +594,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 state.pendingDiscontinuity = true;
                 return;
             }
+
             const auto measurement = GameWIP::Unicode::Utf16::measureToUtf8(text);
             if(measurement.outcome != GameWIP::Unicode::Types::MeasureOutcome::Measured)
             {
@@ -457,6 +603,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 return;
             }
 
+            // Convert the composition to UTF-8 and map its selection offset.
             std::string utf8(measurement.requiredBytes, '\0');
             const auto conversion = GameWIP::Unicode::Utf16::convertToUtf8(text, std::span<char>(utf8.data(), utf8.size()));
             if(conversion.outcome != GameWIP::Unicode::Types::ConversionOutcome::Converted)
@@ -476,6 +623,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 }
             }
 
+            // Publish the validated composition text.
             appendTextUtf8(state, attachment, utf8, kind, selectionStartBytes);
         }
         catch(const std::bad_alloc &)
@@ -489,6 +637,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
         const bool high = codeUnit >= 0xD800 && codeUnit <= 0xDBFF;
         const bool low = codeUnit >= 0xDC00 && codeUnit <= 0xDFFF;
 
+        // Keep a high surrogate until its matching low surrogate arrives.
         if(high)
         {
             if(attachment.pendingHighSurrogate != 0)
@@ -500,6 +649,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return;
         }
 
+        // Combine a valid surrogate pair into one Unicode scalar.
         if(low)
         {
             if(attachment.pendingHighSurrogate == 0)
@@ -516,6 +666,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return;
         }
 
+        // Reject an unmatched high surrogate before publishing this code unit.
         if(attachment.pendingHighSurrogate != 0)
         {
             attachment.pendingHighSurrogate = 0;

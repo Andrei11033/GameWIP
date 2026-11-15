@@ -12,10 +12,12 @@
 
 #include <gamewip/version.h>
 
-#include <cstdlib>
+#include <cstddef>
 #include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <string_view>
+#include <vector>
 
 #ifndef GAMEWIP_STANDALONE_BENCHMARKS_ENABLED
 #define GAMEWIP_STANDALONE_BENCHMARKS_ENABLED 0
@@ -23,6 +25,10 @@
 
 namespace
 {
+    // ------------------------------------------------------------
+    // Argument routing
+    // ------------------------------------------------------------
+
     /// @brief Returns whether the process was invoked only to print version metadata.
     bool requestsVersion(GameWIP::Validation::ProcessArguments arguments) noexcept
     {
@@ -40,6 +46,40 @@ namespace
         return argument == "--help" || argument == "-h" || argument == "-?";
     }
 
+    /// @brief Returns whether an argument belongs to runtime rather than startup tools.
+    [[nodiscard]] bool isRuntimeOption(std::string_view argument) noexcept
+    {
+        return argument == "--logLevel" || argument.starts_with("--logLevel=") || argument == "--inputDevices" ||
+               argument.starts_with("--inputDevices=") || argument == "--inputDebug" || argument.starts_with("--inputDebug=") ||
+               argument == "--windowEvents" || argument.starts_with("--windowEvents=") || argument == "--inputBackends" ||
+               argument.starts_with("--inputBackends=");
+    }
+
+    /// @brief Removes runtime-owned arguments before forwarding to startup validation and benchmarks.
+    [[nodiscard]] std::vector<char *> argumentsForStartupTools(int argc, char **argv)
+    {
+        std::vector<char *> filtered;
+        if(argc <= 0 || argv == nullptr)
+        {
+            return filtered;
+        }
+
+        filtered.reserve(static_cast<std::size_t>(argc));
+        for(int index = 0; index < argc; ++index)
+        {
+            if(index != 0 && argv[index] != nullptr && isRuntimeOption(argv[index]))
+            {
+                continue;
+            }
+            filtered.push_back(argv[index]);
+        }
+        return filtered;
+    }
+
+    // ------------------------------------------------------------
+    // Command-line help
+    // ------------------------------------------------------------
+
     /// @brief Prints the supported GameWIP executable command line without starting runtime services.
     void printHelp() noexcept
     {
@@ -47,6 +87,11 @@ namespace
         std::puts("  GameWIP.exe");
         std::puts("  GameWIP.exe --version");
         std::puts("  GameWIP.exe --help | -h | -?");
+        std::puts("  GameWIP.exe --logLevel=<trace|debug|info|warn|error|fatal>");
+        std::puts("  GameWIP.exe --inputDevices");
+        std::puts("  GameWIP.exe --inputDebug");
+        std::puts("  GameWIP.exe --inputBackends=<list>(rawInput,hid,xinput,gameInput,directInput,windowMessages, or none)");
+        std::puts("  GameWIP.exe --windowEvents");
 #if GAMEWIP_STARTUP_TESTS_ENABLED
         std::puts("  GameWIP.exe --startup-tests [GameWIPTests options]");
         std::puts("");
@@ -88,16 +133,21 @@ int main(int argc, char **argv)
         return EXIT_SUCCESS;
     }
 
+    // Runtime-owned switches must not be mistaken for validation or benchmark arguments.
+    std::vector<char *> startupArguments = argumentsForStartupTools(argc, argv);
+    const int startupArgumentCount = static_cast<int>(startupArguments.size());
+    char **startupArgumentValues = startupArguments.data();
+
     // Startup tests are allowed to consume child-process validation arguments.
     // In that case the process must return the child route result directly and
     // must not continue into benchmarks or the runtime.
     GameWIP::Validation::TestResult tests;
 
-    if(GameWIP::Validation::shouldRunTests(argc, argv))
+    if(GameWIP::Validation::shouldRunTests(startupArgumentCount, startupArgumentValues))
     {
         GameWIP::Profiling::frameMark();
         GAMEWIP_PROFILE_ZONE("Startup validation", GameWIP::Profiling::Color::kValidation);
-        tests = GameWIP::Validation::runTests(argc, argv);
+        tests = GameWIP::Validation::runTests(startupArgumentCount, startupArgumentValues);
     }
 
     if(tests.handledChildInvocation)
@@ -116,7 +166,7 @@ int main(int argc, char **argv)
     {
         GameWIP::Profiling::frameMark();
         GAMEWIP_PROFILE_ZONE("Startup benchmarks", GameWIP::Profiling::Color::kBenchmark);
-        benchmarks = GameWIP::Validation::runBenchmarks(argc, argv);
+        benchmarks = GameWIP::Validation::runBenchmarks(startupArgumentCount, startupArgumentValues);
     }
 
     if(!benchmarks.ok())

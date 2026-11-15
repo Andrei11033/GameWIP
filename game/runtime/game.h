@@ -12,7 +12,8 @@ namespace GameWIP::Game
     /// @brief Runs the executable-owned game runtime after startup validation succeeds.
     /// @param argc Original process argument count.
     /// @param argv Borrowed original process argument values.
-    /// @note Both parameters are reserved for future runtime options and are currently ignored.
+    /// @note Read the executable runtime options documented in @ref project_game_executable.
+    ///       Other runtime arguments are ignored.
     /// @return Process exit code returned by the GameWIP executable.
     /// @note Expected runtime startup or shutdown failures should be expressed through the return value;
     /// `main()` does not add a general exception boundary.

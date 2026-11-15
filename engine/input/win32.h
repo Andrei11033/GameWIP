@@ -5,15 +5,17 @@
 #include "input/system.h"
 
 #include <memory>
+#include <vector>
 
 namespace GameWIP::Input::Platform::Win32
 {
     /// @brief Connects an Input system to a caller-owned Win32 window.
     /// @details Available on Windows; the caller owns the window
     /// and forwards its messages; the attachment does not create or subclass the
-    /// window or start a worker thread. It registers generic and discovered HID
-    /// collections, groups confidently identified sources, exposes decoded
-    /// controls individually, and can retain raw reports for opaque HID devices.
+    /// window or start a worker thread. It enables available Raw Input, HID,
+    /// XInput, GameInput, DirectInput, and window-message providers by default.
+    /// Confidently identified sources are grouped while controls remain individually
+    /// addressable; raw reports can be retained for opaque HID devices.
     class INPUT_EXPORT Attachment final
     {
     public:
@@ -32,6 +34,10 @@ namespace GameWIP::Input::Platform::Win32
 
         Attachment &operator=(Attachment &&) = delete;
 
+        // ------------------------------------------------------------
+        // Attachment lifecycle
+        // ------------------------------------------------------------
+
         /// @brief Registers the caller-owned window for Windows input delivery.
         /// @param system Open owner-thread-affine System to receive native values.
         /// @param windowHandle HWND represented as an opaque pointer.
@@ -47,6 +53,19 @@ namespace GameWIP::Input::Platform::Win32
         /// @return `true` while the attachment owns a live System connection.
         [[nodiscard]] bool isAttached() const noexcept;
 
+        // ------------------------------------------------------------
+        // Backend status
+        // ------------------------------------------------------------
+
+        /// @brief Copies startup status for the Win32 input backends.
+        /// @param outBackends Receives one status per backend.
+        /// @return Success, NotOpen, ResourceBusy, or OutOfMemory.
+        [[nodiscard]] IO::Types::Status backends(std::vector<Types::BackendInfo> &outBackends) const noexcept;
+
+        // ------------------------------------------------------------
+        // Window message and text surface
+        // ------------------------------------------------------------
+
         /// @brief Returns the text-input surface associated with the attached window.
         /// @return Surface identity while attached, or an invalid ID otherwise.
         [[nodiscard]] Types::SurfaceId surfaceId() const noexcept;
@@ -59,8 +78,12 @@ namespace GameWIP::Input::Platform::Win32
         /// @return Success, NotOpen, ResourceBusy, InvalidArgument, Unsupported, NativeFailure, or OutOfMemory.
         [[nodiscard]] IO::Types::Status handleMessage(std::uint32_t message, std::uint64_t wParam, std::int64_t lParam, bool &outHandled) noexcept;
 
-        /// @brief Polls XInput gamepads and publishes changed observations.
-        /// @details System::capture performs the same poll before publishing its frame.
+        // ------------------------------------------------------------
+        // Provider polling
+        // ------------------------------------------------------------
+
+        /// @brief Polls initialized native providers and publishes observations.
+        /// @details System::capture polls providers before publishing its frame.
         /// @return Success, NotOpen, ResourceBusy, Unsupported, or OutOfMemory.
         [[nodiscard]] IO::Types::Status poll() noexcept;
 
