@@ -1,4 +1,4 @@
-/// @file logger_filters.cpp
+/// @file filters.cpp
 /// @brief Logger runtime filtering, source registration, and source lookup helpers.
 
 #include "logger/internal/logger_core.h"
@@ -43,9 +43,9 @@ namespace GameWIP::Logger::Detail::Core
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Runtime filtering and source lookup
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runtime filtering and source lookup
+    /// ------------------------------------------------------------
 
     /// @brief Loads the current shared source registry snapshot for lifecycle-safe lookup.
     /// @return Shared source registry snapshot, or nullptr when no sources are registered.
@@ -331,9 +331,9 @@ namespace GameWIP::Logger::Detail::Core
     }
 } // namespace GameWIP::Logger::Detail::Core
 
-// ------------------------------------------------------------
-// Public filter API
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Public filter API
+/// ------------------------------------------------------------
 
 bool GameWIP::Logger::shouldLog(Types::Level level) noexcept
 {

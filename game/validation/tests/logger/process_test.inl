@@ -32,9 +32,7 @@
 
 int runFatalTerminateChild()
 {
-#if defined(_WIN32)
-    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
+    GameWIP::Validation::PlatformTests::suppressCrashDialogs();
     Logger::Types::Config config;
     config.output = Logger::Types::OutputMode::None;
     config.enableDebugOutput = false;
@@ -60,7 +58,10 @@ void testFatalTerminateChild(TestContext &context, const LoggerTestOptions &opti
     }
 
     const std::filesystem::path directory = testDirectory(context, "fatal-terminate-child");
-    const TestSupport::ScopedEnvironmentVariable environment(context.processState, kChildLogDirectoryEnvironmentVariable, pathText(directory));
+    const TestSupport::ScopedEnvironmentVariable environment(
+        context.processState,
+        kChildLogDirectoryEnvironmentVariable,
+        pathText(context, directory));
 
     if(!environment.status().ok())
     {

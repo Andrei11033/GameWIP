@@ -115,7 +115,7 @@ void testReportDoesNotDrainAsyncBacklog(TestContext &context, const LoggerTestOp
     TestSupport::Types::Process::Options childOptions;
     childOptions.executablePath = std::filesystem::path(context.executablePath);
     childOptions.arguments = {"--logger-test-child=report-no-drain"};
-    childOptions.environmentOverrides = {{std::string(kChildLogDirectoryEnvironmentVariable), pathText(directory)}};
+    childOptions.environmentOverrides = {{std::string(kChildLogDirectoryEnvironmentVariable), pathText(context, directory)}};
     childOptions.waitTimeout = 30s;
     const auto child = TestSupport::runChildProcess(childOptions);
     context.expectTrue(
@@ -151,7 +151,7 @@ int runReportNoDrainChild()
         [&](TestSupport::Context &testContext)
         {
             TestContext context(testContext);
-            context.logRoot = pathFromText(directory);
+            context.logRoot = pathFromText(context, directory);
             testReportNoDrainScenario(context);
         });
     return GameWIP::Test::RunnerHelpers::finalizeRunner(runner);

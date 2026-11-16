@@ -1,0 +1,18 @@
+target_sources(
+    Logger
+    PRIVATE
+        config.cpp
+        console.cpp
+        filters.cpp
+        format.cpp
+        initialization.cpp
+        lifecycle.cpp
+        logging.cpp
+        queue.cpp
+        reports.cpp
+        runtime.cpp
+        sinks.cpp
+        stats.cpp
+        test_hooks.cpp
+        worker.cpp
+)

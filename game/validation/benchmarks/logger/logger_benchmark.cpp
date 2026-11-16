@@ -2,6 +2,7 @@
 /// @brief Google Benchmark scenarios for Logger producer paths.
 
 #include "logger/logger.h"
+#include "filesystem/path.h"
 #include "test_support/test_support.h"
 
 #include <benchmark/benchmark.h>
@@ -17,12 +18,17 @@
 
 namespace
 {
+    namespace FileSystem = GameWIP::FileSystem;
     namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
 
     constexpr std::string_view kSource = "LoggerBenchmark";
     constexpr std::string_view kMessage = "logger benchmark message";
     constexpr Logger::Types::SourceId kRegisteredSource = 1;
+
+    /// ------------------------------------------------------------
+    /// Shared Logger fixtures
+    /// ------------------------------------------------------------
 
     Logger::Types::Config baseConfig()
     {
@@ -76,7 +82,18 @@ namespace
                         workspace_.reset();
                         return false;
                     }
-                    directoryText_ = workspace_->path().string();
+                    const FileSystem::Types::Utf8PathResult directory = FileSystem::pathToUtf8(workspace_->path());
+
+                    if(!directory.status.ok())
+                    {
+                        const std::string error =
+                            std::format("Could not convert Logger benchmark path: {}.", TestSupport::formatInfrastructureStatus(directory.status));
+                        state.SkipWithError(error);
+                        workspace_.reset();
+                        return false;
+                    }
+
+                    directoryText_ = directory.utf8;
                     config.logDirectory = directoryText_;
                 }
                 catch(const std::exception &exception)
@@ -130,6 +147,10 @@ namespace
         std::unique_ptr<TestSupport::ScopedTemporaryDirectory> workspace_;
         std::string directoryText_;
     };
+
+    /// ------------------------------------------------------------
+    /// Single-producer paths
+    /// ------------------------------------------------------------
 
     class OutputDisabledFixture : public LoggerFixture
     {
@@ -263,6 +284,10 @@ namespace
         state.SetItemsProcessed(state.iterations());
     }
 
+    /// ------------------------------------------------------------
+    /// Multi-producer contention
+    /// ------------------------------------------------------------
+
     void multiProducerContention(benchmark::State &state)
     {
         static std::mutex lifecycleMutex;
@@ -292,14 +317,28 @@ namespace
                     }
                     else
                     {
-                        directoryText = workspace->path().string();
-                        const std::array sources{Logger::Types::SourceDefinition{kRegisteredSource, "RegisteredBenchmark"}};
-                        Logger::Types::Config config = baseConfig();
-                        config.output = Logger::Types::OutputMode::File;
-                        config.logDirectory = directoryText;
-                        config.sources = sources;
-                        const auto init = Logger::init(config);
-                        initialized = init.status.ok() && init.outcome == Logger::Types::Init::Outcome::Started;
+                        const FileSystem::Types::Utf8PathResult directory = FileSystem::pathToUtf8(workspace->path());
+
+                        if(!directory.status.ok())
+                        {
+                            state.SkipWithError(
+                                std::format(
+                                    "Could not convert multi-producer workspace path: {}.",
+                                    TestSupport::formatInfrastructureStatus(directory.status)));
+                            workspace.reset();
+                            initialized = false;
+                        }
+                        else
+                        {
+                            directoryText = directory.utf8;
+                            const std::array sources{Logger::Types::SourceDefinition{kRegisteredSource, "RegisteredBenchmark"}};
+                            Logger::Types::Config config = baseConfig();
+                            config.output = Logger::Types::OutputMode::File;
+                            config.logDirectory = directoryText;
+                            config.sources = sources;
+                            const auto init = Logger::init(config);
+                            initialized = init.status.ok() && init.outcome == Logger::Types::Init::Outcome::Started;
+                        }
                     }
                 }
                 catch(const std::exception &exception)

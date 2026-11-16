@@ -165,7 +165,7 @@ void testFileFallbackAndSetupStatus(TestContext &context)
         std::ofstream file(blockingPath);
         file << "blocks directory creation";
     }
-    const std::string blockingText = pathText(blockingPath);
+    const std::string blockingText = pathText(context, blockingPath);
 
     Logger::Types::Config noFallback = makeConsoleConfig();
     noFallback.output = Logger::Types::OutputMode::File;

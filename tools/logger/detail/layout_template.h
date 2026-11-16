@@ -14,9 +14,10 @@
 namespace GameWIP::Logger::Detail
 {
     /// @cond INTERNAL
-    // ------------------------------------------------------------
-    // UTF-8 validation
-    // ------------------------------------------------------------
+
+    /// ------------------------------------------------------------
+    /// UTF-8 validation
+    /// ------------------------------------------------------------
 
     [[nodiscard]] constexpr bool isValidUtf8(std::string_view text) noexcept
     {
@@ -49,6 +50,7 @@ namespace GameWIP::Logger::Detail
             {
                 return false;
             }
+
             if(length > text.size() - index)
             {
                 return false;
@@ -71,9 +73,9 @@ namespace GameWIP::Logger::Detail
         return true;
     }
 
-    // ------------------------------------------------------------
-    // Layout grammar and semantic roles
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Layout grammar and semantic roles
+    /// ------------------------------------------------------------
 
     inline constexpr std::size_t kMaxLayoutColorScopeDepth = 8;
 
@@ -83,34 +85,42 @@ namespace GameWIP::Logger::Detail
         {
             return 'T';
         }
+
         if(role == "severity")
         {
             return 'L';
         }
+
         if(role == "area")
         {
             return 'A';
         }
+
         if(role == "message")
         {
             return 'M';
         }
+
         if(role == "field")
         {
             return 'F';
         }
+
         if(role == "code")
         {
             return 'C';
         }
+
         if(role == "path")
         {
             return 'P';
         }
+
         if(role == "number")
         {
             return 'N';
         }
+
         if(role == "quoted")
         {
             return 'Q';
@@ -128,6 +138,7 @@ namespace GameWIP::Logger::Detail
         {
             return separator == std::string_view::npos && token == "fields";
         }
+
         if(separator == std::string_view::npos)
         {
             return true;
@@ -142,6 +153,7 @@ namespace GameWIP::Logger::Detail
         {
             return name == "area" || name == "level";
         }
+
         if(width.empty())
         {
             return false;
@@ -217,9 +229,9 @@ namespace GameWIP::Logger::Detail
         return colorScopeDepth == 0;
     }
 
-    // ------------------------------------------------------------
-    // Compiled layout instructions
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Compiled layout instructions
+    /// ------------------------------------------------------------
 
     inline constexpr char kCompiledLayoutMarker = static_cast<char>(0xF6);
 
@@ -229,38 +241,47 @@ namespace GameWIP::Logger::Detail
         {
             return 't';
         }
+
         if(name == "level")
         {
             return 'l';
         }
+
         if(name == "area")
         {
             return 'a';
         }
+
         if(name == "message")
         {
             return 'm';
         }
+
         if(name == "fields")
         {
             return 'f';
         }
+
         if(name == "source_file")
         {
             return 'F';
         }
+
         if(name == "source_function")
         {
             return 'u';
         }
+
         if(name == "source_line")
         {
             return 'n';
         }
+
         if(name == "thread_id")
         {
             return 'i';
         }
+
         if(name == "process_id")
         {
             return 'p';
@@ -287,6 +308,7 @@ namespace GameWIP::Logger::Detail
                 ++index;
                 continue;
             }
+
             if(layout[index] != '{')
             {
                 compiled.push_back(layout[index]);

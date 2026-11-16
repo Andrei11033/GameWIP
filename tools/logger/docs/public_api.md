@@ -67,7 +67,8 @@ File and debugger output contain the same text without terminal color sequences.
 the source and message arguments. Record calls support preformatted, compile-time formatted, and `runtimeFormat()` messages:
 
 ```cpp
-Logger::info(Area::Input,
+Logger::info(
+    Area::Input,
     Logger::record().field("device", "Keyboard").field("id", 12).threadId().file().line(),
     "Device connected");
 ```

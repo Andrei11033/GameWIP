@@ -74,9 +74,7 @@ namespace GameWIP::Logger
             return *this;
         }
 
-        // ------------------------------------------------------------
         // Source metadata
-        // ------------------------------------------------------------
 
         /// @brief Includes the current thread identifier in this record.
         Record &threadId() noexcept
@@ -122,9 +120,7 @@ namespace GameWIP::Logger
             return *this;
         }
 
-        // ------------------------------------------------------------
         // Field layout
-        // ------------------------------------------------------------
 
         /// @brief Selects a built-in layout for this record's fields.
         Record &layout(FieldLayout value) noexcept
@@ -150,9 +146,7 @@ namespace GameWIP::Logger
         {
         }
 
-        // ------------------------------------------------------------
         // Message formatting
-        // ------------------------------------------------------------
 
         [[nodiscard]] std::string prefix() const
         {

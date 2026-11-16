@@ -1,40 +1,19 @@
 /// @file logger_core.h
-/// @brief Private Logger state and core contracts.
+/// @brief Private Logger contracts shared by core implementation files.
 
 #pragma once
 
-#include "logger/logger.h"
 #include "logger/internal/logger_platform.h"
-
-#include "filesystem/file.h"
-#include "filesystem/directory.h"
-#include "io/status.h"
+#include "logger/internal/state.h"
 #include "terminal/output.h"
 #include "unicode/unicode.h"
 
-#ifndef LOGGER_INTERNAL_TEST_HOOKS
-#define LOGGER_INTERNAL_TEST_HOOKS 0
-#endif
-#if LOGGER_INTERNAL_TEST_HOOKS
-#include "logger/internal/logger_test_hooks.h"
-#endif
-
-#include <algorithm>
-#include <array>
 #include <atomic>
 #include <chrono>
-#include <cmath>
-#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-#include <exception>
-#include <limits>
 #include <memory>
 #include <mutex>
-#include <new>
 #include <optional>
 #include <span>
 #include <string>
@@ -43,708 +22,15 @@
 #include <utility>
 #include <vector>
 
-#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
-#include <immintrin.h>
+#if LOGGER_INTERNAL_TEST_HOOKS
+#include "logger/internal/logger_test_hooks.h"
 #endif
 
 namespace GameWIP::Logger::Detail::Core
 {
-    // ------------------------------------------------------------
-    // Shared aliases and constants
-    // ------------------------------------------------------------
-
-    using FlushDeadline = std::chrono::steady_clock::time_point;
-    using LogLevel = Types::Level;
-    using Types::FormatPolicy;
-    using Types::LevelFilter;
-    using Types::OutputMode;
-    using Types::QueueLimits;
-    using Types::SourceDefinition;
-    using Types::SourceFilter;
-    using Types::SourceId;
-    using LoggerStats = Types::Stats;
-    using LoggerMemoryStats = Types::MemoryStats;
-    using FileSystem::FileWriter;
-    using IO::Types::ErrorCode;
-    using IO::Types::Status;
-    using FilePath = FileSystem::Types::Path;
-
-    constexpr std::size_t kInlineSourceCapacity = 64;
-    constexpr std::size_t kDefaultInlineMessageCapacity = 256;
-    constexpr std::size_t kLevelCount = 6;
-    constexpr std::uint8_t kAllLevelMask = static_cast<std::uint8_t>((1u << kLevelCount) - 1u);
-    constexpr std::size_t kDefaultWorkerBatchSize = 256;
-    constexpr std::size_t kInvalidSourceIndex = std::numeric_limits<std::size_t>::max();
-    constexpr std::uint32_t kRuntimeStateRunningBit = 1u << 0u;
-    constexpr std::uint32_t kRuntimeStateOutputShift = 1u;
-    constexpr std::uint32_t kRuntimeStateMinLevelShift = 4u;
-    constexpr std::uint32_t kRuntimeStateLevelMaskShift = 8u;
-    constexpr std::uint32_t kRuntimeStateEnumMask = 0x7u;
-    constexpr std::uint32_t kRuntimeStateLevelMaskMask = 0x3Fu;
-    constexpr std::uint32_t kQueueSlotSpinBeforeYield = 64;
-
-    // ------------------------------------------------------------
-    // Inline retained text storage
-    // ------------------------------------------------------------
-
-    /// @brief Returns the byte count that keeps a valid UTF-8 prefix when a borrowed view may end mid-scalar.
-    /// @note Ordinary hot messages are valid UTF-8 by contract, so only the final scalar needs inspection here.
-    [[nodiscard]] inline std::size_t completeUtf8TailBoundary(std::string_view text) noexcept
-    {
-        if(text.empty())
-        {
-            return 0;
-        }
-        std::size_t lead = text.size() - 1;
-        std::size_t continuationCount = 0;
-
-        while(lead > 0 && continuationCount < 3)
-        {
-            const auto value = static_cast<unsigned char>(text[lead]);
-
-            if((value & 0xC0u) != 0x80u)
-            {
-                break;
-            }
-
-            --lead;
-            ++continuationCount;
-        }
-
-        const auto first = static_cast<unsigned char>(text[lead]);
-        std::size_t expected = 1;
-
-        if(first >= 0xC2u && first <= 0xDFu)
-        {
-            expected = 2;
-        }
-        else if(first >= 0xE0u && first <= 0xEFu)
-        {
-            expected = 3;
-        }
-        else if(first >= 0xF0u && first <= 0xF4u)
-        {
-            expected = 4;
-        }
-        else
-        {
-            return text.size();
-        }
-
-        const std::size_t available = text.size() - lead;
-        return available < expected ? lead : text.size();
-    }
-
-    template <std::size_t InlineCapacity> class InlineLogText
-    {
-    public:
-        void assign(std::string_view text)
-        {
-            if(text.size() <= InlineCapacity)
-            {
-                if(heapActive_)
-                {
-                    heapText_.clear();
-                }
-
-                inlineSize_ = text.size();
-                heapActive_ = false;
-
-                if(!text.empty())
-                {
-                    std::ranges::copy(text, inlineText_.begin());
-                }
-
-                return;
-            }
-            heapText_.assign(text);
-            inlineSize_ = 0;
-            heapActive_ = true;
-        }
-
-        void assign(std::string &&text)
-        {
-            if(text.size() <= InlineCapacity)
-            {
-                assign(std::string_view(text));
-                return;
-            }
-            heapText_ = std::move(text);
-            inlineSize_ = 0;
-            heapActive_ = true;
-        }
-
-        void assignJoined(std::string_view first, std::string_view second)
-        {
-            first = first.substr(0, completeUtf8TailBoundary(first));
-            const std::size_t total = first.size() + second.size();
-
-            if(total <= InlineCapacity)
-            {
-                if(heapActive_)
-                {
-                    heapText_.clear();
-                }
-
-                inlineSize_ = total;
-                heapActive_ = false;
-
-                if(!first.empty())
-                {
-                    std::ranges::copy(first, inlineText_.begin());
-                }
-
-                if(!second.empty())
-                {
-                    std::ranges::copy(second, std::span{inlineText_}.subspan(first.size(), second.size()).begin());
-                }
-
-                return;
-            }
-
-            heapText_.clear();
-            heapText_.reserve(total);
-            heapText_.append(first);
-            heapText_.append(second);
-            inlineSize_ = 0;
-            heapActive_ = true;
-        }
-
-        void transferFrom(InlineLogText &source)
-        {
-            if(source.heapActive_)
-            {
-                if(heapActive_)
-                {
-                    heapText_.clear();
-                }
-
-                heapText_.swap(source.heapText_);
-                inlineSize_ = 0;
-                heapActive_ = true;
-
-                source.heapText_.clear();
-                source.inlineSize_ = 0;
-                source.heapActive_ = false;
-                return;
-            }
-            assign(source.view());
-            source.clear();
-        }
-
-        void clear(bool releaseHeapCapacity = false)
-        {
-            if(heapActive_)
-            {
-                heapText_.clear();
-            }
-
-            if(releaseHeapCapacity)
-            {
-                std::string{}.swap(heapText_);
-            }
-
-            inlineSize_ = 0;
-            heapActive_ = false;
-        }
-
-        [[nodiscard]] std::string_view view() const
-        {
-            return heapActive_ ? std::string_view(heapText_) : std::string_view(inlineText_.data(), inlineSize_);
-        }
-
-        [[nodiscard]] std::size_t capacityBytes() const
-        {
-            static const std::size_t emptyCapacity = std::string{}.capacity();
-            return heapText_.capacity() > emptyCapacity ? heapText_.capacity() : 0;
-        }
-
-    private:
-        std::array<char, InlineCapacity> inlineText_{};
-        std::size_t inlineSize_ = 0;
-        bool heapActive_ = false;
-        std::string heapText_;
-    };
-
-    // ------------------------------------------------------------
-    // Message storage
-    // ------------------------------------------------------------
-
-    class DynamicLogText
-    {
-    public:
-        void configureInlineStorage(std::span<char> storage)
-        {
-            inlineText_ = storage;
-            inlineSize_ = 0;
-            clear();
-        }
-
-        void assign(std::string_view text)
-        {
-            if(text.size() <= inlineText_.size())
-            {
-                if(heapActive_)
-                {
-                    heapText_.clear();
-                }
-
-                inlineSize_ = text.size();
-
-                if(!text.empty())
-                {
-                    std::ranges::copy(text, inlineText_.begin());
-                }
-
-                heapActive_ = false;
-                return;
-            }
-            heapText_.assign(text);
-            inlineSize_ = 0;
-            heapActive_ = true;
-        }
-
-        void assign(std::string &&text)
-        {
-            if(text.size() <= inlineText_.size())
-            {
-                assign(std::string_view(text));
-                return;
-            }
-            heapText_ = std::move(text);
-            inlineSize_ = 0;
-            heapActive_ = true;
-        }
-
-        void assignJoined(std::string_view first, std::string_view second)
-        {
-            first = first.substr(0, completeUtf8TailBoundary(first));
-            const std::size_t total = first.size() + second.size();
-
-            if(total <= inlineText_.size())
-            {
-                if(heapActive_)
-                {
-                    heapText_.clear();
-                }
-
-                inlineSize_ = total;
-
-                if(!first.empty())
-                {
-                    std::ranges::copy(first, inlineText_.begin());
-                }
-
-                if(!second.empty())
-                {
-                    std::ranges::copy(second, inlineText_.subspan(first.size()).begin());
-                }
-
-                heapActive_ = false;
-                return;
-            }
-
-            heapText_.clear();
-            heapText_.reserve(total);
-            heapText_.append(first.data(), first.size());
-            heapText_.append(second.data(), second.size());
-            inlineSize_ = 0;
-            heapActive_ = true;
-        }
-
-        void transferFrom(DynamicLogText &source)
-        {
-            if(source.heapActive_)
-            {
-                if(heapActive_)
-                {
-                    heapText_.clear();
-                }
-
-                heapText_.swap(source.heapText_);
-                inlineSize_ = 0;
-                heapActive_ = true;
-
-                source.heapText_.clear();
-                source.inlineSize_ = 0;
-                source.heapActive_ = false;
-                return;
-            }
-            assign(source.view());
-            source.clear();
-        }
-
-        void clear(bool releaseHeapCapacity = false)
-        {
-            if(heapActive_)
-            {
-                heapText_.clear();
-            }
-
-            if(releaseHeapCapacity)
-            {
-                std::string{}.swap(heapText_);
-            }
-
-            inlineSize_ = 0;
-            heapActive_ = false;
-        }
-
-        [[nodiscard]] std::string_view view() const
-        {
-            if(heapActive_)
-            {
-                return heapText_;
-            }
-
-            return inlineSize_ == 0 ? std::string_view{} : std::string_view(inlineText_.data(), inlineSize_);
-        }
-
-        [[nodiscard]] std::size_t capacityBytes() const
-        {
-            static const std::size_t emptyCapacity = std::string{}.capacity();
-            return heapText_.capacity() > emptyCapacity ? heapText_.capacity() : 0;
-        }
-
-    private:
-        std::span<char> inlineText_;
-        std::size_t inlineSize_ = 0;
-        bool heapActive_ = false;
-        std::string heapText_;
-    };
-
-    // ------------------------------------------------------------
-    // Queue and source state
-    // ------------------------------------------------------------
-
-    struct QueuedLogEntry
-    {
-        LogLevel level = LogLevel::Info;
-        bool usesRegisteredSource = false;
-        SourceId sourceId = 0;
-        InlineLogText<kInlineSourceCapacity> sourceText;
-        DynamicLogText message;
-    };
-
-    struct PendingLogEntry
-    {
-        LogLevel level = LogLevel::Info;
-        bool usesRegisteredSource = false;
-        SourceId sourceId = 0;
-        InlineLogText<kInlineSourceCapacity> sourceText;
-        std::string_view message;
-        bool alreadyTruncated = false;
-    };
-
-    struct QueueSlot
-    {
-        std::atomic<std::size_t> sequence{0};
-        bool skip = false;
-        QueuedLogEntry entry;
-        QueueSlot() = default;
-        QueueSlot(const QueueSlot &) = delete;
-        QueueSlot &operator=(const QueueSlot &) = delete;
-        QueueSlot(QueueSlot &&) = delete;
-        QueueSlot &operator=(QueueSlot &&) = delete;
-    };
-
-    struct RegisteredSource
-    {
-        SourceId id = 0;
-        std::string name;
-        std::optional<Color> color;
-        mutable std::atomic<bool> enabled{true};
-
-        RegisteredSource() = default;
-        RegisteredSource(SourceId source, std::string displayName, std::optional<Color> sourceColor, bool sourceEnabled)
-            : id(source)
-            , name(std::move(displayName))
-            , color(sourceColor)
-            , enabled(sourceEnabled)
-        {
-        }
-
-        RegisteredSource(const RegisteredSource &other)
-            : id(other.id)
-            , name(other.name)
-            , color(other.color)
-            , enabled(other.enabled.load(std::memory_order_relaxed))
-        {
-        }
-
-        RegisteredSource(RegisteredSource &&other) noexcept
-            : id(other.id)
-            , name(std::move(other.name))
-            , color(other.color)
-            , enabled(other.enabled.load(std::memory_order_relaxed))
-        {
-        }
-
-        RegisteredSource &operator=(const RegisteredSource &other)
-        {
-            if(this != &other)
-            {
-                id = other.id;
-                name = other.name;
-                color = other.color;
-                enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
-            }
-
-            return *this;
-        }
-
-        RegisteredSource &operator=(RegisteredSource &&other) noexcept
-        {
-            if(this != &other)
-            {
-                id = other.id;
-                name = std::move(other.name);
-                color = other.color;
-                enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
-            }
-
-            return *this;
-        }
-    };
-
-    struct SourceRegistry
-    {
-        std::vector<RegisteredSource> sources;
-        std::vector<std::size_t> directSourceLookup;
-        SourceId directSourceBase = 0;
-    };
-
-#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    template <typename Value> using AtomicSharedPointer = std::atomic<std::shared_ptr<Value>>;
-#else
-    template <typename Value> class AtomicSharedPointer
-    {
-    public:
-        [[nodiscard]] std::shared_ptr<Value> load(std::memory_order order) const
-        {
-            return std::atomic_load_explicit(&value_, order);
-        }
-
-        void store(std::shared_ptr<Value> value, std::memory_order order)
-        {
-            std::atomic_store_explicit(&value_, std::move(value), order);
-        }
-
-    private:
-        std::shared_ptr<Value> value_;
-    };
-#endif
-
-    struct TimestampCache
-    {
-        bool valid = false;
-        std::time_t second = 0;
-        std::string formatText;
-        std::string text;
-    };
-
-    struct StatsCounters
-    {
-        std::atomic<std::size_t> queued{0};
-        std::atomic<std::size_t> written{0};
-        std::atomic<std::size_t> queueDropsSoft{0};
-        std::atomic<std::size_t> queueDropsHard{0};
-        std::atomic<std::size_t> allocationFailures{0};
-        std::atomic<std::size_t> fileWriteFailures{0};
-        std::atomic<std::size_t> unknownSourceUses{0};
-        std::atomic<std::size_t> formatFailures{0};
-        std::atomic<std::size_t> truncated{0};
-        std::atomic<std::size_t> peakQueueDepth{0};
-    };
-
-    // ------------------------------------------------------------
-    // Process-wide logger state
-    // ------------------------------------------------------------
-
-    // NOLINTNEXTLINE(clang-analyzer-optin.performance.Padding): Keep lifecycle and queue fields grouped by subsystem.
-    struct LoggerState
-    {
-        LogLevel minLevel = LogLevel::Info;
-        OutputMode mode = OutputMode::Both;
-        bool fallbackToConsoleOnFileFailure = true;
-        std::size_t softQueueSize = 1024;
-        std::size_t hardQueueSize = 1280;
-        double hardQueueMultiplier = 1.25;
-        std::size_t maxMessageLength = 4096;
-        FormatPolicy formatPolicy = FormatPolicy::StrictBounded;
-        std::size_t inlineMessageCapacity = kDefaultInlineMessageCapacity;
-        std::size_t workerBatchSize = kDefaultWorkerBatchSize;
-        std::size_t sourceNameWidth = 0;
-        bool consoleColorEnabled = true;
-        Theme theme{};
-        FieldLayout fieldLayout = FieldLayout::Adaptive;
-        std::string timestampFormat = "%H:%M:%S.%f";
-        AtomicSharedPointer<const std::string> layoutTemplate;
-        std::atomic<std::size_t> maxRecordFieldsAtomic{8};
-        std::atomic<std::size_t> maxFieldKeyLengthAtomic{64};
-        std::atomic<std::size_t> maxFieldValueLengthAtomic{512};
-        bool debugOutputEnabled = true;
-        bool fatalPopupEnabled = true;
-        bool flushFileEveryBatch = false;
-        bool flushConsoleEveryWrite = false;
-        bool releaseMessageMemoryAfterWrite = false;
-        bool releaseStorageOnShutdown = true;
-
-        std::uint8_t enabledLevelMask = kAllLevelMask;
-        std::atomic<std::uint32_t> runtimeStateBits{0};
-        std::atomic<bool> consoleColorEnabledAtomic{true};
-        std::atomic<bool> debugOutputEnabledAtomic{false};
-        std::atomic<bool> fatalPopupEnabledAtomic{false};
-        std::atomic<bool> fileOutputAvailableAtomic{false};
-        std::atomic<bool> flushConsoleEveryWriteAtomic{false};
-        std::atomic<bool> flushFileEveryBatchAtomic{false};
-
-        FileWriter logFile;
-        FilePath logFilePath;
-        AtomicSharedPointer<SourceRegistry> sourceRegistry;
-        std::unique_ptr<char[]> ringMessageArena;
-        std::unique_ptr<char[]> batchMessageArena;
-        std::unique_ptr<QueueSlot[]> logRing;
-        std::span<QueueSlot> logRingView;
-        std::size_t logRingSize = 0;
-        std::vector<QueuedLogEntry> workerBatch;
-        std::atomic<std::size_t> enqueueTicket{0};
-        std::atomic<std::size_t> dequeueTicket{0};
-        std::atomic<std::size_t> queueDepth{0};
-        std::atomic<std::size_t> publishedQueueDepth{0};
-        std::atomic<std::size_t> activeProducers{0};
-        std::atomic<std::size_t> maxMessageLengthAtomic{4096};
-        std::atomic<std::uint8_t> formatPolicyAtomic{0};
-        std::atomic<bool> releaseMessageMemoryAfterWriteAtomic{false};
-        std::atomic<std::size_t> droppedLogs{0};
-        StatsCounters stats;
-
-        std::mutex lifecycleMutex;
-        std::mutex logMutex;
-        std::mutex outputMutex;
-        std::mutex debugTimestampMutex;
-        std::condition_variable logCondition;
-        std::thread loggingThread;
-        bool workerRunning = false;
-        bool workerBusy = false;
-        bool shutdownRegistered = false;
-
-        Types::Health::State healthState = Types::Health::State::Disabled;
-        Types::Health::FailureSource lastFailureSource = Types::Health::FailureSource::None;
-        ErrorCode lastHealthError = ErrorCode::Success;
-        std::int64_t lastHealthNativeCode = 0;
-        std::uint64_t healthFailureCount = 0;
-        TimestampCache debugTimestampCache;
-    };
-
-    LoggerState &loggerState();
-
-    struct ProducerActivity
-    {
-        bool active = false;
-
-        ProducerActivity() = default;
-        ProducerActivity(const ProducerActivity &) = delete;
-        ProducerActivity &operator=(const ProducerActivity &) = delete;
-
-        ~ProducerActivity()
-        {
-            leave();
-        }
-
-        bool enter()
-        {
-            loggerState().activeProducers.fetch_add(1, std::memory_order_acq_rel);
-            active = true;
-
-            if((loggerState().runtimeStateBits.load(std::memory_order_acquire) & kRuntimeStateRunningBit) != 0)
-            {
-                return true;
-            }
-
-            leave();
-            return false;
-        }
-
-        void leave()
-        {
-            if(!active)
-            {
-                return;
-            }
-            active = false;
-
-            if(loggerState().activeProducers.fetch_sub(1, std::memory_order_acq_rel) == 1)
-            {
-                std::lock_guard<std::mutex> lock(loggerState().logMutex);
-                loggerState().logCondition.notify_all();
-            }
-        }
-    };
-
-    // ------------------------------------------------------------
-    // Sink and filtering results
-    // ------------------------------------------------------------
-
-    struct LogStyle
-    {
-        const char *text = "UNKNOWN";
-        bool useStderr = true;
-    };
-
-    enum class EnqueueStatus
-    {
-        Skipped,
-        Queued,
-        DroppedSoft,
-        DroppedHard,
-        AllocationFailure
-    };
-    struct EnqueueOutcome
-    {
-        bool notifyWorker = false;
-        EnqueueStatus status = EnqueueStatus::Skipped;
-    };
-    struct SinkWriteResult
-    {
-        bool acceptedImmediateSink = false;
-        bool queuedFile = false;
-    };
-    struct FilterDecision
-    {
-        bool accepted = false;
-    };
-
-    struct ReportSinkProgress
-    {
-        Status status;
-        std::size_t eligible = 0;
-        std::size_t delivered = 0;
-        bool timedOut = false;
-    };
-
-#if LOGGER_INTERNAL_TEST_HOOKS
-    // ------------------------------------------------------------
-    // Test hooks
-    // ------------------------------------------------------------
-
-    struct LoggerTestHookState
-    {
-        std::atomic_bool nextFileWriteFailure{false};
-        std::atomic_bool nextFileFlushFailure{false};
-        std::atomic_bool nextFatalPopupFailure{false};
-        std::atomic_bool nextTimedFlushTimeout{false};
-        std::atomic_bool pauseBeforeWorkerDelivery{false};
-        std::atomic_bool workerDeliveryReached{false};
-        std::atomic_bool releaseWorkerDelivery{false};
-    };
-    extern LoggerTestHookState loggerTestHookState;
-    bool consumeTestHook(std::atomic_bool &flag) noexcept;
-    void resetLoggerTestHooks() noexcept;
-    void pauseWorkerBeforeDeliveryForTest() noexcept;
-    Status forcedFileStatus(ErrorCode code) noexcept;
-    Status forcedFatalPopupStatus() noexcept;
-#endif
+    /// ------------------------------------------------------------
+    /// Runtime value encoding and validation
+    /// ------------------------------------------------------------
 
     std::uint8_t toLevelValue(LogLevel level);
     std::uint8_t toOutputModeValue(OutputMode mode);
@@ -760,12 +46,23 @@ namespace GameWIP::Logger::Detail::Core
     OutputMode runtimeStateOutput(std::uint32_t packed);
     LogLevel runtimeStateMinLevel(std::uint32_t packed);
     std::uint8_t runtimeStateLevelMask(std::uint32_t packed);
+
+    /// ------------------------------------------------------------
+    /// Queue coordination and counters
+    /// ------------------------------------------------------------
+
     void cpuRelax() noexcept;
     void waitForQueueSlot(QueueSlot &slot, std::size_t ticket);
+    void loggerWorker();
     void recordQueueDropCounter(std::atomic<std::size_t> &counter);
     void recordDiagnosticFailureCounter(std::atomic<std::size_t> &counter);
     void updateAtomicMax(std::atomic<std::size_t> &target, std::size_t value);
     LoggerStats snapshotStats() noexcept;
+
+    /// ------------------------------------------------------------
+    /// Storage accounting and health
+    /// ------------------------------------------------------------
+
     std::size_t messageArenaBytesUnlocked();
     std::size_t queueStorageBytesUnlocked();
     std::size_t sourceRegistryBytes(const SourceRegistry *registry);
@@ -784,6 +81,10 @@ namespace GameWIP::Logger::Detail::Core
     void markHealthDisabledUnlocked();
     [[nodiscard]] Status firstFailure(Status current, const Status &candidate);
 
+    /// ------------------------------------------------------------
+    /// Source registration and filtering
+    /// ------------------------------------------------------------
+
     std::shared_ptr<SourceRegistry> loadSourceRegistry();
     RegisteredSource *findSource(SourceRegistry &registry, SourceId source);
     const RegisteredSource *findSource(const SourceRegistry &registry, SourceId source);
@@ -797,6 +98,10 @@ namespace GameWIP::Logger::Detail::Core
     bool isLowPriority(LogLevel level);
     bool hasConsoleOutput(OutputMode mode);
     bool hasFileOutput(OutputMode mode);
+
+    /// ------------------------------------------------------------
+    /// Configuration and queue storage
+    /// ------------------------------------------------------------
 
     std::size_t computeHardQueueLimit(std::size_t softQueueSize, double multiplier);
     std::size_t effectiveHardQueueLimit(double &multiplier, std::size_t softQueueSize, bool &adjusted);
@@ -828,6 +133,10 @@ namespace GameWIP::Logger::Detail::Core
     EnqueueStatus publishReservedQueueEntry(const PendingLogEntry &entry, bool &outTruncated, bool &outNotifyWorker);
     std::size_t drainQueueBatch(std::vector<QueuedLogEntry> &batch);
 
+    /// ------------------------------------------------------------
+    /// Message and source formatting
+    /// ------------------------------------------------------------
+
     std::string formatTimeOrFallback(std::time_t time, std::string_view timeFormat, Status &outStatus);
     std::string getCurrentTimeText(std::string_view timeFormat, Status &outStatus);
     std::string_view getTimestampText(TimestampCache &cache);
@@ -844,9 +153,17 @@ namespace GameWIP::Logger::Detail::Core
         std::string_view source,
         std::string_view message);
 
+    /// ------------------------------------------------------------
+    /// Sink delivery and flushing
+    /// ------------------------------------------------------------
+
     Status openFileExclusiveForLogger(const FilePath &path, FileWriter &outWriter);
     Status writeFileForLogger(FileWriter &writer, std::string_view text);
     Status flushFileForLogger(FileWriter &writer);
+    [[nodiscard]] Color levelColor(LogLevel level);
+    [[nodiscard]] std::string plainOutputText(std::string_view text);
+    Status writeConsoleLine(const LogStyle &logStyle, std::string_view line, Color severityColor, Color sourceColor);
+    [[nodiscard]] bool deadlineExpired(const FlushDeadline *deadline) noexcept;
     ReportSinkProgress writeReportSynchronously(
         LogLevel level,
         std::string_view source,
@@ -868,8 +185,10 @@ namespace GameWIP::Logger::Detail::Core
         std::string &lineScratch,
         std::string &fileBatchScratch);
     bool flushFileBatch(std::string &fileBatchScratch, bool forceFlush);
-    void loggerWorker();
-    void shutdownLoggerAtExit();
+
+    /// ------------------------------------------------------------
+    /// Logger lifecycle and public calls
+    /// ------------------------------------------------------------
 
     void resetRuntimeStateUnlocked(
         const Types::Config &config,
@@ -895,15 +214,12 @@ namespace GameWIP::Logger::Detail::Core
     PendingLogEntry makePendingEntry(LogLevel level, std::string_view source, std::string_view message, bool alreadyTruncated = false);
     PendingLogEntry makePendingEntry(LogLevel level, SourceId source, std::string_view message, bool alreadyTruncated = false);
     EnqueueOutcome enqueueAndWakeWorker(const PendingLogEntry &entry, bool countDrops = true);
+    void shutdownLoggerAtExit();
 
-    Types::Report::Result reportPreformattedMessageImpl(
-        LogLevel level,
-        std::string_view source,
-        std::string_view message,
-        bool showPopup,
-        bool alreadyTruncated,
-        const std::chrono::milliseconds *timeout,
-        bool unknownSource = false);
+    /// ------------------------------------------------------------
+    /// Flush operations
+    /// ------------------------------------------------------------
+
     Types::FlushResult flushSinksInternal(const FlushDeadline *deadline = nullptr);
     Types::FlushResult flushInternal(const FlushDeadline *deadline = nullptr);
     [[nodiscard]] FlushDeadline makeFlushDeadline(std::chrono::milliseconds timeout) noexcept;

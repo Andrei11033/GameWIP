@@ -1,13 +1,13 @@
-/// @file logger_logging.cpp
+/// @file logging.cpp
 /// @brief Queue submission and exported asynchronous logging functions.
 
 #include "logger/internal/logger_core.h"
 
 using namespace GameWIP::Logger::Detail::Core;
 
-// ------------------------------------------------------------
-// Queue submission
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Queue submission
+/// ------------------------------------------------------------
 
 void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
@@ -47,9 +47,9 @@ void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, S
     }
 }
 
-// ------------------------------------------------------------
-// Asynchronous logging
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Asynchronous logging
+/// ------------------------------------------------------------
 
 void GameWIP::Logger::log(LogLevel level, std::string_view source, std::string_view message) noexcept
 {

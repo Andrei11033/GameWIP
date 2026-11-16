@@ -47,7 +47,7 @@ int main()
 
     const auto init =
         GameWIP::Logger::initConsole(GameWIP::Logger::Types::Level::Debug);
-    if (!init.status.ok())
+    if(!init.status.ok())
     {
         return 1;
     }
@@ -55,8 +55,8 @@ int main()
     GameWIP::Logger::info("Startup", "ready {}", 1);
 
     const auto flush = GameWIP::Logger::flush(500ms);
-    if (!flush.status.ok() ||
-        flush.outcome != GameWIP::Logger::Types::FlushOutcome::Completed)
+    if(!flush.status.ok() ||
+       flush.outcome != GameWIP::Logger::Types::FlushOutcome::Completed)
     {
         static_cast<void>(GameWIP::Logger::shutdown());
         return 2;
@@ -65,7 +65,6 @@ int main()
     const auto shutdown = GameWIP::Logger::shutdown();
     return shutdown.ok() ? 0 : 3;
 }
-
 ```
 
 Normal log calls are filterable and asynchronous. `flush()` drains accepted

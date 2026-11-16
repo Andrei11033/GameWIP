@@ -1,13 +1,19 @@
-/// @file logger_runtime.cpp
+/// @file runtime.cpp
 /// @brief Process-wide Logger runtime state, health, output policy, and configuration normalization helpers.
 
 #include "logger/internal/logger_core.h"
 
+#include <cmath>
+
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+#include <immintrin.h>
+#endif
+
 namespace GameWIP::Logger::Detail::Core
 {
-    // ------------------------------------------------------------
-    // Shared runtime state and packed hot-path configuration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Shared runtime state and packed hot-path configuration
+    /// ------------------------------------------------------------
 
     LoggerState &loggerState()
     {
@@ -117,9 +123,9 @@ namespace GameWIP::Logger::Detail::Core
         return static_cast<std::uint8_t>((packed >> kRuntimeStateLevelMaskShift) & kRuntimeStateLevelMaskMask);
     }
 
-    // ------------------------------------------------------------
-    // Queue coordination counters
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Queue coordination counters
+    /// ------------------------------------------------------------
 
     void cpuRelax() noexcept
     {
@@ -177,9 +183,9 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().flushFileEveryBatchAtomic.store(loggerState().flushFileEveryBatch, std::memory_order_release);
     }
 
-    // ------------------------------------------------------------
-    // Health state and output-channel availability
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Health state and output-channel availability
+    /// ------------------------------------------------------------
 
     Status firstFailure(Status current, const Status &candidate)
     {
@@ -262,9 +268,9 @@ namespace GameWIP::Logger::Detail::Core
         publishRuntimeStateUnlocked();
     }
 
-    // ------------------------------------------------------------
-    // Output policy helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Output policy helpers
+    /// ------------------------------------------------------------
 
     LogStyle getLogStyle(LogLevel level)
     {
@@ -307,9 +313,9 @@ namespace GameWIP::Logger::Detail::Core
         return mode == OutputMode::File || mode == OutputMode::Both;
     }
 
-    // ------------------------------------------------------------
-    // Configuration limit normalization
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Configuration limit normalization
+    /// ------------------------------------------------------------
 
     std::size_t computeHardQueueLimit(std::size_t softQueueSize, double multiplier)
     {
@@ -342,9 +348,9 @@ namespace GameWIP::Logger::Detail::Core
         return std::clamp(wanted, std::size_t{1}, hardLimit);
     }
 
-    // ------------------------------------------------------------
-    // Runtime publication and reset
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runtime publication and reset
+    /// ------------------------------------------------------------
 
     // Rebuild every pointer and atomic mirror together so hot-path readers never
     // observe configuration from one init epoch paired with storage from another.
@@ -400,6 +406,7 @@ namespace GameWIP::Logger::Detail::Core
             std::lock_guard<std::mutex> timestampLock(loggerState().debugTimestampMutex);
             loggerState().debugTimestampCache = {};
         }
+
         if(const auto registry = loggerState().sourceRegistry.load(std::memory_order_acquire))
         {
             for(const RegisteredSource &source : registry->sources)

@@ -1,7 +1,16 @@
-/// @file logger_state.cpp
-/// @brief Process-wide Logger state, configuration, lifecycle transitions, and health.
+/// @file initialization.cpp
+/// @brief Logger initialization, configuration preparation, and startup.
 
 #include "logger/internal/logger_core.h"
+
+#include <algorithm>
+#include <cstdlib>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <string_view>
+#include <thread>
+#include <utility>
 
 namespace GameWIP::Logger::Detail::Core
 {
@@ -14,33 +23,6 @@ namespace GameWIP::Logger::Detail::Core
             return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
         }
 
-        // Keep init() noexcept at the API boundary while still preserving the best
-        // lifecycle state we can recover after an internal exception.
-        [[nodiscard]] Types::Init::Result failedInitAfterException(const Types::Config &config, ErrorCode code) noexcept
-        {
-            Types::Init::Result result;
-            result.status = IO::makeStatus(code);
-            result.requestedOutput = config.output;
-            try
-            {
-                if(GameWIP::Logger::running())
-                {
-                    result.outcome = Types::Init::Outcome::Started;
-                    result.effectiveOutput = GameWIP::Logger::getOutput();
-                }
-                else
-                {
-                    static_cast<void>(GameWIP::Logger::shutdown());
-                }
-            }
-            catch(...)
-            {
-                result.outcome = Types::Init::Outcome::Disabled;
-                result.effectiveOutput = OutputMode::None;
-            }
-
-            return result;
-        }
     } // namespace
 
     void waitForActiveProducersToLeave()
@@ -53,18 +35,21 @@ namespace GameWIP::Logger::Detail::Core
 
     namespace
     {
-        // ------------------------------------------------------------
-        // Init configuration preparation
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Init configuration preparation
+        /// ------------------------------------------------------------
 
         struct PreparedInitConfig
         {
+            // Effective queue and message limits
             std::size_t softQueueSize = 0;
             std::size_t hardQueueSize = 0;
             double hardQueueMultiplier = 1.0;
             std::size_t maxMessageLength = 0;
             std::size_t inlineMessageCapacity = 0;
             std::size_t workerBatchSize = 0;
+
+            // Compiled filters and source metadata
             std::shared_ptr<const std::string> layoutTemplate;
             std::uint8_t levelMask = kAllLevelMask;
             std::shared_ptr<SourceRegistry> sourceRegistry;
@@ -72,9 +57,12 @@ namespace GameWIP::Logger::Detail::Core
 
         struct PreparedQueueStorage
         {
+            // Queue slots and worker batch
             std::unique_ptr<QueueSlot[]> ring;
             std::size_t ringSize = 0;
             std::vector<QueuedLogEntry> batch;
+
+            // Message arenas owned by those storage regions
             std::unique_ptr<char[]> ringArena;
             std::unique_ptr<char[]> batchArena;
         };
@@ -85,6 +73,7 @@ namespace GameWIP::Logger::Detail::Core
             Types::Init::Adjustment &adjustments,
             Status &outStatus)
         {
+            // Reject invalid enum values, themes, layouts, and timestamp formats.
             if(!isValidOutputMode(config.output) || !isValidLevel(config.minLevel) || !isValidFormatPolicy(config.formatPolicy) ||
                !Detail::isValidFieldLayout(config.fieldLayout) || !Detail::isValidTheme(config.theme) ||
                !Detail::isValidTimestampFormat(config.timestampFormat) || !Detail::isValidLayoutTemplate(config.layout.text))
@@ -93,11 +82,13 @@ namespace GameWIP::Logger::Detail::Core
                 return false;
             }
 
+            // Validate retained strings before compiling or copying them.
             if(Unicode::Utf8::validate(config.layout.text).outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 outStatus = IO::makeStatus(ErrorCode::EncodingFailed);
                 return false;
             }
+
             if(Unicode::Utf8::validate(config.timestampFormat).outcome != Unicode::Types::ValidationOutcome::Valid)
             {
                 outStatus = IO::makeStatus(ErrorCode::EncodingFailed);
@@ -112,6 +103,7 @@ namespace GameWIP::Logger::Detail::Core
                 return false;
             }
 
+            // Normalize capacities and prepare queue policy.
             prepared.softQueueSize = config.maxQueueSize;
             if(prepared.softQueueSize == 0)
             {
@@ -146,6 +138,7 @@ namespace GameWIP::Logger::Detail::Core
                 adjustments |= Types::Init::Adjustment::WorkerBatchAdjusted;
             }
 
+            // Prepare source and level filters before publishing the runtime state.
             prepared.levelMask = kAllLevelMask;
             if(!prepareLevelMask(config.levelFilters, prepared.levelMask))
             {
@@ -205,9 +198,9 @@ namespace GameWIP::Logger::Detail::Core
                 storage.batchArena);
         }
 
-        // ------------------------------------------------------------
-        // Runtime publication during init
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Runtime publication during init
+        /// ------------------------------------------------------------
 
         void publishDisabledRuntimeUnlocked(const Types::Config &config, PreparedInitConfig &&prepared)
         {
@@ -253,9 +246,9 @@ namespace GameWIP::Logger::Detail::Core
             publishRuntimeStateUnlocked();
         }
 
-        // ------------------------------------------------------------
-        // File output setup
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// File output setup
+        /// ------------------------------------------------------------
 
         void closeOpenLogFileForInit()
         {
@@ -273,6 +266,7 @@ namespace GameWIP::Logger::Detail::Core
 
         [[nodiscard]] bool setupFileOutputForInit(const Types::Config &config, Status &outStatus)
         {
+            // Resolve the configured UTF-8 directory and create it if needed.
             FilePath directoryPath;
             const std::string directoryText = config.logDirectory.empty() ? std::string(kDefaultLogDirectory) : std::string(config.logDirectory);
             auto directory = FileSystem::pathFromUtf8(directoryText);
@@ -303,6 +297,7 @@ namespace GameWIP::Logger::Detail::Core
                 recordHealthFailure(Types::Health::FailureSource::TimeConversion, timeStatus, false);
             }
 
+            // Create a unique log file while holding exclusive file ownership.
             constexpr std::size_t kMaxCollisionAttempts = 1024;
             Status lastOpenStatus = IO::makeStatus(ErrorCode::OpenFailed);
             std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
@@ -338,9 +333,9 @@ namespace GameWIP::Logger::Detail::Core
             return false;
         }
 
-        // ------------------------------------------------------------
-        // Worker startup
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Worker startup
+        /// ------------------------------------------------------------
 
         [[nodiscard]] Status startWorkerThread()
         {
@@ -374,283 +369,129 @@ namespace GameWIP::Logger::Detail::Core
             }
         }
     } // namespace
-} // namespace GameWIP::Logger::Detail::Core
+    /// ------------------------------------------------------------
+    /// Logger initialization
+    /// ------------------------------------------------------------
 
-using namespace GameWIP::Logger::Detail::Core;
-
-// ------------------------------------------------------------
-// Lifecycle
-// ------------------------------------------------------------
-
-GameWIP::Logger::Types::Init::Result GameWIP::Logger::initDefault() noexcept
-{
-    return init(defaultConfig());
-}
-
-GameWIP::Logger::Types::Init::Result GameWIP::Logger::initConsole(Types::Level minLevel) noexcept
-{
-    Types::Config config = defaultConfig();
-    config.output = OutputMode::Console;
-    config.minLevel = minLevel;
-    return init(config);
-}
-
-GameWIP::Logger::Types::Init::Result GameWIP::Logger::initFile(std::string_view directory, Types::Level minLevel) noexcept
-{
-    Types::Config config = defaultConfig();
-    config.output = OutputMode::File;
-    config.minLevel = minLevel;
-    config.logDirectory = directory;
-    return init(config);
-}
-
-GameWIP::Logger::Types::Init::Result GameWIP::Logger::Detail::Core::initImpl(const Types::Config &config)
-{
-    Types::Init::Result result;
-    result.requestedOutput = config.output;
-
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
+    Types::Init::Result initImpl(const Types::Config &config)
     {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
+        Types::Init::Result result;
+        result.requestedOutput = config.output;
 
-        if(loggerState().workerRunning || loggerState().loggingThread.joinable())
-        {
-            result.status = IO::makeStatus(ErrorCode::AlreadyOpen);
-            result.outcome = Types::Init::Outcome::Started;
-            result.effectiveOutput = loggerState().mode;
-            return result;
-        }
-
-        resetHealthUnlocked(Types::Health::State::Disabled, OutputMode::None);
-    }
-
-    if(!loggerState().shutdownRegistered)
-    {
-        std::atexit(shutdownLoggerAtExit);
-        loggerState().shutdownRegistered = true;
-    }
-
-    const auto fail = [&](Status status)
-    {
-        result.status = std::move(status);
-        result.outcome = Types::Init::Outcome::Disabled;
-        result.effectiveOutput = OutputMode::None;
-
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().workerRunning = false;
-        loggerState().workerBusy = false;
-        loggerState().mode = OutputMode::None;
-        loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
-        loggerState().sourceRegistry.store({}, std::memory_order_release);
-        markHealthDisabledUnlocked();
-        publishRuntimeStateUnlocked();
-        return result;
-    };
-
-    PreparedInitConfig prepared;
-    if(!normalizeInitConfig(config, prepared, result.adjustments, result.outputSetupStatus))
-    {
-        return fail(result.outputSetupStatus);
-    }
-
-    if(config.output == OutputMode::None)
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        publishDisabledRuntimeUnlocked(config, std::move(prepared));
-        result.outcome = Types::Init::Outcome::Disabled;
-        result.effectiveOutput = OutputMode::None;
-        return result;
-    }
-
-    PreparedQueueStorage storage;
-    if(!prepareInitQueueStorage(config, prepared, result.adjustments, storage))
-    {
-        return fail(IO::makeStatus(ErrorCode::OutOfMemory));
-    }
-
-    closeOpenLogFileForInit();
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        publishPreparedRuntimeUnlocked(config, std::move(prepared), std::move(storage));
-    }
-
-    if(hasFileOutput(config.output))
-    {
-        const bool fileOutputReady = setupFileOutputForInit(config, result.outputSetupStatus);
-        if(!fileOutputReady)
-        {
-            const OutputMode fallback = outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure);
-            setOutputMode(fallback);
-            recordHealthFailure(Types::Health::FailureSource::File, result.outputSetupStatus, false);
-        }
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        result.effectiveOutput = loggerState().mode;
-    }
-
-    if(result.effectiveOutput == OutputMode::None)
-    {
-        result.status = result.outputSetupStatus.ok() ? IO::makeStatus(ErrorCode::OpenFailed) : result.outputSetupStatus;
-        result.outcome = Types::Init::Outcome::Disabled;
-
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        clearQueueUnlocked();
-
-        if(loggerState().releaseStorageOnShutdown)
-        {
-            releaseRuntimeStorageUnlocked();
-        }
-
-        markHealthDisabledUnlocked();
-        publishRuntimeStateUnlocked();
-        return result;
-    }
-
-    const Status workerStatus = startWorkerThread();
-    if(!workerStatus.ok())
-    {
-        return fail(workerStatus);
-    }
-
-    result.outcome = Types::Init::Outcome::Started;
-    result.effectiveOutput = getOutput();
-    return result;
-}
-
-GameWIP::Logger::Types::Init::Result GameWIP::Logger::init(const Types::Config &config) noexcept
-{
-    try
-    {
-        return initImpl(config);
-    }
-    catch(const std::bad_alloc &)
-    {
-        return failedInitAfterException(config, ErrorCode::OutOfMemory);
-    }
-    catch(...)
-    {
-        return failedInitAfterException(config, ErrorCode::Unknown);
-    }
-}
-
-GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::chrono::milliseconds> timeout) noexcept
-{
-    try
-    {
-        Types::FlushResult invalid;
-
-        if(timeout && timeout->count() < 0)
-        {
-            invalid.status = IO::makeStatus(ErrorCode::InvalidArgument);
-            return invalid;
-        }
-
-        if(!timeout)
-        {
-            std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
-            return flushInternal(nullptr);
-        }
-        const FlushDeadline deadline = makeFlushDeadline(*timeout);
-        std::unique_lock<std::mutex> lifecycleLock(loggerState().lifecycleMutex, std::defer_lock);
-
-        if(!lockBefore(lifecycleLock, deadline))
-        {
-            Types::FlushResult result;
-            result.outcome = Types::FlushOutcome::TimedOut;
-            return result;
-        }
-        return flushInternal(&deadline);
-    }
-    catch(const std::bad_alloc &)
-    {
-        Types::FlushResult result;
-        result.status = IO::makeStatus(ErrorCode::OutOfMemory);
-        return result;
-    }
-    catch(...)
-    {
-        Types::FlushResult result;
-        result.status = IO::makeStatus(ErrorCode::Unknown);
-        return result;
-    }
-}
-
-GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
-{
-    std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
-    Status status;
-    try
-    {
+        // Serialize lifecycle changes and reject a duplicate active initialization.
+        std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
         {
             std::lock_guard<std::mutex> lock(loggerState().logMutex);
-            loggerState().workerRunning = false;
-            publishRuntimeStateUnlocked();
-        }
-        loggerState().logCondition.notify_all();
 
-        if(loggerState().loggingThread.joinable())
-        {
-            loggerState().loggingThread.join();
-        }
-
-        const Types::FlushResult flushResult = flushInternal(nullptr);
-        status = firstFailure(std::move(status), flushResult.status);
-
-        {
-            std::lock_guard<std::mutex> outputLock(loggerState().outputMutex);
-
-            if(loggerState().logFile.isOpen())
+            if(loggerState().workerRunning || loggerState().loggingThread.joinable())
             {
-                const Status closeStatus = loggerState().logFile.close();
-                status = firstFailure(std::move(status), closeStatus);
+                result.status = IO::makeStatus(ErrorCode::AlreadyOpen);
+                result.outcome = Types::Init::Outcome::Started;
+                result.effectiveOutput = loggerState().mode;
+                return result;
             }
-            loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
+
+            resetHealthUnlocked(Types::Health::State::Disabled, OutputMode::None);
         }
-    }
-    catch(const std::bad_alloc &)
-    {
-        status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::OutOfMemory));
-    }
-    catch(...)
-    {
-        status = firstFailure(std::move(status), IO::makeStatus(ErrorCode::Unknown));
-    }
 
-    {
-        std::lock_guard<std::mutex> lock(loggerState().logMutex);
-        loggerState().logFilePath.clear();
-        loggerState().mode = OutputMode::None;
-        loggerState().workerRunning = false;
-        loggerState().workerBusy = false;
-        loggerState().sourceRegistry.store({}, std::memory_order_release);
-        clearQueueUnlocked();
-
-        if(loggerState().releaseStorageOnShutdown)
+        if(!loggerState().shutdownRegistered)
         {
-            releaseRuntimeStorageUnlocked();
+            std::atexit(shutdownLoggerAtExit);
+            loggerState().shutdownRegistered = true;
         }
 
-        markHealthDisabledUnlocked();
-        publishRuntimeStateUnlocked();
+        // Keep startup rollback consistent across every failure path.
+        const auto fail = [&](Status status)
+        {
+            result.status = std::move(status);
+            result.outcome = Types::Init::Outcome::Disabled;
+            result.effectiveOutput = OutputMode::None;
+
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            loggerState().workerRunning = false;
+            loggerState().workerBusy = false;
+            loggerState().mode = OutputMode::None;
+            loggerState().fileOutputAvailableAtomic.store(false, std::memory_order_release);
+            loggerState().sourceRegistry.store({}, std::memory_order_release);
+            markHealthDisabledUnlocked();
+            publishRuntimeStateUnlocked();
+            return result;
+        };
+
+        // Validate options and compute the effective queue configuration.
+        PreparedInitConfig prepared;
+        if(!normalizeInitConfig(config, prepared, result.adjustments, result.outputSetupStatus))
+        {
+            return fail(result.outputSetupStatus);
+        }
+
+        if(config.output == OutputMode::None)
+        {
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            publishDisabledRuntimeUnlocked(config, std::move(prepared));
+            result.outcome = Types::Init::Outcome::Disabled;
+            result.effectiveOutput = OutputMode::None;
+            return result;
+        }
+
+        // Prepare storage before replacing the current runtime state.
+        PreparedQueueStorage storage;
+        if(!prepareInitQueueStorage(config, prepared, result.adjustments, storage))
+        {
+            return fail(IO::makeStatus(ErrorCode::OutOfMemory));
+        }
+
+        closeOpenLogFileForInit();
+        {
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            publishPreparedRuntimeUnlocked(config, std::move(prepared), std::move(storage));
+        }
+
+        if(hasFileOutput(config.output))
+        {
+            // Apply the configured fallback if file setup fails.
+            const bool fileOutputReady = setupFileOutputForInit(config, result.outputSetupStatus);
+            if(!fileOutputReady)
+            {
+                const OutputMode fallback = outputModeAfterFileSetupFailure(config.output, config.fallbackToConsoleOnFileFailure);
+                setOutputMode(fallback);
+                recordHealthFailure(Types::Health::FailureSource::File, result.outputSetupStatus, false);
+            }
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            result.effectiveOutput = loggerState().mode;
+        }
+
+        if(result.effectiveOutput == OutputMode::None)
+        {
+            result.status = result.outputSetupStatus.ok() ? IO::makeStatus(ErrorCode::OpenFailed) : result.outputSetupStatus;
+            result.outcome = Types::Init::Outcome::Disabled;
+
+            std::lock_guard<std::mutex> lock(loggerState().logMutex);
+            clearQueueUnlocked();
+
+            if(loggerState().releaseStorageOnShutdown)
+            {
+                releaseRuntimeStorageUnlocked();
+            }
+
+            markHealthDisabledUnlocked();
+            publishRuntimeStateUnlocked();
+            return result;
+        }
+
+        // Start asynchronous delivery only after sinks and state are ready.
+        const Status workerStatus = startWorkerThread();
+        if(!workerStatus.ok())
+        {
+            return fail(workerStatus);
+        }
+
+        result.outcome = Types::Init::Outcome::Started;
+        result.effectiveOutput = getOutput();
+        return result;
     }
 
-    return status;
-}
-
-GameWIP::IO::Types::Status GameWIP::Logger::shutdown() noexcept
-{
-    try
-    {
-        return shutdownImpl();
-    }
-    catch(const std::bad_alloc &)
-    {
-        return IO::makeStatus(ErrorCode::OutOfMemory);
-    }
-    catch(...)
-    {
-        return IO::makeStatus(ErrorCode::Unknown);
-    }
-}
+} // namespace GameWIP::Logger::Detail::Core

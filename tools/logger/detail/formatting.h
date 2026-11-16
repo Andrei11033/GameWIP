@@ -121,9 +121,9 @@ namespace GameWIP::Logger
             std::string &scratch_;
         };
 
-        // ------------------------------------------------------------
-        // Message truncation
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Message truncation
+        /// ------------------------------------------------------------
 
         /// @brief Finds a truncation boundary that does not split a UTF-8 continuation sequence.
         [[nodiscard]] inline std::size_t utf8PrefixBoundary(std::string_view text, std::size_t limit) noexcept
@@ -217,9 +217,9 @@ namespace GameWIP::Logger
             return true;
         }
 
-        // ------------------------------------------------------------
-        // Bounded formatting
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Bounded formatting
+        /// ------------------------------------------------------------
 
         /// @brief Output iterator that counts every formatted byte and stores only the configured prefix.
         /// @details StrictBounded formatting avoids building a full oversized message before truncation.
@@ -343,9 +343,9 @@ namespace GameWIP::Logger
             return runtimeFormatBounded(scratch, maxMessageLength, format, args...);
         }
 
-        // ------------------------------------------------------------
-        // Public template bridges
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Public template bridges
+        /// ------------------------------------------------------------
 
         /// @brief Formats a normal log message and contains all formatting/allocation failures.
         template <typename Source, typename... Args>

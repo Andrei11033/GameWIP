@@ -1,4 +1,4 @@
-/// @file logger_test_hooks.cpp
+/// @file test_hooks.cpp
 /// @brief Logger internal test hook definitions.
 
 #include "logger/internal/logger_core.h"
@@ -24,9 +24,9 @@ namespace GameWIP::Logger::Detail::Core
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Hook consumption used by Logger internals
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Hook consumption used by Logger internals
+    /// ------------------------------------------------------------
 
     bool consumeTestHook(std::atomic_bool &flag) noexcept
     {
@@ -63,9 +63,9 @@ using namespace GameWIP::Logger::Detail::Core;
 #if LOGGER_INTERNAL_TEST_HOOKS
 namespace GameWIP::Logger::TestHooks
 {
-    // ------------------------------------------------------------
-    // One-shot failure hooks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// One-shot failure hooks
+    /// ------------------------------------------------------------
 
     void reset() noexcept
     {
@@ -92,9 +92,9 @@ namespace GameWIP::Logger::TestHooks
         loggerTestHookState.nextTimedFlushTimeout.store(true, std::memory_order_release);
     }
 
-    // ------------------------------------------------------------
-    // Worker delivery coordination
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Worker delivery coordination
+    /// ------------------------------------------------------------
 
     void armWorkerDeliveryPause() noexcept
     {

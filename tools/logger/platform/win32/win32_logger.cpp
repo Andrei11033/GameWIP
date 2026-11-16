@@ -18,9 +18,9 @@
 
 namespace
 {
-    // ------------------------------------------------------------
-    // Format scratch storage
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Format scratch storage
+    /// ------------------------------------------------------------
 
     /// @brief Reentrant per-thread formatting storage for nested Logger formatting calls.
     struct FormatScratchStorage
@@ -29,9 +29,9 @@ namespace
         std::size_t depth = 0;
     };
 
-    // ------------------------------------------------------------
-    // UTF-8 conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// UTF-8 conversion
+    /// ------------------------------------------------------------
 
     /// @brief Converts validated UTF-8 text to a native UTF-16 string for Win32 APIs.
     [[nodiscard]] GameWIP::IO::Types::Status utf8ToWide(std::string_view text, std::wstring &outText)
@@ -108,9 +108,9 @@ namespace
     }
 
 #if defined(__MINGW32__)
-    // ------------------------------------------------------------
-    // MinGW FLS scratch fallback
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// MinGW FLS scratch fallback
+    /// ------------------------------------------------------------
 
     void NTAPI destroyFormatScratch(void *value)
     {
@@ -224,9 +224,9 @@ namespace GameWIP::Logger::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Platform diagnostics
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Platform diagnostics
+    /// ------------------------------------------------------------
 
     IO::Types::Status writeDebugOutput(std::string_view line)
     {
@@ -289,9 +289,9 @@ namespace GameWIP::Logger::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Time and memory diagnostics
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Time and memory diagnostics
+    /// ------------------------------------------------------------
 
     IO::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
     {

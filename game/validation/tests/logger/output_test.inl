@@ -1,6 +1,10 @@
 /// @file output_test.inl
 /// @brief Logger output and UTF-8 truncation tests.
 
+/// ------------------------------------------------------------
+/// File output and timestamps
+/// ------------------------------------------------------------
+
 void testFileLoggingAndUtf8Truncation(TestContext &context)
 {
     ScopedLoggerShutdown shutdown;
@@ -55,6 +59,10 @@ void testConfigurableTimestampFormatting(TestContext &context)
                                            contents[millisecondsStart + 2] <= '9' && contents[millisecondsStart + 3] == ']';
     context.expectTrue("custom timestamp `%f` expands to three digits", hasThreeMillisecondDigits, contents);
 }
+
+/// ------------------------------------------------------------
+/// Records and layout formatting
+/// ------------------------------------------------------------
 
 void testMarkedValuesAndRecordFields(TestContext &context)
 {
@@ -313,6 +321,10 @@ void testTruncatedCompiledLayoutFallsBackSafely(TestContext &context)
         GameWIP::Unicode::Types::ValidationOutcome::Valid);
     context.expectFalse("compiled layout marker never reaches output", contents.contains(static_cast<char>(0xF6)));
 }
+
+/// ------------------------------------------------------------
+/// Console themes
+/// ------------------------------------------------------------
 
 void testConsoleThemeAndAreaColors(TestContext &context)
 {

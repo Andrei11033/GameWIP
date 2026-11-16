@@ -1,11 +1,11 @@
-/// @file logger_config.cpp
+/// @file config.cpp
 /// @brief Logger public configuration presets.
 
 #include "logger/config.h"
 
-// ------------------------------------------------------------
-// Configuration presets
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Configuration presets
+/// ------------------------------------------------------------
 
 GameWIP::Logger::Types::Config GameWIP::Logger::defaultConfig() noexcept
 {

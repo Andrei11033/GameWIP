@@ -1,13 +1,13 @@
-/// @file logger_stats.cpp
+/// @file stats.cpp
 /// @brief Logger statistics snapshots and retained-memory accounting helpers.
 
 #include "logger/internal/logger_core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
-    // ------------------------------------------------------------
-    // Statistics and retained-memory accounting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Statistics and retained-memory accounting
+    /// ------------------------------------------------------------
 
     LoggerStats snapshotStats() noexcept
     {
@@ -117,9 +117,9 @@ namespace GameWIP::Logger::Detail::Core
         return bytes;
     }
 
-    // ------------------------------------------------------------
-    // Resettable counters
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Resettable counters
+    /// ------------------------------------------------------------
 
     void resetAtomicStats(std::size_t peakQueueDepth)
     {
@@ -149,9 +149,9 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-// ------------------------------------------------------------
-// Public state queries and statistics
-// ------------------------------------------------------------
+/// ------------------------------------------------------------
+/// Public state queries and statistics
+/// ------------------------------------------------------------
 
 bool GameWIP::Logger::running() noexcept
 {

@@ -11,12 +11,12 @@ config.output = GameWIP::Logger::Types::OutputMode::File;
 config.logDirectory = "logs";
 
 const auto result = GameWIP::Logger::init(config);
-if (!result.status.ok())
+if(!result.status.ok())
 {
     return;
 }
 
-if (!result.outputSetupStatus.ok())
+if(!result.outputSetupStatus.ok())
 {
     // Logger is usable through result.effectiveOutput, but requested output degraded.
 }
@@ -26,11 +26,10 @@ if (!result.outputSetupStatus.ok())
 
 ```cpp
 const auto status = GameWIP::Logger::setLevelFilter(GameWIP::Logger::Types::Level::Debug, false);
-if (!status.ok())
+if(!status.ok())
 {
     return;
 }
-
 ```
 
 ## Emergency report
@@ -38,7 +37,7 @@ if (!status.ok())
 ```cpp
 using namespace std::chrono_literals;
 const auto report = GameWIP::Logger::reportFatal("Renderer", 250ms, "device lost: {}", code);
-if (report.delivery != GameWIP::Logger::Types::Report::Delivery::Complete)
+if(report.delivery != GameWIP::Logger::Types::Report::Delivery::Complete)
 {
     // At least one eligible report target did not receive the report.
 }

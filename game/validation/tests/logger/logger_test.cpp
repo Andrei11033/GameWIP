@@ -4,7 +4,9 @@
 #include "validation/tests/logger/logger_test.h"
 
 #include "validation/executable_path.h"
+#include "validation/platform_tests.h"
 #include "validation/process_arguments.h"
+#include "validation/tests/internal/path_text.h"
 
 #include "logger/logger.h"
 #include "logger/logger_macros.h"
@@ -41,16 +43,6 @@
 #include <string_view>
 #include <thread>
 #include <utility>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
 
 struct LoggerFormatProbe
 {
@@ -159,9 +151,9 @@ namespace
         }
     };
 
-    // ------------------------------------------------------------
-    // Test helpers and fixtures
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test helpers and fixtures
+    /// ------------------------------------------------------------
 
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
@@ -201,23 +193,14 @@ namespace
                result.delivery != Logger::Types::Report::Delivery::None;
     }
 
-    [[nodiscard]] std::string pathText(const std::filesystem::path &path)
+    [[nodiscard]] std::string pathText(TestContext &context, const std::filesystem::path &path)
     {
-        const std::u8string text = path.generic_u8string();
-        return std::string(reinterpret_cast<const char *>(text.data()), text.size());
+        return GameWIP::Test::Internal::pathToUtf8(context, path, "convert Logger test path");
     }
 
-    [[nodiscard]] std::filesystem::path pathFromText(std::string_view text)
+    [[nodiscard]] std::filesystem::path pathFromText(TestContext &context, std::string_view text)
     {
-        std::u8string converted(text.size(), u8'\0');
-        std::ranges::transform(
-            text,
-            converted.begin(),
-            [](char byte)
-            {
-                return static_cast<char8_t>(byte);
-            });
-        return std::filesystem::path(converted);
+        return GameWIP::Test::Internal::pathFromUtf8(context, text, "convert Logger path from UTF-8");
     }
 
     [[nodiscard]] std::filesystem::path loggerLogFilePath(TestContext &context)
@@ -232,7 +215,7 @@ namespace
             return {};
         }
 
-        return pathFromText(result.utf8);
+        return pathFromText(context, result.utf8);
     }
 
     [[nodiscard]] std::string readWholeFile(TestContext &context, const std::filesystem::path &path)
@@ -298,7 +281,12 @@ namespace
         static_cast<Logger::Types::Config &>(config) = makeConsoleConfig(minLevel);
         config.output = Logger::Types::OutputMode::File;
         config.fallbackToConsoleOnFileFailure = false;
-        config.ownedDirectory = pathText(testDirectory(context, name));
+        config.ownedDirectory = pathText(context, testDirectory(context, name));
+        if(config.ownedDirectory.empty())
+        {
+            return config;
+        }
+
         config.logDirectory = config.ownedDirectory;
         return config;
     }
@@ -314,9 +302,9 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runLoggerTests(int argc, char **argv, const LoggerTestOptions &options)
     {

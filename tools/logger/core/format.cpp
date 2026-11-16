@@ -1,4 +1,4 @@
-/// @file logger_format.cpp
+/// @file format.cpp
 /// @brief Message bounding, line construction, timestamp/source resolution, and formatting bridges.
 
 #include "logger/internal/logger_core.h"
@@ -47,6 +47,7 @@ namespace GameWIP::Logger::Detail::Core
                         segmentStart = index;
                         continue;
                     }
+
                     if(format[index + 1] == '%')
                     {
                         index += 2;
@@ -55,6 +56,7 @@ namespace GameWIP::Logger::Detail::Core
                 }
                 ++index;
             }
+
             if(!appendTimeSegment(format.size()))
             {
                 return "invalid-time";
@@ -86,9 +88,9 @@ namespace GameWIP::Logger::Detail::Core
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Timestamp formatting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Timestamp formatting
+    /// ------------------------------------------------------------
 
     std::string formatTimeOrFallback(std::time_t time, std::string_view timeFormat, Status &outStatus)
     {
@@ -158,9 +160,9 @@ namespace GameWIP::Logger::Detail::Core
         return loggerState().debugTimestampCache.text;
     }
 
-    // ------------------------------------------------------------
-    // Source resolution
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source resolution
+    /// ------------------------------------------------------------
 
     std::string_view findSourceName(const SourceRegistry *registry, SourceId source, bool &outUnknownSource)
     {
@@ -193,9 +195,9 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().stats.unknownSourceUses.fetch_add(1, std::memory_order_relaxed);
     }
 
-    // ------------------------------------------------------------
-    // Message bounding and line assembly
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Message bounding and line assembly
+    /// ------------------------------------------------------------
 
     void buildTruncatedMessage(std::string &outMessage, std::string_view message, std::size_t maxMessageLength)
     {
@@ -421,6 +423,7 @@ namespace GameWIP::Logger::Detail::Core
                     outMessage.push_back(layout[index]);
                     continue;
                 }
+
                 if(index + 1 >= layout.size())
                 {
                     break;
@@ -435,6 +438,7 @@ namespace GameWIP::Logger::Detail::Core
                     }
                     continue;
                 }
+
                 if(operation == 'S')
                 {
                     if(index + 1 >= layout.size())
@@ -514,9 +518,15 @@ namespace GameWIP::Logger::Detail::Core
 
 using namespace GameWIP::Logger::Detail::Core;
 
-// ------------------------------------------------------------
-// Formatting failure counters and scratch ownership
-// ------------------------------------------------------------
+/// @brief Returns the current process identifier for record metadata.
+std::uint32_t GameWIP::Logger::Detail::Core::currentProcessId() noexcept
+{
+    return GameWIP::Logger::Detail::Platform::currentProcessId();
+}
+
+/// ------------------------------------------------------------
+/// Formatting failure counters and scratch ownership
+/// ------------------------------------------------------------
 
 void GameWIP::Logger::Detail::Core::recordAllocationFailure() noexcept
 {
