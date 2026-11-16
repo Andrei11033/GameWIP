@@ -13,6 +13,10 @@
 
 namespace GameWIP::Unicode
 {
+    /// ------------------------------------------------------------
+    /// Conversion helpers
+    /// ------------------------------------------------------------
+
     namespace
     {
         /// @brief Returns whether two non-owning byte ranges overlap in the process address order.
@@ -43,6 +47,10 @@ namespace GameWIP::Unicode
             return outcome == Types::DecodeOutcome::Incomplete ? Types::ConversionOutcome::Incomplete : Types::ConversionOutcome::InvalidEncoding;
         }
     } // namespace
+
+    /// ------------------------------------------------------------
+    /// UTF-8 conversions
+    /// ------------------------------------------------------------
 
     namespace Utf8
     {
@@ -131,6 +139,10 @@ namespace GameWIP::Unicode
             };
         }
     } // namespace Utf8
+
+    /// ------------------------------------------------------------
+    /// UTF-16 conversions
+    /// ------------------------------------------------------------
 
     namespace Utf16
     {

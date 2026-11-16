@@ -14,6 +14,10 @@ namespace GameWIP::Unicode::Utf8
 {
     namespace
     {
+        /// ------------------------------------------------------------
+        /// Grapheme break rules
+        /// ------------------------------------------------------------
+
         enum class IndicSequenceState : std::uint8_t
         {
             None,
@@ -169,6 +173,10 @@ namespace GameWIP::Unicode::Utf8
             return true;
         }
 
+        /// ------------------------------------------------------------
+        /// Boundary scan helpers
+        /// ------------------------------------------------------------
+
         /// @brief Attempts the common ASCII-only next-boundary path without table lookup.
         [[nodiscard]] Types::Utf8::BoundaryResult nextAsciiBoundary(std::string_view text, std::size_t byteOffset) noexcept
         {
@@ -279,6 +287,10 @@ namespace GameWIP::Unicode::Utf8
             std::size_t byteOffset = 0;
             bool valid = true;
         };
+
+        /// ------------------------------------------------------------
+        /// Incremental boundary scans
+        /// ------------------------------------------------------------
 
         /// @brief Finds the nearest earlier boundary from which grapheme state can be rebuilt independently.
         [[nodiscard]] RestartResult findSafeRestart(std::string_view text, std::size_t scalarOffset) noexcept
@@ -439,6 +451,10 @@ namespace GameWIP::Unicode::Utf8
             return {.byteOffset = previousBoundary, .outcome = Types::Utf8::BoundaryOutcome::Found};
         }
     } // namespace
+
+    /// ------------------------------------------------------------
+    /// Grapheme cursor
+    /// ------------------------------------------------------------
 
     Types::Utf8::GraphemeIndexResult GraphemeCursor::reset(std::string_view text, std::span<std::size_t> boundaryStorage) noexcept
     {

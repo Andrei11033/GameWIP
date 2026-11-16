@@ -1,6 +1,10 @@
 /// @file utf8_test.inl
 /// @brief Focused Unicode UTF-8 tests.
 
+// ------------------------------------------------------------
+// Scalar values and UTF-8 codec
+// ------------------------------------------------------------
+
 /// @brief Verifies standard-version reporting and scalar/surrogate classification boundaries.
 void testVersionAndScalarPredicates(TestSupport::Context &context)
 {
@@ -143,6 +147,10 @@ void testUtf8CodecAndValidation(TestSupport::Context &context)
     static_cast<void>(context.expectEq("invalid UTF-8 validation outcome", ValidationOutcome::InvalidEncoding, invalid.outcome));
     static_cast<void>(context.expectEq("invalid UTF-8 validation prefix", std::size_t{1}, invalid.validPrefixBytes));
 }
+
+// ------------------------------------------------------------
+// Conversion and scalar round trips
+// ------------------------------------------------------------
 
 /// @brief Verifies conversion measurement, exact/partial writes, sentinels, malformed input, and overlap rejection.
 void testConversions(TestSupport::Context &context)
@@ -420,6 +428,10 @@ void testExhaustiveScalarRoundTrips(TestSupport::Context &context)
     static_cast<void>(context.expectEq("exhaustive scalar count", std::size_t{1112064}, testedScalars));
     context.pass("every Unicode scalar round-trips through UTF-8, UTF-16, and both conversion directions");
 }
+
+// ------------------------------------------------------------
+// Boundaries and generated properties
+// ------------------------------------------------------------
 
 /// @brief Verifies code-point traversal endpoints, alignment policy, malformed input, and multibyte offsets.
 void testCodePointBoundaries(TestSupport::Context &context)

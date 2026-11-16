@@ -39,7 +39,7 @@ int leadingScalarByteCount(std::string_view input) noexcept
     namespace Unicode = GameWIP::Unicode;
 
     const Unicode::Types::Utf8::DecodeResult decoded = Unicode::Utf8::decodeScalar(input);
-    if (decoded.outcome == Unicode::Types::DecodeOutcome::Decoded)
+    if(decoded.outcome == Unicode::Types::DecodeOutcome::Decoded)
     {
         return static_cast<int>(decoded.bytesConsumed);
     }
@@ -47,7 +47,6 @@ int leadingScalarByteCount(std::string_view input) noexcept
     // Zero means that a streaming owner needs more input; -1 means malformed input.
     return decoded.outcome == Unicode::Types::DecodeOutcome::Incomplete ? 0 : -1;
 }
-
 ```
 
 On `Incomplete` or `InvalidEncoding`, decoding returns scalar `U+0000` and consumes zero bytes. The caller owns buffering, replacement, retry,

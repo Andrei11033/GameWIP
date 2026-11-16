@@ -20,7 +20,7 @@ enum class PrefixState
 PrefixState classifyPrefix(std::string_view bytes) noexcept
 {
     const auto decoded = GameWIP::Unicode::Utf8::decodeScalar(bytes);
-    switch (decoded.outcome)
+    switch(decoded.outcome)
     {
     case GameWIP::Unicode::Types::DecodeOutcome::Decoded:
         return PrefixState::ScalarReady;
@@ -32,7 +32,6 @@ PrefixState classifyPrefix(std::string_view bytes) noexcept
 
     return PrefixState::Reject;
 }
-
 ```
 
 Unicode classifies the encoded prefix. It does not decide whether the stream buffers more bytes, inserts `U+FFFD`, drops input, logs a diagnostic, or
@@ -47,8 +46,7 @@ closes a connection.
 
 bool isStrictUtf8(std::string_view text) noexcept
 {
-    return GameWIP::Unicode::Utf8::validate(text).outcome ==
-           GameWIP::Unicode::Types::ValidationOutcome::Valid;
+    return GameWIP::Unicode::Utf8::validate(text).outcome == GameWIP::Unicode::Types::ValidationOutcome::Valid;
 }
 ```
 
@@ -69,24 +67,21 @@ std::optional<std::vector<char16_t>> toUtf16(std::string_view source)
 {
     namespace Unicode = GameWIP::Unicode;
 
-    const Unicode::Types::Utf8::ToUtf16MeasureResult measured =
-        Unicode::Utf8::measureToUtf16(source);
-    if (measured.outcome != Unicode::Types::MeasureOutcome::Measured)
+    const Unicode::Types::Utf8::ToUtf16MeasureResult measured = Unicode::Utf8::measureToUtf16(source);
+    if(measured.outcome != Unicode::Types::MeasureOutcome::Measured)
     {
         return std::nullopt;
     }
 
     std::vector<char16_t> result(measured.requiredCodeUnits);
-    const Unicode::Types::Utf8::ToUtf16Result converted =
-        Unicode::Utf8::convertToUtf16(source, result);
-    if (converted.outcome != Unicode::Types::ConversionOutcome::Converted)
+    const Unicode::Types::Utf8::ToUtf16Result converted = Unicode::Utf8::convertToUtf16(source, result);
+    if(converted.outcome != Unicode::Types::ConversionOutcome::Converted)
     {
         return std::nullopt;
     }
 
     return result;
 }
-
 ```
 
 No terminating `U+0000` code unit is appended. If a platform or C API requires a terminator, that boundary owns the additional storage and terminator
@@ -106,11 +101,10 @@ std::optional<std::size_t> graphemeCount(std::string_view text) noexcept
 
     std::size_t count = 0;
     std::size_t offset = 0;
-    while (offset < text.size())
+    while(offset < text.size())
     {
-        const Unicode::Types::Utf8::BoundaryResult next =
-            Unicode::Utf8::nextGraphemeBoundary(text, offset);
-        if (next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+        const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, offset);
+        if(next.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
         {
             return std::nullopt;
         }
@@ -121,7 +115,6 @@ std::optional<std::size_t> graphemeCount(std::string_view text) noexcept
 
     return count;
 }
-
 ```
 
 This counts Unicode extended grapheme clusters. It does not count glyphs, words, display columns, or terminal cells.
@@ -141,16 +134,16 @@ bool eraseSuffixByGrapheme(std::string &text)
 
     std::vector<std::size_t> boundaries(text.size() + 1);
     Unicode::Utf8::GraphemeCursor cursor;
-    if (cursor.reset(text, boundaries).outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed ||
-        cursor.seek(text.size()).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+    if(cursor.reset(text, boundaries).outcome != Unicode::Types::Utf8::GraphemeIndexOutcome::Indexed ||
+       cursor.seek(text.size()).outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
     {
         return false;
     }
 
-    while (!text.empty())
+    while(!text.empty())
     {
         const Unicode::Types::Utf8::BoundaryResult previous = cursor.previous();
-        if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+        if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
         {
             return false;
         }
@@ -161,7 +154,6 @@ bool eraseSuffixByGrapheme(std::string &text)
 
     return true;
 }
-
 ```
 
 The cursor does not retain the text. A suffix truncation exactly at its current indexed boundary can therefore discard later stale offsets in O(1).
@@ -175,27 +167,23 @@ Arbitrary insertion, replacement, or non-suffix deletion can change grapheme bou
 #include <optional>
 #include <string_view>
 
-std::optional<std::size_t> previousClusterStart(
-    std::string_view text,
-    std::size_t offset) noexcept
+std::optional<std::size_t> previousClusterStart(std::string_view text, std::size_t offset) noexcept
 {
     namespace Unicode = GameWIP::Unicode;
 
-    const Unicode::Types::Utf8::BoundaryResult previous =
-        Unicode::Utf8::previousGraphemeBoundary(text, offset);
-    if (previous.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtBeginning)
+    const Unicode::Types::Utf8::BoundaryResult previous = Unicode::Utf8::previousGraphemeBoundary(text, offset);
+    if(previous.outcome == Unicode::Types::Utf8::BoundaryOutcome::AtBeginning)
     {
         return std::size_t{0};
     }
 
-    if (previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
+    if(previous.outcome != Unicode::Types::Utf8::BoundaryOutcome::Found)
     {
         return std::nullopt;
     }
 
     return previous.byteOffset;
 }
-
 ```
 
 The offset may be `text.size()` or any code-point boundary inside a cluster. This stateless form is intended for isolated queries; use
@@ -217,13 +205,10 @@ bool verifyContainingCluster() noexcept
                                       "b";
 
     const auto next = GameWIP::Unicode::Utf8::nextGraphemeBoundary(text, 1);
-    const auto previous =
-        GameWIP::Unicode::Utf8::previousGraphemeBoundary(text, 1);
+    const auto previous = GameWIP::Unicode::Utf8::previousGraphemeBoundary(text, 1);
 
-    return next.outcome == GameWIP::Unicode::Types::Utf8::BoundaryOutcome::Found &&
-           next.byteOffset == 3 &&
-           previous.outcome == GameWIP::Unicode::Types::Utf8::BoundaryOutcome::Found &&
-           previous.byteOffset == 0;
+    return next.outcome == GameWIP::Unicode::Types::Utf8::BoundaryOutcome::Found && next.byteOffset == 3 &&
+           previous.outcome == GameWIP::Unicode::Types::Utf8::BoundaryOutcome::Found && previous.byteOffset == 0;
 }
 ```
 

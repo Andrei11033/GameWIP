@@ -90,6 +90,10 @@ namespace
 
     constexpr auto kScatteredPropertyScalars = scatteredPropertyScalars();
 
+    /// ------------------------------------------------------------
+    /// Property-table lookups
+    /// ------------------------------------------------------------
+
     /// @brief Measures generated-property lookup with a cache-friendly sequential access pattern.
     void BM_Unicode_PropertyLookupSequential(benchmark::State &state)
     {
@@ -123,6 +127,10 @@ namespace
 
         state.SetItemsProcessed(state.iterations() * static_cast<std::int64_t>(kScatteredPropertyScalars.size()));
     }
+
+    /// ------------------------------------------------------------
+    /// UTF-8 and code-point traversal helpers
+    /// ------------------------------------------------------------
 
     /// @brief Measures repeated strict scalar decoding across one complete UTF-8 fixture.
     void benchmarkDecode(benchmark::State &state, std::string_view text)
@@ -218,6 +226,10 @@ namespace
         state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
 
+    /// ------------------------------------------------------------
+    /// Grapheme traversal helpers
+    /// ------------------------------------------------------------
+
     /// @brief Measures sequential forward extended grapheme-cluster traversal.
     void benchmarkForwardGraphemes(benchmark::State &state, std::string_view text)
     {
@@ -302,6 +314,10 @@ namespace
         }
     }
 
+    /// ------------------------------------------------------------
+    /// Indexed grapheme editing
+    /// ------------------------------------------------------------
+
     /// @brief Measures one complete caller-indexed forward grapheme walk.
     void benchmarkIndexedForwardGraphemes(benchmark::State &state, std::string_view text)
     {
@@ -372,6 +388,10 @@ namespace
 
         state.SetBytesProcessed(state.iterations() * static_cast<std::int64_t>(text.size()));
     }
+
+    /// ------------------------------------------------------------
+    /// Registered benchmark entry points
+    /// ------------------------------------------------------------
 
     void BM_Unicode_Utf8DecodeAscii(benchmark::State &state)
     {
