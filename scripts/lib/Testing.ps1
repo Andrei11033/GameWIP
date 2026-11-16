@@ -84,6 +84,7 @@ function Invoke-GameWipStressModule
         throw "Manual tests cannot run through 'stress' because stress launches concurrent validation processes. Use 'wizard' or 'module' instead."
     }
 
+    # Resolve the executable and shared arguments before launching workers.
     Initialize-GameWipRunLog
     $command = Get-GameWipProjectCommand -Id 'test-all'
     Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
@@ -120,6 +121,7 @@ function Invoke-GameWipStressModule
 
     try
     {
+        # Fill available worker slots and reap completed runs until all work ends.
         if (-not $NoWorkspaceTemp)
         {
             $env:TEMP = $Script:OperationContext.Temp
@@ -213,6 +215,7 @@ function Invoke-GameWipStressModule
 
     finally
     {
+        # Restore the caller's temporary paths and stop remaining child processes.
         $env:TEMP = $previousTemp
         $env:TMP = $previousTmp
 
@@ -232,6 +235,7 @@ function Invoke-GameWipStressModule
         }
     }
 
+    # Report aggregate failure only after worker cleanup completes.
     if ($failed -ne 0)
     {
         $launched = $nextRun - 1
@@ -241,6 +245,10 @@ function Invoke-GameWipStressModule
     Write-GameWipSemanticText -Object 'Stress complete:' -Semantic Success -NoNewline
     Write-Host " $completed runs passed."
 }
+
+# ------------------------------------------------------------
+# Validation command options
+# ------------------------------------------------------------
 
 function Split-GameWipExtraArgument
 {
@@ -377,10 +385,16 @@ function Read-GameWipValidationBuilderOptionResult
     }
 }
 
+# ------------------------------------------------------------
+# Validation command wizard
+# ------------------------------------------------------------
+
 function Invoke-GameWipValidationCommandWizard
 {
     param([switch]$NoBuild)
     Write-GameWipSection 'Validation command builder'
+
+    # Select the validation scope and optional exclusions.
     $moduleNames = @(Get-GameWipValidationModuleName)
     $moduleResult = Read-GameWipMenuChoiceResult -Prompt 'Module selection' -Choices (@('all') + $moduleNames) -Default 'all'
 
@@ -416,6 +430,8 @@ function Invoke-GameWipValidationCommandWizard
     {
         ''
     }
+
+    # Collect module-specific options that match the selected capabilities.
     $capabilities = @(Get-GameWipValidationBuilderCapabilities -VerboseTests:$verboseTests -ManualTests:$manualTests -ChildProcesses:$childProcesses -WriteReport:$writeReport)
     $builderArguments = [System.Collections.Generic.List[string]]::new()
     $candidateModules = @(if ($selectedModule -eq 'all')
@@ -452,6 +468,7 @@ function Invoke-GameWipValidationCommandWizard
                 {
                     return
                 }
+
                 if ($null -ne $value)
                 {
                     foreach ($argument in @(ConvertTo-GameWipValidationBuilderArguments -Option $option -Value $value))
@@ -465,6 +482,7 @@ function Invoke-GameWipValidationCommandWizard
 
     $extraText = Read-GameWipTextValue -Prompt 'Extra validation args, space-separated' -Default ''
 
+    # Assemble common, module-specific, and additional arguments.
     $arguments = [System.Collections.Generic.List[string]]::new()
 
     if ($selectedModule -ne 'all')
@@ -511,6 +529,7 @@ function Invoke-GameWipValidationCommandWizard
         $arguments.Add($argument) | Out-Null
     }
 
+    # Show the resolved command and run it only after the user accepts.
     $command = Get-GameWipProjectCommand -Id 'test-all'
     $executable = Resolve-GameWipProjectExecutable -Command $command
     Write-GameWipSection 'Built command'

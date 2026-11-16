@@ -138,6 +138,7 @@ function Get-GameWipToolLatestQuery
             {
                 return $query
             }
+
             if ([string]::IsNullOrWhiteSpace($query.Output))
             {
                 return New-GameWipToolQueryResult -State invalidResponse -Provider npm -Version $null -Reason 'npm returned an empty version'

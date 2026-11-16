@@ -153,6 +153,10 @@ function Read-GameWipConfiguredMenuItem
         -Header $Header
 }
 
+# ------------------------------------------------------------
+# Development, validation, and tool menus
+# ------------------------------------------------------------
+
 function Show-GameWipDevelopmentMenu
 {
     while ($true)
@@ -172,7 +176,18 @@ function Show-GameWipDevelopmentMenu
 
                 if ($null -ne $preset)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "configure-$preset" -Body { Invoke-GameWipMutation -Summary "Configure preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -CleanBuild is active.', "cmake --preset $preset") -Body { Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "configure-$preset" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Configure preset '$preset'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Recreate the preset tree when -CleanBuild is active.'
+                                    "cmake --preset $preset"
+                                ) `
+                                -Body { Invoke-GameWipConfigurePreset -Name $preset -Fresh:$Fresh } | Out-Null
+                        } | Out-Null
                 }
             }
             'build'
@@ -181,7 +196,19 @@ function Show-GameWipDevelopmentMenu
 
                 if ($null -ne $preset)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "build-$preset" -Body { Invoke-GameWipMutation -Summary "Build preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -CleanBuild is active.', 'Ensure configuration if missing.', "cmake --build --preset $preset") -Body { Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "build-$preset" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Build preset '$preset'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Recreate the preset tree when -CleanBuild is active.'
+                                    'Ensure configuration if missing.'
+                                    "cmake --build --preset $preset"
+                                ) `
+                                -Body { Invoke-GameWipBuildPreset -Name $preset -Fresh:$Fresh } | Out-Null
+                        } | Out-Null
                 }
             }
             'run'
@@ -190,15 +217,37 @@ function Show-GameWipDevelopmentMenu
 
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "run-$id" -Body { Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable unless -SkipBuild is used.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id -NoBuild:$NoBuild } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "run-$id" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Run project command '$id'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Ensure its executable unless -SkipBuild is used.'
+                                    'Execute the cataloged project command.'
+                                ) `
+                                -Body { Invoke-GameWipProjectCommand -Id $id -NoBuild:$NoBuild } | Out-Null
+                        } | Out-Null
                 }
             }
             'doc'
             {
-                Invoke-GameWipInteractiveOperation -Label 'doc' -Body { Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body {
-                        Invoke-GameWipConfigurePreset -Name docs
-                        Invoke-GameWipBuildPreset -Name docs
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'doc' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Build generated documentation.' `
+                            -Risk local `
+                            -Plan @(
+                                'Configure docs preset.'
+                                'Build docs preset.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name docs
+                                Invoke-GameWipBuildPreset -Name docs
+                            } | Out-Null
+                    } | Out-Null
             }
         }
     }
@@ -223,7 +272,19 @@ function Show-GameWipValidationMenu
 
                 if ($null -ne $preset)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "test-$preset" -Body { Invoke-GameWipMutation -Summary "Ensure and run CTest preset '$preset'." -Risk local -Plan @('Recreate the preset tree when -CleanBuild is active.', 'Build missing prerequisites unless -SkipBuild is used.', "ctest --preset $preset") -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "test-$preset" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Ensure and run CTest preset '$preset'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Recreate the preset tree when -CleanBuild is active.'
+                                    'Build missing prerequisites unless -SkipBuild is used.'
+                                    "ctest --preset $preset"
+                                ) `
+                                -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
+                        } | Out-Null
                 }
             }
             'module'
@@ -232,7 +293,18 @@ function Show-GameWipValidationMenu
 
                 if ($null -ne $module)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "module-$module" -Body { Invoke-GameWipMutation -Summary "Run validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', 'Execute the selected correctness module.') -Body { Invoke-GameWipValidationModule -Name $module -NoBuild:$NoBuild } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "module-$module" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Run validation module '$module'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Ensure the validation executable unless -SkipBuild is used.'
+                                    'Execute the selected correctness module.'
+                                ) `
+                                -Body { Invoke-GameWipValidationModule -Name $module -NoBuild:$NoBuild } | Out-Null
+                        } | Out-Null
                 }
             }
             'stress'
@@ -243,7 +315,18 @@ function Show-GameWipValidationMenu
                 {
                     $runs = Read-GameWipIntegerValue -Prompt 'Run count' -Default ([int]$CommandConfig.DefaultStressCount)
                     $workers = Read-GameWipIntegerValue -Prompt 'Parallel workers' -Default ([int]$CommandConfig.DefaultStressParallel)
-                    Invoke-GameWipInteractiveOperation -Label "stress-$module" -Body { Invoke-GameWipMutation -Summary "Stress validation module '$module'." -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', "Run up to $runs validation processes with at most $workers workers.") -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -NoBuild:$NoBuild } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "stress-$module" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Stress validation module '$module'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Ensure the validation executable unless -SkipBuild is used.'
+                                    "Run up to $runs validation processes with at most $workers workers."
+                                ) `
+                                -Body { Invoke-GameWipStressModule -Name $module -RunCount $runs -MaxParallel $workers -NoBuild:$NoBuild } | Out-Null
+                        } | Out-Null
                 }
             }
             'wizard'
@@ -252,7 +335,27 @@ function Show-GameWipValidationMenu
             }
             'bench'
             {
-                Invoke-GameWipInteractiveOperation -Label 'benchmark-standard' -Body { Invoke-GameWipMutation -Summary 'Build/run standard benchmark profile.' -Risk local -Plan @('Ensure benchmark executable unless -SkipBuild is used.', 'Collect retained benchmark result.') -Body { Invoke-GameWipBenchmark -Mode run -ProfileId standard -RepeatCount 0 -MinimumTime '' -RequestedOutput '' -Format json -SkipBuild:$NoBuild } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'benchmark-standard' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Build/run standard benchmark profile.' `
+                            -Risk local `
+                            -Plan @(
+                                'Ensure benchmark executable unless -SkipBuild is used.'
+                                'Collect retained benchmark result.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipBenchmark `
+                                    -Mode run `
+                                    -ProfileId standard `
+                                    -RepeatCount 0 `
+                                    -MinimumTime '' `
+                                    -RequestedOutput '' `
+                                    -Format json `
+                                    -SkipBuild:$NoBuild
+                            } | Out-Null
+                    } | Out-Null
             }
             'menu-advanced-validation'
             {
@@ -264,33 +367,81 @@ function Show-GameWipValidationMenu
 
                 if ($null -ne $bundle)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -CleanBuild.', 'Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "bundle-$bundle" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Run bundle '$bundle'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Recreate declared preset trees when required by the bundle or -CleanBuild.'
+                                    'Execute the declared bundle steps in order.'
+                                ) `
+                                -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
+                        } | Out-Null
                 }
             }
             'cov'
             {
-                Invoke-GameWipInteractiveOperation -Label 'cov' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body {
-                        Invoke-GameWipConfigurePreset -Name coverage -Fresh
-                        Invoke-GameWipBuildPreset -Name coverage
-                        Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
-                        Invoke-GameWipBuildTarget -Name coverage -Target coverage
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'cov' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run coverage validation from a clean build tree.' `
+                            -Risk local `
+                            -Plan @(
+                                'Remove build/coverage completely.'
+                                'Configure/build coverage.'
+                                'Run CTest.'
+                                'Generate coverage target.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name coverage -Fresh
+                                Invoke-GameWipBuildPreset -Name coverage
+                                Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
+                                Invoke-GameWipBuildTarget -Name coverage -Target coverage
+                            } | Out-Null
+                    } | Out-Null
             }
             'asan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body {
-                        Invoke-GameWipConfigurePreset -Name asan -Fresh
-                        Invoke-GameWipBuildPreset -Name asan
-                        Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'asan' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run AddressSanitizer validation from a clean build tree.' `
+                            -Risk local `
+                            -Plan @(
+                                'Remove build/asan completely.'
+                                'Configure/build asan.'
+                                'Run CTest.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name asan -Fresh
+                                Invoke-GameWipBuildPreset -Name asan
+                                Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
+                            } | Out-Null
+                    } | Out-Null
             }
             'ubsan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body {
-                        Invoke-GameWipConfigurePreset -Name ubsan -Fresh
-                        Invoke-GameWipBuildPreset -Name ubsan
-                        Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'ubsan' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' `
+                            -Risk local `
+                            -Plan @(
+                                'Remove build/ubsan completely.'
+                                'Configure/build ubsan.'
+                                'Run CTest.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name ubsan -Fresh
+                                Invoke-GameWipBuildPreset -Name ubsan
+                                Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild
+                            } | Out-Null
+                    } | Out-Null
             }
         }
     }
@@ -311,19 +462,62 @@ function Show-GameWipHygieneMenu
         {
             'hygiene-standard'
             {
-                Invoke-GameWipInteractiveOperation -Label 'hygiene-standard' -Body { Invoke-GameWipMutation -Summary 'Run the optional standard hygiene audit.' -Risk local -Plan @('Resolve the selected providers and ensure their local analysis state.', 'Run configured advisory checks.', 'Retain normalized evidence without editing tracked files.') -Body { Invoke-GameWipHygieneAudit -Selector standard } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'hygiene-standard' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run the optional standard hygiene audit.' `
+                            -Risk local `
+                            -Plan @(
+                                'Resolve the selected providers and ensure their local analysis state.'
+                                'Run configured advisory checks.'
+                                'Retain normalized evidence without editing tracked files.'
+                            ) `
+                            -Body { Invoke-GameWipHygieneAudit -Selector standard } | Out-Null
+                    } | Out-Null
             }
             'hygiene-deep'
             {
-                Invoke-GameWipInteractiveOperation -Label 'hygiene-deep' -Body { Invoke-GameWipMutation -Summary 'Run the optional deep hygiene audit.' -Risk local -Plan @('Resolve the selected providers and ensure their local analysis state.', 'Run available deep checks.', 'Report planned providers without claiming results.') -Body { Invoke-GameWipHygieneAudit -Selector deep } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'hygiene-deep' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run the optional deep hygiene audit.' `
+                            -Risk local `
+                            -Plan @(
+                                'Resolve the selected providers and ensure their local analysis state.'
+                                'Run available deep checks.'
+                                'Report planned providers without claiming results.'
+                            ) `
+                            -Body { Invoke-GameWipHygieneAudit -Selector deep } | Out-Null
+                    } | Out-Null
             }
             'hygiene-check'
             {
-                $id = Read-GameWipNamedChoice -Prompt 'Hygiene check' -Choices @($HygieneConfig.Checks | Where-Object Availability -eq available | ForEach-Object { $_.Id }) -Default unused-includes
+                $id = Read-GameWipNamedChoice `
+                    -Prompt 'Hygiene check' `
+                    -Choices @(
+                        $HygieneConfig.Checks |
+                            Where-Object Availability -eq available |
+                            ForEach-Object { $_.Id }
+                    ) `
+                    -Default unused-includes
 
                 if ($null -ne $id)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "hygiene-$id" -Body { Invoke-GameWipMutation -Summary "Run optional hygiene check '$id'." -Risk local -Plan @('Ensure the analyze compilation database.', 'Run the selected advisory check.', 'Retain normalized evidence without editing tracked files.') -Body { Invoke-GameWipHygieneAudit -Selector $id } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "hygiene-$id" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Run optional hygiene check '$id'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Ensure the analyze compilation database.'
+                                    'Run the selected advisory check.'
+                                    'Retain normalized evidence without editing tracked files.'
+                                ) `
+                                -Body { Invoke-GameWipHygieneAudit -Selector $id } | Out-Null
+                        } | Out-Null
                 }
             }
             'hygiene-list'
@@ -357,7 +551,19 @@ function Show-GameWipQualityMenu
             }
             'quality-fix'
             {
-                Invoke-GameWipInteractiveOperation -Label 'quality-fix' -Body { Invoke-GameWipMutation -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' -Risk tracked -Plan @('Validate every tool required by the quality workflow before mutation.', 'Format maintained sources/configuration and normalize maintained text to LF.', 'Run the complete quality gate.') -Body { Invoke-GameWipQuality -Mode fix } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'quality-fix' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' `
+                            -Risk tracked `
+                            -Plan @(
+                                'Validate every tool required by the quality workflow before mutation.'
+                                'Format maintained sources/configuration and normalize maintained text to LF.'
+                                'Run the complete quality gate.'
+                            ) `
+                            -Body { Invoke-GameWipQuality -Mode fix } | Out-Null
+                    } | Out-Null
             }
             'quality-status'
             {
@@ -369,14 +575,33 @@ function Show-GameWipQualityMenu
             }
             'format-apply'
             {
-                Invoke-GameWipInteractiveOperation -Label 'format-apply' -Body { Invoke-GameWipMutation -Summary 'Apply C/C++ formatting.' -Risk tracked -Plan @('Rewrite maintained C/C++ files with repository clang-format.') -Body { Invoke-GameWipFormat -Mode apply } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'format-apply' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Apply C/C++ formatting.' `
+                            -Risk tracked `
+                            -Plan @('Rewrite maintained C/C++ files with repository clang-format.') `
+                            -Body { Invoke-GameWipFormat -Mode apply } | Out-Null
+                    } | Out-Null
             }
             'analyze'
             {
-                Invoke-GameWipInteractiveOperation -Label 'analyze' -Body { Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body {
-                        Invoke-GameWipConfigurePreset -Name analyze
-                        Invoke-GameWipBuildPreset -Name analyze
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'analyze' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run C++ static analysis.' `
+                            -Risk local `
+                            -Plan @(
+                                'Configure analyze preset.'
+                                'Build analyze preset.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name analyze
+                                Invoke-GameWipBuildPreset -Name analyze
+                            } | Out-Null
+                    } | Out-Null
             }
             'links'
             {
@@ -405,7 +630,15 @@ function Show-GameWipToolUpdatesMenu
             }
             'tool-preview'
             {
-                $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to preview' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
+                $id = Read-GameWipNamedChoice `
+                    -Prompt 'Tool(s) to preview' `
+                    -Choices @(
+                        $ProjectTools.tools |
+                            Where-Object { $_.capabilities.update } |
+                            ForEach-Object { $_.id }
+                    ) `
+                    -Default all `
+                    -AllowMultiple
 
                 if ($null -ne $id)
                 {
@@ -414,7 +647,15 @@ function Show-GameWipToolUpdatesMenu
             }
             'tool-update'
             {
-                $id = Read-GameWipNamedChoice -Prompt 'Tool(s) to update' -Choices @($ProjectTools.tools | Where-Object { $_.capabilities.update } | ForEach-Object { $_.id }) -Default all -AllowMultiple
+                $id = Read-GameWipNamedChoice `
+                    -Prompt 'Tool(s) to update' `
+                    -Choices @(
+                        $ProjectTools.tools |
+                            Where-Object { $_.capabilities.update } |
+                            ForEach-Object { $_.id }
+                    ) `
+                    -Default all `
+                    -AllowMultiple
 
                 if ($null -ne $id)
                 {
@@ -459,6 +700,10 @@ function Show-GameWipToolsMenu
         }
     }
 }
+
+# ------------------------------------------------------------
+# Repository and data menus
+# ------------------------------------------------------------
 
 function Show-GameWipGitWorkspaceMenu
 {
@@ -562,11 +807,35 @@ function Show-GameWipUnicodeDataMenu
             }
             'unicode-verify'
             {
-                Invoke-GameWipInteractiveOperation -Label 'unicode-verify' -Body { Invoke-GameWipMutation -Summary 'Verify reproducible Unicode generated data.' -Risk local -Plan @('Verify/download pinned Unicode input in the owned cache.', 'Generate and format an operation-owned candidate.', 'Compare the candidate with the checked-in table.') -Body { Invoke-GameWipUnicodeVerify } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'unicode-verify' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Verify reproducible Unicode generated data.' `
+                            -Risk local `
+                            -Plan @(
+                                'Verify/download pinned Unicode input in the owned cache.'
+                                'Generate and format an operation-owned candidate.'
+                                'Compare the candidate with the checked-in table.'
+                            ) `
+                            -Body { Invoke-GameWipUnicodeVerify } | Out-Null
+                    } | Out-Null
             }
             'unicode-regenerate'
             {
-                Invoke-GameWipInteractiveOperation -Label 'unicode-regenerate' -Body { Invoke-GameWipMutation -Summary 'Regenerate the tracked Unicode property table.' -Risk tracked -Plan @('Download/verify pinned UCD inputs.', 'Generate and format candidate.', 'Replace tracked table only when content differs.') -Body { Invoke-GameWipUnicodeRegenerate } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'unicode-regenerate' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Regenerate the tracked Unicode property table.' `
+                            -Risk tracked `
+                            -Plan @(
+                                'Download/verify pinned UCD inputs.'
+                                'Generate and format candidate.'
+                                'Replace tracked table only when content differs.'
+                            ) `
+                            -Body { Invoke-GameWipUnicodeRegenerate } | Out-Null
+                    } | Out-Null
             }
         }
     }
@@ -632,6 +901,10 @@ function Show-GameWipDependencyMenu
     }
 }
 
+# ------------------------------------------------------------
+# Advanced menus
+# ------------------------------------------------------------
+
 function Show-GameWipAdvancedValidationMenu
 {
     while ($true)
@@ -655,33 +928,81 @@ function Show-GameWipAdvancedValidationMenu
 
                 if ($null -ne $bundle)
                 {
-                    Invoke-GameWipInteractiveOperation -Label "bundle-$bundle" -Body { Invoke-GameWipMutation -Summary "Run bundle '$bundle'." -Risk local -Plan @('Recreate declared preset trees when required by the bundle or -CleanBuild.', 'Execute the declared bundle steps in order.') -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null } | Out-Null
+                    Invoke-GameWipInteractiveOperation `
+                        -Label "bundle-$bundle" `
+                        -Body {
+                            Invoke-GameWipMutation `
+                                -Summary "Run bundle '$bundle'." `
+                                -Risk local `
+                                -Plan @(
+                                    'Recreate declared preset trees when required by the bundle or -CleanBuild.'
+                                    'Execute the declared bundle steps in order.'
+                                ) `
+                                -Body { Invoke-GameWipBundle -Id $bundle -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
+                        } | Out-Null
                 }
             }
             'cov'
             {
-                Invoke-GameWipInteractiveOperation -Label 'cov' -Body { Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest.', 'Generate coverage target.') -Body {
-                        Invoke-GameWipConfigurePreset -Name coverage -Fresh
-                        Invoke-GameWipBuildPreset -Name coverage
-                        Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
-                        Invoke-GameWipBuildTarget -Name coverage -Target coverage
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'cov' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run coverage validation from a clean build tree.' `
+                            -Risk local `
+                            -Plan @(
+                                'Remove build/coverage completely.'
+                                'Configure/build coverage.'
+                                'Run CTest.'
+                                'Generate coverage target.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name coverage -Fresh
+                                Invoke-GameWipBuildPreset -Name coverage
+                                Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
+                                Invoke-GameWipBuildTarget -Name coverage -Target coverage
+                            } | Out-Null
+                    } | Out-Null
             }
             'asan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'asan' -Body { Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body {
-                        Invoke-GameWipConfigurePreset -Name asan -Fresh
-                        Invoke-GameWipBuildPreset -Name asan
-                        Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'asan' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run AddressSanitizer validation from a clean build tree.' `
+                            -Risk local `
+                            -Plan @(
+                                'Remove build/asan completely.'
+                                'Configure/build asan.'
+                                'Run CTest.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name asan -Fresh
+                                Invoke-GameWipBuildPreset -Name asan
+                                Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
+                            } | Out-Null
+                    } | Out-Null
             }
             'ubsan'
             {
-                Invoke-GameWipInteractiveOperation -Label 'ubsan' -Body { Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body {
-                        Invoke-GameWipConfigurePreset -Name ubsan -Fresh
-                        Invoke-GameWipBuildPreset -Name ubsan
-                        Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild
-                    } | Out-Null } | Out-Null
+                Invoke-GameWipInteractiveOperation `
+                    -Label 'ubsan' `
+                    -Body {
+                        Invoke-GameWipMutation `
+                            -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' `
+                            -Risk local `
+                            -Plan @(
+                                'Remove build/ubsan completely.'
+                                'Configure/build ubsan.'
+                                'Run CTest.'
+                            ) `
+                            -Body {
+                                Invoke-GameWipConfigurePreset -Name ubsan -Fresh
+                                Invoke-GameWipBuildPreset -Name ubsan
+                                Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild
+                            } | Out-Null
+                    } | Out-Null
             }
         }
     }

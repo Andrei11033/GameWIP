@@ -125,6 +125,10 @@ function Write-GameWipSection
     Write-GameWipSemanticText -Object ('=' * $Title.Length) -Semantic Accent
 }
 
+# ------------------------------------------------------------
+# Single-key menu input
+# ------------------------------------------------------------
+
 function Read-GameWipActionMenuItem
 {
     param(
@@ -232,6 +236,10 @@ function Read-GameWipActionKey
         Write-GameWipHost 'Invalid selection.' -ForegroundColor Yellow
     }
 }
+
+# ------------------------------------------------------------
+# Indexed and keyed choices
+# ------------------------------------------------------------
 
 function Read-GameWipIndexedChoiceResult
 {
@@ -390,6 +398,10 @@ function Read-GameWipMenuChoiceResult
     }
 }
 
+# ------------------------------------------------------------
+# Typed values
+# ------------------------------------------------------------
+
 function Read-GameWipTextValue
 {
     param([Parameter(Mandatory = $true)][string]$Prompt, [string]$Default = '')
@@ -476,6 +488,10 @@ function Read-GameWipYesNo
         Write-GameWipHost 'Enter y or n, or ESC to cancel.' -ForegroundColor Yellow
     }
 }
+
+# ------------------------------------------------------------
+# Multiple choices
+# ------------------------------------------------------------
 
 function Read-GameWipMultiChoiceResult
 {

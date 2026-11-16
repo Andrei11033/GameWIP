@@ -2,6 +2,10 @@
 
 Set-StrictMode -Version Latest
 
+# ------------------------------------------------------------
+# Cache location and lock metadata
+# ------------------------------------------------------------
+
 function Get-GameWipDependencyCacheRoot
 {
     $cacheRoot = Resolve-GameWipRepositoryPath -Path ([string]$ProjectConfig.storage.cache)
@@ -35,6 +39,10 @@ function Get-GameWipDependencyCommit
 
     return ([string]($commit | Select-Object -First 1)).Trim()
 }
+
+# ------------------------------------------------------------
+# Cache verification
+# ------------------------------------------------------------
 
 function Get-GameWipDependencyCacheStatus
 {
@@ -172,6 +180,10 @@ function Get-GameWipDependencyCacheStatus
     return @($results)
 }
 
+# ------------------------------------------------------------
+# Cache status reporting
+# ------------------------------------------------------------
+
 function Test-GameWipDependencyCache
 {
     param([switch]$ThrowOnFailure)
@@ -232,6 +244,10 @@ function Test-GameWipDependencyCache
         -Semantic Muted
     return $true
 }
+
+# ------------------------------------------------------------
+# Dependency preparation
+# ------------------------------------------------------------
 
 function Invoke-GameWipDependencyPreparation
 {

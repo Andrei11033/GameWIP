@@ -197,6 +197,7 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown unicode command '$verb'."
             }
+
             if ($verb -eq 'regenerate')
             {
                 Invoke-GameWipMutation -Summary 'Regenerate the tracked Unicode property table.' -Risk tracked -Plan @('Verify/download pinned Unicode input.', 'Generate and format a candidate.', 'Replace the tracked table only if content changes.') -Body { Invoke-GameWipUnicodeAction -Name regenerate } | Out-Null
@@ -225,6 +226,7 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown format command '$verb'."
             }
+
             if ($verb -eq 'apply')
             {
                 Invoke-GameWipMutation -Summary 'Apply repository C/C++ formatting.' -Risk tracked -Plan @('Rewrite maintained C/C++ files with the repository clang-format policy.') -Body { Invoke-GameWipFormat -Mode apply } | Out-Null
@@ -249,6 +251,7 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown quality command '$verb'."
             }
+
             if ($verb -eq 'fix')
             {
                 Invoke-GameWipMutation -Summary 'Validate quality tools, apply deterministic formatters, and normalize LF line endings.' -Risk tracked -Plan @('Validate every tool required by the quality workflow before mutation.', 'Apply deterministic formatter changes and normalize maintained text to LF.', 'Run all independent quality checks and aggregate failures.') -Body { Invoke-GameWipQuality -Mode fix -FailFast:$FailFast -Changed:$Changed } | Out-Null
@@ -365,6 +368,7 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown deps command '$verb'. Use 'check' or 'prepare'."
             }
+
             if ($verb -eq 'prepare')
             {
                 Invoke-GameWipDependencyPreparationOperation
@@ -602,6 +606,7 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown bench command '$verb'."
             }
+
             if ($verb -eq 'compare' -and ([string]::IsNullOrWhiteSpace($Baseline) -or [string]::IsNullOrWhiteSpace($Candidate)))
             {
                 throw 'bench compare requires -BaselinePath and -CandidatePath.'
@@ -640,6 +645,7 @@ $result = Invoke-GameWipOperation `
             {
                 throw "Unknown history command '$verb'."
             }
+
             if ($verb -eq 'list')
             {
                 Show-GameWipRunList -All:($Target -eq 'all')
