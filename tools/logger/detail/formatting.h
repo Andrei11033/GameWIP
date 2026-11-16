@@ -282,7 +282,7 @@ namespace GameWIP::Logger
             scratch.clear();
             std::size_t written = 0;
             bool truncated = false;
-            BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+            BoundedFormatIterator const output(scratch, maxMessageLength, written, truncated);
 
             std::format_to(output, format, std::forward<Args>(args)...);
 
@@ -302,7 +302,7 @@ namespace GameWIP::Logger
             scratch.clear();
             std::size_t written = 0;
             bool truncated = false;
-            BoundedFormatIterator output(scratch, maxMessageLength, written, truncated);
+            BoundedFormatIterator const output(scratch, maxMessageLength, written, truncated);
 
             std::vformat_to(output, format.text, std::make_format_args(args...));
 

@@ -62,7 +62,7 @@ namespace GameWIP::TestSupport
             return;
         }
 
-        Worker workerPrototype(std::forward<WorkerFunction>(workerFunction));
+        Worker const workerPrototype(std::forward<WorkerFunction>(workerFunction));
         std::mutex exceptionMutex;
         std::exception_ptr firstException;
         std::vector<std::thread> workers;
@@ -94,7 +94,7 @@ namespace GameWIP::TestSupport
                         }
                         catch(...)
                         {
-                            std::lock_guard lock(exceptionMutex);
+                            std::lock_guard const lock(exceptionMutex);
 
                             if(!firstException)
                             {

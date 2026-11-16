@@ -389,7 +389,7 @@ namespace GameWIP::TestSupport
 
     template <typename SuiteFunction> Types::Reporting::SuiteResult Runner::runSuite(std::string_view suiteName, SuiteFunction &&function)
     {
-        Timer timer;
+        Timer const timer;
         Context context(suiteName, reportSink_);
 
         try
