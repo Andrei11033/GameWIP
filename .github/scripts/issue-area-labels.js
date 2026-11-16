@@ -51,6 +51,7 @@ function readIssueFormField(body, heading) {
     if (start < 0) {
         return undefined;
     }
+
     const values = [];
 
     for (const line of lines.slice(start + 1)) {
@@ -72,11 +73,13 @@ async function applyIssueAreaLabel({ github, context }) {
     const current = issue.labels.map((label) => label.name);
     const target = targetAreaLabel(issue.body ?? '');
 
+    // Keep existing labels when the form has no recognized area.
     if (target === undefined) {
         return;
     }
     const request = { owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number };
 
+    // Replace stale area metadata with the current selection.
     for (const label of new Set(AREA_LABELS_BY_VALUE.values())) {
         if (label !== target && current.includes(label)) {
             await github.rest.issues.removeLabel({ ...request, name: label });

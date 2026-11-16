@@ -30,6 +30,10 @@ function Invoke-GameWipGhJson
     @($script:WorkflowRunResponses)
 }
 
+# ------------------------------------------------------------
+# Workflow run correlation
+# ------------------------------------------------------------
+
 function Assert-GameWipRunId
 {
     param(
@@ -46,6 +50,10 @@ function Assert-GameWipRunId
 }
 
 $dispatchTime = [datetime]'2026-07-19T00:00:30Z'
+
+# ------------------------------------------------------------
+# Run matching and freshness
+# ------------------------------------------------------------
 
 $script:WorkflowRunResponses = @(
     [pscustomobject]@{
@@ -98,6 +106,10 @@ if ($null -ne $staleRun)
 {
     throw 'A workflow run older than the dispatch window was incorrectly correlated.'
 }
+
+# ------------------------------------------------------------
+# Ambiguous and missing runs
+# ------------------------------------------------------------
 
 $script:WorkflowRunResponses = @(
     [pscustomobject]@{

@@ -55,6 +55,10 @@ function assertOnlyTokenChanged(before, after, oldToken, newToken) {
     assert.strictEqual(after, before.slice(0, offset) + newToken + before.slice(offset + oldToken.length));
 }
 
+// ------------------------------------------------------------
+// Source-preserving mutation plans
+// ------------------------------------------------------------
+
 {
     const output = mutateProjectToolsSource(source, specification([mutation('eslint', ['requiredVersion'], '10.9.0', '10.9.1')]));
     assertOnlyTokenChanged(source, output, '"10.9.0"', '"10.9.1"');
@@ -81,6 +85,10 @@ function assertOnlyTokenChanged(before, after, oldToken, newToken) {
     assert(output.indexOf('"windows-amd64"') < output.indexOf('"linux-amd64"'));
     assert(output.indexOf('"tools"') < output.indexOf('"schemaVersion"'));
 }
+
+// ------------------------------------------------------------
+// Invalid and stale mutation rejection
+// ------------------------------------------------------------
 
 assert.throws(
     () =>
@@ -122,6 +130,10 @@ assert.throws(
 assert.throws(() => mutateProjectToolsSource('{"tools":[],"tools":[]}', specification([])), /duplicate object key/);
 
 assert.strictEqual(mutateProjectToolsSource(source, specification([])), source);
+
+// ------------------------------------------------------------
+// Command-line output encoding
+// ------------------------------------------------------------
 
 {
     const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gamewip-json-mutator-'));

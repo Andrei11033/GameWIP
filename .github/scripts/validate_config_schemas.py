@@ -33,6 +33,7 @@ def main() -> int:
     schemas: dict[Path, dict] = {}
     schema_registry = Registry()
 
+    # Load shared schemas before validating any configuration registry.
     for schema_path in sorted(set(REGISTRIES.values()) | SHARED_SCHEMAS):
         schema = read_json(schema_path)
 
@@ -46,6 +47,7 @@ def main() -> int:
         if schema_id is not None:
             schema_registry = schema_registry.with_resource(schema_id, Resource.from_contents(schema))
 
+    # Validate each authoritative registry against its declared schema.
     for registry_path, schema_path in REGISTRIES.items():
         schema = schemas.get(schema_path)
 

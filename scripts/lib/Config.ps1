@@ -132,6 +132,7 @@ function Assert-GameWipProjectConfig
             throw "Project configuration is missing '$field'."
         }
     }
+
     $expectedStorage = [ordered]@{
         root = 'build/gamewip'
         cache = 'build/gamewip/cache'
@@ -224,6 +225,7 @@ function Assert-GameWipProjectToolConfig
         {
             @()
         }
+
         # Provider-specific fields are checked together so each provider's
         # installation code can rely on one complete configuration contract.
         switch ([string]$toolInfo.provider.kind)
@@ -234,10 +236,12 @@ function Assert-GameWipProjectToolConfig
                 {
                     throw "MSYS2 tool '$($toolInfo.id)' must declare its managed environment."
                 }
+
                 if (-not $toolInfo.provider.Contains('package'))
                 {
                     throw "MSYS2 tool '$($toolInfo.id)' must declare its pacman package."
                 }
+
                 foreach ($dependency in $providerDependencies)
                 {
                     if (-not $dependency.Contains('environment'))
@@ -252,6 +256,7 @@ function Assert-GameWipProjectToolConfig
                 {
                     throw "npm tool '$($toolInfo.id)' must declare its package."
                 }
+
                 foreach ($dependency in $providerDependencies)
                 {
                     if (-not $dependency.Contains('version'))
@@ -301,16 +306,19 @@ function Assert-GameWipProjectToolConfig
             {
                 throw "Tool '$($toolInfo.id)' has malformed reference metadata."
             }
+
             $referencePath = Resolve-GameWipRepositoryPath -Path ([string]$reference.path)
 
             if (-not $referencePath.StartsWith($rootPath + [IO.Path]::DirectorySeparatorChar, $pathComparison))
             {
                 throw "Tool '$($toolInfo.id)' reference path '$($reference.path)' resolves outside the repository."
             }
+
             if (-not (Test-Path -LiteralPath $referencePath -PathType Leaf))
             {
                 throw "Tool '$($toolInfo.id)' references missing path '$($reference.path)'."
             }
+
             $expectedCount = if ($reference.Contains('expectedCount'))
             {
                 [int]$reference.expectedCount
@@ -329,6 +337,7 @@ function Assert-GameWipProjectToolConfig
                     {
                         throw "Tool '$($toolInfo.id)' text reference '$($reference.path)' must declare a literal pattern."
                     }
+
                     $tokenCount = [regex]::Matches([string]$reference.pattern, [regex]::Escape('{version}')).Count
 
                     if ($tokenCount -ne 1)
@@ -361,6 +370,7 @@ function Assert-GameWipProjectToolConfig
             {
                 throw "Tool '$($toolInfo.id)' live reference '$($reference.path)' expectedCount must be at least 1."
             }
+
             $referenceKey = @(
                 [string]$reference.kind,
                 $referencePath,
@@ -379,6 +389,7 @@ function Assert-GameWipProjectToolConfig
             {
                 throw "Tool '$($toolInfo.id)' duplicates live reference '$($reference.path)'."
             }
+
             $liveReferences[$referenceKey] = $true
         }
     }
@@ -437,6 +448,34 @@ function Assert-GameWipValidModule
 function Get-GameWipValidationModuleName
 {
     return @($CommandConfig.Modules | ForEach-Object { [string]$_.Id })
+}
+
+# Read module registrations; support folders also own CMake files.
+function Get-GameWipRegisteredValidationModuleName
+{
+    param([string]$Root = (Join-Path $RepositoryRoot 'game\validation\tests'))
+
+    $registrationPattern = [regex]::new('(?im)^[ \t]*gamewip_add_test_module[ \t\r\n]*\([ \t\r\n]*NAME[ \t\r\n]+([A-Za-z0-9_-]+)')
+    $moduleNames = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($moduleDirectory in Get-ChildItem -LiteralPath $Root -Directory)
+    {
+        $cmakePath = Join-Path $moduleDirectory.FullName 'CMakeLists.txt'
+
+        if (-not (Test-Path -LiteralPath $cmakePath -PathType Leaf))
+        {
+            continue
+        }
+
+        $cmakeSource = Get-Content -Raw -LiteralPath $cmakePath
+
+        foreach ($registration in $registrationPattern.Matches($cmakeSource))
+        {
+            $moduleNames.Add($registration.Groups[1].Value)
+        }
+    }
+
+    return @($moduleNames | Sort-Object)
 }
 
 function Get-GameWipValidationModule
@@ -656,11 +695,40 @@ function Assert-GameWipCommandConfig
     $workflows = @($CommandConfig.ManualWorkflows)
     $benchmarkProfiles = @($CommandConfig.BenchmarkProfiles)
 
+    # Validate action identifiers and the required action catalog.
     Assert-GameWipUniqueId -Label 'action' -Items $actions
     Assert-GameWipUniqueId -Label 'interactive menu' -Items $menus
     Assert-GameWipUniqueId -Label 'project command' -Items $commands
     Assert-GameWipOptionCatalog
-    $requiredActions = @('menu', 'ready', 'git', 'workflow', 'unicode', 'format', 'quality', 'tool', 'links', 'deps', 'config', 'build', 'test', 'module', 'wizard', 'stress', 'run', 'bundle', 'doc', 'analyze', 'cov', 'asan', 'ubsan', 'bench', 'history', 'list', 'help')
+    $requiredActions = @(
+        'menu'
+        'ready'
+        'git'
+        'workflow'
+        'unicode'
+        'format'
+        'quality'
+        'tool'
+        'links'
+        'deps'
+        'config'
+        'build'
+        'test'
+        'module'
+        'wizard'
+        'stress'
+        'run'
+        'bundle'
+        'doc'
+        'analyze'
+        'cov'
+        'asan'
+        'ubsan'
+        'bench'
+        'history'
+        'list'
+        'help'
+    )
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
 
     if ((($requiredActions | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
@@ -696,6 +764,8 @@ function Assert-GameWipCommandConfig
 
         $actionNames[$canonicalKey] = $canonical
     }
+
+    # Validate menu identifiers, keys, and supported handlers.
     $requiredMenus = @(
         'root', 'development', 'validation', 'quality', 'hygiene', 'tools', 'tool-updates',
         'git-workspace', 'github-workflows', 'advanced', 'advanced-validation', 'dependencies',
@@ -752,6 +822,7 @@ function Assert-GameWipCommandConfig
             }
         }
     }
+
     $configuredMenuHandlers = @($menus.Items | ForEach-Object { [string]$_.Handler } | Sort-Object -Unique)
 
     if ((($supportedMenuHandlers | Sort-Object) -join "`n") -cne (($configuredMenuHandlers | Sort-Object) -join "`n"))
@@ -773,10 +844,12 @@ function Assert-GameWipCommandConfig
         throw "Interactive menu handler catalog drift: $($differences -join '; ')."
     }
 
+    # Validate remaining catalog identifiers.
     Assert-GameWipUniqueId -Label 'bundle' -Items $bundles
     Assert-GameWipUniqueId -Label 'manual workflow' -Items $workflows
     Assert-GameWipUniqueId -Label 'benchmark profile' -Items $benchmarkProfiles
 
+    # Validate default presets and discovered validation modules.
     foreach ($default in @(
             @{ Label = 'configure'; Value = $CommandConfig.DefaultConfigurePreset; Values = $configurePresets },
             @{ Label = 'build'; Value = $CommandConfig.DefaultBuildPreset; Values = $buildPresets },
@@ -789,8 +862,9 @@ function Assert-GameWipCommandConfig
         }
     }
 
-    $moduleRoot = Join-Path $RepositoryRoot 'game\validation\tests'
-    $discoveredModules = @(Get-ChildItem -LiteralPath $moduleRoot -Directory | Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'CMakeLists.txt') } | ForEach-Object { $_.Name } | Sort-Object)
+    $discoveredModules = @(Get-GameWipRegisteredValidationModuleName)
+    $discoveredModuleEntries = @($discoveredModules | ForEach-Object { [pscustomobject]@{ Id = $_ } })
+    Assert-GameWipUniqueId -Label 'registered validation module' -Items $discoveredModuleEntries
     Assert-GameWipUniqueId -Label 'validation module' -Items @($CommandConfig.Modules)
     $configuredModules = @(Get-GameWipValidationModuleName | Sort-Object)
 
@@ -818,6 +892,7 @@ function Assert-GameWipCommandConfig
         throw "Unknown default validation module '$($CommandConfig.DefaultModule)'."
     }
 
+    # Validate module-specific builder options.
     $validBuilderKinds = @('boolean', 'choice', 'integer', 'text')
     $validCommonCapabilities = @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report')
 
@@ -836,6 +911,7 @@ function Assert-GameWipCommandConfig
         {
             continue
         }
+
         Assert-GameWipUniqueId -Label "validation builder option in '$($module.Id)'" -Items $options
 
         foreach ($option in $options)
@@ -844,6 +920,7 @@ function Assert-GameWipCommandConfig
             {
                 throw "Unknown validation builder option kind '$($option.Kind)' in '$($module.Id)/$($option.Id)'."
             }
+
             $requiredCapabilities = @(if ($option -is [hashtable] -and $option.ContainsKey('requiresCommon'))
                 {
                     @($option['requiresCommon'])
@@ -860,16 +937,19 @@ function Assert-GameWipCommandConfig
                     throw "Unknown common capability '$capability' in validation builder option '$($module.Id)/$($option.Id)'."
                 }
             }
+
             $hasValue = @($option.Arguments | Where-Object { $_.Contains('{value}') }).Count -gt 0
 
             if ($option.Kind -eq 'boolean' -and $hasValue)
             {
                 throw "Boolean validation builder option '$($module.Id)/$($option.Id)' must not contain '{value}'."
             }
+
             if ($option.Kind -ne 'boolean' -and -not $hasValue)
             {
                 throw "Validation builder option '$($module.Id)/$($option.Id)' must contain '{value}'."
             }
+
             if ($option.Kind -eq 'choice' -and @($option.Choices) -notcontains [string]$option.Default)
             {
                 throw "Default for validation builder option '$($module.Id)/$($option.Id)' is not one of its choices."
@@ -877,6 +957,7 @@ function Assert-GameWipCommandConfig
         }
     }
 
+    # Validate project commands and bundle steps.
     foreach ($command in $commands)
     {
         foreach ($field in @('Id', 'Name', 'BuildPreset', 'Executable', 'Arguments', 'UseWorkspaceTemp', 'AcceptsExtraArgs'))
@@ -910,38 +991,47 @@ function Assert-GameWipCommandConfig
             {
                 throw "Unknown bundle step kind '$($step.Kind)' in bundle '$($bundle.Id)'."
             }
+
             if ($step.Kind -eq 'Configure' -and $configurePresets -notcontains $step.Preset)
             {
                 throw "Bundle '$($bundle.Id)' references unknown configure preset '$($step.Preset)'."
             }
+
             if ($step.Kind -in @('Build', 'BuildTarget') -and $buildPresets -notcontains $step.Preset)
             {
                 throw "Bundle '$($bundle.Id)' references unknown build preset '$($step.Preset)'."
             }
+
             if ($step.Kind -eq 'CTest' -and $testPresets -notcontains $step.Preset)
             {
                 throw "Bundle '$($bundle.Id)' references unknown test preset '$($step.Preset)'."
             }
+
             if ($step.Kind -eq 'ProjectCommand' -and $commandIds -notcontains $step.Command)
             {
                 throw "Bundle '$($bundle.Id)' references unknown project command '$($step.Command)'."
             }
+
             if ($step.Kind -eq 'Benchmark' -and $step.ContainsKey('Profile') -and @($benchmarkProfiles | ForEach-Object { $_.Id }) -notcontains $step.Profile)
             {
                 throw "Bundle '$($bundle.Id)' references unknown benchmark profile '$($step.Profile)'."
             }
+
             if ($step.Kind -eq 'Bundle' -and $bundleIds -notcontains $step.Bundle)
             {
                 throw "Bundle '$($bundle.Id)' references unknown bundle '$($step.Bundle)'."
             }
         }
     }
+
+    # Reject recursive bundle definitions.
     $bundleLookup = @{}
 
     foreach ($bundle in $bundles)
     {
         $bundleLookup[$bundle.Id] = $bundle
     }
+
     $visiting = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $visited = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 
@@ -950,6 +1040,7 @@ function Assert-GameWipCommandConfig
         Assert-GameWipBundleAcyclic -Id $bundleId -Lookup $bundleLookup -Visiting $visiting -Visited $visited
     }
 
+    # Validate benchmark profiles.
     foreach ($benchmarkProfile in $benchmarkProfiles)
     {
         foreach ($field in @('Id', 'Name', 'Repetitions', 'MinTime', 'AggregatesOnly'))
@@ -971,6 +1062,7 @@ function Assert-GameWipCommandConfig
         }
     }
 
+    # Validate workflow paths.
     foreach ($workflow in $workflows)
     {
         $workflowPath = Join-Path $RepositoryRoot (Join-Path '.github\workflows' $workflow.File)

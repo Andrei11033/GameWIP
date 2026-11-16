@@ -46,6 +46,7 @@ function hasMeaningfulContent(text) {
 function validatePullRequest(pr) {
     const errors = [];
 
+    // Validate the title and required body sections.
     if (!TITLE_PATTERN.test(pr.title) || pr.title === 'area: imperative summary') {
         errors.push('PR title must use `area: imperative summary`.');
     }
@@ -68,6 +69,7 @@ function validatePullRequest(pr) {
             errors.push(`\`## ${name}\` must contain meaningful content.`);
         }
     }
+    // Require explicit closure guidance when linked issues are listed.
     const linked = sectionText(body, 'Linked Issues');
 
     if (
@@ -78,6 +80,7 @@ function validatePullRequest(pr) {
     ) {
         errors.push('`## Linked Issues` must contain `Closes #123` or `No linked issue: reason`.');
     }
+    // Require one canonical area, type, and priority label.
     const labels = (pr.labels || []).map((label) => label.name);
     const areaLabels = labels.filter((label) => label.startsWith('area:'));
     const typeLabels = labels.filter((label) => label.startsWith('type:'));
@@ -101,6 +104,7 @@ function validatePullRequest(pr) {
         errors.push(`PR priority label is not supported: \`${priorityLabels[0]}\`.`);
     }
 
+    // Allow only supported compatibility metadata.
     for (const label of labels.filter((candidate) => candidate.startsWith('compat:'))) {
         if (!ALLOWED_COMPATIBILITY_LABELS.has(label)) {
             errors.push(`PR compatibility label is not supported: \`${label}\`.`);

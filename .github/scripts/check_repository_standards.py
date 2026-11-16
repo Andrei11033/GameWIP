@@ -71,6 +71,7 @@ CTEST_PRESET = re.compile(r"(?:^|\s)--preset(?:=|\s+)([A-Za-z0-9_.-]+)")
 ISSUE_AREA_OPTIONS = re.compile(r"(?ms)^    id: area\s*$.*?^      options:\s*$\n((?:^        - [^\n]+\n?)+)")
 ISSUE_AREA_MAPPING = re.compile(r"\[['\"]([^'\"]+)['\"],\s*['\"](area:[^'\"]+)['\"]\]")
 CURRENT_AREA_MAPPING_BLOCK = re.compile(r"const AREA_LABELS_BY_VALUE = new Map\(\[(.*?)\]\);", re.DOTALL)
+VALIDATION_TEST_MODULE_PATTERN = re.compile(r"^[ \t]*gamewip_add_test_module[ \t\r\n]*\([ \t\r\n]*NAME[ \t\r\n]+([A-Za-z0-9_-]+)", re.IGNORECASE | re.MULTILINE)
 CANONICAL_AREA_MAPPINGS = {
     "CMake / build system": "area:cmake",
     "FileSystem": "area:filesystem",
@@ -246,11 +247,13 @@ def check_issue_area_mapping(failures: list[str]) -> None:
     mapping_block = CURRENT_AREA_MAPPING_BLOCK.search(policy_text)
     mappings = dict(ISSUE_AREA_MAPPING.findall(mapping_block.group(1))) if mapping_block else {}
 
+    # Match the extracted policy to the canonical area taxonomy.
     if mappings != CANONICAL_AREA_MAPPINGS:
         failures.append(".github/scripts/issue-area-labels.js: current area mapping does not match the canonical taxonomy")
 
     expected_options = list(CANONICAL_AREA_MAPPINGS)
 
+    # Keep general issue forms aligned with the full ordered area list.
     for name, (title, type_label, priority_label) in GENERAL_ISSUE_FORMS.items():
         path = ROOT / ".github" / "ISSUE_TEMPLATE" / name
         text = path.read_text(encoding="utf-8")
@@ -272,6 +275,7 @@ def check_issue_area_mapping(failures: list[str]) -> None:
             if required not in text:
                 failures.append(f"{path.relative_to(ROOT).as_posix()}: required issue-form metadata is missing: {required}")
 
+    # Keep the release form on its fixed metadata instead of a general area choice.
     release_path = ROOT / ".github" / "ISSUE_TEMPLATE" / "release.yml"
     release_text = release_path.read_text(encoding="utf-8")
 
@@ -287,6 +291,7 @@ def check_issue_area_mapping(failures: list[str]) -> None:
         if required not in release_text:
             failures.append(f".github/ISSUE_TEMPLATE/release.yml: required release metadata is missing: {required}")
 
+    # Apply the default repository labels to every Dependabot ecosystem.
     dependabot = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
     ecosystem_count = dependabot.count("  - package-ecosystem:")
 
@@ -360,6 +365,16 @@ def maintained_files() -> list[Path]:
 def source_documentation_files() -> list[Path]:
     """Return maintained source files that support line comments."""
     return [path for path in maintained_files() if path.suffix.lower() in SOURCE_DOCUMENTATION_SUFFIXES or path.name == "CMakeLists.txt"]
+
+
+def validation_test_module_names() -> list[str]:
+    """Return module IDs registered by validation-test CMake files."""
+    module_root = ROOT / "game/validation/tests"
+    return sorted(
+        name
+        for path in module_root.glob("*/CMakeLists.txt")
+        for name in VALIDATION_TEST_MODULE_PATTERN.findall(path.read_text(encoding="utf-8"))
+    )
 
 
 def is_cpp_numeric_digit_separator(text: str, index: int) -> bool:
@@ -573,6 +588,7 @@ def fix_source_documentation_layout(requested: list[str]) -> int:
     unsafe: list[str] = []
     paths = source_documentation_files()
 
+    # Restrict writes to explicitly requested paths when provided.
     if requested:
         requested_paths = {(ROOT / item).resolve() if not Path(item).is_absolute() else Path(item).resolve() for item in requested}
         paths = [path for path in paths if path.resolve() in requested_paths]
@@ -582,11 +598,13 @@ def fix_source_documentation_layout(requested: list[str]) -> int:
         normalized, layout_failures = normalize_source_documentation(text)
         structural = [failure for failure in layout_failures if "matching divider" in failure[1]]
 
+        # Leave malformed separator blocks untouched and report them together.
         if structural:
             relative = path.relative_to(ROOT).as_posix()
             unsafe.extend(f"{relative}:{line}: {message}" for line, message in structural)
             continue
 
+        # Write only when safe normalization changes the file.
         if normalized != text:
             path.write_text(normalized, encoding="utf-8", newline="")
             changed += 1
@@ -606,6 +624,8 @@ def fix_source_documentation_layout(requested: list[str]) -> int:
 
 def check_registry_relationships(failures: list[str]) -> None:
     """Validate cross-file authorities and repository-facing relationships."""
+
+    # Load the registries and documentation used by the cross-file checks.
     commands = read_json("scripts/config/commands.json", failures)
     project = read_json("scripts/config/project.json", failures)
     tools = read_json("scripts/config/project-tools.json", failures)
@@ -615,6 +635,7 @@ def check_registry_relationships(failures: list[str]) -> None:
         (ROOT / relative).read_text(encoding="utf-8") for relative in ("docs/doxygen/build.md", "docs/doxygen/command_line_tools.md")
     )
 
+    # Keep documented build options and visible presets current.
     option_text = (ROOT / "cmake/GameWIPOptions.cmake").read_text(encoding="utf-8")
     options = set(re.findall(r"(?m)^option\((GAMEWIP_[A-Z0-9_]+)\s", option_text))
     options.update(re.findall(r"(?m)^set\((GAMEWIP_[A-Z0-9_]+)\s+[^\n]*CACHE\s", option_text))
@@ -638,6 +659,7 @@ def check_registry_relationships(failures: list[str]) -> None:
     for variable in sorted(workflow_defines - options):
         failures.append(f".github/workflows: CMake -D variable '{variable}' is not a current option")
 
+    # Keep command, validation-module, and workflow catalogs aligned.
     for required_action in (
         "quality",
         "tool",
@@ -649,12 +671,16 @@ def check_registry_relationships(failures: list[str]) -> None:
         if f"'{required_action}'" not in helper:
             failures.append(f"scripts/GameWIP.ps1: helper action '{required_action}' is not dispatched")
 
-    discovered_modules = {path.parent.name for path in (ROOT / "game/validation/tests").glob("*/CMakeLists.txt")}
+    discovered_module_names = validation_test_module_names()
+    discovered_modules = set(discovered_module_names)
     configured_modules = {module["id"] for module in commands.get("modules", [])}
+
+    if len(discovered_module_names) != len(discovered_modules):
+        failures.append("game/validation/tests: duplicate registered validation-test module names")
 
     if discovered_modules != configured_modules:
         failures.append(
-            "scripts/config/commands.json: modules differ from game/validation/tests directories "
+            "scripts/config/commands.json: modules differ from validation-test CMake registrations "
             f"(configured={sorted(configured_modules)}, discovered={sorted(discovered_modules)})"
         )
 
@@ -668,6 +694,7 @@ def check_registry_relationships(failures: list[str]) -> None:
         if forbidden in setup:
             failures.append(f"scripts/setup/config/setup.json: duplicate tool authority '{forbidden}' is forbidden")
 
+    # Validate tool providers and the source references they maintain.
     tool_entries = tools.get("tools", [])
     tool_by_id = {entry.get("id"): entry for entry in tool_entries}
 
@@ -805,6 +832,7 @@ def check_registry_relationships(failures: list[str]) -> None:
             if tool_id not in validation_text:
                 failures.append(f".github/workflows/validation.yml: exact tool '{tool_id}' is not provisioned from registry metadata")
 
+    # Keep repository storage and registry schemas under their declared authorities.
     expected_storage = {
         "root": "build/gamewip",
         "cache": "build/gamewip/cache",
@@ -919,6 +947,7 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
     lines = text.splitlines()
     failures: list[str] = []
 
+    # Enforce workflow-wide permissions and protected check names.
     if not re.search(r"(?m)^permissions:\s*$", text):
         failures.append(f"{relative}: declare explicit top-level token permissions")
 
@@ -937,6 +966,7 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
             if f"    name: {check_name}\n" not in text:
                 failures.append(f"{relative}: protected check name must remain '{check_name}'")
 
+    # Validate action pins and fail-closed CTest behavior.
     for line_number, line in enumerate(lines, start=1):
         match = ACTION_REFERENCE.match(line)
 
@@ -954,6 +984,7 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
             if preset is None or preset.group(1) not in safe_ctest_presets:
                 failures.append(f"{relative}:{line_number}: CTest commands must fail when zero tests are discovered")
 
+    # Keep privileged workflow execution on trusted code and credentials.
     if re.search(r"(?m)^  pull_request_target:\s*$", text):
         if "github.event.pull_request.head" in text:
             failures.append(f"{relative}: pull_request_target must never reference untrusted head content")
@@ -972,6 +1003,7 @@ def check_workflow(path: Path, safe_ctest_presets: set[str]) -> list[str]:
         if "persist-credentials: false" not in text:
             failures.append(f"{relative}: trusted PR policy checkout must not persist credentials")
 
+    # Require bounded execution time for every workflow job.
     jobs = workflow_jobs(lines)
 
     if not jobs:
@@ -1071,6 +1103,7 @@ def main() -> int:
 
     failures: list[str] = []
 
+    # Check required public repository metadata.
     for path in REQUIRED_REPOSITORY_FILES:
         if not path.is_file():
             failures.append(f"{path.relative_to(ROOT).as_posix()}: required repository file is missing")
@@ -1078,6 +1111,7 @@ def main() -> int:
         elif path.stat().st_size == 0:
             failures.append(f"{path.relative_to(ROOT).as_posix()}: required repository file is empty")
 
+    # Validate registries, source conventions, and shared quality policy.
     check_license_metadata(failures)
     check_issue_area_mapping(failures)
     check_github_metadata_policy(failures)
@@ -1087,6 +1121,7 @@ def main() -> int:
     check_unicode_conversion_authority(failures)
     check_quality_contract(failures)
     check_extracted_workflow_logic(failures)
+    # Validate workflow contracts and protected action references.
     safe_ctest_presets = fail_closed_ctest_presets(failures)
     workflows = sorted((*WORKFLOW_ROOT.glob("*.yml"), *WORKFLOW_ROOT.glob("*.yaml")))
 

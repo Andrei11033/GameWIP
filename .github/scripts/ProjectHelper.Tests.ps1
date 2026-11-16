@@ -14,6 +14,10 @@ $powerShellPath = (Get-Process -Id $PID).Path
 # entrypoint is exercised only as a child process.
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
+# ------------------------------------------------------------
+# Command catalog and menu contracts
+# ------------------------------------------------------------
+
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
 
 foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'ready', 'quality', 'quality hygiene', '-FailOnFindings', 'tool', 'history', 'config [preset]', '-Preview', '-NonInteractive', '-Yes', '-SkipBuild', '-CleanBuild', '-NoColor', '-Json', '-OutputPath', '-PassThroughArgs'))
@@ -27,6 +31,47 @@ foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Avai
 Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
+
+# The module catalog follows registrations, not support-folder CMake files.
+$moduleDiscoveryRoot = Join-Path ([IO.Path]::GetTempPath()) ('gamewip-module-discovery-' + [guid]::NewGuid().ToString('N'))
+
+try
+{
+    foreach ($module in @('alpha', 'internal', 'platform', 'zeta'))
+    {
+        $moduleDirectory = Join-Path $moduleDiscoveryRoot $module
+        New-Item -ItemType Directory -Path $moduleDirectory -Force | Out-Null
+    }
+
+    [IO.File]::WriteAllText(
+        (Join-Path (Join-Path $moduleDiscoveryRoot 'alpha') 'CMakeLists.txt'),
+        "gamewip_add_test_module(`n    NAME alpha`n    SOURCES alpha.cpp`n)`n"
+    )
+    [IO.File]::WriteAllText(
+        (Join-Path (Join-Path $moduleDiscoveryRoot 'internal') 'CMakeLists.txt'),
+        "add_library(SharedTestSupport OBJECT support.cpp)`n"
+    )
+    [IO.File]::WriteAllText(
+        (Join-Path (Join-Path $moduleDiscoveryRoot 'platform') 'CMakeLists.txt'),
+        "# gamewip_add_test_module(NAME ignored SOURCES ignored.cpp)`n" + "gamewip_add_platform_backend(TARGET Tests ROOT .)`n"
+    )
+    [IO.File]::WriteAllText(
+        (Join-Path (Join-Path $moduleDiscoveryRoot 'zeta') 'CMakeLists.txt'),
+        "gamewip_add_test_module(NAME zeta SOURCES zeta.cpp)`n"
+    )
+
+    $discoveredModuleNames = @(Get-GameWipRegisteredValidationModuleName -Root $moduleDiscoveryRoot)
+
+    if (($discoveredModuleNames -join ',') -cne 'alpha,zeta')
+    {
+        throw "Validation module discovery returned '$($discoveredModuleNames -join ',')' instead of registered module names."
+    }
+}
+
+finally
+{
+    Remove-Item -LiteralPath $moduleDiscoveryRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
 
 if ($CommandConfig.ActionOptions.unicode -notcontains 'ClangFormatPath')
 {
@@ -129,6 +174,10 @@ if (($ordered -join ',') -ne '2,9,17')
 {
     throw 'Multi-choice selections did not preserve configured order.'
 }
+
+# ------------------------------------------------------------
+# Tool selection and hygiene flows
+# ------------------------------------------------------------
 
 # An empty installation phase is valid when a caller only needs the separate
 # tracked-file phase. It must return before binding or provider work fails.
@@ -295,6 +344,10 @@ finally
     }
 }
 
+# ------------------------------------------------------------
+# Bundle execution and status presentation
+# ------------------------------------------------------------
+
 foreach ($freshBundleId in @('local-release-check', 'sanitizer'))
 {
     $freshBundle = Get-GameWipProjectBundle -Id $freshBundleId
@@ -345,6 +398,10 @@ if ((New-GameWipOperationContext -Label output-default).OutputMode -ne 'Stream')
     throw 'Project helper operations do not stream native output by default.'
 }
 
+# ------------------------------------------------------------
+# Console output conventions
+# ------------------------------------------------------------
+
 $expectedSemanticColors = [ordered]@{
     Success = [ConsoleColor]::Green
     Failure = [ConsoleColor]::Red
@@ -380,6 +437,10 @@ foreach ($compatibility in $expectedToolSemantics.Keys)
     }
 }
 
+# ------------------------------------------------------------
+# Interactive menu topology
+# ------------------------------------------------------------
+
 $expectedMenuIds = @(
     'root', 'development', 'validation', 'quality', 'hygiene', 'tools', 'tool-updates',
     'git-workspace', 'github-workflows', 'advanced', 'advanced-validation', 'dependencies',
@@ -409,6 +470,10 @@ foreach ($requiredAdvancedHandler in @('menu-advanced-validation', 'menu-hygiene
         throw "Advanced menu is missing '$requiredAdvancedHandler'."
     }
 }
+
+# ------------------------------------------------------------
+# Hygiene profiles and diagnostics
+# ------------------------------------------------------------
 
 $standardHygiene = Get-GameWipHygieneSelection -Selector standard
 
@@ -523,6 +588,10 @@ if ($syntheticFindings.Count -ne 2 -or $syntheticFindings[0].confidence -notin @
     throw 'clang-tidy hygiene findings were not normalized or centrally explained correctly.'
 }
 
+# ------------------------------------------------------------
+# Menu input and status rendering
+# ------------------------------------------------------------
+
 $originalActionKeyReader = (Get-Command Read-GameWipActionKey).ScriptBlock
 function Read-GameWipActionKey
 {
@@ -594,6 +663,10 @@ finally
 {
     $Script:OperationContext = $originalPresentationContext
 }
+
+# ------------------------------------------------------------
+# Preset and environment selection
+# ------------------------------------------------------------
 
 $schemaTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\schema-test-' + [guid]::NewGuid().ToString('N'))
 
@@ -729,6 +802,10 @@ if ($duplicateActions.Count -ne 0)
     throw "Duplicate action IDs: $($duplicateActions.Name -join ', ')."
 }
 
+# ------------------------------------------------------------
+# Mutation consent and operation results
+# ------------------------------------------------------------
+
 # Non-interactive mode suppresses prompts; it never grants mutation consent.
 $Script:OperationContext = New-GameWipOperationContext -Label 'consent-test' -NonInteractive
 $consentRejected = $false
@@ -855,6 +932,10 @@ finally
     Remove-Item -Path function:Read-Host
     Set-Item -Path function:Test-GameWipInteractiveConsole -Value $interactiveConsoleImplementation
 }
+
+# ------------------------------------------------------------
+# Persistent state and process execution
+# ------------------------------------------------------------
 
 # Repository text persistence is strict UTF-8 without BOM and can atomically
 # replace an existing file without losing non-ASCII content.
@@ -1060,6 +1141,10 @@ finally
     }
 }
 
+# ------------------------------------------------------------
+# Owned process cleanup and mutation tracking
+# ------------------------------------------------------------
+
 if (-not (Test-GameWipWindowsHost))
 {
     $ownedProcess = $null
@@ -1206,6 +1291,10 @@ finally
 {
     $Script:OperationContext = $null
 }
+
+# ------------------------------------------------------------
+# Managed tool rollback
+# ------------------------------------------------------------
 
 $managedRootImplementation = (Get-Command Get-GameWipManagedToolRoot).ScriptBlock
 $managedRootTest = Join-Path $repositoryRoot ('build\gamewip\temp\managed-root-test-' + [guid]::NewGuid().ToString('N'))
@@ -1437,6 +1526,10 @@ finally
     Remove-Item -LiteralPath $atomicRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# ------------------------------------------------------------
+# Tracked tool update planning
+# ------------------------------------------------------------
+
 # Tracked tool planning is declarative, composes same-file references, and
 # stages source-preserving compare-and-set mutations without provider/network calls.
 $trackedPlanRoot = Join-Path $repositoryRoot ('build\gamewip\temp\tracked-plan-test-' + [guid]::NewGuid().ToString('N'))
@@ -1618,6 +1711,10 @@ finally
     $Script:OperationContext = $savedOperationContext
     Remove-Item -LiteralPath $trackedPlanRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
+
+# ------------------------------------------------------------
+# Quality policy and maintained-file discovery
+# ------------------------------------------------------------
 
 if (-not (Test-GameWipQualityPolicyChange -Files @('.clang-format')) -or
     -not (Test-GameWipQualityPolicyChange -Files @('config/quality/ruff.toml')) -or

@@ -23,6 +23,11 @@ EXCLUDED_ROOTS = (
     Path("external"),
     Path("build"),
 )
+
+# ------------------------------------------------------------
+# Markdown link patterns
+# ------------------------------------------------------------
+
 INLINE_LINK_PATTERN = re.compile(r"(?<!!)\[[^\]\n]*(?:\][^\[]*)?\]\(([^)\n]+)\)")
 IMAGE_LINK_PATTERN = re.compile(r"!\[[^\]\n]*(?:\][^\[]*)?\]\(([^)\n]+)\)")
 REFERENCE_DEFINITION_PATTERN = re.compile(r"^\s{0,3}\[[^\]]+\]:\s*(\S+)", re.MULTILINE)
@@ -38,6 +43,10 @@ def parse_arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
+# ------------------------------------------------------------
+# Markdown discovery and parsing
+# ------------------------------------------------------------
 
 def normalized_relative_path(path: Path, root: Path) -> Path | None:
     try:
@@ -94,6 +103,10 @@ def iter_link_targets(markdown: str) -> list[str]:
     return targets
 
 
+# ------------------------------------------------------------
+# Link resolution
+# ------------------------------------------------------------
+
 def strip_markdown_title(target: str) -> str:
     if not target:
         return target
@@ -137,11 +150,16 @@ def resolve_target(markdown_file: Path, target: str, root: Path) -> Path | None:
     return resolved_path
 
 
+# ------------------------------------------------------------
+# Validation entry point
+# ------------------------------------------------------------
+
 def main() -> int:
     arguments = parse_arguments()
     root = arguments.root.resolve()
     failures: list[str] = []
 
+    # Collect missing local targets before printing one combined report.
     for markdown_file in iter_markdown_files(root):
         markdown = markdown_file.read_text(encoding="utf-8")
         relative_markdown_file = normalized_relative_path(markdown_file, root) or markdown_file

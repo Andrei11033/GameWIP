@@ -63,12 +63,14 @@ def main() -> int:
             failures.append(f"{normalized}: direct console key input bypasses Console.ps1")
 
         if normalized.startswith("scripts/"):
+            # Keep external process calls behind Process.ps1.
             for match in EXTERNAL_LITERAL.finditer(text):
                 failures.append(f"{normalized}: direct external invocation bypasses Process.ps1: {match.group(0)}")
 
             if re.search(r"\b(?:if|elseif|while)\s*\(\s*Test-GameWip[\w-]+\s+-(?:and|or)\b", text):
                 failures.append(f"{normalized}: helper predicate must be parenthesized before a Boolean operator")
 
+        # Enforce the current schema version in maintained JSON registries.
         if normalized.endswith(".json"):
             try:
                 document = json.loads(text)
@@ -78,7 +80,7 @@ def main() -> int:
             if isinstance(document, dict) and "schemaVersion" in document and document["schemaVersion"] != 1:
                 failures.append(f"{normalized}: schemaVersion must remain 1 on this branch")
 
-    # Canonical path-casing check: configured repository references must match Git casing exactly.
+    # Configured repository references must match Git path casing exactly.
     canonical = {path.casefold(): path for path in paths}
     registry = ROOT / "scripts/config/project-tools.json"
 

@@ -61,6 +61,10 @@ function automaticReleaseMilestone(overrides = {}) {
     });
 }
 
+// ------------------------------------------------------------
+// Version and milestone metadata
+// ------------------------------------------------------------
+
 test('parses numeric release versions', () => {
     assert.deepEqual(parseReleaseVersion('0.0.1'), {
         text: '0.0.1',
@@ -152,6 +156,10 @@ test('compares release versions numerically', () => {
     assert.equal(compare('1.0.0', '1.0.0'), 0);
     assert.equal(compare('1.1.0', '1.0.9'), 1);
 });
+
+// ------------------------------------------------------------
+// Release and milestone validation
+// ------------------------------------------------------------
 
 test('parses the authoritative root CMake version', () => {
     const cmake = ['# project(GameWIP VERSION 9.9.9)', 'project(', '    GameWIP', '    VERSION 0.0.1', '    LANGUAGES CXX', ')'].join('\n');
@@ -299,6 +307,10 @@ test('rejects missing, duplicate, and closed automatically discovered release is
     );
 });
 
+// ------------------------------------------------------------
+// Check and handoff validation
+// ------------------------------------------------------------
+
 test('requires successful checks for the exact latest master commit', () => {
     assert.equal(
         validateRequiredChecks({
@@ -399,6 +411,10 @@ test('supports terminal handoffs for any title and exact successors beyond two d
     );
 });
 
+// ------------------------------------------------------------
+// Preparation and finalization plans
+// ------------------------------------------------------------
+
 test('plans preparation idempotently and rejects conflicting retries', () => {
     const version = parseReleaseVersion('0.0.1');
     const names = releaseNames(version);
@@ -485,6 +501,10 @@ test('plans finalization idempotently and preserves immutable tags', () => {
         /not the expected immutable annotated release tag/,
     );
 });
+
+// ------------------------------------------------------------
+// Release notes and pull-request content
+// ------------------------------------------------------------
 
 test('builds a complete read-only preparation plan', () => {
     const snapshot = {
@@ -612,8 +632,11 @@ test('finalization requires the merged release pull request commit', () => {
     );
 });
 
-// Exercise the command adapter as well as the pure planners: GitHub field mapping
-// and retry validation must survive the same path used by the workflow.
+// ------------------------------------------------------------
+// Command adapter
+// ------------------------------------------------------------
+
+// Exercise the workflow path in addition to the pure planners.
 for (const scenario of ['prepare', 'tag-only', 'draft', 'published', 'wrong-tag', 'lightweight', 'newer-release', 'closed-successor']) {
     test(`command adapter handles ${scenario}`, async (t) => {
         const fs = require('node:fs');
@@ -642,6 +665,7 @@ for (const scenario of ['prepare', 'tag-only', 'draft', 'published', 'wrong-tag'
             if (path === 'CMakeLists.txt') {
                 return 'project(GameWIP VERSION 0.0.1 LANGUAGES CXX)';
             }
+
             if (path === 'docs/releases/v0.0.1.md') {
                 return '# GameWIP v0.0.1 release notes\n\nReviewed release evidence.';
             }

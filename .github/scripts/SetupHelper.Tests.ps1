@@ -8,6 +8,11 @@ $ErrorActionPreference = 'Stop'
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $setupScript = Join-Path $repositoryRoot 'scripts\setup\Windows.ps1'
 $powerShellPath = (Get-Process -Id $PID).Path
+
+# ------------------------------------------------------------
+# Setup catalog and CLI contract
+# ------------------------------------------------------------
+
 $actionConfig = Get-Content -Raw -LiteralPath (Join-Path $repositoryRoot 'scripts\setup\config\setup.json') | ConvertFrom-Json
 $actions = @($actionConfig.Actions)
 
@@ -81,6 +86,10 @@ foreach ($requiredOption in @('Preview', 'NonInteractive', 'Yes', 'Json', 'Quiet
         throw "Setup option catalog is missing '$requiredOption'."
     }
 }
+
+# ------------------------------------------------------------
+# Setup state and service contracts
+# ------------------------------------------------------------
 
 # Bootstrap project internals without invoking the setup executable entrypoint.
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
@@ -182,7 +191,11 @@ finally
     Remove-Item -LiteralPath (Join-Path $repositoryRoot $editorStateRoot) -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# Setup is required to keep prompting policy separate from execution mode.
+# ------------------------------------------------------------
+# Mutation policy and repository setup
+# ------------------------------------------------------------
+
+# Setup keeps prompting policy separate from execution mode.
 $windowsSource = Get-Content -Raw -LiteralPath $setupScript
 
 if ($windowsSource -notmatch '\[switch\]\$Yes')
@@ -289,6 +302,10 @@ finally
     Remove-Variable -Name setupChooseBranch -Scope Script -ErrorAction SilentlyContinue
 }
 
+# ------------------------------------------------------------
+# Preview and provider behavior
+# ------------------------------------------------------------
+
 $originalSetupRunRoot = [string]$ProjectConfig.storage.runs
 $setupPreviewRoot = 'build/gamewip/temp/setup-preview-test-' + [guid]::NewGuid().ToString('N')
 
@@ -345,6 +362,10 @@ finally
     Remove-Variable -Name setupDocsBodyRan -Scope Script -ErrorAction SilentlyContinue
     $Preview = $false
 }
+
+# ------------------------------------------------------------
+# Ownership, retries, and consent
+# ------------------------------------------------------------
 
 # Common ownership markers use the shared envelope and fail conservatively.
 $marker = New-GameWipOwnershipMarker -Resource 'test-resource' -Origin created -Payload ([ordered]@{ sample = $true })

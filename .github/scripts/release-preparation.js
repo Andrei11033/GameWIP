@@ -298,6 +298,8 @@ function releaseNotesPath(version) {
 
 function planPreparationArtifacts({ version, masterSha, branches = [], pullRequests = [] }) {
     const names = releaseNames(version);
+
+    // Find reusable release branches and pull requests.
     const matchingBranches = branches.filter((branch) => branch.name === names.branchName);
 
     if (matchingBranches.length > 1) {
@@ -316,6 +318,7 @@ function planPreparationArtifacts({ version, masterSha, branches = [], pullReque
         throw new Error(`Release pull request for ${names.branchName} does not target master.`);
     }
 
+    // Reject stale or conflicting artifacts before planning any writes.
     const pullRequestState = pullRequest === null ? null : String(pullRequest.state).toLowerCase();
 
     if (pullRequestState === 'closed') {
@@ -358,6 +361,8 @@ function planPreparationArtifacts({ version, masterSha, branches = [], pullReque
 
 function planFinalizationArtifacts({ version, releaseCommitSha, tags = [], releases = [] }) {
     const names = releaseNames(version);
+
+    // Reuse only the expected immutable annotated tag.
     const matchingTags = tags.filter((tag) => tag.name === names.tagName);
 
     if (matchingTags.length > 1) {
@@ -369,6 +374,7 @@ function planFinalizationArtifacts({ version, releaseCommitSha, tags = [], relea
         throw new Error(`Existing tag ${names.tagName} is not the expected immutable annotated release tag.`);
     }
 
+    // Require any existing release to belong to that tag.
     const matchingReleases = releases.filter((release) => release.tagName === names.tagName);
 
     if (matchingReleases.length > 1) {
@@ -391,6 +397,7 @@ function planFinalizationArtifacts({ version, releaseCommitSha, tags = [], relea
 }
 
 function buildCommonReleasePlan(snapshot) {
+    // Validate milestone readiness and resolve the target version.
     const readiness = validateMilestoneReadiness({
         activeMilestone: snapshot.activeMilestone,
         milestone: snapshot.milestone,
@@ -399,6 +406,8 @@ function buildCommonReleasePlan(snapshot) {
     const projectVersion = parseProjectVersion(snapshot.cmakeContents);
     const latestVersion = findLatestReleaseVersion(snapshot.tagNames);
     validateTargetVersion({ targetVersion: readiness.version, projectVersion, latestVersion: null });
+
+    // Verify current-master checks and resolve release artifacts.
     validateRequiredChecks({
         masterSha: snapshot.masterSha,
         evaluatedSha: snapshot.evaluatedSha,
@@ -737,12 +746,15 @@ async function readWorkflowChecks(github, owner, repository, masterSha, required
 async function buildGitHubSnapshot(github, config) {
     const masterSha = await readMasterCommit(github, config.owner, config.repository);
     const milestones = await listMilestones(github, config.owner, config.repository);
+
+    // Resolve the active milestone before querying its release state.
     const milestone = milestones.find((candidate) => candidate.title === config.activeMilestone);
 
     if (milestone === undefined) {
         throw new Error(`Active milestone was not found: ${config.activeMilestone}`);
     }
 
+    // Fetch independent release data concurrently.
     const [issues, branches, pullRequests, tags, releases, checks] = await Promise.all([
         listMilestoneIssues(github, config.owner, config.repository, milestone.number),
         listBranches(github, config.owner, config.repository),
@@ -1023,14 +1035,18 @@ async function runFinalizationCommand({ github, core, config }) {
         throw new Error('RELEASE_COMMIT is required for finalization.');
     }
 
+    // Revalidate release readiness against the current GitHub state.
     const snapshot = await buildGitHubSnapshot(github, config);
     const { preparationPlan, finalizationPlan } = buildReleaseFinalizationPlan(snapshot, config.releaseCommit);
     await writeSummary(core, finalizationPlanMarkdown(config, preparationPlan, finalizationPlan));
+
+    // Require merged notes and complete evidence before publishing anything.
     validateMergedReleasePullRequest(preparationPlan, config.releaseCommit);
     const releaseNotes = readReleaseNotesForRelease(preparationPlan.version);
     validateReleaseNotesReady(releaseNotes);
     const releaseBody = releaseBodyFromNotes(releaseNotes);
 
+    // Create the tag and release only after every validation succeeds.
     if (!config.dryRun) {
         await applyFinalizationWrites({
             github,
