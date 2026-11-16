@@ -9,20 +9,11 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <chrono>
 #include <span>
-#include <stop_token>
 #include <string_view>
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
 #include "terminal/internal/terminal_test_export.h"
-#endif
-
-#if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
-namespace GameWIP::Terminal::TestHooks
-{
-    struct Win32KeyDecodeResult;
-}
 #endif
 
 namespace GameWIP::Terminal::Detail::Platform
@@ -57,9 +48,9 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @return Non-owning string literal for the current backend.
     [[nodiscard]] std::string_view nativeLineEnding() noexcept;
 
-    // ------------------------------------------------------------
-    // Capabilities and endpoint state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Capabilities and endpoint state
+    /// ------------------------------------------------------------
 
     /// @brief Returns input capabilities for a standard terminal input stream.
     /// @param stream Standard input stream to inspect.
@@ -104,9 +95,9 @@ namespace GameWIP::Terminal::Detail::Platform
     /// @return Success or portable/backend-native failure status.
     [[nodiscard]] IO::Types::Status restoreInputMode(Terminal::Types::Input::Stream stream, const InputModeSnapshot &snapshot);
 
-    // ------------------------------------------------------------
-    // Geometry and cursor state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and cursor state
+    /// ------------------------------------------------------------
 
     /// @brief Returns the terminal size for a standard output stream when the backend can query it.
     /// @param stream Standard output stream to inspect.
@@ -168,8 +159,7 @@ namespace GameWIP::Terminal::Detail::Platform
         const Terminal::Types::Input::LineOptions &options);
 
     /// @brief Writes UTF-8 text to a standard output stream.
-    /// @details The caller supplies complete valid UTF-8. Windows real consoles convert it to UTF-16 and use WriteConsoleW; redirected text writes
-    /// preserve the validated UTF-8 bytes.
+    /// @details Console backends may convert UTF-8 before writing; redirected text writes preserve the validated UTF-8 bytes.
     /// @param stream Standard output stream to write.
     /// @param utf8Text Already-validated complete UTF-8 text.
     /// @return Success or portable/backend-native failure status.
@@ -188,42 +178,15 @@ namespace GameWIP::Terminal::Detail::Platform
     [[nodiscard]] IO::Types::Status flush(Terminal::Types::Output::Stream stream, IO::Types::FlushMode mode);
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-    // ------------------------------------------------------------
-    // Test hooks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test hooks
+    /// ------------------------------------------------------------
 
     namespace TestHooks
     {
-#if defined(_WIN32)
-        /// @brief Clears the process-local Win32 stdin identity, pending bytes, decoder, and cancellation event.
-        /// @warning Test-only reset used to isolate endpoint and cancellation failure cases.
-        TERMINAL_TEST_EXPORT void resetWin32InputState() noexcept;
-        /// @brief Returns the number of native console waits attempted since the last reset.
-        [[nodiscard]] TERMINAL_TEST_EXPORT std::size_t consoleWaitCallCount() noexcept;
-        /// @brief Portable result from the source-tree-only synthetic console wait adapter.
-        struct Win32ConsoleWaitResult
-        {
-            IO::Types::Status status;
-            Terminal::Types::Input::ReadOutcome outcome = Terminal::Types::Input::ReadOutcome::Completed;
-        };
-        /// @brief Runs the production console wait path against a synthetic never-signaled event.
-        [[nodiscard]] TERMINAL_TEST_EXPORT Win32ConsoleWaitResult
-        waitForConsoleRecordForTest(std::chrono::milliseconds timeout, const std::stop_token &stopToken);
-        TERMINAL_TEST_EXPORT void resetWin32KeyDecoder() noexcept;
-        [[nodiscard]] TERMINAL_TEST_EXPORT Terminal::TestHooks::Win32KeyDecodeResult decodeWin32KeyRecord(
-            bool keyDown,
-            std::uint16_t virtualKey,
-            char16_t unicodeCharacter,
-            std::uint32_t controlState,
-            std::uint16_t repeatCount,
-            std::uint16_t scanCode) noexcept;
-        [[nodiscard]] TERMINAL_TEST_EXPORT std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
-#endif
+        /// @brief Resets platform-owned input state between validation scenarios.
+        TERMINAL_TEST_EXPORT void resetInputState() noexcept;
 
-        /// @brief Seeds the Win32 pending UTF-16 high surrogate for endpoint-replacement validation.
-        TERMINAL_TEST_EXPORT void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept;
-        /// @brief Returns whether the current Win32 input endpoint retains a pending high surrogate.
-        [[nodiscard]] TERMINAL_TEST_EXPORT bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept;
     } // namespace TestHooks
 #endif
 } // namespace GameWIP::Terminal::Detail::Platform

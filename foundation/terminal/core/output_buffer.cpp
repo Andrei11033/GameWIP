@@ -14,6 +14,10 @@
 
 namespace GameWIP::Terminal
 {
+    /// ------------------------------------------------------------
+    /// Buffer validation helpers
+    /// ------------------------------------------------------------
+
     namespace
     {
         using IO::Types::ErrorCode;
@@ -81,6 +85,10 @@ namespace GameWIP::Terminal
             return Unicode::Utf8::validate(text).outcome == Unicode::Types::ValidationOutcome::Valid;
         }
     } // namespace
+
+    /// ------------------------------------------------------------
+    /// Buffer operations
+    /// ------------------------------------------------------------
 
     Types::Output::LineEnding OutputBuffer::lineEnding() const noexcept
     {

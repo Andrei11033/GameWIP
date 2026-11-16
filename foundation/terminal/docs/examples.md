@@ -13,7 +13,7 @@ int main()
     using GameWIP::Terminal::Types::Output::Stream;
 
     const auto first = GameWIP::Terminal::writeLine("starting");
-    if (!first.ok())
+    if(!first.ok())
     {
         return 1;
     }
@@ -21,7 +21,6 @@ int main()
     const auto second = GameWIP::Terminal::writeLine(Stream::Stderr, "diagnostic");
     return second.ok() ? 0 : 1;
 }
-
 ```
 
 ## Read a line and handle every outcome
@@ -34,20 +33,20 @@ int main()
     using namespace GameWIP::Terminal;
 
     const Types::Input::LineResult result = readLine();
-    if (!result.status.ok())
+    if(!result.status.ok())
     {
         return 1;
     }
 
-    if (!result.line.empty())
+    if(!result.line.empty())
     {
-        if (!writeLine("received: " + result.line).ok())
+        if(!writeLine("received: " + result.line).ok())
         {
             return 1;
         }
     }
 
-    switch (result.outcome)
+    switch(result.outcome)
     {
     case Types::Input::ReadOutcome::Completed:
         return 0;
@@ -63,7 +62,6 @@ int main()
 
     return 6;
 }
-
 ```
 
 ## Non-blocking byte input when supported
@@ -80,7 +78,7 @@ int main()
     using namespace GameWIP::Terminal;
 
     const auto capabilities = getInputCapabilities();
-    if (!capabilities.status.ok() || !capabilities.capabilities.supportsNonBlockingReads)
+    if(!capabilities.status.ok() || !capabilities.capabilities.supportsNonBlockingReads)
     {
         return 0;
     }
@@ -92,7 +90,6 @@ int main()
     const auto result = readBytes(std::span<std::byte>{storage}, options);
     return result.status.ok() ? 0 : 1;
 }
-
 ```
 
 ## Styled output with fallback
@@ -111,7 +108,6 @@ int main()
 
     return writeLine("ready", options).ok() ? 0 : 1;
 }
-
 ```
 
 ## Segmented output with stable payload storage
@@ -144,7 +140,6 @@ int main()
 
     return writeSegments(segments, options).ok() ? 0 : 1;
 }
-
 ```
 
 ## Reusable OutputBuffer with retry
@@ -157,16 +152,14 @@ int main()
     using namespace GameWIP::Terminal;
 
     OutputBuffer buffer;
-    if (!buffer.setLineEnding(Types::Output::LineEnding::Lf).ok() ||
-        !buffer.reserve(1024).ok() ||
-        !buffer.println("entity {} hp {}", 7, 95).ok() ||
-        !buffer.println("entity {} hp {}", 8, 42).ok())
+    if(!buffer.setLineEnding(Types::Output::LineEnding::Lf).ok() || !buffer.reserve(1024).ok() || !buffer.println("entity {} hp {}", 7, 95).ok() ||
+       !buffer.println("entity {} hp {}", 8, 42).ok())
     {
         return 1;
     }
 
     const auto status = buffer.flushTo();
-    if (!status.ok())
+    if(!status.ok())
     {
         // The text is preserved, so a higher layer may retry or copy it elsewhere.
         return buffer.empty() ? 2 : 1;
@@ -174,7 +167,6 @@ int main()
 
     return buffer.empty() ? 0 : 3;
 }
-
 ```
 
 ## Persistent Stream session with explicit restoration
@@ -191,20 +183,19 @@ int main()
     options.deliveryMode = Types::Input::DeliveryMode::Stream;
 
     const auto openStatus = session.open(options);
-    if (!openStatus.ok())
+    if(!openStatus.ok())
     {
         return 1;
     }
 
-    if (!session.writeText("name: ").ok())
+    if(!session.writeText("name: ").ok())
     {
         static_cast<void>(session.close());
         return 2;
     }
 
     const Types::Input::LineResult line = session.readLine();
-    if (!line.status.ok() ||
-        !session.println("hello {}", line.line).ok())
+    if(!line.status.ok() || !session.println("hello {}", line.line).ok())
     {
         static_cast<void>(session.close());
         return 3;
@@ -213,7 +204,6 @@ int main()
     const auto closeStatus = session.close();
     return line.outcome == Types::Input::ReadOutcome::Completed && closeStatus.ok() ? 0 : 4;
 }
-
 ```
 
 Explicit `close()` is preferred when native restoration failure matters. A failed close retains session ownership for retry.
@@ -228,21 +218,21 @@ int main()
     using namespace GameWIP::Terminal;
 
     Session session; // Events is the default delivery mode.
-    if (!session.open().ok())
+    if(!session.open().ok())
     {
         return 1;
     }
 
     const Types::Input::EventResult result = session.readEvent();
-    if (!result.status.ok())
+    if(!result.status.ok())
     {
         static_cast<void>(session.close());
         return 2;
     }
 
-    if (result.outcome == Types::Input::ReadOutcome::Completed && result.event.has_value())
+    if(result.outcome == Types::Input::ReadOutcome::Completed && result.event.has_value())
     {
-        if (const Types::Events::Resize *resize = result.event->getIf<Types::Events::Resize>())
+        if(const Types::Events::Resize *resize = result.event->getIf<Types::Events::Resize>())
         {
             // resize->size uses the same viewport semantics as getTerminalSize().
         }
@@ -250,7 +240,6 @@ int main()
 
     return session.close().ok() ? 0 : 3;
 }
-
 ```
 
 On native Win32 consoles, key/repeat/release/modifier/location and resize events come from `INPUT_RECORD`. Mouse records are ignored until Terminal
@@ -274,10 +263,7 @@ int main()
     options.stopToken = source.get_token();
 
     const Types::Input::TextResult result = readText(options);
-    return result.status.ok() &&
-                   result.outcome == Types::Input::ReadOutcome::Cancelled
-               ? 0
-               : 1;
+    return result.status.ok() && result.outcome == Types::Input::ReadOutcome::Cancelled ? 0 : 1;
 }
 ```
 
@@ -291,7 +277,7 @@ A pre-requested stop never consumes input. For cancellation of an in-progress bl
 int main()
 {
     auto hidden = GameWIP::Terminal::scopedCursorHidden();
-    if (!hidden.status().ok())
+    if(!hidden.status().ok())
     {
         return 1;
     }
@@ -300,7 +286,6 @@ int main()
     const auto restoreStatus = hidden.restore();
     return writeStatus.ok() && restoreStatus.ok() ? 0 : 2;
 }
-
 ```
 
 ## Capability-aware terminal size
@@ -313,20 +298,19 @@ int main()
     using namespace GameWIP::Terminal;
 
     const auto capabilities = getOutputCapabilities();
-    if (!capabilities.status.ok() || !capabilities.capabilities.supportsTerminalSize)
+    if(!capabilities.status.ok() || !capabilities.capabilities.supportsTerminalSize)
     {
         return 0;
     }
 
     const auto size = getTerminalSize();
-    if (!size.status.ok())
+    if(!size.status.ok())
     {
         return 1;
     }
 
     return println("{} columns x {} rows", size.size.columns, size.size.rows).ok() ? 0 : 2;
 }
-
 ```
 
 ## Raw bytes to a suitable endpoint
@@ -343,7 +327,7 @@ int main()
     using namespace GameWIP::Terminal;
 
     const auto capabilities = getOutputCapabilities();
-    if (!capabilities.status.ok() || !capabilities.capabilities.supportsByteOutput)
+    if(!capabilities.status.ok() || !capabilities.capabilities.supportsByteOutput)
     {
         return 0;
     }
@@ -352,7 +336,6 @@ int main()
     const auto result = writeBytes(std::span<const std::byte>{payload});
     return result.status.ok() && result.bytesWritten == payload.size() ? 0 : 1;
 }
-
 ```
 
 See @ref terminal_read_write for result interpretation and @ref terminal_capabilities_and_redirection for endpoint differences.

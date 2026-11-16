@@ -76,6 +76,7 @@ namespace GameWIP::Terminal
             /// @brief Capabilities of a standard terminal output stream.
             struct Capabilities
             {
+                // Endpoint and data lanes
                 /// @brief Detected stream endpoint kind.
                 StreamKind kind = StreamKind::Detached;
 
@@ -91,6 +92,7 @@ namespace GameWIP::Terminal
                 /// @brief Supported style features.
                 Types::Style::Capabilities style{};
 
+                // Cursor and screen control
                 /// @brief True when terminal size can be queried.
                 bool supportsTerminalSize = false;
 
@@ -115,6 +117,7 @@ namespace GameWIP::Terminal
                 /// @brief True when alternate screen mode is supported.
                 bool supportsAlternateScreen = false;
 
+                // Terminal presentation signals
                 /// @brief True when terminal title changes are supported.
                 bool supportsTitle = false;
 
@@ -169,12 +172,14 @@ namespace GameWIP::Terminal
             /// @brief Options used by text output calls.
             struct TextOptions
             {
+                // Text styling
                 /// @brief Styling behavior.
                 Types::Style::Mode styleMode = Types::Style::Mode::Auto;
 
                 /// @brief Style to apply to this text write.
                 Types::Style::Request style{};
 
+                // Write completion
                 /// @brief Flush requested after the write.
                 IO::Types::FlushMode flushMode = IO::Types::FlushMode::None;
             };
@@ -182,12 +187,14 @@ namespace GameWIP::Terminal
             /// @brief Options used by line output calls.
             struct LineOptions
             {
+                // Line styling
                 /// @brief Styling behavior.
                 Types::Style::Mode styleMode = Types::Style::Mode::Auto;
 
                 /// @brief Style to apply to this line write.
                 Types::Style::Request style{};
 
+                // Line framing and completion
                 /// @brief Line ending appended after the text.
                 Types::Output::LineEnding lineEnding = Types::Output::LineEnding::Native;
 
@@ -205,12 +212,14 @@ namespace GameWIP::Terminal
             /// @brief Options used by segmented output calls.
             struct SegmentOptions
             {
+                // Segment styling
                 /// @brief Styling behavior for styled segments.
                 Types::Style::Mode styleMode = Types::Style::Mode::Auto;
 
                 /// @brief Whether to append one line ending after all segments.
                 bool appendLineEnding = false;
 
+                // Record framing and completion
                 /// @brief Line ending used when appending.
                 Types::Output::LineEnding lineEnding = Types::Output::LineEnding::Native;
 
@@ -349,10 +358,6 @@ namespace GameWIP::Terminal
         } // namespace Cursor
     } // namespace Types
 
-    // ------------------------------------------------------------
-    // Output segment construction
-    // ------------------------------------------------------------
-
     /// @name Output segment construction
     /// @{
 
@@ -392,10 +397,6 @@ namespace GameWIP::Terminal
     [[nodiscard]] Types::Output::Segment byteSegment(Range &&bytes) noexcept = delete;
 
     /// @}
-
-    // ------------------------------------------------------------
-    // Scoped terminal state
-    // ------------------------------------------------------------
 
     /// @name Scoped terminal state
     /// @{
@@ -496,10 +497,6 @@ namespace GameWIP::Terminal
 
     /// @}
 
-    // ------------------------------------------------------------
-    // Buffered output
-    // ------------------------------------------------------------
-
     /// @name Buffered output
     /// @{
 
@@ -594,10 +591,6 @@ namespace GameWIP::Terminal
 
     /// @brief Returns the terminal size for an output stream.
     [[nodiscard]] TERMINAL_EXPORT Types::SizeResult getTerminalSize(Types::Output::Stream stream) noexcept;
-
-    // ------------------------------------------------------------
-    // Output
-    // ------------------------------------------------------------
 
     /// @name Output
     /// @{
@@ -694,10 +687,6 @@ namespace GameWIP::Terminal
         IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
     /// @}
-
-    // ------------------------------------------------------------
-    // Terminal controls
-    // ------------------------------------------------------------
 
     /// @name Terminal controls
     /// @{

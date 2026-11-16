@@ -10,8 +10,7 @@ A `Session` is closed by default and does not touch terminal state until `open()
 GameWIP::Terminal::Session session;
 
 GameWIP::Terminal::Types::SessionOptions options;
-options.deliveryMode =
-    GameWIP::Terminal::Types::Input::DeliveryMode::Stream;
+options.deliveryMode = GameWIP::Terminal::Types::Input::DeliveryMode::Stream;
 
 const auto status = session.open(options);
 ```

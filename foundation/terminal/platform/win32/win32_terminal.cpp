@@ -4,7 +4,8 @@
 #include "terminal/internal/terminal_platform.h"
 #include "base/platform/win32/dynamic_library.h"
 #include "terminal/internal/terminal_test_hooks.h"
-#include "terminal/platform/win32/win32_terminal_events.h"
+#include "terminal/platform/win32/internal/win32_terminal_events.h"
+#include "terminal/platform/win32/internal/win32_terminal_test_hooks.h"
 #include "unicode/unicode.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -153,13 +154,18 @@ namespace GameWIP::Terminal::Detail::Platform
                 Confirmed
             };
 
+            // Current endpoint identity
             HANDLE endpointHandleValue = nullptr;
             HANDLE endpointIdentity = nullptr;
             EndpointIdentityState endpointIdentityState = EndpointIdentityState::Unknown;
             IO::Types::Status endpointIdentityStatus;
+
+            // Cancellation and buffered input
             HANDLE cancellationEvent = nullptr;
             PendingInputBuffer pendingBytes;
             Win32Events::DecoderState eventDecoder;
+
+            // Pending native console records
             std::array<INPUT_RECORD, kNativeRecordBatchSize> nativeRecords{};
             std::size_t nextNativeRecord = 0;
             std::size_t nativeRecordCount = 0;
@@ -1690,9 +1696,9 @@ namespace GameWIP::Terminal::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Capabilities and endpoint state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Capabilities and endpoint state
+    /// ------------------------------------------------------------
 
     std::string_view nativeLineEnding() noexcept
     {
@@ -1888,9 +1894,9 @@ namespace GameWIP::Terminal::Detail::Platform
         return getOutputCapabilities(stream);
     }
 
-    // ------------------------------------------------------------
-    // Input modes and validation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Input modes and validation
+    /// ------------------------------------------------------------
 
     IO::Types::Status validateCursorMovement([[maybe_unused]] OutputStream stream, std::uint32_t amount)
     {
@@ -2132,9 +2138,9 @@ namespace GameWIP::Terminal::Detail::Platform
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Geometry and cursor state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and cursor state
+    /// ------------------------------------------------------------
 
     Terminal::Types::SizeResult getTerminalSize(OutputStream stream)
     {
@@ -2375,9 +2381,9 @@ namespace GameWIP::Terminal::Detail::Platform
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Input
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Input
+    /// ------------------------------------------------------------
 
     Terminal::Types::Input::EventResult readEvent(InputStream stream, OutputStream outputStream, const Terminal::Types::Input::EventOptions &options)
     {
@@ -2713,9 +2719,9 @@ namespace GameWIP::Terminal::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Output
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Output
+    /// ------------------------------------------------------------
 
     IO::Types::Status writeText(OutputStream stream, std::string_view utf8Text)
     {
@@ -2869,9 +2875,9 @@ namespace GameWIP::Terminal::Detail::Platform
             Win32Events::DecoderState testDecoderState;
         }
 
-        // ------------------------------------------------------------
-        // Test hooks
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Test hooks
+        /// ------------------------------------------------------------
 
         void resetWin32InputState() noexcept
         {

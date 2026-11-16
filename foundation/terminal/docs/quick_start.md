@@ -40,28 +40,25 @@ int main()
     const auto status = GameWIP::Terminal::writeLine("Hello from GameWIP");
     return status.ok() ? 0 : 1;
 }
-
 ```
 
 Select stderr explicitly:
 
 ```cpp
-const auto status = GameWIP::Terminal::writeLine(
-    GameWIP::Terminal::Types::Output::Stream::Stderr,
-    "configuration failed");
+const auto status = GameWIP::Terminal::writeLine(GameWIP::Terminal::Types::Output::Stream::Stderr, "configuration failed");
 ```
 
 ## Minimal checked input
 
 ```cpp
 const auto result = GameWIP::Terminal::readLine();
-if (!result.status.ok())
+if(!result.status.ok())
 {
     // Backend, validation, or encoding failure.
 }
 else
 {
-    switch (result.outcome)
+    switch(result.outcome)
     {
     case GameWIP::Terminal::Types::Input::ReadOutcome::Completed:
         // result.line contains a completed line.
@@ -96,12 +93,12 @@ Session session;
 Types::SessionOptions options;
 options.deliveryMode = Types::Input::DeliveryMode::Stream;
 
-if (!session.open(options).ok())
+if(!session.open(options).ok())
 {
     return 1;
 }
 
-if (!session.writeText("command: ").ok())
+if(!session.writeText("command: ").ok())
 {
     static_cast<void>(session.close());
     return 2;
@@ -110,7 +107,7 @@ if (!session.writeText("command: ").ok())
 Types::Input::LineOptions lineOptions;
 lineOptions.echo = true;
 const Types::Input::LineResult line = session.readLine(lineOptions);
-if (line.status.ok() && line.outcome == Types::Input::ReadOutcome::Completed)
+if(line.status.ok() && line.outcome == Types::Input::ReadOutcome::Completed)
 {
     static_cast<void>(session.println("received {}", line.line));
 }
@@ -132,15 +129,15 @@ state.
 using namespace GameWIP::Terminal;
 
 Session session;
-if (!session.open().ok()) // Events is the explicit-session default.
+if(!session.open().ok()) // Events is the explicit-session default.
 {
     return 1;
 }
 
 const Types::Input::EventResult event = session.readEvent();
-if (event.status.ok() && event.outcome == Types::Input::ReadOutcome::Completed)
+if(event.status.ok() && event.outcome == Types::Input::ReadOutcome::Completed)
 {
-    if (const Types::Events::Key *key = event.event->getIf<Types::Events::Key>())
+    if(const Types::Events::Key *key = event.event->getIf<Types::Events::Key>())
     {
         // Portable logical key; no Win32 virtual-key code escapes the backend.
     }

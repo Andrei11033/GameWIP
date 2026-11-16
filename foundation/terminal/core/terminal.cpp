@@ -52,9 +52,14 @@ namespace GameWIP::Terminal
         /// @brief Per-output-stream serialization, reusable assembly storage, and nested scope depth.
         struct OutputState
         {
+            // Stream synchronization
             std::mutex mutex;
+
+            // Reusable output storage
             std::string assembly;
             std::string formatScratch;
+
+            // Scoped terminal modes
             std::size_t cursorHiddenScopeDepth = 0;
             std::size_t alternateScreenScopeDepth = 0;
         };
@@ -774,6 +779,7 @@ namespace GameWIP::Terminal
             std::span<const Types::Output::Segment> segments,
             const Types::Output::SegmentOptions &options)
         {
+            // Validate write options and all text segments before preparing output.
             if(options.appendLineEnding && !validLineEnding(options.lineEnding))
             {
                 return invalidArgumentStatus("Unknown terminal line ending.");
@@ -807,6 +813,7 @@ namespace GameWIP::Terminal
                 }
             }
 
+            // Resolve the capabilities needed for byte and styled segments.
             const SegmentRequirements requirements = segmentRequirements(segments, options.styleMode);
             Types::Output::CapabilitiesResult capabilityResult;
 
@@ -868,6 +875,7 @@ namespace GameWIP::Terminal
                 }
             }
 
+            // Finish semantic validation before any output is emitted.
             IO::Types::Status status = validateSegments(segments, options.styleMode, capabilityResult.capabilities);
 
             if(!status.ok())
@@ -882,6 +890,7 @@ namespace GameWIP::Terminal
                 return status.ok() ? flushIfRequested(stream, options.flushMode) : status;
             }
 
+            // Assemble text, styles, bytes, and the optional line ending.
             state.assembly.clear();
 
             for(const Types::Output::Segment &segment : segments)
@@ -922,6 +931,7 @@ namespace GameWIP::Terminal
                 state.assembly.append(lineEndingText(options.lineEnding));
             }
 
+            // Use the byte writer when the record contains binary segments.
             if(requirements.hasBytes)
             {
                 const auto assembled = std::as_bytes(std::span{state.assembly});
@@ -986,6 +996,7 @@ namespace GameWIP::Terminal
                 *emitted = false;
             }
 
+            // Validate flushing and resolve the stream's current capabilities.
             if(!IO::isValidFlushMode(flushMode))
             {
                 return invalidArgumentStatus("Unknown IO flush mode.");
@@ -998,6 +1009,7 @@ namespace GameWIP::Terminal
                 return capabilities.status;
             }
 
+            // Prepare output when current capabilities cannot support this control.
             if(!controlFeatureSupported(capabilities.capabilities, feature))
             {
                 capabilities = Detail::Platform::prepareOutput(stream);
@@ -1013,6 +1025,7 @@ namespace GameWIP::Terminal
                 }
             }
 
+            // Emit the sequence and flush only after a successful write.
             IO::Types::Status status = Detail::Platform::writeText(stream, sequence);
 
             if(!status.ok())
@@ -1206,9 +1219,9 @@ namespace GameWIP::Terminal
     {
     }
 
-    // ------------------------------------------------------------
-    // Output segment construction
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Output segment construction
+    /// ------------------------------------------------------------
 
     Types::Output::Segment textSegment(std::string_view text) noexcept
     {
@@ -1227,9 +1240,9 @@ namespace GameWIP::Terminal
 
     AlternateScreenScope::AlternateScreenScope() noexcept = default;
 
-    // ------------------------------------------------------------
-    // Scoped terminal state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Scoped terminal state
+    /// ------------------------------------------------------------
 
     AlternateScreenScope::AlternateScreenScope(AlternateScreenScope &&other) noexcept
         : stream_(other.stream_)
@@ -1439,9 +1452,9 @@ namespace GameWIP::Terminal
         return copyStatus(status_);
     }
 
-    // ------------------------------------------------------------
-    // Capabilities and geometry
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Capabilities and geometry
+    /// ------------------------------------------------------------
 
     Types::Input::CapabilitiesResult getInputCapabilities() noexcept
     {
@@ -1531,9 +1544,9 @@ namespace GameWIP::Terminal
         }
     }
 
-    // ------------------------------------------------------------
-    // Output
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Output
+    /// ------------------------------------------------------------
 
     IO::Types::Status writeText(std::string_view utf8Text, const Types::Output::TextOptions &options) noexcept
     {
@@ -1727,9 +1740,9 @@ namespace GameWIP::Terminal
         }
     }
 
-    // ------------------------------------------------------------
-    // Terminal controls
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Terminal controls
+    /// ------------------------------------------------------------
 
     IO::Types::Status resetStyle(const Types::Output::ControlOptions &options) noexcept
     {

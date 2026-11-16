@@ -156,6 +156,8 @@ namespace GameWIP::Terminal
             const std::stop_token &stopToken)
         {
             ReadDecision decision;
+
+            // Validate the wait options before checking backend support.
             decision.status = validateTimeout(timeout);
 
             if(!decision.status.ok())
@@ -163,12 +165,14 @@ namespace GameWIP::Terminal
                 return decision;
             }
 
+            // Honor cancellation before inspecting the selected operation.
             if(stopToken.stop_requested())
             {
                 decision.cancelled = true;
                 return decision;
             }
 
+            // Confirm the stream is attached and supports this read operation.
             if(capabilities.kind == Types::StreamKind::Detached)
             {
                 decision.status = notOpenStatus();
@@ -181,6 +185,7 @@ namespace GameWIP::Terminal
                 return decision;
             }
 
+            // Check that the backend supports the requested timeout behavior.
             if(timeout.has_value())
             {
                 if(timeout->count() == 0 && !capabilities.supportsNonBlockingReads)
@@ -198,6 +203,7 @@ namespace GameWIP::Terminal
 
             const bool canBlock = !timeout.has_value() || timeout->count() > 0;
 
+            // A cancellable blocking read needs backend cancellation support.
             if(canBlock && stopToken.stop_possible() && !capabilities.supportsCancellation)
             {
                 decision.status = unsupportedStatus();
@@ -266,6 +272,7 @@ namespace GameWIP::Terminal
         {
             IO::Types::Status restoration = IO::successStatus();
 
+            // Restore the previous terminal mode while stream I/O is serialized.
             try
             {
                 if(ownership.hasPreviousMode)
@@ -288,6 +295,7 @@ namespace GameWIP::Terminal
                 return restoration;
             }
 
+            // Release the stream claim unless restoration must be retried by the caller.
             if(ownership.claimed)
             {
                 if(ownership.directClaimed)
@@ -302,6 +310,7 @@ namespace GameWIP::Terminal
                 ownership.claimed = false;
             }
 
+            // Retain the saved mode only when the caller will retry restoration.
             if(restoration.ok() || !retainOwnershipOnFailure)
             {
                 ownership.hasPreviousMode = false;
@@ -315,6 +324,7 @@ namespace GameWIP::Terminal
             const void *owner,
             PreparedInputOwnership &ownership) noexcept
         {
+            // Claim the stream before reading capabilities or changing its mode.
             ownership = {};
 
             const bool directClaim = owner == nullptr;
@@ -328,6 +338,7 @@ namespace GameWIP::Terminal
             ownership.claimed = true;
             ownership.directClaimed = directClaim;
 
+            // Inspect capabilities and configure terminal input under the stream lock.
             try
             {
                 {
@@ -381,6 +392,7 @@ namespace GameWIP::Terminal
                 return status;
             }
 
+            // Roll back the claim and any mode change if setup failed.
             const IO::Types::Status restoration = restoreManagedInput(options.input, ownership, owner, false);
             appendRestorationDiagnostic(status, restoration);
             return status;
@@ -578,21 +590,27 @@ namespace GameWIP::Terminal
             AlternateScreen
         };
 
+        // Lifecycle coordination
         // Operations retain the open binding through a lightweight count without holding this mutex while backend
         // work or user formatters execute. Lifecycle mutation closes the admission gate and waits for the count.
         std::mutex lifecycleMutex;
         std::condition_variable lifecycleCondition;
         bool lifecycleMutation = false;
         std::size_t activeOperations = 0;
+
+        // Input and output synchronization
         std::mutex inputOperationMutex;
         std::mutex persistentOutputMutex;
+
+        // Active session binding
         std::atomic_bool open = false;
         Types::SessionOptions options{};
         PreparedInputOwnership ownership{};
 
-        // Retain caller-backed Unicode boundary storage across line reads so steady-state editing reuses capacity.
+        // Retain Unicode boundary capacity across line reads.
         std::vector<std::size_t> lineBoundaryStorage;
 
+        // Persistent output restoration
         CursorHiddenScope cursorHiddenScope;
         AlternateScreenScope alternateScreenScope;
         std::array<PersistentOutputState, 2> outputRestoreOrder{};
@@ -726,9 +744,9 @@ namespace GameWIP::Terminal
 
     Session::Session(Session &&other) noexcept = default;
 
-    // ------------------------------------------------------------
-    // Lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Lifecycle
+    /// ------------------------------------------------------------
 
     IO::Types::Status Session::restoreOutputState(bool retainOnFailure) noexcept
     {
@@ -742,6 +760,7 @@ namespace GameWIP::Terminal
             std::lock_guard lock(state_->persistentOutputMutex);
             IO::Types::Status firstFailure = IO::successStatus();
 
+            // Restore persistent scopes in reverse activation order.
             while(state_->outputRestoreCount > 0)
             {
                 const State::PersistentOutputState restore = state_->outputRestoreOrder[state_->outputRestoreCount - 1];
@@ -838,6 +857,7 @@ namespace GameWIP::Terminal
 
         try
         {
+            // Allocate state before acquiring the lifecycle mutation gate.
             if(!state_)
             {
                 state_ = std::make_unique<State>();
@@ -854,6 +874,7 @@ namespace GameWIP::Terminal
                 return IO::makeStatus(ErrorCode::AlreadyOpen);
             }
 
+            // Acquire input ownership and configure its mode before publishing the session.
             PreparedInputOwnership ownership;
             IO::Types::Status status = acquireManagedInput(options, state_.get(), ownership);
 
@@ -885,6 +906,7 @@ namespace GameWIP::Terminal
 
         try
         {
+            // Prevent reentrant close while waiting for active operations to drain.
             if(State::Operation::activeOnCurrentThread(*state_))
             {
                 return IO::makeStatus(ErrorCode::ResourceBusy);
@@ -896,6 +918,7 @@ namespace GameWIP::Terminal
                 return IO::successStatus();
             }
 
+            // Restore output modes before releasing the managed input session.
             IO::Types::Status status = restoreOutputState(true);
 
             if(!status.ok())
@@ -909,6 +932,7 @@ namespace GameWIP::Terminal
             {
                 return status;
             }
+
             state_->open.store(false, std::memory_order_release);
             return IO::successStatus();
         }
@@ -922,9 +946,9 @@ namespace GameWIP::Terminal
         }
     }
 
-    // ------------------------------------------------------------
-    // Input
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Input
+    /// ------------------------------------------------------------
 
     Types::Input::EventResult Session::readEvent(const Types::Input::EventOptions &options) noexcept
     {
@@ -1172,9 +1196,9 @@ namespace GameWIP::Terminal
         }
     }
 
-    // ------------------------------------------------------------
-    // Output
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Output
+    /// ------------------------------------------------------------
 
     Types::Output::CapabilitiesResult Session::prepareOutput() noexcept
     {
@@ -1384,9 +1408,9 @@ namespace GameWIP::Terminal
         }
     }
 
-    // ------------------------------------------------------------
-    // Terminal controls
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Terminal controls
+    /// ------------------------------------------------------------
 
     IO::Types::Status Session::resetStyle(const Types::Output::ControlOptions &options) noexcept
     {
@@ -1794,9 +1818,9 @@ namespace GameWIP::Terminal
         }
     }
 
-    // ------------------------------------------------------------
-    // Temporary managed input
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Temporary managed input
+    /// ------------------------------------------------------------
 
     Types::Input::EventResult readEvent(const Types::Input::EventOptions &options) noexcept
     {

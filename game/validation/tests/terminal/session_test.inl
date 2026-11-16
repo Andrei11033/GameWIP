@@ -12,6 +12,7 @@ void testSessions(TestSupport::Context &context)
     Hooks::setTerminalSizeOverride(Terminal::Types::Output::Stream::Stdout, {.columns = 100, .rows = 30});
     Hooks::setCursorPositionOverride(Terminal::Types::Output::Stream::Stdout, {.column = 3, .row = 4});
 
+    // Check closed-session errors and idempotent close.
     Terminal::Session closed;
     static_cast<void>(context.expectFalse("default session starts closed", closed.isOpen()));
     static_cast<void>(context.expectEq("closed session read reports NotOpen", ErrorCode::NotOpen, closed.readText().status.code));
@@ -51,6 +52,7 @@ void testSessions(TestSupport::Context &context)
     Terminal::Types::SessionOptions streamOptions;
     streamOptions.deliveryMode = Terminal::Types::Input::DeliveryMode::Stream;
 
+    // Verify bound streams, capabilities, and output controls.
     Terminal::Session session;
     static_cast<void>(context.expectTrue("stream session opens", session.open(streamOptions).ok()));
     static_cast<void>(context.expectTrue("opened session reports open", session.isOpen()));
@@ -116,6 +118,7 @@ void testSessions(TestSupport::Context &context)
 
     static_cast<void>(context.expectEq("same session re-open reports AlreadyOpen", ErrorCode::AlreadyOpen, session.open(streamOptions).code));
 
+    // Test exclusive ownership and output-restoration failures.
     Terminal::Session competing;
     static_cast<void>(context.expectEq("competing session reports ResourceBusy", ErrorCode::ResourceBusy, competing.open(streamOptions).code));
     static_cast<void>(context.expectEq("direct read conflicts with session ownership", ErrorCode::ResourceBusy, Terminal::readText().status.code));
@@ -241,6 +244,7 @@ void testSessions(TestSupport::Context &context)
 
     setupCapturedOutput(Terminal::Types::Output::Stream::Stderr);
     Hooks::setTerminalSizeOverride(Terminal::Types::Output::Stream::Stderr, {.columns = 72, .rows = 20});
+    // Verify a session bound to stderr.
     Hooks::setCursorPositionOverride(Terminal::Types::Output::Stream::Stderr, {.column = 11, .row = 6});
     Terminal::Types::SessionOptions stderrOptions = streamOptions;
     stderrOptions.output = Terminal::Types::Output::Stream::Stderr;
@@ -260,6 +264,7 @@ void testSessions(TestSupport::Context &context)
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     Hooks::setInputBytes(Terminal::Types::Input::Stream::Stdin, "blocked-read");
+    // Exercise serialized reads, writes, and close coordination.
     Terminal::Session concurrencySession;
     static_cast<void>(context.expectTrue("concurrency fixture opens", concurrencySession.open(streamOptions).ok()));
 
@@ -363,6 +368,7 @@ void testSessions(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("close completes after active read", concurrentCloseStatus.ok()));
     static_cast<void>(context.expectFalse("concurrency fixture is closed", concurrencySession.isOpen()));
 
+    // Check move ownership and destructor cleanup.
     Terminal::Session movable;
     static_cast<void>(context.expectTrue("movable session opens", movable.open(streamOptions).ok()));
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
@@ -423,6 +429,7 @@ void testSessions(TestSupport::Context &context)
         std::string{"\x1b[?1049h\x1b[?1049l"},
         Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout)));
 
+    // Test event delivery, cancellation, and invalid session options.
     Terminal::Session events;
     static_cast<void>(context.expectTrue("default event session opens with event-capable hook", events.open().ok()));
     static_cast<void>(context.expectEq("event session rejects stream reads", ErrorCode::Unsupported, events.readText().status.code));

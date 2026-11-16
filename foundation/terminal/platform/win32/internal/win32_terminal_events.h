@@ -29,9 +29,14 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
     /// @brief Persistent allocation-free logical decoder state for one observed Win32 stdin endpoint.
     struct DecoderState
     {
+        // Native key transitions
         std::bitset<std::size_t{256} * std::size_t{5}> keyDown{};
+
+        // Split UTF-16 character records
         char16_t pendingHighSurrogate = u'\0';
         KEY_EVENT_RECORD pendingHighSurrogateRecord{};
+
+        // Deferred repeat event
         std::optional<Terminal::Types::Event> pendingEvent;
 
         void clear() noexcept;
@@ -40,8 +45,11 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
     /// @brief Result of decoding one native Win32 key record.
     struct KeyDecodeResult
     {
+        // Decode outcome
         IO::Types::Status status = IO::successStatus();
         KeyDecodeDisposition disposition = KeyDecodeDisposition::Ignored;
+
+        // Normalized event
         std::optional<Terminal::Types::Event> event;
     };
 

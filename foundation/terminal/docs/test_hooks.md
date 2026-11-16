@@ -43,20 +43,16 @@ Overrides persist until reset.
 
 - `setInputBytes()` replaces the deterministic input bytes and selects EOF-versus-no-data behavior when the buffer becomes empty.
 - `setInputEvents()` provides deterministic portable events for managed line-editor tests.
-- `setPendingHighSurrogate()` and `hasPendingHighSurrogate()` expose the Win32 event decoder's endpoint-owned surrogate state for the
-  stdin-replacement regression.
 - `setInputModeOverride()` provides deterministic internal line-buffer, echo, and control-processing flags for Session/direct-read setup and
   restoration tests.
 - cursor-rendering simulation advances an absolute test cursor through ASCII writes, wraps at the configured width, scrolls a separate viewport
   origin, reflows on resize events, and records managed redraw positions. This narrowly models the distinction between Win32 screen-buffer and
   `srWindow`-relative coordinates without becoming production API.
 - `inputModeOverrideMatches()` and `inputManagedEventModeOverrideMatches()` verify the native flags managed by an open session.
-- Win32-only `resetWin32KeyDecoder()`, `decodeWin32KeyRecord()`, and `takePendingWin32KeyEvent()` exercise native key normalization without exporting
-  production decoder symbols.
+- Win32-specific endpoint and key-decoder hooks live in `platform/win32/internal/win32_terminal_test_hooks.h`.
 
 The byte strings may intentionally contain invalid or incomplete UTF-8 to validate redirected text-read failures. Event fixtures are already-portable
-backend output and therefore obey the normal Event contract. Native-mode/decoder hooks exist only because validation must prove exact managed
-restoration and Win32 normalization; public consumers configure input through `SessionOptions`.
+backend output and therefore obey the normal Event contract. Public consumers configure input through `SessionOptions`.
 
 ## Output capture
 
@@ -139,13 +135,11 @@ int main()
     Hooks::setOutputCapture(Terminal::Types::Output::Stream::Stdout, true);
 
     const auto status = Terminal::writeLine("captured");
-    const std::string output = Hooks::capturedOutputText(
-        Terminal::Types::Output::Stream::Stdout);
+    const std::string output = Hooks::capturedOutputText(Terminal::Types::Output::Stream::Stdout);
 
     Hooks::reset();
     return status.ok() && !output.empty() ? 0 : 1;
 }
-
 ```
 
 ## Related pages

@@ -42,10 +42,6 @@ namespace GameWIP::Terminal
     class TERMINAL_EXPORT Session final
     {
     public:
-        // ------------------------------------------------------------
-        // Lifecycle
-        // ------------------------------------------------------------
-
         /// @name Lifecycle
         /// @{
 
@@ -81,10 +77,6 @@ namespace GameWIP::Terminal
 
         /// @}
 
-        // ------------------------------------------------------------
-        // Capabilities and geometry
-        // ------------------------------------------------------------
-
         /// @name Capabilities and geometry
         /// @{
 
@@ -101,10 +93,6 @@ namespace GameWIP::Terminal
         [[nodiscard]] Types::SizeResult getTerminalSize() const noexcept;
 
         /// @}
-
-        // ------------------------------------------------------------
-        // Input
-        // ------------------------------------------------------------
 
         /// @name Input
         /// @{
@@ -125,10 +113,6 @@ namespace GameWIP::Terminal
         [[nodiscard]] Types::Input::LineResult readLine(const Types::Input::LineOptions &options = {}) noexcept;
 
         /// @}
-
-        // ------------------------------------------------------------
-        // Output
-        // ------------------------------------------------------------
 
         /// @name Output
         /// @{
@@ -168,10 +152,6 @@ namespace GameWIP::Terminal
         [[nodiscard]] IO::Types::Status flush(IO::Types::FlushMode mode = IO::Types::FlushMode::Data) noexcept;
 
         /// @}
-
-        // ------------------------------------------------------------
-        // Terminal controls
-        // ------------------------------------------------------------
 
         /// @name Terminal controls
         /// @{

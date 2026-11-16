@@ -1,7 +1,7 @@
 /// @file win32_terminal_events.cpp
 /// @brief Allocation-free Win32 KEY_EVENT_RECORD normalization for Terminal.
 
-#include "terminal/platform/win32/win32_terminal_events.h"
+#include "terminal/platform/win32/internal/win32_terminal_events.h"
 
 #include "unicode/unicode.h"
 
@@ -45,6 +45,10 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 
         constexpr DWORD kControlModifierMask = static_cast<DWORD>(LEFT_CTRL_PRESSED) | static_cast<DWORD>(RIGHT_CTRL_PRESSED);
         constexpr DWORD kAltModifierMask = static_cast<DWORD>(LEFT_ALT_PRESSED) | static_cast<DWORD>(RIGHT_ALT_PRESSED);
+
+        /// ------------------------------------------------------------
+        /// Modifier and key classification
+        /// ------------------------------------------------------------
 
         [[nodiscard]] KeyModifier modifiersFromControlState(DWORD state, const DecoderState &decoderState) noexcept
         {
@@ -253,6 +257,10 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                    virtualKey == VK_SEPARATOR || virtualKey == VK_SUBTRACT || virtualKey == VK_DECIMAL || virtualKey == VK_DIVIDE;
         }
 
+        /// ------------------------------------------------------------
+        /// Key location and transitions
+        /// ------------------------------------------------------------
+
         [[nodiscard]] KeyLocation keyLocation(const KEY_EVENT_RECORD &record) noexcept
         {
             switch(record.wVirtualKeyCode)
@@ -349,6 +357,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             const bool trackKey = keyIndex < state.keyDown.size() && record.wVirtualKeyCode != 0 && record.wVirtualKeyCode != VK_PACKET;
             const bool wasDown = trackKey && state.keyDown.test(keyIndex);
 
+            // Update tracked state and classify the native press, repeat, or release.
             KeyAction action = KeyAction::Release;
             std::uint32_t repeatCount = 1;
             const std::uint32_t nativeRepeat = record.wRepeatCount == 0 ? 1U : static_cast<std::uint32_t>(record.wRepeatCount);
@@ -380,6 +389,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
 
             KeyEvent event{.key = key, .modifiers = modifiers, .action = action, .location = location, .repeatCount = repeatCount};
 
+            // Preserve remaining native repeats for the next decoder call.
             if(record.bKeyDown != FALSE && !wasDown && nativeRepeat > 1)
             {
                 KeyEvent repeated = event;
@@ -388,6 +398,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                 state.pendingEvent = Terminal::Types::Event{.data = repeated};
             }
 
+            // Publish this transition before any queued repeats.
             result.event = Terminal::Types::Event{.data = event};
             return result;
         }
@@ -418,6 +429,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
         {
             const char16_t unit = static_cast<char16_t>(record.uChar.UnicodeChar);
 
+            // Complete a split UTF-16 scalar from the stored high surrogate.
             if(state.pendingHighSurrogate != u'\0')
             {
                 if(!Unicode::Utf16::isLowSurrogate(unit))
@@ -448,6 +460,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                 return makeEvent(CharacterKey{.value = decoded.scalar}, firstRecord, state);
             }
 
+            // Wait for a matching low surrogate when the native record is incomplete.
             if(Unicode::Utf16::isHighSurrogate(unit))
             {
                 state.pendingHighSurrogate = unit;
@@ -463,6 +476,7 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
                     .event = std::nullopt};
             }
 
+            // Recover printable Ctrl combinations reported as control characters.
             if(unit >= static_cast<char16_t>(0x0001) && unit <= static_cast<char16_t>(0x001a))
             {
                 if(const std::optional<CharacterKey> character = ctrlCharacter(record))
@@ -495,6 +509,10 @@ namespace GameWIP::Terminal::Detail::Platform::Win32Events
             return {.status = IO::successStatus(), .disposition = KeyDecodeDisposition::Ignored, .event = std::nullopt};
         }
     } // namespace
+
+    /// ------------------------------------------------------------
+    /// Decoder state and entry points
+    /// ------------------------------------------------------------
 
     void DecoderState::clear() noexcept
     {

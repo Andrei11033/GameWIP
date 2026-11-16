@@ -13,7 +13,7 @@ endif()
 
 option(TERMINAL_ENABLE_TEST_HOOKS "Enable Terminal internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -34,7 +34,6 @@ gamewip_generate_export_header(
 
 target_sources(
     Terminal
-    PRIVATE core/line_input.cpp core/output_buffer.cpp core/session.cpp core/style.cpp core/terminal.cpp core/terminal_test_hooks.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -49,7 +48,9 @@ target_sources(
                 "${TERMINAL_GENERATED_INCLUDE_DIR}/terminal/terminal_export.h"
 )
 
-gamewip_target_platform_backend(TARGET Terminal ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(platform)
 
 # ------------------------------------------------------------
 # Compile, test-hook, and dependency contracts

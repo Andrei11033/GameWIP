@@ -34,6 +34,10 @@ namespace GameWIP::Terminal
     {
         namespace Input
         {
+            /// ------------------------------------------------------------
+            /// Delivery and read behavior
+            /// ------------------------------------------------------------
+
             /// @brief Standard terminal input streams.
             enum class Stream
             {
@@ -109,9 +113,14 @@ namespace GameWIP::Terminal
                 NormalizeToLf
             };
 
+            /// ------------------------------------------------------------
+            /// Capabilities and read options
+            /// ------------------------------------------------------------
+
             /// @brief Capabilities of the managed Terminal input abstraction for one standard input endpoint.
             struct Capabilities
             {
+                // Endpoint and data lanes
                 /// @brief Detected stream endpoint kind.
                 StreamKind kind = StreamKind::Detached;
 
@@ -124,6 +133,7 @@ namespace GameWIP::Terminal
                 /// @brief True when line input is supported.
                 bool supportsLineInput = false;
 
+                // Polling and cancellation
                 /// @brief True when normalized structured event input is supported.
                 bool supportsEventInput = false;
 
@@ -136,6 +146,7 @@ namespace GameWIP::Terminal
                 /// @brief True when an in-progress blocking read can observe a caller stop request.
                 bool supportsCancellation = false;
 
+                // Structured event delivery
                 /// @brief True when terminal resize changes can be delivered as structured events.
                 bool supportsResizeEvents = false;
 
@@ -154,6 +165,7 @@ namespace GameWIP::Terminal
                 /// @brief True when media-key events can be reported.
                 bool supportsMediaKeyEvents = false;
 
+                // Key metadata
                 /// @brief True when key location is reported reliably where meaningful.
                 bool supportsKeyLocation = false;
 
@@ -174,6 +186,7 @@ namespace GameWIP::Terminal
             /// @brief Options used by byte reads.
             struct ByteOptions
             {
+                // Deadline and cancellation
                 /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
                 /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
                 std::optional<std::chrono::milliseconds> timeout = std::nullopt;
@@ -181,6 +194,7 @@ namespace GameWIP::Terminal
                 /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
                 std::stop_token stopToken{};
 
+                // Partial-read policy
                 /// @brief Whether a successful read may return fewer bytes than requested.
                 bool allowPartial = true;
             };
@@ -189,6 +203,7 @@ namespace GameWIP::Terminal
             /// @details Text reads return one available valid UTF-8 chunk after input becomes available.
             struct TextOptions
             {
+                // Deadline and cancellation
                 /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
                 /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
                 std::optional<std::chrono::milliseconds> timeout = std::nullopt;
@@ -196,6 +211,7 @@ namespace GameWIP::Terminal
                 /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
                 std::stop_token stopToken{};
 
+                // Returned-text limit
                 /// @brief Maximum accepted byte count for one available UTF-8 text chunk; must be greater than zero.
                 std::uint64_t maxReturnedBytes = kDefaultMaxReturnedTextBytes;
             };
@@ -204,6 +220,7 @@ namespace GameWIP::Terminal
             /// @details Line reads do not expose allowPartial; they stop at a line ending, terminating outcome, truncation, or failure.
             struct LineOptions
             {
+                // Deadline and cancellation
                 /// @brief Total read deadline: nullopt waits indefinitely, zero polls, and positive values bound the complete operation.
                 /// @note Negative values are InvalidArgument. Endpoint support remains authoritative.
                 std::optional<std::chrono::milliseconds> timeout = std::nullopt;
@@ -211,6 +228,7 @@ namespace GameWIP::Terminal
                 /// @brief Caller-controlled cancellation request observed where the endpoint supports cancellable blocking reads.
                 std::stop_token stopToken{};
 
+                // Returned-line limit and echo
                 /// @brief Maximum accepted byte count for the returned line representation; must be greater than zero.
                 std::uint64_t maxReturnedBytes = kDefaultMaxReturnedLineBytes;
 
@@ -218,6 +236,7 @@ namespace GameWIP::Terminal
                 /// @note Redirected input ignores this option because no terminal line discipline is active.
                 bool echo = true;
 
+                // Line-ending representation
                 /// @brief How a consumed line ending is represented.
                 Types::Input::LineEndingMode lineEndingMode = Types::Input::LineEndingMode::Strip;
             };
@@ -233,16 +252,22 @@ namespace GameWIP::Terminal
                 std::stop_token stopToken{};
             };
 
+            /// ------------------------------------------------------------
+            /// Read results
+            /// ------------------------------------------------------------
+
             /// @brief Result returned by byte reads.
             /// @details bytesRead can preserve partial progress together with a terminating outcome or later failure.
             struct ByteResult
             {
+                // Read status and outcome
                 /// @brief Operation status.
                 IO::Types::Status status;
 
                 /// @brief Read outcome.
                 Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
 
+                // Returned data
                 /// @brief Number of bytes copied into the caller buffer.
                 std::size_t bytesRead = 0;
             };
@@ -251,12 +276,14 @@ namespace GameWIP::Terminal
             /// @details A non-empty text payload represents one completed UTF-8 chunk. Other outcomes describe why no chunk completed.
             struct TextResult
             {
+                // Read status and outcome
                 /// @brief Operation status.
                 IO::Types::Status status;
 
                 /// @brief Read outcome.
                 Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
 
+                // Returned text
                 /// @brief UTF-8 text bytes read.
                 std::string text;
 
@@ -268,12 +295,14 @@ namespace GameWIP::Terminal
             /// @details line can contain an unterminated valid UTF-8 prefix together with EndOfStream, TimedOut, WouldBlock, or Cancelled.
             struct LineResult
             {
+                // Read status and outcome
                 /// @brief Operation status.
                 IO::Types::Status status;
 
                 /// @brief Read outcome.
                 Types::Input::ReadOutcome outcome = Types::Input::ReadOutcome::Completed;
 
+                // Returned line and ending
                 /// @brief UTF-8 line text.
                 std::string line;
 
@@ -287,6 +316,10 @@ namespace GameWIP::Terminal
 
         namespace Events
         {
+            /// ------------------------------------------------------------
+            /// Key values and modifiers
+            /// ------------------------------------------------------------
+
             /// @brief One valid Unicode scalar reported as a logical terminal key.
             struct CharacterKey
             {
@@ -433,6 +466,10 @@ namespace GameWIP::Terminal
                 std::uint32_t repeatCount = 1;                                             ///< Number of occurrences represented by a Repeat event.
             };
 
+            /// ------------------------------------------------------------
+            /// Paste and resize payloads
+            /// ------------------------------------------------------------
+
             /// @brief Recognized paste input delivered as one bounded owned UTF-8 payload.
             struct Paste
             {
@@ -450,6 +487,10 @@ namespace GameWIP::Terminal
             /// @brief Tagged payload for one portable Terminal event.
             using Payload = std::variant<Types::Events::Key, Types::Events::Paste, Types::Events::Resize>;
         } // namespace Events
+
+        /// ------------------------------------------------------------
+        /// Event envelope and read result
+        /// ------------------------------------------------------------
 
         /// @brief One normalized pull-based Terminal input event.
         /// @details Types::Events::KeyValue and resize alternatives use only inline value storage. Paste owns bounded UTF-8 text.

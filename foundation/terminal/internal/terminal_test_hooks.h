@@ -27,6 +27,10 @@
 #if TERMINAL_INTERNAL_TEST_HOOKS
 namespace GameWIP::Terminal::Detail::TestHooks
 {
+    /// ------------------------------------------------------------
+    /// Failure and synchronization primitives
+    /// ------------------------------------------------------------
+
     /// @brief One-shot portable error injection consumed atomically by a backend operation.
     struct HookFailure
     {
@@ -46,18 +50,22 @@ namespace GameWIP::Terminal::Detail::TestHooks
     /// @brief Mutable deterministic stdin state protected by TerminalTestHookState::mutex.
     struct InputHookState
     {
+        // Capability override
         bool capabilitiesOverrideEnabled = false;
         Terminal::Types::Input::Capabilities capabilitiesOverride{};
 
+        // Byte input
         bool inputBytesOverrideEnabled = false;
         bool endOfStreamWhenInputEmpty = true;
         std::string inputBytes;
 
+        // Structured events
         bool inputEventsOverrideEnabled = false;
         bool endOfStreamWhenEventsEmpty = true;
         std::vector<Terminal::Types::Event> inputEvents;
         std::size_t nextInputEvent = 0;
 
+        // Input mode
         bool inputModeOverrideEnabled = false;
         bool lineBuffered = true;
         bool echoInput = true;
@@ -70,21 +78,26 @@ namespace GameWIP::Terminal::Detail::TestHooks
     /// @brief Mutable deterministic stdout/stderr state protected by TerminalTestHookState::mutex.
     struct OutputHookState
     {
+        // Capability overrides
         bool capabilitiesOverrideEnabled = false;
         Terminal::Types::Output::Capabilities capabilitiesOverride{};
         bool preparedCapabilitiesOverrideEnabled = false;
         Terminal::Types::Output::Capabilities preparedCapabilitiesOverride{};
         bool prepared = false;
 
+        // Captured output
         bool captureEnabled = false;
         std::vector<std::byte> capturedOutput;
 
+        // Terminal geometry
         bool terminalSizeOverrideEnabled = false;
         Terminal::Types::Size terminalSizeOverride{};
 
+        // Cursor position
         bool cursorPositionOverrideEnabled = false;
         Terminal::Types::Cursor::Position cursorPositionOverride{};
 
+        // Cursor rendering simulation
         bool cursorRenderingSimulationEnabled = false;
         Terminal::Types::Cursor::Position cursorRenderingPosition{};
         Terminal::Types::Cursor::Position cursorRenderingViewportOrigin{};
@@ -94,10 +107,12 @@ namespace GameWIP::Terminal::Detail::TestHooks
     /// @brief Process-wide Terminal hook state shared by core and Win32 backend tests.
     struct TerminalTestHookState
     {
+        // Synchronization and stream state
         std::mutex mutex;
         std::array<InputHookState, 1> inputStreams{};
         std::array<OutputHookState, 2> outputStreams{};
 
+        // One-shot failures and operation gates
         HookFailure nextInputCapabilityFailure;
         HookFailure nextOutputCapabilityFailure;
         HookFailure nextOutputPreparationFailure;
@@ -132,6 +147,10 @@ namespace GameWIP::Terminal::Detail::TestHooks
 
 namespace GameWIP::Terminal::TestHooks
 {
+    /// ------------------------------------------------------------
+    /// Capability and input overrides
+    /// ------------------------------------------------------------
+
     /// @brief Clears all pending terminal test-hook failures, captures, and overrides.
     /// @warning Test-only API. Available only when TERMINAL_INTERNAL_TEST_HOOKS is enabled.
     TERMINAL_TEST_EXPORT void reset() noexcept;
@@ -168,51 +187,9 @@ namespace GameWIP::Terminal::TestHooks
         std::span<const Terminal::Types::Event> events,
         bool endOfStreamWhenEmpty = true);
 
-#if defined(_WIN32)
-    /// @brief Test-only mirror of native Win32 key-decoder dispositions.
-    enum class Win32KeyDecodeDisposition : std::uint8_t
-    {
-        Produced,
-        Pending,
-        Ignored,
-        Failed
-    };
-
-    /// @brief Test-only result returned by deterministic Win32 key-record decoding.
-    struct Win32KeyDecodeResult
-    {
-        IO::Types::Status status;
-        Win32KeyDecodeDisposition disposition = Win32KeyDecodeDisposition::Ignored;
-        std::optional<Terminal::Types::Event> event;
-    };
-
-    /// @brief Clears deterministic Win32 key-down, surrogate, and pending-repeat decoder state.
-    TERMINAL_TEST_EXPORT void resetWin32KeyDecoder() noexcept;
-
-    /// @brief Returns the number of native console waits attempted since the last reset.
-    /// @warning Test-only Win32 diagnostic counter; reset() clears it.
-    [[nodiscard]] TERMINAL_TEST_EXPORT std::size_t consoleWaitCallCount() noexcept;
-
-    /// @brief Decodes one synthetic Win32 KEY_EVENT_RECORD described only by portable integer fields.
-    [[nodiscard]] TERMINAL_TEST_EXPORT Win32KeyDecodeResult decodeWin32KeyRecord(
-        bool keyDown,
-        std::uint16_t virtualKey,
-        char16_t unicodeCharacter = u'\0',
-        std::uint32_t controlState = 0,
-        std::uint16_t repeatCount = 1,
-        std::uint16_t scanCode = 0) noexcept;
-
-    /// @brief Returns a pending repeat event retained by the deterministic Win32 decoder.
-    [[nodiscard]] TERMINAL_TEST_EXPORT std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept;
-#endif
-
-    /// @brief Seeds the native pending UTF-16 high surrogate for endpoint-replacement validation.
-    /// @warning Test-only API. Available only on the Win32 validation backend.
-    TERMINAL_TEST_EXPORT void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept;
-
-    /// @brief Returns whether the current native input endpoint retains a pending UTF-16 high surrogate.
-    /// @warning Test-only API. Available only on the Win32 validation backend.
-    [[nodiscard]] TERMINAL_TEST_EXPORT bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept;
+    /// ------------------------------------------------------------
+    /// Input mode and endpoint state
+    /// ------------------------------------------------------------
 
     /// @brief Overrides internal native-mode capture/set/restore with deterministic in-memory flags.
     /// @warning Test-only API.
@@ -237,6 +214,10 @@ namespace GameWIP::Terminal::TestHooks
         bool reportResizeEvents,
         bool reportPointerEvents,
         bool exclusiveEventDelivery) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Output capture and terminal state
+    /// ------------------------------------------------------------
 
     /// @brief Enables or disables output capture for a stream.
     /// @warning Test-only API.
@@ -280,6 +261,10 @@ namespace GameWIP::Terminal::TestHooks
     [[nodiscard]] TERMINAL_TEST_EXPORT std::vector<Terminal::Types::Cursor::Position> cursorRenderingSetHistory(
         Terminal::Types::Output::Stream stream);
 
+    /// ------------------------------------------------------------
+    /// Concurrency gates and failure injection
+    /// ------------------------------------------------------------
+
     /// @brief Arms the next backend read to pause after taking Terminal input serialization.
     TERMINAL_TEST_EXPORT void blockNextRead();
     /// @brief Waits until an armed backend read reaches its deterministic pause point.
@@ -304,14 +289,14 @@ namespace GameWIP::Terminal::TestHooks
     TERMINAL_TEST_EXPORT void forceNextInputModeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
     /// @brief Forces the next input read to fail with code.
     TERMINAL_TEST_EXPORT void forceNextReadFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::ReadFailed) noexcept;
-    /// @brief Forces the next native stdin endpoint identity duplication to fail.
-    /// @details The hook is Win32-only, one-shot, and reports the configured portable code; reset() clears it.
+    /// @brief Forces the next native input endpoint identity lookup to fail.
+    /// @details The hook is one-shot and reports the configured portable code; reset() clears it.
     TERMINAL_TEST_EXPORT void forceNextEndpointIdentityFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::NativeFailure) noexcept;
-    /// @brief Forces the next native cancellation-event ResetEvent operation to fail.
-    /// @details The hook is Win32-only, one-shot, and translates deterministic ERROR_GEN_FAILURE; reset() clears it.
+    /// @brief Forces the next native cancellation-event reset to fail.
+    /// @details The hook is one-shot and reports a native operation failure; reset() clears it.
     TERMINAL_TEST_EXPORT void forceNextCancellationResetFailure() noexcept;
-    /// @brief Forces the next stop callback to skip its best-effort native cancellation signal.
-    /// @details The hook is Win32-only, one-shot, and cannot make the callback return a status; reset() clears it.
+    /// @brief Forces the next stop callback to skip its best-effort cancellation signal.
+    /// @details The hook is one-shot; the callback remains best-effort and returns no status.
     TERMINAL_TEST_EXPORT void forceNextCancellationSignalFailure() noexcept;
     /// @brief Forces the next terminal-size query to fail with code.
     TERMINAL_TEST_EXPORT void forceNextTerminalSizeFailure(IO::Types::ErrorCode code = IO::Types::ErrorCode::StatFailed) noexcept;

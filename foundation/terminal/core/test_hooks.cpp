@@ -1,4 +1,4 @@
-/// @file terminal_test_hooks.cpp
+/// @file test_hooks.cpp
 /// @brief Source-tree deterministic Terminal overrides, capture, and one-shot failure injection.
 
 #include "terminal/internal/terminal_test_hooks.h"
@@ -52,9 +52,9 @@ namespace GameWIP::Terminal::Detail::TestHooks
         block.reached = false;
     }
 
-    // ------------------------------------------------------------
-    // Shared hook state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Shared hook state
+    /// ------------------------------------------------------------
 
     void resetTerminalTestHooks() noexcept
     {
@@ -134,53 +134,19 @@ namespace GameWIP::Terminal::TestHooks
 {
     using namespace Detail::TestHooks;
 
-    // ------------------------------------------------------------
-    // Lifecycle and decoder state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Lifecycle and decoder state
+    /// ------------------------------------------------------------
 
     void reset() noexcept
     {
         resetTerminalTestHooks();
-#if defined(_WIN32)
-        Detail::Platform::TestHooks::resetWin32InputState();
-        Detail::Platform::TestHooks::resetWin32KeyDecoder();
-#else
-        Detail::Platform::TestHooks::setPendingHighSurrogate(Terminal::Types::Input::Stream::Stdin, 0);
-#endif
+        Detail::Platform::TestHooks::resetInputState();
     }
 
-#if defined(_WIN32)
-    void resetWin32KeyDecoder() noexcept
-    {
-        Detail::Platform::TestHooks::resetWin32KeyDecoder();
-    }
-
-    std::size_t consoleWaitCallCount() noexcept
-    {
-        return Detail::Platform::TestHooks::consoleWaitCallCount();
-    }
-
-    Win32KeyDecodeResult decodeWin32KeyRecord(
-        bool keyDown,
-        std::uint16_t virtualKey,
-        char16_t unicodeCharacter,
-        std::uint32_t controlState,
-        std::uint16_t repeatCount,
-        std::uint16_t scanCode) noexcept
-    {
-        return Detail::Platform::TestHooks::decodeWin32KeyRecord(keyDown, virtualKey, unicodeCharacter, controlState, repeatCount, scanCode);
-    }
-
-    std::optional<Terminal::Types::Event> takePendingWin32KeyEvent() noexcept
-    {
-        return Detail::Platform::TestHooks::takePendingWin32KeyEvent();
-    }
-
-#endif
-
-    // ------------------------------------------------------------
-    // Input overrides
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Input overrides
+    /// ------------------------------------------------------------
 
     void setInputCapabilitiesOverride(Terminal::Types::Input::Stream stream, const Terminal::Types::Input::Capabilities &capabilities)
     {
@@ -226,16 +192,6 @@ namespace GameWIP::Terminal::TestHooks
         state.inputEventsOverrideEnabled = true;
     }
 
-    void setPendingHighSurrogate(Terminal::Types::Input::Stream stream, std::uint16_t surrogate) noexcept
-    {
-        Detail::Platform::TestHooks::setPendingHighSurrogate(stream, surrogate);
-    }
-
-    bool hasPendingHighSurrogate(Terminal::Types::Input::Stream stream) noexcept
-    {
-        return Detail::Platform::TestHooks::hasPendingHighSurrogate(stream);
-    }
-
     void setInputModeOverride(Terminal::Types::Input::Stream stream, bool lineBuffered, bool echoInput, bool processControlKeys)
     {
         std::lock_guard lock(terminalTestHookState.mutex);
@@ -266,9 +222,9 @@ namespace GameWIP::Terminal::TestHooks
                state.exclusiveEventDelivery == exclusiveEventDelivery;
     }
 
-    // ------------------------------------------------------------
-    // Output capture and simulation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Output capture and simulation
+    /// ------------------------------------------------------------
 
     void setOutputCapture(Terminal::Types::Output::Stream stream, bool enabled) noexcept
     {
@@ -352,9 +308,9 @@ namespace GameWIP::Terminal::TestHooks
         return terminalTestHookState.outputStreams[outputIndex(stream)].cursorRenderingSetHistory;
     }
 
-    // ------------------------------------------------------------
-    // Blocking and failure injection
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Blocking and failure injection
+    /// ------------------------------------------------------------
 
     void blockNextRead()
     {

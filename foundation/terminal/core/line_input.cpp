@@ -64,6 +64,10 @@ namespace GameWIP::Terminal
                    Types::Events::hasModifier(modifiers, Types::Events::KeyModifier::Meta);
         }
 
+        /// ------------------------------------------------------------
+        /// Grapheme indexing
+        /// ------------------------------------------------------------
+
         class GraphemeIndex final
         {
         public:
@@ -167,6 +171,7 @@ namespace GameWIP::Terminal
                 {
                     return IO::successStatus();
                 }
+
                 const Unicode::Types::Utf8::BoundaryResult next = Unicode::Utf8::nextGraphemeBoundary(text, byteOffset);
 
                 if(next.outcome == Unicode::Types::Utf8::BoundaryOutcome::Found)
@@ -212,10 +217,15 @@ namespace GameWIP::Terminal
                 return IO::successStatus();
             }
 
+            // Reusable Unicode boundary cursor.
             std::vector<std::size_t> &storage_;
             Unicode::Utf8::GraphemeCursor cursor_;
             bool ready_ = false;
         };
+
+        /// ------------------------------------------------------------
+        /// Line echo
+        /// ------------------------------------------------------------
 
         class LineEcho final
         {
@@ -234,6 +244,7 @@ namespace GameWIP::Terminal
                     return IO::successStatus();
                 }
 
+                // Echo requires cursor movement and a stable view of terminal geometry.
                 const Types::Output::CapabilitiesResult prepared = prepareOutput(output_);
 
                 if(!prepared.status.ok())
@@ -261,6 +272,7 @@ namespace GameWIP::Terminal
                 {
                     return position.status;
                 }
+
                 origin_ = position.position;
                 active_ = true;
                 renderedCells_ = 0;
@@ -344,6 +356,7 @@ namespace GameWIP::Terminal
                 {
                     return current.status;
                 }
+
                 const std::optional<Types::Cursor::Position> currentOrigin = positionBefore(current.position, caretCells_);
 
                 if(!currentOrigin.has_value())
@@ -412,6 +425,7 @@ namespace GameWIP::Terminal
                 {
                     return current.status;
                 }
+
                 const std::optional<Types::Cursor::Position> rebuiltOrigin = positionBefore(current.position, caretCells_);
 
                 if(!rebuiltOrigin.has_value())
@@ -420,6 +434,7 @@ namespace GameWIP::Terminal
                 }
                 origin_ = *rebuiltOrigin;
 
+                // Replace the rendered line and clear any cells left by its previous version.
                 IO::Types::Status status = setRenderingPosition(origin_);
                 if(!status.ok())
                 {
@@ -515,6 +530,7 @@ namespace GameWIP::Terminal
             }
 
         private:
+            // Cursor queries and movement
             [[nodiscard]] Types::Cursor::PositionResult queryRenderingPosition() const
             {
                 return Detail::getLineRenderingCursorPosition(output_, input_);
@@ -525,6 +541,7 @@ namespace GameWIP::Terminal
                 return Detail::setLineRenderingCursorPosition(output_, position);
             }
 
+            // Cursor-coordinate calculations
             [[nodiscard]] std::optional<Types::Cursor::Position> positionBefore(Types::Cursor::Position end, std::size_t cells) const noexcept
             {
                 if(size_.columns == 0 || end.column >= size_.columns)
@@ -559,6 +576,7 @@ namespace GameWIP::Terminal
                 return static_cast<std::size_t>(endLinear - beginLinear);
             }
 
+            // Output helpers
             [[nodiscard]] IO::Types::Status writeSpaces(std::size_t count)
             {
                 static constexpr std::string_view spaces = "                                                                ";
@@ -577,6 +595,7 @@ namespace GameWIP::Terminal
                 return IO::successStatus();
             }
 
+            // Active line rendering state
             Types::Input::Stream input_;
             Types::Output::Stream output_;
             Types::Size size_{};
@@ -587,6 +606,10 @@ namespace GameWIP::Terminal
             bool active_ = false;
         };
 
+        /// ------------------------------------------------------------
+        /// Editing helpers
+        /// ------------------------------------------------------------
+
         [[nodiscard]] IO::Types::Status insertScalar(
             std::string &line,
             std::size_t &caret,
@@ -595,6 +618,7 @@ namespace GameWIP::Terminal
             bool &wasTruncated,
             GraphemeIndex &graphemes)
         {
+            // Encode and enforce the byte limit before changing the line.
             const Unicode::Types::Utf8::EncodeResult encoded = Unicode::Utf8::encodeScalar(scalar);
 
             if(encoded.outcome != Unicode::Types::EncodeOutcome::Encoded)
@@ -608,6 +632,8 @@ namespace GameWIP::Terminal
                 wasTruncated = true;
                 return IO::successStatus();
             }
+
+            // Insert at the caret and restore a grapheme boundary after mid-line edits.
             const bool appendedAtEnd = caret == line.size();
             line.insert(caret, encoded.bytes.data(), bytes);
             caret += bytes;
@@ -623,6 +649,7 @@ namespace GameWIP::Terminal
             bool &wasTruncated,
             GraphemeIndex &graphemes)
         {
+            // Accept only complete UTF-8 scalars that fit the remaining byte budget.
             const std::size_t remaining = maxBytes - std::min(maxBytes, line.size());
             std::size_t accepted = 0;
 
@@ -647,6 +674,7 @@ namespace GameWIP::Terminal
                 wasTruncated = true;
             }
 
+            // Insert the accepted prefix and keep the caret on a grapheme boundary.
             if(accepted > 0)
             {
                 const bool appendedAtEnd = caret == line.size();
@@ -670,6 +698,7 @@ namespace GameWIP::Terminal
         {
             result.consumedLineEnding = Types::Input::ConsumedLineEnding::CrLf;
 
+            // Select the returned line ending.
             std::string_view ending;
 
             switch(options.lineEndingMode)
@@ -685,6 +714,7 @@ namespace GameWIP::Terminal
                 break;
             }
 
+            // Apply the result limit before publishing the line.
             const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
                                              ? std::numeric_limits<std::size_t>::max()
                                              : static_cast<std::size_t>(options.maxReturnedBytes);
@@ -722,6 +752,7 @@ namespace GameWIP::Terminal
         Types::Input::LineResult result;
         result.status = IO::successStatus();
 
+        // Initialize the editable line and its terminal echo.
         const std::size_t maxBytes = options.maxReturnedBytes > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())
                                          ? std::numeric_limits<std::size_t>::max()
                                          : static_cast<std::size_t>(options.maxReturnedBytes);
@@ -739,6 +770,7 @@ namespace GameWIP::Terminal
             return result;
         }
 
+        // Keep the requested timeout across all input events.
         const auto start = std::chrono::steady_clock::now();
 
         while(true)
@@ -749,6 +781,7 @@ namespace GameWIP::Terminal
                 result.line = std::move(line);
                 return result;
             }
+
             Types::Input::EventOptions eventOptions;
             eventOptions.timeout = remainingReadTimeout(start, options.timeout);
             eventOptions.stopToken = options.stopToken;
@@ -770,6 +803,7 @@ namespace GameWIP::Terminal
                 return result;
             }
 
+            // Refresh echo after terminal geometry changes.
             if(const Types::Events::Resize *resize = eventResult.event->getIf<Types::Events::Resize>())
             {
                 echo.updateSize(resize->size);
@@ -783,6 +817,7 @@ namespace GameWIP::Terminal
                 continue;
             }
 
+            // Insert pasted text as complete Unicode scalars within the line limit.
             if(const Types::Events::Paste *paste = eventResult.event->getIf<Types::Events::Paste>())
             {
                 const std::size_t oldSize = line.size();
@@ -805,6 +840,7 @@ namespace GameWIP::Terminal
                 continue;
             }
 
+            // Ignore key releases and apply repeat counts to accepted key events.
             const Types::Events::Key *keyEvent = eventResult.event->getIf<Types::Events::Key>();
 
             if(keyEvent == nullptr || keyEvent->action == Types::Events::KeyAction::Release)
@@ -814,6 +850,7 @@ namespace GameWIP::Terminal
 
             const std::uint32_t occurrences = keyEvent->action == Types::Events::KeyAction::Repeat ? std::max(keyEvent->repeatCount, 1U) : 1U;
 
+            // Insert character keys unless a shortcut modifier is held.
             if(const auto *character = std::get_if<Types::Events::CharacterKey>(&keyEvent->key))
             {
                 if(hasShortcutModifier(keyEvent->modifiers))
@@ -852,6 +889,7 @@ namespace GameWIP::Terminal
                 continue;
             }
 
+            // Enter completes the line before other named-key handling.
             if(*named == Types::Events::NamedKey::Enter)
             {
                 result.status = echo.finish(line, caret);
@@ -871,6 +909,7 @@ namespace GameWIP::Terminal
                 continue;
             }
 
+            // Apply editing commands at grapheme boundaries.
             bool redrawRequired = false;
 
             for(std::uint32_t occurrence = 0; occurrence < occurrences; ++occurrence)
@@ -1080,6 +1119,7 @@ namespace GameWIP::Terminal
                 }
             }
 
+            // Redraw once after all repeated edits for this key event.
             if(redrawRequired)
             {
                 result.status = echo.redraw(line, caret);

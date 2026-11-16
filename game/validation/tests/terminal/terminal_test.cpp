@@ -9,6 +9,7 @@
 #include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/runner_helpers.h"
+#include "validation/tests/terminal/platform.h"
 
 #include "terminal/terminal.h"
 #include "test_support/test_support.h"
@@ -18,7 +19,6 @@
 #endif
 
 #if TERMINAL_INTERNAL_TEST_HOOKS
-#include "terminal/internal/terminal_platform.h"
 #include "terminal/internal/terminal_test_hooks.h"
 #endif
 
@@ -44,13 +44,6 @@
 #include <utility>
 #include <variant>
 #include <vector>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#endif
 
 /// @brief Marker value whose formatter deliberately throws during output tests.
 struct TerminalThrowingFormat
@@ -176,14 +169,12 @@ namespace
     namespace IO = GameWIP::IO;
     namespace Terminal = GameWIP::Terminal;
     namespace TestSupport = GameWIP::TestSupport;
-    namespace PlatformHooks = GameWIP::Terminal::Detail::Platform::TestHooks;
 
     using GameWIP::Test::TerminalTestOptions;
     using IO::Types::ErrorCode;
 
     inline constexpr std::string_view kReentrantFormatChildArgument = "--terminal-test-child=reentrant-format";
     inline constexpr std::string_view kSessionReentrantFormatChildArgument = "--terminal-test-child=session-reentrant-format";
-    inline constexpr std::string_view kCancellationSignalFailureChildArgument = "--terminal-test-child=cancellation-signal-failure";
 
     static_assert(!std::is_aggregate_v<Terminal::Types::Style::Color>);
     static_assert(!std::is_aggregate_v<Terminal::Types::Output::Segment>);
@@ -284,9 +275,9 @@ namespace
         return session.close().ok() ? 0 : 6;
     }
 
-    // ------------------------------------------------------------
-    // Manual test reporting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Manual test reporting
+    /// ------------------------------------------------------------
 
     thread_local TestSupport::Types::Reporting::Summary manualObservations;
 
@@ -439,9 +430,9 @@ namespace
             .supportsCancellation = true};
     }
 
-    // ------------------------------------------------------------
-    // Test fixtures and suites
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test fixtures and suites
+    /// ------------------------------------------------------------
 
     /// @brief Resets hooks, installs output capabilities, and enables byte capture.
     void setupCapturedOutput(
@@ -490,12 +481,6 @@ namespace
     void testManagedLineEditing(TestSupport::Context &context);
     void testSessions(TestSupport::Context &context);
 
-#if defined(_WIN32)
-    void testWin32EventDecoder(TestSupport::Context &context);
-    void testInputEndpointReplacement(TestSupport::Context &context);
-    void testCancellationSignalFailure(TestSupport::Context &context, const std::filesystem::path &executablePath);
-    void testCancellationResetFailure(TestSupport::Context &context);
-#endif
 #else
     void testHookDependentSuitesSkipped(TestSupport::Context &context);
 #endif
@@ -511,9 +496,9 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runTerminalTests(int argc, char **argv, const TerminalTestOptions &options)
     {
@@ -527,13 +512,10 @@ namespace GameWIP::Test
             return runSessionReentrantFormatChild();
         }
 
-#if TERMINAL_INTERNAL_TEST_HOOKS && defined(_WIN32)
-        if(hasArgument(argc, argv, kCancellationSignalFailureChildArgument))
+        if(hasArgument(argc, argv, GameWIP::Test::TerminalPlatform::kCancellationSignalFailureChildArgument))
         {
-            return runCancellationSignalFailureChild();
+            return GameWIP::Test::TerminalPlatform::runCancellationSignalFailureChild();
         }
-
-#endif
 
         TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
@@ -567,17 +549,7 @@ namespace GameWIP::Test
         runner.runSuite("Terminal controls", testControls);
         runner.runSuite("Terminal input reads", testInputReads);
         runner.runSuite("Terminal managed line editing", testManagedLineEditing);
-#if defined(_WIN32)
-        runner.runSuite("Terminal Win32 event decoder", testWin32EventDecoder);
-        runner.runSuite("Terminal stdin endpoint replacement", testInputEndpointReplacement);
-        runner.runSuite(
-            "Terminal cancellation signal failure",
-            [&](TestSupport::Context &context)
-            {
-                testCancellationSignalFailure(context, GameWIP::Validation::currentExecutablePath());
-            });
-        runner.runSuite("Terminal cancellation reset failure", testCancellationResetFailure);
-#endif
+        GameWIP::Test::TerminalPlatform::registerWin32Suites(runner);
         runner.runSuite("Terminal sessions and ownership", testSessions);
 #else
         runner.runSuite("Terminal hook-dependent suites", testHookDependentSuitesSkipped);

@@ -1,0 +1,10 @@
+target_sources(
+    Terminal
+    PRIVATE
+        line_input.cpp
+        output_buffer.cpp
+        session.cpp
+        style.cpp
+        terminal.cpp
+        test_hooks.cpp
+)
