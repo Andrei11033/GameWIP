@@ -4,9 +4,13 @@
 
 #include "input/system.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <thread>
 #include <utility>
+#include <vector>
 
 namespace GameWIP::Input
 {
@@ -16,6 +20,7 @@ namespace GameWIP::Input
         /// @brief Callback used by an attached native source before a frame is copied.
         using NativeCaptureHook = void (*)(Impl &, void *) noexcept;
 
+        // Session ownership and configuration
         /// @brief Thread that opened the system and owns its mutable operations.
         std::thread::id ownerThread{};
         /// @brief Whether the system currently has an open capture session.
@@ -24,6 +29,8 @@ namespace GameWIP::Input
         Types::Configuration configuration{};
         /// @brief Session token allowing producers to detect System destruction safely.
         std::shared_ptr<void> sessionLifetime{};
+
+        // Session identity and event sequencing
         /// @brief Runtime identity shared by all IDs from this open session.
         std::uint64_t instance = 0;
         /// @brief Next runtime device slot to allocate.
@@ -37,6 +44,7 @@ namespace GameWIP::Input
         /// @brief Whether text events are accepted for the current session.
         bool textEnabled = true;
 
+        // Native capture hooks
         /// @brief Native source hook invoked before a capture copy.
         NativeCaptureHook nativeBeforeCapture = nullptr;
         /// @brief Native source hook invoked after a successful capture copy.
@@ -46,10 +54,13 @@ namespace GameWIP::Input
         /// @brief Opaque native source context passed to native hooks.
         void *nativeContext = nullptr;
 
+        // Published device and element state
         /// @brief Current device descriptors owned by this system.
         std::vector<Types::DeviceInfo> devices{};
         /// @brief Latest state for every element seen during this session.
         std::vector<Types::ElementState> states{};
+
+        // Pending frame data
         /// @brief Events accumulated since the previous successful capture.
         std::vector<Types::Event> pendingEvents{};
         /// @brief Raw reports accumulated since the previous successful capture.

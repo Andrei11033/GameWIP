@@ -2,6 +2,8 @@
 /// @brief Windows DirectInput device discovery and polling.
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
+#include "input/platform/win32/internal/device_metadata.h"
+#include "input/platform/win32/internal/win32_unicode.h"
 #include "input/platform/win32/internal/win32_keyboard_mapping.h"
 
 #include <algorithm>
@@ -55,9 +57,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
             DIDATAFORMAT format{};
         };
 
-        // ------------------------------------------------------------
-        // DirectInput data formats
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// DirectInput data formats
+        /// ------------------------------------------------------------
 
         [[nodiscard]] const DIDATAFORMAT &keyboardDataFormat() noexcept
         {
@@ -174,36 +176,6 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return data.format;
         }
 
-        [[nodiscard]] std::string wideToUtf8(std::wstring_view text)
-        {
-            if(text.empty())
-            {
-                return {};
-            }
-
-            const int length =
-                WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text.data(), static_cast<int>(text.size()), nullptr, 0, nullptr, nullptr);
-            if(length <= 0)
-            {
-                return {};
-            }
-
-            std::string result(static_cast<std::size_t>(length), '\0');
-            if(WideCharToMultiByte(
-                   CP_UTF8,
-                   WC_ERR_INVALID_CHARS,
-                   text.data(),
-                   static_cast<int>(text.size()),
-                   result.data(),
-                   length,
-                   nullptr,
-                   nullptr) != length)
-            {
-                return {};
-            }
-            return result;
-        }
-
         [[nodiscard]] std::string instanceKey(REFGUID guid)
         {
             std::array<wchar_t, 40> text{};
@@ -243,9 +215,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return nativeOffset <= extent && size <= extent - nativeOffset;
         }
 
-        // ------------------------------------------------------------
-        // Device descriptor enumeration
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Device descriptor enumeration
+        /// ------------------------------------------------------------
 
         BOOL CALLBACK addDirectInputObject(const DIDEVICEOBJECTINSTANCEW *object, void *contextPointer) noexcept
         {
@@ -537,9 +509,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return DIENUM_CONTINUE;
         }
 
-        // ------------------------------------------------------------
-        // Keyboard mapping and device acquisition
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Keyboard mapping and device acquisition
+        /// ------------------------------------------------------------
 
         [[nodiscard]] std::uint32_t keyboardUsageForDirectInputKey(std::uint32_t key) noexcept
         {
@@ -609,9 +581,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Provider lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Provider lifecycle
+    /// ------------------------------------------------------------
 
     IO::Types::Status initializeDirectInput(Attachment::Impl &attachment) noexcept
     {
@@ -698,9 +670,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         attachment.directInputOwnsCom = false;
     }
 
-    // ------------------------------------------------------------
-    // Device enumeration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Device enumeration
+    /// ------------------------------------------------------------
 
     IO::Types::Status enumerateDirectInputDevices(Attachment::Impl &attachment, System::Impl &state) noexcept
     {
@@ -776,9 +748,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
-    // ------------------------------------------------------------
-    // Device polling
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Device polling
+    /// ------------------------------------------------------------
 
     IO::Types::Status pollDirectInput(Attachment::Impl &attachment, System::Impl &state) noexcept
     {

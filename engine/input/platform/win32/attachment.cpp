@@ -14,9 +14,9 @@ namespace GameWIP::Input::Platform::Win32
 {
     using namespace Detail;
 
-    // ------------------------------------------------------------
-    // Backend selection and status
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Backend selection and status
+    /// ------------------------------------------------------------
 
     [[nodiscard]] static std::string nativeCodeDetail(std::int64_t nativeCode)
     {
@@ -50,9 +50,9 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    // ------------------------------------------------------------
-    // Attachment lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Attachment lifecycle
+    /// ------------------------------------------------------------
 
     Attachment::Attachment() noexcept
         : impl_(std::unique_ptr<Impl>(new (std::nothrow) Impl{}))
@@ -109,11 +109,12 @@ namespace GameWIP::Input::Platform::Win32
 
         try
         {
-            // Initialize the session and backend selection.
+            // Bind the attachment to the session and window.
             impl_->system = &system;
             impl_->windowHandle = windowHandle;
             impl_->attached = true;
 
+            // Reset backend status before initialization.
             for(Types::BackendInfo &backend : impl_->backendStatuses)
             {
                 backend.status = backendSelected(system.impl_->configuration, backend.backend) ? Types::BackendStatus::Unavailable
@@ -121,6 +122,7 @@ namespace GameWIP::Input::Platform::Win32
                 backend.detail.clear();
             }
 
+            // Apply the configured backend selection.
             impl_->rawInputEnabled = backendSelected(system.impl_->configuration, Types::BackendKind::Win32RawInput);
             impl_->hidEnabled = backendSelected(system.impl_->configuration, Types::BackendKind::Win32Hid);
             impl_->xinputEnabled = backendSelected(system.impl_->configuration, Types::BackendKind::XInput);
@@ -426,9 +428,9 @@ namespace GameWIP::Input::Platform::Win32
         return isAttached() ? Types::SurfaceId{surfaceValue(impl_->windowHandle)} : Types::SurfaceId{};
     }
 
-    // ------------------------------------------------------------
-    // Provider polling
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Provider polling
+    /// ------------------------------------------------------------
 
     IO::Types::Status Attachment::poll() noexcept
     {
@@ -581,9 +583,9 @@ namespace GameWIP::Input::Platform::Win32
         }
     }
 
-    // ------------------------------------------------------------
-    // Input session callbacks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Input session callbacks
+    /// ------------------------------------------------------------
 
     void Attachment::beforeCapture(System::Impl &, void *context) noexcept
     {

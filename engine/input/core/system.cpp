@@ -39,9 +39,10 @@ namespace GameWIP::Input
 
     } // namespace
 
-    // ------------------------------------------------------------
-    // Event queue and descriptor lookup
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event queue and descriptor lookup
+    /// ------------------------------------------------------------
+
     void System::Impl::appendEvent(Types::Event event) noexcept
     {
         if(pendingEvents.size() >= configuration.eventCapacity)
@@ -126,9 +127,10 @@ namespace GameWIP::Input
         return deviceIndex == devices.size() ? nullptr : &devices[deviceIndex].elements[elementIndex];
     }
 
-    // ------------------------------------------------------------
-    // System lifecycle and frame capture
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// System lifecycle and frame capture
+    /// ------------------------------------------------------------
+
     System::System() noexcept
         : impl_(std::unique_ptr<Impl>(new (std::nothrow) Impl{}))
     {
@@ -155,6 +157,7 @@ namespace GameWIP::Input
                                                                     : status(IO::Types::ErrorCode::ResourceBusy);
         }
 
+        // Validate queue capacities before allocating session state.
         if(configuration.eventCapacity == 0 || configuration.maximumPendingTextBytes == 0 ||
            (configuration.captureRawReports && (configuration.rawReportCapacity == 0 || configuration.maximumRawReportBytes == 0)))
         {
@@ -163,6 +166,7 @@ namespace GameWIP::Input
 
         try
         {
+            // Establish configuration, ownership, and instance identity.
             impl_->sessionLifetime = std::make_shared<std::byte>();
             impl_->configuration = configuration;
             impl_->ownerThread = std::this_thread::get_id();
@@ -173,6 +177,7 @@ namespace GameWIP::Input
                 impl_->instance = nextSystemInstance.fetch_add(1, std::memory_order_relaxed);
             }
 
+            // Reset descriptor, event, and hook state.
             impl_->nextDeviceSlot = 1;
             impl_->nextElementSlot = 1;
             impl_->nextSequence = 1;
@@ -187,6 +192,8 @@ namespace GameWIP::Input
             impl_->pendingEvents.clear();
             impl_->pendingRawReports.clear();
             impl_->pendingTextUtf8.clear();
+
+            // Reserve configured queue capacities before opening the session.
             impl_->pendingEvents.reserve(configuration.eventCapacity);
 
             if(configuration.captureRawReports)
@@ -199,6 +206,7 @@ namespace GameWIP::Input
                 impl_->pendingTextUtf8.reserve(configuration.maximumPendingTextBytes);
             }
 
+            // Publish the initialized session.
             impl_->pendingDroppedEvents = 0;
             impl_->pendingDiscontinuity = false;
             impl_->health = {};
@@ -277,6 +285,7 @@ namespace GameWIP::Input
             return result;
         }
 
+        // Collect native input before publishing this frame.
         if(impl_->nativeBeforeCapture != nullptr)
         {
             impl_->nativeBeforeCapture(*impl_, impl_->nativeContext);
@@ -284,6 +293,7 @@ namespace GameWIP::Input
 
         try
         {
+            // Reserve frame and queue storage before moving interval data.
             impl_->pendingEvents.reserve(impl_->configuration.eventCapacity);
             destination.events_.reserve(impl_->configuration.eventCapacity);
 
@@ -299,6 +309,7 @@ namespace GameWIP::Input
                 destination.textUtf8_.reserve(impl_->configuration.maximumPendingTextBytes);
             }
 
+            // Build frame metadata.
             destination.states_.reserve(impl_->states.size());
             destination.states_ = impl_->states;
             destination.sequence_ = impl_->nextSequence++;
@@ -306,6 +317,8 @@ namespace GameWIP::Input
             destination.capturedAt_ = Types::Clock::now();
             destination.discontinuity_ = impl_->pendingDiscontinuity;
             destination.droppedEvents_ = impl_->pendingDroppedEvents;
+
+            // Transfer this interval's events and reports.
             destination.events_.swap(impl_->pendingEvents);
             destination.rawReports_.swap(impl_->pendingRawReports);
             destination.textUtf8_.swap(impl_->pendingTextUtf8);
@@ -319,6 +332,7 @@ namespace GameWIP::Input
                 impl_->nativeAfterCapture(*impl_, impl_->nativeContext);
             }
 
+            // Reset transition counters and relative values for the next frame.
             for(Types::ElementState &state : impl_->states)
             {
                 const Types::ElementInfo *info = impl_->findElement(state.id);
@@ -333,9 +347,11 @@ namespace GameWIP::Input
                 state.repeatCount = 0;
             }
 
+            // Clear loss state only after the frame has been published.
             impl_->pendingDroppedEvents = 0;
             impl_->pendingDiscontinuity = false;
 
+            // Return metadata for the published frame.
             result.status = IO::successStatus();
             result.published = true;
             result.captureSequence = destination.sequence();
@@ -351,9 +367,10 @@ namespace GameWIP::Input
         }
     }
 
-    // ------------------------------------------------------------
-    // Descriptor and health queries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Descriptor and health queries
+    /// ------------------------------------------------------------
+
     IO::Types::Status System::devices(std::span<const Types::DeviceInfo> &outDevices) const noexcept
     {
         outDevices = {};
@@ -398,6 +415,7 @@ namespace GameWIP::Input
         {
             return status(IO::Types::ErrorCode::NotFound);
         }
+
         outInfo = &impl_->devices[index];
         return IO::successStatus();
     }
@@ -463,9 +481,10 @@ namespace GameWIP::Input
         }
     }
 
-    // ------------------------------------------------------------
-    // Text capture configuration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Text capture configuration
+    /// ------------------------------------------------------------
+
     IO::Types::Status System::setTextEnabled(bool enabled) noexcept
     {
         if(impl_ == nullptr)

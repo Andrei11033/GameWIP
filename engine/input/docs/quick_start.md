@@ -12,10 +12,8 @@ the system.
 #include "input/win32.h"
 ```
 
-Link the consumer to `GameWIP::Input`. On Windows, the Win32 attachment observes
-window messages from an existing owner-thread window. On other platforms, the
-optional Win32 API remains linkable but native attachment is unsupported and returns
-`Unsupported`. See @ref project_public_api_contract for unsupported-capability handling.
+Link the consumer to `GameWIP::Input`. The Win32 attachment is implemented by the
+Win32 backend and observes messages from an existing owner-thread window.
 
 ## Windows integration
 
@@ -31,10 +29,10 @@ GameWIP::Desktop::Window window;
 GameWIP::Input::System input;
 GameWIP::Input::Platform::Win32::Attachment attachment;
 
-if (window.open(description).ok() && input.open().ok())
+if(window.open(description).ok() && input.open().ok())
 {
     const auto status = GameWIP::Input::Platform::Win32::attachToWindow(input, attachment, window);
-    if (!status.ok())
+    if(!status.ok())
     {
         static_cast<void>(input.close());
         return 1;
@@ -64,13 +62,13 @@ run on the same owner thread:
 
 ```cpp
 GameWIP::Input::System input;
-if (!input.open().ok())
+if(!input.open().ok())
 {
     return 1;
 }
 
 GameWIP::Input::Platform::Win32::Attachment attachment;
-if (!attachment.attach(input, hwnd).ok())
+if(!attachment.attach(input, hwnd).ok())
 {
     static_cast<void>(input.close());
     return 2;
@@ -78,7 +76,7 @@ if (!attachment.attach(input, hwnd).ok())
 
 // ... capture loop ...
 
-if (!attachment.detach().ok())
+if(!attachment.detach().ok())
 {
     // Log or handle detach failure
 }
@@ -98,48 +96,44 @@ IDs for the current open session:
 
 ```cpp
 std::span<const GameWIP::Input::Types::DeviceInfo> devices;
-if (!input.devices(devices).ok())
+if(!input.devices(devices).ok())
 {
     return 4;
 }
 
-auto key = GameWIP::Input::Query::findStandard(
-    devices,
-    GameWIP::Input::Standard::Key::W);
+auto key = GameWIP::Input::Query::findStandard(devices, GameWIP::Input::Standard::Key::W);
 ```
 
 Capture into a reusable frame in the application loop, then query its state:
 
 ```cpp
 GameWIP::Input::Types::Frame frame;
-while (appIsRunning)
+while(appIsRunning)
 {
     // Pump the application's window messages and forward them to the attachment.
     const auto capture = input.capture(frame);
-    if (!capture.status.ok())
+    if(!capture.status.ok())
     {
         break;
     }
 
     bool refreshBindings = false;
-    for (const GameWIP::Input::Types::Event &event : frame.events())
+    for(const GameWIP::Input::Types::Event &event : frame.events())
     {
         refreshBindings |= event.kind == GameWIP::Input::Types::EventKind::DeviceConnected ||
                            event.kind == GameWIP::Input::Types::EventKind::DeviceDisconnected ||
                            event.kind == GameWIP::Input::Types::EventKind::DeviceChanged;
     }
-    if (refreshBindings)
+    if(refreshBindings)
     {
-        if (!input.devices(devices).ok())
+        if(!input.devices(devices).ok())
         {
             break;
         }
-        key = GameWIP::Input::Query::findStandard(
-            devices,
-            GameWIP::Input::Standard::Key::W);
+        key = GameWIP::Input::Query::findStandard(devices, GameWIP::Input::Standard::Key::W);
     }
 
-    if (key && frame.isDown(*key))
+    if(key && frame.isDown(*key))
     {
         // Move forward.
     }
@@ -180,7 +174,7 @@ Win32 window; other synthetic surfaces may use any nonzero application-defined
 
 ```cpp
 const auto surface = attachment.surfaceId();
-if (surface.isValid())
+if(surface.isValid())
 {
     static_cast<void>(source.commitText(surface, "Hello"));
 }

@@ -83,13 +83,17 @@ namespace GameWIP::Input::Platform::Win32
 
         struct DeviceBinding
         {
-            // Native device state
+            // Native identity
             DeviceRole role = DeviceRole::Keyboard;
             std::uint32_t nativeSlot = 0;
             void *nativeDevice = nullptr;
             GUID directInputInstance{};
             std::uint32_t nativeKind = 0;
+
+            // DirectInput polling state
             std::array<std::uint8_t, 256> directInputKeyboardState{};
+
+            // Published Input binding
             Types::DeviceId id{};
             bool connected = false;
             std::size_t sourceIndex = 0;
@@ -230,18 +234,18 @@ namespace GameWIP::Input::Platform::Win32
 
         extern std::atomic<Attachment::Impl *> processRegistrationOwner;
 
-        // ------------------------------------------------------------
-        // Status, clock, and window helpers
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Status, clock, and window helpers
+        /// ------------------------------------------------------------
 
         [[nodiscard]] IO::Types::Status status(ErrorCode code) noexcept;
         [[nodiscard]] IO::Types::Status nativeStatus(std::uint32_t code) noexcept;
         [[nodiscard]] Types::Timestamp now() noexcept;
         [[nodiscard]] std::uint64_t surfaceValue(const void *windowHandle) noexcept;
 
-        // ------------------------------------------------------------
-        // State and device lookup
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// State and device lookup
+        /// ------------------------------------------------------------
 
         [[nodiscard]] Types::ElementState *findState(System::Impl &state, Types::ElementId id) noexcept;
         [[nodiscard]] Types::ElementInfo *findElement(System::Impl &state, Types::ElementId id) noexcept;
@@ -253,9 +257,9 @@ namespace GameWIP::Input::Platform::Win32
         [[nodiscard]] ElementBinding *findRole(DeviceBinding &device, ElementRole role) noexcept;
         [[nodiscard]] ElementBinding *standardElement(DeviceBinding &device, Types::StandardId standard) noexcept;
 
-        // ------------------------------------------------------------
-        // Device descriptors and lifecycle
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Device descriptors and lifecycle
+        /// ------------------------------------------------------------
 
         void invalidateDevice(System::Impl &state, Attachment::Impl &attachment, DeviceBinding &device, Types::EventCause cause) noexcept;
         void reconnectDevice(System::Impl &state, DeviceBinding &device) noexcept;
@@ -282,11 +286,10 @@ namespace GameWIP::Input::Platform::Win32
             Types::SourceInfo source = {},
             std::string_view logicalPersistentKey = {},
             Types::IdentityConfidence logicalIdentityConfidence = Types::IdentityConfidence::None);
-        [[nodiscard]] std::string containerPersistentKey(std::wstring_view nativePath) noexcept;
 
-        // ------------------------------------------------------------
-        // Published values and raw reports
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Published values and raw reports
+        /// ------------------------------------------------------------
 
         void appendElementEvent(
             System::Impl &state,
@@ -309,9 +312,9 @@ namespace GameWIP::Input::Platform::Win32
             Types::BackendKind backend,
             std::span<const std::byte> bytes) noexcept;
 
-        // ------------------------------------------------------------
-        // Text input
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Text input
+        /// ------------------------------------------------------------
 
         void invalidateFocus(System::Impl &state, Attachment::Impl &attachment) noexcept;
         void appendTextUtf8(
@@ -325,34 +328,34 @@ namespace GameWIP::Input::Platform::Win32
         void appendText(System::Impl &state, Attachment::Impl &attachment, char32_t scalar) noexcept;
         void handleUtf16(System::Impl &state, Attachment::Impl &attachment, char16_t codeUnit) noexcept;
 
-        // ------------------------------------------------------------
-        // Backend selection and status
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Backend selection and status
+        /// ------------------------------------------------------------
 
         [[nodiscard]] IO::Types::Status checkAttached(const Attachment::Impl &attachment) noexcept;
         [[nodiscard]] bool backendSelected(const Types::Configuration &configuration, Types::BackendKind backend) noexcept;
         void setBackendStatus(Attachment::Impl &attachment, Types::BackendKind backend, Types::BackendStatus status, std::string_view detail = {});
 
-        // ------------------------------------------------------------
-        // GameInput provider
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// GameInput provider
+        /// ------------------------------------------------------------
 
         [[nodiscard]] IO::Types::Status initializeGameInput(Attachment::Impl &attachment, System::Impl &state) noexcept;
         void shutdownGameInput(Attachment::Impl &attachment) noexcept;
         [[nodiscard]] IO::Types::Status pollGameInput(Attachment::Impl &attachment, System::Impl &state) noexcept;
 
-        // ------------------------------------------------------------
-        // DirectInput provider
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// DirectInput provider
+        /// ------------------------------------------------------------
 
         [[nodiscard]] IO::Types::Status initializeDirectInput(Attachment::Impl &attachment) noexcept;
         void shutdownDirectInput(Attachment::Impl &attachment) noexcept;
         [[nodiscard]] IO::Types::Status enumerateDirectInputDevices(Attachment::Impl &attachment, System::Impl &state) noexcept;
         [[nodiscard]] IO::Types::Status pollDirectInput(Attachment::Impl &attachment, System::Impl &state) noexcept;
 
-        // ------------------------------------------------------------
-        // Keyboard mapping and Window-message fallback
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Keyboard mapping and Window-message fallback
+        /// ------------------------------------------------------------
 
         void appendImeText(
             System::Impl &state,
@@ -377,18 +380,18 @@ namespace GameWIP::Input::Platform::Win32
             std::uint32_t messageTime) noexcept;
         void processWindowKeyboardTransitions(System::Impl &state, Attachment::Impl &attachment);
 
-        // ------------------------------------------------------------
-        // XInput
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// XInput
+        /// ------------------------------------------------------------
 
         [[nodiscard]] float xInputTrigger(BYTE value) noexcept;
         [[nodiscard]] float xInputAxis(SHORT value) noexcept;
         void loadXInput(Attachment::Impl &attachment) noexcept;
         void releaseXInput(Attachment::Impl &attachment) noexcept;
 
-        // ------------------------------------------------------------
-        // HID gamepad normalization
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// HID gamepad normalization
+        /// ------------------------------------------------------------
 
         void publishNormalizedGamepad(
             System::Impl &state,
@@ -396,9 +399,9 @@ namespace GameWIP::Input::Platform::Win32
             const Attachment::Impl::DeviceBinding::HidElement &source,
             const Types::Value &value) noexcept;
 
-        // ------------------------------------------------------------
-        // Raw Input and HID discovery
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Raw Input and HID discovery
+        /// ------------------------------------------------------------
 
         [[nodiscard]] IO::Types::Status registerRawInputCollection(Attachment::Impl &attachment, USHORT usagePage, USHORT usage, DWORD flags);
         [[nodiscard]] IO::Types::Status registerHidCollections(Attachment::Impl &attachment);

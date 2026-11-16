@@ -86,9 +86,10 @@ namespace GameWIP::Input::Synthetic
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Source attachment lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source attachment lifecycle
+    /// ------------------------------------------------------------
+
     Source::Source() noexcept
         : impl_(std::unique_ptr<Impl>(new (std::nothrow) Impl{}))
     {
@@ -104,6 +105,7 @@ namespace GameWIP::Input::Synthetic
 
     IO::Types::Status Source::checkAttached() const noexcept
     {
+        // Validate the source and session lifetime.
         if(impl_ == nullptr || !impl_->attached || impl_->system == nullptr)
         {
             return status(ErrorCode::NotOpen);
@@ -114,6 +116,7 @@ namespace GameWIP::Input::Synthetic
             return status(ErrorCode::NotOpen);
         }
 
+        // Reject a replaced session before checking thread ownership.
         if(!impl_->system->isOpen() || impl_->system->impl_ == nullptr || impl_->system->impl_->instance != impl_->systemInstance)
         {
             return status(ErrorCode::NotOpen);
@@ -133,6 +136,7 @@ namespace GameWIP::Input::Synthetic
             return status(ErrorCode::OutOfMemory);
         }
 
+        // Clear stale ownership before attaching to another session.
         if(impl_->attached)
         {
             const IO::Types::Status attachedStatus = checkAttached();
@@ -152,6 +156,7 @@ namespace GameWIP::Input::Synthetic
             impl_->devices.clear();
         }
 
+        // Validate the target session and its owner thread.
         if(!system.isOpen())
         {
             return status(ErrorCode::NotOpen);
@@ -161,6 +166,8 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::ResourceBusy);
         }
+
+        // Bind the source to the current session lifetime.
         impl_->system = &system;
         impl_->systemLifetime = system.impl_->sessionLifetime;
         impl_->systemInstance = system.impl_->instance;
@@ -180,6 +187,7 @@ namespace GameWIP::Input::Synthetic
         {
             if(attachedStatus.code == ErrorCode::NotOpen)
             {
+                // The session is gone, so discard this source's stale binding.
                 impl_->system = nullptr;
                 impl_->systemLifetime.reset();
                 impl_->systemInstance = 0;
@@ -190,6 +198,7 @@ namespace GameWIP::Input::Synthetic
             return attachedStatus;
         }
 
+        // Remove owned devices before clearing the live session binding.
         while(!impl_->devices.empty())
         {
             const IO::Types::Status removeStatus = removeDevice(impl_->devices.back());
@@ -206,13 +215,15 @@ namespace GameWIP::Input::Synthetic
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Synthetic device lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Synthetic device lifecycle
+    /// ------------------------------------------------------------
+
     IO::Types::Status Source::addDevice(const Types::SyntheticDeviceDescription &description, Types::DeviceId &outDevice) noexcept
     {
         outDevice = {};
 
+        // Validate the source and top-level descriptor.
         if(impl_ == nullptr)
         {
             return status(ErrorCode::OutOfMemory);
@@ -229,6 +240,7 @@ namespace GameWIP::Input::Synthetic
             return status(ErrorCode::InvalidArgument);
         }
 
+        // Validate each element's identity, value layout, and key uniqueness.
         for(const Types::SyntheticElementDescription &descriptionElement : description.elements)
         {
             if(descriptionElement.name.empty() || descriptionElement.persistentKey.empty() || descriptionElement.kind == Types::ValueKind::None ||
@@ -245,6 +257,7 @@ namespace GameWIP::Input::Synthetic
 
             if(!descriptionElement.components.empty())
             {
+                // Require component metadata to match the value shape and index order.
                 const std::size_t expectedCount = componentCount(descriptionElement.kind);
                 if(descriptionElement.components.size() != expectedCount)
                 {
@@ -260,6 +273,7 @@ namespace GameWIP::Input::Synthetic
                 }
             }
 
+            // Persistent element keys must be unique within this device.
             for(const Types::SyntheticElementDescription &other : description.elements)
             {
                 if(&descriptionElement != &other && descriptionElement.persistentKey == other.persistentKey)
@@ -269,27 +283,39 @@ namespace GameWIP::Input::Synthetic
             }
         }
 
+        // Snapshot published state so allocation failures can roll back cleanly.
         System::Impl &state = *impl_->system->impl_;
+
+        // Record collection sizes.
         const std::size_t initialDeviceCount = state.devices.size();
         const std::size_t initialStateCount = state.states.size();
         const std::size_t initialSourceDeviceCount = impl_->devices.size();
         const std::size_t initialEventCount = state.pendingEvents.size();
+
+        // Record identity and revision counters.
         const std::uint32_t initialDeviceSlot = state.nextDeviceSlot;
         const std::uint32_t initialElementSlot = state.nextElementSlot;
         const std::uint64_t initialDeviceRevision = state.deviceRevision;
+
+        // Record pending event state and session health.
         const std::uint64_t initialDroppedEvents = state.pendingDroppedEvents;
         const bool initialDiscontinuity = state.pendingDiscontinuity;
         const Types::Health initialHealth = state.health;
 
         const auto rollback = [&] noexcept
         {
+            // Restore published collections.
             state.devices.resize(initialDeviceCount);
             state.states.resize(initialStateCount);
             impl_->devices.resize(initialSourceDeviceCount);
             state.pendingEvents.resize(initialEventCount);
+
+            // Restore identity and revision counters.
             state.nextDeviceSlot = initialDeviceSlot;
             state.nextElementSlot = initialElementSlot;
             state.deviceRevision = initialDeviceRevision;
+
+            // Restore pending event state and health.
             state.pendingDroppedEvents = initialDroppedEvents;
             state.pendingDiscontinuity = initialDiscontinuity;
             state.health = initialHealth;
@@ -297,10 +323,12 @@ namespace GameWIP::Input::Synthetic
 
         try
         {
+            // Reserve destination storage before assigning device and element IDs.
             state.devices.reserve(state.devices.size() + 1);
             state.states.reserve(state.states.size() + description.elements.size());
             impl_->devices.reserve(impl_->devices.size() + 1);
 
+            // Build the descriptor and initial unknown element states.
             const Types::DeviceId deviceId{state.instance, state.nextDeviceSlot++, 1};
             Types::DeviceInfo device{
                 .id = deviceId,
@@ -353,12 +381,14 @@ namespace GameWIP::Input::Synthetic
                 });
             }
 
+            // Publish the descriptor and initial element states.
             state.devices.push_back(std::move(device));
             for(Types::ElementState &newState : newStates)
             {
                 state.states.push_back(newState);
             }
 
+            // Add source ownership and update the active device count.
             impl_->devices.push_back(deviceId);
             ++state.health.activeDeviceCount;
 
@@ -396,6 +426,8 @@ namespace GameWIP::Input::Synthetic
         {
             return status(ErrorCode::NotFound);
         }
+
+        // Resolve the logical descriptor before invalidating its elements.
         System::Impl &state = *impl_->system->impl_;
         const std::size_t deviceIndex = state.findDeviceIndex(device);
         if(deviceIndex == state.devices.size())
@@ -405,6 +437,7 @@ namespace GameWIP::Input::Synthetic
 
         try
         {
+            // Mark each current element unavailable before removing the device.
             for(const Types::ElementInfo &element : state.devices[deviceIndex].elements)
             {
                 const std::size_t stateIndex = state.findStateIndex(element.id);
@@ -429,6 +462,7 @@ namespace GameWIP::Input::Synthetic
                 });
             }
 
+            // Remove the descriptor and update the active device count.
             const std::uint64_t revision = ++state.deviceRevision;
             state.devices.erase(state.devices.begin() + static_cast<std::ptrdiff_t>(deviceIndex));
 
@@ -437,6 +471,7 @@ namespace GameWIP::Input::Synthetic
                 --state.health.activeDeviceCount;
             }
 
+            // Publish the disconnect event and release source ownership.
             state.appendEvent({
                 .timestamp = timestampOrNow({}),
                 .kind = Types::EventKind::DeviceDisconnected,
@@ -454,9 +489,10 @@ namespace GameWIP::Input::Synthetic
         }
     }
 
-    // ------------------------------------------------------------
-    // Synthetic state and event publication
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Synthetic state and event publication
+    /// ------------------------------------------------------------
+
     IO::Types::Status Source::setValue(Types::ElementId element, const Types::Value &value, Types::Timestamp when) noexcept
     {
         return publishValue(element, value, std::nullopt, when);
@@ -489,6 +525,7 @@ namespace GameWIP::Input::Synthetic
             return attachedStatus;
         }
 
+        // Resolve ownership, descriptor metadata, and current state.
         if(!ownsDevice(*impl_, element.device))
         {
             return status(ErrorCode::NotFound);
@@ -513,6 +550,7 @@ namespace GameWIP::Input::Synthetic
 
         try
         {
+            // Resolve absolute values directly and accumulate relative values when the prior value is valid.
             Types::ElementState &elementState = state.states[stateIndex];
             const bool previousKnown = elementState.validity == Types::ValueValidity::Valid;
             const Types::Value previousValue = elementState.value;
@@ -528,12 +566,14 @@ namespace GameWIP::Input::Synthetic
                         return status(ErrorCode::InvalidArgument);
                     }
                 }
+
                 if(!previousKnown)
                 {
                     nextValue = value;
                 }
             }
 
+            // Track boolean transitions independently of the event payload.
             const bool *previousBool = previousKnown ? std::get_if<bool>(&previousValue) : nullptr;
             const bool *nextBool = std::get_if<bool>(&nextValue);
             if(nextBool != nullptr)
@@ -548,6 +588,7 @@ namespace GameWIP::Input::Synthetic
                 }
             }
 
+            // Store the accepted value and publish its change event.
             elementState.value = nextValue;
             elementState.validity = Types::ValueValidity::Valid;
             elementState.lastObservation = timestampOrNow(when);
@@ -657,9 +698,10 @@ namespace GameWIP::Input::Synthetic
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Synthetic text publication
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Synthetic text publication
+    /// ------------------------------------------------------------
+
     IO::Types::Status Source::commitText(Types::SurfaceId surface, std::string_view utf8, Types::Timestamp when) noexcept
     {
         if(impl_ == nullptr)
@@ -688,6 +730,7 @@ namespace GameWIP::Input::Synthetic
             return status(ErrorCode::EncodingFailed);
         }
 
+        // Enforce the pending-text byte limit before copying the payload.
         System::Impl &state = *impl_->system->impl_;
         if(state.pendingTextUtf8.size() > state.configuration.maximumPendingTextBytes ||
            utf8.size() > state.configuration.maximumPendingTextBytes - state.pendingTextUtf8.size())

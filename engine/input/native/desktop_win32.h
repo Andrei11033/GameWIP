@@ -40,6 +40,8 @@ namespace GameWIP::Input::Platform::Win32
         {
             return nativeHandle.status;
         }
+
+        // Attach Input before registering Desktop message delivery.
         const IO::Types::Status inputStatus = attachment.attach(system, static_cast<void *>(nativeHandle->window));
 
         if(!inputStatus.ok())
@@ -49,6 +51,7 @@ namespace GameWIP::Input::Platform::Win32
 
         const IO::Types::Status sinkStatus = GameWIP::Desktop::Native::Win32::attachMessageSink(window, &AdapterDetail::forwardMessage, &attachment);
 
+        // Roll back Input if Desktop cannot register the sink.
         if(!sinkStatus.ok())
         {
             static_cast<void>(attachment.detach());

@@ -14,9 +14,9 @@
 
 namespace GameWIP::Input::Platform::Win32::Detail
 {
-    // ------------------------------------------------------------
-    // Focus and value publication
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Focus and value publication
+    /// ------------------------------------------------------------
 
     void invalidateFocus(System::Impl &state, Attachment::Impl &attachment) noexcept
     {
@@ -152,9 +152,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         return findElement(device, standard);
     }
 
-    // ------------------------------------------------------------
-    // Keyboard mapping and fallback
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Keyboard mapping and fallback
+    /// ------------------------------------------------------------
 
     [[nodiscard]] static std::uint32_t keyboardUsage(unsigned int scanCode, bool extended, bool extendedPause, unsigned int virtualKey) noexcept
     {
@@ -360,9 +360,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
-    // ------------------------------------------------------------
-    // XInput helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// XInput helpers
+    /// ------------------------------------------------------------
 
     [[nodiscard]] float xInputTrigger(BYTE value) noexcept
     {
@@ -416,9 +416,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
-    // ------------------------------------------------------------
-    // Raw report capture
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Raw report capture
+    /// ------------------------------------------------------------
 
     void appendRawReport(
         System::Impl &state,
@@ -460,9 +460,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     }
 
-    // ------------------------------------------------------------
-    // Text input
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Text input
+    /// ------------------------------------------------------------
 
     [[nodiscard]] static bool validScalar(char32_t scalar) noexcept
     {

@@ -8,7 +8,7 @@ if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -28,7 +28,6 @@ gamewip_generate_export_header(
 
 target_sources(
     Input
-    PRIVATE core/frame.cpp core/synthetic.cpp core/system.cpp core/value.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -42,9 +41,13 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/system.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/win32.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/native/desktop_win32.h"
                 "${INPUT_GENERATED_INCLUDE_DIR}/input/input_export.h"
 )
+
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(native)
+add_subdirectory(platform)
 
 target_include_directories(
     Input
@@ -56,8 +59,6 @@ target_include_directories(
 
 target_compile_features(Input PUBLIC cxx_std_23)
 target_link_libraries(Input PUBLIC IO PRIVATE Unicode)
-
-gamewip_target_platform_backend(TARGET Input ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 set_target_properties(
     Input

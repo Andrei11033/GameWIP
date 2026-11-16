@@ -14,9 +14,9 @@
 /// @brief Public passive data types shared by the GameWIP Input API.
 namespace GameWIP::Input::Types
 {
-    // ------------------------------------------------------------
-    // Session identities
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Session identities
+    /// ------------------------------------------------------------
 
     /// @brief Runtime identity for one device in one open session.
     /// @details Runtime IDs are opaque lookup tokens valid only for the open session. Use persistent keys or control identities for bindings.
@@ -63,9 +63,9 @@ namespace GameWIP::Input::Types
         friend constexpr bool operator==(ComponentId, ComponentId) noexcept = default;
     };
 
-    // ------------------------------------------------------------
-    // Text and spatial identities
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Text and spatial identities
+    /// ------------------------------------------------------------
 
     /// @brief Runtime identity for a text-input surface.
     struct SurfaceId
@@ -90,9 +90,9 @@ namespace GameWIP::Input::Types
         friend constexpr bool operator==(SpaceId, SpaceId) noexcept = default;
     };
 
-    // ------------------------------------------------------------
-    // Typed observations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Typed observations
+    /// ------------------------------------------------------------
 
     /// @brief Two-component value used for typed input observations.
     /// @tparam T Component storage type.
@@ -158,9 +158,9 @@ namespace GameWIP::Input::Types
     /// @brief Numeric scalar returned by component queries.
     using Scalar = std::variant<std::int64_t, std::uint64_t, float, double>;
 
-    // ------------------------------------------------------------
-    // Value representation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Value representation
+    /// ------------------------------------------------------------
 
     /// @brief Typed value carried by an element state or event.
     /// @details The alternative index is intentionally kept in lockstep with ValueKind. A monostate represents no value.
@@ -229,9 +229,9 @@ namespace GameWIP::Input::Types
         Relative  ///< Value is a delta since the previous observation.
     };
 
-    // ------------------------------------------------------------
-    // Value and source metadata
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Value and source metadata
+    /// ------------------------------------------------------------
 
     /// @brief Unit metadata for numeric values.
     enum class Unit : std::uint8_t
@@ -293,9 +293,9 @@ namespace GameWIP::Input::Types
         DirectInput         ///< Microsoft DirectInput.
     };
 
-    // ------------------------------------------------------------
-    // Backend status
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Backend status
+    /// ------------------------------------------------------------
 
     /// @brief Startup state of one native input backend.
     enum class BackendStatus : std::uint8_t
@@ -315,9 +315,9 @@ namespace GameWIP::Input::Types
         std::string detail{};                              ///< Concise reason when unavailable or failed.
     };
 
-    // ------------------------------------------------------------
-    // Event causes and value provenance
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event causes and value provenance
+    /// ------------------------------------------------------------
 
     /// @brief Cause attached to a published event.
     enum class EventCause : std::uint8_t
@@ -354,9 +354,9 @@ namespace GameWIP::Input::Types
         Synthetic           ///< Produced by an explicit software source.
     };
 
-    // ------------------------------------------------------------
-    // Control identities and selectors
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Control identities and selectors
+    /// ------------------------------------------------------------
 
     /// @brief Vocabulary domain for a recognized standard control.
     /// @note This is a naming domain, not a device class or backend selection.
@@ -446,9 +446,9 @@ namespace GameWIP::Input::Types
         }
     };
 
-    // ------------------------------------------------------------
-    // Element and device descriptors
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Element and device descriptors
+    /// ------------------------------------------------------------
 
     /// @brief Numeric range, unit, and native-storage metadata.
     struct NumericInfo
@@ -528,9 +528,9 @@ namespace GameWIP::Input::Types
         std::vector<ElementInfo> elements{}; ///< Elements exposed by the device.
     };
 
-    // ------------------------------------------------------------
-    // Capture and event data
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Capture and event data
+    /// ------------------------------------------------------------
 
     /// @brief Monotonic clock used for portable input timestamps.
     using Clock = std::chrono::steady_clock;
@@ -619,9 +619,9 @@ namespace GameWIP::Input::Types
         EventPayload data{};                        ///< Category-specific payload.
     };
 
-    // ------------------------------------------------------------
-    // Session health and configuration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Session health and configuration
+    /// ------------------------------------------------------------
 
     /// @brief Health counters accumulated during the current open session.
     struct Health

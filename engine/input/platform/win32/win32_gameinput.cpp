@@ -2,6 +2,8 @@
 /// @brief Windows GameInput controller discovery and polling.
 
 #include "input/platform/win32/internal/win32_attachment_state.h"
+#include "input/platform/win32/internal/device_metadata.h"
+#include "input/platform/win32/internal/win32_unicode.h"
 #include "input/platform/win32/internal/win32_keyboard_mapping.h"
 
 #include <algorithm>
@@ -28,34 +30,13 @@ namespace GameWIP::Input::Platform::Win32::Detail
         using GameInputInitializeFunction = HRESULT(WINAPI *)(REFIID interfaceId, void **instance);
         using GameInputCreateFunction = HRESULT(WINAPI *)(void **legacy);
 
-        // ------------------------------------------------------------
-        // Device metadata helpers
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Device metadata helpers
+        /// ------------------------------------------------------------
 
         [[nodiscard]] bool hasInputKind(GameInputApi::GameInputKind inputKinds, GameInputApi::GameInputKind kind) noexcept
         {
             return (static_cast<std::uint32_t>(inputKinds) & static_cast<std::uint32_t>(kind)) != 0;
-        }
-
-        [[nodiscard]] std::wstring pathToWide(std::string_view path)
-        {
-            if(path.empty())
-            {
-                return {};
-            }
-
-            const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path.data(), static_cast<int>(path.size()), nullptr, 0);
-            if(length <= 0)
-            {
-                return {};
-            }
-
-            std::wstring result(static_cast<std::size_t>(length), L'\0');
-            if(MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path.data(), static_cast<int>(path.size()), result.data(), length) != length)
-            {
-                return {};
-            }
-            return result;
         }
 
         [[nodiscard]] bool isControllerInput(GameInputApi::GameInputKind inputKinds) noexcept
@@ -69,9 +50,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return (static_cast<std::uint32_t>(inputKinds) & kControllerKinds) != 0;
         }
 
-        // ------------------------------------------------------------
-        // Controller descriptors
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Controller descriptors
+        /// ------------------------------------------------------------
 
         void appendGameInputElements(
             System::Impl &state,
@@ -152,9 +133,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
             }
         }
 
-        // ------------------------------------------------------------
-        // Device lifecycle and callbacks
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Device lifecycle and callbacks
+        /// ------------------------------------------------------------
 
         void addGameInputSource(
             System::Impl &state,
@@ -180,7 +161,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 {
                     persistentKey += sourceSuffix;
                 }
-                const std::wstring widePath = pathToWide(path);
+                const std::wstring widePath = utf8ToWide(path);
                 const std::string containerKey = containerPersistentKey(widePath);
                 logicalKey = containerKey.empty() ? persistentKey : containerKey;
                 logicalConfidence = containerKey.empty() ? Types::IdentityConfidence::ConnectionPath : Types::IdentityConfidence::DeviceUnique;
@@ -280,9 +261,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
             ReleaseSRWLockExclusive(&attachment->gameInputEventLock);
         }
 
-        // ------------------------------------------------------------
-        // Input state publication
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Input state publication
+        /// ------------------------------------------------------------
 
         [[nodiscard]] bool gamepadButton(GameInputApi::GameInputGamepadButtons buttons, GameInputApi::GameInputGamepadButtons mask) noexcept
         {
@@ -397,9 +378,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Provider lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Provider lifecycle
+    /// ------------------------------------------------------------
 
     IO::Types::Status initializeGameInput(Attachment::Impl &attachment, System::Impl &state) noexcept
     {

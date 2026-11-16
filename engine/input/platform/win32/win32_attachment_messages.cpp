@@ -17,9 +17,9 @@ namespace GameWIP::Input::Platform::Win32
 {
     using namespace Detail;
 
-    // ------------------------------------------------------------
-    // Window message routing
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window message routing
+    /// ------------------------------------------------------------
 
     IO::Types::Status Attachment::handleMessage(std::uint32_t message, std::uint64_t wParam, std::int64_t lParam, bool &outHandled) noexcept
     {

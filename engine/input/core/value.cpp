@@ -12,6 +12,10 @@ namespace GameWIP::Input::Internal
 {
     namespace
     {
+        /// ------------------------------------------------------------
+        /// Checked accumulation
+        /// ------------------------------------------------------------
+
         template <typename T> [[nodiscard]] bool addIntegral(T &current, T delta) noexcept
         {
             if constexpr(std::is_signed_v<T>)
@@ -72,6 +76,7 @@ namespace GameWIP::Input::Internal
                 }
             }();
 
+            // Commit only after both component updates pass their overflow checks.
             if(!xAdded || !yAdded)
             {
                 return false;
@@ -123,6 +128,7 @@ namespace GameWIP::Input::Internal
                 }
             }();
 
+            // Commit only after every component update passes its overflow check.
             if(!xAdded || !yAdded || !zAdded)
             {
                 return false;
@@ -132,6 +138,10 @@ namespace GameWIP::Input::Internal
             return true;
         }
     } // namespace
+
+    /// ------------------------------------------------------------
+    /// Value description and components
+    /// ------------------------------------------------------------
 
     Types::ValueKind valueKind(const Types::Value &value) noexcept
     {
@@ -264,6 +274,7 @@ namespace GameWIP::Input::Internal
                 }
                 else if constexpr(std::is_same_v<T, Types::Spatial>)
                 {
+                    // Spatial values expose position components before orientation components.
                     if(index < 3)
                     {
                         if(!current.positionValid)
@@ -315,6 +326,10 @@ namespace GameWIP::Input::Internal
             },
             value);
     }
+
+    /// ------------------------------------------------------------
+    /// Relative accumulation
+    /// ------------------------------------------------------------
 
     bool addRelative(Types::Value &current, const Types::Value &delta) noexcept
     {
