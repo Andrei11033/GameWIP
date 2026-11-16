@@ -17,7 +17,7 @@ description.activation.visible = true;
 description.fileDropEnabled = true;
 
 GameWIP::Desktop::Window window;
-if (auto status = window.open(description); !status.ok())
+if(auto status = window.open(description); !status.ok())
     return;
 ```
 
@@ -30,11 +30,11 @@ if (auto status = window.open(description); !status.ok())
 GameWIP::Input::System input;
 GameWIP::Input::Platform::Win32::Attachment attachment;
 
-if (!input.open().ok())
+if(!input.open().ok())
     return;
 
 const auto attachStatus = GameWIP::Input::Platform::Win32::attachToWindow(input, attachment, window);
-if (!attachStatus.ok())
+if(!attachStatus.ok())
 {
     static_cast<void>(input.close());
     return;
@@ -42,9 +42,9 @@ if (!attachStatus.ok())
 
 // Capture in main loop
 GameWIP::Input::Types::Frame frame;
-if (input.capture(frame).ok())
+if(input.capture(frame).ok())
 {
-    for (const auto &event : frame.events())
+    for(const auto &event : frame.events())
     {
         // Handle input events
     }
@@ -58,18 +58,18 @@ static_cast<void>(input.close());
 ## Pump and consume typed events
 
 ```cpp
-while (window.isOpen() && !window.hasCloseRequest())
+while(window.isOpen() && !window.hasCloseRequest())
 {
     const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
-    if (!pump.status.ok())
+    if(!pump.status.ok())
         break;
 
     GameWIP::Desktop::Types::Event event;
-    while (window.popEvent(event))
+    while(window.popEvent(event))
     {
-        if (const auto *drop = event.getIf<GameWIP::Desktop::Types::Events::FilesDropped>())
+        if(const auto *drop = event.getIf<GameWIP::Desktop::Types::Events::FilesDropped>())
         {
-            for (const auto &path : drop->paths)
+            for(const auto &path : drop->paths)
             {
                 // consume FileSystem::Types::Path
             }
@@ -87,9 +87,9 @@ unexpected native destruction; retained events can still be consumed before fina
 #include "desktop/display_info.h"
 
 const auto monitors = GameWIP::Desktop::Display::getMonitors();
-if (monitors.ok())
+if(monitors.ok())
 {
-    for (const auto &monitor : *monitors)
+    for(const auto &monitor : *monitors)
     {
         const auto current = GameWIP::Desktop::Display::getCurrentMode(monitor.id);
         const auto color = GameWIP::Desktop::Display::getColorInfo(monitor.id);
@@ -114,11 +114,11 @@ pass a `Types::Display::Mode` (and optionally a `MonitorId`). The restored logic
 ```cpp
 #include "desktop/cursor.h"
 
-if (window.supports(GameWIP::Desktop::Types::Capability::CustomCursor))
+if(window.supports(GameWIP::Desktop::Types::Capability::CustomCursor))
 {
     auto cursorImage = GameWIP::Desktop::Types::Cursor::ImageView::packed({32, 32}, {4, 3}, cursorRgba8);
     auto cursor = GameWIP::Desktop::createCursor(cursorImage);
-    if (cursor.ok())
+    if(cursor.ok())
         static_cast<void>(GameWIP::Desktop::setCursor(window, *cursor));
 }
 ```
@@ -136,10 +136,10 @@ GameWIP::Desktop::Types::ChildSurface::Description hostDescription;
 hostDescription.rect = {{40, 40}, {800, 600}};
 hostDescription.visible = true;
 
-if (host.open(window, hostDescription).ok())
+if(host.open(window, hostDescription).ok())
 {
     const auto native = GameWIP::Desktop::Native::Win32::getHandle(host);
-    if (native.ok())
+    if(native.ok())
     {
         // Create externally managed native descendants below native->window.
     }
@@ -154,14 +154,13 @@ Shut external technology down before `host.close()` if its SDK needs explicit te
 #include "desktop/clipboard.h"
 
 const auto copied = GameWIP::Desktop::Clipboard::writeText("selected UTF-8 text");
-if (!copied.status.ok())
+if(!copied.status.ok())
 {
     // copied.commitState says whether the external Clipboard changed.
 }
 
-const auto pasted = GameWIP::Desktop::Clipboard::readText(
-    std::chrono::milliseconds{50});
-if (pasted.ok())
+const auto pasted = GameWIP::Desktop::Clipboard::readText(std::chrono::milliseconds{50});
+if(pasted.ok())
 {
     // Insert *pasted into the application-owned selection.
 }
@@ -182,24 +181,19 @@ namespace Desktop = GameWIP::Desktop;
 namespace DD = GameWIP::Desktop::Types::DragDrop;
 namespace Transfer = GameWIP::Desktop::Types::DataTransfer;
 
-std::array formats{
-    Transfer::FormatView::text(),
-    Transfer::FormatView::files()};
-std::array regions{DD::RegionDescription{
-    DD::RegionId{1}, std::nullopt, formats,
-    DD::Effect::Copy, DD::Effect::Copy}};
+std::array formats{Transfer::FormatView::text(), Transfer::FormatView::files()};
+std::array regions{DD::RegionDescription{DD::RegionId{1}, std::nullopt, formats, DD::Effect::Copy, DD::Effect::Copy}};
 
 Desktop::DragDropTarget target;
-if (const auto status = target.open(window, DD::TargetDescription{regions});
-    !status.ok())
+if(const auto status = target.open(window, DD::TargetDescription{regions}); !status.ok())
 {
     return;
 }
 
 DD::Event event;
-while (target.popEvent(event))
+while(target.popEvent(event))
 {
-    if (const auto *dropped = event.getIf<DD::Events::Dropped>())
+    if(const auto *dropped = event.getIf<DD::Events::Dropped>())
     {
         // Visit dropped->payload; every selected item is fully owned.
     }
@@ -220,9 +214,7 @@ are exclusive: see @ref desktop_drag_drop.
 using namespace GameWIP::Desktop;
 
 const std::array imageExtensions{std::string_view{"png"}, std::string_view{"jpg"}};
-const std::array filters{
-    Types::Dialogs::File::Filter{"Images", imageExtensions},
-    Types::Dialogs::File::Filter{"All files", {}}};
+const std::array filters{Types::Dialogs::File::Filter{"Images", imageExtensions}, Types::Dialogs::File::Filter{"All files", {}}};
 
 Types::Dialogs::File::OpenDescription request;
 request.owner = &window;
@@ -230,8 +222,7 @@ request.title = "Open image";
 request.filters = filters;
 
 const auto selected = Dialogs::openFile(request);
-if (selected.status.ok() &&
-    selected.outcome == Types::Dialogs::Outcome::Accepted)
+if(selected.status.ok() && selected.outcome == Types::Dialogs::Outcome::Accepted)
 {
     // Consume selected.path.
 }
@@ -252,10 +243,10 @@ request.heading = "Preparing assets";
 request.presentationMode = GameWIP::Desktop::Types::Dialogs::Progress::Mode::Determinate;
 request.cancelable = true;
 
-if (progress.open(request).ok())
+if(progress.open(request).ok())
 {
     static_cast<void>(progress.setProgress(0.5));
-    if (progress.hasCancelRequest())
+    if(progress.hasCancelRequest())
     {
         // Ask the application-owned operation to stop.
     }
@@ -271,24 +262,21 @@ Progress is modeless, uses the ordinary event pump, and creates no worker thread
 #include "desktop/shell.h"
 #include "desktop/shell_taskbar.h"
 
-if (GameWIP::Desktop::Shell::supports(
-        GameWIP::Desktop::Types::Shell::Capability::Taskbar) &&
-    GameWIP::Desktop::Shell::supports(
-        GameWIP::Desktop::Types::Shell::Capability::TaskbarProgress))
+if(GameWIP::Desktop::Shell::supports(GameWIP::Desktop::Types::Shell::Capability::Taskbar) &&
+   GameWIP::Desktop::Shell::supports(GameWIP::Desktop::Types::Shell::Capability::TaskbarProgress))
 {
     GameWIP::Desktop::ShellEventQueue shellEvents;
-    if (shellEvents.open().ok())
+    if(shellEvents.open().ok())
     {
         GameWIP::Desktop::TaskbarItem taskbar;
         GameWIP::Desktop::Types::Taskbar::Description taskbarDescription;
-        taskbarDescription.progress = GameWIP::Desktop::Types::Shell::Progress{
-            GameWIP::Desktop::Types::Shell::ProgressState::Normal, 0.5};
+        taskbarDescription.progress = GameWIP::Desktop::Types::Shell::Progress{GameWIP::Desktop::Types::Shell::ProgressState::Normal, 0.5};
 
-        if (taskbar.open(window, taskbarDescription, shellEvents).ok())
+        if(taskbar.open(window, taskbarDescription, shellEvents).ok())
         {
             // Consume shellEvents while the Window and taskbar binding remain open.
             GameWIP::Desktop::Types::Shell::Event event;
-            while (shellEvents.popEvent(event))
+            while(shellEvents.popEvent(event))
             {
                 // Handle typed taskbar, tray, or notification payloads here.
             }
@@ -312,9 +300,7 @@ Window remains alive. Supply a strictly newer nonzero generation each time.
 #include "desktop/accessibility.h"
 #include <array>
 
-GameWIP::IO::Types::Status publishAccessibleCommand(
-    GameWIP::Desktop::Window &window,
-    GameWIP::Desktop::Types::Accessibility::Generation generation)
+GameWIP::IO::Types::Status publishAccessibleCommand(GameWIP::Desktop::Window &window, GameWIP::Desktop::Types::Accessibility::Generation generation)
 {
     namespace D = GameWIP::Desktop;
     namespace A = D::Types::Accessibility;
@@ -334,14 +320,13 @@ GameWIP::IO::Types::Status publishAccessibleCommand(
     nodes[1].geometry = A::Geometry{{20, 20, 160, 40}};
     return bridge.publish({generation, 1, nodes});
 }
-
 ```
 
 For initial activation on the owner thread:
 
 ```cpp
 const auto enabled = window.accessibility().enable();
-if (enabled.ok())
+if(enabled.ok())
 {
     const auto published = publishAccessibleCommand(window, 1);
     // Inspect published before starting native or worker-thread use.
@@ -358,17 +343,17 @@ Publish resulting state with a newer generation. See @ref desktop_accessibility.
 #include "desktop/renderer_bridge.h"
 
 const auto concurrentReads = GameWIP::Desktop::Renderer::enableConcurrentPresentationReads(window);
-if (concurrentReads.ok())
+if(concurrentReads.ok())
 {
     // Start the renderer thread only after enablement completes. It may now use
     // the documented presentation getters, including framebufferSize(),
     // currentMonitor(), and occluded().
 }
 
-if (window.supports(GameWIP::Desktop::Types::Capability::OcclusionReporting))
+if(window.supports(GameWIP::Desktop::Types::Capability::OcclusionReporting))
 {
     static_cast<void>(GameWIP::Desktop::Renderer::attachOcclusionProvider(window));
-    if (GameWIP::Desktop::Renderer::hasOcclusionProvider(window))
+    if(GameWIP::Desktop::Renderer::hasOcclusionProvider(window))
         static_cast<void>(GameWIP::Desktop::Renderer::reportOcclusion(window, true));
 }
 ```
@@ -381,7 +366,7 @@ Concurrent reads and occlusion feedback are independent opt-ins. See @ref deskto
 #include "desktop/native/win32.h"
 
 const auto native = GameWIP::Desktop::Native::Win32::getHandle(window);
-if (native.ok())
+if(native.ok())
 {
     HWND hwnd = native->window;
 }

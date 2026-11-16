@@ -258,9 +258,9 @@ namespace GameWIP::Desktop::Dialogs
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // File dialogs
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// File dialogs
+    /// ------------------------------------------------------------
 
     Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept
     {
@@ -422,9 +422,9 @@ namespace GameWIP::Desktop::Dialogs
         return result;
     }
 
-    // ------------------------------------------------------------
-    // Message and prompt dialogs
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Message and prompt dialogs
+    /// ------------------------------------------------------------
 
     Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept
     {

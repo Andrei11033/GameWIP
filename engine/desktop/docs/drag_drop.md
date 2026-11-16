@@ -159,29 +159,21 @@ namespace Desktop = GameWIP::Desktop;
 namespace DD = GameWIP::Desktop::Types::DragDrop;
 namespace Transfer = GameWIP::Desktop::Types::DataTransfer;
 
-std::array accepted{
-    Transfer::FormatView::text(),
-    Transfer::FormatView::files()};
+std::array accepted{Transfer::FormatView::text(), Transfer::FormatView::files()};
 
-std::array regions{
-    DD::RegionDescription{
-        DD::RegionId{1},
-        std::nullopt,
-        accepted,
-        DD::Effect::Copy | DD::Effect::Move,
-        DD::Effect::Copy}};
+std::array regions{DD::RegionDescription{DD::RegionId{1}, std::nullopt, accepted, DD::Effect::Copy | DD::Effect::Move, DD::Effect::Copy}};
 
 Desktop::DragDropTarget target;
 const auto opened = target.open(window, DD::TargetDescription{regions});
-if (!opened.ok())
+if(!opened.ok())
 {
     // Inspect opened.code/nativeCode; the target remains closed.
 }
 
 DD::Event event;
-while (target.popEvent(event))
+while(target.popEvent(event))
 {
-    if (const auto *drop = event.getIf<DD::Events::Dropped>())
+    if(const auto *drop = event.getIf<DD::Events::Dropped>())
     {
         // drop->payload owns every successfully materialized item.
     }
@@ -221,13 +213,10 @@ time. The source Window must remain open for the complete call.
 Transfer::TextView text{"Drag me"};
 std::array<Transfer::ItemView, 1> items{text};
 
-DD::Description description{
-    items,
-    DD::EffectPolicy::source(DD::Effect::Copy),
-    DD::TriggerButton::Left};
+DD::Description description{items, DD::EffectPolicy::source(DD::Effect::Copy), DD::TriggerButton::Left};
 
 const DD::Result result = Desktop::DragDrop::beginDrag(window, description);
-if (result.status.ok() && result.outcome == DD::Outcome::Dropped)
+if(result.status.ok() && result.outcome == DD::Outcome::Dropped)
 {
     // result.effect is the performed Copy/Move/Link operation.
 }

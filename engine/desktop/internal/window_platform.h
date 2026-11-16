@@ -18,11 +18,14 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Best-effort color metadata gathered from display configuration and DXGI.
     struct DisplayColorSnapshot
     {
+        // Color capabilities
         Types::Display::ColorSpace activeColorSpace = Types::Display::ColorSpace::Unknown;
         bool wideColorGamutSupported = false;
         bool hdrSupported = false;
         bool hdrEnabled = false;
         std::uint32_t bitsPerColorChannel = 0;
+
+        // Luminance levels
         float minimumLuminanceNits = 0.0F;
         float maximumLuminanceNits = 0.0F;
         float maximumFullFrameLuminanceNits = 0.0F;
@@ -43,9 +46,10 @@ namespace GameWIP::Desktop::Detail::Platform
         void *window = nullptr;
     };
 
-    // ------------------------------------------------------------
-    // Process, display, and event services
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Process, display, and event services
+    /// ------------------------------------------------------------
+
     [[nodiscard]] Types::Result<Types::Capabilities> getCapabilities() noexcept;
     [[nodiscard]] Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept;
     [[nodiscard]] Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept;
@@ -64,9 +68,10 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Returns whether the calling thread owns an open top-level Window.
     [[nodiscard]] bool hasOpenWindowsOnCurrentThread() noexcept;
 
-    // ------------------------------------------------------------
-    // Window lifetime and ownership
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window lifetime and ownership
+    /// ------------------------------------------------------------
+
     [[nodiscard]] IO::Types::Status open(WindowState &state, const Types::Description &description) noexcept;
     [[nodiscard]] CloseResult close(WindowState &state) noexcept;
     void closeBestEffort(WindowState &state) noexcept;
@@ -76,9 +81,10 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status wakeEventWait(const WindowState &state) noexcept;
     [[nodiscard]] NativeHandleView nativeHandle(const WindowState &state) noexcept;
 
-    // ------------------------------------------------------------
-    // Ownership, metadata, and geometry
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Ownership, metadata, and geometry
+    /// ------------------------------------------------------------
+
     [[nodiscard]] IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept;
     [[nodiscard]] IO::Types::Status setTitle(WindowState &state, std::string_view utf8Title) noexcept;
     [[nodiscard]] IO::Types::Status setIcon(WindowState &state, std::span<const Types::IconImageView> images) noexcept;
@@ -92,9 +98,10 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] Types::Result<Types::ScreenPosition> clientToScreen(const WindowState &state, Types::LogicalPosition position) noexcept;
     [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(const WindowState &state, Types::ScreenPosition position) noexcept;
 
-    // ------------------------------------------------------------
-    // Visibility, mode, style, and cursor controls
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Visibility, mode, style, and cursor controls
+    /// ------------------------------------------------------------
+
     [[nodiscard]] IO::Types::Status show(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status hide(WindowState &state) noexcept;
     [[nodiscard]] IO::Types::Status requestFocus(WindowState &state) noexcept;

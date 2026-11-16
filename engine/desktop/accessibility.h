@@ -25,9 +25,9 @@ namespace GameWIP::Desktop::Detail
 
 namespace GameWIP::Desktop::Types::Accessibility
 {
-    // ------------------------------------------------------------
-    // Identity, roles, state, and capabilities
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Identity, roles, state, and capabilities
+    /// ------------------------------------------------------------
 
     /// @brief Stable application-owned identity for one semantic node in an open Window lifetime.
     using NodeId = std::uint64_t;
@@ -226,9 +226,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         RedactContent ///< Hides descriptive strings, values, text, and announcements; preserves structure and bounds.
     };
 
-    // ------------------------------------------------------------
-    // Geometry
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry
+    /// ------------------------------------------------------------
 
     /// @brief Floating-point point in Window client logical coordinates.
     struct Point
@@ -268,9 +268,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         std::uint32_t hitTestOrder = 0;     ///< Higher orders win overlap; ties use later semantic preorder.
     };
 
-    // ------------------------------------------------------------
-    // Text content and layout
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Text content and layout
+    /// ------------------------------------------------------------
 
     /// @brief UTF-8 byte range. End is exclusive.
     /// @details Ranges must begin and end at documented Unicode scalar and grapheme boundaries.
@@ -327,9 +327,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         std::optional<std::uint32_t> caret;                   ///< Optional current caret at a grapheme boundary.
     };
 
-    // ------------------------------------------------------------
-    // Values, selection, and collections
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Values, selection, and collections
+    /// ------------------------------------------------------------
 
     /// @brief Numeric range metadata for sliders, progress values, and similar controls.
     struct RangeValue
@@ -385,9 +385,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         std::uint32_t totalChildCount = 0;    ///< Logical collection child count including items absent from the snapshot.
     };
 
-    // ------------------------------------------------------------
-    // Relations and extensions
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Relations and extensions
+    /// ------------------------------------------------------------
 
     /// @brief Relationship kinds between semantic nodes.
     enum class RelationKind : std::uint8_t
@@ -487,9 +487,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         ExtensionValue value;           ///< Bounded typed portable payload; native backends need not register custom properties.
     };
 
-    // ------------------------------------------------------------
-    // Semantic nodes and snapshots
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Semantic nodes and snapshots
+    /// ------------------------------------------------------------
 
     /// @brief One immutable semantic node in a borrowed snapshot view.
     /// @details All strings and spans borrow application storage until addNode()/publish() returns.
@@ -532,9 +532,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         std::span<const Node> nodes;                ///< Borrowed complete connected tree in arbitrary storage order.
     };
 
-    // ------------------------------------------------------------
-    // Limits, validation, and activation options
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Limits, validation, and activation options
+    /// ------------------------------------------------------------
 
     /// @brief Safe limits applied to snapshots, extensions, actions, and notifications.
     struct Limits
@@ -621,9 +621,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         Limits limits; ///< Positive bounded capacities used for this explicit activation.
     };
 
-    // ------------------------------------------------------------
-    // Actions and notifications
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Actions and notifications
+    /// ------------------------------------------------------------
 
     /// @brief Transport outcome when a native client submits an action request.
     enum class ActionAcceptance : std::uint8_t
@@ -747,9 +747,9 @@ namespace GameWIP::Desktop::Types::Accessibility
         NotificationQueueInfo notifications; ///< Notification queue telemetry, captured separately under its transport lock.
     };
 
-    // ------------------------------------------------------------
-    // Announcements
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Announcements
+    /// ------------------------------------------------------------
 
     /// @brief Priority of an explicit announcement.
     enum class AnnouncementPriority : std::uint8_t
@@ -771,9 +771,9 @@ namespace GameWIP::Desktop::Types::Accessibility
 
 namespace GameWIP::Desktop::Accessibility
 {
-    // ------------------------------------------------------------
-    // Validation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Validation
+    /// ------------------------------------------------------------
 
     /// @brief Validates all portable tree, text, geometry, relation, and limit invariants.
     /// @param snapshot Borrowed complete tree; all nested views must remain readable during the call.
@@ -784,9 +784,9 @@ namespace GameWIP::Desktop::Accessibility
         const Types::Accessibility::SnapshotView &snapshot,
         const Types::Accessibility::Limits &limits = {}) noexcept;
 
-    // ------------------------------------------------------------
-    // Snapshot authoring
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Snapshot authoring
+    /// ------------------------------------------------------------
 
     /// @brief Owning snapshot authoring and deep-copy container.
     /// @details Externally synchronized. Moved-from builders remain reusable. Construction allocates nothing;
@@ -848,9 +848,9 @@ namespace GameWIP::Desktop::Accessibility
         Types::Accessibility::Limits limits_;
     };
 
-    // ------------------------------------------------------------
-    // Immutable snapshot inspection
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Immutable snapshot inspection
+    /// ------------------------------------------------------------
 
     /// @brief Read-only structural view of one published snapshot.
     /// @details Passive immutable retention. Independent reader copies may be inspected on any thread;
@@ -895,9 +895,9 @@ namespace GameWIP::Desktop::Accessibility
         std::shared_ptr<const Detail::PublishedSnapshot> snapshot_;
     };
 
-    // ------------------------------------------------------------
-    // Window accessibility bridge
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window accessibility bridge
+    /// ------------------------------------------------------------
 
     /// @brief Window-integrated façade for the optional accessibility bridge.
     /// @details This is a lightweight non-owning view. Publication and inspection are safe from

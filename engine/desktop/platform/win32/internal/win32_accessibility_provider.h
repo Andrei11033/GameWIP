@@ -15,22 +15,48 @@ namespace GameWIP::Desktop::Detail::Platform
     class NodeProvider;
     class TextRangeProvider;
 
-    // ------------------------------------------------------------
-    // Native snapshot retention and bounded provider state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native UI Automation constants
+    /// ------------------------------------------------------------
+
+    inline constexpr HRESULT kUnavailable = static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
+    inline constexpr HRESULT kUnsupported = static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
+    inline constexpr double kNoScroll = -1.0;
+    // Selection2=10034 in Microsoft's UIAutomation IDL; older MinGW SDKs omit the named constant.
+    inline constexpr PATTERNID kSelection2PatternId = 10034;
+
+    /// ------------------------------------------------------------
+    /// Native snapshot retention and bounded provider state
+    /// ------------------------------------------------------------
 
     struct UiaSnapshot final : AccessibilityNativeSnapshot
     {
         struct Layout
         {
+            // Geometry
+
             A::Rect bounds;
             std::optional<A::Rect> clip;
             bool visible = true;
-            std::uint32_t order = 0, ordinal = 0;
+
+            // Tree order
+
+            std::uint32_t order = 0;
+            std::uint32_t ordinal = 0;
             std::uint32_t subtreeEnd = 0;
-            A::NodeId selectionContainer = 0, containingGrid = 0;
+
+            // Related controls
+
+            A::NodeId selectionContainer = 0;
+            A::NodeId containingGrid = 0;
         };
+
+        // Retained providers
+
         std::vector<IRawElementProviderSimple *> providers;
+
+        // Cached node data
+
         std::vector<Layout> layout;
         std::vector<std::pair<std::size_t, std::size_t>> annotationSources;
 
@@ -39,10 +65,15 @@ namespace GameWIP::Desktop::Detail::Platform
 
     struct UiaQuery
     {
+        // Snapshot query
+
         std::shared_ptr<AccessibilityRuntime> runtime;
         std::shared_ptr<const PublishedSnapshot> snapshot;
         const A::Node *node = nullptr;
         std::size_t index = 0;
+
+        // Host state
+
         std::optional<AccessibilityHostGeometry> host; // One coherent host state retained for the entire query.
 
         [[nodiscard]] explicit operator bool() const noexcept
@@ -72,8 +103,13 @@ namespace GameWIP::Desktop::Detail::Platform
 
     struct UiaState final : AccessibilityNativeState, std::enable_shared_from_this<UiaState>
     {
+        // Provider lifetime
+
         std::map<A::NodeId, NodeProvider *> providers; // Mutated only under the portable publication gate; never used by queries.
         std::vector<std::unique_ptr<TextRangeProvider>> ranges;
+
+        // Notification delivery
+
         RaiseNotification raiseNotification = nullptr;
         std::atomic<std::uint32_t> listeners{0};
 
@@ -81,9 +117,9 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] HRESULT range(const UiaQuery &query, A::TextRange bounds, ITextRangeProvider **out) noexcept;
     };
 
-    // ------------------------------------------------------------
-    // Query projection and action transport
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Query projection and action transport
+    /// ------------------------------------------------------------
 
     [[nodiscard]] UiaQuery queryNode(const std::weak_ptr<AccessibilityRuntime> &runtime, A::NodeId id) noexcept;
     [[nodiscard]] IRawElementProviderSimple *providerFor(const PublishedSnapshot &snapshot, A::NodeId id) noexcept;
@@ -100,9 +136,9 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] HRESULT action(const UiaQuery &query, A::ActionRequest request) noexcept;
     [[nodiscard]] HRESULT stringValue(std::u16string_view text, BSTR *out) noexcept;
 
-    // ------------------------------------------------------------
-    // COM pattern and provider interfaces
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// COM pattern and provider interfaces
+    /// ------------------------------------------------------------
 
     // COM interfaces are destroyed by Release(), not through their intentionally nonvirtual base destructors.
 #if defined(__GNUC__)
@@ -274,12 +310,18 @@ namespace GameWIP::Desktop::Detail::Platform
     class TextRangeProvider final : public ITextRangeProvider
     {
     public:
+        // COM lifetime
+
         std::atomic<ULONG> references{0};
         std::atomic<bool> available{true};
         std::shared_ptr<UiaState> lease;
+
+        // Snapshot identity
+
         std::weak_ptr<AccessibilityRuntime> runtime;
         std::shared_ptr<const PublishedSnapshot> snapshot;
         A::NodeId node = 0;
+
         std::atomic<std::uint64_t> bounds{0};
         HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override;
         ULONG STDMETHODCALLTYPE AddRef() override;

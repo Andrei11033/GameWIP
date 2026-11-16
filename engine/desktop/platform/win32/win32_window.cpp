@@ -14,9 +14,10 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Process and thread registries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Process and thread registries
+    /// ------------------------------------------------------------
+
     namespace
     {
         std::mutex classMutex;
@@ -35,9 +36,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
     } // namespace
 
-    // ------------------------------------------------------------
-    // Native class lifetime
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native class lifetime
+    /// ------------------------------------------------------------
 
     /// @brief Acquires the process-wide native Window class reference.
     IO::Types::Status acquireWindowClass(HINSTANCE instance) noexcept
@@ -117,9 +118,9 @@ namespace GameWIP::Desktop::Detail::Platform
         state.id = {value};
     }
 
-    // ------------------------------------------------------------
-    // Window identity and native styles
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window identity and native styles
+    /// ------------------------------------------------------------
 
     /// @brief Removes a Window identity and clears owners that pointed at it.
     void unregisterWindowId(WindowState &state) noexcept
@@ -246,9 +247,10 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Event routing and dispatcher state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event routing and dispatcher state
+    /// ------------------------------------------------------------
+
     Dispatcher &dispatcher() noexcept
     {
         return threadDispatcher;
@@ -797,9 +799,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return found == windowRegistry.end() ? nullptr : found->second;
     }
 
-    // ------------------------------------------------------------
-    // Native status conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native status conversion
+    /// ------------------------------------------------------------
 
     /// @brief Maps a Win32 error and operation name into a portable status.
     IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept
@@ -882,9 +884,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Geometry and hit testing
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and hit testing
+    /// ------------------------------------------------------------
 
     /// @brief Returns the effective per-monitor DPI for a Window or the current thread context.
     UINT dpiForWindow(HWND window) noexcept
@@ -1007,9 +1009,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return LoadCursorW(nullptr, MAKEINTRESOURCEW(identifier));
     }
 
-    // ------------------------------------------------------------
-    // Cached native state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cached native state
+    /// ------------------------------------------------------------
 
     /// @brief Re-reads native client geometry and republishes cached Window values.
     IO::Types::Status refreshCachedGeometry(WindowState &state) noexcept
@@ -1221,9 +1223,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return refreshCachedGeometry(state);
     }
 
-    // ------------------------------------------------------------
-    // Exclusive-mode cleanup
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Exclusive-mode cleanup
+    /// ------------------------------------------------------------
 
     /// @brief Leaves exclusive mode and restores the saved desktop display mode.
     IO::Types::Status leaveExclusive(WindowState &state) noexcept
@@ -1311,9 +1313,10 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Deferred owner-thread cleanup
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Deferred owner-thread cleanup
+    /// ------------------------------------------------------------
+
     // Deferred ownership is committed under deferredMutex before this best-effort wake. A failed
     // wake cannot lose the cleanup obligation; the owner processes the durable queue on its next
     // pump or during thread-exit cleanup.

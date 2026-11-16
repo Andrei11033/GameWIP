@@ -11,9 +11,10 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Cached presentation synchronization
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cached presentation synchronization
+    /// ------------------------------------------------------------
+
     namespace
     {
         /// @brief Publishes a visibility transition observed from the native HWND.
@@ -80,9 +81,10 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Visibility, focus, and presentation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Visibility, focus, and presentation
+    /// ------------------------------------------------------------
+
     IO::Types::Status show(WindowState &state) noexcept
     {
         ShowWindow(state.platform->handle, SW_SHOWNOACTIVATE);
@@ -171,9 +173,10 @@ namespace GameWIP::Desktop::Detail::Platform
         return refreshCachedGeometry(state);
     }
 
-    // ------------------------------------------------------------
-    // Chrome and interaction policy
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Chrome and interaction policy
+    /// ------------------------------------------------------------
+
     IO::Types::Status setResizable(WindowState &state, bool resizable) noexcept
     {
         return updateStyleValue(
@@ -371,9 +374,10 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Cursor controls
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cursor controls
+    /// ------------------------------------------------------------
+
     IO::Types::Status setCursorMode(WindowState &state, Types::CursorMode mode) noexcept
     {
         if(state.cursorMode == mode)

@@ -18,9 +18,9 @@ namespace GameWIP::Desktop::Detail::Platform
 {
     inline constexpr WORD kTaskbarThumbnailButtonClicked = 0x1800U;
 
-    // ------------------------------------------------------------
-    // Native message translation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native message translation
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -165,9 +165,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Window procedure
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window procedure
+    /// ------------------------------------------------------------
 
     LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     {

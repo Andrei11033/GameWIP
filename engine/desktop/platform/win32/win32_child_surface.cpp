@@ -14,9 +14,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // ChildSurface class and geometry helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// ChildSurface class and geometry helpers
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -293,9 +293,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // ChildSurface lifecycle and native operations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// ChildSurface lifecycle and native operations
+    /// ------------------------------------------------------------
 
     /// @brief Deletes backend state after owner-thread native cleanup has completed.
     void ChildSurfaceDataDeleter::operator()(ChildSurfaceData *data) const noexcept

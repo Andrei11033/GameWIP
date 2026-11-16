@@ -12,12 +12,11 @@
 
 namespace GameWIP::Desktop::Detail
 {
-    // Keep this as one lazy allocation while its optional renderer features remain small and closely related. If it grows substantially with
-    // independent features such as presentation timing, HDR/color metadata, damage tracking, or frame-latency state, split focused optional
-    // sub-states instead of turning this into a generic renderer-state container.
+    // Keep these optional features together while the state remains small and cohesive.
     /// @brief Optional renderer-facing state shared by hit-mask and occlusion bridges.
     struct RendererIntegrationState
     {
+        // Pointer hit-mask publication
         std::vector<Types::Renderer::PointerHitMaskWord> pointerHitMask;
         Types::PixelSize pointerHitMaskSize;
         Types::PixelSize pointerHitMaskTargetSize;
@@ -27,6 +26,8 @@ namespace GameWIP::Desktop::Detail
         std::uint64_t pointerHitMaskTargetGeneration = 0;
         bool pointerHitMaskGenerationExhausted = false;
         bool pointerHitMaskBackendSupportedForTesting = false;
+
+        // Renderer occlusion feedback
         bool occlusionProviderAttached = false;
         bool occluded = false;
 

@@ -82,7 +82,7 @@ a mask accepting only the central pixel:
 #include <vector>
 
 const auto update = GameWIP::Desktop::Renderer::beginPointerHitMaskUpdate(window);
-if (update.ok())
+if(update.ok())
 {
     using Word = GameWIP::Desktop::Types::Renderer::PointerHitMaskWord;
     const auto &target = *update;
@@ -92,8 +92,7 @@ if (update.ok())
     const std::size_t x = width / 2;
     const std::size_t y = target.framebufferSize.height / 2;
     words[y * wordsPerRow + x / 32] = Word{1} << (x % 32);
-    const auto published = GameWIP::Desktop::Renderer::publishPointerHitMask(
-        window, target.generation, words);
+    const auto published = GameWIP::Desktop::Renderer::publishPointerHitMask(window, target.generation, words);
     // Inspect published; geometry may have changed since begin.
 }
 ```

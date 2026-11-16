@@ -8,9 +8,9 @@
 
 namespace GameWIP::Desktop::Clipboard
 {
-    // ------------------------------------------------------------
-    // Format and read operations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Format and read operations
+    /// ------------------------------------------------------------
 
     Types::Result<bool> hasFormat(Types::DataTransfer::FormatView format) noexcept
     {

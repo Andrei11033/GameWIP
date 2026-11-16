@@ -6,6 +6,7 @@
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/window_state.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 
 #include <commctrl.h>
 
@@ -19,9 +20,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Native progress-window state and lifecycle helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native progress-window state and lifecycle helpers
+    /// ------------------------------------------------------------
 
     struct ProgressDialogData;
 
@@ -644,9 +645,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Native deleters and dispatcher ownership
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native deleters and dispatcher ownership
+    /// ------------------------------------------------------------
 
     /// @brief Finalizes a progress allocation only after its HWND and class references are safe.
     void ProgressDialogDataDeleter::operator()(ProgressDialogData *data) const noexcept
@@ -1300,17 +1301,19 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
             const ProgressDialogData &data = *state->platform;
+
+            // Read native controls and their geometry.
             snapshot.nativeWindow = data.handle != nullptr && IsWindow(data.handle) != FALSE;
             snapshot.cancelControl = data.cancel != nullptr && IsWindow(data.cancel) != FALSE;
-            snapshot.registered = data.registered;
-            snapshot.classReferenceHeld = data.classReferenceHeld;
-            snapshot.blockingOwner = data.blockingOwner;
             snapshot.windowBounds = nativeRect(data.handle);
             snapshot.progressBounds = nativeRect(data.progress);
+
+            // Copy visible text while the native controls are alive.
             snapshot.title = nativeText(data.handle);
             snapshot.heading = nativeText(data.heading);
             snapshot.message = nativeText(data.message);
 
+            // Read the current progress state.
             if(data.progress != nullptr)
             {
                 snapshot.rangeMinimum = static_cast<int>(SendMessageW(data.progress, PBM_GETRANGE, TRUE, 0));
@@ -1324,6 +1327,11 @@ namespace GameWIP::Desktop::Detail::Platform
                     snapshot.marquee = (static_cast<ULONG_PTR>(style) & static_cast<ULONG_PTR>(PBS_MARQUEE)) != 0;
                 }
             }
+
+            // Preserve registration and teardown state.
+            snapshot.registered = data.registered;
+            snapshot.classReferenceHeld = data.classReferenceHeld;
+            snapshot.blockingOwner = data.blockingOwner;
         }
         catch(...)
         {

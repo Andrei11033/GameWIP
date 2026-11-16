@@ -19,9 +19,9 @@
 
 namespace GameWIP::Desktop::Types::DragDrop
 {
-    // ------------------------------------------------------------
-    // Identities and effects
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Identities and effects
+    /// ------------------------------------------------------------
 
     /// @brief Stable identity for one native drag session observed by a target.
     struct SessionId
@@ -135,9 +135,9 @@ namespace GameWIP::Desktop::Types::DragDrop
         }
     };
 
-    // ------------------------------------------------------------
-    // Source and target descriptions
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source and target descriptions
+    /// ------------------------------------------------------------
 
     /// @brief Terminal result of a source-side native drag operation.
     enum class Outcome : std::uint8_t
@@ -189,9 +189,9 @@ namespace GameWIP::Desktop::Types::DragDrop
     /// @brief Immutable format metadata shared by all movement events in a native session.
     using FormatSnapshot = std::shared_ptr<const std::vector<DataTransfer::Format>>;
 
-    // ------------------------------------------------------------
-    // Target events
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target events
+    /// ------------------------------------------------------------
 
     namespace Events
     {
@@ -292,9 +292,9 @@ namespace GameWIP::Desktop
         struct DragDropState;
     } // namespace Detail
 
-    // ------------------------------------------------------------
-    // Target owner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target owner
+    /// ------------------------------------------------------------
 
     /// @brief Non-copyable, non-movable RAII owner of one native data drop target.
     /// @details A successful open inherits the Window owner thread. Descriptions and format names
@@ -303,10 +303,6 @@ namespace GameWIP::Desktop
     class DESKTOP_EXPORT DragDropTarget final
     {
     public:
-        // ------------------------------------------------------------
-        // Lifecycle
-        // ------------------------------------------------------------
-
         /// @name Lifecycle
         /// @{
 
@@ -345,10 +341,6 @@ namespace GameWIP::Desktop
         [[nodiscard]] IO::Types::Status close() noexcept;
         /// @}
 
-        // ------------------------------------------------------------
-        // Window and ownership
-        // ------------------------------------------------------------
-
         /// @name Window and ownership
         /// @{
 
@@ -359,10 +351,6 @@ namespace GameWIP::Desktop
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @}
 
-        // ------------------------------------------------------------
-        // Regions
-        // ------------------------------------------------------------
-
         /// @name Regions
         /// @{
 
@@ -371,10 +359,6 @@ namespace GameWIP::Desktop
         /// @return Success, or validation/allocation failure with the previous snapshot unchanged.
         [[nodiscard]] IO::Types::Status setRegions(std::span<const Types::DragDrop::RegionDescription> regions) noexcept;
         /// @}
-
-        // ------------------------------------------------------------
-        // Event queue
-        // ------------------------------------------------------------
 
         /// @name Event queue
         /// @{
@@ -403,9 +387,9 @@ namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::DragDrop
 {
-    // ------------------------------------------------------------
-    // Source operation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source operation
+    /// ------------------------------------------------------------
 
     /// @brief Runs one synchronous native data drag from an open Window.
     /// @details All item data is validated and snapshotted before native modal dispatch. The call

@@ -16,9 +16,9 @@
 
 namespace GameWIP::Desktop
 {
-    // ------------------------------------------------------------
-    // Validation and cached-state helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Validation and cached-state helpers
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -97,9 +97,9 @@ namespace GameWIP::Desktop
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Lifecycle and ownership
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Lifecycle and ownership
+    /// ------------------------------------------------------------
 
     ChildSurface::ChildSurface() noexcept = default;
 
@@ -248,9 +248,9 @@ namespace GameWIP::Desktop
         return result.status;
     }
 
-    // ------------------------------------------------------------
-    // Cached state and event queue
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cached state and event queue
+    /// ------------------------------------------------------------
 
     Types::WindowId ChildSurface::parentId() const noexcept
     {
@@ -372,9 +372,9 @@ namespace GameWIP::Desktop
         return state_ && state_->interactionEnabled;
     }
 
-    // ------------------------------------------------------------
-    // Geometry and coordinate conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and coordinate conversion
+    /// ------------------------------------------------------------
 
     IO::Types::Status ChildSurface::setRect(Types::LogicalRect newRect) noexcept
     {
@@ -438,9 +438,9 @@ namespace GameWIP::Desktop
         return Detail::Platform::childSurfaceScreenToClient(*state_, position);
     }
 
-    // ------------------------------------------------------------
-    // Visibility and sibling ordering
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Visibility and sibling ordering
+    /// ------------------------------------------------------------
 
     IO::Types::Status ChildSurface::show() noexcept
     {

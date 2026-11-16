@@ -5,7 +5,9 @@
 
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/window_state.h"
+#include "desktop/platform/win32/internal/win32_com.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 
 #include <commctrl.h>
 #include <objbase.h>
@@ -19,59 +21,13 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // COM, text, and file-dialog preparation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// COM, text, and file-dialog preparation
+    /// ------------------------------------------------------------
 
     namespace
     {
         using IO::Types::ErrorCode;
-
-        /// @brief Owns one COM interface pointer and releases it at scope exit.
-        template <typename Interface> class ComPtr final
-        {
-        public:
-            ComPtr() noexcept = default;
-            ComPtr(const ComPtr &) = delete;
-            ComPtr &operator=(const ComPtr &) = delete;
-            ~ComPtr() noexcept
-            {
-                reset();
-            }
-
-            [[nodiscard]] Interface *get() const noexcept
-            {
-                return value_;
-            }
-
-            [[nodiscard]] Interface **put() noexcept
-            {
-                reset();
-                return &value_;
-            }
-
-            Interface *operator->() const noexcept
-            {
-                return value_;
-            }
-
-            explicit operator bool() const noexcept
-            {
-                return value_ != nullptr;
-            }
-
-            void reset() noexcept
-            {
-                if(value_ != nullptr)
-                {
-                    value_->Release();
-                    value_ = nullptr;
-                }
-            }
-
-        private:
-            Interface *value_ = nullptr;
-        };
 
         /// @brief Releases a string allocated by a Shell COM API.
         class CoTaskMemString final
@@ -83,99 +39,6 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
             PWSTR value = nullptr;
-        };
-
-        /// @brief Maps common COM outcomes to the portable dialog status vocabulary.
-        [[nodiscard]] IO::Types::Status statusFromHResult(HRESULT result) noexcept
-        {
-            ErrorCode code = ErrorCode::NativeFailure;
-
-            if(result == E_OUTOFMEMORY)
-            {
-                code = ErrorCode::OutOfMemory;
-            }
-            else if(result == E_INVALIDARG)
-            {
-                code = ErrorCode::InvalidArgument;
-            }
-            else if(result == E_ACCESSDENIED)
-            {
-                code = ErrorCode::PermissionDenied;
-            }
-            else if(result == RPC_E_CHANGED_MODE)
-            {
-                code = ErrorCode::ResourceBusy;
-            }
-            else if(result == E_NOTIMPL || result == HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED))
-            {
-                code = ErrorCode::Unsupported;
-            }
-
-            return IO::makeStatus(code, static_cast<std::int64_t>(result));
-        }
-
-        /// @brief Keeps native dialog modality on the caller's compatible STA.
-        /// @details The dialog owns thread-affine state, so incompatible apartments are rejected
-        /// instead of being hidden behind a worker thread.
-        class ApartmentLease final
-        {
-        public:
-            ApartmentLease() noexcept
-            {
-                APTTYPE type = APTTYPE_CURRENT;
-                APTTYPEQUALIFIER qualifier = APTTYPEQUALIFIER_NONE;
-                HRESULT result = CoGetApartmentType(&type, &qualifier);
-
-                if(SUCCEEDED(result))
-                {
-                    if(type == APTTYPE_STA || type == APTTYPE_MAINSTA)
-                    {
-                        status_ = IO::successStatus();
-                        return;
-                    }
-
-                    if(type != APTTYPE_MTA || qualifier != APTTYPEQUALIFIER_IMPLICIT_MTA)
-                    {
-                        status_ = IO::makeStatus(ErrorCode::ResourceBusy, static_cast<std::int64_t>(RPC_E_CHANGED_MODE));
-                        return;
-                    }
-                    // An implicit MTA has no initialization owned by this thread; it may enter an STA.
-                }
-                else if(result != CO_E_NOTINITIALIZED)
-                {
-                    status_ = statusFromHResult(result);
-                    return;
-                }
-
-                result = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-                if(SUCCEEDED(result))
-                {
-                    ownsInitialization_ = true;
-                    status_ = IO::successStatus();
-                }
-                else
-                {
-                    status_ = statusFromHResult(result);
-                }
-            }
-
-            ~ApartmentLease() noexcept
-            {
-                if(ownsInitialization_)
-                {
-                    CoUninitialize();
-                }
-            }
-
-            [[nodiscard]] const IO::Types::Status &status() const noexcept
-            {
-                return status_;
-            }
-
-        private:
-            IO::Types::Status status_;
-            bool ownsInitialization_ = false;
         };
 
         /// @brief Resolves an optional portable owner to its current native HWND.
@@ -1032,9 +895,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // File and folder dialogs
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// File and folder dialogs
+    /// ------------------------------------------------------------
 
     Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept
     {
@@ -1303,9 +1166,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Message and prompt dialogs
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Message and prompt dialogs
+    /// ------------------------------------------------------------
 
     Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept
     {

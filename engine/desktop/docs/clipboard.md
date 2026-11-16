@@ -121,9 +121,8 @@ using namespace GameWIP::Desktop;
 
 void copySelection(std::string_view selectedUtf8)
 {
-    const Types::Clipboard::WriteResult result =
-        Clipboard::writeText(selectedUtf8);
-    if (!result.status.ok())
+    const Types::Clipboard::WriteResult result = Clipboard::writeText(selectedUtf8);
+    if(!result.status.ok())
     {
         // Preserve result.commitState and result.formatsPublished in diagnostics.
     }
@@ -134,7 +133,6 @@ std::string pasteText()
     const auto result = Clipboard::readText();
     return result.ok() ? *result : std::string{};
 }
-
 ```
 
 Clipboard itself only exchanges data; the application maps shortcuts, menus, and selection commands to these helpers.

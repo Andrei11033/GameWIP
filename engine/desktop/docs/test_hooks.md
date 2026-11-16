@@ -112,7 +112,7 @@ const auto failed = center.open();
 D::TestHooks::resetFailures();
 const auto retried = center.open();
 D::TestHooks::resetFailures();
-if (retried.ok())
+if(retried.ok())
 {
     static_cast<void>(center.close());
 }

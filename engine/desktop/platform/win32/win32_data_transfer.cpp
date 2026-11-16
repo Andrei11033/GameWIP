@@ -3,6 +3,7 @@
 
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 #include "base/checked_arithmetic.h"
 
 #include <shellapi.h>
@@ -17,9 +18,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform::DataTransfer
 {
-    // ------------------------------------------------------------
-    // Checked native storage and ownership
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Checked native storage and ownership
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -206,9 +207,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Native format identity
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native format identity
+    /// ------------------------------------------------------------
 
     /// @brief Resolves a portable format to its Win32 clipboard identifier.
     CLIPFORMAT nativeFormat(const Transfer::Format &format, IO::Types::Status &result) noexcept
@@ -286,9 +287,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         return leftStatus.ok() && rightStatus.ok() && left == right;
     }
 
-    // ------------------------------------------------------------
-    // Source preparation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source preparation
+    /// ------------------------------------------------------------
 
     /// @brief Encodes text, paths, images, or custom bytes into native clipboard storage.
     IO::Types::Status prepare(const Transfer::ItemView &item, PreparedItem &out) noexcept
@@ -487,9 +488,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Foreign format enumeration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Foreign format enumeration
+    /// ------------------------------------------------------------
 
     /// @brief Enumerates supported HGLOBAL formats exposed by a foreign object.
     IO::Types::Status formats(IDataObject &object, std::vector<FormatIdentity> &out) noexcept
@@ -596,9 +597,9 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         }
     }
 
-    // ------------------------------------------------------------
-    // Target materialization
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target materialization
+    /// ------------------------------------------------------------
 
     /// @brief Decodes one locked HGLOBAL into a portable data-transfer item.
     IO::Types::Status materializeGlobal(HGLOBAL global, const Transfer::Format &format, Transfer::Item &out) noexcept

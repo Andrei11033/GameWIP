@@ -61,8 +61,11 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     /// @brief Description shared by single- and multiple-file open dialogs.
     struct OpenDescription
     {
-        Window *owner = nullptr;                         ///< Optional live owner Window on the calling thread.
-        std::string_view title;                          ///< UTF-8 dialog title; empty selects backend wording.
+        // Owner and title
+        Window *owner = nullptr; ///< Optional live owner Window on the calling thread.
+        std::string_view title;  ///< UTF-8 dialog title; empty selects backend wording.
+
+        // Filters and initial location
         std::span<const Filter> filters;                 ///< Ordered, call-scoped file filters; empty permits all files.
         std::optional<std::size_t> preferredFilterIndex; ///< Optional zero-based initial filter index.
         FileSystem::Types::Path suggestedDirectory;      ///< Optional initial directory suggestion.
@@ -71,12 +74,17 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     /// @brief Description of a save-file dialog.
     struct SaveDescription
     {
-        Window *owner = nullptr;                         ///< Optional live owner Window on the calling thread.
-        std::string_view title;                          ///< UTF-8 dialog title; empty selects backend wording.
+        // Owner and title
+        Window *owner = nullptr; ///< Optional live owner Window on the calling thread.
+        std::string_view title;  ///< UTF-8 dialog title; empty selects backend wording.
+
+        // Filters and initial location
         std::span<const Filter> filters;                 ///< Ordered, call-scoped file filters; empty permits all files.
         std::optional<std::size_t> preferredFilterIndex; ///< Optional zero-based initial filter index.
         FileSystem::Types::Path suggestedDirectory;      ///< Optional initial directory suggestion.
-        std::string_view suggestedFileName;              ///< Optional UTF-8 initial file name.
+
+        // Suggested save name
+        std::string_view suggestedFileName; ///< Optional UTF-8 initial file name.
         /// @brief Optional default extension.
         /// When non-empty, it has no leading period, wildcard syntax, path separator, or embedded NUL.
         std::string_view suggestedExtension;
@@ -85,8 +93,11 @@ namespace GameWIP::Desktop::Types::Dialogs::File
     /// @brief Description shared by single- and multiple-folder selection.
     struct FolderDescription
     {
-        Window *owner = nullptr;                    ///< Optional live owner Window on the calling thread.
-        std::string_view title;                     ///< UTF-8 dialog title; empty selects backend wording.
+        // Owner and title
+        Window *owner = nullptr; ///< Optional live owner Window on the calling thread.
+        std::string_view title;  ///< UTF-8 dialog title; empty selects backend wording.
+
+        // Initial location
         FileSystem::Types::Path suggestedDirectory; ///< Optional initial directory suggestion.
     };
 
@@ -163,9 +174,12 @@ namespace GameWIP::Desktop::Types::Dialogs::Message
     /// @brief Call-scoped description of a fixed-button message dialog.
     struct Description
     {
-        Window *owner = nullptr;             ///< Optional live owner Window on the calling thread.
-        std::string_view title;              ///< UTF-8 dialog title.
-        std::string_view message;            ///< UTF-8 primary message.
+        // Owner and message content
+        Window *owner = nullptr;  ///< Optional live owner Window on the calling thread.
+        std::string_view title;   ///< UTF-8 dialog title.
+        std::string_view message; ///< UTF-8 primary message.
+
+        // Button and severity policy
         Buttons buttons = Buttons::Ok;       ///< Fixed button combination to present.
         Button defaultButton = Button::None; ///< Optional default button; must belong to @c buttons.
         Severity severity = Severity::None;  ///< Semantic severity used for native presentation.
@@ -255,19 +269,24 @@ namespace GameWIP::Desktop::Types::Dialogs::Prompt
     /// @brief Call-scoped description of a caller-defined prompt.
     struct Description
     {
-        Window *owner = nullptr;               ///< Optional live owner Window on the calling thread.
-        std::string_view title;                ///< UTF-8 dialog title.
-        std::string_view heading;              ///< UTF-8 prominent heading.
-        std::string_view message;              ///< UTF-8 primary message.
-        Severity severity = Severity::None;    ///< Semantic severity used for native presentation.
+        // Owner and prompt content
+        Window *owner = nullptr;            ///< Optional live owner Window on the calling thread.
+        std::string_view title;             ///< UTF-8 dialog title.
+        std::string_view heading;           ///< UTF-8 prominent heading.
+        std::string_view message;           ///< UTF-8 primary message.
+        Severity severity = Severity::None; ///< Semantic severity used for native presentation.
+
+        // Actions and options
         std::span<const Button> buttons;       ///< Non-empty, call-scoped actions with unique valid IDs.
         std::optional<ButtonId> defaultButton; ///< Optional default action; when present, must be in @c buttons.
         std::optional<ButtonId> cancelButton;  ///< Optional cancellation action; when present, must be in @c buttons.
         std::span<const Option> options;       ///< Call-scoped mutually exclusive options with unique valid IDs.
         std::optional<OptionId> defaultOption; ///< Optional initial option; when present, must be in @c options.
-        std::string_view details;              ///< Optional UTF-8 expandable details.
-        std::string_view supplementalText;     ///< Optional UTF-8 supplemental text.
-        std::optional<CheckBox> checkBox;      ///< Optional checkbox description and initial state.
+
+        // Supplemental content and initial state
+        std::string_view details;          ///< Optional UTF-8 expandable details.
+        std::string_view supplementalText; ///< Optional UTF-8 supplemental text.
+        std::optional<CheckBox> checkBox;  ///< Optional checkbox description and initial state.
     };
 
     /// @brief Result of a caller-defined prompt operation.
@@ -301,10 +320,13 @@ namespace GameWIP::Desktop::Types::Dialogs::Progress
     /// @brief Initial settings for a modeless operation-progress presentation.
     struct Description
     {
-        Window *owner = nullptr;                     ///< Borrowed owner; its Window object must outlive this open ProgressDialog lifetime.
-        std::string_view title;                      ///< UTF-8 window title, borrowed only during open().
-        std::string_view heading;                    ///< UTF-8 prominent heading, borrowed only during open().
-        std::string_view message;                    ///< UTF-8 operation message, borrowed only during open().
+        // Owner and progress text
+        Window *owner = nullptr;  ///< Borrowed owner; its Window object must outlive this open ProgressDialog lifetime.
+        std::string_view title;   ///< UTF-8 window title, borrowed only during open().
+        std::string_view heading; ///< UTF-8 prominent heading, borrowed only during open().
+        std::string_view message; ///< UTF-8 operation message, borrowed only during open().
+
+        // Progress and cancellation policy
         Mode presentationMode = Mode::Indeterminate; ///< Initial visual progress mode.
         double progress = 0.0;                       ///< Initial normalized value in [0, 1].
         bool cancelable = false;                     ///< Whether user cancellation requests are exposed.

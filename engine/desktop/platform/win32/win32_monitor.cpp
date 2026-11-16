@@ -2,6 +2,7 @@
 /// @brief Win32 monitor, display-mode, and capability implementation for Window.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 #include "base/checked_arithmetic.h"
 #include "base/platform/win32/dynamic_library.h"
 
@@ -16,9 +17,10 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Monitor discovery and native metadata
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Monitor discovery and native metadata
+    /// ------------------------------------------------------------
+
     namespace
     {
         std::mutex monitorRegistryMutex;
@@ -499,9 +501,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Runtime capabilities
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runtime capabilities
+    /// ------------------------------------------------------------
 
     /// @brief Returns the cached Windows build number used for capability gates.
     std::uint32_t runtimeWindowsBuild() noexcept
@@ -573,9 +575,9 @@ namespace GameWIP::Desktop::Detail::Platform
             .value = Types::Capabilities{.flags = flags, .maximumCustomChromeRegions = kMaximumChromeRegions, .maximumPointerInputRegions = 0}};
     }
 
-    // ------------------------------------------------------------
-    // Monitor queries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Monitor queries
+    /// ------------------------------------------------------------
 
     /// @brief Converts a native monitor handle into portable geometry and color information.
     Types::Result<Types::Display::Info> monitorFromNative(HMONITOR monitor) noexcept
@@ -785,9 +787,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Display modes
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Display modes
+    /// ------------------------------------------------------------
 
     /// @brief Enumerates supported native display modes for one monitor.
     Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept
@@ -946,9 +948,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Display color state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Display color state
+    /// ------------------------------------------------------------
 
     /// @brief Returns HDR, gamut, luminance, and SDR reference-white metadata.
     Types::Result<Types::Display::ColorInfo> getColorInfo(Types::Display::MonitorId monitor) noexcept
@@ -1064,9 +1066,9 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
 namespace GameWIP::Desktop::TestHooks
 {
-    // ------------------------------------------------------------
-    // Validation support
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Validation support
+    /// ------------------------------------------------------------
 
     /// @brief Converts a refresh rational into the portable millihertz representation.
     std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept

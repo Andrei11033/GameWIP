@@ -73,23 +73,22 @@ int main()
     description.activation.visible = true;
 
     GameWIP::Desktop::Window window;
-    if (!window.open(description).ok())
+    if(!window.open(description).ok())
     {
         return 1;
     }
 
-    while (window.isOpen() && !window.hasCloseRequest())
+    while(window.isOpen() && !window.hasCloseRequest())
     {
-        const auto pump =
-            GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
-        if (!pump.status.ok())
+        const auto pump = GameWIP::Desktop::Events::wait(std::chrono::milliseconds{16});
+        if(!pump.status.ok())
         {
             static_cast<void>(window.close());
             return 2;
         }
 
         GameWIP::Desktop::Types::Event event;
-        while (window.popEvent(event))
+        while(window.popEvent(event))
         {
             // React to the event payload needed by the application.
         }
@@ -97,7 +96,6 @@ int main()
 
     return window.close().ok() ? 0 : 3;
 }
-
 ```
 
 Keep the non-movable `Window` in stable storage and use it on the opening

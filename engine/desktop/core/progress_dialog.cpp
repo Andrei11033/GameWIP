@@ -72,9 +72,9 @@ namespace GameWIP::Desktop
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Lifecycle and owner-thread state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Lifecycle and owner-thread state
+    /// ------------------------------------------------------------
 
     ProgressDialog::ProgressDialog() noexcept = default;
 
@@ -201,9 +201,9 @@ namespace GameWIP::Desktop
         return token != 0 && token == currentThreadToken();
     }
 
-    // ------------------------------------------------------------
-    // Native mutations and cancellation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native mutations and cancellation
+    /// ------------------------------------------------------------
 
     IO::Types::Status ProgressDialog::setTitle(std::string_view title) noexcept
     {

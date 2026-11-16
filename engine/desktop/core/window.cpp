@@ -19,9 +19,10 @@
 
 namespace GameWIP::Desktop
 {
-    // ------------------------------------------------------------
-    // Validation and state construction
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Validation and state construction
+    /// ------------------------------------------------------------
+
     namespace
     {
         using IO::Types::ErrorCode;
@@ -256,9 +257,9 @@ namespace GameWIP::Desktop
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Capabilities and lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Capabilities and lifecycle
+    /// ------------------------------------------------------------
 
     Types::Result<Types::Capabilities> getCapabilities() noexcept
     {
@@ -275,6 +276,7 @@ namespace GameWIP::Desktop
 
     Window::~Window() noexcept
     {
+        // Detach publishers and callbacks before native teardown.
         if(presentationPublication_)
         {
             presentationPublication_->reset();
@@ -293,10 +295,13 @@ namespace GameWIP::Desktop
             state_->rendererIntegration = nullptr;
             state_->presentationPublication = nullptr;
 
+            // Defer native cleanup if teardown must run on the owner thread.
             if(!Detail::Platform::ownedByCurrentThread(*state_) && Detail::Platform::deferCleanupToOwner(state_))
             {
                 return;
             }
+
+            // Release native resources and retained event payloads.
             Detail::Platform::closeBestEffort(*state_);
             releaseEventStorage(*state_);
         }
@@ -309,6 +314,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status Window::open(const Types::Description &description, Types::Events::QueueConfiguration queue) noexcept
     {
+        // Reject invalid lifecycle and queue configurations.
         if(state_)
         {
             return error(ErrorCode::AlreadyOpen);
@@ -326,6 +332,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::InvalidArgument);
         }
 
+        // Validate before allocating candidate state.
         const IO::Types::Status validation = validateDescription(description);
         if(!validation.ok())
         {
@@ -339,6 +346,7 @@ namespace GameWIP::Desktop
 
         try
         {
+            // Build candidate state and configure its event storage.
             auto candidate = std::make_unique<Detail::WindowState>();
             Detail::WindowAccess::bindRendererIntegration(*this, *candidate);
             initializeCachedState(*candidate, description);
@@ -365,6 +373,7 @@ namespace GameWIP::Desktop
                 candidate->eventStorageKind = Types::Events::StorageKind::External;
             }
 
+            // Open the native window before publishing candidate state.
             IO::Types::Status status = Detail::Platform::open(*candidate, description);
             if(!status.ok())
             {
@@ -377,6 +386,8 @@ namespace GameWIP::Desktop
 
                 return status;
             }
+
+            // Publish cached state only after native creation succeeds.
             candidate->suppressEvents = false;
 
             if(presentationPublication_)
@@ -430,6 +441,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status Window::close() noexcept
     {
+        // Release cached resources when no native close is pending.
         if(!isOpen() && (!state_ || !state_->nativeDestroyedPendingFinalize))
         {
             if(state_)
@@ -451,15 +463,19 @@ namespace GameWIP::Desktop
             return IO::successStatus();
         }
 
+        // Native teardown must run on the Window owner thread.
         if(state_ && !Detail::Platform::ownedByCurrentThread(*state_))
         {
             return error(ErrorCode::ResourceBusy);
         }
+
+        // Invalidate transient input state before closing the native handle.
         Detail::invalidatePointerHitMask(*state_);
         Detail::Platform::CloseResult result = Detail::Platform::close(*state_);
 
         if(result.resourceClosed)
         {
+            // Release cached resources only after native closure succeeds.
             Detail::closeAccessibility(*state_);
             releaseEventStorage(*state_);
 
@@ -478,9 +494,9 @@ namespace GameWIP::Desktop
         return result.status;
     }
 
-    // ------------------------------------------------------------
-    // Identity, close requests, and events
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Identity, close requests, and events
+    /// ------------------------------------------------------------
 
     Types::WindowId Window::id() const noexcept
     {
@@ -632,9 +648,9 @@ namespace GameWIP::Desktop
         return Detail::Platform::wakeEventWait(*state_);
     }
 
-    // ------------------------------------------------------------
-    // Cached state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cached state
+    /// ------------------------------------------------------------
 
     std::string_view Window::title() const noexcept
     {
@@ -822,9 +838,9 @@ namespace GameWIP::Desktop
         return state_ && state_->transparentFramebuffer;
     }
 
-    // ------------------------------------------------------------
-    // Geometry and content mutations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and content mutations
+    /// ------------------------------------------------------------
 
     IO::Types::Status Window::setTitle(std::string_view utf8Title) noexcept
     {
@@ -1031,9 +1047,9 @@ namespace GameWIP::Desktop
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Presentation and interaction
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Presentation and interaction
+    /// ------------------------------------------------------------
 
     IO::Types::Status Window::show() noexcept
     {
@@ -1206,6 +1222,7 @@ namespace GameWIP::Desktop
             return status;
         }
 
+        // Validate region count against the current platform limit.
         const std::size_t regionCount = layout.draggableRegions.size() + static_cast<std::size_t>(layout.systemMenuRegion.has_value()) +
                                         static_cast<std::size_t>(layout.minimizeButtonRegion.has_value()) +
                                         static_cast<std::size_t>(layout.maximizeButtonRegion.has_value()) +
@@ -1217,6 +1234,7 @@ namespace GameWIP::Desktop
             return capabilities.ok() ? error(ErrorCode::InvalidArgument) : capabilities.status;
         }
 
+        // Validate every region before copying or mutating cached state.
         for(const Types::LogicalRect &rect : layout.draggableRegions)
         {
             if(!validRect(rect))
@@ -1239,6 +1257,8 @@ namespace GameWIP::Desktop
             {
                 return error(ErrorCode::OutOfMemory);
             }
+
+            // Preserve the current layout before applying the replacement.
             std::vector<Types::LogicalRect> copied(layout.draggableRegions.begin(), layout.draggableRegions.end());
             std::vector<Types::LogicalRect> previous = std::move(state_->draggableRegions);
             const auto previousSystem = state_->systemMenuRegion;
@@ -1253,6 +1273,7 @@ namespace GameWIP::Desktop
             state_->closeButtonRegion = layout.closeButtonRegion;
             status = Detail::Platform::setCustomChromeLayout(*state_);
 
+            // Restore cached state if the native update fails.
             if(!status.ok())
             {
                 state_->draggableRegions = std::move(previous);
@@ -1288,6 +1309,7 @@ namespace GameWIP::Desktop
             return status;
         }
 
+        // Validate the mode and whether its region list is required.
         if(!validEnum(layout.mode))
         {
             return error(ErrorCode::InvalidArgument);
@@ -1299,6 +1321,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::InvalidArgument);
         }
 
+        // Check platform support and region limits before copying.
         const auto capabilities = getCapabilities();
 
         if(!capabilities.ok())
@@ -1340,6 +1363,8 @@ namespace GameWIP::Desktop
             {
                 return error(ErrorCode::OutOfMemory);
             }
+
+            // Apply the new regions, then restore and republish the old layout on failure.
             std::vector<Types::LogicalRect> copied(layout.regions.begin(), layout.regions.end());
             std::vector<Types::LogicalRect> previous = std::move(state_->pointerInputRegions);
             const Types::PointerInputMode previousMode = state_->pointerInputMode;
@@ -1367,9 +1392,9 @@ namespace GameWIP::Desktop
         }
     }
 
-    // ------------------------------------------------------------
-    // Cursor controls
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cursor controls
+    /// ------------------------------------------------------------
 
     IO::Types::Status Window::setCursorMode(Types::CursorMode mode) noexcept
     {

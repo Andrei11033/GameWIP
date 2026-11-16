@@ -73,8 +73,6 @@ gamewip_add_public_header_check(DesktopShellTray desktop_shell_tray_header.cpp G
 gamewip_add_public_header_check(DesktopShellNotifications desktop_shell_notifications_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellJumpLists desktop_shell_jump_lists_header.cpp GameWIP::Desktop)
 gamewip_add_public_header_check(DesktopShellRegistration desktop_shell_registration_header.cpp GameWIP::Desktop)
-gamewip_add_public_header_check(DesktopNativeWin32 desktop_native_win32_header.cpp GameWIP::Desktop)
-
 # ------------------------------------------------------------
 # Input
 # ------------------------------------------------------------
@@ -118,3 +116,5 @@ gamewip_add_public_header_check(TestSupportFiles test_support_files_header.cpp G
 gamewip_add_public_header_check(TestSupportProcess test_support_process_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupportStress test_support_stress_header.cpp GameWIP::TestSupport)
 gamewip_add_public_header_check(TestSupport test_support_header.cpp GameWIP::TestSupport)
+
+add_subdirectory(platform)

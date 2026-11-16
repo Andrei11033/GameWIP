@@ -32,13 +32,16 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Backend-owned state for one native child-host HWND.
     struct ChildSurfaceData
     {
+        // Parent and native-window binding
         ChildSurfaceState *owner = nullptr; ///< Stable portable state owning this record.
         HINSTANCE instance = nullptr;       ///< Module used to register/create the child class.
         HWND handle = nullptr;              ///< Native child HWND, owner-thread affine.
         DWORD ownerThreadId = 0;            ///< Thread permitted to mutate/destroy the HWND.
-        bool classReferenceHeld = false;    ///< Whether this record owns one class reference.
-        bool registered = false;            ///< Whether the HWND is registered with its parent.
-        bool destroying = false;            ///< Prevents reentrant callbacks during close.
+
+        // Registration and teardown
+        bool classReferenceHeld = false; ///< Whether this record owns one class reference.
+        bool registered = false;         ///< Whether the HWND is registered with its parent.
+        bool destroying = false;         ///< Prevents reentrant callbacks during close.
     };
 
     inline constexpr UINT kBaselineDpi = 96;                                  ///< Win32 logical-coordinate baseline.
@@ -61,12 +64,15 @@ namespace GameWIP::Desktop::Detail::Platform
     /// resources that must be restored or destroyed during rollback and close.
     struct WindowData
     {
+        // Owner, module, and HWND binding
         WindowState *owner = nullptr;
         HINSTANCE instance = nullptr;
         HWND handle = nullptr;
         GameWIP::Desktop::Native::Win32::MessageSink messageSink = nullptr;
         void *messageSinkContext = nullptr;
         DWORD ownerThreadId = 0;
+
+        // Message routing and cursor/icon resources
         HCURSOR cursor = nullptr;
         HICON largeIcon = nullptr;
         HICON smallIcon = nullptr;
@@ -74,14 +80,18 @@ namespace GameWIP::Desktop::Detail::Platform
         bool cursorClipApplied = false;
         bool cursorTracking = false;
         bool destroying = false;
+
+        // Construction and accessibility state
         NativeWindowLifecycle lifecycle = NativeWindowLifecycle::Constructing;
         bool accessibilityExposed = false;
 
+        // Windowed state retained for restoration
         DWORD windowedStyle = 0;
         DWORD windowedExtendedStyle = 0;
         WINDOWPLACEMENT windowedPlacement{};
         bool hasWindowedPlacement = false;
 
+        // Exclusive display mode retained for restoration
         std::wstring exclusiveDevice;
         DEVMODEW savedDisplayMode{};
         DEVMODEW activeNativeDisplayMode{};
@@ -91,6 +101,7 @@ namespace GameWIP::Desktop::Detail::Platform
         bool exactDisplayMode = false;
         std::uint32_t modeTransitionDepth = 0; ///< Guards synchronous native messages while one mode transition owns geometry.
 
+        // Reusable text conversion storage
         std::wstring utf16Scratch;
     };
 
@@ -105,9 +116,12 @@ namespace GameWIP::Desktop::Detail::Platform
         Dispatcher(const Dispatcher &) = delete;
         Dispatcher &operator=(const Dispatcher &) = delete;
 
-        DWORD threadId = 0;                                                     ///< Native identity of the owning thread.
-        std::vector<WindowState *> windows;                                     ///< Non-owning registered states on this thread.
-        std::vector<ChildSurfaceState *> childSurfaces;                         ///< Lazily registered native child-host states.
+        // Owner-thread registrations
+        DWORD threadId = 0;                             ///< Native identity of the owning thread.
+        std::vector<WindowState *> windows;             ///< Non-owning registered states on this thread.
+        std::vector<ChildSurfaceState *> childSurfaces; ///< Lazily registered native child-host states.
+
+        // Deferred cross-thread cleanup
         std::mutex deferredMutex;                                               ///< Synchronizes cross-thread cleanup transfer.
         std::unique_ptr<WindowState> deferredCleanupHead;                       ///< Intrusive chain awaiting owner-thread cleanup.
         std::unique_ptr<ChildSurfaceState> deferredChildCleanupHead;            ///< Child hosts awaiting owner-thread cleanup.
@@ -115,6 +129,8 @@ namespace GameWIP::Desktop::Detail::Platform
         std::unique_ptr<std::vector<DragDropState *>> dragDropTargets;          ///< Lazily allocated active OLE target registry.
         std::unique_ptr<ProgressDialogState> deferredProgressDialogCleanupHead; ///< Progress windows awaiting owner-thread cleanup.
         std::unique_ptr<std::vector<ProgressDialogState *>> progressDialogs;    ///< Lazily allocated active ProgressDialog registry.
+
+        // Pump state and deferred failures
         ProgressDialogState *pendingProgressOwnerRestoreHead =
             nullptr;                                          ///< Intrusive retry chain for owners of unexpectedly destroyed progress HWNDs.
         bool pumping = false;                                 ///< Reentrancy guard for the native message pump.
@@ -165,10 +181,7 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @{
 
     [[nodiscard]] IO::Types::Status statusFromWin32(IO::Types::ErrorCode fallback, DWORD nativeCode, std::string_view operation) noexcept;
-    [[nodiscard]] IO::Types::ErrorCode unicodeConversionError(DWORD nativeCode, IO::Types::ErrorCode malformedEncodingFallback) noexcept;
     [[nodiscard]] IO::Types::Status statusFromDisplayChange(LONG nativeCode, std::string_view operation) noexcept;
-    [[nodiscard]] bool utf8ToUtf16(std::string_view text, std::wstring &output, DWORD &nativeCode);
-    [[nodiscard]] bool utf16ToUtf8(std::wstring_view text, std::string &output, DWORD &nativeCode);
     [[nodiscard]] UINT dpiForWindow(HWND window) noexcept;
     [[nodiscard]] bool logicalToPhysicalChecked(std::int32_t value, UINT dpi, LONG &output) noexcept;
     [[nodiscard]] LONG logicalToPhysical(std::int32_t value, UINT dpi) noexcept;

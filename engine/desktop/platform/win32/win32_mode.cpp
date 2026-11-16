@@ -10,9 +10,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Transition state and rollback
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Transition state and rollback
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -298,9 +298,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Fullscreen placement and mode transitions
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Fullscreen placement and mode transitions
+    /// ------------------------------------------------------------
 
     IO::Types::Status placeFullscreenOnMonitor(WindowState &state, HMONITOR monitor, bool preserveZOrder) noexcept
     {
@@ -572,9 +572,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return transition.ok() ? std::move(activation) : std::move(transition);
     }
 
-    // ------------------------------------------------------------
-    // Display-change recovery
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Display-change recovery
+    /// ------------------------------------------------------------
 
     IO::Types::Status recoverAfterDisplayChange(WindowState &state, bool forceRemovedMonitor) noexcept
     {

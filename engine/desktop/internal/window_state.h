@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "desktop/internal/renderer_integration_state.h"
 #include "desktop/internal/presentation_publication_state.h"
+#include "desktop/internal/renderer_integration_state.h"
 #include "desktop/window.h"
 
+#include <limits>
 #include <memory>
 #include <optional>
 #include <span>
@@ -61,12 +62,14 @@ namespace GameWIP::Desktop::Detail
             eventStorage = {};
         }
 
+        // Native ownership and thread binding
         std::unique_ptr<Platform::WindowData, Platform::WindowDataDeleter> platform;
         WindowState *deferredCleanupNext = nullptr;
         std::thread::id ownerThread;
         Types::WindowId id;
         Types::WindowId owner;
 
+        // Event storage and sequencing
         std::vector<Types::Event> internalEvents;
         std::span<Types::Event> eventStorage; ///< Internal or caller-owned slots retained until close.
         Types::Events::StorageKind eventStorageKind = Types::Events::StorageKind::Internal;
@@ -75,6 +78,7 @@ namespace GameWIP::Desktop::Detail
         std::uint64_t nextSequence = 1;
         std::uint64_t droppedEvents = 0;
 
+        // Window geometry and presentation
         std::string title;
         Types::LogicalSize clientSize;
         Types::PixelSize framebufferSize;
@@ -92,6 +96,8 @@ namespace GameWIP::Desktop::Detail
         Types::Controls controls;
         Types::SizeLimits sizeLimits;
         std::optional<Types::AspectRatio> aspectRatio;
+
+        // Cursor and input regions
         Types::CursorMode cursorMode = Types::CursorMode::Normal;
         Types::CursorShape cursorShape = Types::CursorShape::Arrow;
         Types::PointerInputMode pointerInputMode = Types::PointerInputMode::Normal;
@@ -101,15 +107,22 @@ namespace GameWIP::Desktop::Detail
         std::optional<Types::LogicalRect> minimizeButtonRegion;
         std::optional<Types::LogicalRect> maximizeButtonRegion;
         std::optional<Types::LogicalRect> closeButtonRegion;
+
+        // Visual state
         Types::BackdropEffect backdrop = Types::BackdropEffect::None;
         float opacity = 1.0F;
+
+        // Visibility, focus, and active transitions
         bool closeRequested = false;
         bool visible = false;
         bool focused = false;
         bool interactiveMoveResizeActive = false;
+
+        // Optional renderer publication
         RendererIntegrationState *rendererIntegration = nullptr;         ///< Optional lazy renderer bridge owned by Window.
         PresentationPublicationState *presentationPublication = nullptr; ///< Optional non-owning link to stable atomic publication.
 
+        // Window options
         bool cursorInside = false;
         bool resizable = true;
         bool focusable = true;
@@ -117,8 +130,12 @@ namespace GameWIP::Desktop::Detail
         bool alwaysOnTop = false;
         bool fileDropEnabled = false;
         bool transparentFramebuffer = false;
+
+        // Native event and teardown state
         bool suppressEvents = false;                 ///< Suppresses construction-time native callbacks.
         bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
+
+        // Shell and accessibility integrations
         TaskbarItemState *taskbarItem = nullptr;
         AccessibilityState *accessibility = nullptr;
         // A foreign-thread Window destructor transfers this optional owner with deferred native state.

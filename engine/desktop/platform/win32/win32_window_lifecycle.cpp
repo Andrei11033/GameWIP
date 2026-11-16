@@ -5,6 +5,7 @@
 #include "desktop/internal/dialogs_platform.h"
 #include "desktop/internal/drag_drop_platform.h"
 #include "desktop/platform/win32/internal/win32_compat.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 
 #include "desktop/native/win32.h"
 
@@ -14,9 +15,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Native lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native lifecycle
+    /// ------------------------------------------------------------
 
     /// @brief Deletes portable Window backend storage after native cleanup is complete.
     void WindowDataDeleter::operator()(WindowData *data) const noexcept
@@ -546,9 +547,9 @@ namespace GameWIP::Desktop::Detail::Platform
         state.platform.reset();
     }
 
-    // ------------------------------------------------------------
-    // Ownership, wakeup, and native state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Ownership, wakeup, and native state
+    /// ------------------------------------------------------------
 
     /// @brief Tests whether the current thread owns the Window's native resources.
     bool ownedByCurrentThread(const WindowState &state) noexcept
@@ -585,9 +586,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Native::Win32
 {
-    // ------------------------------------------------------------
-    // Native interop
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native interop
+    /// ------------------------------------------------------------
 
     Types::Result<HandleView> getHandle(const GameWIP::Desktop::Window &window) noexcept
     {
@@ -662,9 +663,9 @@ namespace GameWIP::Desktop::Native::Win32
 #if DESKTOP_INTERNAL_TEST_HOOKS
 namespace GameWIP::Desktop::TestHooks
 {
-    // ------------------------------------------------------------
-    // Validation hooks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Validation hooks
+    /// ------------------------------------------------------------
 
     Types::Events::PumpResult pumpReentrantly() noexcept
     {

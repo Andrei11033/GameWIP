@@ -68,7 +68,7 @@ values, this owner-thread example binds a passive icon before publishing a menu:
 
 namespace D = GameWIP::Desktop;
 D::ShellEventQueue queue;
-if (!queue.open().ok())
+if(!queue.open().ok())
 {
     return;
 }
@@ -77,44 +77,42 @@ D::TrayIcon tray;
 D::Types::Tray::Description description;
 description.icons = iconImages;
 description.tooltip = "Example editor";
-if (!tray.open(description).ok())
+if(!tray.open(description).ok())
 {
     return;
 }
 
-if (!tray.bindEventQueue(queue).ok())
+if(!tray.bindEventQueue(queue).ok())
 {
     return;
 }
 
-const std::array<D::Types::Tray::MenuItem, 1> items{
-    D::Types::Tray::MenuItems::command(D::Types::Shell::CommandId{1}, "Quit")};
-if (!tray.setMenu({items}).ok())
+const std::array<D::Types::Tray::MenuItem, 1> items{D::Types::Tray::MenuItems::command(D::Types::Shell::CommandId{1}, "Quit")};
+if(!tray.setMenu({items}).ok())
 {
     return;
 }
 
 bool quit = false;
-while (!quit)
+while(!quit)
 {
     const auto pump = D::Events::wait(std::chrono::milliseconds{16});
-    if (!pump.status.ok())
+    if(!pump.status.ok())
     {
         break;
     }
 
     D::Types::Shell::Event event;
-    while (queue.popEvent(event))
+    while(queue.popEvent(event))
     {
-        if (const auto *command =
-                event.getIf<D::Types::Shell::Events::TrayCommandInvoked>())
+        if(const auto *command = event.getIf<D::Types::Shell::Events::TrayCommandInvoked>())
         {
             quit = quit || (command->iconId == tray.id() && command->commandId.value == 1);
         }
     }
 }
 const auto closed = tray.close();
-if (closed.ok())
+if(closed.ok())
 {
     static_cast<void>(queue.close());
 }
@@ -143,15 +141,13 @@ open for the publication's lifetime, then dismiss the returned ID and close expl
 ```cpp
 #include "desktop/shell_notifications.h"
 
-GameWIP::Desktop::Types::Result<GameWIP::Desktop::Types::Shell::NotificationId> publishExportComplete(
-    GameWIP::Desktop::NotificationCenter &center)
+GameWIP::Desktop::Types::Result<GameWIP::Desktop::Types::Shell::NotificationId> publishExportComplete(GameWIP::Desktop::NotificationCenter &center)
 {
     GameWIP::Desktop::Types::Notifications::Description description;
     description.title = "Export complete";
     description.body = "The exported file is ready.";
     return center.publish(description);
 }
-
 ```
 
 ## Jump lists and recent items
@@ -177,20 +173,16 @@ document. The call copies both the argument and task arrays before returning:
 #include <array>
 #include <functional>
 
-GameWIP::IO::Types::Status publishEditorTasks(
-    const GameWIP::FileSystem::Types::Path &executable)
+GameWIP::IO::Types::Status publishEditorTasks(const GameWIP::FileSystem::Types::Path &executable)
 {
     namespace D = GameWIP::Desktop;
-    const std::array<D::Types::Shell::LaunchArgumentView, 1> arguments{
-        D::Types::Shell::LaunchArguments::literal("--new-document")};
-    const D::Types::Shell::LaunchActionView action{
-        D::Types::Shell::Targets::path(executable), arguments};
+    const std::array<D::Types::Shell::LaunchArgumentView, 1> arguments{D::Types::Shell::LaunchArguments::literal("--new-document")};
+    const D::Types::Shell::LaunchActionView action{D::Types::Shell::Targets::path(executable), arguments};
     const std::array tasks{D::Types::JumpLists::Task{"New document", {}, action}};
     D::Types::JumpLists::Description description;
     description.tasks = tasks;
     return D::JumpLists::publish(description);
 }
-
 ```
 
 ## Current-user registration
@@ -230,22 +222,18 @@ application-owned path; the returned result includes any ownership conflicts:
 #include <array>
 #include <functional>
 
-GameWIP::Desktop::Types::Registration::Result registerExampleUri(
-    const GameWIP::FileSystem::Types::Path &executable)
+GameWIP::Desktop::Types::Registration::Result registerExampleUri(const GameWIP::FileSystem::Types::Path &executable)
 {
     namespace D = GameWIP::Desktop;
-    const std::array<D::Types::Shell::LaunchArgumentView, 1> arguments{
-        D::Types::Shell::LaunchPlaceholder::SelectedUri};
+    const std::array<D::Types::Shell::LaunchArgumentView, 1> arguments{D::Types::Shell::LaunchPlaceholder::SelectedUri};
     D::Types::Registration::UriSchemeDescription description;
     description.ownerKey = "Example.Editor";
     description.scheme = "example-editor";
     description.displayName = "Example editor link";
-    description.defaultAction = D::Types::Shell::LaunchActionView{
-        D::Types::Shell::Targets::path(executable), arguments};
+    description.defaultAction = D::Types::Shell::LaunchActionView{D::Types::Shell::Targets::path(executable), arguments};
     description.conflictPolicy = D::Types::Registration::ConflictPolicy::ReplaceOwned;
     return D::Registration::registerUriScheme(description);
 }
-
 ```
 
 Inspect both `status` and `conflicts`. Registration only changes shell metadata; the application

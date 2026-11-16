@@ -12,9 +12,9 @@
 
 namespace GameWIP::Desktop::Detail
 {
-    // ------------------------------------------------------------
-    // State ownership and host publication
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// State ownership and host publication
+    /// ------------------------------------------------------------
 
     void AccessibilityStateDeleter::operator()(AccessibilityState *state) const noexcept
     {
@@ -204,9 +204,9 @@ namespace GameWIP::Desktop::Detail
         runtime->nativeWindow.store(0);
     }
 
-    // ------------------------------------------------------------
-    // Bounded action and notification transport
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Bounded action and notification transport
+    /// ------------------------------------------------------------
 
     A::ActionResult submitAccessibilityAction(AccessibilityRuntime &runtime, A::ActionRequest request) noexcept
     {
@@ -434,9 +434,9 @@ namespace GameWIP::Desktop::Accessibility
     {
         namespace A = Types::Accessibility;
 
-        // ------------------------------------------------------------
-        // Snapshot preparation
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Snapshot preparation
+        /// ------------------------------------------------------------
 
         std::shared_ptr<Detail::AccessibilityRuntime> runtimeFor(const Window *window) noexcept
         {
@@ -539,9 +539,9 @@ namespace GameWIP::Desktop::Accessibility
             }
         }
 
-        // ------------------------------------------------------------
-        // Semantic change notifications
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Semantic change notifications
+        /// ------------------------------------------------------------
 
         /// @brief Retains bounded committed-generation diffs, collapsing pressure into one current-tree invalidation.
         void queueDiff(
@@ -794,9 +794,9 @@ namespace GameWIP::Desktop::Accessibility
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Bridge activation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Bridge activation
+    /// ------------------------------------------------------------
 
     Facade::Facade(Window &window) noexcept
         : window_(&window)
@@ -906,9 +906,9 @@ namespace GameWIP::Desktop::Accessibility
         return runtime && runtime->live.load() ? runtime->features : A::Features{};
     }
 
-    // ------------------------------------------------------------
-    // Snapshot publication and inspection
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Snapshot publication and inspection
+    /// ------------------------------------------------------------
 
     IO::Types::Status Facade::publish(const A::SnapshotView &snapshot) noexcept
     {
@@ -1056,9 +1056,9 @@ namespace GameWIP::Desktop::Accessibility
         return {};
     }
 
-    // ------------------------------------------------------------
-    // Application actions and announcements
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Application actions and announcements
+    /// ------------------------------------------------------------
 
     bool Facade::popAction(A::ActionRequest &outAction) noexcept
     {

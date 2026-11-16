@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include "desktop/child_surface.h"
 #include "desktop/accessibility.h"
-#include "desktop/internal/desktop_test_export.h"
+#include "desktop/child_surface.h"
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
 #include "desktop/description.h"
@@ -14,6 +13,7 @@
 #include "desktop/display_info.h"
 #include "desktop/drag_drop.h"
 #include "desktop/events.h"
+#include "desktop/internal/desktop_test_export.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/shell.h"
 #include "desktop/shell_jump_lists.h"
@@ -32,6 +32,10 @@
 
 namespace GameWIP::Desktop::TestHooks
 {
+    /// ------------------------------------------------------------
+    /// State snapshots for deterministic tests
+    /// ------------------------------------------------------------
+
     struct DpiTransitionResult
     {
         Types::LogicalSize logicalSize;
@@ -46,11 +50,14 @@ namespace GameWIP::Desktop::TestHooks
 
     struct DisplayColorSnapshot
     {
+        // Display capabilities
         Types::Display::ColorSpace activeColorSpace = Types::Display::ColorSpace::Unknown;
         bool wideColorGamutSupported = false;
         bool hdrSupported = false;
         bool hdrEnabled = false;
         std::uint32_t bitsPerColorChannel = 0;
+
+        // Luminance levels
         float minimumLuminanceNits = 0.0F;
         float maximumLuminanceNits = 0.0F;
         float maximumFullFrameLuminanceNits = 0.0F;
@@ -67,16 +74,23 @@ namespace GameWIP::Desktop::TestHooks
     /// @brief Complete deterministic input for renderer-facing presentation publication tests.
     struct PresentationPublicationSnapshot
     {
+        // Published client and display state
         Types::LogicalSize clientSize;
         Types::PixelSize framebufferSize;
         Types::ContentScale contentScale;
         Types::Dpi dpi;
         Types::Display::MonitorId monitor;
         Types::PresentationState presentation = Types::PresentationState::Normal;
+
+        // Window interaction state
         bool visible = false;
         bool interactiveMoveResizeActive = false;
         bool occluded = false;
     };
+
+    /// ------------------------------------------------------------
+    /// Dialog responses and native snapshots
+    /// ------------------------------------------------------------
 
     enum class FileDialogOperation
     {
@@ -96,11 +110,16 @@ namespace GameWIP::Desktop::TestHooks
 
     struct FileDialogSnapshot
     {
+        // Dialog title and operation
         FileDialogOperation operation = FileDialogOperation::OpenFile;
         std::wstring title;
+
+        // Filter selection
         std::vector<std::wstring> filterNames;
         std::vector<std::wstring> filterPatterns;
         std::optional<std::size_t> preferredFilterIndex;
+
+        // Initial location and file name
         FileSystem::Types::Path suggestedDirectory;
         std::wstring suggestedFileName;
         std::wstring suggestedExtension;
@@ -114,8 +133,11 @@ namespace GameWIP::Desktop::TestHooks
 
     struct MessageDialogSnapshot
     {
+        // Visible message
         std::wstring title;
         std::wstring message;
+
+        // Button and severity options
         Types::Dialogs::Message::Buttons buttons = Types::Dialogs::Message::Buttons::Ok;
         Types::Dialogs::Message::Button defaultButton = Types::Dialogs::Message::Button::None;
         Types::Dialogs::Severity severity = Types::Dialogs::Severity::None;
@@ -131,22 +153,31 @@ namespace GameWIP::Desktop::TestHooks
 
     struct PromptDialogSnapshot
     {
+        // Prompt content
         std::wstring title;
         std::wstring heading;
         std::wstring message;
         std::wstring details;
         std::wstring supplementalText;
         std::wstring checkBoxLabel;
+
+        // Native button and option mappings
         std::vector<int> nativeButtonIds;
         std::vector<int> nativeOptionIds;
         std::vector<std::wstring> buttonText;
         std::vector<std::wstring> optionText;
+
+        // Initial selection and behavior
         int nativeDefaultButton = 0;
         int nativeDefaultOption = 0;
         bool commandLinks = false;
         bool checkBoxInitiallyChecked = false;
         Types::Dialogs::Severity severity = Types::Dialogs::Severity::None;
     };
+
+    /// ------------------------------------------------------------
+    /// Progress dialog snapshots
+    /// ------------------------------------------------------------
 
     struct NativePixelRect
     {
@@ -160,22 +191,35 @@ namespace GameWIP::Desktop::TestHooks
 
     struct ProgressDialogNativeSnapshot
     {
+        // Geometry
         NativePixelRect windowBounds;
         NativePixelRect progressBounds;
+
+        // Display text
         std::wstring title;
         std::wstring heading;
         std::wstring message;
+
+        // Progress state
         int rangeMinimum = 0;
         int rangeMaximum = 0;
         int position = 0;
+        bool marquee = false;
+
+        // Native controls
         bool nativeWindow = false;
         bool cancelControl = false;
-        bool marquee = false;
+
+        // Ownership and teardown
         bool registered = false;
         bool classReferenceHeld = false;
         bool blockingOwner = false;
         bool nativeDestroyedPendingFinalize = false;
     };
+
+    /// ------------------------------------------------------------
+    /// Failure injection points
+    /// ------------------------------------------------------------
 
     enum class FailurePoint
     {
@@ -229,6 +273,10 @@ namespace GameWIP::Desktop::TestHooks
     };
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    /// ------------------------------------------------------------
+    /// Accessibility, dialogs, and apartment hooks
+    /// ------------------------------------------------------------
+
     /// @brief Submits through the real bounded action transport.
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::Accessibility::ActionResult submitAccessibilityAction(
         Window &window,
@@ -247,6 +295,11 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT const PromptDialogSnapshot &lastPromptDialogSnapshot() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDialogApartment() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testShellApartment() noexcept;
+
+    /// ------------------------------------------------------------
+    /// Shell and progress dialog hooks
+    /// ------------------------------------------------------------
+
     /// @brief Returns an owned IShellLinkW as void* for native metadata inspection. Caller must Release it.
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept;
@@ -262,6 +315,11 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t progressDialogClassReferenceCount() noexcept;
     /// @brief Returns whether progress-owner message registration has been attempted in this process.
     [[nodiscard]] DESKTOP_TEST_EXPORT bool progressOwnerRestoreMessageRegistrationAttempted() noexcept;
+
+    /// ------------------------------------------------------------
+    /// Window lifecycle and event hooks
+    /// ------------------------------------------------------------
+
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::Events::PumpResult pumpReentrantly() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept;
@@ -271,6 +329,11 @@ namespace GameWIP::Desktop::TestHooks
     DESKTOP_TEST_EXPORT void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status destroyNativeWindow(Window &window) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Drag/drop hooks
+    /// ------------------------------------------------------------
+
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::DragDrop::Effect negotiateDragDropEffect(
         Types::DragDrop::Effect source,
         Types::DragDrop::Effect target,
@@ -298,6 +361,11 @@ namespace GameWIP::Desktop::TestHooks
         const DragDropTarget &target,
         Types::LogicalPosition position,
         std::span<const Types::DataTransfer::FormatView> offered) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Renderer and display hooks
+    /// ------------------------------------------------------------
+
     DESKTOP_TEST_EXPORT void enablePointerHitMaskBridge(Window &window) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT bool hasRendererIntegrationState(const Window &window) noexcept;
     /// @brief Returns the stable publication allocation identity, or nullptr while disabled.
@@ -329,6 +397,11 @@ namespace GameWIP::Desktop::TestHooks
         Types::DpiResizePolicy policy) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT ChildSurfaceDpiTransitionResult
     calculateChildSurfaceDpiTransition(Types::LogicalRect logicalRect, std::uint32_t newDpi) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Native failure controls and resource counts
+    /// ------------------------------------------------------------
+
     DESKTOP_TEST_EXPORT void failCursorNativeCreationAfter(std::size_t successfulVariants) noexcept;
     /// @brief Fails publication of the zero-based requested Clipboard item index once.
     DESKTOP_TEST_EXPORT void failClipboardPublicationAt(std::size_t itemIndex) noexcept;
@@ -341,6 +414,11 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t createdCustomCursorCount() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t destroyedCustomCursorCount() noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT CustomCursorNativeSnapshot inspectCustomCursorVariant(const Cursor &cursor, std::size_t index) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Shell event hooks
+    /// ------------------------------------------------------------
+
     /// @brief Publishes one synthetic shell event through the queue's normal fixed-capacity path.
     DESKTOP_TEST_EXPORT void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept;
 #endif

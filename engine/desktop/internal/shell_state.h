@@ -29,15 +29,22 @@ namespace GameWIP::Desktop::Detail
     /// events from another thread, so the queue mutex protects both publication and consumption.
     struct ShellEventQueueState
     {
+        // Queue synchronization and ownership
         mutable std::mutex mutex;
         std::thread::id ownerThread;
+
+        // Queue storage
         std::vector<Types::Shell::Event> internalEvents;
         std::span<Types::Shell::Event> eventStorage; ///< Internal or caller-owned slots retained until queue close.
         Types::Events::StorageKind storageKind = Types::Events::StorageKind::Internal;
-        std::size_t eventHead = 0;          ///< Physical index of the oldest queued event.
-        std::size_t eventCount = 0;         ///< Number of queued events in FIFO order.
-        std::uint64_t nextSequence = 1;     ///< Monotonic sequence assigned to new events.
-        std::uint64_t droppedEvents = 0;    ///< Number of events discarded under queue pressure.
+
+        // Queue indexing and sequence state
+        std::size_t eventHead = 0;       ///< Physical index of the oldest queued event.
+        std::size_t eventCount = 0;      ///< Number of queued events in FIFO order.
+        std::uint64_t nextSequence = 1;  ///< Monotonic sequence assigned to new events.
+        std::uint64_t droppedEvents = 0; ///< Number of events discarded under queue pressure.
+
+        // Bound resources and lifecycle
         std::size_t boundResourceCount = 0; ///< Number of shell resources publishing into this queue.
         bool open = false;                  ///< Whether the queue may accept new publications.
     };
@@ -55,8 +62,11 @@ namespace GameWIP::Desktop::Detail
     /// @brief Owned taskbar thumbnail-button data.
     struct OwnedThumbnailButton
     {
+        // Command identity and label
         Types::Shell::CommandId id;
         std::string label;
+
+        // Optional icon and enabled state
         std::optional<OwnedIconImage> icon;
         bool enabled = true;
     };
@@ -64,13 +74,18 @@ namespace GameWIP::Desktop::Detail
     /// @brief Native taskbar state bound to one Window and shell event queue.
     struct TaskbarItemState
     {
+        // Window and queue binding
         std::thread::id ownerThread;
         WindowState *window = nullptr;
         Types::WindowId windowId;
         ShellEventQueueState *eventQueue = nullptr;
+
+        // Published taskbar content
         std::optional<Types::Shell::Progress> progress;
         std::optional<OwnedIconImage> overlayIcon;
         std::vector<OwnedThumbnailButton> thumbnailButtons;
+
+        // Native lifecycle
         void *platform = nullptr;
         bool open = false;
     };
@@ -78,13 +93,18 @@ namespace GameWIP::Desktop::Detail
     /// @brief Owned recursive tray menu item data.
     struct OwnedTrayMenuItem
     {
+        // Command identity and label
         Types::Tray::MenuItemKind kind = Types::Tray::MenuItemKind::Command;
         Types::Shell::CommandId commandId;
         std::string label;
+
+        // Presentation and nested items
         std::optional<OwnedIconImage> icon;
         std::string accelerator;
         std::string badge;
         std::vector<OwnedTrayMenuItem> children;
+
+        // Current selection state
         bool enabled = true;
         bool checked = false;
     };
@@ -92,12 +112,17 @@ namespace GameWIP::Desktop::Detail
     /// @brief Native tray state and cached menu publication data.
     struct TrayIconState
     {
+        // Identity and event routing
         std::thread::id ownerThread;
         Types::Shell::TrayIconId id;
         ShellEventQueueState *eventQueue = nullptr;
+
+        // Published tray content
         std::vector<OwnedIconImage> icons;
         std::string tooltip;
         std::vector<OwnedTrayMenuItem> menu;
+
+        // Native lifecycle
         void *platform = nullptr;
         bool open = false;
         bool menuWasPublished = false;
@@ -122,8 +147,11 @@ namespace GameWIP::Desktop::Detail
     /// @brief Owned notification media, either a URI or RGBA pixels.
     struct OwnedNotificationMedia
     {
+        // URI source
         bool uri = false;
         std::string uriText;
+
+        // Optional pixel payload
         Types::PixelSize size;
         std::vector<std::byte> rgba8;
     };
@@ -131,11 +159,14 @@ namespace GameWIP::Desktop::Detail
     /// @brief Deep-copied notification description retained for update operations.
     struct OwnedNotificationDescription
     {
+        // User-visible content and actions
         std::string title;
         std::string body;
         std::vector<OwnedNotificationAction> actions;
         std::vector<OwnedNotificationInput> inputs;
         std::vector<OwnedNotificationMedia> media;
+
+        // Scheduling and presentation
         std::optional<Types::Notifications::Schedule> schedule;
         std::string group;
         Types::Notifications::Sound sound = Types::Notifications::Sound::Default;
@@ -147,10 +178,15 @@ namespace GameWIP::Desktop::Detail
     /// @brief Native notification-center state and published descriptions.
     struct NotificationCenterState
     {
+        // Owner and event routing
         std::thread::id ownerThread;
         ShellEventQueueState *eventQueue = nullptr;
+
+        // Published notification records
         std::unordered_map<std::uint64_t, OwnedNotificationDescription> notifications;
         std::uint64_t nextId = 1;
+
+        // Native lifecycle
         void *platform = nullptr;
         bool open = false;
     };

@@ -18,6 +18,10 @@
 
 namespace GameWIP::Desktop::Types::Events
 {
+    /// ------------------------------------------------------------
+    /// Window lifecycle events
+    /// ------------------------------------------------------------
+
     /// @brief Origin of a close request.
     enum class CloseRequestSource
     {
@@ -43,6 +47,11 @@ namespace GameWIP::Desktop::Types::Events
     struct InteractiveMoveResizeEnded
     {
     };
+
+    /// ------------------------------------------------------------
+    /// Geometry and presentation events
+    /// ------------------------------------------------------------
+
     /// @brief Reports a visibility transition.
     struct VisibilityChanged
     {
@@ -102,6 +111,11 @@ namespace GameWIP::Desktop::Types::Events
         std::optional<WindowId> previousOwner; ///< Owner before the transition, or nullopt when unowned.
         std::optional<WindowId> owner;         ///< Owner after the transition, or nullopt when unowned.
     };
+
+    /// ------------------------------------------------------------
+    /// Pointer, transfer, and rendering events
+    /// ------------------------------------------------------------
+
     /// @brief Signals that the desktop display configuration changed.
     struct DisplayConfigurationChanged
     {
@@ -149,6 +163,10 @@ namespace GameWIP::Desktop::Types::Events
         OcclusionChanged,
         RedrawRequested>;
 
+    /// ------------------------------------------------------------
+    /// Event queue and pumping
+    /// ------------------------------------------------------------
+
     /// @brief Ownership model for a Window event queue's storage.
     enum class StorageKind
     {
@@ -159,19 +177,27 @@ namespace GameWIP::Desktop::Types::Events
     /// @brief Snapshot of event-queue storage and counters.
     struct QueueInfo
     {
+        // Storage and capacity
         StorageKind storage = StorageKind::Internal; ///< Storage ownership model.
         std::size_t capacity = 0;                    ///< Maximum queued-event count.
-        std::size_t pendingEvents = 0;               ///< Events waiting to be consumed.
-        std::uint64_t droppedEvents = 0;             ///< Events dropped during this open lifetime.
+
+        // Current queue counts
+        std::size_t pendingEvents = 0;   ///< Events waiting to be consumed.
+        std::uint64_t droppedEvents = 0; ///< Events dropped during this open lifetime.
     };
 
     /// @brief Result of one calling-thread event-pump operation.
     struct PumpResult
     {
-        IO::Types::Status status;        ///< Pump status.
+        // Pump status
+        IO::Types::Status status; ///< Pump status.
+
+        // Queue changes
         std::size_t eventsQueued = 0;    ///< Window-subsystem events newly queued during this pump.
         std::uint64_t eventsDropped = 0; ///< Window-subsystem events dropped during this pump.
-        bool timedOut = false;           ///< Whether a finite wait expired without native work.
+
+        // Wait outcome
+        bool timedOut = false; ///< Whether a finite wait expired without native work.
     };
 } // namespace GameWIP::Desktop::Types::Events
 

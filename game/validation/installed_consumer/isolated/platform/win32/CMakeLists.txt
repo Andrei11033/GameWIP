@@ -1,0 +1,1 @@
+target_sources(GameWIPIsolatedConsumer PRIVATE desktop_native_win32.cpp)

@@ -17,9 +17,10 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Cursor image and binding helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cursor image and binding helpers
+    /// ------------------------------------------------------------
+
     namespace
     {
         inline constexpr wchar_t kCursorBindingProperty[] = L"GameWIP.Window.CustomCursorBinding.v1";
@@ -193,9 +194,10 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Native cursor resources
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native cursor resources
+    /// ------------------------------------------------------------
+
     void destroyNativeCursorVariants(std::span<const NativeCursorVariant> variants) noexcept
     {
         for(const NativeCursorVariant &variant : variants)
@@ -208,9 +210,10 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
-    // ------------------------------------------------------------
-    // Window cursor bindings
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window cursor bindings
+    /// ------------------------------------------------------------
+
     IO::Types::Status setCustomCursor(WindowState &window, std::shared_ptr<const CursorState> cursor) noexcept
     {
         try
@@ -335,9 +338,10 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Validation inspection
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Validation inspection
+    /// ------------------------------------------------------------
+
     NativeCursorSnapshot inspectNativeCursor(const NativeCursorVariant &variant) noexcept
     {
         ICONINFO info{};

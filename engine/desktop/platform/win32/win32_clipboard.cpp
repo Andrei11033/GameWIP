@@ -5,6 +5,7 @@
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 
 #include <windows.h>
 #include <shellapi.h>
@@ -22,9 +23,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Clipboard ownership and conversion helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Clipboard ownership and conversion helpers
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -462,9 +463,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
     } // namespace
 
-    // ------------------------------------------------------------
-    // Clipboard queries and publication
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Clipboard queries and publication
+    /// ------------------------------------------------------------
 
     Types::Result<bool> clipboardHasFormat(Transfer::FormatView format, std::chrono::milliseconds timeout) noexcept
     {

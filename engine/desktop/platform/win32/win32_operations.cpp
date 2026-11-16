@@ -2,6 +2,7 @@
 /// @brief Win32 ownership, identity, icon, and geometry operations for Window.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
+#include "desktop/platform/win32/internal/win32_unicode.h"
 
 #include <algorithm>
 #include <limits>
@@ -11,9 +12,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Native geometry and icon helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native geometry and icon helpers
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -190,9 +191,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Ownership and content
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Ownership and content
+    /// ------------------------------------------------------------
 
     IO::Types::Status setOwner(WindowState &state, Types::WindowId owner) noexcept
     {
@@ -349,9 +350,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Geometry and coordinate conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Geometry and coordinate conversion
+    /// ------------------------------------------------------------
 
     IO::Types::Status setClientSize(WindowState &state, Types::LogicalSize size) noexcept
     {

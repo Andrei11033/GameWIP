@@ -63,11 +63,10 @@ the previous selection.
 #include <cstddef>
 
 std::array<std::byte, 32 * 32 * 4> rgba8{};
-auto image = GameWIP::Desktop::Types::Cursor::ImageView::packed(
-    {32, 32}, {4, 3}, rgba8, 96);
+auto image = GameWIP::Desktop::Types::Cursor::ImageView::packed({32, 32}, {4, 3}, rgba8, 96);
 
 auto created = GameWIP::Desktop::createCursor(image);
-if (created.ok())
+if(created.ok())
 {
     static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
 }
@@ -82,7 +81,7 @@ std::array<GameWIP::Desktop::Types::Cursor::ImageView, 3> variants{
     GameWIP::Desktop::Types::Cursor::ImageView::packed({64, 64}, {8, 6}, rgba192, 192)};
 
 auto created = GameWIP::Desktop::createCursor(variants);
-if (created.ok())
+if(created.ok())
 {
     static_cast<void>(GameWIP::Desktop::setCursor(window, *created));
 }
@@ -91,7 +90,7 @@ if (created.ok())
 ## Restore and share
 
 ```cpp
-if (created.ok())
+if(created.ok())
 {
     static_cast<void>(GameWIP::Desktop::setCursor(primary, *created));
     static_cast<void>(GameWIP::Desktop::setCursor(tools, *created));

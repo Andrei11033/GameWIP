@@ -7,9 +7,9 @@
 
 namespace GameWIP::Desktop::Display
 {
-    // ------------------------------------------------------------
-    // Display-mode queries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Display-mode queries
+    /// ------------------------------------------------------------
 
     Types::Result<std::vector<Types::Display::Mode>> getModes(Types::Display::MonitorId monitor) noexcept
     {

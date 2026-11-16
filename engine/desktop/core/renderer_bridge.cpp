@@ -52,9 +52,10 @@ namespace GameWIP::Desktop::Renderer
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Concurrent presentation reads
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Concurrent presentation reads
+    /// ------------------------------------------------------------
+
     IO::Types::Status enableConcurrentPresentationReads(Window &window) noexcept
     {
         Detail::WindowState *state = nullptr;
@@ -100,9 +101,10 @@ namespace GameWIP::Desktop::Renderer
         return Detail::WindowAccess::presentationPublication(window) != nullptr;
     }
 
-    // ------------------------------------------------------------
-    // Occlusion reporting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Occlusion reporting
+    /// ------------------------------------------------------------
+
     IO::Types::Status attachOcclusionProvider(Window &window) noexcept
     {
         Detail::WindowState *state = nullptr;
@@ -214,9 +216,10 @@ namespace GameWIP::Desktop::Renderer
         return IO::successStatus();
     }
 
-    // ------------------------------------------------------------
-    // Pointer hit masks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Pointer hit masks
+    /// ------------------------------------------------------------
+
     /// @brief Returns the packed word count required for one framebuffer-sized hit mask.
     std::size_t requiredPointerHitMaskWords(Types::PixelSize size) noexcept
     {

@@ -40,9 +40,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
 namespace GameWIP::Desktop::Display
 {
-    // ------------------------------------------------------------
-    // Monitor and display-color queries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Monitor and display-color queries
+    /// ------------------------------------------------------------
 
     Types::Result<std::vector<Types::Display::Info>> getMonitors() noexcept
     {

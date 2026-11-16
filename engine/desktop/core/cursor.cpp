@@ -22,9 +22,10 @@
 
 namespace GameWIP::Desktop
 {
-    // ------------------------------------------------------------
-    // Cursor validation and resource state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cursor validation and resource state
+    /// ------------------------------------------------------------
+
     namespace
     {
         using IO::Types::ErrorCode;
@@ -96,9 +97,9 @@ namespace GameWIP::Desktop
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Shared cursor lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Shared cursor lifecycle
+    /// ------------------------------------------------------------
 
     Cursor::Cursor() noexcept = default;
     Cursor::Cursor(const Cursor &) noexcept = default;
@@ -156,9 +157,9 @@ namespace GameWIP::Desktop
         return cursor.state_;
     }
 
-    // ------------------------------------------------------------
-    // Cursor creation and Window binding
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Cursor creation and Window binding
+    /// ------------------------------------------------------------
 
     Types::Result<Cursor> createCursor(const Types::Cursor::ImageView &image) noexcept
     {

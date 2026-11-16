@@ -18,9 +18,9 @@
 
 namespace GameWIP::Desktop::Detail
 {
-    // ------------------------------------------------------------
-    // Effect policy and event queue
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Effect policy and event queue
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -256,9 +256,9 @@ namespace GameWIP::Desktop::Detail
 
 namespace GameWIP::Desktop
 {
-    // ------------------------------------------------------------
-    // Region validation and publication
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Region validation and publication
+    /// ------------------------------------------------------------
 
     namespace
     {
@@ -382,9 +382,9 @@ namespace GameWIP::Desktop
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Target lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target lifecycle
+    /// ------------------------------------------------------------
 
     DragDropTarget::DragDropTarget() noexcept = default;
     DragDropTarget::~DragDropTarget() noexcept
@@ -608,9 +608,9 @@ namespace GameWIP::Desktop
         return result;
     }
 
-    // ------------------------------------------------------------
-    // Target event queue
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target event queue
+    /// ------------------------------------------------------------
 
     bool DragDropTarget::popEvent(Types::DragDrop::Event &out) noexcept
     {
@@ -670,9 +670,9 @@ namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::DragDrop
 {
-    // ------------------------------------------------------------
-    // Source operation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source operation
+    /// ------------------------------------------------------------
 
     Types::DragDrop::Result beginDrag(Window &source, const Types::DragDrop::Description &description) noexcept
     {

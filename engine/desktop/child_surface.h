@@ -131,10 +131,6 @@ namespace GameWIP::Desktop
     class DESKTOP_EXPORT ChildSurface final
     {
     public:
-        // ------------------------------------------------------------
-        // Lifecycle
-        // ------------------------------------------------------------
-
         /// @name Lifecycle
         /// @{
 
@@ -172,10 +168,6 @@ namespace GameWIP::Desktop
         [[nodiscard]] IO::Types::Status close() noexcept;
         /// @}
 
-        // ------------------------------------------------------------
-        // Parent and ownership
-        // ------------------------------------------------------------
-
         /// @name Parent and ownership
         /// @{
 
@@ -185,10 +177,6 @@ namespace GameWIP::Desktop
         /// @brief Reports whether the calling thread owns the current retained lifetime.
         [[nodiscard]] bool ownedByCurrentThread() const noexcept;
         /// @}
-
-        // ------------------------------------------------------------
-        // Event queue
-        // ------------------------------------------------------------
 
         /// @name Event queue
         /// @{
@@ -208,10 +196,6 @@ namespace GameWIP::Desktop
         /// @brief Resets the dropped-event counter on the owner thread.
         void clearDroppedEventCount() noexcept;
         /// @}
-
-        // ------------------------------------------------------------
-        // Cached state
-        // ------------------------------------------------------------
 
         /// @name Cached state
         /// @{
@@ -243,10 +227,6 @@ namespace GameWIP::Desktop
         [[nodiscard]] bool userInteractionEnabled() const noexcept;
         /// @}
 
-        // ------------------------------------------------------------
-        // Geometry
-        // ------------------------------------------------------------
-
         /// @name Geometry
         /// @{
 
@@ -264,10 +244,6 @@ namespace GameWIP::Desktop
         [[nodiscard]] IO::Types::Status setSize(Types::LogicalSize size) noexcept;
         /// @}
 
-        // ------------------------------------------------------------
-        // Coordinate conversion
-        // ------------------------------------------------------------
-
         /// @name Coordinate conversion
         /// @{
 
@@ -280,10 +256,6 @@ namespace GameWIP::Desktop
         /// @return Conversion status and logical client-local position.
         [[nodiscard]] Types::Result<Types::LogicalPosition> screenToClient(Types::ScreenPosition position) const noexcept;
         /// @}
-
-        // ------------------------------------------------------------
-        // Visibility and interaction
-        // ------------------------------------------------------------
 
         /// @name Visibility and interaction
         /// @{
@@ -299,10 +271,6 @@ namespace GameWIP::Desktop
         /// @return Success or the lifecycle/native failure.
         [[nodiscard]] IO::Types::Status setUserInteractionEnabled(bool enabled) noexcept;
         /// @}
-
-        // ------------------------------------------------------------
-        // Native sibling ordering
-        // ------------------------------------------------------------
 
         /// @name Native sibling ordering
         /// @{

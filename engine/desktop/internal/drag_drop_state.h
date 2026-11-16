@@ -7,6 +7,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <span>
 #include <thread>
 #include <vector>
@@ -65,21 +66,30 @@ namespace GameWIP::Desktop::Detail
             freeHead = noSlot;
         }
 
+        // Native ownership and target binding
         std::unique_ptr<Platform::DragDropData, Platform::DragDropDataDeleter> platform;
         DragDropState *deferredCleanupNext = nullptr;
         std::thread::id ownerThread;
         std::uint32_t ownerNativeThreadId = 0;
         Types::WindowId windowId;
         WindowState *window = nullptr;
+
+        // Registered drop regions
         std::vector<DragDropRegion> regions;
+
+        // Event storage
         std::vector<Types::DragDrop::Event> internalEvents;
         std::span<Types::DragDrop::Event> eventStorage;
         Types::Events::StorageKind eventStorageKind = Types::Events::StorageKind::Internal;
+
+        // Intrusive queue indexes
         std::vector<std::size_t> queueNext;        ///< Intrusive FIFO successor index for each slot.
         std::vector<std::size_t> queuePrevious;    ///< Intrusive FIFO predecessor index for each slot.
         std::vector<std::size_t> movementNext;     ///< Secondary list used to evict movement events first.
         std::vector<std::size_t> movementPrevious; ///< Secondary movement-list predecessor index.
         std::vector<std::size_t> freeNext;         ///< Intrusive free-slot successor index.
+
+        // Queue state and session sequencing
         std::size_t eventHead = noSlot;
         std::size_t eventTail = noSlot;
         std::size_t movementHead = noSlot;

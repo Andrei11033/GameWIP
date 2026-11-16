@@ -13,7 +13,7 @@ endif()
 
 option(DESKTOP_ENABLE_TEST_HOOKS "Enable Desktop internal test hooks" OFF)
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -38,38 +38,6 @@ gamewip_generate_export_header(
 
 target_sources(
     Desktop
-    PRIVATE
-        core/accessibility.cpp
-        core/accessibility_snapshot.cpp
-        core/accessibility_validation.cpp
-        internal/accessibility_state.h
-        core/clipboard.cpp
-        core/child_surface.cpp
-        core/child_surface_events.cpp
-        core/cursor.cpp
-        core/dialogs.cpp
-        core/display.cpp
-        core/display_info.cpp
-        core/drag_drop.cpp
-        core/events.cpp
-        core/progress_dialog.cpp
-        core/renderer_bridge.cpp
-        core/shell.cpp
-        core/window.cpp
-        core/desktop_test_hooks.cpp
-        internal/cursor_platform.h
-        internal/cursor_selection.h
-        internal/cursor_state.h
-        internal/drag_drop_platform.h
-        internal/drag_drop_state.h
-        internal/clipboard_platform.h
-        internal/child_surface_platform.h
-        internal/child_surface_state.h
-        internal/dialogs_platform.h
-        internal/progress_dialog_state.h
-        internal/presentation_publication_state.h
-        internal/shell_platform.h
-        internal/shell_state.h
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -97,15 +65,17 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/shell_types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/types.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/window.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/native/win32.h"
                 "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
 )
+
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(native)
+add_subdirectory(platform)
 
 # ------------------------------------------------------------
 # Compile, test-hook, and dependency contracts
 # ------------------------------------------------------------
-
-gamewip_target_platform_backend(TARGET Desktop ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
 
 target_include_directories(
     Desktop

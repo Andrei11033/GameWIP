@@ -74,9 +74,7 @@ elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "Desktop")
             desktop_shell_jump_lists.cpp
             desktop_shell_registration.cpp
     )
-    if(WIN32)
-        target_sources(GameWIPIsolatedConsumer PRIVATE desktop_native_win32.cpp)
-    endif()
+    add_subdirectory(platform)
 elseif(GAMEWIP_CONSUMER_PACKAGE STREQUAL "TestSupport")
     target_sources(
         GameWIPIsolatedConsumer

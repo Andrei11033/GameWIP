@@ -8,9 +8,9 @@
 
 namespace GameWIP::Desktop::Detail
 {
-    // ------------------------------------------------------------
-    // Owned payload copies
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Owned payload copies
+    /// ------------------------------------------------------------
 
     std::string_view OwnedAccessibilityNode::copyString(std::string_view source)
     {
@@ -121,9 +121,9 @@ namespace GameWIP::Desktop::Detail
         }
     }
 
-    // ------------------------------------------------------------
-    // Published snapshot lookup
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Published snapshot lookup
+    /// ------------------------------------------------------------
 
     std::size_t PublishedSnapshot::findIndex(A::NodeId id) const noexcept
     {
@@ -258,9 +258,9 @@ namespace GameWIP::Desktop::Accessibility
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Snapshot authoring
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Snapshot authoring
+    /// ------------------------------------------------------------
 
     SnapshotBuilder::SnapshotBuilder() noexcept = default;
 
@@ -391,9 +391,9 @@ namespace GameWIP::Desktop::Accessibility
         return state_ ? state_->view() : A::SnapshotView{};
     }
 
-    // ------------------------------------------------------------
-    // Immutable snapshot inspection
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Immutable snapshot inspection
+    /// ------------------------------------------------------------
 
     SnapshotReader::SnapshotReader(std::shared_ptr<const Detail::PublishedSnapshot> snapshot) noexcept
         : snapshot_(std::move(snapshot))

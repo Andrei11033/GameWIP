@@ -11,12 +11,9 @@ namespace GameWIP::Desktop::Detail::Platform
 {
     namespace
     {
-        constexpr HRESULT kUnavailable = static_cast<HRESULT>(UIA_E_ELEMENTNOTAVAILABLE);
-        constexpr HRESULT kUnsupported = static_cast<HRESULT>(UIA_E_NOTSUPPORTED);
-
-        // ------------------------------------------------------------
-        // Range offsets and native arrays
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Range offsets and native arrays
+        /// ------------------------------------------------------------
 
         std::uint64_t pack(A::TextRange range) noexcept
         {
@@ -120,9 +117,9 @@ namespace GameWIP::Desktop::Detail::Platform
             return S_OK;
         }
 
-        // ------------------------------------------------------------
-        // Text units and effective attributes
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Text units and effective attributes
+        /// ------------------------------------------------------------
 
         std::span<const std::uint32_t> unitIndex(const UiaQuery &q, TextUnit unit, std::array<std::uint32_t, 2> &document) noexcept
         {
@@ -396,9 +393,9 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Bounded text-range allocation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Bounded text-range allocation
+    /// ------------------------------------------------------------
 
     HRESULT UiaState::range(const UiaQuery &q, A::TextRange rangeBounds, ITextRangeProvider **out) noexcept
     {
@@ -434,9 +431,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_QUOTA);
     }
 
-    // ------------------------------------------------------------
-    // Text and Text2 pattern queries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Text and Text2 pattern queries
+    /// ------------------------------------------------------------
 
     HRESULT TextPattern::QueryInterface(REFIID iid, void **out)
     {
@@ -687,9 +684,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return makeRange(q, {*q.textContent().caret, *q.textContent().caret}, out);
     }
 
-    // ------------------------------------------------------------
-    // Retained range identity and comparisons
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Retained range identity and comparisons
+    /// ------------------------------------------------------------
 
     UiaQuery TextRangeProvider::query() const noexcept
     {
@@ -826,9 +823,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return S_OK;
     }
 
-    // ------------------------------------------------------------
-    // Range expansion and search
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Range expansion and search
+    /// ------------------------------------------------------------
 
     HRESULT TextRangeProvider::ExpandToEnclosingUnit(TextUnit unit)
     {
@@ -999,9 +996,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return found ? makeRange(q, match, out) : S_OK;
     }
 
-    // ------------------------------------------------------------
-    // Range content and geometry
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Range content and geometry
+    /// ------------------------------------------------------------
 
     HRESULT TextRangeProvider::GetAttributeValue(TEXTATTRIBUTEID id, VARIANT *out)
     {
@@ -1145,9 +1142,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return stringValue(std::u16string_view(q.text().text).substr(start, length), out);
     }
 
-    // ------------------------------------------------------------
-    // Range movement
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Range movement
+    /// ------------------------------------------------------------
 
     HRESULT TextRangeProvider::Move(TextUnit unit, int count, int *moved)
     {
@@ -1310,9 +1307,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return HRESULT_FROM_WIN32(ERROR_BUSY);
     }
 
-    // ------------------------------------------------------------
-    // Selection and scrolling requests
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Selection and scrolling requests
+    /// ------------------------------------------------------------
 
     HRESULT TextRangeProvider::selection(A::SelectionOperation operation) noexcept
     {

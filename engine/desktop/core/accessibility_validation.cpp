@@ -17,9 +17,9 @@ namespace GameWIP::Desktop::Accessibility
         namespace A = Types::Accessibility;
         using Issue = A::ValidationIssue;
 
-        // ------------------------------------------------------------
-        // Primitive validation and resource budgets
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Primitive validation and resource budgets
+        /// ------------------------------------------------------------
 
         bool validUtf8(std::string_view value) noexcept
         {
@@ -135,9 +135,9 @@ namespace GameWIP::Desktop::Accessibility
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Complete snapshot validation
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Complete snapshot validation
+    /// ------------------------------------------------------------
 
     A::ValidationResult validate(const A::SnapshotView &snapshot, const A::Limits &limits) noexcept
     {

@@ -15,9 +15,9 @@
 
 namespace GameWIP::Desktop::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Native target state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native target state
+    /// ------------------------------------------------------------
 
     /// @brief Thread-affine native OLE target resources for one Window.
     struct DragDropData
@@ -31,9 +31,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
     namespace
     {
-        // ------------------------------------------------------------
-        // Native effect conversion and target policy
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Native effect conversion and target policy
+        /// ------------------------------------------------------------
 
         namespace DD = Types::DragDrop;
         namespace Transfer = Types::DataTransfer;
@@ -212,9 +212,9 @@ namespace GameWIP::Desktop::Detail::Platform
             return result;
         }
 
-        // ------------------------------------------------------------
-        // OLE lifetime
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// OLE lifetime
+        /// ------------------------------------------------------------
 
         /// @brief Owns the calling apartment's OLE initialization lease.
         class OleLease final
@@ -263,9 +263,10 @@ namespace GameWIP::Desktop::Detail::Platform
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 #endif
-        // ------------------------------------------------------------
-        // Target callbacks
-        // ------------------------------------------------------------
+
+        /// ------------------------------------------------------------
+        /// Target callbacks
+        /// ------------------------------------------------------------
 
         /// @brief OLE drop target that translates callbacks into portable events.
         class DropTarget final : public IDropTarget
@@ -521,9 +522,9 @@ namespace GameWIP::Desktop::Detail::Platform
 #endif
         }
 
-        // ------------------------------------------------------------
-        // Source format enumeration
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Source format enumeration
+        /// ------------------------------------------------------------
 
         /// @brief COM enumerator over the formats exposed by the source data object.
         class FormatEnumerator final : public IEnumFORMATETC
@@ -638,9 +639,9 @@ namespace GameWIP::Desktop::Detail::Platform
             std::size_t index_ = 0;
         };
 
-        // ------------------------------------------------------------
-        // Source data object
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Source data object
+        /// ------------------------------------------------------------
 
         /// @brief COM data object that serves prepared HGLOBAL payloads to OLE.
         class DataObject final : public IDataObject
@@ -847,9 +848,9 @@ namespace GameWIP::Desktop::Detail::Platform
             std::vector<DataTransfer::PreparedItem> items_;
         };
 
-        // ------------------------------------------------------------
-        // Source termination
-        // ------------------------------------------------------------
+        /// ------------------------------------------------------------
+        /// Source termination
+        /// ------------------------------------------------------------
 
         /// @brief COM source policy that ends a drag on escape or trigger release.
         class DropSource final : public IDropSource
@@ -929,9 +930,9 @@ namespace GameWIP::Desktop::Detail::Platform
 #endif
     } // namespace
 
-    // ------------------------------------------------------------
-    // Target lifecycle
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Target lifecycle
+    /// ------------------------------------------------------------
 
     /// @brief Releases native target resources only after apartment-affine close has completed.
     void DragDropDataDeleter::operator()(DragDropData *data) const noexcept
@@ -1260,9 +1261,9 @@ namespace GameWIP::Desktop::Detail::Platform
         return closed.resourceClosed;
     }
 
-    // ------------------------------------------------------------
-    // Source operation and validation hooks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Source operation and validation hooks
+    /// ------------------------------------------------------------
 
     /// @brief Runs one synchronous OLE source drag and translates its outcome.
     DD::Result beginNativeDrag(WindowState &window, const DD::Description &description) noexcept
