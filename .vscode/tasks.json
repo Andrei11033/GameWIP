@@ -4,8 +4,12 @@
     {
       "label": "GameWIP: Configure Development",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["config", "dev"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "dev"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "dev"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -18,8 +22,12 @@
     {
       "label": "GameWIP: Build Development",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "dev"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "dev"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "dev"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -34,8 +42,12 @@
     {
       "label": "GameWIP: Clean Build Development",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "dev", "-CleanBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "dev", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "dev", "-CleanBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -44,8 +56,12 @@
     {
       "label": "GameWIP: Run Development",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-dev", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -60,8 +76,12 @@
     {
       "label": "GameWIP: Run Development (Clean Build)",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-dev", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -76,8 +96,12 @@
     {
       "label": "GameWIP: Run Development With Startup Tests",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-dev-startup-tests", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev-startup-tests", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev-startup-tests", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -92,8 +116,12 @@
     {
       "label": "GameWIP: Run Development With Startup Tests (Clean Build)",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-dev-startup-tests", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-dev-startup-tests", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-dev-startup-tests", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -108,8 +136,12 @@
     {
       "label": "GameWIP: Configure Tests",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["config", "test"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "test"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "test"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -122,8 +154,12 @@
     {
       "label": "GameWIP: Build Tests",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "test"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "test"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "test"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -135,8 +171,12 @@
     {
       "label": "GameWIP: Configure Profile",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["config", "profile"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "profile"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "profile"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -149,8 +189,12 @@
     {
       "label": "GameWIP: Build Profile",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "profile"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "profile"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "profile"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -162,8 +206,12 @@
     {
       "label": "GameWIP: Clean Build Profile",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "profile", "-CleanBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "profile", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "profile", "-CleanBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -173,8 +221,12 @@
     {
       "label": "GameWIP: Configure Release",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["config", "release"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "config", "release"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["config", "release"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -187,8 +239,12 @@
     {
       "label": "GameWIP: Build Release",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "release"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "release"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "release"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -200,8 +256,12 @@
     {
       "label": "GameWIP: Clean Build Release",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["build", "release", "-CleanBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "build", "release", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["build", "release", "-CleanBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -211,8 +271,12 @@
     {
       "label": "GameWIP: Test",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["test", "test", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "test", "test", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["test", "test", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -227,8 +291,12 @@
     {
       "label": "GameWIP: Test (Clean Build)",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["test", "test", "-CleanBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "test", "test", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["test", "test", "-CleanBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -237,8 +305,12 @@
     {
       "label": "GameWIP: Benchmark",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["bench", "run"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "bench", "run"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["bench", "run"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -247,8 +319,12 @@
     {
       "label": "GameWIP: Profile",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-profile", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-profile", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-profile", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -263,8 +339,12 @@
     {
       "label": "GameWIP: Profile (Clean Build)",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-profile", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-profile", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-profile", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -279,8 +359,12 @@
     {
       "label": "GameWIP: Profile Startup Tests",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-profile-startup-tests", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-profile-startup-tests", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-profile-startup-tests", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -295,8 +379,12 @@
     {
       "label": "GameWIP: Coverage",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["cov"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "cov"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["cov"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -305,34 +393,52 @@
     {
       "label": "GameWIP: Address Sanitizer",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["asan"],
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+      "command": "bash",
+      "args": ["./gamewip.sh", "asan"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["asan"],
+        "options": {
+          "cwd": "${workspaceFolder}",
+          "env": {
+            "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+          }
         }
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Undefined Behavior Sanitizer",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["ubsan"],
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": {
-          "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+      "command": "bash",
+      "args": ["./gamewip.sh", "ubsan"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["ubsan"],
+        "options": {
+          "cwd": "${workspaceFolder}",
+          "env": {
+            "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+          }
         }
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
       },
       "problemMatcher": []
     },
     {
       "label": "GameWIP: Analyze",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["analyze"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "analyze"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["analyze"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -341,8 +447,12 @@
     {
       "label": "GameWIP: Quality Check",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["quality", "check"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "quality", "check"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["quality", "check"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -351,8 +461,12 @@
     {
       "label": "GameWIP: Tools Status",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["tool", "status"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "tool", "status"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["tool", "status"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -361,8 +475,12 @@
     {
       "label": "GameWIP: Documentation",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["doc"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "doc"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["doc"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -371,8 +489,12 @@
     {
       "label": "GameWIP: Documentation (Clean Build)",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["doc", "-CleanBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "doc", "-CleanBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["doc", "-CleanBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -381,8 +503,12 @@
     {
       "label": "GameWIP: Run Release",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-release", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-release", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-release", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },
@@ -397,8 +523,12 @@
     {
       "label": "GameWIP: Run Release (Clean Build)",
       "type": "process",
-      "command": "${workspaceFolder}\\gamewip.bat",
-      "args": ["run", "game-release", "-SkipBuild"],
+      "command": "bash",
+      "args": ["./gamewip.sh", "run", "game-release", "-SkipBuild"],
+      "windows": {
+        "command": "${workspaceFolder}\\gamewip.bat",
+        "args": ["run", "game-release", "-SkipBuild"]
+      },
       "options": {
         "cwd": "${workspaceFolder}"
       },

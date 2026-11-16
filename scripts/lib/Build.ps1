@@ -110,7 +110,7 @@ function Invoke-GameWipConfigurePreset
     $cache = Join-Path $buildDirectory 'CMakeCache.txt'
 
     # Recreate a cache when it belongs to another target compiler.
-    if ((Test-GameWipWindowsHost) -and (Test-Path -LiteralPath $cache))
+    if ((Test-Path -LiteralPath $cache) -and $target.platform -eq 'windows')
     {
         $compilerEntry = Get-Content -LiteralPath $cache | Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } | Select-Object -First 1
         $configuredCompiler = if ($null -ne $compilerEntry)
@@ -148,10 +148,18 @@ function Invoke-GameWipConfigurePreset
 
         if ($target.platform -eq 'windows' -and -not [string]::IsNullOrWhiteSpace($configuredCompiler) -and [IO.Path]::IsPathRooted($configuredCompiler))
         {
-            $configuredCompiler = $configuredCompiler.Replace('/', '\')
-            $expectedCompiler = [IO.Path]::GetFullPath((Get-GameWipBuildTargetCompilerPath -Target $target)).Replace('/', '\')
+            $configuredCompiler = [IO.Path]::GetFullPath($configuredCompiler)
+            $expectedCompiler = [IO.Path]::GetFullPath((Get-GameWipBuildTargetCompilerPath -Target $target))
+            $pathComparison = if (Test-GameWipWindowsHost)
+            {
+                [StringComparison]::OrdinalIgnoreCase
+            }
+            else
+            {
+                [StringComparison]::Ordinal
+            }
 
-            if (-not [string]::Equals($configuredCompiler, $expectedCompiler, [StringComparison]::OrdinalIgnoreCase))
+            if (-not [string]::Equals($configuredCompiler, $expectedCompiler, $pathComparison))
             {
                 Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "The cached compiler belongs to a different toolchain; CMake will recreate this preset cache."
                 $arguments += '--fresh'
@@ -244,7 +252,7 @@ function Resolve-GameWipProjectExecutable
     return $primary
 }
 
-function Ensure-GameWipTracyProfiler
+function Start-GameWipTracyProfiler
 {
     $profilerPath = Join-Path (Get-GameWipManagedToolRoot) 'tools/tracy/tracy-profiler.exe'
 
@@ -308,12 +316,15 @@ function Invoke-GameWipProjectCommand
         [switch]$ForceBuild
     )
     $command = Get-GameWipProjectCommand -Id $Id
+
     $hasArguments = $null -ne $Arguments -and $Arguments.Length -ne 0
 
     if ($hasArguments -and -not [bool]$command.AcceptsExtraArgs)
     {
         throw "Project command '$Id' does not accept extra arguments."
     }
+
+    Assert-GameWipSelectedTargetRunnable -Action "Project command '$Id'"
 
     if ($ForceBuild)
     {
@@ -336,7 +347,7 @@ function Invoke-GameWipProjectCommand
 
     if ($command.ContainsKey('StartTracyProfiler') -and [bool]$command.StartTracyProfiler)
     {
-        Ensure-GameWipTracyProfiler
+        Start-GameWipTracyProfiler
     }
 
     if ($command.ContainsKey('InheritConsole') -and [bool]$command.InheritConsole)

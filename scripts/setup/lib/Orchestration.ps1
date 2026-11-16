@@ -3,14 +3,19 @@
 Set-StrictMode -Version Latest
 
 $SetupRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\setup.json') -Name 'setup' -SchemaPath (Join-Path $ScriptsRoot 'schemas\setup.schema.json')
-$EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\editors.json') -Name 'editors' -SchemaPath (Join-Path $ScriptsRoot 'schemas\editors.schema.json')
+$SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config/setup.json') -Name 'setup' -SchemaPath (Join-Path $ScriptsRoot 'schemas/setup.schema.json')
+$EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config/editors.json') -Name 'editors' -SchemaPath (Join-Path $ScriptsRoot 'schemas/editors.schema.json')
 $script:SetupStatePath = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.state 'setup.json')
 $ToolConfig = @{ MsysRoot = [string]$ProjectConfig.managedEnvironment.msys2Root }
 
 foreach ($file in @('Common.ps1', 'Winget.ps1', 'Msys2.ps1', 'Repository.ps1', 'VisualStudio.ps1', 'Editor.ps1', 'Tracy.ps1', 'Documentation.ps1', 'Uninstall.ps1'))
 {
     . (Join-Path $PSScriptRoot $file)
+}
+
+if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+{
+    . (Join-Path $SetupRoot 'platform/linux/Linux.ps1')
 }
 
 # ------------------------------------------------------------
@@ -120,7 +125,7 @@ function Assert-GameWipSetupActionCatalog
     $actions = @($SetupActionConfig.Actions)
     Assert-GameWipSetupOptionCatalog
     Assert-GameWipUniqueId -Items $actions -Label 'setup action'
-    $requiredActionIds = @('menu', 'full', 'check', 'update', 'repair', 'deps', 'uninstall', 'tool', 'vs', 'msys2', 'repo', 'profiler', 'editor', 'doc', 'list', 'help')
+    $requiredActionIds = @('menu', 'full', 'check', 'update', 'repair', 'deps', 'uninstall', 'tool', 'vs', 'msys2', 'system', 'repo', 'profiler', 'editor', 'doc', 'list', 'help')
     $actionIds = @($actions | ForEach-Object { [string]$_.Id })
 
     if ((($requiredActionIds | Sort-Object) -join "`n") -cne (($actionIds | Sort-Object) -join "`n"))
@@ -156,13 +161,45 @@ function Assert-GameWipSetupActionCatalog
             throw "Setup bootstrap tool '$toolId' is not registered."
         }
     }
+
+    foreach ($action in $actions)
+    {
+        if (-not $action.ContainsKey('Platforms'))
+        {
+            continue
+        }
+
+        foreach ($platform in @($action.Platforms))
+        {
+            if ([string]$platform -notin @('windows', 'linux'))
+            {
+                throw "Setup action '$($action.Id)' has an unsupported host platform '$platform'."
+            }
+        }
+    }
+}
+
+function Get-GameWipAvailableSetupActions
+{
+    $hostPlatform = if (Test-GameWipWindowsHost)
+    {
+        'windows'
+    }
+    else
+    {
+        'linux'
+    }
+
+    return @($SetupActionConfig.Actions | Where-Object {
+            (-not $_.ContainsKey('Platforms')) -or @($_.Platforms) -contains $hostPlatform
+        })
 }
 
 function Resolve-GameWipSetupActionName
 {
     param([Parameter(Mandatory = $true)][string]$Name)
 
-    foreach ($action in @($SetupActionConfig.Actions))
+    foreach ($action in @(Get-GameWipAvailableSetupActions))
     {
         if ([string]$action.Id -ieq $Name)
         {
@@ -181,7 +218,8 @@ function Get-GameWipSetupAction
 
     if ($actionMatches.Count -ne 1)
     {
-        throw "Unknown setup action '$Id'. Run 'setup.bat list'."
+        $listCommand = "$(Get-GameWipSetupHelperCommand) list"
+        throw "Unknown setup action '$Id'. Run '$listCommand'."
     }
 
     return $actionMatches[0]
@@ -191,7 +229,7 @@ function Show-GameWipSetupActionCatalog
 {
     Write-GameWipSection 'Setup actions'
 
-    foreach ($actionInfo in @($SetupActionConfig.Actions))
+    foreach ($actionInfo in @(Get-GameWipAvailableSetupActions))
     {
         Write-Host ('  {0,-16} [{1,-11}] {2}' -f $actionInfo.Id, $actionInfo.Risk, $actionInfo.Description)
     }
@@ -200,7 +238,15 @@ function Show-GameWipSetupActionCatalog
 function Show-GameWipSetupHelp
 {
     Write-Host 'Usage:'
-    Write-Host '  setup.bat <action> [options]'
+
+    if (Test-GameWipWindowsHost)
+    {
+        Write-Host '  setup.bat <action> [options]'
+    }
+    else
+    {
+        Write-Host '  bash ./setup.sh <action> [options]'
+    }
     Write-Host ''
     Show-GameWipCommonControlHelp -OptionDefinitions $SetupActionConfig.Options
     Write-Host ''
@@ -349,6 +395,18 @@ function Invoke-GameWipSetupEditorStep
 {
     param([switch]$Choose, [switch]$Update)
     Write-GameWipSection 'Editor integration'
+
+    if (-not (Test-GameWipWindowsHost) -and -not (Test-GameWipSetupCommand -Name 'code'))
+    {
+        if ($Choose)
+        {
+            throw 'Visual Studio Code is not installed. Install it, then rerun setup editor.'
+        }
+
+        Write-Host '  VS Code is not installed; editor integration is skipped.'
+        return
+    }
+
     $preference = Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot
 
     if ($Choose)
@@ -402,17 +460,29 @@ function Invoke-GameWipSetupEnvironmentCheck
 {
     Write-GameWipSection 'Environment check'
     $failures = [System.Collections.Generic.List[string]]::new()
-    $toolchain = Test-GameWipToolchain -DisplayStatus -Indent 4
+    $target = Get-GameWipSelectedBuildTarget
+    $toolIds = if (-not (Test-GameWipWindowsHost) -and $target.platform -eq 'windows')
+    {
+        @('cmake', 'ninja', [string]$target.toolchain)
+    }
+    else
+    {
+        @()
+    }
+    $toolchain = Test-GameWipToolchain -ToolIds $toolIds -DisplayStatus -Indent 4
 
     foreach ($failure in @($toolchain.Failures))
     {
         $failures.Add("Project toolchain: $failure") | Out-Null
     }
-    Write-Host '  Checking matching Tracy tools...'
-
-    if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
+    if (Test-GameWipWindowsHost)
     {
-        $failures.Add('Matching Tracy profiler tools are not installed.') | Out-Null
+        Write-Host '  Checking matching Tracy tools...'
+
+        if (-not (Test-GameWipTracyToolSet -RepositoryRoot $RepositoryRoot))
+        {
+            $failures.Add('Matching Tracy profiler tools are not installed.') | Out-Null
+        }
     }
     Write-Host '  Checking repository and editor integration...'
 
@@ -427,9 +497,18 @@ function Invoke-GameWipSetupEnvironmentCheck
     }
     $selected = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
 
-    foreach ($failure in @(Get-GameWipEditorFailure -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selected))
+    $codeInstalled = Test-GameWipSetupCommand -Name 'code'
+
+    if ((Test-GameWipWindowsHost) -or $codeInstalled)
     {
-        $failures.Add($failure) | Out-Null
+        foreach ($failure in @(Get-GameWipEditorFailure -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selected))
+        {
+            $failures.Add($failure) | Out-Null
+        }
+    }
+    elseif (-not (Test-GameWipWindowsHost))
+    {
+        Write-Host '  VS Code is not installed; editor checks are skipped.'
     }
     Write-Host '  Checking GameWIP dependency cache...'
 
@@ -449,7 +528,8 @@ function Invoke-GameWipSetupEnvironmentCheck
         {
             Write-GameWipStatusLine -Status FAIL -Text $failure -Semantic Failure -Indent 2
         }
-        throw "$($failures.Count) environment check(s) failed. Run '.\setup.bat repair'."
+        $repairCommand = "$(Get-GameWipSetupHelperCommand) repair"
+        throw "$($failures.Count) environment check(s) failed. Run '$repairCommand'."
     }
 
     Write-GameWipStatusLine -Status OK -Text 'Complete selected development environment is ready.' -Semantic Success -Indent 2
@@ -467,17 +547,43 @@ function Get-GameWipSetupPlan
     {
         'full'
         {
-            return @('Install/verify MSYS2 toolchains.', 'Install or repair exact declared project tools.', 'Prepare the repository and development configuration.', 'Prepare or reuse the locked dependency cache.', 'Apply selected editor integrations.', 'Build matching Tracy tools.', 'Build docs unless skipped.', 'Verify complete environment.')
+            $hostPlan = if (Test-GameWipWindowsHost)
+            {
+                @('Install/verify MSYS2 toolchains.')
+            }
+            else
+            {
+                @(Get-GameWipSetupLinuxPlan)
+            }
+            $commonPlan = @('Install or repair declared project tools.', 'Prepare the repository and development configuration.', 'Prepare or reuse the locked dependency cache.', 'Apply available editor integrations.')
+
+            if (Test-GameWipWindowsHost)
+            {
+                $commonPlan += 'Build matching Tracy tools.'
+            }
+
+            $commonPlan += @('Build docs unless skipped.', 'Verify the selected environment.')
+            return @($hostPlan) + @($commonPlan)
         }
 
         'repair'
         {
-            return @('Reapply declared environment state without advancing project pins.', 'Prepare or reuse the locked dependency cache.', 'Verify complete environment.')
+            if (Test-GameWipWindowsHost)
+            {
+                return @('Reapply declared environment state without advancing project pins.', 'Prepare or reuse the locked dependency cache.', 'Verify complete environment.')
+            }
+
+            return @(Get-GameWipSetupLinuxPlan) + @('Repair declared project tools.', 'Prepare or reuse the locked dependency cache.', 'Verify the selected environment.')
         }
 
         'update'
         {
-            return @('Update MSYS2/environment packages without advancing exact project pins.', 'Install or update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.', 'Refresh integrations.', 'Verify complete environment.')
+            if (Test-GameWipWindowsHost)
+            {
+                return @('Update MSYS2/environment packages without advancing exact project pins.', 'Install or update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.', 'Refresh integrations.', 'Verify complete environment.')
+            }
+
+            return @(Get-GameWipSetupLinuxPlan) + @('Update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.', 'Refresh available integrations.', 'Verify the selected environment.')
         }
 
         'deps'
@@ -493,6 +599,11 @@ function Get-GameWipSetupPlan
         'msys2'
         {
             return @('Install/repair declared UCRT64 and CLANG64 packages.')
+        }
+
+        'system'
+        {
+            return @(Get-GameWipSetupLinuxPlan)
         }
 
         'repo'
@@ -551,12 +662,22 @@ function Invoke-GameWipCompleteSetup
     {
         Initialize-GameWipSetupManagedToolRoot
     }
-    Invoke-GameWipSetupMsys2Step -Update:$RefreshMsys2
+    if (Test-GameWipWindowsHost)
+    {
+        Invoke-GameWipSetupMsys2Step -Update:$RefreshMsys2
+    }
+    else
+    {
+        Invoke-GameWipSetupLinuxPrerequisites
+    }
     Invoke-GameWipSetupToolStep
     Invoke-GameWipSetupRepositoryStep -Update:$Update
     Invoke-GameWipSetupDependencyStep
     Invoke-GameWipSetupEditorStep -Update:$Update
-    Invoke-GameWipSetupTracyStep
+    if (Test-GameWipWindowsHost)
+    {
+        Invoke-GameWipSetupTracyStep
+    }
 
     if (-not $SkipDocs)
     {
@@ -603,6 +724,10 @@ function Invoke-GameWipSetupActionBody
         {
             Invoke-GameWipSetupMsys2Step
         }
+        'system'
+        {
+            Invoke-GameWipSetupLinuxPrerequisites
+        }
         'repo'
         {
             Invoke-GameWipSetupRepositoryStep
@@ -641,7 +766,7 @@ function Invoke-GameWipSetupActionBody
 function Invoke-GameWipSetupOperation
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
-    Assert-GameWipSetupWindows
+    Assert-GameWipSetupHost
     Assert-GameWipSetupRepository -RepositoryRoot $RepositoryRoot
     Assert-GameWipSetupActionCatalog
     $actionInfo = Get-GameWipSetupAction -Id $SelectedAction
@@ -684,13 +809,13 @@ function Invoke-GameWipSetupOperation
 
 function Show-GameWipSetupMenu
 {
-    Assert-GameWipSetupWindows
+    Assert-GameWipSetupHost
     Assert-GameWipSetupRepository -RepositoryRoot $RepositoryRoot
     Assert-GameWipSetupActionCatalog
 
     while ($true)
     {
-        $menuActions = @($SetupActionConfig.Actions | Where-Object { $_.ContainsKey('Key') })
+        $menuActions = @(Get-GameWipAvailableSetupActions | Where-Object { $_.ContainsKey('Key') })
         $menuItems = @($menuActions | ForEach-Object {
                 [pscustomobject]@{
                     Key = [string]$_.Key

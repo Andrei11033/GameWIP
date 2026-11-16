@@ -19,11 +19,12 @@ function Get-GameWipQualityTool
     if (-not $status.Ready)
     {
         $details = @("Tool state: $($status.State)") + @($status.DependencyFailures | ForEach-Object { "$($_.Package): $($_.State)" })
+        $helperCommand = Get-GameWipProjectHelperCommand
         throw (New-GameWipDiagnosticException `
                 -Code 'quality-tool-unavailable' `
                 -Summary "Quality tool '$Id' is missing or incompatible." `
                 -Details ($details -join '; ') `
-                -SuggestedActions @('.\gamewip.bat tool ensure quality -Yes', '.\gamewip.bat tool status'))
+                -SuggestedActions @("$helperCommand tool ensure quality -Yes", "$helperCommand tool status"))
     }
 
     return [string]$status.Detected.Location
@@ -501,6 +502,7 @@ function Get-GameWipQualityToolchain
         'actionlint',
         'jsonschema'
     )
+    $helperCommand = Get-GameWipProjectHelperCommand
     # The common checker also validates provider dependencies, such as npm
     # plugins, before quality mutates any maintained file.
     $check = Test-GameWipToolchain `
@@ -509,7 +511,7 @@ function Get-GameWipQualityToolchain
         -ThrowOnFailure `
         -FailureCode quality-toolchain-incomplete `
         -FailureSummary 'The declared quality toolchain is incomplete.' `
-        -SuggestedActions @('.\gamewip.bat tool ensure quality -Yes', '.\gamewip.bat tool status')
+        -SuggestedActions @("$helperCommand tool ensure quality -Yes", "$helperCommand tool status")
     return $check.Tools
 }
 

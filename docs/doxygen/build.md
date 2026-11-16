@@ -2,8 +2,10 @@
 
 GameWIP uses CMake presets to keep development, testing, benchmarking,
 profiling, coverage, analysis, documentation, and release builds separate.
-Native CMake builds use `build/<preset>`. The Windows helper selects a target
-and uses `build/<target>/<preset>` so architectures keep separate caches.
+Native CMake builds use `build/<preset>`. The helper uses
+`build/<target>/<preset>` for Windows targets so architectures keep separate
+caches. Linux currently cross-builds Windows targets; native Linux game builds
+are not available yet.
 
 This guide explains the project-level presets and options, what each build
 contains, where its artifacts go, how runtime dependencies are staged, and how
@@ -16,11 +18,11 @@ project_command_line_tools.
 
 ## Requirements
 
-Use PowerShell for the `gamewip.bat` helper commands and MSYS2 UCRT64 Bash
-for the direct CMake commands below. PowerShell can also run CMake directly when
-UCRT64 tools are first on `PATH`; direct sanitizer examples use CLANG64.
-The helper's Windows targets use LLVM-MinGW Clang with libc++ and UCRT. Direct
-CMake commands use the active MSYS2 compiler. The supported environment is
+Use PowerShell for `gamewip.bat` on Windows and `bash ./gamewip.sh` on Linux.
+Direct CMake examples below use MSYS2 UCRT64 Bash; direct sanitizer examples use
+CLANG64. The helper's Windows targets use LLVM-MinGW Clang with libc++ and UCRT.
+Direct CMake commands use the active MSYS2 compiler. The supported Windows
+environment is
 MSYS2 UCRT64 with CMake 4.4.4 or newer, Ninja, GCC 16.2 or newer or Clang
 23.1.3 or newer as selected by the preset, and C++23 support. Compiler floors
 are declared as `minimum` in
@@ -89,13 +91,16 @@ cmake --build build/windows-arm64/dev
 
 The Windows helper manages target selection and build paths for this workflow.
 
-Run tests through the validation preset:
+Run Windows-target tests through the validation preset on Windows:
 
 ```bash
 cmake --preset test
 cmake --build --preset test
 ctest --preset test
 ```
+
+Linux can cross-build the test executables, but cannot run them. Use the Linux
+helper to configure/build, then run CTest on Windows.
 
 Generate documentation through the docs preset:
 

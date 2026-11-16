@@ -78,6 +78,7 @@
     "tool": [],
     "deps": [],
     "msys2": [],
+    "system": [],
     "editor": [],
     "doc": [],
     "profiler": [],
@@ -91,7 +92,7 @@
     {
       "id": "full",
       "name": "Complete setup",
-      "description": "Install or repair every required component and verify the checkout.",
+      "description": "Install or repair required host tools and project components, then verify the checkout.",
       "risk": "machine",
       "network": true,
       "mutation": "machine",
@@ -158,7 +159,18 @@
       "risk": "machine",
       "network": true,
       "mutation": "machine",
-      "key": "8"
+      "key": "8",
+      "platforms": ["windows"]
+    },
+    {
+      "id": "system",
+      "name": "Install Linux prerequisites",
+      "description": "Install required host packages for Ubuntu, Debian, or CachyOS.",
+      "risk": "machine",
+      "network": true,
+      "mutation": "machine",
+      "key": "K",
+      "platforms": ["linux"]
     },
     {
       "id": "editor",
@@ -185,7 +197,8 @@
       "risk": "machine",
       "network": true,
       "mutation": "machine",
-      "key": "P"
+      "key": "P",
+      "platforms": ["windows"]
     },
     {
       "id": "vs",
@@ -194,7 +207,8 @@
       "risk": "machine",
       "network": true,
       "mutation": "machine",
-      "key": "V"
+      "key": "V",
+      "platforms": ["windows"]
     },
     {
       "id": "uninstall",
@@ -203,7 +217,8 @@
       "risk": "destructive",
       "network": true,
       "mutation": "destructive",
-      "key": "U"
+      "key": "U",
+      "platforms": ["windows"]
     },
     {
       "id": "list",

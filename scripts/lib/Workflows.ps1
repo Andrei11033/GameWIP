@@ -9,11 +9,12 @@ Set-StrictMode -Version Latest
 function Get-GameWipWorkflow
 {
     param([Parameter(Mandatory = $true)][string]$Id)
+    $listCommand = "$(Get-GameWipProjectHelperCommand) workflow list"
     $workflowInfo = @($CommandConfig.ManualWorkflows | Where-Object { $_.Id -eq $Id } | Select-Object -First 1)
 
     if ($workflowInfo.Count -eq 0)
     {
-        throw "Unknown manual workflow '$Id'. Run '.\gamewip.bat workflow list'."
+        throw "Unknown manual workflow '$Id'. Run '$listCommand'."
     }
 
     return $workflowInfo[0]
@@ -35,7 +36,8 @@ function Assert-GameWipGitHubCli
 {
     if ($null -eq (Get-Command gh -ErrorAction SilentlyContinue))
     {
-        throw "GitHub CLI is unavailable. Run '.\setup.bat repair', then 'gh auth login'."
+        $repairCommand = "$(Get-GameWipSetupHelperCommand) repair"
+        throw "GitHub CLI is unavailable. Run '$repairCommand', then 'gh auth login'."
     }
 
     $auth = Invoke-GameWipProcess -FilePath gh -Arguments @('auth', 'status', '--hostname', 'github.com') -OutputMode LogOnly -TimeoutSeconds 20
@@ -276,7 +278,7 @@ function Invoke-GameWipWorkflowAction
         {
             if ([string]::IsNullOrWhiteSpace($WorkflowId))
             {
-                throw "workflow run requires a workflow ID. Run '.\gamewip.bat workflow list'."
+                throw "workflow run requires a workflow ID. Run '$(Get-GameWipProjectHelperCommand) workflow list'."
             }
             Invoke-GameWipManualWorkflow -WorkflowId $WorkflowId -ItemKind $WorkflowKind -ItemNumber $WorkflowNumber -Commit $ReleaseCommit
         }

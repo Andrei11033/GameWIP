@@ -46,20 +46,29 @@ function Install-GameWipGitHubReleaseDirectoryArchive
     )
 
     # Validate the provider and archive before touching the managed install.
-    if (-not (Test-GameWipWindowsHost))
-    {
-        throw "Tool '$($Tool.id)' is only installable on Windows."
-    }
-
     $extractRoot = Join-Path $Script:OperationContext.Temp "extract-$($Tool.id)"
     New-Item -ItemType Directory -Path $extractRoot | Out-Null
 
-    if (-not $Asset.archive.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase))
+    $archiveName = [string]$Asset.archive
+
+    if ($archiveName.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase))
     {
-        throw "Directory archive '$($Asset.archive)' must be a ZIP file."
+        Expand-Archive -LiteralPath $Download -DestinationPath $extractRoot
+    }
+    elseif ($archiveName.EndsWith('.tar.gz', [StringComparison]::OrdinalIgnoreCase) -or
+        $archiveName.EndsWith('.tgz', [StringComparison]::OrdinalIgnoreCase))
+    {
+        Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xzf', $Download, '-C', $extractRoot) | Out-Null
+    }
+    elseif ($archiveName.EndsWith('.tar.xz', [StringComparison]::OrdinalIgnoreCase))
+    {
+        Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xJf', $Download, '-C', $extractRoot) | Out-Null
+    }
+    else
+    {
+        throw "Unsupported directory archive format '$archiveName'."
     }
 
-    Expand-Archive -LiteralPath $Download -DestinationPath $extractRoot
     $payloadDirectories = @(Get-ChildItem -LiteralPath $extractRoot -Directory -Force)
 
     if ($payloadDirectories.Count -ne 1 -or @(Get-ChildItem -LiteralPath $extractRoot -File -Force).Count -ne 0)
@@ -70,9 +79,11 @@ function Install-GameWipGitHubReleaseDirectoryArchive
     $payload = $payloadDirectories[0].FullName
 
     # Confirm the extracted tool contains every declared file.
-    foreach ($relativePath in @($Tool.provider.validationFiles))
+    $assetKey = Get-GameWipHostAssetKey
+
+    foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $assetKey))
     {
-        $candidatePath = Join-Path $payload ([string]$relativePath -replace '/', '\')
+        $candidatePath = Join-Path $payload ([string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
 
         if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf))
         {
@@ -105,7 +116,15 @@ function Install-GameWipGitHubReleaseDirectoryArchive
     {
         Set-GameWipMutationStarted
         New-Item -ItemType Directory -Force -Path $familyRoot | Out-Null
-        Copy-Item -LiteralPath $payload -Destination $incoming -Recurse
+
+        if (Test-GameWipWindowsHost)
+        {
+            Copy-Item -LiteralPath $payload -Destination $incoming -Recurse
+        }
+        else
+        {
+            Move-Item -LiteralPath $payload -Destination $incoming
+        }
 
         if (Test-Path -LiteralPath $toolRoot)
         {
@@ -118,8 +137,9 @@ function Install-GameWipGitHubReleaseDirectoryArchive
         {
             Move-Item -LiteralPath $incoming -Destination $toolRoot
             $incoming = $null
-            $installedFiles = @($Tool.provider.validationFiles | Where-Object {
-                    -not (Test-Path -LiteralPath (Join-Path $toolRoot ([string]$_ -replace '/', '\')) -PathType Leaf)
+            $installedFiles = @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $assetKey | Where-Object {
+                    $relativePath = [string]$_.Replace('/', [IO.Path]::DirectorySeparatorChar)
+                    -not (Test-Path -LiteralPath (Join-Path $toolRoot $relativePath) -PathType Leaf)
                 })
 
             if ($installedFiles.Count -ne 0)
@@ -175,13 +195,11 @@ function Install-GameWipGitHubReleaseTool
         throw "GitHub release tool '$($Tool.id)' lacks an upstream release tag."
     }
 
-    $platformKey = if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+    $platformKey = Get-GameWipHostAssetKey
+
+    if ($null -eq $platformKey)
     {
-        'linux-amd64'
-    }
-    else
-    {
-        'windows-amd64'
+        throw "Tool '$($Tool.id)' has no supported release platform for this host architecture."
     }
     $asset = $Tool.provider.assets[$platformKey]
 
@@ -220,7 +238,7 @@ function Install-GameWipGitHubReleaseTool
 
     if ($asset.Contains('format') -and $asset.format -eq 'executable')
     {
-        $executableName = if ($platformKey -eq 'windows-amd64')
+        $executableName = if ($platformKey.StartsWith('windows-', [StringComparison]::Ordinal))
         {
             "$($Tool.id).exe"
         }

@@ -1,11 +1,12 @@
 @page project_command_line_tools Command-line tools
 
-GameWIP exposes the repository helper `gamewip.bat` and the Windows environment
-bootstrap `setup.bat`. The project helper uses positional command words for
-selection and shared switches for execution policy. With no action, it opens
-the interactive project menu.
+GameWIP exposes `gamewip.bat` on Windows and `gamewip.sh` on supported Linux
+hosts. Setup uses `setup.bat` or `setup.sh` in the same way. The project helper
+uses positional command words for selection and shared switches for execution
+policy. With no action, it opens the interactive project menu.
 
-`gamewip.bat --help`, `gamewip.bat -h`, and `gamewip.bat -?` are help aliases.
+`gamewip.bat --help`, `gamewip.bat -h`, and `gamewip.bat -?` are Windows help
+aliases. On Linux, use `bash ./gamewip.sh --help`.
 
 The project menu hierarchy lives in `scripts/config/commands.json`; setup menu
 entries live in `scripts/setup/config/setup.json`. Their schemas and runtime
@@ -23,6 +24,10 @@ default, or `q` or Esc to cancel.
 ```powershell
 .\gamewip.bat <action> [command] [target] [options]
 ```
+
+The examples below use Windows PowerShell. On Linux, pass the same arguments to
+`bash ./gamewip.sh`; for example, `bash ./gamewip.sh build dev`. Linux currently
+cross-builds Windows targets; their executables must run on Windows.
 
 Examples:
 

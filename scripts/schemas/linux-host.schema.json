@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GameWIP Linux setup registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "distributions", "packageManagers", "cmake"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "distributions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ubuntu", "debian", "cachyos"],
+      "properties": {
+        "ubuntu": { "const": "apt" },
+        "debian": { "const": "apt" },
+        "cachyos": { "const": "pacman" }
+      }
+    },
+    "packageManagers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["apt", "pacman"],
+      "properties": {
+        "apt": { "$ref": "#/$defs/packageManager" },
+        "pacman": { "$ref": "#/$defs/packageManager" }
+      }
+    },
+    "cmake": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "releases"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "releases": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": { "$ref": "#/$defs/archive" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "packageManager": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["updateArguments", "installArguments", "packages"],
+      "properties": {
+        "updateArguments": { "type": "array", "items": { "type": "string" } },
+        "installArguments": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "packages": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archive", "sha256", "validationFiles"],
+      "properties": {
+        "archive": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "validationFiles": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

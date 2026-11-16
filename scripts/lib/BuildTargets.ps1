@@ -92,7 +92,11 @@ function Get-GameWipSelectedBuildTarget
 
     if (-not (Test-Path -LiteralPath $path -PathType Leaf))
     {
-        if (-not (Test-GameWipWindowsHost))
+        $isLinuxHost = [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform(
+            [Runtime.InteropServices.OSPlatform]::Linux
+        )
+
+        if (-not (Test-GameWipWindowsHost) -and -not $isLinuxHost)
         {
             return [pscustomobject]@{
                 id = 'native'
@@ -121,17 +125,43 @@ function Get-GameWipSelectedBuildTarget
 
     if ($selection.schemaVersion -ne 1 -or [string]::IsNullOrWhiteSpace([string]$selection.targetId))
     {
-        throw "Build target selection '$path' has an unsupported or incomplete format. Run '.\gamewip.bat target' to select a target again."
+        $targetCommand = "$(Get-GameWipProjectHelperCommand) target"
+        throw "Build target selection '$path' has an unsupported or incomplete format. Run '$targetCommand' to select a target again."
     }
 
     $target = Get-GameWipBuildTarget -Id ([string]$selection.targetId)
 
-    if (-not (Test-GameWipWindowsHost) -and $target.platform -eq 'windows')
+    if ($target.platform -eq 'windows')
     {
-        throw "Build target selection '$path' targets Windows, which this host helper does not support yet."
+        $hostAssetKey = Get-GameWipHostAssetKey
+        $toolchain = Get-GameWipProjectTool -Id ([string]$target.toolchain)
+
+        if ($null -eq $hostAssetKey -or -not $toolchain.provider.assets.ContainsKey($hostAssetKey))
+        {
+            throw "Build target '$($target.name)' is not supported on this host architecture."
+        }
     }
 
     return $target
+}
+
+function Assert-GameWipSelectedTargetRunnable
+{
+    param([string]$Action = 'This action')
+    $target = Get-GameWipSelectedBuildTarget
+
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux) -and
+        $target.platform -eq 'windows')
+    {
+        $suggestedActions = @(
+            'Build the target with the config/build action.',
+            'Run the executable on Windows after copying the target build tree.'
+        )
+        throw (New-GameWipDiagnosticException `
+                -Code 'target-execution-unsupported' `
+                -Summary "$Action cannot run the selected Windows target on this Linux host." `
+                -SuggestedActions $suggestedActions)
+    }
 }
 
 function Set-GameWipSelectedBuildTarget
@@ -158,16 +188,11 @@ function Invoke-GameWipBuildTargetSelection
         throw 'Select both -TargetPlatform and -TargetArchitecture.'
     }
 
-    # The Windows helper owns this target catalog on Windows hosts.
-    if (-not (Test-GameWipWindowsHost))
+    if (-not (Test-GameWipWindowsHost) -and
+        -not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux) -and
+        -not [string]::IsNullOrWhiteSpace($Platform))
     {
-        if (-not [string]::IsNullOrWhiteSpace($Platform))
-        {
-            throw 'Windows target selection is currently available only from the Windows helper.'
-        }
-
-        Write-Host 'Build target selection is currently available only from the Windows helper.'
-        return
+        throw 'Windows cross-target selection is supported on Windows and Linux hosts only.'
     }
 
     # Resolve explicit arguments or prompt from the configured target list.
@@ -268,13 +293,20 @@ function Get-GameWipBuildTargetPathPrefix
 {
     param([Parameter(Mandatory = $true)]$Target)
 
-    if (-not (Test-GameWipWindowsHost))
+    if ($Target.platform -eq 'native')
     {
         return ''
     }
 
-    # Keep host tools and target runtime DLLs available to child processes.
+    # Keep CMake and the selected compiler available to child processes.
     $toolchainBin = Split-Path -Parent (Get-GameWipBuildTargetCompilerPath -Target $Target)
+
+    if (-not (Test-GameWipWindowsHost))
+    {
+        $cmakeBin = Join-Path (Get-GameWipManagedToolRoot) 'cmake/bin'
+        return @($cmakeBin, $toolchainBin) -join [IO.Path]::PathSeparator
+    }
+
     $targetRuntimeBin = Join-Path (Get-GameWipBuildTargetToolchainRoot -Target $Target) (Join-Path ([string]$Target.compilerTriple) 'bin')
     $msys2Bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
     return @($toolchainBin, $targetRuntimeBin, $msys2Bin) -join [IO.Path]::PathSeparator

@@ -82,8 +82,6 @@ function Invoke-GameWipBenchmark
         [switch]$SkipBuild
     )
 
-    $Script:RunLabel = "benchmark-$Mode"
-    Initialize-GameWipRunLog
     Assert-GameWipBenchmarkExtraArgument -Arguments $Arguments
 
     if (-not [string]::IsNullOrWhiteSpace($MinimumTime) -and $MinimumTime -notmatch '^(?:[0-9]+x|[0-9]+(?:\.[0-9]+)?s)$')
@@ -98,6 +96,9 @@ function Invoke-GameWipBenchmark
         throw "Unknown benchmark profile '$ProfileId'."
     }
 
+    Assert-GameWipSelectedTargetRunnable -Action 'Benchmark command'
+    $Script:RunLabel = "benchmark-$Mode"
+    Initialize-GameWipRunLog
     $command = Get-GameWipProjectCommand -Id 'benchmark-dry-run'
 
     if ($SkipBuild)

@@ -11,11 +11,11 @@ $ErrorActionPreference = 'Stop'
 
 $RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
 $ScriptsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$ProjectConfigPath = Join-Path $ScriptsRoot 'config\project.json'
-$BuildTargetsPath = Join-Path $ScriptsRoot 'config\build-targets.json'
-$CommandConfigPath = Join-Path $ScriptsRoot 'config\commands.json'
-$ProjectToolsPath = Join-Path $ScriptsRoot 'config\project-tools.json'
-$HygieneConfigPath = Join-Path $RepositoryRoot 'config\quality\hygiene.json'
+$ProjectConfigPath = Join-Path $ScriptsRoot 'config/project.json'
+$BuildTargetsPath = Join-Path $ScriptsRoot 'config/build-targets.json'
+$CommandConfigPath = Join-Path $ScriptsRoot 'config/commands.json'
+$ProjectToolsPath = Join-Path $ScriptsRoot 'config/project-tools.json'
+$HygieneConfigPath = Join-Path $RepositoryRoot 'config/quality/hygiene.json'
 $PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
 
 # ------------------------------------------------------------
@@ -24,7 +24,7 @@ $PresetsPath = Join-Path $RepositoryRoot 'CMakePresets.json'
 
 # Long-lived terminals do not inherit PATH changes made by WinGet installers.
 # Refresh this helper process while preserving its existing path precedence.
-. (Join-Path $ScriptsRoot 'lib\Storage.ps1')
+. (Join-Path $ScriptsRoot 'lib/Storage.ps1')
 Update-GameWipProcessPath
 
 foreach ($defaultVariable in @{
@@ -82,11 +82,11 @@ foreach ($libraryFile in $libraryFiles)
     . (Join-Path $ScriptsRoot (Join-Path 'lib' $libraryFile))
 }
 
-$ProjectConfig = Read-GameWipJsonConfig -Path $ProjectConfigPath -Name 'project' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project.schema.json')
-$BuildTargets = Read-GameWipJsonConfig -Path $BuildTargetsPath -Name 'build targets' -SchemaPath (Join-Path $ScriptsRoot 'schemas\build-targets.schema.json')
-$CommandConfig = Read-GameWipJsonConfig -Path $CommandConfigPath -Name 'commands' -SchemaPath (Join-Path $ScriptsRoot 'schemas\commands.schema.json')
-$ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
-$HygieneConfig = Read-GameWipJsonConfig -Path $HygieneConfigPath -Name 'hygiene' -SchemaPath (Join-Path $ScriptsRoot 'schemas\hygiene.schema.json')
+$ProjectConfig = Read-GameWipJsonConfig -Path $ProjectConfigPath -Name 'project' -SchemaPath (Join-Path $ScriptsRoot 'schemas/project.schema.json')
+$BuildTargets = Read-GameWipJsonConfig -Path $BuildTargetsPath -Name 'build targets' -SchemaPath (Join-Path $ScriptsRoot 'schemas/build-targets.schema.json')
+$CommandConfig = Read-GameWipJsonConfig -Path $CommandConfigPath -Name 'commands' -SchemaPath (Join-Path $ScriptsRoot 'schemas/commands.schema.json')
+$ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas/project-tools.schema.json')
+$HygieneConfig = Read-GameWipJsonConfig -Path $HygieneConfigPath -Name 'hygiene' -SchemaPath (Join-Path $ScriptsRoot 'schemas/hygiene.schema.json')
 $PresetData = Read-GameWipUtf8Text -Path $PresetsPath | ConvertFrom-Json
 
 Assert-GameWipProjectConfig

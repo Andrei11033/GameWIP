@@ -1,22 +1,29 @@
 # Setup implementation
 
-This directory implements the Windows setup experience behind the root
-`setup.bat` entry point. Contributors looking to install or repair their
+This directory implements setup behind the root `setup.bat` and `setup.sh`
+entry points. Contributors looking to install or repair their
 environment should use the generated
 [environment setup manual](../../docs/doxygen/environment_setup.md). The
 details below are for maintainers changing what setup installs or how it
 verifies the machine.
 
+Linux runs require PowerShell 7 and support Ubuntu, Debian, and CachyOS. Linux
+package installation uses the shared operation plan and consent flow.
+
 ## Layout
 
-- `windows.bat` forwards batch arguments without owning setup behavior.
-- `Windows.ps1` owns action dispatch, consent, execution plans, and final
+- `windows.bat` and `setup.sh` forward arguments to the shared PowerShell entry
+  point, `Setup.ps1`.
+- `Setup.ps1` owns action dispatch, consent, execution plans, and final
   verification. The persistent menu is rendered by the shared console backend.
 - `../lib/Operation.ps1`, `../lib/Process.ps1`, and `../lib/Runs.ps1` own the
   operation lifecycle, native execution, retained output, receipts, and run
   layout shared with the project helper.
 - `config/setup.json` owns setup action/menu metadata and provider-host bootstrap
   IDs only; it does not duplicate machine packages or tool versions.
+- `platform/linux/host.json` maps supported distributions to package sets and
+  declares verified Linux CMake archives. `platform/linux/Linux.ps1` owns Linux
+  package installation and archive setup.
 - `config/editors.json` declares selectable editors and their handlers. VS Code
   is the default; Visual Studio is optional.
 - `../config/project-tools.json` is the single project-tool, provider-package,
@@ -36,28 +43,34 @@ Machine-changing interactive actions require Automatic, Manual, or Cancel
 consent. Named actions preserve nonzero exit codes. The menu catches an action
 failure, prints its concise cause, and returns to the full action list.
 
-`Invoke-GameWipSetupNative` uses the shared native-process runner, inherits the selected `Stream`, `Summary`, or `LogOnly` output policy,
+`Invoke-GameWipSetupNative` uses the shared native-process runner, inherits the
+selected `Stream`, `Summary`, or `LogOnly` output policy,
 and reports successful exit codes. Named setup actions retain the same
 action-scoped run structure as the project helper under
 `build/gamewip/runs/<timestamp>_setup-<action>/`, including step logs, summaries,
 and a manifest. Stages print source and destination paths,
 selected options, reasons for skips, and verification results. Do not hide
 installer, pacman, Git, compiler, or documentation diagnostics in new code.
-Pacman update and install commands make up to three visibly logged attempts,
+MSYS2 pacman update and install commands make up to three visibly logged attempts,
 waiting two seconds between failures, and propagate the final command error if
 all attempts fail.
 
-Full setup installs missing state and refreshes MSYS2 before installing its
-declared packages. Repair reapplies missing state without requesting ordinary
-upgrades. Update fetches and fast-forwards the current branch from its configured
-upstream, performs complete `pacman -Syu` passes, and applies the newest
-compatible environment/provider releases while keeping CMake at the declared
-minimum `4.4.4` or newer and retaining dependency revisions recorded by the
-updated checkout. It refuses dirty trees, missing upstreams, and
-non-fast-forward merges. WinGet is used for MSYS2 only for the first installation
-at the explicit `C:\MSYS2` root.
+On Windows, full setup prepares MSYS2 and its declared packages. On Ubuntu and
+Debian, it refreshes apt indexes and installs the Linux host packages declared
+in `platform/linux/host.json`. On CachyOS, it uses `pacman -Syu --needed`, which
+performs a full system upgrade before installing those packages. Linux setup
+installs the pinned CMake archive when the system version is older than the
+project minimum and ensures the host-matching LLVM-MinGW archive through the
+project-tool provider. Windows-only actions are hidden on Linux.
 
-`setup.bat update` owns environment and package-manager updates. The separate
+Repair reapplies missing requirements without advancing project pins. Update
+also updates the checkout and environment packages. Both retain dependency
+revisions recorded by the checkout and refuse dirty trees, missing upstreams,
+and non-fast-forward merges. WinGet is used for MSYS2 only for the first
+installation at the explicit `C:\MSYS2` root.
+
+`setup.bat update` and `setup.sh update` own environment and package-manager
+updates. The separate
 `gamewip tool update` workflow advances reviewed project tool/version policy
 and exact pins through a staged, source-preserving compare-and-set plan; setup
 does not silently advance those pins.
@@ -69,18 +82,19 @@ The read-only environment check verifies that every cached source and manifest
 entry matches the current lock file. The explicit `setup.bat deps`
 action runs the same preparation step without duplicating dependency logic.
 
-The editor stage installs only selected editors. VS Code integration installs
-Microsoft C++/CMake extensions and packages the local workflow extension as a
-VSIX so the VS Code CLI installs and reports it like any other extension. It
-also writes
+The editor stage installs only selected editors. On Linux, it integrates an
+already installed VS Code; setup does not install the editor. VS Code
+integration installs Microsoft C++/CMake extensions and packages the local
+workflow extension as a VSIX so the VS Code CLI installs and reports it like any
+other extension. It also writes
 a marked, repository-guarded block at the end of the user's
 `keybindings.json`, after preserving a one-time `.gamewip-backup`; later runs
 replace only that block. This is required because VS Code user rules outrank
 extension defaults.
 
-Tracy checks the complete installed executable set and its recorded locked
-source version before doing build work. When they match, setup reuses the
-installed tools; otherwise it rebuilds five upstream CMake projects from the
+The Tracy stage is Windows-only. It checks the installed executables and locked
+source version before building. When they match, setup reuses the installed
+tools; otherwise it rebuilds five upstream CMake projects from the
 shared `build/gamewip/cache/dependencies/fetchcontent/tracy-src` source using
 UCRT64 GCC/Ninja. Reproducible CMake/CPM build state lives under
 `build/gamewip/cache/tracy`, while the candidate executable/DLL set stages only
@@ -107,15 +121,14 @@ automation. Branch switches refuse tracked local changes. Extracted files remain
 untouched while the locked dependency cache is prepared by the normal setup
 flow.
 
-Persistent directly managed tools live under
-`C:\MSYS2\GameWIPTools`. A non-empty root without valid ownership proof is never
-silently adopted. Interactive machine-changing setup may show its top-level
-contents and ask, defaulting to No, whether the user explicitly adopts that
-root. Noninteractive setup remains fail-closed. The read-only check reports the
-condition without writing ownership state.
+Windows managed tools live under `C:\MSYS2\GameWIPTools`. Linux managed tools
+live under `build/gamewip`. On Windows, a non-empty tool root without
+valid ownership proof is never silently adopted. Interactive setup may ask,
+defaulting to No, before adopting it; noninteractive setup remains fail-closed.
 
-Uninstall removes the repository-owned VS Code workflow extension/keybinding
-block, proven GameWIPTools state, recorded setup-owned applications/extensions,
+The uninstall action is Windows-only. It removes the repository-owned VS Code
+workflow extension/keybinding block, proven GameWIPTools state, recorded
+setup-owned applications/extensions,
 the Tracy cache, and the `build/dev` and `build/docs` trees. It preserves
 software that existed beforehand, the checkout, other build trees including
 target-specific builds, user files, ownership-unknown GameWIPTools content, and
@@ -125,14 +138,14 @@ an MSYS2 tree that may contain later user data.
 
 Prefer data over new orchestration branches:
 
-- Add an ordinary project tool or justified MSYS2 package/dependency to
+- Add an ordinary project tool or justified provider dependency to
   `../config/project-tools.json` using the owning provider metadata.
-- Add only action/bootstrap metadata to `config/setup.json`; do not recreate a
-  second package or version catalog there.
+- Add action/bootstrap metadata to `config/setup.json`; keep Linux package sets
+  in `platform/linux/host.json`.
 - Add an editor entry with a unique key and handler name; implement a handler
   only when existing behavior cannot support it.
 - Add new stages as one library operation, one `config/setup.json` entry, and an
-  explicit registration in `Windows.ps1`.
+  explicit registration in `Orchestration.ps1`.
 
 Every stage must be rerunnable, scoped to the checkout or selected machine
 requirements, explicit about changes, and followed by verification.

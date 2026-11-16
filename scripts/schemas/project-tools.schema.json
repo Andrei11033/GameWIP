@@ -205,7 +205,7 @@
           "minLength": 1
         },
         "hostPlatform": {
-          "enum": ["windows"]
+          "enum": ["windows", "linux"]
         },
         "validationFiles": {
           "type": "array",
@@ -238,7 +238,7 @@
             "required": ["installMode"]
           },
           "then": {
-            "required": ["managedDirectory", "binaryDirectory", "hostPlatform", "validationFiles"]
+            "required": ["managedDirectory", "binaryDirectory", "validationFiles"]
           }
         }
       ]
@@ -315,6 +315,14 @@
         },
         "format": {
           "enum": ["archive", "executable"]
+        },
+        "validationFiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },

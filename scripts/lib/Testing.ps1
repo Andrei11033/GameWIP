@@ -21,7 +21,8 @@ function Initialize-GameWipTestPresetBuild
     {
         if (-not (Test-Path -LiteralPath $testFile))
         {
-            throw (New-GameWipDiagnosticException -Code 'prerequisite-build-disabled' -Summary "CTest preset '$Name' has no configured test tree." -SuggestedActions @("Run '.\gamewip.bat build $Name'.", 'Rerun without -SkipBuild.'))
+            $buildCommand = "$(Get-GameWipProjectHelperCommand) build $Name"
+            throw (New-GameWipDiagnosticException -Code 'prerequisite-build-disabled' -Summary "CTest preset '$Name' has no configured test tree." -SuggestedActions @("Run '$buildCommand'.", 'Rerun without -SkipBuild.'))
         }
 
         return
@@ -34,6 +35,7 @@ function Invoke-GameWipTestPreset
 {
     param([Parameter(Mandatory = $true)][string]$Name, [switch]$UseWorkspaceTemp, [switch]$NoBuild, [switch]$Fresh)
     Assert-GameWipValidPreset -Kind 'test' -Name $Name
+    Assert-GameWipSelectedTargetRunnable -Action "CTest preset '$Name'"
     Confirm-GameWipToolchain -PresetName $Name
     Initialize-GameWipTestPresetBuild -Name $Name -NoBuild:$NoBuild -Fresh:$Fresh
     $buildDirectory = Get-GameWipBuildDirectory -PresetName $Name
@@ -49,6 +51,7 @@ function Invoke-GameWipValidationModule
 {
     param([Parameter(Mandatory = $true)][string]$Name, [string[]]$Arguments = @(), [switch]$NoBuild)
     Assert-GameWipValidModule -Name $Name
+    Assert-GameWipSelectedTargetRunnable -Action "Validation module '$Name'"
     $command = Get-GameWipProjectCommand -Id 'test-all'
     Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
     $executable = Resolve-GameWipProjectExecutable -Command $command
@@ -89,6 +92,8 @@ function Invoke-GameWipStressModule
     {
         throw "Manual tests cannot run through 'stress' because stress launches concurrent validation processes. Use 'wizard' or 'module' instead."
     }
+
+    Assert-GameWipSelectedTargetRunnable -Action "Stress module '$Name'"
 
     # Resolve the executable and shared arguments before launching workers.
     Initialize-GameWipRunLog
@@ -549,6 +554,7 @@ function Invoke-GameWipValidationCommandWizard
 
     if (Read-GameWipYesNo -Prompt 'Run this command now?' -Default $true)
     {
+        Assert-GameWipSelectedTargetRunnable -Action 'Validation command wizard'
         Invoke-GameWipMutation -Summary 'Run the composed validation command.' -Risk local -Plan @('Ensure the validation executable unless -SkipBuild is used.', 'Execute the composed correctness command.') -Body {
             Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
             Invoke-GameWipNative `

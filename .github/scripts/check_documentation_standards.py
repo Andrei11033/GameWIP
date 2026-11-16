@@ -308,9 +308,9 @@ def check_command_catalog_documentation(errors: list[str]) -> None:
     setup_manual = (ROOT / "docs/doxygen/environment_setup.md").read_text(encoding="utf-8")
 
     for action in (entry["id"] for entry in setup_config["actions"]):
-        marker = "`setup.bat` or `setup.bat menu`" if action == "menu" else f"`setup.bat {action}`"
+        markers = ("`setup.bat menu`", "`bash ./setup.sh menu`") if action == "menu" else (f"`setup.bat {action}`", f"`bash ./setup.sh {action}`")
 
-        if marker not in setup_manual:
+        if not any(marker in setup_manual for marker in markers):
             errors.append(f"setup action `{action}` is absent from the environment manual")
 
 

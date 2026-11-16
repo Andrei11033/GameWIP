@@ -12,7 +12,7 @@
     "actions": {
       "type": "array",
       "minItems": 1,
-      "description": "Interactive and explicit setup actions exposed by Windows.ps1.",
+      "description": "Interactive and explicit setup actions exposed by Setup.ps1.",
       "items": {
         "$ref": "#/$defs/action"
       }
@@ -79,6 +79,14 @@
         },
         "mutation": {
           "enum": ["none", "local", "machine", "destructive"]
+        },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["windows", "linux"]
+          }
         }
       }
     }

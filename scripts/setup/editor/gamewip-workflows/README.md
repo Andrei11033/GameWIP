@@ -6,8 +6,8 @@ active only when `gamewip.keybindings.enabled` is true, as it is in
 `GameWIP.code-workspace`, so they do not take over the same keys in unrelated
 workspaces.
 
-The Windows setup script packages this extension as a VSIX and installs it
-for the current user. It also generates a managed block at the
+Setup packages this extension as a VSIX and installs it for the current user.
+It also generates a managed block at the
 end of the user's `keybindings.json`, where VS Code gives it priority over
 older personal bindings. Every managed rule keeps the repository setting in
 its `when` clause, so it is inactive outside a GameWIP workspace. Setup keeps a
@@ -19,13 +19,14 @@ corresponding `GameWIP: ...` entry in `.vscode/tasks.json`; the same workflows
 remain available through **Terminal > Run Task** when a function key is
 unavailable.
 
-Game run tasks use a dedicated terminal for executable output. Configure and
-build tasks call `gamewip.bat` in the shared task terminal, keeping build
-diagnostics separate from the running game's output.
+Game run tasks use a dedicated terminal for executable output. Tasks call
+`gamewip.bat` on Windows and `bash ./gamewip.sh` on Linux. Configure and build
+tasks use the shared task terminal, keeping build diagnostics separate from
+the running game's output.
 
-Run tasks and profiling tasks also use `gamewip.bat`; their executable path,
-working directory, and runtime `PATH` follow the selected build target. The
-development debug launch uses the same target selection.
+Run and test tasks report when the selected Windows executable cannot run on
+Linux. VS Code debug launch is Windows-only; executable paths and runtime
+settings follow the selected build target on Windows.
 
 ## Shortcut reference
 

@@ -45,6 +45,14 @@
       "allowTrailingWhitespace": false
     },
     {
+      "id": "shell",
+      "extensions": [".sh"],
+      "formatter": null,
+      "noFormatterReason": "Shell entrypoints stay short and are checked with Bash syntax validation.",
+      "checks": ["bash -n", "generic text policy"],
+      "allowTrailingWhitespace": false
+    },
+    {
       "id": "python",
       "extensions": [".py"],
       "formatter": "ruff format",

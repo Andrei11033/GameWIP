@@ -114,7 +114,6 @@
         "installMode": "directoryArchive",
         "managedDirectory": "tools/llvm-mingw",
         "binaryDirectory": "bin",
-        "hostPlatform": "windows",
         "validationFiles": [
           "bin/x86_64-w64-mingw32-clang.exe",
           "bin/x86_64-w64-mingw32-clang++.exe",
@@ -138,6 +137,52 @@
             "archive": "llvm-mingw-20261104-ucrt-x86_64.zip",
             "sha256": "552191b5754c49a5a20723276a6fc56541ea1922c4c50b7b669022333fc1b40f",
             "format": "archive"
+          },
+          "linux-amd64": {
+            "archive": "llvm-mingw-20261104-ucrt-ubuntu-22.04-x86_64.tar.xz",
+            "sha256": "919380403de87dca3c581c2053230cd298af5e891286628ba0613b7fed370926",
+            "format": "archive",
+            "validationFiles": [
+              "bin/x86_64-w64-mingw32-clang",
+              "bin/x86_64-w64-mingw32-clang++",
+              "bin/aarch64-w64-mingw32-clang",
+              "bin/aarch64-w64-mingw32-clang++",
+              "bin/llvm-ar",
+              "bin/llvm-ranlib",
+              "bin/llvm-rc",
+              "bin/llvm-objdump",
+              "bin/llvm-strip",
+              "include/c++/v1/vector",
+              "x86_64-w64-mingw32/lib/libc++.a",
+              "x86_64-w64-mingw32/bin/libc++.dll",
+              "x86_64-w64-mingw32/bin/libclang_rt.asan_dynamic-x86_64.dll",
+              "lib/clang/23/lib/windows/libclang_rt.asan_dynamic-x86_64.dll.a",
+              "aarch64-w64-mingw32/lib/libc++.a",
+              "aarch64-w64-mingw32/bin/libc++.dll"
+            ]
+          },
+          "linux-arm64": {
+            "archive": "llvm-mingw-20261104-ucrt-ubuntu-22.04-aarch64.tar.xz",
+            "sha256": "595e95bdffabfc62559fe26e30bdfbccf277cbaed4902793555015ee47306b94",
+            "format": "archive",
+            "validationFiles": [
+              "bin/x86_64-w64-mingw32-clang",
+              "bin/x86_64-w64-mingw32-clang++",
+              "bin/aarch64-w64-mingw32-clang",
+              "bin/aarch64-w64-mingw32-clang++",
+              "bin/llvm-ar",
+              "bin/llvm-ranlib",
+              "bin/llvm-rc",
+              "bin/llvm-objdump",
+              "bin/llvm-strip",
+              "include/c++/v1/vector",
+              "x86_64-w64-mingw32/lib/libc++.a",
+              "x86_64-w64-mingw32/bin/libc++.dll",
+              "x86_64-w64-mingw32/bin/libclang_rt.asan_dynamic-x86_64.dll",
+              "lib/clang/23/lib/windows/libclang_rt.asan_dynamic-x86_64.dll.a",
+              "aarch64-w64-mingw32/lib/libc++.a",
+              "aarch64-w64-mingw32/bin/libc++.dll"
+            ]
           }
         }
       },

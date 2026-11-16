@@ -707,7 +707,8 @@ function Show-GameWipToolsMenu
             }
             'setup-guidance'
             {
-                Write-Host 'Use .\setup.bat check for environment status or .\setup.bat repair for an idempotent repair.'
+                $setupCommand = Get-GameWipSetupHelperCommand
+                Write-Host "Use '$setupCommand check' for environment status or '$setupCommand repair' for an idempotent repair."
             }
         }
     }

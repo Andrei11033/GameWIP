@@ -11,8 +11,9 @@ vehicles, structures, weapons, components, and meaningful destruction.
 I use the project to learn C++ and systems programming while keeping API
 contracts, ownership, builds, and validation deliberately strict.
 
-GameWIP supports Windows 11 and is pre-1.0. Active work is tracked
-in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
+The game currently targets Windows 11. The development helpers support Windows
+and Linux, including Linux cross-builds for Windows. GameWIP is pre-1.0; active
+work is tracked in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
 and the [roadmap](docs/roadmap.md).
 
 ## Development approach
@@ -21,14 +22,17 @@ I develop and document the project, using AI to support me in research, review, 
 
 ## Start here
 
-From a fresh checkout or extracted ZIP, run the repository bootstrap utility:
+From a fresh checkout or extracted ZIP, run the repository setup utility.
+Windows:
 
 ```powershell
 .\setup.bat
 ```
 
-Setup prepares the development environment, pinned dependencies, and profiler
-tools, and handles updates, repair, and uninstall. See the
+Setup prepares the development environment and pinned dependencies. Update and
+repair are available on both platforms; Windows setup also prepares profiler tools.
+Linux setup supports Ubuntu, Debian, and CachyOS. Install PowerShell 7 first,
+then run `bash ./setup.sh`. See the
 [development environment guide](docs/doxygen/environment_setup.md).
 
 Open `GameWIP.code-workspace`, then build and run the `dev` preset. In PowerShell,
@@ -42,6 +46,16 @@ the helper defaults to Windows x64 and keeps each target in its own build tree:
 
 Use `arm64` instead of `x64` to cross-compile for Windows ARM64. Setup installs
 the pinned LLVM-MinGW toolchain when needed.
+
+On Linux, setup installs the host tools and LLVM-MinGW. Configure and build the
+Windows x64 target with:
+
+```bash
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
+bash ./gamewip.sh build dev
+```
+
+The resulting Windows executable must run on Windows.
 
 Or use CMake directly from MSYS2 UCRT64 Bash:
 

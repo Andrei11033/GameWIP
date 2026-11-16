@@ -68,6 +68,14 @@
             "minLength": 1
           },
           "uniqueItems": true
+        },
+        "platforms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["windows", "linux"]
+          }
         }
       }
     }

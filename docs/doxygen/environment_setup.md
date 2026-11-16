@@ -1,14 +1,25 @@
 @page project_environment_setup Development environment setup
 
-GameWIP's Windows 11 environment bootstrap is `setup.bat`. It owns machine
-preparation, repair, environment and package-manager updates, pinned dependency
-cache preparation, editor integration, profiler-tool preparation,
-ownership-aware uninstall, and complete environment verification.
+GameWIP setup supports Windows and Linux. Windows uses `setup.bat`; Linux uses
+`setup.sh` on Ubuntu, Debian, and CachyOS. Both dispatch to the same PowerShell
+helper. Linux requires PowerShell 7 to be installed first.
+
+Linux setup prepares host packages, pinned CMake, LLVM-MinGW, and the project
+toolchain for Windows cross-builds. Native Linux game builds are not available
+until Linux platform backends are implemented.
 
 ## Quick start
 
 ```powershell
 .\setup.bat
+```
+
+On Linux, install PowerShell 7 using the
+[Microsoft installation guide](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-linux),
+then run:
+
+```bash
+bash ./setup.sh
 ```
 
 The default action opens the persistent setup menu. The same actions can be run
@@ -29,30 +40,50 @@ duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 
 ## Setup actions
 
-| Command | Result |
-| --- | --- |
-| `setup.bat` or `setup.bat menu` | Open the interactive setup menu. |
-| `setup.bat full` | Install or repair the complete declared environment, prepare the checkout, and verify it. |
-| `setup.bat check` | Verify the selected environment without mutation. |
-| `setup.bat update` | Update compatible environment software and the checkout without advancing exact project pins, then verify. |
-| `setup.bat repair` | Reapply declared required state without requesting ordinary upgrades. |
-| `setup.bat deps` | Fetch or reuse dependency sources at the commits recorded by the checkout. |
-| `setup.bat editor` | Choose editors/IDEs and apply their GameWIP integration. |
-| `setup.bat msys2` | Install or repair declared UCRT64 and CLANG64 packages. |
-| `setup.bat repo` | Prepare the Git checkout and repository-local development state. |
-| `setup.bat tool` | Install or repair project tools at versions already declared by the checkout. |
-| `setup.bat doc` | Build and verify generated documentation. |
-| `setup.bat profiler` | Reuse the locked Tracy source and build/install matching profiler tools. |
-| `setup.bat uninstall` | Inventory and remove only resources with sufficient GameWIP ownership evidence. |
-| `setup.bat vs` | Install or repair Visual Studio Community using the repository configuration. |
-| `setup.bat list` | Print the setup action catalog. |
-| `setup.bat help` | Print setup usage. |
+| Action | Windows | Linux |
+| --- | --- | --- |
+| `menu` | `setup.bat menu` | `bash ./setup.sh menu` |
+| `full` | `setup.bat full` | `bash ./setup.sh full` |
+| `check` | `setup.bat check` | `bash ./setup.sh check` |
+| `update` | `setup.bat update` | `bash ./setup.sh update` |
+| `repair` | `setup.bat repair` | `bash ./setup.sh repair` |
+| `deps` | `setup.bat deps` | `bash ./setup.sh deps` |
+| `editor` | `setup.bat editor` | `bash ./setup.sh editor` |
+| `msys2` | `setup.bat msys2` | — |
+| `system` | — | `bash ./setup.sh system` |
+| `repo` | `setup.bat repo` | `bash ./setup.sh repo` |
+| `tool` | `setup.bat tool` | `bash ./setup.sh tool` |
+| `doc` | `setup.bat doc` | `bash ./setup.sh doc` |
+| `profiler` | `setup.bat profiler` | — |
+| `uninstall` | `setup.bat uninstall` | — |
+| `vs` | `setup.bat vs` | — |
+| `list` | `setup.bat list` | `bash ./setup.sh list` |
+| `help` | `setup.bat help` | `bash ./setup.sh help` |
 
-`setup.bat --help`, `setup.bat -h`, and `setup.bat -?` are help aliases.
+On Linux, `system`, `full`, `repair`, and `update` install host packages through
+apt or pacman. On CachyOS,
+pacman performs a full system upgrade as part of each of those actions.
+
+`setup.bat --help`, `setup.bat -h`, and `setup.bat -?` are Windows help
+aliases.
+
+Linux uses the same help aliases with `bash ./setup.sh`. Setup can integrate an
+existing VS Code installation but does not install VS Code.
 
 The project tool registry pins LLVM-MinGW for Windows x64 and ARM64 builds.
-Setup installs it under `C:\MSYS2\GameWIPTools`; `setup.bat repair` installs it
-when it is missing.
+Windows setup installs it under `C:\MSYS2\GameWIPTools`; Linux stores its
+verified CMake and LLVM-MinGW tools under `build/gamewip`.
+
+Select a Windows build target on Linux, then configure and build it:
+
+```bash
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
+bash ./gamewip.sh config dev
+bash ./gamewip.sh build dev
+```
+
+Choose `arm64` to produce Windows ARM64 binaries. Windows-target executables
+cannot run on the Linux host.
 
 ## Dependency cache and offline builds
 
@@ -64,6 +95,8 @@ out-of-date commit.
 Concurrent preparation requests serialize on an exclusive cache lock; a
 process interruption releases the lock through the operating system without
 requiring manual deletion of the lock file.
+
+On Linux, prefix these commands with `bash ./gamewip.sh`.
 
 Use the project helper for focused cache operations:
 
@@ -94,6 +127,15 @@ The setup `check` action verifies the cache but does not prepare or modify it.
 .\setup.bat repair -SkipDocs
 ```
 
+On Linux, run the same actions with `bash ./setup.sh`:
+
+```bash
+bash ./setup.sh repair -Preview
+bash ./setup.sh repair -NonInteractive -Yes
+bash ./setup.sh full -Branch feature/example
+bash ./setup.sh repair -SkipDocs
+```
+
 - `-Preview` prints the planned scope and performs only the action's read-only
   discovery or preflight. It does not apply local, tracked, or machine changes;
   diagnostic run logs and receipts are still retained. A focused `doc` preview
@@ -117,12 +159,15 @@ Machine-changing interactive actions present the complete plan before consent.
 Non-interactive mutation fails closed when `-Yes` is absent. Read-only actions
 do not ask for consent.
 
+Linux package installation uses `sudo`; `-NonInteractive` requires root or
+cached sudo credentials.
+
 Setup installs the GitHub CLI used by guarded workflow commands. Authentication
 remains user-owned. Run `gh auth login` before querying or dispatching workflows.
 
 ## Lifecycle and failure model
 
-Setup uses the same operation model as `gamewip.bat`:
+Setup uses the same operation model as the project helper:
 
 1. Discover current machine and checkout state.
 2. Build and preflight the whole plan.
@@ -134,15 +179,15 @@ Setup uses the same operation model as `gamewip.bat`:
 
 A failure after mutation begins is reported as a failed operation with a
 truthful partial-mutation state. A failure before the first mutation remains
-`none`. Setup does not claim a generic rollback. Rerunning `setup.bat repair`
-restores the declared desired state.
+`none`. Setup does not claim a generic rollback. Rerun `setup.bat repair` on
+Windows or `bash ./setup.sh repair` on Linux to restore declared state.
 
 ## Environment ownership
 
-Persistent directly managed tools live under `C:\MSYS2\GameWIPTools`. Existing
-non-empty roots without valid GameWIP ownership proof are preserved. Interactive
-setup may explicitly adopt an existing root. Non-interactive setup refuses
-unknown ownership.
+Windows-managed tools live under `C:\MSYS2\GameWIPTools`; Linux-managed tools
+live under `build/gamewip`. On Windows, setup preserves non-empty roots
+without valid GameWIP ownership proof and asks before adopting them. The Linux
+tool root is inside the checkout build tree.
 
 Uninstall removes only resources with sufficient GameWIP ownership evidence. It
 preserves pre-existing software, the checkout, unrelated build trees, and
@@ -150,8 +195,8 @@ content with unknown ownership.
 
 ## Project tools and environment updates
 
-`setup.bat update` owns environment and package-manager updates while preserving
-exact project pins. Use:
+Setup update commands own environment and package-manager updates while
+preserving exact project pins. Use:
 
 ```powershell
 .\gamewip.bat tool ensure all

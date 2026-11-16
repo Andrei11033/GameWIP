@@ -6,12 +6,18 @@ workflow reference.
 
 ## First checkout setup
 
-Run the repository setup entry point after cloning. The fresh-machine flow,
-editor selection, repair and update actions, and command options are documented
-in @ref project_environment_setup.
+Run the repository setup entry point after cloning. On Linux, install PowerShell
+7 first. The fresh-machine flow, supported distributions, repair and update
+actions, and command options are documented in @ref project_environment_setup.
 
 ```powershell
 .\setup.bat
+```
+
+On Ubuntu, Debian, or CachyOS, run:
+
+```bash
+bash ./setup.sh
 ```
 
 VS Code users should open `GameWIP.code-workspace`. The setup utility prepares
@@ -29,6 +35,16 @@ Windows target (see @ref project_build for target selection and all presets):
 
 The helper defaults to Windows x64. Windows ARM64 uses
 `build/windows-arm64/dev/GameWIP.exe`.
+
+Linux can cross-build either Windows target with the same helper commands:
+
+```bash
+bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
+bash ./gamewip.sh build dev
+```
+
+The Windows executable must run on Windows. Native Linux game builds are not
+available yet.
 
 From MSYS2 UCRT64 Bash, the equivalent direct commands are:
 
@@ -65,6 +81,9 @@ cmake --preset test
 cmake --build --preset test
 ctest --preset test
 ```
+
+Linux helper test commands are currently unavailable because the configured
+tests are Windows executables. Build them on Linux, then run them on Windows.
 
 The validation architecture, module registration, child-process routing, report
 paths, and startup behavior are documented in @ref project_validation. Test

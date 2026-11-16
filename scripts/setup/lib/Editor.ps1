@@ -6,6 +6,71 @@
 
 Set-StrictMode -Version Latest
 
+function Get-GameWipAvailableEditorOptions
+{
+    param([Parameter(Mandatory = $true)][hashtable]$EditorConfig)
+    $hostPlatform = if (Test-GameWipWindowsHost)
+    {
+        'windows'
+    }
+    else
+    {
+        'linux'
+    }
+
+    return @($EditorConfig.Options | Where-Object {
+            (-not $_.ContainsKey('Platforms')) -or @($_.Platforms) -contains $hostPlatform
+        })
+}
+
+function Get-GameWipVsCodeUserDirectory
+{
+    if (Test-GameWipWindowsHost)
+    {
+        if ([string]::IsNullOrWhiteSpace($env:APPDATA))
+        {
+            throw 'APPDATA is unavailable; cannot locate the Visual Studio Code user directory.'
+        }
+
+        return Join-Path $env:APPDATA 'Code/User'
+    }
+
+    $configRoot = if (-not [string]::IsNullOrWhiteSpace($env:XDG_CONFIG_HOME))
+    {
+        $env:XDG_CONFIG_HOME
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($env:HOME))
+    {
+        Join-Path $env:HOME '.config'
+    }
+    else
+    {
+        throw 'HOME and XDG_CONFIG_HOME are unavailable; cannot locate the Visual Studio Code user directory.'
+    }
+
+    return Join-Path $configRoot 'Code/User'
+}
+
+function Get-GameWipVsCodeExtensionRoot
+{
+    if (Test-GameWipWindowsHost)
+    {
+        if ([string]::IsNullOrWhiteSpace($env:USERPROFILE))
+        {
+            throw 'USERPROFILE is unavailable; cannot locate Visual Studio Code extensions.'
+        }
+
+        return Join-Path $env:USERPROFILE '.vscode/extensions'
+    }
+
+    if ([string]::IsNullOrWhiteSpace($env:HOME))
+    {
+        throw 'HOME is unavailable; cannot locate Visual Studio Code extensions.'
+    }
+
+    return Join-Path $env:HOME '.vscode/extensions'
+}
+
 # ------------------------------------------------------------
 # Selection persistence and interactive choice
 # ------------------------------------------------------------
@@ -41,19 +106,27 @@ function Get-GameWipEditorSelection
             throw 'The advisory editor selection contains no editors.'
         }
 
+        $availableOptions = @(Get-GameWipAvailableEditorOptions -EditorConfig $EditorConfig)
         $known = [System.Collections.Generic.HashSet[string]]::new(
-            [string[]]@($EditorConfig.Options | ForEach-Object { $_.Id })
+            [string[]]@($availableOptions | ForEach-Object { $_.Id })
         )
 
         foreach ($id in $selected)
         {
             if (-not $known.Contains($id))
             {
-                throw "Unknown editor '$id'."
+                $configured = @($EditorConfig.Options | Where-Object { $_.Id -eq $id })
+
+                if ($configured.Count -eq 0)
+                {
+                    throw "Unknown editor '$id'."
+                }
+
+                Write-Verbose "Skipping editor '$id' because it is unavailable on this host."
             }
         }
 
-        return $selected
+        return @($selected | Where-Object { $known.Contains([string]$_) })
     }
 
     catch
@@ -94,7 +167,9 @@ function Select-GameWipEditor
         Write-GameWipSection 'Select editors and IDEs'
         Write-Host 'Press a number to toggle an editor:'
 
-        foreach ($option in $EditorConfig.Options)
+        $availableOptions = @(Get-GameWipAvailableEditorOptions -EditorConfig $EditorConfig)
+
+        foreach ($option in $availableOptions)
         {
             $mark = if ($selected.Contains($option.Id))
             {
@@ -116,7 +191,7 @@ function Select-GameWipEditor
         }
         Write-Host 'S. Save selection'
         Write-Host 'Esc. Cancel'
-        $allowedKeys = @($EditorConfig.Options | ForEach-Object { [string]$_.Key }) + @('S', 's')
+        $allowedKeys = @($availableOptions | ForEach-Object { [string]$_.Key }) + @('S', 's')
         $choiceResult = Read-GameWipActionKey -Prompt 'Choose:' -AllowedKeys $allowedKeys -AllowEscape
 
         if ($choiceResult.Status -eq 'Cancelled')
@@ -134,7 +209,7 @@ function Select-GameWipEditor
                 continue
             }
             $orderedSelection = @(
-                $EditorConfig.Options |
+                $availableOptions |
                     Where-Object { $selected.Contains($_.Id) } |
                     ForEach-Object { $_.Id }
             )
@@ -143,7 +218,7 @@ function Select-GameWipEditor
             return $true
         }
 
-        $option = $EditorConfig.Options | Where-Object { $_.Key -eq $choice } | Select-Object -First 1
+        $option = $availableOptions | Where-Object { $_.Key -eq $choice } | Select-Object -First 1
 
         if (-not $option)
         {
@@ -175,13 +250,17 @@ function Install-GameWipEditorSelection
         {
             'vscode'
             {
-                if ($Update -and (Test-GameWipWingetPackage -Id $option.Package))
+                if ((Test-GameWipWindowsHost) -and $Update -and (Test-GameWipWingetPackage -Id $option.Package))
                 {
                     Invoke-GameWipWingetPackageUpdate -Id $option.Package
                 }
-                elseif (-not (Test-GameWipSetupCommand -Name $option.Command))
+                elseif ((Test-GameWipWindowsHost) -and -not (Test-GameWipSetupCommand -Name $option.Command))
                 {
                     Install-GameWipWingetPackage -Id $option.Package
+                }
+                elseif (-not (Test-GameWipSetupCommand -Name $option.Command))
+                {
+                    throw 'Visual Studio Code is not installed. Install it, then rerun setup editor.'
                 }
                 Install-GameWipEditorIntegration -RepositoryRoot $RepositoryRoot -Extensions $option.Extensions
             }
@@ -226,7 +305,7 @@ function Get-GameWipEditorFailure
                     $failures.Add('Selected editor Visual Studio Code is missing.')
                     continue
                 }
-                $extensionRoot = Join-Path $env:USERPROFILE '.vscode\extensions'
+                $extensionRoot = Get-GameWipVsCodeExtensionRoot
 
                 foreach ($extension in $option.Extensions)
                 {
@@ -254,7 +333,7 @@ function Get-GameWipEditorFailure
                 {
                     $failures.Add("The required GameWIP VS Code workflow extension is missing: $expectedWorkflowExtension")
                 }
-                $keybindingsPath = Join-Path $env:APPDATA 'Code\User\keybindings.json'
+                $keybindingsPath = Join-Path (Get-GameWipVsCodeUserDirectory) 'keybindings.json'
 
                 if (-not (Test-Path -LiteralPath $keybindingsPath))
                 {
@@ -291,11 +370,6 @@ function Install-GameWipVsCodeKeybinding
 {
     param([Parameter(Mandatory = $true)][string]$ExtensionSource)
 
-    if (-not $env:APPDATA)
-    {
-        throw 'APPDATA is unavailable; cannot locate the Visual Studio Code user keybindings file.'
-    }
-
     # Read and validate the declarative extension rules before touching the
     # user's file, so a malformed package cannot cause a partial update.
     $packagePath = Join-Path $ExtensionSource 'package.json'
@@ -308,7 +382,7 @@ function Install-GameWipVsCodeKeybinding
     }
 
     # Preserve one original backup before replacing only the marked GameWIP block.
-    $userDirectory = Join-Path $env:APPDATA 'Code\User'
+    $userDirectory = Get-GameWipVsCodeUserDirectory
     $keybindingsPath = Join-Path $userDirectory 'keybindings.json'
     $backupPath = "$keybindingsPath.gamewip-backup"
     New-Item -ItemType Directory -Path $userDirectory -Force | Out-Null

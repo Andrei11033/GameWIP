@@ -8,14 +8,16 @@ Set-StrictMode -Version Latest
 
 function Assert-GameWipGitRepository
 {
+    $repairCommand = "$(Get-GameWipSetupHelperCommand) repair"
+
     if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git')))
     {
-        throw 'Git metadata is missing. Run .\setup.bat repair to prepare this checkout.'
+        throw "Git metadata is missing. Run '$repairCommand' to prepare this checkout."
     }
 
     if ($null -eq (Get-Command git -ErrorAction SilentlyContinue))
     {
-        throw 'Git is unavailable. Run .\setup.bat repair to install it.'
+        throw "Git is unavailable. Run '$repairCommand' to install it."
     }
 }
 

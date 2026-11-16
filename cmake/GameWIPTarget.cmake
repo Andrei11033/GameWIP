@@ -20,10 +20,6 @@ function(gamewip_prepare_target)
         message(FATAL_ERROR "Set GAMEWIP_TARGET_ARCHITECTURE when GAMEWIP_TARGET_PLATFORM is 'windows'.")
     endif()
 
-    if(NOT CMAKE_HOST_WIN32)
-        message(FATAL_ERROR "Windows target builds are currently supported only from a Windows host.")
-    endif()
-
     # Resolve the platform and architecture through the shared target catalog.
     set(gamewip_target_catalog "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/config/build-targets.json")
     file(READ "${gamewip_target_catalog}" gamewip_target_json)
@@ -92,11 +88,37 @@ function(gamewip_prepare_target)
     string(JSON gamewip_tool_version GET "${gamewip_tools_json}" tools ${gamewip_tool_index} requiredVersion)
     string(JSON gamewip_tool_directory GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider managedDirectory)
     string(JSON gamewip_tool_binary_directory GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider binaryDirectory)
-    string(JSON gamewip_tool_validation_count LENGTH "${gamewip_tools_json}" tools ${gamewip_tool_index} provider validationFiles)
+
+    # Select the verified toolchain archive for this host architecture.
+    if(CMAKE_HOST_WIN32)
+        set(gamewip_host_asset_key "windows-amd64")
+        set(gamewip_validation_json_path provider validationFiles)
+    elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+        string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" gamewip_host_processor)
+
+        if(gamewip_host_processor MATCHES "^(amd64|x86_64|x64)$")
+            set(gamewip_host_asset_key "linux-amd64")
+        elseif(gamewip_host_processor MATCHES "^(arm64|aarch64)$")
+            set(gamewip_host_asset_key "linux-arm64")
+        else()
+            message(FATAL_ERROR "Unsupported LLVM-MinGW host architecture '${CMAKE_HOST_SYSTEM_PROCESSOR}'.")
+        endif()
+        set(gamewip_validation_json_path provider assets "${gamewip_host_asset_key}" validationFiles)
+    else()
+        message(FATAL_ERROR "LLVM-MinGW Windows targets are not configured for host '${CMAKE_HOST_SYSTEM_NAME}'.")
+    endif()
+    string(JSON gamewip_tool_validation_count LENGTH "${gamewip_tools_json}" tools ${gamewip_tool_index} ${gamewip_validation_json_path})
 
     if(NOT DEFINED GAMEWIP_LLVM_MINGW_ROOT OR GAMEWIP_LLVM_MINGW_ROOT STREQUAL "")
         file(READ "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/config/project.json" gamewip_project_json)
-        string(JSON gamewip_managed_tools_root GET "${gamewip_project_json}" managedEnvironment gameWipToolsRoot)
+
+        if(CMAKE_HOST_WIN32)
+            string(JSON gamewip_managed_tools_root GET "${gamewip_project_json}" managedEnvironment gameWipToolsRoot)
+        else()
+            string(JSON gamewip_storage_root GET "${gamewip_project_json}" storage root)
+            set(gamewip_managed_tools_root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../${gamewip_storage_root}")
+            get_filename_component(gamewip_managed_tools_root "${gamewip_managed_tools_root}" ABSOLUTE)
+        endif()
         set(GAMEWIP_LLVM_MINGW_ROOT
             "${gamewip_managed_tools_root}/${gamewip_tool_directory}/${gamewip_tool_version}"
             CACHE PATH
@@ -110,20 +132,17 @@ function(gamewip_prepare_target)
 
     math(EXPR gamewip_tool_validation_last "${gamewip_tool_validation_count} - 1")
     foreach(index RANGE 0 ${gamewip_tool_validation_last})
-        string(
-            JSON validation_file
-            GET "${gamewip_tools_json}"
-            tools
-            ${gamewip_tool_index}
-            provider
-            validationFiles
-            ${index}
-        )
+        string(JSON validation_file GET "${gamewip_tools_json}" tools ${gamewip_tool_index} ${gamewip_validation_json_path} ${index})
 
         if(NOT EXISTS "${GAMEWIP_LLVM_MINGW_ROOT}/${validation_file}")
+            if(CMAKE_HOST_WIN32)
+                set(gamewip_setup_hint "Run '.\\setup.bat repair'.")
+            else()
+                set(gamewip_setup_hint "Run 'bash ./setup.sh repair'.")
+            endif()
             message(
                 FATAL_ERROR
-                "LLVM-MinGW is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. Run '.\\setup.bat repair'."
+                "LLVM-MinGW is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. ${gamewip_setup_hint}"
             )
         endif()
     endforeach()

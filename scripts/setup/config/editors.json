@@ -10,7 +10,8 @@
       "handler": "vscode",
       "package": "Microsoft.VisualStudioCode",
       "command": "code",
-      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"]
+      "extensions": ["ms-vscode.cpptools", "ms-vscode.cmake-tools"],
+      "platforms": ["windows", "linux"]
     },
     {
       "key": "2",
@@ -18,7 +19,8 @@
       "name": "Visual Studio Community",
       "recommended": false,
       "handler": "visual-studio",
-      "package": "Microsoft.VisualStudio.Community"
+      "package": "Microsoft.VisualStudio.Community",
+      "platforms": ["windows"]
     }
   ]
 }

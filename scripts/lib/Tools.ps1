@@ -20,16 +20,107 @@ function Test-GameWipWindowsHost
     return [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
 }
 
+function Get-GameWipProjectHelperCommand
+{
+    if (Test-GameWipWindowsHost)
+    {
+        return '.\gamewip.bat'
+    }
+
+    return 'bash ./gamewip.sh'
+}
+
+function Get-GameWipSetupHelperCommand
+{
+    if (Test-GameWipWindowsHost)
+    {
+        return '.\setup.bat'
+    }
+
+    return 'bash ./setup.sh'
+}
+
+function Get-GameWipHostAssetKey
+{
+    if (Test-GameWipWindowsHost)
+    {
+        return 'windows-amd64'
+    }
+
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+    {
+        $hostArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+        $architecture = switch ($hostArchitecture)
+        {
+            'x64'
+            {
+                'amd64'
+            }
+            'arm64'
+            {
+                'arm64'
+            }
+            default
+            {
+                return $null
+            }
+        }
+
+        return "linux-$architecture"
+    }
+
+    return $null
+}
+
 function Test-GameWipToolHostSupport
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    $assetKey = Get-GameWipHostAssetKey
+
+    if ($null -eq $assetKey)
+    {
+        return $false
+    }
+
+    if ($Tool.provider.Contains('assets') -and -not $Tool.provider.assets.ContainsKey($assetKey))
+    {
+        return $false
+    }
 
     if (-not $Tool.provider.Contains('hostPlatform'))
     {
         return $true
     }
 
-    return $Tool.provider.hostPlatform -eq 'windows' -and (Test-GameWipWindowsHost)
+    return [string]$Tool.provider.hostPlatform -eq ($assetKey -split '-', 2)[0]
+}
+
+function Get-GameWipToolValidationFiles
+{
+    param(
+        [Parameter(Mandatory = $true)][hashtable]$Tool,
+        [string]$AssetKey = (Get-GameWipHostAssetKey)
+    )
+
+    if ($null -ne $AssetKey -and
+        $Tool.provider.Contains('assets') -and
+        $Tool.provider.assets.ContainsKey($AssetKey))
+    {
+        $asset = $Tool.provider.assets[$AssetKey]
+
+        if ($asset.Contains('validationFiles'))
+        {
+            return @($asset.validationFiles)
+        }
+    }
+
+    if ($Tool.provider.Contains('validationFiles'))
+    {
+        return @($Tool.provider.validationFiles)
+    }
+
+    return @()
 }
 
 function Get-GameWipManagedToolRoot
@@ -39,7 +130,7 @@ function Get-GameWipManagedToolRoot
         return [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
     }
 
-    return Resolve-GameWipStoragePath -RelativePath 'build/gamewip/tools'
+    return Resolve-GameWipStoragePath -RelativePath ([string]$ProjectConfig.storage.root)
 }
 
 function Get-GameWipProjectTool
@@ -92,6 +183,7 @@ function Get-GameWipManagedToolPath
 
     return @(
         (Join-Path $root 'bin'),
+        (Join-Path $root 'cmake/bin'),
         (Join-Path $root 'npm'),
         (Join-Path $root 'npm/bin'),
         (Join-Path $root 'python/bin'),
@@ -211,8 +303,16 @@ function Get-GameWipToolCandidateVersion
         $toolRoot = Join-Path (Get-GameWipManagedToolRoot) (Join-Path ([string]$Tool.provider.managedDirectory) ([string]$Tool.requiredVersion))
         $binaryRoot = [IO.Path]::GetFullPath((Join-Path $toolRoot ([string]$Tool.provider.binaryDirectory))).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
         $candidatePath = [IO.Path]::GetFullPath($Path)
+        $pathComparison = if (Test-GameWipWindowsHost)
+        {
+            [StringComparison]::OrdinalIgnoreCase
+        }
+        else
+        {
+            [StringComparison]::Ordinal
+        }
 
-        if (-not $candidatePath.StartsWith($binaryRoot, [StringComparison]::OrdinalIgnoreCase))
+        if (-not $candidatePath.StartsWith($binaryRoot, $pathComparison))
         {
             return $null
         }
@@ -234,7 +334,15 @@ function Get-GameWipToolCandidateVersion
             return $null
         }
 
-        $asset = $Tool.provider.assets['windows-amd64']
+        $assetKey = Get-GameWipHostAssetKey
+        $asset = if ($null -ne $assetKey -and $Tool.provider.assets.ContainsKey($assetKey))
+        {
+            $Tool.provider.assets[$assetKey]
+        }
+        else
+        {
+            return $null
+        }
 
         if ($manifest.schemaVersion -eq 1 -and
             [string]$manifest.toolId -eq [string]$Tool.id -and
@@ -242,9 +350,11 @@ function Get-GameWipToolCandidateVersion
             [string]$manifest.archive -eq [string]$asset.archive -and
             [string]$manifest.sha256 -eq [string]$asset.sha256)
         {
-            foreach ($relativePath in @($Tool.provider.validationFiles))
+            foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $assetKey))
             {
-                if (-not (Test-Path -LiteralPath (Join-Path $toolRoot ([string]$relativePath -replace '/', '\')) -PathType Leaf))
+                $relativePath = [string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar)
+
+                if (-not (Test-Path -LiteralPath (Join-Path $toolRoot $relativePath) -PathType Leaf))
                 {
                     return $null
                 }
@@ -374,6 +484,12 @@ function Get-GameWipToolProviderDependencyStatus
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
 
+    # Linux host packages replace the tool's Windows-only MSYS2 dependencies.
+    if (-not (Test-GameWipWindowsHost) -and [string]$Tool.provider.kind -eq 'msys2')
+    {
+        return @()
+    }
+
     $dependencies = @(
 
         if ($Tool.provider.Contains('dependencies'))
@@ -498,9 +614,15 @@ function Test-GameWipToolchain
         [switch]$ThrowOnFailure,
         [string]$FailureCode = 'toolchain-incomplete',
         [string]$FailureSummary = 'The declared project toolchain is incomplete.',
-        [string[]]$SuggestedActions = @('.\gamewip.bat tool ensure all -Yes', '.\gamewip.bat tool status'),
+        [string[]]$SuggestedActions = @(),
         [int]$Indent = 2
     )
+
+    if ($SuggestedActions.Count -eq 0)
+    {
+        $helperCommand = Get-GameWipProjectHelperCommand
+        $SuggestedActions = @("$helperCommand tool ensure all -Yes", "$helperCommand tool status")
+    }
 
     $selected = if ($ToolIds.Count -ne 0)
     {
@@ -755,9 +877,17 @@ function Test-GameWipProjectReadiness
 
     Write-GameWipSection 'Project readiness'
 
-    $toolIds = @($ProjectTools.tools | Where-Object {
-            $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
-        } | ForEach-Object { [string]$_.id })
+    $target = Get-GameWipSelectedBuildTarget
+    $toolIds = if ($target.platform -eq 'windows' -and -not (Test-GameWipWindowsHost))
+    {
+        @('cmake', 'ninja', [string]$target.toolchain)
+    }
+    else
+    {
+        @($ProjectTools.tools | Where-Object {
+                $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
+            } | ForEach-Object { [string]$_.id })
+    }
     $toolchain = Test-GameWipToolchain -ToolIds $toolIds -DisplayStatus -Indent 2
 
     foreach ($failure in @($toolchain.Failures))
@@ -788,7 +918,8 @@ function Test-GameWipProjectReadiness
 
     if ($failures.Count -ne 0)
     {
-        $message = "$($failures.Count) project requirement(s) are missing or incompatible. Run .\setup.bat repair, then rerun gamewip."
+        $setupCommand = "$(Get-GameWipSetupHelperCommand) repair"
+        $message = "$($failures.Count) project requirement(s) are missing or incompatible. Run '$setupCommand', then rerun gamewip."
 
         if ($ThrowOnFailure)
         {
@@ -814,42 +945,59 @@ function Test-GameWipProjectReadiness
 function Confirm-GameWipToolchain
 {
     param([Parameter(Mandatory = $true)][string]$PresetName)
-
-    if (-not (Test-GameWipWindowsHost))
-    {
-        return
-    }
-
-    $requiredExecutables = [System.Collections.Generic.List[string]]::new()
-    $requiredExecutables.Add('cmake.exe')
-    $requiredExecutables.Add('ctest.exe')
-    $requiredExecutables.Add('ninja.exe')
-
     $target = Get-GameWipSelectedBuildTarget
-    $msys2Bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
-    $missingExecutables = @($requiredExecutables | Where-Object {
-            -not (Test-Path -LiteralPath (Join-Path $msys2Bin $_) -PathType Leaf)
-        })
+    $missingExecutables = [System.Collections.Generic.List[string]]::new()
+
+    if (Test-GameWipWindowsHost)
+    {
+        $msys2Bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
+
+        foreach ($executable in @('cmake.exe', 'ctest.exe', 'ninja.exe'))
+        {
+            $path = Join-Path $msys2Bin $executable
+
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf))
+            {
+                $missingExecutables.Add($path) | Out-Null
+            }
+        }
+    }
+    else
+    {
+        foreach ($toolId in @('cmake', 'ninja'))
+        {
+            $hostTool = Get-GameWipProjectTool -Id $toolId
+            $status = Get-GameWipToolStatus -Tool $hostTool
+
+            if (-not $status.Ready)
+            {
+                $missingExecutables.Add("$toolId ($($status.State))") | Out-Null
+            }
+        }
+    }
     $toolchain = Get-GameWipProjectTool -Id ([string]$target.toolchain)
     $targetToolchainRoot = Get-GameWipBuildTargetToolchainRoot -Target $target
 
-    foreach ($relativePath in @($toolchain.provider.validationFiles))
+    foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $toolchain))
     {
-        $path = Join-Path $targetToolchainRoot ([string]$relativePath -replace '/', '\')
+        $path = Join-Path $targetToolchainRoot ([string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
 
         if (-not (Test-Path -LiteralPath $path -PathType Leaf))
         {
-            $missingExecutables += $path
+            $missingExecutables.Add($path) | Out-Null
         }
     }
 
     if ($missingExecutables.Count -ne 0)
     {
+        $setupCommand = "$(Get-GameWipSetupHelperCommand) repair"
+        $toolStatusCommand = "$(Get-GameWipProjectHelperCommand) tool status"
+
         throw (New-GameWipDiagnosticException `
                 -Code 'preset-toolchain-incomplete' `
                 -Summary "The '$PresetName' preset toolchain is incomplete." `
-                -Details ("Missing from '{0}' or target toolchain '{1}': {2}" -f $msys2Bin, $targetToolchainRoot, ($missingExecutables -join ', ')) `
-                -SuggestedActions @('Run .\setup.bat repair.', 'Run .\gamewip.bat tool status.', "Run '.\gamewip.bat target' to select a supported target."))
+                -Details ("Missing host or target tools: {0}" -f ($missingExecutables -join ', ')) `
+                -SuggestedActions @("Run '$setupCommand'.", "Run '$toolStatusCommand'."))
     }
 }
 
@@ -895,7 +1043,8 @@ function Resolve-GameWipPython
 
     if ($null -eq $candidate -or -not (Test-Path -LiteralPath $candidate))
     {
-        throw 'Python is unavailable. Run setup.bat repair on Windows or provision Python on the CI runner.'
+        $repairCommand = "$(Get-GameWipSetupHelperCommand) repair"
+        throw "Python is unavailable. Run '$repairCommand' or provision Python on the CI runner."
     }
 
     $result = Invoke-GameWipProcess -FilePath $candidate -Arguments @('--version') -OutputMode LogOnly -TimeoutSeconds 20
@@ -947,7 +1096,8 @@ function Resolve-GameWipClangFormat
 
     if ($null -eq $candidate)
     {
-        throw 'clang-format is unavailable. Run setup.bat repair on Windows or provision it on the CI runner.'
+        $repairCommand = "$(Get-GameWipSetupHelperCommand) repair"
+        throw "clang-format is unavailable. Run '$repairCommand' or provision it on the CI runner."
     }
 
     $result = Invoke-GameWipProcess -FilePath $candidate -Arguments @('--version') -OutputMode LogOnly -TimeoutSeconds 20

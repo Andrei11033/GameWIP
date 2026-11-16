@@ -39,7 +39,7 @@ function readJson(root, relativePath) {
     try {
         return JSON.parse(fs.readFileSync(fullPath, 'utf8'));
     } catch (error) {
-        throw new Error(`Could not read ${relativePath}: ${error.message}`);
+        throw new Error(`Could not read ${relativePath}: ${error.message}`, { cause: error });
     }
 }
 
@@ -62,10 +62,8 @@ function getBuildContext() {
         }
 
         targetId = selection.targetId;
-    } else if (process.platform === 'win32') {
-        targetId = catalog.defaultTarget;
     } else {
-        return { root, project, target: { id: 'native', platform: 'native' } };
+        targetId = catalog.defaultTarget;
     }
 
     const target = catalog.targets.find((entry) => entry.id.toLowerCase() === targetId.toLowerCase());
@@ -75,7 +73,7 @@ function getBuildContext() {
     }
 
     if (process.platform !== 'win32' && target.platform === 'windows') {
-        throw new Error('The selected Windows build target is not supported by this host helper.');
+        throw new Error('VS Code cannot launch or debug the selected Windows target on this host. Build it here, then run or debug it on Windows.');
     }
 
     return { root, project, target };
@@ -116,17 +114,14 @@ function getTargetRuntimePath() {
     const toolchainRoot = path.join(
         context.project.managedEnvironment.gameWipToolsRoot,
         toolchain.provider.managedDirectory,
-        toolchain.requiredVersion
+        toolchain.requiredVersion,
     );
     const targetRuntime = path.join(toolchainRoot, context.target.compilerTriple, 'bin');
     const msys2Runtime = path.join(context.project.managedEnvironment.msys2Root, 'ucrt64', 'bin');
 
-    return [
-        path.join(toolchainRoot, toolchain.provider.binaryDirectory),
-        targetRuntime,
-        msys2Runtime,
-        process.env.PATH || ''
-    ].filter(Boolean).join(path.delimiter);
+    return [path.join(toolchainRoot, toolchain.provider.binaryDirectory), targetRuntime, msys2Runtime, process.env.PATH || '']
+        .filter(Boolean)
+        .join(path.delimiter);
 }
 
 function getDebuggerPath() {
@@ -150,7 +145,7 @@ function activate(context) {
         ['gamewip-workflows.developmentExecutable', getDevelopmentExecutable],
         ['gamewip-workflows.developmentDirectory', getDevelopmentDirectory],
         ['gamewip-workflows.targetRuntimePath', getTargetRuntimePath],
-        ['gamewip-workflows.debuggerPath', getDebuggerPath]
+        ['gamewip-workflows.debuggerPath', getDebuggerPath],
     ];
 
     for (const [id, resolve] of commands) {

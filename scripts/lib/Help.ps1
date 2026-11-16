@@ -217,9 +217,10 @@ function Show-GameWipCommonControlHelp
 
 function Show-GameWipHelp
 {
+    $helperCommand = Get-GameWipProjectHelperCommand
     Write-Host 'Usage:'
-    Write-Host '  .\gamewip.bat <action> [command] [target] [options]'
-    Write-Host '  .\gamewip.bat                         Open the interactive UI.'
+    Write-Host "  $helperCommand <action> [command] [target] [options]"
+    Write-Host "  $helperCommand                         Open the interactive UI."
     Write-Host ''
     Write-Host 'Available commands:'
     Write-Host '  ready'
@@ -263,5 +264,5 @@ function Show-GameWipHelp
     }
 
     Write-Host ''
-    Write-Host 'Use .\gamewip.bat list to discover valid IDs.'
+    Write-Host "Use '$helperCommand list' to discover valid IDs."
 }

@@ -16,13 +16,29 @@ set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR "${GAMEWIP_TARGET_PROCESSOR}")
 
 set(_gamewip_llvm_mingw_bin "${GAMEWIP_LLVM_MINGW_ROOT}/${GAMEWIP_LLVM_MINGW_BINARY_DIRECTORY}")
-set(CMAKE_C_COMPILER "${_gamewip_llvm_mingw_bin}/${GAMEWIP_TARGET_COMPILER_TRIPLE}-clang.exe" CACHE FILEPATH "" FORCE)
-set(CMAKE_CXX_COMPILER "${_gamewip_llvm_mingw_bin}/${GAMEWIP_TARGET_COMPILER_TRIPLE}-clang++.exe" CACHE FILEPATH "" FORCE)
-set(CMAKE_RC_COMPILER "${_gamewip_llvm_mingw_bin}/llvm-rc.exe" CACHE FILEPATH "" FORCE)
-set(CMAKE_AR "${_gamewip_llvm_mingw_bin}/llvm-ar.exe" CACHE FILEPATH "" FORCE)
-set(CMAKE_RANLIB "${_gamewip_llvm_mingw_bin}/llvm-ranlib.exe" CACHE FILEPATH "" FORCE)
-set(CMAKE_OBJDUMP "${_gamewip_llvm_mingw_bin}/llvm-objdump.exe" CACHE FILEPATH "" FORCE)
-set(CMAKE_STRIP "${_gamewip_llvm_mingw_bin}/llvm-strip.exe" CACHE FILEPATH "" FORCE)
+if(CMAKE_HOST_WIN32)
+    set(_gamewip_llvm_mingw_executable_suffix ".exe")
+else()
+    set(_gamewip_llvm_mingw_executable_suffix "")
+endif()
+
+set(CMAKE_C_COMPILER
+    "${_gamewip_llvm_mingw_bin}/${GAMEWIP_TARGET_COMPILER_TRIPLE}-clang${_gamewip_llvm_mingw_executable_suffix}"
+    CACHE FILEPATH
+    ""
+    FORCE
+)
+set(CMAKE_CXX_COMPILER
+    "${_gamewip_llvm_mingw_bin}/${GAMEWIP_TARGET_COMPILER_TRIPLE}-clang++${_gamewip_llvm_mingw_executable_suffix}"
+    CACHE FILEPATH
+    ""
+    FORCE
+)
+set(CMAKE_RC_COMPILER "${_gamewip_llvm_mingw_bin}/llvm-rc${_gamewip_llvm_mingw_executable_suffix}" CACHE FILEPATH "" FORCE)
+set(CMAKE_AR "${_gamewip_llvm_mingw_bin}/llvm-ar${_gamewip_llvm_mingw_executable_suffix}" CACHE FILEPATH "" FORCE)
+set(CMAKE_RANLIB "${_gamewip_llvm_mingw_bin}/llvm-ranlib${_gamewip_llvm_mingw_executable_suffix}" CACHE FILEPATH "" FORCE)
+set(CMAKE_OBJDUMP "${_gamewip_llvm_mingw_bin}/llvm-objdump${_gamewip_llvm_mingw_executable_suffix}" CACHE FILEPATH "" FORCE)
+set(CMAKE_STRIP "${_gamewip_llvm_mingw_bin}/llvm-strip${_gamewip_llvm_mingw_executable_suffix}" CACHE FILEPATH "" FORCE)
 
 string(APPEND CMAKE_C_FLAGS_INIT " -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00")
 string(APPEND CMAKE_CXX_FLAGS_INIT " -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00")
@@ -35,3 +51,4 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 
 unset(_gamewip_llvm_mingw_bin)
+unset(_gamewip_llvm_mingw_executable_suffix)

@@ -291,7 +291,7 @@ function Assert-GameWipProjectToolConfig
 
                 if ($toolInfo.provider.Contains('installMode') -and $toolInfo.provider.installMode -eq 'directoryArchive')
                 {
-                    foreach ($field in @('managedDirectory', 'binaryDirectory', 'hostPlatform', 'validationFiles'))
+                    foreach ($field in @('managedDirectory', 'binaryDirectory', 'validationFiles'))
                     {
                         if (-not $toolInfo.provider.Contains($field))
                         {
@@ -314,6 +314,22 @@ function Assert-GameWipProjectToolConfig
                         if ([string]::IsNullOrWhiteSpace([string]$relativePath) -or [IO.Path]::IsPathRooted([string]$relativePath) -or [string]$relativePath -match '(^|[/\\])\.\.([/\\]|$)')
                         {
                             throw "GitHub archive tool '$($toolInfo.id)' has an unsafe validation path '$relativePath'."
+                        }
+                    }
+
+                    foreach ($asset in @($toolInfo.provider.assets.Values))
+                    {
+                        if (-not $asset.Contains('validationFiles'))
+                        {
+                            continue
+                        }
+
+                        foreach ($relativePath in @($asset.validationFiles))
+                        {
+                            if ([string]::IsNullOrWhiteSpace([string]$relativePath) -or [IO.Path]::IsPathRooted([string]$relativePath) -or [string]$relativePath -match '(^|[/\\])\.\.([/\\]|$)')
+                            {
+                                throw "GitHub archive tool '$($toolInfo.id)' has an unsafe asset validation path '$relativePath'."
+                            }
                         }
                     }
                 }

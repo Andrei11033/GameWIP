@@ -132,6 +132,28 @@ function Assert-GameWipSetupWindows
     }
 }
 
+function Assert-GameWipSetupHost
+{
+    if (Test-GameWipWindowsHost)
+    {
+        Assert-GameWipSetupWindows
+        return
+    }
+
+    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+    {
+        if (-not (Get-Command Get-GameWipLinuxDistribution -ErrorAction SilentlyContinue))
+        {
+            throw 'Linux setup support was not loaded.'
+        }
+
+        $null = Get-GameWipLinuxDistribution
+        return
+    }
+
+    throw 'Setup supports Windows and Linux hosts only.'
+}
+
 function Assert-GameWipSetupRepository
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)

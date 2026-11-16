@@ -230,7 +230,15 @@ function Install-GameWipNpmTool
 
     if ($null -eq $npm)
     {
-        throw "npm is unavailable for '$($Tool.id)'. Run setup.bat repair."
+        $repairCommand = if (Test-GameWipWindowsHost)
+        {
+            'setup.bat repair'
+        }
+        else
+        {
+            'bash ./setup.sh repair'
+        }
+        throw "npm is unavailable for '$($Tool.id)'. Run '$repairCommand'."
     }
 
     Invoke-GameWipProviderNative -Name "npm-install-$($Tool.id)" -FilePath $npm -Arguments (@('install', '--global', '--prefix', $root, '--no-audit', '--no-fund') + $specifications) | Out-Null

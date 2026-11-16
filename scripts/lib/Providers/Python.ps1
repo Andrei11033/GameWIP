@@ -92,7 +92,7 @@ function Install-GameWipPythonTool
 
     if (-not (Test-Path -LiteralPath $environmentPythonPath))
     {
-        throw "MSYS2 Python environment was not created at '$environmentPythonPath'."
+        throw "Managed Python environment was not created at '$environmentPythonPath'."
     }
 
     $specification = if ($Version)

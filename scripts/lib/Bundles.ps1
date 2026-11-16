@@ -14,6 +14,7 @@ function Invoke-GameWipBundle
     )
 
     $bundleInfo = Get-GameWipProjectBundle -Id $Id
+    Assert-GameWipSelectedTargetRunnable -Action "Validation bundle '$Id'"
     $freshByDefault = $bundleInfo.ContainsKey('FreshBuildTrees') -and [bool]$bundleInfo.FreshBuildTrees
     $effectiveFresh = [bool]$Fresh -or $freshByDefault
 

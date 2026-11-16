@@ -55,7 +55,7 @@ if ($Quiet)
     $OutputMode = 'LogOnly'
 }
 $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-. (Join-Path $PSScriptRoot 'lib\Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
+. (Join-Path $PSScriptRoot 'lib/Bootstrap.ps1') -RepositoryRoot $RepositoryRoot
 
 # Map command-line values to the operation helpers' shared context.
 $UnicodeDataRoot = $UnicodeDataPath
@@ -88,7 +88,7 @@ $resolvedAction = Resolve-GameWipActionName -Name $Action
 if ($null -eq $resolvedAction)
 {
     Write-GameWipHost "Unknown project action '$Action'." -ForegroundColor Red
-    Write-Host 'Run .\gamewip.bat list to see available actions.'
+    Write-Host "Run '$(Get-GameWipProjectHelperCommand) list' to see available actions."
     exit 2
 }
 $Action = $resolvedAction
