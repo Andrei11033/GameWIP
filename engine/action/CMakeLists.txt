@@ -1,6 +1,7 @@
 add_library(Action STATIC)
 
-target_sources(Action PRIVATE core/action.cpp)
+add_subdirectory(core)
+add_subdirectory(internal)
 
 target_include_directories(Action PUBLIC "${PROJECT_SOURCE_DIR}/engine")
 
