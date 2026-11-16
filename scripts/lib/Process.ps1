@@ -322,9 +322,8 @@ function Invoke-GameWipProcess
 
     try
     {
-        # Manual validation must see the caller's real stdin/stdout handles. In
-        # that mode the child owns console presentation and output is intentionally
-        # not captured into the ordinary stream log files.
+        # Inherited-console commands use the caller's streams directly. The child
+        # owns console presentation, so its output is not captured into run logs.
         $start = @{
             FilePath = $launch.FilePath
             WorkingDirectory = $WorkingDirectory
@@ -364,7 +363,7 @@ function Invoke-GameWipProcess
                 break
             }
 
-            if ($OutputMode -eq 'Stream')
+            if ($OutputMode -eq 'Stream' -and -not $InheritConsole)
             {
                 $previousLineCount = $stdoutLineCount + $stderrLineCount
                 Write-GameWipProcessNewOutput -Path $stdoutPath -LineCount ([ref]$stdoutLineCount)
@@ -466,7 +465,7 @@ function Invoke-GameWipProcess
 
     # Stream live output first, then build one retained combined log for the
     # result object and operation receipt.
-    if ($OutputMode -eq 'Stream')
+    if ($OutputMode -eq 'Stream' -and -not $InheritConsole)
     {
         Write-GameWipProcessNewOutput -Path $stdoutPath -LineCount ([ref]$stdoutLineCount)
         Write-GameWipProcessNewOutput -Path $stderrPath -LineCount ([ref]$stderrLineCount) -Prefix '[stderr] ' -PrefixColor Yellow
@@ -484,7 +483,7 @@ function Invoke-GameWipProcess
 
     if ($InheritConsole)
     {
-        $combined.Add('Interactive process output was inherited by the caller console and was not captured.') | Out-Null
+        $combined.Add('Process output was inherited by the caller console and was not captured.') | Out-Null
     }
 
     foreach ($line in $stdout)
@@ -553,13 +552,14 @@ function Invoke-GameWipNative
         [Parameter(Mandatory = $true)][string]$FilePath,
         [string[]]$Arguments = @(),
         [string[]]$DisplayArguments,
+        [string]$WorkingDirectory = $RepositoryRoot,
         [switch]$UseWorkspaceTemp,
         [string]$PathPrefix,
         [hashtable]$Environment = @{},
         [ValidateRange(0, 86400)][int]$TimeoutSeconds = 0,
         [ValidateSet('Summary', 'Stream', 'LogOnly')][string]$OutputMode,
         [int[]]$AllowedExitCodes = @(0),
-        [switch]$Interactive
+        [switch]$InheritConsole
     )
 
     Initialize-GameWipRunLog
@@ -620,12 +620,13 @@ function Invoke-GameWipNative
             -FilePath $FilePath `
             -Arguments $Arguments `
             -DisplayArguments $DisplayArguments `
+            -WorkingDirectory $WorkingDirectory `
             -Environment $effectiveEnvironment `
             -TimeoutSeconds $TimeoutSeconds `
             -OutputMode $effectiveOutputMode `
             -SuccessfulExitCodes $AllowedExitCodes `
             -LogPath $step.LogPath `
-            -InheritConsole:$Interactive
+            -InheritConsole:$InheritConsole
     }
 
     catch [System.OperationCanceledException]

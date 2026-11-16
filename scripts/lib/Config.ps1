@@ -1002,6 +1002,19 @@ function Assert-GameWipCommandConfig
         {
             throw "Project command '$($command.Id)' references unknown build preset '$($command.BuildPreset)'."
         }
+
+        if ($command.ContainsKey('WorkingDirectory') -and $command.WorkingDirectory -notin @('repository', 'build'))
+        {
+            throw "Project command '$($command.Id)' has an unsupported working directory '$($command.WorkingDirectory)'."
+        }
+
+        foreach ($field in @('InheritConsole', 'TargetRuntimePath', 'StartTracyProfiler'))
+        {
+            if ($command.ContainsKey($field) -and $command[$field] -isnot [bool])
+            {
+                throw "Project command '$($command.Id)' must set '$field' to a Boolean value."
+            }
+        }
     }
 
     $commandIds = @($commands | ForEach-Object { $_.Id })

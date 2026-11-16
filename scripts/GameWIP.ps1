@@ -569,15 +569,35 @@ $result = Invoke-GameWipOperation `
 
         'doc'
         {
-            Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan @('Configure docs preset.', 'Build docs preset.') -Body {
-                Invoke-GameWipConfigurePreset -Name docs
+            $buildDirectory = Get-GameWipBuildDirectory -PresetName docs
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path $buildDirectory
+            $documentationPlan = if ($Fresh)
+            {
+                @("Remove '$relativeBuildDirectory' completely.", 'Configure and build docs preset.')
+            }
+            else
+            {
+                @('Configure docs preset.', 'Build docs preset.')
+            }
+            Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan $documentationPlan -Body {
+                Invoke-GameWipConfigurePreset -Name docs -Fresh:$Fresh
                 Invoke-GameWipBuildPreset -Name docs
             } | Out-Null
         }
         'analyze'
         {
-            Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan @('Configure analyze preset.', 'Build analyze preset.') -Body {
-                Invoke-GameWipConfigurePreset -Name analyze
+            $buildDirectory = Get-GameWipBuildDirectory -PresetName analyze
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path $buildDirectory
+            $analysisPlan = if ($Fresh)
+            {
+                @("Remove '$relativeBuildDirectory' completely.", 'Configure and build analyze preset.')
+            }
+            else
+            {
+                @('Configure analyze preset.', 'Build analyze preset.')
+            }
+            Invoke-GameWipMutation -Summary 'Run C++ static analysis.' -Risk local -Plan $analysisPlan -Body {
+                Invoke-GameWipConfigurePreset -Name analyze -Fresh:$Fresh
                 Invoke-GameWipBuildPreset -Name analyze
             } | Out-Null
         }

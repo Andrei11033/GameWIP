@@ -64,13 +64,13 @@ function Invoke-GameWipValidationModule
     {
         $testArguments.Add($argument) | Out-Null
     }
-    $interactive = @($testArguments) -contains '--manual-tests'
+    $inheritConsole = @($testArguments) -contains '--manual-tests'
     Invoke-GameWipNative `
         -Name "module-$Name" `
         -FilePath $executable `
         -Arguments $testArguments.ToArray() `
         -UseWorkspaceTemp `
-        -Interactive:$interactive
+        -InheritConsole:$inheritConsole
 }
 
 function Invoke-GameWipStressModule
@@ -556,7 +556,7 @@ function Invoke-GameWipValidationCommandWizard
                 -FilePath $executable `
                 -Arguments $arguments.ToArray() `
                 -UseWorkspaceTemp `
-                -Interactive:$manualTests
+                -InheritConsole:$manualTests
         } | Out-Null
     }
 }

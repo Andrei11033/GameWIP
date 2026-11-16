@@ -240,7 +240,7 @@ function Show-GameWipHelp
     Write-Host '  stress [name] [-RunCount N] [-WorkerCount N] [-FailFast] [-SkipBuild]'
     Write-Host '  run [project-command] [-SkipBuild] [-PassThroughArgs <arguments>]'
     Write-Host '  bundle [id] [-SkipBuild] [-CleanBuild]'
-    Write-Host '  doc | analyze | cov | asan | ubsan | links'
+    Write-Host '  doc [-CleanBuild] | analyze [-CleanBuild] | cov | asan | ubsan | links'
     Write-Host '  bench <run|dry-run|list|compare> [options]'
     Write-Host '  history list [all] | history show [latest|run-name] | history clean [run-name|all]'
     Write-Host '  list | help'

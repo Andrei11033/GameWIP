@@ -37,9 +37,9 @@ Start-Process 'C:\MSYS2\GameWIPTools\tools\tracy\tracy-profiler.exe'
 
 Use a representative scenario. A capture of an empty or artificial run is rarely useful evidence for optimization decisions.
 
-The VS Code `F9` workflow performs the configure, build, profiler launch, and
-game launch sequence. Pass `--startup-tests` when validation itself is the
-workload being profiled:
+The VS Code `F9` workflow uses `gamewip.bat` to configure and build the selected
+target, start Tracy, and run the game. `Alt+F9` profiles startup tests. Pass
+`--startup-tests` when validation itself is the workload being profiled:
 
 ```powershell
 cmake --preset profile

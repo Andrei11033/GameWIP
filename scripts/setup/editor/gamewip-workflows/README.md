@@ -19,27 +19,42 @@ corresponding `GameWIP: ...` entry in `.vscode/tasks.json`; the same workflows
 remain available through **Terminal > Run Task** when a function key is
 unavailable.
 
-Game run tasks use a dedicated terminal for executable output. Their CMake
-configure and build prerequisites remain in the shared task terminal, keeping
-build diagnostics separate from the running game's output.
+Game run tasks use a dedicated terminal for executable output. Configure and
+build tasks call `gamewip.bat` in the shared task terminal, keeping build
+diagnostics separate from the running game's output.
+
+Run tasks and profiling tasks also use `gamewip.bat`; their executable path,
+working directory, and runtime `PATH` follow the selected build target. The
+development debug launch uses the same target selection.
 
 ## Shortcut reference
+
+`Ctrl` runs the primary workflow from a clean build. `Alt` selects an alternate
+workflow where one is available. Coverage and sanitizer workflows always use
+clean build trees.
 
 | Shortcut | Workflow |
 | --- | --- |
 | `F5` | Configure, build, and run `dev`. |
-| `Ctrl+F5` | Configure and build `dev` without launching it. |
+| `Alt+F5` | Configure and build `dev` without launching it. |
+| `Ctrl+F5` | Clean-build `dev`, then run it. |
 | `F6` | Configure, build, run embedded correctness tests, and start `dev` when they pass. |
+| `Ctrl+F6` | Clean-build `dev`, then run embedded correctness tests. |
 | `F7` | Configure, build, and run correctness tests. |
+| `Ctrl+F7` | Clean-build and run correctness tests. |
 | `Alt+F7` | Run the standard benchmark profile and retain its tool-run results. |
 | `F8` | Build, verify, and open the generated manual. |
+| `Ctrl+F8` | Clean-build, verify, and open the generated manual. |
 | `Alt+F8` | Configure and run repository C++ analysis. |
 | `F9` | Build the profile game, start Tracy, and run the game. |
+| `Ctrl+F9` | Clean-build the profile game, start Tracy, and run it. |
 | `Alt+F9` | Start Tracy and run profiled startup tests. |
-| `F10` | Build and run tests, generate coverage, and open the report. |
-| `F11` | Build and run AddressSanitizer tests for the selected target. |
-| `Shift+F11` | Build and run UndefinedBehaviorSanitizer tests for the selected target. |
+| `F10` | Clean-build and run coverage tests, then open the report. |
+| `F11` | Clean-build and run AddressSanitizer tests. |
+| `Alt+F11` | Clean-build and run UndefinedBehaviorSanitizer tests. |
 | `F12` | Configure, build, and run the release game. |
+| `Alt+F12` | Configure and build `release` without launching it. |
+| `Ctrl+F12` | Clean-build `release`, then run it. |
 
 In the GameWIP workspace, `F5` and `Ctrl+F5` intentionally run repository tasks
 instead of VS Code's default launch commands. The extension's `package.json`

@@ -432,6 +432,22 @@
         },
         "acceptsExtraArgs": {
           "type": "boolean"
+        },
+        "workingDirectory": {
+          "enum": ["repository", "build"],
+          "description": "Working directory for the project executable."
+        },
+        "inheritConsole": {
+          "type": "boolean",
+          "description": "Pass the caller's console streams directly to the project executable."
+        },
+        "targetRuntimePath": {
+          "type": "boolean",
+          "description": "Add the selected target runtime directories to PATH."
+        },
+        "startTracyProfiler": {
+          "type": "boolean",
+          "description": "Start the managed Tracy profiler before running the executable."
         }
       }
     },

@@ -244,6 +244,38 @@ function Resolve-GameWipProjectExecutable
     return $primary
 }
 
+function Ensure-GameWipTracyProfiler
+{
+    $profilerPath = Join-Path (Get-GameWipManagedToolRoot) 'tools/tracy/tracy-profiler.exe'
+
+    if (Get-Process -Name 'tracy-profiler' -ErrorAction SilentlyContinue | Select-Object -First 1)
+    {
+        return
+    }
+
+    if (-not (Test-Path -LiteralPath $profilerPath -PathType Leaf))
+    {
+        throw (New-GameWipDiagnosticException `
+                -Code 'profiler-missing' `
+                -Summary "Tracy profiler is missing: $profilerPath" `
+                -SuggestedActions @("Run '.\\setup.bat profiler' to install the matching profiler tools."))
+    }
+
+    try
+    {
+        Start-Process -FilePath $profilerPath -WorkingDirectory (Split-Path -Parent $profilerPath) | Out-Null
+    }
+
+    catch
+    {
+        throw (New-GameWipDiagnosticException `
+                -Code 'profiler-start-failed' `
+                -Summary "Could not start the Tracy profiler: $profilerPath" `
+                -Details $_.Exception.Message `
+                -SuggestedActions @('Check that the managed Tracy tools are usable.', 'Run .\\setup.bat profiler to repair them.'))
+    }
+}
+
 function Initialize-GameWipProjectCommandBuild
 {
     param([Parameter(Mandatory = $true)]$Command, [switch]$NoBuild = $Script:NoBuild)
@@ -294,11 +326,39 @@ function Invoke-GameWipProjectCommand
     }
     $executable = Resolve-GameWipProjectExecutable -Command $command
     $projectArguments = @($command.Arguments) + @($Arguments)
-    $interactive = $projectArguments -contains '--manual-tests'
+    $inheritConsole = $projectArguments -contains '--manual-tests'
+    $workingDirectory = $RepositoryRoot
+
+    if ($command.ContainsKey('WorkingDirectory') -and $command.WorkingDirectory -eq 'build')
+    {
+        $workingDirectory = Get-GameWipBuildDirectory -PresetName ([string]$command.BuildPreset)
+    }
+
+    if ($command.ContainsKey('StartTracyProfiler') -and [bool]$command.StartTracyProfiler)
+    {
+        Ensure-GameWipTracyProfiler
+    }
+
+    if ($command.ContainsKey('InheritConsole') -and [bool]$command.InheritConsole)
+    {
+        $inheritConsole = $true
+    }
+
+    $pathPrefix = if ($command.ContainsKey('TargetRuntimePath') -and [bool]$command.TargetRuntimePath)
+    {
+        Get-GameWipToolchainPathPrefix
+    }
+    else
+    {
+        $null
+    }
+
     Invoke-GameWipNative `
         -Name "project-$Id" `
         -FilePath $executable `
         -Arguments $projectArguments `
+        -WorkingDirectory $workingDirectory `
+        -PathPrefix $pathPrefix `
         -UseWorkspaceTemp:([bool]$command.UseWorkspaceTemp) `
-        -Interactive:$interactive
+        -InheritConsole:$inheritConsole
 }
