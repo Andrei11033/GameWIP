@@ -1,12 +1,11 @@
 add_library(WindowManager STATIC)
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
 endif()
 
-target_sources(WindowManager PRIVATE core/window_manager.cpp)
-
-gamewip_target_platform_backend(TARGET WindowManager ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+add_subdirectory(core)
+add_subdirectory(platform)
 
 target_include_directories(WindowManager PUBLIC "${PROJECT_SOURCE_DIR}/engine")
 
