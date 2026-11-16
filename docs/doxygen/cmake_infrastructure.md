@@ -111,9 +111,9 @@ check and a clear error message rather than hiding the coupling.
 
 ## Library targets
 
-A library-level `CMakeLists.txt` owns target and package setup. Each
-CMake-managed source folder has a `CMakeLists.txt` that registers its files. A
-library CMake file must:
+Folder purposes are defined in @ref project_structure. A library-level
+`CMakeLists.txt` owns target and package setup; each CMake-managed source folder
+has a `CMakeLists.txt` that registers its files. A library CMake file must:
 
 - Create one canonical target.
 - Provide one canonical project alias when appropriate.

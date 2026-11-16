@@ -29,23 +29,31 @@ verification commands that were run.
 
 Place low-level runtime libraries under `foundation/` and diagnostics or development-support libraries under `tools/`.
 
-Use this default structure:
+Use this as a starting shape, not a required set of folders. Each source area
+is optional when the library does not need it. Folder purposes and CMake
+ownership are defined in @ref project_structure.
 
 ```text
 <area>/<name>/
   CMakeLists.txt
-  <name>.h
-  core/
+  <public-header>.h
+  core/                         # optional
     CMakeLists.txt
-  internal/
+  internal/                     # optional
     CMakeLists.txt
-    helpers/
+    helpers/                    # optional
       CMakeLists.txt
-  platform/
+  native/                       # optional
+    CMakeLists.txt
+  detail/                       # optional
+    CMakeLists.txt
+  platform/                     # optional
     CMakeLists.txt
     <platform-id>/
       CMakeLists.txt
       <platform-id>_<feature>.cpp
+  cmake/                        # optional
+  tools/                        # optional
   docs/
     <name>.md
     quick_start.md

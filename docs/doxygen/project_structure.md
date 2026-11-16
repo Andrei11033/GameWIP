@@ -125,6 +125,41 @@ Each reusable library owns:
 
 A reusable library must not require the game executable to compile, test, install, or be consumed from a clean external CMake project.
 
+## Library folder roles
+
+This is the authoritative guide to library folder ownership. The layout is
+selective: add a folder only when the library has that responsibility. Do not
+add empty source folders or placeholder backends.
+
+| Folder | Use |
+| --- | --- |
+| Library root | Public headers and `CMakeLists.txt` for target, package setup, dependencies, and docs registration. |
+| `core/` | Portable implementation. Its `CMakeLists.txt` registers files; omit it for header-only libraries. |
+| `internal/` | Private contracts, state, and declarations shared by implementation files. |
+| `internal/helpers/` | Shared private helper implementations. Keep declarations in the parent `internal/` folder. |
+| `platform/` | Backend selection in `CMakeLists.txt`; no backend implementation. |
+| `platform/<platform-id>/` | Platform implementation and dependencies. Its `CMakeLists.txt` registers them. |
+| `platform/<platform-id>/internal/` | Private contracts and state shared within that backend. |
+| `platform/<platform-id>/internal/helpers/` | Shared backend helpers. Keep declarations in its `internal/` folder. |
+| `native/` | Public inter-library connectors that deliberately expose native handles or messages. |
+| `detail/` | Header-only support required by installed templates or macros; installed when needed, unsupported API. |
+| `cmake/` | Library-local CMake modules and package templates. |
+| `docs/` | Library manuals and API guidance registered for generated docs. |
+| `tools/` | Library maintenance scripts and generators, not part of ordinary use. |
+
+Every CMake-managed source or header folder owns a `CMakeLists.txt` that
+registers its files. The library root owns target and package setup. Docs,
+package templates, and maintenance scripts do not need source-registration
+files. Public headers may include a named platform adapter at the library root;
+its native implementation stays under `platform/<platform-id>/`. Correctness
+tests and benchmarks belong under `game/validation/`, not inside a library.
+
+Some libraries use only part of this layout. Base is a header-only,
+source-tree support target, while IO and Unicode have no platform backend.
+Logger's `detail/` headers are an exception to the usual private-header
+boundary: public templates include them, so they must be installed for those
+templates to compile, but their names and contents remain unsupported.
+
 ## Source organization
 
 Files are organized by responsibility. Public, implementation, internal, and
@@ -147,12 +182,6 @@ to mirror one another.
   file. Avoid catch-all helper files.
 - Name implementation files for their responsibility. Omit a repeated library
   prefix when the parent directory already identifies the library.
-- Keep platform-specific implementation under `platform/<platform>/`; shared
-  portable code belongs in the library's core or internal area.
-- Give each CMake-managed source folder its own `CMakeLists.txt`. The
-  library-level file owns the target and package setup; `core/` and `internal/`
-  register their files, while `platform/CMakeLists.txt` selects the backend and
-  `platform/<platform>/CMakeLists.txt` registers its implementation.
 - Use `.inl` only for focused test fragments under `game/validation/`.
   Implementations belong in `.cpp` files. The retained Action reference has
   existing implementation `.inl` files pending its separate pass.

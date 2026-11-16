@@ -46,19 +46,9 @@ Platform IDs must be stable, lowercase, and suitable for directory names.
 
 ## Required structure
 
-A backend must use this structure:
-
-```text
-<library>/platform/
-  CMakeLists.txt
-  <platform-id>/
-    CMakeLists.txt
-    <platform-id>_<feature>.cpp
-```
-
-Source registration follows @ref project_cmake_infrastructure. Single-file
-backends may use the library name as the feature. Split backends use names that
-describe the native area they implement.
+Folder roles are defined in @ref project_structure. CMake selection and source
+registration are defined in @ref project_cmake_infrastructure. Backend source
+names describe the native area they implement.
 
 ## Public API boundary
 
