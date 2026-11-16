@@ -152,7 +152,7 @@ namespace
 
         /// @brief Returns the active UTF-8 text view.
         /// @return Failure message text.
-        std::string_view view() const noexcept
+        [[nodiscard]] std::string_view view() const noexcept
         {
             return std::string_view(storage.data(), usedBytes);
         }
