@@ -1,5 +1,5 @@
-/// @file io.cpp
-/// @brief Implements IO status helpers, default interfaces, memory streams, and whole-transfer algorithms.
+/// @file streams.cpp
+/// @brief IO status helpers, default stream behavior, and memory streams.
 
 #include "io/memory.h"
 #include "unicode/unicode.h"
@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-/// @brief Internal algorithms shared by the public whole-stream and memory-writer implementations.
+/// @brief Core IO status, interface, and memory-stream implementations.
 namespace GameWIP::IO
 {
     namespace
@@ -61,6 +61,10 @@ namespace GameWIP::IO
             return successStatus();
         }
     } // namespace
+
+    /// ------------------------------------------------------------
+    /// Status helpers
+    /// ------------------------------------------------------------
 
     Types::Status makeStatus(Types::ErrorCode code, std::int64_t nativeCode, std::string message) noexcept
     {
@@ -170,6 +174,10 @@ namespace GameWIP::IO
         return "Unknown";
     }
 
+    /// ------------------------------------------------------------
+    /// Default stream behavior
+    /// ------------------------------------------------------------
+
     bool Reader::isOpen() const noexcept
     {
         return true;
@@ -235,6 +243,10 @@ namespace GameWIP::IO
         return makeStatus(Types::ErrorCode::NotSeekable);
     }
 
+    /// ------------------------------------------------------------
+    /// Memory reader
+    /// ------------------------------------------------------------
+
     MemoryReader::MemoryReader(std::span<const std::byte> bytes) noexcept
         : bytes_(bytes)
     {
@@ -276,6 +288,7 @@ namespace GameWIP::IO
         {
             return {.status = {}, .bytesRead = 0, .endOfStream = true};
         }
+
         const auto available = bytes_.size() - position_;
         const auto count = std::min(destination.size(), available);
 
@@ -291,6 +304,7 @@ namespace GameWIP::IO
         {
             std::ranges::copy(source, target.begin());
         }
+
         position_ += count;
 
         return {.status = {}, .bytesRead = count, .endOfStream = position_ == bytes_.size()};
@@ -333,12 +347,14 @@ namespace GameWIP::IO
         {
             return makeStatus(Types::ErrorCode::SizeLimitExceeded);
         }
+
         const auto size = static_cast<std::int64_t>(bytes_.size());
 
         if(position_ > static_cast<std::size_t>(size))
         {
             return makeStatus(Types::ErrorCode::InvalidArgument);
         }
+
         std::int64_t base = 0;
 
         switch(origin)
@@ -363,11 +379,16 @@ namespace GameWIP::IO
         {
             return makeStatus(Types::ErrorCode::SeekFailed);
         }
+
         const auto target = base + offset;
         position_ = static_cast<std::size_t>(target);
 
         return successStatus();
     }
+
+    /// ------------------------------------------------------------
+    /// Memory writer
+    /// ------------------------------------------------------------
 
     bool MemoryWriter::isOpen() const noexcept
     {
@@ -417,6 +438,7 @@ namespace GameWIP::IO
 
                 return {.status = {}, .bytesWritten = bytes.size()};
             }
+
             bytes_.insert(bytes_.end(), bytes.begin(), bytes.end());
 
             return {.status = {}, .bytesWritten = bytes.size()};
@@ -512,6 +534,7 @@ namespace GameWIP::IO
             result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
             return result;
         }
+
         const std::string_view textView(reinterpret_cast<const char *>(view.data()), view.size());
 
         if(Unicode::Utf8::validate(textView).outcome != Unicode::Types::ValidationOutcome::Valid)

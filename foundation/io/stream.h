@@ -38,8 +38,11 @@ namespace GameWIP::IO
         /// @brief Result returned by byte read operations.
         struct ReadResult
         {
+            // Operation status
             /// @brief Operation status. A failure may accompany valid bytes reported by bytesRead.
             Status status;
+
+            // Read progress
             /// @brief Valid bytes copied; never exceeds the destination size.
             std::size_t bytesRead = 0;
             /// @brief True when no additional input remains; independent of bytesRead.
@@ -49,8 +52,11 @@ namespace GameWIP::IO
         /// @brief Result returned by byte write operations.
         struct WriteResult
         {
+            // Operation status
             /// @brief Operation status. A failure may accompany valid bytes reported by bytesWritten.
             Status status;
+
+            // Write progress
             /// @brief Bytes accepted; never exceeds the input size.
             std::size_t bytesWritten = 0;
         };

@@ -28,8 +28,11 @@ namespace GameWIP::IO
         /// @brief Result returned by whole-stream byte reads.
         struct ReadAllBytesResult
         {
+            // Operation status
             /// @brief Operation status.
             Status status;
+
+            // Collected bytes
             /// @brief Bytes collected before end-of-stream or failure.
             std::vector<std::byte> bytes;
         };
@@ -37,8 +40,11 @@ namespace GameWIP::IO
         /// @brief Result returned by whole-stream UTF-8 text reads.
         struct ReadAllTextResult
         {
+            // Operation status
             /// @brief Operation status.
             Status status;
+
+            // Collected text
             /// @brief Validated text collected before end-of-stream or failure.
             /// @see @ref io_utf8_policy
             std::string text;

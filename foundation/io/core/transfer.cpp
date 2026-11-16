@@ -13,7 +13,7 @@
 #include <utility>
 #include <vector>
 
-/// @brief Internal algorithms shared by the public whole-stream and memory-writer implementations.
+/// @brief Internal helpers for whole-stream transfer operations.
 namespace GameWIP::IO::Detail::Core
 {
     namespace
@@ -494,9 +494,9 @@ namespace GameWIP::IO
 {
     using namespace Detail::Core;
 
-    // ------------------------------------------------------------
-    // Whole-stream reads
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Whole-stream reads
+    /// ------------------------------------------------------------
 
     Types::ReadAllBytesResult readAllBytes(Reader &reader, std::uint64_t maxBytes, std::size_t bufferSize) noexcept
     {
@@ -660,9 +660,9 @@ namespace GameWIP::IO
         return finalizeReadAllText(readAllTextWithScratch(reader, scratchBuffer, maxBytes));
     }
 
-    // ------------------------------------------------------------
-    // Whole-stream writes
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Whole-stream writes
+    /// ------------------------------------------------------------
 
     Types::WriteResult writeAllBytes(Writer &writer, std::span<const std::byte> bytes) noexcept
     {

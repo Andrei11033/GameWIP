@@ -15,7 +15,6 @@ add_library(GameWIP::IO ALIAS IO)
 
 target_sources(
     IO
-    PRIVATE core/io.cpp core/transfer.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -27,6 +26,8 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/transfer.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/io.h"
 )
+
+add_subdirectory(core)
 
 # ------------------------------------------------------------
 # Compile and dependency contracts

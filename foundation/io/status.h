@@ -19,6 +19,7 @@ namespace GameWIP::IO
         /// @note Enumerator numeric values are not serialization IDs or stable wire-format values.
         enum class ErrorCode
         {
+            // Request state
             /// @brief Operation completed successfully.
             Success,
 
@@ -31,6 +32,7 @@ namespace GameWIP::IO
             /// @brief The resource is already open.
             AlreadyOpen,
 
+            // Resource lookup
             /// @brief The requested resource does not exist.
             NotFound,
             /// @brief The requested resource already exists.
@@ -40,6 +42,7 @@ namespace GameWIP::IO
             /// @brief A path exceeds a backend-supported limit.
             PathTooLong,
 
+            // Entry and stream state
             /// @brief The requested resource is a directory when a non-directory was required.
             IsDirectory,
             /// @brief The requested resource is not a directory.
@@ -49,6 +52,7 @@ namespace GameWIP::IO
             /// @brief The stream has reached end-of-stream where an explicit status is required.
             EndOfStream,
 
+            // Operation failures
             /// @brief Opening a resource failed without a more specific portable code.
             OpenFailed,
             /// @brief Reading failed without a more specific portable code.
@@ -84,6 +88,7 @@ namespace GameWIP::IO
             /// @brief A directory could not be removed because it is not empty.
             DirectoryNotEmpty,
 
+            // Transfer limits and memory
             /// @brief A read ended before the promised byte count was produced.
             PartialRead,
             /// @brief A write accepted fewer bytes than required before it failed.
@@ -93,6 +98,7 @@ namespace GameWIP::IO
             /// @brief A required memory allocation failed.
             OutOfMemory,
 
+            // Resource availability
             /// @brief The resource is busy or has an incompatible lock/share state.
             ResourceBusy,
             /// @brief Storage or quota capacity is exhausted.
@@ -102,6 +108,7 @@ namespace GameWIP::IO
             /// @brief The operation was interrupted before completion.
             Interrupted,
 
+            // Encoding and fallback failures
             /// @brief Text encoding or conversion failed.
             EncodingFailed,
             /// @brief A backend-native failure has no more specific portable code.
@@ -113,10 +120,15 @@ namespace GameWIP::IO
         /// @brief Status returned by expected IO operations.
         struct Status
         {
+            // Portable result
             /// @brief Portable error category for the operation.
             ErrorCode code = ErrorCode::Success;
+
+            // Native detail
             /// @brief Backend-native error code when a concrete backend has one, otherwise zero.
             std::int64_t nativeCode = 0;
+
+            // Diagnostic text
             /// @brief Developer-facing UTF-8 diagnostic text; not stable for machine parsing.
             std::string message;
 

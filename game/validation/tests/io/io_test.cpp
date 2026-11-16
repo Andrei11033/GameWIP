@@ -597,9 +597,10 @@ namespace
     static_assert(std::is_same_v<decltype(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())), IO::Types::WriteResult>);
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
-    // ------------------------------------------------------------
-    // Test suites
-    // ------------------------------------------------------------
+
+    /// ------------------------------------------------------------
+    /// Test suites
+    /// ------------------------------------------------------------
 
     void testErrorCodeNames(TestSupport::Context &context);
     void testStatusAndDefaultContracts(TestSupport::Context &context);
@@ -619,9 +620,9 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runIOTests([[maybe_unused]] int argc, [[maybe_unused]] char **argv, const IOTestOptions &options)
     {

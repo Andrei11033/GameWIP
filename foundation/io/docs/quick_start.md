@@ -45,18 +45,16 @@ int main()
     GameWIP::IO::MemoryReader reader(source);
 
     constexpr std::uint64_t maximumConfigBytes = 16 * 1024;
-    GameWIP::IO::Types::ReadAllTextResult readResult =
-        GameWIP::IO::readAllText(reader, maximumConfigBytes);
-    if (!readResult.status.ok())
+    GameWIP::IO::Types::ReadAllTextResult readResult = GameWIP::IO::readAllText(reader, maximumConfigBytes);
+    if(!readResult.status.ok())
     {
         // readResult.text remains valid UTF-8 and may contain the complete valid prefix.
         return 1;
     }
 
     GameWIP::IO::MemoryWriter writer;
-    GameWIP::IO::Types::WriteResult writeResult =
-        GameWIP::IO::writeAllText(writer, readResult.text);
-    if (!writeResult.status.ok())
+    GameWIP::IO::Types::WriteResult writeResult = GameWIP::IO::writeAllText(writer, readResult.text);
+    if(!writeResult.status.ok())
     {
         // writeResult.bytesWritten reports total accepted progress.
         return 1;
@@ -65,7 +63,6 @@ int main()
     GameWIP::IO::Types::CopyTextResult copy = writer.copyText();
     return copy.status.ok() && copy.text == source ? 0 : 1;
 }
-
 ```
 
 `MemoryReader` is non-owning. Its source must remain alive and at a stable address until the reader is no longer used. Direct construction from
@@ -82,9 +79,9 @@ Expected I/O failures are returned through `Types::Status`:
 #include <string>
 #include <string_view>
 
-void inspectFailure(const GameWIP::IO::Types::Status& status)
+void inspectFailure(const GameWIP::IO::Types::Status &status)
 {
-    if (status.ok())
+    if(status.ok())
     {
         return;
     }
@@ -92,7 +89,7 @@ void inspectFailure(const GameWIP::IO::Types::Status& status)
     const GameWIP::IO::Types::ErrorCode code = status.code;
     const std::string_view name = GameWIP::IO::errorCodeName(code);
     const std::int64_t nativeCode = status.nativeCode;
-    const std::string& detail = status.message;
+    const std::string &detail = status.message;
 
     // Send name, nativeCode, and detail to the application's diagnostic system.
     static_cast<void>(name);

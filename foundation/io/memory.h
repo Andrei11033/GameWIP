@@ -105,7 +105,10 @@ namespace GameWIP::IO
         [[nodiscard]] Types::Status seek(std::int64_t offset, Types::SeekOrigin origin) noexcept override;
 
     private:
+        // Borrowed source
         std::span<const std::byte> bytes_;
+
+        // Reader state
         std::size_t position_ = 0;
         bool open_ = true;
     };
@@ -193,7 +196,10 @@ namespace GameWIP::IO
         void clear() noexcept;
 
     private:
+        // Collected output
         std::vector<std::byte> bytes_;
+
+        // Writer state
         bool open_ = true;
     };
 
