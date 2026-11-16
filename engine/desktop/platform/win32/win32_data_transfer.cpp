@@ -176,7 +176,7 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
                 return &value_;
             }
 
-            HGLOBAL global() const noexcept
+            [[nodiscard]] HGLOBAL global() const noexcept
             {
                 return valid_ && value_.tymed == TYMED_HGLOBAL ? value_.hGlobal : nullptr;
             }
