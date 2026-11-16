@@ -2,7 +2,7 @@
 /// @brief Windows environment-variable backend for the TestSupport library.
 
 #include "test_support/internal/test_support_platform.h"
-#include "test_support/internal/win32_text.h"
+#include "test_support/platform/win32/internal/helpers.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -18,9 +18,9 @@
 
 namespace
 {
-    // ------------------------------------------------------------
-    // Status and validation helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Status and validation helpers
+    /// ------------------------------------------------------------
 
     [[nodiscard]] GameWIP::TestSupport::Types::InfrastructureStatus environmentFailure(
         GameWIP::TestSupport::Types::InfrastructureError error,
@@ -40,9 +40,9 @@ namespace
 
 namespace GameWIP::TestSupport::Detail::Platform
 {
-    // ------------------------------------------------------------
-    // Environment variable operations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Environment variable operations
+    /// ------------------------------------------------------------
 
     EnvironmentReadResult readEnvironmentVariable(std::string_view name) noexcept
     {
@@ -50,7 +50,7 @@ namespace GameWIP::TestSupport::Detail::Platform
         try
         {
             validateEnvironmentName(name);
-            const std::wstring nameText = GameWIP::TestSupport::Detail::Win32::utf8ToWide(name);
+            const std::wstring nameText = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(name);
 
             // GetEnvironmentVariableW reports missing variables through GetLastError(),
             // so clear the thread error before the zero-size probe.
@@ -86,7 +86,7 @@ namespace GameWIP::TestSupport::Detail::Platform
                 return result;
             }
             value.resize(copied);
-            result.value = GameWIP::TestSupport::Detail::Win32::wideToUtf8(value);
+            result.value = GameWIP::TestSupport::Detail::Platform::Win32::wideToUtf8(value);
             return result;
         }
         catch(const std::bad_alloc &)
@@ -116,8 +116,8 @@ namespace GameWIP::TestSupport::Detail::Platform
         try
         {
             validateEnvironmentName(name);
-            const std::wstring nameWide = GameWIP::TestSupport::Detail::Win32::utf8ToWide(name);
-            const std::wstring valueWide = GameWIP::TestSupport::Detail::Win32::utf8ToWide(value);
+            const std::wstring nameWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(name);
+            const std::wstring valueWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(value);
             const errno_t error = _wputenv_s(nameWide.c_str(), valueWide.c_str());
             return error == 0 ? Types::InfrastructureStatus{}
                               : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
@@ -145,7 +145,7 @@ namespace GameWIP::TestSupport::Detail::Platform
         try
         {
             validateEnvironmentName(name);
-            const std::wstring nameWide = GameWIP::TestSupport::Detail::Win32::utf8ToWide(name);
+            const std::wstring nameWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(name);
             const errno_t error = _wputenv_s(nameWide.c_str(), L"");
             return error == 0 ? Types::InfrastructureStatus{}
                               : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));

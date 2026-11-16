@@ -54,11 +54,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
     {
         TestSupport::ScopedEnvironmentVariable conflicted(processState, kScopedVariable, "guarded");
         static_cast<void>(context.expectTrue("Environment conflict setup succeeds", conflicted.status().ok()));
-#if defined(_WIN32)
-        static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), "external"));
-#else
-        static_cast<void>(setenv(std::string(kScopedVariable).c_str(), "external", 1));
-#endif
+        static_cast<void>(GameWIP::Validation::PlatformTests::setEnvironmentVariable(kScopedVariable, "external"));
         static_cast<void>(context.expectEq(
             "Environment restore reports unrelated mutation",
             TestSupport::Types::InfrastructureError::ProcessStateConflict,
@@ -66,11 +62,7 @@ void testEnvironmentHelpers(TestSupport::Context &context)
         const char *external = std::getenv(std::string(kScopedVariable).c_str());
         static_cast<void>(
             context.expectTrue("Environment conflict preserves the newer value", external != nullptr && std::string_view(external) == "external"));
-#if defined(_WIN32)
-        static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), ""));
-#else
-        static_cast<void>(unsetenv(std::string(kScopedVariable).c_str()));
-#endif
+        static_cast<void>(GameWIP::Validation::PlatformTests::setEnvironmentVariable(kScopedVariable, nullptr));
         static_cast<void>(context.expectEq(
             "Process-state restoration status is sticky after a successful retry",
             TestSupport::Types::InfrastructureError::ProcessStateConflict,
@@ -82,22 +74,14 @@ void testEnvironmentHelpers(TestSupport::Context &context)
         {
             TestSupport::ScopedEnvironmentVariable destructorOnly(destructorProcessState, kScopedVariable, "destructor-guarded");
             static_cast<void>(context.expectTrue("Destructor-only conflict setup succeeds", destructorOnly.status().ok()));
-#if defined(_WIN32)
-            static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), "destructor-external"));
-#else
-            static_cast<void>(setenv(std::string(kScopedVariable).c_str(), "destructor-external", 1));
-#endif
+            static_cast<void>(GameWIP::Validation::PlatformTests::setEnvironmentVariable(kScopedVariable, "destructor-external"));
         }
 
         static_cast<void>(context.expectEq(
             "Destructor-only restoration conflict is recorded",
             TestSupport::Types::InfrastructureError::ProcessStateConflict,
             destructorProcessState.restorationStatus().error));
-#if defined(_WIN32)
-        static_cast<void>(_putenv_s(std::string(kScopedVariable).c_str(), ""));
-#else
-        static_cast<void>(unsetenv(std::string(kScopedVariable).c_str()));
-#endif
+        static_cast<void>(GameWIP::Validation::PlatformTests::setEnvironmentVariable(kScopedVariable, nullptr));
     }
 
     {

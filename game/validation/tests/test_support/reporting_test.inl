@@ -1,6 +1,10 @@
 /// @file reporting_test.inl
 /// @brief Private TestSupport reporting and expectation tests.
 
+// ------------------------------------------------------------
+// Summary, context, and report modes
+// ------------------------------------------------------------
+
 /// @brief Verifies summary arithmetic, result predicates, defaults, and timer units.
 void testSummaryAndTimer(TestSupport::Context &context)
 {
@@ -301,6 +305,10 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     static_cast<void>(context.expectContains("Minimal console includes manual instructions", minimalOutput, "visible minimal instruction"));
 }
 
+// ------------------------------------------------------------
+// Manual prompts
+// ------------------------------------------------------------
+
 /// @brief Verifies accepted manual-answer spellings, retries, and EOF behavior.
 void testPromptManualCheck(TestSupport::Context &context)
 {
@@ -382,6 +390,10 @@ void testManualPromptChecks(TestSupport::Context &context, const TestSupportTest
         "TestSupport manual check: type skip to validate ManualAnswer::Skipped.",
         TestSupport::Types::Reporting::ManualAnswer::Skipped);
 }
+
+// ------------------------------------------------------------
+// Runner and result sections
+// ------------------------------------------------------------
 
 /// @brief Verifies Runner aggregation, exception capture, and Section diagnostics.
 void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::path &root)

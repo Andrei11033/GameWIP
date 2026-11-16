@@ -1,0 +1,2 @@
+target_sources(TestSupport PRIVATE win32_child_process.cpp win32_environment.cpp)
+add_subdirectory(internal)

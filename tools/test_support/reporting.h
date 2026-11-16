@@ -54,12 +54,17 @@ namespace GameWIP::TestSupport
         /// @brief Runtime report-output settings shared by test suites.
         struct Options
         {
-            bool writeConsole = true;                                   ///< Mirrors enabled report categories to stdout.
-            bool writeReport = true;                                    ///< Enables report-file setup when reportPath is non-empty.
-            bool appendReport = false;                                  ///< Appends instead of truncating when the report sink opens.
-            bool flushReportEachLine = false;                           ///< Flushes report-file output after each written line.
+            // Output behavior
+            bool writeConsole = true;         ///< Mirrors enabled report categories to stdout.
+            bool writeReport = true;          ///< Enables report-file setup when reportPath is non-empty.
+            bool appendReport = false;        ///< Appends instead of truncating when the report sink opens.
+            bool flushReportEachLine = false; ///< Flushes report-file output after each written line.
+
+            // Console presentation
             ConsoleVerbosity consoleVerbosity = ConsoleVerbosity::Full; ///< Categories mirrored to stdout.
             ConsoleWriter consoleWriter = nullptr;                      ///< Optional console-only writer; null uses plain stdout.
+
+            // Report destination
             std::filesystem::path reportPath = "logs/validation/latest_test_report.txt"; ///< Report-file destination.
         };
 
@@ -126,9 +131,9 @@ namespace GameWIP::TestSupport
     } // namespace Detail
     /// @endcond
 
-    // ------------------------------------------------------------
-    // Timing diagnostics
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Timing diagnostics
+    /// ------------------------------------------------------------
 
     /// @brief Monotonic elapsed-time helper for test diagnostics.
     /// @note Timer uses std::chrono::steady_clock and is not benchmark-grade measurement.
@@ -149,9 +154,9 @@ namespace GameWIP::TestSupport
         Clock::time_point start_; ///< Current measurement origin.
     };
 
-    // ------------------------------------------------------------
-    // Test context
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test context
+    /// ------------------------------------------------------------
 
     /// @brief Test context that records outcomes and routes categorized report lines.
     /// @note Names, messages, and formatted values must be valid UTF-8; reporting does not validate or repair their encoding.
@@ -254,9 +259,12 @@ namespace GameWIP::TestSupport
 
         Context(std::string_view suiteName, std::shared_ptr<Detail::ReportSink> reportSink);
 
+        // Context identity and sink ownership
         std::string suiteName_;
         std::shared_ptr<Detail::ReportSink> reportSink_;
         bool ownsReportLifecycle_ = true;
+
+        // Recorded outcomes
         mutable std::mutex mutex_;
         Types::Reporting::Summary summary_;
 
@@ -264,9 +272,9 @@ namespace GameWIP::TestSupport
         void writeFailureLine(std::string_view name, std::string_view reason, const std::source_location &location);
     };
 
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     /// @brief Runs named suites and aggregates one shared report.
     /// @thread_safety Suite execution, reporting, and count queries may run concurrently. The caller coordinates shared suite state and
@@ -306,16 +314,19 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::Reporting::SinkStatus finalize();
 
     private:
+        // Shared sink
         std::shared_ptr<Detail::ReportSink> reportSink_;
+
+        // Aggregate suite results
         mutable std::mutex mutex_;
         Types::Reporting::Summary summary_;
 
         void recordSuiteResult(const Types::Reporting::SuiteResult &result);
     };
 
-    // ------------------------------------------------------------
-    // Sections and manual checks
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Sections and manual checks
+    /// ------------------------------------------------------------
 
     /// @brief RAII helper that reports a named section and its elapsed time.
     /// @note Borrows its Context; the context must outlive this section and its destructor's reporting call.
@@ -342,9 +353,9 @@ namespace GameWIP::TestSupport
     /// @brief Prompts for a manual answer and preserves an optional "s <reason>" or end-of-input reason.
     Types::Reporting::ManualAnswer promptManualCheck(std::string_view question, std::string &skipReason);
 
-    // ------------------------------------------------------------
-    // Template implementations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Template implementations
+    /// ------------------------------------------------------------
 
     template <typename Expected, typename Actual>
     bool Context::expectEq(std::string_view name, const Expected &expected, const Actual &actual, std::source_location location)

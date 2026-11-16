@@ -11,7 +11,7 @@ if(NOT COMMAND gamewip_install_package)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPackage.cmake")
 endif()
 
-if(NOT COMMAND gamewip_target_platform_backend)
+if(NOT COMMAND gamewip_add_platform_backend)
     include("${PROJECT_SOURCE_DIR}/cmake/GameWIPPlatform.cmake")
     gamewip_resolve_platform_id(GAMEWIP_PLATFORM_ID)
 endif()
@@ -25,7 +25,6 @@ add_library(GameWIP::TestSupport ALIAS TestSupport)
 
 target_sources(
     TestSupport
-    PRIVATE core/test_support.cpp core/reporting.cpp core/files.cpp core/process_state.cpp core/stress.cpp
     PUBLIC
         FILE_SET public_headers
             TYPE HEADERS
@@ -39,7 +38,9 @@ target_sources(
                 "${CMAKE_CURRENT_SOURCE_DIR}/test_support.h"
 )
 
-gamewip_target_platform_backend(TARGET TestSupport ROOT "${CMAKE_CURRENT_SOURCE_DIR}/platform")
+add_subdirectory(core)
+add_subdirectory(internal)
+add_subdirectory(platform)
 
 # ------------------------------------------------------------
 # Compile and dependency contracts

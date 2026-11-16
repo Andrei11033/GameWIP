@@ -1,0 +1,10 @@
+target_sources(
+    TestSupport
+    PRIVATE
+        files.cpp
+        process_state.cpp
+        report_sink.cpp
+        reporting.cpp
+        status.cpp
+        stress.cpp
+)

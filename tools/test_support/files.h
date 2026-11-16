@@ -34,8 +34,11 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::InfrastructureStatus status() const noexcept;
 
     private:
-        std::filesystem::path path_;         ///< Owned temporary directory.
-        std::filesystem::path root_;         ///< TestSupport temporary root used for best-effort parent cleanup.
+        // Owned temporary paths
+        std::filesystem::path path_; ///< Owned temporary directory.
+        std::filesystem::path root_; ///< TestSupport temporary root used for best-effort parent cleanup.
+
+        // Construction status
         Types::InfrastructureStatus status_; ///< Construction status.
     };
 
@@ -61,9 +64,14 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
 
     private:
-        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
-        std::filesystem::path previousPath_;            ///< Captured process current directory.
-        std::filesystem::path expectedPath_;            ///< Directory expected to remain current until restoration.
+        // Process-state ownership
+        ScopedProcessState *processState_ = nullptr; ///< Owning process-state scope used for restoration diagnostics.
+
+        // Directories to verify and restore
+        std::filesystem::path previousPath_; ///< Captured process current directory.
+        std::filesystem::path expectedPath_; ///< Directory expected to remain current until restoration.
+
+        // Guard status
         Types::InfrastructureStatus status_;            ///< Construction status.
         Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
         bool restored_ = false;                         ///< True once restoration succeeds.

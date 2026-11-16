@@ -58,7 +58,6 @@ int main()
     static_cast<void>(reportStatus);
     return exitCode;
 }
-
 ```
 
 An expectation records one result and returns a boolean; it does not abort the

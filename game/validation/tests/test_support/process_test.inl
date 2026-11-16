@@ -77,34 +77,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectEq("Disabled capture leaves output empty", std::string(), result.outputBytes));
     }
 
-#if defined(_WIN32)
-    {
-        SECURITY_ATTRIBUTES attributes{};
-        attributes.nLength = sizeof(attributes);
-        attributes.bInheritHandle = TRUE;
-        const HANDLE unrelatedEvent = CreateEventW(&attributes, TRUE, FALSE, nullptr);
-        static_cast<void>(
-            context.expectTrue("Create inheritable sentinel handle succeeds", unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE));
-
-        if(unrelatedEvent != nullptr && unrelatedEvent != INVALID_HANDLE_VALUE)
-        {
-            TestSupport::Types::Process::Options childOptions;
-            childOptions.executablePath = std::filesystem::path(executablePath);
-            childOptions.arguments = {std::string(kHandleInheritanceChildArgument), std::to_string(reinterpret_cast<std::uintptr_t>(unrelatedEvent))};
-            childOptions.waitTimeout = normalChildTimeout;
-
-            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-            static_cast<void>(context.expectTrue(
-                "Handle inheritance probe child succeeds",
-                result.status.ok() && result.outcome == TestSupport::Types::Process::Outcome::Exited && result.exitCode == 0));
-            static_cast<void>(context.expectEq(
-                "Child does not inherit unrelated parent handles",
-                static_cast<DWORD>(WAIT_TIMEOUT),
-                WaitForSingleObject(unrelatedEvent, 0)));
-            CloseHandle(unrelatedEvent);
-        }
-    }
-#endif
+    GameWIP::Test::TestSupportPlatform::testHandleInheritance(context, executablePath, kHandleInheritanceChildArgument);
 
     {
         TestSupport::Types::Process::Options childOptions;
@@ -163,34 +136,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
         static_cast<void>(context.expectContains("Child receives working directory", result.outputBytes, expectedDirectory));
     }
 
-#if defined(_WIN32)
-    {
-        struct ExitBoundary
-        {
-            std::string_view argument;
-            std::uint32_t expected;
-        };
-        constexpr std::array boundaries{
-            ExitBoundary{"2147483647", 0x7fffffffu},
-            ExitBoundary{"-2147483648", 0x80000000u},
-            ExitBoundary{"-1", 0xffffffffu},
-        };
-
-        for(const ExitBoundary &boundary : boundaries)
-        {
-            TestSupport::Types::Process::Options childOptions;
-            childOptions.executablePath = std::filesystem::path(executablePath);
-            childOptions.arguments = {std::string(kExitCodeChildArgument), std::string(boundary.argument)};
-            childOptions.waitTimeout = normalChildTimeout;
-
-            const TestSupport::Types::Process::Result result = TestSupport::runChildProcess(childOptions);
-            static_cast<void>(context.expectTrue("Boundary child exit has successful infrastructure", result.status.ok()));
-            static_cast<void>(
-                context.expectEq("Boundary child reports exited outcome", TestSupport::Types::Process::Outcome::Exited, result.outcome));
-            static_cast<void>(context.expectEq("Boundary child exit preserves all native bits", boundary.expected, result.exitCode));
-        }
-    }
-#endif
+    GameWIP::Test::TestSupportPlatform::testExitCodeBoundaries(context, executablePath, kExitCodeChildArgument);
 
     {
         TestSupport::Types::Process::Options childOptions;

@@ -26,6 +26,7 @@ namespace GameWIP::TestSupport
         void open();
 
     private:
+        // Gate state
         std::mutex mutex_;                  ///< Protects open_ and the wait protocol.
         std::condition_variable condition_; ///< Wakes blocked waiters when the gate opens.
         bool open_ = false;                 ///< Sticky one-way open state.

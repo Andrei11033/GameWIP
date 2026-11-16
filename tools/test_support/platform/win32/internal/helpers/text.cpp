@@ -1,7 +1,7 @@
-/// @file win32_text.h
-/// @brief Shared UTF-8 and UTF-16 conversion helpers for TestSupport's Win32 backends.
+/// @file text.cpp
+/// @brief UTF-8 and UTF-16 conversion for the TestSupport Win32 backend.
 
-#pragma once
+#include "test_support/platform/win32/internal/helpers.h"
 
 #include "unicode/unicode.h"
 
@@ -11,14 +11,13 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::TestSupport::Detail::Win32
+namespace GameWIP::TestSupport::Detail::Platform::Win32
 {
-    // ------------------------------------------------------------
-    // UTF-8 to UTF-16 conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// UTF-8 to UTF-16 conversion
+    /// ------------------------------------------------------------
 
-    /// Converts validated UTF-8 input to the UTF-16 representation used by Win32 APIs.
-    [[nodiscard]] inline std::wstring utf8ToWide(std::string_view text)
+    std::wstring utf8ToWide(std::string_view text)
     {
         if(text.contains('\0'))
         {
@@ -29,6 +28,7 @@ namespace GameWIP::TestSupport::Detail::Win32
         {
             return {};
         }
+
         const auto measurement = GameWIP::Unicode::Utf8::measureToUtf16(text);
 
         if(measurement.outcome == GameWIP::Unicode::Types::MeasureOutcome::SizeLimitExceeded)
@@ -48,6 +48,7 @@ namespace GameWIP::TestSupport::Detail::Win32
         {
             throw std::runtime_error("Win32 UTF-8 conversion failed");
         }
+
         std::wstring output(conversion.codeUnitsWritten, L'\0');
 
         for(std::size_t index = 0; index < conversion.codeUnitsWritten; ++index)
@@ -58,17 +59,17 @@ namespace GameWIP::TestSupport::Detail::Win32
         return output;
     }
 
-    // ------------------------------------------------------------
-    // UTF-16 to UTF-8 conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// UTF-16 to UTF-8 conversion
+    /// ------------------------------------------------------------
 
-    /// Converts UTF-16 text returned by Win32 APIs to the library's UTF-8 representation.
-    [[nodiscard]] inline std::string wideToUtf8(std::wstring_view text)
+    std::string wideToUtf8(std::wstring_view text)
     {
         if(text.empty())
         {
             return {};
         }
+
         std::vector<char16_t> source(text.size());
 
         for(std::size_t index = 0; index < text.size(); ++index)
@@ -98,4 +99,4 @@ namespace GameWIP::TestSupport::Detail::Win32
 
         return output;
     }
-} // namespace GameWIP::TestSupport::Detail::Win32
+} // namespace GameWIP::TestSupport::Detail::Platform::Win32

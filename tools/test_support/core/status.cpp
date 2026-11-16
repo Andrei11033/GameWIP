@@ -1,4 +1,4 @@
-/// @file test_support.cpp
+/// @file status.cpp
 /// @brief Shared status formatting for the TestSupport library.
 
 #include "test_support/types.h"
@@ -9,9 +9,9 @@
 
 namespace GameWIP::TestSupport
 {
-    // ------------------------------------------------------------
-    // Infrastructure status formatting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Infrastructure status formatting
+    /// ------------------------------------------------------------
 
     std::string formatInfrastructureStatus(const Types::InfrastructureStatus &status)
     {

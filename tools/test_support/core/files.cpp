@@ -53,9 +53,9 @@ namespace GameWIP::TestSupport
         }
     } // namespace
 
-    // ------------------------------------------------------------
-    // Scoped filesystem state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Scoped filesystem state
+    /// ------------------------------------------------------------
 
     ScopedTemporaryDirectory::ScopedTemporaryDirectory(std::string_view purpose) noexcept
     {
@@ -157,11 +157,14 @@ namespace GameWIP::TestSupport
     {
         try
         {
+            // Require the process-state scope before changing the shared directory.
+
             if(!processState.status().ok())
             {
                 status_ = processState.status();
                 return;
             }
+
             std::error_code error;
             previousPath_ = std::filesystem::current_path(error);
 
@@ -171,6 +174,9 @@ namespace GameWIP::TestSupport
                 previousPath_.clear();
                 return;
             }
+
+            // Resolve the destination before changing the process current directory.
+
             const std::filesystem::path targetPath = std::filesystem::absolute(path, error);
 
             if(error)
@@ -179,6 +185,7 @@ namespace GameWIP::TestSupport
                 previousPath_.clear();
                 return;
             }
+
             expectedPath_ = targetPath;
             std::filesystem::current_path(targetPath, error);
 
@@ -220,6 +227,8 @@ namespace GameWIP::TestSupport
 
         try
         {
+            // Read the current directory before deciding whether this guard can restore it.
+
             std::error_code error;
             const std::filesystem::path currentPath = std::filesystem::current_path(error);
 
@@ -269,15 +278,16 @@ namespace GameWIP::TestSupport
         return status_;
     }
 
-    // ------------------------------------------------------------
-    // File operations
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// File operations
+    /// ------------------------------------------------------------
 
     Types::TextResult readTextFile(const std::filesystem::path &path) noexcept
     {
         Types::TextResult result;
         try
         {
+            // Measure before reading so a short read cannot silently succeed.
             errno = 0;
             std::ifstream file(path, std::ios::binary | std::ios::ate);
 
@@ -286,7 +296,9 @@ namespace GameWIP::TestSupport
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 return result;
             }
+
             const auto endPosition = file.tellg();
+
             if(endPosition < std::ifstream::pos_type{0})
             {
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
@@ -297,7 +309,9 @@ namespace GameWIP::TestSupport
             {
                 return result;
             }
+
             const auto fileSize = static_cast<std::uintmax_t>(endPosition);
+
             if(fileSize > result.text.max_size())
             {
                 result.status = failureStatus(Types::InfrastructureError::OutOfMemory);
@@ -309,6 +323,8 @@ namespace GameWIP::TestSupport
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed);
                 return result;
             }
+
+            // Read only the measured file contents.
             result.text.resize(static_cast<std::size_t>(fileSize));
             file.seekg(0, std::ios::beg);
 
@@ -318,6 +334,7 @@ namespace GameWIP::TestSupport
                 result.status = failureStatus(Types::InfrastructureError::FileOperationFailed, static_cast<std::uint64_t>(errno));
                 return result;
             }
+
             const std::size_t expectedSize = result.text.size();
             file.read(result.text.data(), static_cast<std::streamsize>(expectedSize));
             const std::size_t bytesRead = static_cast<std::size_t>(file.gcount());
@@ -325,6 +342,7 @@ namespace GameWIP::TestSupport
             const bool knownSizeShortRead = bytesRead != expectedSize;
             result.text.resize(bytesRead);
 
+            // Validate text independently of the file operation status.
             const Unicode::Types::Utf8::ValidationResult validation = Unicode::Utf8::validate(result.text);
 
             if(validation.outcome != Unicode::Types::ValidationOutcome::Valid)
@@ -338,6 +356,7 @@ namespace GameWIP::TestSupport
                 result.status = failureStatus(Types::InfrastructureError::EncodingFailed);
                 return result;
             }
+
             // An incomplete suffix is an encoding failure only at a definitive end. A real
             // backend failure remains authoritative because more bytes may have existed.
             if(validation.outcome == Unicode::Types::ValidationOutcome::Incomplete)
@@ -353,6 +372,7 @@ namespace GameWIP::TestSupport
 
                 return result;
             }
+
             // The size measured before the read is authoritative for this whole-file helper.
             // A valid but shorter read therefore reports an operational failure instead of
             // silently returning a successful prefix.
@@ -389,6 +409,7 @@ namespace GameWIP::TestSupport
     {
         try
         {
+            // Validate input before creating parent directories or truncating the destination.
             if(text.size() > static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max()))
             {
                 return failureStatus(Types::InfrastructureError::InvalidArgument);
@@ -398,6 +419,8 @@ namespace GameWIP::TestSupport
             {
                 return failureStatus(Types::InfrastructureError::EncodingFailed);
             }
+
+            // Create parent directories after the input is known to be valid.
             const std::filesystem::path parentPath = path.parent_path();
 
             if(!parentPath.empty())
@@ -410,6 +433,7 @@ namespace GameWIP::TestSupport
                 }
             }
 
+            // Write the validated UTF-8 bytes without text-mode conversion.
             errno = 0;
             std::ofstream file(path, std::ios::binary | std::ios::trunc);
 

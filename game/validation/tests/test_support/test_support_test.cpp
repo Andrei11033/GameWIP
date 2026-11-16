@@ -5,15 +5,16 @@
 /// manual prompts, temporary resources, and deterministic stress primitives.
 
 #include "validation/tests/test_support/test_support_test.h"
+#include "validation/tests/test_support/platform.h"
 
 #include "validation/executable_path.h"
+#include "validation/platform_tests.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/runner_helpers.h"
 
 #include "test_support/test_support.h"
 
 #include <algorithm>
-#include <array>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -31,13 +32,6 @@
 #include <string>
 #include <string_view>
 #include <thread>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#endif
 
 namespace
 {
@@ -61,9 +55,9 @@ namespace
     std::string g_consoleWriterCategory;
     std::string g_consoleWriterLine;
 
-    // ------------------------------------------------------------
-    // Argument and reporting helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Argument and reporting helpers
+    /// ------------------------------------------------------------
 
     bool captureConsoleWriter(std::string_view category, std::string_view line) noexcept
     {
@@ -168,9 +162,9 @@ namespace
         return TestSupport::promptManualCheck("automated prompt check");
     }
 
-    // ------------------------------------------------------------
-    // Child-process routes
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Child-process routes
+    /// ------------------------------------------------------------
 
     int runStartGateChild();
 
@@ -228,45 +222,16 @@ namespace
 
         if(hasArgument(argc, argv, kHandleInheritanceChildArgument))
         {
-#if defined(_WIN32)
             const std::string handleText = argumentAfter(argc, argv, kHandleInheritanceChildArgument);
             const auto handleValue = static_cast<std::uintptr_t>(std::stoull(handleText));
-            static_cast<void>(SetEvent(reinterpret_cast<HANDLE>(handleValue)));
-#endif
+            GameWIP::Test::TestSupportPlatform::signalChildEvent(handleValue);
             return 0;
         }
 
         if(hasArgument(argc, argv, kDescendantChildArgument))
         {
-#if defined(_WIN32)
             const std::filesystem::path executablePath = GameWIP::Validation::currentExecutablePath();
-            const std::wstring childArgument(kSleepChildArgument.begin(), kSleepChildArgument.end());
-            std::wstring commandLine = L"\"" + executablePath.native() + L"\" " + childArgument;
-            STARTUPINFOW startupInfo{};
-            startupInfo.cb = sizeof(startupInfo);
-            PROCESS_INFORMATION processInfo{};
-
-            if(CreateProcessW(
-                   executablePath.c_str(),
-                   commandLine.data(),
-                   nullptr,
-                   nullptr,
-                   TRUE,
-                   CREATE_NO_WINDOW,
-                   nullptr,
-                   nullptr,
-                   &startupInfo,
-                   &processInfo) == FALSE)
-            {
-                return 11;
-            }
-            CloseHandle(processInfo.hThread);
-            CloseHandle(processInfo.hProcess);
-            std::this_thread::sleep_for(5s);
-            return 0;
-#else
-            return 12;
-#endif
+            return GameWIP::Test::TestSupportPlatform::runDescendantChild(executablePath, kSleepChildArgument);
         }
 
         return 2;
@@ -281,9 +246,9 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runTestSupportTests(int argc, char **argv, const TestSupportTestOptions &options)
     {

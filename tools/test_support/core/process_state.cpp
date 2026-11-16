@@ -102,9 +102,9 @@ namespace GameWIP::TestSupport
         }
     }
 
-    // ------------------------------------------------------------
-    // Scoped set/restore environment variable
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Scoped set/restore environment variable
+    /// ------------------------------------------------------------
 
     ScopedEnvironmentVariable::ScopedEnvironmentVariable(ScopedProcessState &processState, std::string_view name, std::string_view value) noexcept
         : processState_(&processState)
@@ -171,9 +171,9 @@ namespace GameWIP::TestSupport
         return restorationStatus_;
     }
 
-    // ------------------------------------------------------------
-    // Scoped unset/restore environment variable
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Scoped unset/restore environment variable
+    /// ------------------------------------------------------------
 
     ScopedUnsetEnvironmentVariable::ScopedUnsetEnvironmentVariable(ScopedProcessState &processState, std::string_view name) noexcept
         : processState_(&processState)

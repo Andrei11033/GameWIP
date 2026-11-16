@@ -51,6 +51,7 @@ namespace GameWIP::TestSupport
 
         void recordRestorationFailure(Types::InfrastructureStatus status) noexcept;
 
+        // Lock and restoration state
         std::unique_lock<std::recursive_mutex> lock_;
         Types::InfrastructureStatus status_;
         Types::InfrastructureStatus restorationStatus_;
@@ -73,15 +74,22 @@ namespace GameWIP::TestSupport
         /// @brief Runtime options for one child-process execution.
         struct Options
         {
-            std::filesystem::path executablePath;                  ///< Executable path to launch.
-            std::vector<std::string> arguments;                    ///< UTF-8 command-line arguments passed after the executable.
+            // Program and arguments
+            std::filesystem::path executablePath; ///< Executable path to launch.
+            std::vector<std::string> arguments;   ///< UTF-8 command-line arguments passed after the executable.
+
+            // Child process state
             std::vector<EnvironmentOverride> environmentOverrides; ///< Child environment overrides applied in vector order.
             std::optional<std::chrono::milliseconds> waitTimeout{
                 std::chrono::milliseconds{5000}}; ///< Initial wait before forced process-tree termination; nullopt waits indefinitely.
             std::optional<std::filesystem::path> workingDirectory; ///< Child-only current directory; nullopt inherits the parent directory.
-            bool captureOutput = true;                             ///< Routes stdout/stderr to one combined capture pipe when true.
+
+            // Output capture
+            bool captureOutput = true;                                           ///< Routes stdout/stderr to one combined capture pipe when true.
             std::size_t maxCapturedOutputBytes = kDefaultMaxCapturedOutputBytes; ///< Retained capture byte limit; zero retains nothing.
-            bool inheritParentEnvironment = true;                                ///< Copies the parent environment before overrides when true.
+
+            // Parent environment inheritance
+            bool inheritParentEnvironment = true; ///< Copies the parent environment before overrides when true.
         };
 
         /// @brief Observable child-process outcome, separate from TestSupport infrastructure status.
@@ -97,17 +105,20 @@ namespace GameWIP::TestSupport
         /// @brief Result of one child-process execution.
         struct Result
         {
+            // Execution outcome
             InfrastructureStatus status;           ///< Infrastructure operation status, independent of child outcome.
             std::uint32_t exitCode = 0;            ///< Exact native exit code when outcome is Exited.
             Outcome outcome = Outcome::NotStarted; ///< Observable child-process outcome.
-            bool outputTruncated = false;          ///< True when capture drained and discarded bytes beyond the retained limit.
-            std::string outputBytes;               ///< Retained arbitrary combined stdout/stderr bytes; may contain malformed UTF-8.
+
+            // Captured output
+            bool outputTruncated = false; ///< True when capture drained and discarded bytes beyond the retained limit.
+            std::string outputBytes;      ///< Retained arbitrary combined stdout/stderr bytes; may contain malformed UTF-8.
         };
     } // namespace Types::Process
 
-    // ------------------------------------------------------------
-    // Process environment guards
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Process environment guards
+    /// ------------------------------------------------------------
 
     /// @brief Temporarily sets a process environment variable under an owned process-state scope.
     class ScopedEnvironmentVariable
@@ -129,10 +140,15 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
 
     private:
-        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
-        std::string name_;                              ///< Environment name owned by the guard.
-        std::optional<std::string> previousValue_;      ///< Captured prior value, or nullopt when absent.
-        std::optional<std::string> expectedValue_;      ///< Value expected to remain until restoration.
+        // Process-state ownership
+        ScopedProcessState *processState_ = nullptr; ///< Owning process-state scope used for restoration diagnostics.
+
+        // Guarded values
+        std::string name_;                         ///< Environment name owned by the guard.
+        std::optional<std::string> previousValue_; ///< Captured prior value, or nullopt when absent.
+        std::optional<std::string> expectedValue_; ///< Value expected to remain until restoration.
+
+        // Guard status
         Types::InfrastructureStatus status_;            ///< Construction status.
         Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
         bool restored_ = false;                         ///< True once restoration succeeds.
@@ -159,18 +175,23 @@ namespace GameWIP::TestSupport
         [[nodiscard]] Types::InfrastructureStatus restore() noexcept;
 
     private:
-        ScopedProcessState *processState_ = nullptr;    ///< Owning process-state scope used for restoration diagnostics.
-        std::string name_;                              ///< Environment name owned by the guard.
-        std::optional<std::string> previousValue_;      ///< Captured prior value, or nullopt when absent.
-        std::optional<std::string> expectedValue_;      ///< Value expected to remain until restoration.
+        // Process-state ownership
+        ScopedProcessState *processState_ = nullptr; ///< Owning process-state scope used for restoration diagnostics.
+
+        // Guarded values
+        std::string name_;                         ///< Environment name owned by the guard.
+        std::optional<std::string> previousValue_; ///< Captured prior value, or nullopt when absent.
+        std::optional<std::string> expectedValue_; ///< Value expected to remain until restoration.
+
+        // Guard status
         Types::InfrastructureStatus status_;            ///< Construction status.
         Types::InfrastructureStatus restorationStatus_; ///< Most recent restoration status.
         bool restored_ = false;                         ///< True once restoration succeeds.
     };
 
-    // ------------------------------------------------------------
-    // Child process execution
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Child process execution
+    /// ------------------------------------------------------------
 
     /// @brief Launches one process directly without a shell and waits for its process tree to finish or be terminated.
     /// @param options Launch path, UTF-8 arguments/environment, initial wait, child directory, and byte-capture settings.

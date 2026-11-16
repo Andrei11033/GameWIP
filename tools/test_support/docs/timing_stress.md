@@ -55,7 +55,11 @@ int main()
     std::atomic_size_t visits{0};
     GameWIP::TestSupport::StartGate gate;
 
-    std::thread coordinator([&gate] { gate.open(); });
+    std::thread coordinator(
+        [&gate]
+        {
+            gate.open();
+        });
     GameWIP::TestSupport::runWorkers(
         4,
         [&](std::size_t)
@@ -67,7 +71,6 @@ int main()
 
     return visits.load(std::memory_order_relaxed) == 4 ? 0 : 1;
 }
-
 ```
 
 ## Related pages
