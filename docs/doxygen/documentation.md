@@ -401,21 +401,22 @@ follow @ref project_structure.
   file's role determine its order; interfaces and implementations do not need
   to mirror one another.
 - Group declarations, state, configuration fields, and assignments by
-  responsibility. Label each group with a concise native comment, usually a
-  line comment. Leave one blank line between groups and none between a label
-  and its first member.
-  The first group may follow its opening delimiter directly. Order groups by
-  meaning; use alphabetical order when it helps scan a lookup set. Keep
-  platform-gated declarations adjacent to their guard directives, without
-  blank lines inside a short guard block. Use a single comment for groups
-  inside declarations or functions; reserve three-line separators for
-  file-level sections.
+  responsibility and order them by meaning; use alphabetical order when it
+  helps scan a lookup set. Keep platform-gated declarations adjacent to their
+  guard directives, without blank lines inside a short guard block. Field and
+  assignment group spacing is detailed below.
+- Use three-line separators for major file and namespace sections, and for
+  public class sections without a Doxygen member group. In C++, use `///` at
+  namespace scope and the repo's `//` form at file and class scope. When a
+  public API already uses `@name` groups, do not repeat the same title in a
+  separator. Use short labels for struct fields and function phases.
 - In non-trivial functions, mark each logical phase with a concise native
-  comment and separate phases with one blank line. The first phase may follow
-  the block opener directly. Separate independent conditions and assignment
-  groups with one blank line; keep each condition with its handling and keep
-  multi-branch chains together. Do not use file-level section separators
-  inside function bodies.
+  comment directly above its work and separate phases with one blank line.
+  The first phase may follow the block opener directly. Use comments for
+  meaningful steps and substeps, not to narrate syntax. Separate independent
+  conditions and assignment groups with one blank line; keep each condition
+  with its handling and keep multi-branch chains together. Do not use
+  separator banners inside function bodies.
 - Put API contracts on declarations or in their owning docs. Implementation
   comments add local context instead of repeating those contracts.
 
@@ -448,15 +449,51 @@ major groups. Use the language's ordinary comment syntax and exactly 60
 hyphens on each divider line; for example:
 
 ```cpp
+#include <cstddef>
+
 // ------------------------------------------------------------
-// Lifecycle
+// File section
 // ------------------------------------------------------------
+
+void initialize() noexcept;
+```
+
+At C++ namespace scope, use `///` on all three lines:
+
+```cpp
+namespace GameWIP::Desktop::Events
+{
+    /// ------------------------------------------------------------
+    /// Window lifecycle events
+    /// ------------------------------------------------------------
+
+    void pump() noexcept;
+}
+```
+
+Use concise native line comments for struct field and local assignment groups.
+Place the first member or statement directly below its label and leave one
+blank line between groups. The first group may follow its opening delimiter
+directly.
+
+Example struct field groups:
+
+```cpp
+struct State
+{
+    // Identity
+    DeviceId id{};
+
+    // Capture state
+    bool connected = false;
+};
 ```
 
 ```powershell
 # ------------------------------------------------------------
 # Dependency cache
 # ------------------------------------------------------------
+
 ```
 
 Use a concise noun phrase. Match group names to the file's role: interfaces
@@ -479,14 +516,11 @@ Small or single-purpose files, individual symbols or namespaces, and generated,
 vendored, or comment-free structured content do not need separators. Separators
 organize source; they do not replace symbol or helper documentation.
 
-When a public API family also needs a group in the generated reference, pair the
-separator with a Doxygen member group:
+Use Doxygen member groups to organize public APIs in the generated reference.
+Do not repeat the same title in a separator; use a separator only for a broader
+source section outside the member group:
 
 ```cpp
-// ------------------------------------------------------------
-// Lifecycle
-// ------------------------------------------------------------
-
 /// @name Lifecycle
 /// @{
 
@@ -540,19 +574,16 @@ if ($warningLog.Length -ne 0) {
     Get-Content $warningLog
     throw "Doxygen emitted unexpected warnings."
 }
-
 ```
 
 The generated Doxyfile must keep explicit inputs, write HTML output under the
 build tree, and write warnings to
 `build/docs/docs/doxygen/doxygen_warnings.log`. Local and CI validation treat a
-warning log containing unexpected warnings as a failure. A successful Doxygen
-process exit alone is not enough.
-
-The documentation build rejects unexpected Doxygen warnings. Undocumented
-passive enum values and explicitly approved equality and bitmask operators are
-exceptions to the documentation-warning policy. Non-obvious enum-value
-documentation is review-enforced rather than Doxygen-enforced.
+warning log containing unexpected warnings as a failure; a successful Doxygen
+process exit alone is not enough. Undocumented passive enum values and
+explicitly approved equality and bitmask operators are exceptions to the
+documentation-warning policy. Non-obvious enum-value documentation is
+review-enforced rather than Doxygen-enforced.
 Doxygen checks other undocumented declarations and incomplete tagged parameter
 or return documentation. A concise summary may fully document an obvious
 accessor, but a non-trivial operation still needs its local contract in the

@@ -151,6 +151,7 @@ game/validation/tests/<module>/
   <module>_test.cpp
   <behavior>_test.inl           # optional TU-local focused case fragment
   <behavior>_test.cpp           # optional focused translation unit when justified
+  platform/<platform>/          # optional platform-specific cases
 ```
 
 - `<module>_test.h` defines the source-tree options and entry point.
@@ -161,6 +162,10 @@ game/validation/tests/<module>/
   small suites mechanically.
 - `module.cpp` maps shared runner policy and creates one static registration.
 - `CMakeLists.txt` explicitly lists compiled sources and linked libraries; private included fragments do not become separate validation modules.
+- Keep platform-specific cases in the module's `platform/<platform>/` directory.
+  Select the backend in `platform/CMakeLists.txt` and register its sources in
+  `platform/<platform>/CMakeLists.txt`. Shared platform test helpers belong
+  under `game/validation/tests/platform/<platform>/`.
 
 Splitting case files does not create new validation modules, executables, report contracts, or registration names. Promote a fixture to TestSupport
 only when it is genuinely reusable across modules rather than merely shared by files inside one module.

@@ -4,10 +4,10 @@ GameWIP reusable libraries keep platform-specific behavior behind internal
 backend contracts; the public API stays portable unless the platform concept is
 itself part of the public contract.
 
-FileSystem, Terminal, Logger, Assert, TestSupport, Desktop, and future platform-dependent components
-use the same backend shape. This page covers layout, platform selection, native
-error translation, cleanup, and test seams so each library has a consistent
-boundary.
+FileSystem, Terminal, Logger, Assert, TestSupport, Input, Desktop, and future
+platform-dependent components use the same backend shape. This page covers
+layout, platform selection, error translation, cleanup, and test seams so each
+library has a consistent boundary.
 
 ## Scope
 
@@ -16,26 +16,27 @@ runtime policy, or public library APIs.
 
 ## Core rules
 
-Native APIs must stay out of installed public headers. Platform-specific sources
-must live under the owning library's `platform/<platform-id>/` directory, and
-`platform.cmake` must own backend-local source lists, system libraries, resources,
-and compile definitions. Portable core code must call the internal backend
-contract instead of operating-system APIs directly. Native failures must be
-translated into the owning library's status or result model. Validation hooks
-must remain source-tree-only and disabled in consumer builds. An unrelated
+Native APIs should stay out of installed public headers. An intentional native
+interop header may expose them when the public contract documents that boundary.
+Platform-specific sources must live under the owning library's
+`platform/<platform-id>/` directory. Portable core code must call the internal
+backend contract instead of operating-system APIs directly. Native failures
+must be translated into the owning library's status or result model. Validation
+hooks must remain source-tree-only and disabled in consumer builds. An unrelated
 library must not gain a platform branch just to avoid defining its own backend
 contract.
 
-Platform-specific features must report `Unsupported` for unavailable platforms instead of providing stub implementations;
-see @ref project_public_api_contract for the `Unsupported` capability pattern and rationale.
+Capability fallback follows @ref project_public_api_contract. Do not add empty
+placeholder backends; a missing selected backend is a configuration error.
 
 ## Platform selection
 
 Repository platform mapping is centralized in `cmake/GameWIPPlatform.cmake`:
 Windows maps to `win32`, Linux to `linux`, and Darwin to `macos`. Every
 platform-aware target calls
-`gamewip_target_platform_backend(TARGET <target> ROOT <platform-root>)`.
-Configuration fails when the selected backend file is absent. An externally
+`gamewip_add_platform_backend(TARGET <target> ROOT <platform-root>)` from
+`platform/CMakeLists.txt`. Configuration fails when the selected backend
+directory or its `CMakeLists.txt` is absent. An externally
 provided `GAMEWIP_PLATFORM_ID` must be a lowercase backend identifier made from
 letters, digits, and single hyphens; the validator remains extensible and does
 not claim that a valid identifier is implemented by every library.
@@ -48,17 +49,16 @@ Platform IDs must be stable, lowercase, and suitable for directory names.
 A backend must use this structure:
 
 ```text
-<library>/platform/<platform-id>/
-  platform.cmake
-  <platform-id>_<feature>.cpp
+<library>/platform/
+  CMakeLists.txt
+  <platform-id>/
+    CMakeLists.txt
+    <platform-id>_<feature>.cpp
 ```
 
-Single-file backends may use the library name as the feature. Split backends must use names that describe the native area they implement.
-
-`platform.cmake` must be the only place that adds backend-local files, libraries,
-resources, private include paths, options, requirements, or compile definitions
-to the target. An implementation for an existing OS family therefore needs only
-the backend directory, its `platform.cmake`, and its implementation files.
+Source registration follows @ref project_cmake_infrastructure. Single-file
+backends may use the library name as the feature. Split backends use names that
+describe the native area they implement.
 
 ## Public API boundary
 
@@ -104,8 +104,7 @@ TestSupport backends return `InfrastructureStatus`, including a stable error
 category and optional native diagnostic code. Child-process backends must keep
 infrastructure failure separate from process outcome and exact exit code. An
 approved deterministic hook may exercise the public `Unsupported` category, but
-it does not substitute for a real platform backend. A missing backend for the
-selected project platform remains a configuration error.
+it does not substitute for a real platform backend.
 
 ## Concurrency and process state
 
@@ -140,7 +139,7 @@ A library with approved hooks must document them in `docs/test_hooks.md`.
 
 When adding a backend:
 
-- Add the backend directory and `platform.cmake`.
+- Add the backend directory and its `CMakeLists.txt`.
 - Implement the existing internal platform contract.
 - Keep the public API unchanged unless the platform concept is deliberately
   public.
@@ -166,9 +165,10 @@ Temporary backend limitations may be documented in troubleshooting or testing pa
 
 Backend review checks that:
 
-- Native includes and handles stay out of installed public headers.
+- Native includes and handles stay out of portable installed headers; documented
+  native connectors may expose the required interop types.
 - Portable core code uses the internal contract.
-- Backend sources are registered only through the backend's `platform.cmake`.
+- Backend sources are registered only through the backend's `CMakeLists.txt`.
 - Native failures are translated into the portable result/status model.
 - Process-global state is restored or isolated after each operation.
 - Test-hook state is reset between tests.

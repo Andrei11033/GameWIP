@@ -84,18 +84,11 @@ successfully enforced, user choice, fallback, adjustment, or truncation remain d
 
 ## Unsupported capabilities
 
-Platform-specific features that are unavailable on the current platform must return `Unsupported` rather than throwing exceptions, providing stub implementations,
-or accepting the request without performing it. This pattern allows callers to detect missing capabilities at runtime and adapt gracefully without requiring
-platform-specific conditional compilation in application code.
-
-Return `Unsupported` when:
-
-- A feature requires native platform support that is absent (e.g., Input attachment on Linux/macOS)
-- A Windows-only capability is requested on another platform
-- A newer OS version requirement is not met (e.g., backdrop effect on Windows 10)
-- Future extensibility requires a capability placeholder
-
-Example: `Input::Platform::Win32::Attachment` is available only on Windows; other platforms return `Unsupported` from `attach()`.
+Return `Unsupported` when an implemented backend cannot provide a requested
+capability, including one that requires a newer OS version. If the selected
+platform has no backend implementation, configuration fails; do not add an
+empty placeholder backend. This lets callers handle native capability limits
+without platform-specific conditional compilation.
 
 Do not use `Unsupported` for:
 

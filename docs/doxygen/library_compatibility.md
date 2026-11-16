@@ -11,7 +11,7 @@ shared-library symbol policy.
 
 Individual APIs stay in their library manuals and generated reference pages.
 
-IO, FileSystem, Terminal, TestSupport, and Logger install focused public
+IO, FileSystem, Terminal, Input, TestSupport, and Logger install focused public
 headers alongside umbrella headers. The declarations have the same API, ABI,
 and runtime semantics regardless of include style.
 
@@ -23,6 +23,7 @@ and runtime semantics regardless of include style.
 | `IO` | `GameWIP::IO` | Static |
 | `FileSystem` | `GameWIP::FileSystem` | Static |
 | `Terminal` | `GameWIP::Terminal` | Shared |
+| `Input` | `GameWIP::Input` | Shared |
 | `Desktop` | `GameWIP::Desktop` | Shared |
 | `Logger` | `GameWIP::Logger` | Shared |
 | `Assert` | `GameWIP::Assert` | Shared when its runtime is enabled; otherwise interface-only |
@@ -123,6 +124,10 @@ package automatically, so a consumer that requests only TestSupport receives a
 complete link interface. TestSupport public headers do not expose Unicode types,
 and source-tree CMake checks prohibit higher-level or unrelated GameWIP
 dependencies.
+
+Input exposes IO status types in its public API and uses Unicode for UTF-8
+validation and Win32 text conversion. Its installed package config resolves
+exact matching IO and Unicode packages.
 
 ## Shared-library export policy
 

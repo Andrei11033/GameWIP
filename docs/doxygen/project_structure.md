@@ -53,8 +53,8 @@ IO + FileSystem
 IO + Unicode
   -> Input
 
-Input::Platform::Win32::Attachment (optional Windows integration)
-  -> Desktop::Native::Win32 (message sink routing)
+Desktop::Native::Win32 (message sink routing)
+  -> Input::Platform::Win32::attachToWindow (optional Desktop connector)
 
 IO + FileSystem + Terminal
   -> Logger
@@ -73,9 +73,10 @@ An arrow points from a dependency to the library that consumes it. Lower-level
 libraries must not depend on the game executable, runtime facade, validation
 runner, or benchmark runner.
 
-Input offers portable device capture with an optional Windows attachment. Desktop integration is
-available on Windows only through `Input::Platform::Win32::attachToWindow()`; Input remains independent
-on other platforms and in contexts where Desktop is not used.
+Input offers portable device capture and an optional Windows attachment. The
+Input library target has no Desktop dependency; its optional
+`Input::Platform::Win32::attachToWindow()` connector uses Desktop's native
+message sink.
 
 Unicode has no dependency on another reusable GameWIP library. It owns
 platform-neutral scalar, encoding, conversion, and grapheme algorithms without
@@ -139,9 +140,22 @@ to mirror one another.
 - `.cpp` files organize implementation responsibility. Split a translation unit
   when a coherent subsystem can be owned, maintained, and built independently
   without creating a broad private API just to move lines around.
-- Internal headers own private contracts when multiple implementation files
-  genuinely share them or when a private subsystem becomes materially clearer.
-  Do not create one solely to make source files smaller.
+- Shared private contracts belong in `internal/` headers. Put helpers shared by
+  multiple translation units in `internal/helpers/`; keep file-local helpers
+  with their owning core or platform implementation. Add a private header for
+  a shared contract or clear private subsystem, not only to shorten a source
+  file. Avoid catch-all helper files.
+- Name implementation files for their responsibility. Omit a repeated library
+  prefix when the parent directory already identifies the library.
+- Keep platform-specific implementation under `platform/<platform>/`; shared
+  portable code belongs in the library's core or internal area.
+- Give each CMake-managed source folder its own `CMakeLists.txt`. The
+  library-level file owns the target and package setup; `core/` and `internal/`
+  register their files, while `platform/CMakeLists.txt` selects the backend and
+  `platform/<platform>/CMakeLists.txt` registers its implementation.
+- Use `.inl` only for focused test fragments under `game/validation/`.
+  Implementations belong in `.cpp` files. The retained Action reference has
+  existing implementation `.inl` files pending its separate pass.
 - Correctness-test sources organize behavioral domains inside one logical
   module. A module may use focused private case fragments or several focused
   case translation units while retaining one registration, options interface,
@@ -174,6 +188,9 @@ These are not consumer API:
 - Private `Detail` implementation helpers.
 - Backend-native handles and platform-specific types.
 - Source-tree-only CMake helpers.
+
+An intentional native interoperability header may expose the handles and types
+required by its documented connector API.
 
 Public manuals must not require readers to understand `Detail` namespaces.
 Maintainer documentation may mention them when explaining implementation
@@ -209,7 +226,13 @@ Correctness tests live under:
 
 ```text
 game/validation/tests/<module>/
+game/validation/tests/<module>/platform/<platform>/
 ```
+
+Keep platform-specific test sources with their owning module. Each module's
+`platform/CMakeLists.txt` selects its backend and
+`platform/<platform>/CMakeLists.txt` registers its sources. Shared validation
+helpers belong under `game/validation/tests/platform/<platform>/`.
 
 Benchmarks live under:
 

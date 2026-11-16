@@ -36,10 +36,15 @@ Use this default structure:
   CMakeLists.txt
   <name>.h
   core/
+    CMakeLists.txt
   internal/
+    CMakeLists.txt
+    helpers/
+      CMakeLists.txt
   platform/
+    CMakeLists.txt
     <platform-id>/
-      platform.cmake
+      CMakeLists.txt
       <platform-id>_<feature>.cpp
   docs/
     <name>.md
@@ -130,6 +135,8 @@ Create modules under:
 ```text
 game/validation/tests/<module>/
 ```
+
+See @ref project_testing for test source and CMake layout.
 
 A module must have:
 
@@ -222,10 +229,10 @@ A backend integrates through these boundaries:
 
 - The backend implements the owning internal platform contract without changing
   the portable public API.
-- `platform.cmake` owns backend-local sources, resources, libraries, and compile
-  definitions.
+- CMake source registration follows @ref project_cmake_infrastructure.
 - Native failures translate into the owning library's status or result model.
-- Installed public headers contain no native handles or platform-specific types.
+- Portable installed headers contain no native handles or platform-specific
+  types. An intentional native connector documents its platform boundary.
 - Tests or approved hooks cover behavior that public API tests cannot validate
   directly.
 - The owning library's testing and troubleshooting pages describe supported
