@@ -19,9 +19,11 @@ function(gamewip_install_package)
     if(gamewip_package_UNPARSED_ARGUMENTS OR NOT gamewip_package_TARGET OR NOT gamewip_package_CONFIG_TEMPLATE)
         message(FATAL_ERROR "gamewip_install_package requires TARGET and CONFIG_TEMPLATE; optional arguments are PATH_VARS.")
     endif()
+
     if(NOT TARGET "${gamewip_package_TARGET}")
         message(FATAL_ERROR "gamewip_install_package target does not exist: ${gamewip_package_TARGET}")
     endif()
+
     if(NOT EXISTS "${gamewip_package_CONFIG_TEMPLATE}")
         message(FATAL_ERROR "gamewip_install_package config template does not exist: ${gamewip_package_CONFIG_TEMPLATE}")
     endif()

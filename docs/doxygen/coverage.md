@@ -36,8 +36,9 @@ The coverage workflow requires standalone tests.
 ## Build controls
 
 `GAMEWIP_ENABLE_COVERAGE=ON` adds GCC or Clang coverage instrumentation and
-creates the `coverage` target. The `coverage` preset enables this option and
-disables the game executable.
+creates the `coverage` target. Only GameWIP targets receive instrumentation;
+external dependencies are configured first. The `coverage` preset enables
+this option and disables the game executable.
 
 The project rejects `GAMEWIP_ENABLE_COVERAGE=ON` when `GAMEWIP_BUILD_TESTS=OFF`.
 

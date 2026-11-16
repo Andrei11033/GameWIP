@@ -116,7 +116,14 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
 endforeach()
 
 # Prepare the pinned GameInput package archive.
-gamewip_get_archive_dependency(gameinput _gameinput_url _gameinput_sha512 _gameinput_cache_directory _gameinput_archive_file _gameinput_validation_file)
+gamewip_get_archive_dependency(
+    gameinput
+    _gameinput_url
+    _gameinput_sha512
+    _gameinput_cache_directory
+    _gameinput_archive_file
+    _gameinput_validation_file
+)
 gamewip_prepare_archive_dependency(gameinput _gameinput_source_directory)
 
 # Publish cache metadata for the prepared dependencies.

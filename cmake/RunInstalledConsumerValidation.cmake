@@ -1,5 +1,9 @@
 # Installs GameWIP and validates clean consumers across supported package boundaries.
 
+# ------------------------------------------------------------
+# Validate inputs and install the package
+# ------------------------------------------------------------
+
 foreach(
     required_variable
     IN
@@ -54,6 +58,10 @@ execute_process(
 if(NOT manifest_result EQUAL 0)
     message(FATAL_ERROR "Installed application manifest validation failed.\n${manifest_output}\n${manifest_error}")
 endif()
+
+# ------------------------------------------------------------
+# Verify the installed header set
+# ------------------------------------------------------------
 
 set(expected_gamewip_headers
     debug/assert/assert.h
@@ -154,6 +162,10 @@ if(unexpected_headers OR missing_headers)
     )
 endif()
 
+# ------------------------------------------------------------
+# Configure and run installed consumers
+# ------------------------------------------------------------
+
 cmake_path(GET CXX_COMPILER PARENT_PATH compiler_runtime_directory)
 set(runtime_path "${INSTALL_PREFIX}/bin;${compiler_runtime_directory};$ENV{PATH}")
 
@@ -172,6 +184,7 @@ function(
         list(APPEND package_prefix_path "${prefix}" "${prefix}/${INSTALL_LIBDIR}/cmake")
     endforeach()
 
+    # Configure the consumer with the requested package roots and build options.
     string(REPLACE ";" "\\;" escaped_prefix_path "${package_prefix_path}")
 
     set(configure_command
@@ -193,6 +206,7 @@ function(
     if(NOT MULTI_CONFIG)
         list(APPEND configure_command "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}")
     endif()
+
     if(package_name)
         list(APPEND configure_command "-DGAMEWIP_CONSUMER_PACKAGE=${package_name}")
     endif()
@@ -202,6 +216,7 @@ function(
         message(FATAL_ERROR "Installed ${package_name} consumer configuration failed.\n" "${configure_output}\n${configure_error}")
     endif()
 
+    # Build and run the installed consumer.
     execute_process(
         COMMAND "${CMAKE_COMMAND}" --build "${build_dir}" --config "${BUILD_TYPE}" --parallel 2
         RESULT_VARIABLE build_result

@@ -1,14 +1,10 @@
-# Configures first-party coverage instrumentation and the gcovr report target.
-# Coverage stays disabled unless GAMEWIP_ENABLE_COVERAGE is enabled. Unsupported
-# compilers produce a warning instead of a misleading report.
+# Provides first-party coverage instrumentation and the gcovr report target.
+# Call gamewip_enable_coverage() after external targets and before GameWIP targets.
 
+set(GAMEWIP_COVERAGE_COMPILER_SUPPORTED OFF)
 if(GAMEWIP_ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        add_compile_options(--coverage -O0 -g)
-        add_link_options(--coverage)
-        if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-            add_compile_options(-fprofile-update=atomic)
-        endif()
+        set(GAMEWIP_COVERAGE_COMPILER_SUPPORTED ON)
     else()
         message(WARNING "GAMEWIP_ENABLE_COVERAGE is configured only for GCC and Clang toolchains.")
     endif()
@@ -16,6 +12,19 @@ if(GAMEWIP_ENABLE_COVERAGE)
     set(GAMEWIP_COVERAGE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/coverage")
     find_program(GAMEWIP_GCOVR_EXECUTABLE gcovr)
 endif()
+
+function(gamewip_enable_coverage)
+    if(NOT GAMEWIP_COVERAGE_COMPILER_SUPPORTED)
+        return()
+    endif()
+
+    add_compile_options(--coverage -O0 -g)
+    add_link_options(--coverage)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(-fprofile-update=atomic)
+    endif()
+endfunction()
 
 function(gamewip_create_coverage_target)
     if(NOT GAMEWIP_ENABLE_COVERAGE)

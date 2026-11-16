@@ -6,6 +6,10 @@ include("${CMAKE_CURRENT_LIST_DIR}/GameWIPVersion.cmake")
 
 find_package(Git REQUIRED)
 
+# ------------------------------------------------------------
+# Check version string composition
+# ------------------------------------------------------------
+
 function(expect_version expected)
     gamewip_compose_display_version(actual ${ARGN})
     if(NOT actual STREQUAL expected)
@@ -60,6 +64,11 @@ function(expect_value label actual expected)
 endfunction()
 
 set(test_repository "${CMAKE_CURRENT_BINARY_DIR}/gamewip-version-test-repository")
+
+# ------------------------------------------------------------
+# Prepare a temporary Git repository
+# ------------------------------------------------------------
+
 file(REMOVE_RECURSE "${test_repository}")
 file(MAKE_DIRECTORY "${test_repository}")
 
@@ -75,6 +84,10 @@ function(run_test_git)
         message(FATAL_ERROR "Test Git command failed: ${ARGN}\n" "stdout:\n${git_output}\n" "stderr:\n${git_error}")
     endif()
 endfunction()
+
+# ------------------------------------------------------------
+# Check clean, dirty, and tagged repository states
+# ------------------------------------------------------------
 
 run_test_git(init --quiet)
 run_test_git(config user.name "GameWIP Version Test")

@@ -19,6 +19,10 @@ if(NOT EXISTS "${compiler_runtime}")
     message(FATAL_ERROR "GNU compiler runtime does not exist: ${compiler_runtime}")
 endif()
 
+# ------------------------------------------------------------
+# Prepare a clean staging directory
+# ------------------------------------------------------------
+
 file(REMOVE_RECURSE "${VALIDATION_ROOT}")
 file(MAKE_DIRECTORY "${VALIDATION_ROOT}")
 
@@ -40,6 +44,10 @@ endforeach()
 # ignores this app-local copy and stages the compiler's current runtime instead.
 set(staged_runtime "${VALIDATION_ROOT}/libstdc++-6.dll")
 file(WRITE "${staged_runtime}" "intentionally stale compiler runtime")
+
+# ------------------------------------------------------------
+# Run the dependency resolver and verify the staged runtime
+# ------------------------------------------------------------
 
 set(copy_command
     "${CMAKE_COMMAND}"

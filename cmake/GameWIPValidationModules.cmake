@@ -17,6 +17,12 @@ function(gamewip_add_validation_module_directories root_directory)
     foreach(gamewip_module_cmake_file IN LISTS gamewip_module_cmake_files)
         get_filename_component(gamewip_module_directory "${gamewip_module_cmake_file}" DIRECTORY)
         get_filename_component(gamewip_module_name "${gamewip_module_directory}" NAME)
+
+        # Shared support folders do not define validation modules.
+        if(gamewip_module_name STREQUAL "internal" OR gamewip_module_name STREQUAL "platform")
+            continue()
+        endif()
+
         add_subdirectory("${gamewip_module_directory}" "${gamewip_module_name}")
     endforeach()
 endfunction()

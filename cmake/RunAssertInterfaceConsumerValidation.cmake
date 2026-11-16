@@ -25,6 +25,10 @@ set(install_prefix "${WORK_DIR}/prefix")
 set(consumer_build_dir "${WORK_DIR}/consumer")
 file(REMOVE_RECURSE "${WORK_DIR}")
 
+# ------------------------------------------------------------
+# Configure, build, and install the project
+# ------------------------------------------------------------
+
 set(configure_command
     "${CMAKE_COMMAND}"
     -S
@@ -70,6 +74,10 @@ execute_process(
 if(NOT prefix_install_result EQUAL 0)
     message(FATAL_ERROR "Interface-only Assert prefix installation failed.\n" "${prefix_install_output}\n${prefix_install_error}")
 endif()
+
+# ------------------------------------------------------------
+# Build and run an isolated package consumer
+# ------------------------------------------------------------
 
 set(consumer_configure_command
     "${CMAKE_COMMAND}"

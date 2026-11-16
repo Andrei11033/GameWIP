@@ -51,11 +51,15 @@ write_basic_package_version_file("${GAMEWIP_APPLICATION_PACKAGE_VERSION}" VERSIO
 install(
     FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPApplication.cmake"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/application_manifest.manifest.in"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/application_manifest.rc.in"
         "${GAMEWIP_APPLICATION_PACKAGE_CONFIG}"
         "${GAMEWIP_APPLICATION_PACKAGE_VERSION}"
     DESTINATION "${GAMEWIP_APPLICATION_PACKAGE_DIR}"
+)
+install(
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform/win32/application_manifest.manifest.in"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/platform/win32/application_manifest.rc.in"
+    DESTINATION "${GAMEWIP_APPLICATION_PACKAGE_DIR}/platform/win32"
 )
 
 gamewip_configure_version()
@@ -108,6 +112,7 @@ endif()
 
 add_subdirectory(external)
 
+gamewip_enable_coverage()
 gamewip_enable_project_warnings()
 
 add_subdirectory(foundation)

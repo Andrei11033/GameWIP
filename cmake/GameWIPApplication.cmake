@@ -13,14 +13,16 @@ include_guard(GLOBAL)
 # TARGET must be a local executable, not an imported target or alias. Invalid
 # arguments or missing language setup stop configuration with a fatal error.
 # Generated files stay in the target's binary directory; source and installed
-# consumers use the templates beside this module without caller-scope variables.
+# consumers use the Win32 templates without caller-scope variables.
 
 function(gamewip_attach_application_manifest)
     cmake_parse_arguments(PARSE_ARGV 0 gamewip_manifest "COMMON_CONTROLS_V6;PER_MONITOR_V2" "TARGET" "")
 
+    # Validate the target and requested requirements.
     if(gamewip_manifest_UNPARSED_ARGUMENTS OR NOT gamewip_manifest_TARGET)
         message(FATAL_ERROR "gamewip_attach_application_manifest requires TARGET <executable> and one or more manifest requirements.")
     endif()
+
     if(NOT TARGET "${gamewip_manifest_TARGET}")
         message(FATAL_ERROR "Application manifest target does not exist: ${gamewip_manifest_TARGET}")
     endif()
@@ -31,6 +33,7 @@ function(gamewip_attach_application_manifest)
     if(NOT gamewip_manifest_type STREQUAL "EXECUTABLE" OR gamewip_manifest_imported OR gamewip_manifest_alias)
         message(FATAL_ERROR "Application manifest target must be a local executable, not an alias: ${gamewip_manifest_TARGET}")
     endif()
+
     if(NOT gamewip_manifest_COMMON_CONTROLS_V6 AND NOT gamewip_manifest_PER_MONITOR_V2)
         message(FATAL_ERROR "gamewip_attach_application_manifest requires COMMON_CONTROLS_V6 or PER_MONITOR_V2.")
     endif()
@@ -40,6 +43,7 @@ function(gamewip_attach_application_manifest)
     if(gamewip_manifest_COMMON_CONTROLS_V6)
         list(APPEND gamewip_manifest_existing COMMON_CONTROLS_V6)
     endif()
+
     if(gamewip_manifest_PER_MONITOR_V2)
         list(APPEND gamewip_manifest_existing PER_MONITOR_V2)
     endif()
@@ -57,6 +61,7 @@ function(gamewip_attach_application_manifest)
         message(FATAL_ERROR "Enable RC with enable_language(RC) at the application's top-level directory before attaching a manifest.")
     endif()
 
+    # Build the combined manifest content.
     set(GAMEWIP_APPLICATION_COMMON_CONTROLS_V6 "")
     set(GAMEWIP_APPLICATION_PER_MONITOR_V2 "")
     if("COMMON_CONTROLS_V6" IN_LIST gamewip_manifest_existing)
@@ -71,6 +76,7 @@ function(gamewip_attach_application_manifest)
   </dependency>]=]
         )
     endif()
+
     if("PER_MONITOR_V2" IN_LIST gamewip_manifest_existing)
         set(GAMEWIP_APPLICATION_PER_MONITOR_V2
             [=[
@@ -83,16 +89,17 @@ function(gamewip_attach_application_manifest)
         )
     endif()
 
-    # Target names are already valid path components. Preserve punctuation so
-    # distinct names such as app-one and app_one never overwrite each other.
+    # Keep generated paths distinct. Preserve punctuation in valid target names
+    # so names such as app-one and app_one never overwrite each other.
     get_target_property(gamewip_manifest_binary_dir "${gamewip_manifest_TARGET}" BINARY_DIR)
     set(gamewip_manifest_dir "${gamewip_manifest_binary_dir}/gamewip_application_manifests/${gamewip_manifest_TARGET}")
     set(gamewip_manifest_path "${gamewip_manifest_dir}/application.manifest")
     set(gamewip_manifest_rc "${gamewip_manifest_dir}/application.rc")
     set(GAMEWIP_APPLICATION_MANIFEST "${gamewip_manifest_path}")
     file(MAKE_DIRECTORY "${gamewip_manifest_dir}")
-    configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/application_manifest.manifest.in" "${gamewip_manifest_path}" @ONLY)
-    configure_file("${CMAKE_CURRENT_FUNCTION_LIST_DIR}/application_manifest.rc.in" "${gamewip_manifest_rc}" @ONLY)
+    set(gamewip_manifest_template_dir "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/platform/win32")
+    configure_file("${gamewip_manifest_template_dir}/application_manifest.manifest.in" "${gamewip_manifest_path}" @ONLY)
+    configure_file("${gamewip_manifest_template_dir}/application_manifest.rc.in" "${gamewip_manifest_rc}" @ONLY)
 
     get_property(gamewip_manifest_attached TARGET "${gamewip_manifest_TARGET}" PROPERTY GAMEWIP_APPLICATION_MANIFEST_ATTACHED)
     if(NOT gamewip_manifest_attached)

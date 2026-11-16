@@ -11,6 +11,10 @@
 
 get_filename_component(GAMEWIP_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 
+# ------------------------------------------------------------
+# Dependency cache setup
+# ------------------------------------------------------------
+
 set(GAMEWIP_DEPENDENCY_LOCK_FILE "${GAMEWIP_SOURCE_ROOT}/scripts/config/dependencies.json" CACHE FILEPATH "GameWIP dependency lock file")
 
 if(PROJECT_IS_TOP_LEVEL)
@@ -47,6 +51,10 @@ if(GAMEWIP_DEPENDENCIES_OFFLINE)
     find_package(Git REQUIRED)
 endif()
 
+# ------------------------------------------------------------
+# Dependency metadata and archives
+# ------------------------------------------------------------
+
 function(gamewip_get_dependency DEPENDENCY_NAME OUT_REPOSITORY OUT_COMMIT OUT_CACHE_DIRECTORY)
     file(READ "${GAMEWIP_DEPENDENCY_LOCK_FILE}" _dependency_json)
 
@@ -59,7 +67,15 @@ function(gamewip_get_dependency DEPENDENCY_NAME OUT_REPOSITORY OUT_COMMIT OUT_CA
     set("${OUT_CACHE_DIRECTORY}" "${_cache_directory}" PARENT_SCOPE)
 endfunction()
 
-function(gamewip_get_archive_dependency DEPENDENCY_NAME OUT_URL OUT_SHA512 OUT_CACHE_DIRECTORY OUT_ARCHIVE_FILE OUT_VALIDATION_FILE)
+function(
+    gamewip_get_archive_dependency
+    DEPENDENCY_NAME
+    OUT_URL
+    OUT_SHA512
+    OUT_CACHE_DIRECTORY
+    OUT_ARCHIVE_FILE
+    OUT_VALIDATION_FILE
+)
     file(READ "${GAMEWIP_DEPENDENCY_LOCK_FILE}" _dependency_json)
 
     string(JSON _url GET "${_dependency_json}" dependencies "${DEPENDENCY_NAME}" url)
@@ -80,8 +96,12 @@ function(gamewip_prepare_archive_dependency DEPENDENCY_NAME OUT_SOURCE_DIRECTORY
 
     # Validate locked paths before using them beneath the cache root.
     string(FIND "${_validation_file}" ".." _parent_path_position)
-    if(NOT _cache_directory MATCHES "^[A-Za-z0-9._-]+$" OR NOT _archive_file MATCHES "^[A-Za-z0-9._-]+$" OR
-       NOT _validation_file MATCHES "^[A-Za-z0-9._/-]+$" OR NOT _parent_path_position EQUAL -1)
+    if(
+        NOT _cache_directory MATCHES "^[A-Za-z0-9._-]+$"
+        OR NOT _archive_file MATCHES "^[A-Za-z0-9._-]+$"
+        OR NOT _validation_file MATCHES "^[A-Za-z0-9._/-]+$"
+        OR NOT _parent_path_position EQUAL -1
+    )
         message(FATAL_ERROR "Dependency '${DEPENDENCY_NAME}' has invalid archive cache metadata.")
     endif()
 
@@ -115,14 +135,7 @@ function(gamewip_prepare_archive_dependency DEPENDENCY_NAME OUT_SOURCE_DIRECTORY
         endif()
 
         file(MAKE_DIRECTORY "${_archive_directory}")
-        file(DOWNLOAD
-            "${_url}"
-            "${_archive_path}"
-            EXPECTED_HASH "SHA512=${_sha512}"
-            TLS_VERIFY ON
-            STATUS _download_status
-            SHOW_PROGRESS
-        )
+        file(DOWNLOAD "${_url}" "${_archive_path}" EXPECTED_HASH "SHA512=${_sha512}" TLS_VERIFY ON STATUS _download_status SHOW_PROGRESS)
         list(GET _download_status 0 _download_code)
         if(NOT _download_code EQUAL 0)
             file(REMOVE "${_archive_path}")
@@ -151,6 +164,10 @@ function(gamewip_prepare_archive_dependency DEPENDENCY_NAME OUT_SOURCE_DIRECTORY
     # Return the verified source location to the caller.
     set("${OUT_SOURCE_DIRECTORY}" "${_source_directory}" PARENT_SCOPE)
 endfunction()
+
+# ------------------------------------------------------------
+# Git dependency acquisition
+# ------------------------------------------------------------
 
 function(gamewip_make_dependency_available DEPENDENCY_NAME)
     gamewip_get_dependency("${DEPENDENCY_NAME}" _repository _commit _cache_directory)

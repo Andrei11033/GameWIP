@@ -2,6 +2,7 @@ GameWIP::Input::Platform::Win32::Attachment::~Attachment
 GameWIP::Input::Platform::Win32::Attachment::afterCapture
 GameWIP::Input::Platform::Win32::Attachment::attach
 GameWIP::Input::Platform::Win32::Attachment::Attachment
+GameWIP::Input::Platform::Win32::Attachment::backends
 GameWIP::Input::Platform::Win32::Attachment::beforeCapture
 GameWIP::Input::Platform::Win32::Attachment::closeSystem
 GameWIP::Input::Platform::Win32::Attachment::detach
