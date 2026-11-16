@@ -42,20 +42,19 @@ namespace FileSystem = GameWIP::FileSystem;
 GameWIP::IO::Types::Status saveAndLoadSettings()
 {
     const auto write = FileSystem::writeAllText("config/player.cfg", "volume=80\n");
-    if (!write.status.ok())
+    if(!write.status.ok())
     {
         return write.status;
     }
 
     const auto read = FileSystem::readAllText("config/player.cfg");
-    if (!read.status.ok())
+    if(!read.status.ok())
     {
         return read.status;
     }
 
     return GameWIP::IO::successStatus();
 }
-
 ```
 
 Text helpers enforce strict UTF-8 (@ref io_utf8_policy). Use the byte helpers for arbitrary content.
@@ -69,22 +68,22 @@ Text helpers enforce strict UTF-8 (@ref io_utf8_policy). Use the byte helpers fo
 #include <cstddef>
 #include <span>
 
-GameWIP::IO::Types::Status inspectPrefix(const GameWIP::FileSystem::Types::Path& path)
+GameWIP::IO::Types::Status inspectPrefix(const GameWIP::FileSystem::Types::Path &path)
 {
     namespace FileSystem = GameWIP::FileSystem;
 
     FileSystem::FileReader reader;
     auto status = reader.open(path);
-    if (!status.ok())
+    if(!status.ok())
     {
         return status;
     }
 
     std::array<std::byte, 4096> scratch{};
     const auto read = reader.read(scratch);
-    if (!read.status.ok())
+    if(!read.status.ok())
     {
-        const auto closeStatus = reader.close();
+        (void)reader.close();
         return read.status;
     }
 
@@ -93,7 +92,6 @@ GameWIP::IO::Types::Status inspectPrefix(const GameWIP::FileSystem::Types::Path&
     status = reader.close();
     return status;
 }
-
 ```
 
 Close explicitly when close or configured flush-on-close failure must be observed. Destructors perform best-effort cleanup and cannot report failure.
@@ -111,7 +109,6 @@ GameWIP::IO::Types::Status replaceSave(std::string_view json)
 
     return GameWIP::FileSystem::writeAllTextAtomic("saves/profile.json", json, options);
 }
-
 ```
 
 There is no non-atomic fallback. Failure before commit preserves an existing destination. A late parent-directory flush failure can be returned after

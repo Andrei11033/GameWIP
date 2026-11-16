@@ -186,16 +186,21 @@ namespace GameWIP::FileSystem
             /// @brief Options used by File::open().
             struct OpenOptions
             {
+                // Access and initial position
                 /// @brief Requested read/write access.
                 Access access = Access::ReadWrite;
                 /// @brief Creation and truncation behavior.
                 OpenMode mode = OpenMode::OpenExisting;
                 /// @brief Initial handle position after a successful open.
                 InitialPosition initialPosition = InitialPosition::Beginning;
+
+                // Sharing and path resolution
                 /// @brief Access allowed to other opens while this handle remains open.
                 Share share = Share::All;
                 /// @brief Symlink traversal policy used while resolving the path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Creation and close behavior
                 /// @brief Create missing parent directories before opening.
                 bool createParentDirectories = false;
                 /// @brief Flush requested by explicit close() before releasing the handle.
@@ -214,10 +219,13 @@ namespace GameWIP::FileSystem
             /// @brief Options used by FileWriter::open().
             struct WriterOpenOptions
             {
+                // Write and sharing behavior
                 /// @brief Creation, truncation, or append behavior.
                 WriterMode mode = WriterMode::CreateOrTruncate;
                 /// @brief Access allowed to other opens while this writer remains open.
                 Share share = Share::All;
+
+                // Path and close behavior
                 /// @brief Symlink traversal policy used while resolving the path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
                 /// @brief Create missing parent directories before opening.
@@ -229,8 +237,11 @@ namespace GameWIP::FileSystem
             /// @brief Options used by whole-file read helpers.
             struct ReadOptions
             {
+                // Reader policy
                 /// @brief Options used to open the underlying reader.
                 ReaderOpenOptions open{};
+
+                // Size and transfer limits
                 /// @brief Maximum accepted file size, or IO::kNoByteLimit for no caller limit.
                 /// @note This is a hard limit, not a successful truncation request.
                 std::uint64_t maxBytes = IO::kNoByteLimit;
@@ -242,12 +253,15 @@ namespace GameWIP::FileSystem
             /// @brief Options used by exact-content whole-file write helpers.
             struct WriteOptions
             {
+                // Destination and access policy
                 /// @brief Creation and replacement behavior.
                 WriteMode mode = WriteMode::CreateOrTruncate;
                 /// @brief Access allowed to other opens while the target is open.
                 Share share = Share::All;
                 /// @brief Symlink traversal policy used while resolving the path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Creation and persistence
                 /// @brief Create missing parent directories before opening.
                 bool createParentDirectories = true;
                 /// @brief Flush requested after payload writing and before close.
@@ -257,12 +271,15 @@ namespace GameWIP::FileSystem
             /// @brief Options used by append helpers.
             struct AppendOptions
             {
+                // Destination and access policy
                 /// @brief Whether a missing target is created or reported as NotFound.
                 AppendMode mode = AppendMode::AppendOrCreate;
                 /// @brief Access allowed to other opens while the target is open.
                 Share share = Share::All;
                 /// @brief Symlink traversal policy used while resolving the path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Creation and persistence
                 /// @brief Create missing parent directories before opening.
                 bool createParentDirectories = true;
                 /// @brief Flush requested after payload writing and before close.
@@ -272,43 +289,47 @@ namespace GameWIP::FileSystem
             /// @brief Options used by atomic whole-file replacement.
             struct AtomicWriteOptions
             {
+                // Destination policy
                 /// @brief Create missing parent directories before creating the temporary file.
                 bool createParentDirectories = true;
                 /// @brief Destination replacement behavior at commit.
                 ReplaceMode replaceMode = ReplaceMode::ReplaceExisting;
                 /// @brief Symlink traversal policy used to resolve the destination.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Commit durability
                 /// @brief Flush requested for the temporary file before commit.
                 IO::Types::FlushMode flushMode = IO::Types::FlushMode::Data;
                 /// @brief Flush the parent directory after replacement.
                 bool flushParentDirectory = true;
+
+                // Temporary-file naming
                 /// @brief UTF-8 filename prefix used for a generated temporary file in the destination directory.
                 /// @note Must be valid UTF-8, non-empty, contain no path separator or embedded U+0000, and not be "." or "..".
                 std::string temporaryNamePrefix{kAtomicTemporaryNamePrefix};
             };
-        } // namespace File
 
-        namespace File
-        {
+            // Path-based size mutation
             /// @brief Options used by path-based file resizing and truncation.
             struct ResizeOptions
             {
                 /// @brief Symlink traversal policy used to resolve the file to mutate.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             };
-        } // namespace File
 
-        namespace File
-        {
+            // File copy
             /// @brief Options used by copyFile().
             struct CopyOptions
             {
+                // Destination and source policy
                 /// @brief Destination replacement behavior.
                 ReplaceMode replaceMode = ReplaceMode::FailIfExists;
                 /// @brief Symlink traversal policy used for source resolution and destination path traversal.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
                 /// @brief Create missing destination parent directories before copying.
                 bool createParentDirectories = false;
+
+                // Metadata and persistence
                 /// @brief Additional metadata to copy after file contents.
                 CopyMetadataMode metadataMode = CopyMetadataMode::None;
                 /// @brief Flush requested for the destination after copying.
@@ -316,10 +337,6 @@ namespace GameWIP::FileSystem
             };
         } // namespace File
     } // namespace Types
-
-    // ------------------------------------------------------------
-    // File locking
-    // ------------------------------------------------------------
 
     /// @name File locking
     /// @{
@@ -366,10 +383,6 @@ namespace GameWIP::FileSystem
     };
 
     /// @}
-
-    // ------------------------------------------------------------
-    // File streams
-    // ------------------------------------------------------------
 
     /// @name File streams
     /// @{
@@ -593,10 +606,6 @@ namespace GameWIP::FileSystem
     } // namespace Types::Lock
 
     /// @}
-
-    // ------------------------------------------------------------
-    // Whole-file operations
-    // ------------------------------------------------------------
 
     /// @name Whole-file operations
     /// @{

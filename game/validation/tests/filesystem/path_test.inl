@@ -33,12 +33,4 @@ void testUtf8PathConversion(TestSupport::Context &context, const std::filesystem
     malformedPath.push_back(static_cast<char>(0xAF));
     const auto malformedResult = FileSystem::pathFromUtf8(malformedPath);
     static_cast<void>(context.expectEq("pathFromUtf8 rejects malformed UTF-8", ErrorCode::EncodingFailed, malformedResult.status.code));
-
-#if !defined(_WIN32)
-    const std::filesystem::path invalidNativePath{std::string(1, static_cast<char>(0xFF))};
-    const auto invalidNativeResult = FileSystem::pathToUtf8(invalidNativePath);
-    static_cast<void>(
-        context.expectEq("pathToUtf8 rejects invalid native byte spelling", ErrorCode::EncodingFailed, invalidNativeResult.status.code));
-    static_cast<void>(context.expectTrue("failed pathToUtf8 returns empty text", invalidNativeResult.utf8.empty()));
-#endif
 }

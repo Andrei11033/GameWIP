@@ -5,6 +5,7 @@
 /// symlink policy, whole-file I/O, mutation, atomic replacement, and locking.
 
 #include "validation/tests/filesystem/filesystem_test.h"
+#include "validation/tests/filesystem/platform.h"
 
 #include "filesystem/filesystem.h"
 #include "filesystem/internal/filesystem_platform.h"
@@ -13,29 +14,21 @@
 
 #include <chrono>
 #include <cstddef>
-#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <iostream>
 #include <span>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <thread>
 #include <type_traits>
 #include <utility>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
-#endif
 
 namespace
 {
     namespace FileSystem = GameWIP::FileSystem;
     namespace IO = GameWIP::IO;
+    namespace FileSystemPlatform = GameWIP::Test::FileSystemPlatform;
 
     using FileSystem::Types::Path;
     using ConstByteSpan = std::span<const std::byte>;
@@ -92,9 +85,9 @@ namespace
     namespace TestSupport = GameWIP::TestSupport;
     using IO::Types::ErrorCode;
 
-    // ------------------------------------------------------------
-    // Test helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test helpers
+    /// ------------------------------------------------------------
 
     /// @brief Creates entry-query options for one explicit symlink policy.
     FileSystem::Types::EntryOptions queryOptions(FileSystem::Types::SymlinkPolicy policy) noexcept
@@ -144,64 +137,10 @@ namespace
     /// @brief Creates a file or directory symlink and records unavailable host support as a skip.
     bool createSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link, bool directory)
     {
-#if defined(_WIN32)
-        const DWORD flags = (directory ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0U) | SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE;
-
-        if(CreateSymbolicLinkW(link.wstring().c_str(), target.wstring().c_str(), flags) == FALSE)
-        {
-            const DWORD error = GetLastError();
-            const bool unavailable =
-                error == ERROR_PRIVILEGE_NOT_HELD || error == ERROR_ACCESS_DENIED || error == ERROR_NOT_SUPPORTED || error == ERROR_INVALID_FUNCTION;
-
-            if(std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
-            {
-                context.fail(
-                    directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                    std::format("symlink creation failed: native={} message={}", error, std::system_category().message(static_cast<int>(error))));
-                return false;
-            }
-            context.skip(
-                directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                std::format("symlink creation unavailable: {}", std::system_category().message(static_cast<int>(error))));
-            return false;
-        }
-
-        return true;
-#else
-        std::error_code error;
-
-        if(directory)
-        {
-            std::filesystem::create_directory_symlink(target, link, error);
-        }
-        else
-        {
-            std::filesystem::create_symlink(target, link, error);
-        }
-
-        if(error)
-        {
-            const bool unavailable = error == std::errc::permission_denied || error == std::errc::operation_not_permitted ||
-                                     error == std::errc::function_not_supported || error == std::errc::operation_not_supported;
-
-            if(std::getenv("GAMEWIP_REQUIRE_SYMLINK_TESTS") != nullptr || !unavailable)
-            {
-                context.fail(
-                    directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                    std::format("symlink creation failed: native={} message={}", error.value(), error.message()));
-                return false;
-            }
-            context.skip(
-                directory ? "intermediate symlink policy checks" : "file symlink policy checks",
-                std::format("symlink creation unavailable: {}", error.message()));
-            return false;
-        }
-
-        return true;
-#endif
+        return FileSystemPlatform::createSymlink(context, target, link, directory);
     }
 
-    /// @brief Creates a file symlink through the shared privilege-aware helper.
+    /// @brief Creates a file symlink.
     bool createFileSymlink(TestSupport::Context &context, const std::filesystem::path &target, const std::filesystem::path &link)
     {
         return createSymlink(context, target, link, false);
@@ -213,9 +152,9 @@ namespace
         return createSymlink(context, target, link, true);
     }
 
-    // ------------------------------------------------------------
-    // Test suites
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test suites
+    /// ------------------------------------------------------------
 
     // Focused suite declarations keep cross-suite calls independent of fragment include order.
     void testBasicEntryQueries(TestSupport::Context &context, const std::filesystem::path &root);
@@ -234,9 +173,9 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runFileSystemTests(int, char **, const FileSystemTestOptions &options)
     {
@@ -302,6 +241,7 @@ namespace GameWIP::Test
             {
                 testAtomicWriteAndLocks(context, runRoot);
             });
+        FileSystemPlatform::registerSuites(runner, runRoot);
 
         const TestSupport::Types::Reporting::Summary result = runner.result();
         runner.summary(std::format("FileSystem library self-tests passed={} failed={} skipped={}", result.passed, result.failed, result.skipped));

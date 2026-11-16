@@ -26,14 +26,15 @@ namespace GameWIP::FileSystem::Detail
         FileState &operator=(FileState &&) = delete;
         ~FileState() noexcept;
 
-        /// Backend-native file handle owned by this state.
-        void *nativeHandle = nullptr;
-        /// Public access selected at open time; meaningful while nativeHandle is active.
-        Types::File::Access access = Types::File::Access::ReadWrite;
-        /// Flush strength attempted before explicit close releases a writable handle.
-        IO::Types::FlushMode flushOnClose = IO::Types::FlushMode::None;
-        /// Shared active-lock count retained by the handle and every detached lock owner.
-        std::shared_ptr<std::uint32_t> activeLocks;
+        // Native handle and open policy
+        void *nativeHandle = nullptr; ///< Backend-native file handle owned by this state.
+        Types::File::Access access =
+            Types::File::Access::ReadWrite; ///< Public access selected at open time; meaningful while nativeHandle is active.
+        IO::Types::FlushMode flushOnClose =
+            IO::Types::FlushMode::None;             ///< Flush strength attempted before explicit close releases a writable handle.
+        std::shared_ptr<std::uint32_t> activeLocks; ///< Shared active-lock count retained by the handle and every detached lock owner.
+
+        // Effective access mode
         bool readable = false;
         bool writable = false;
         bool appendMode = false;
@@ -49,15 +50,16 @@ namespace GameWIP::FileSystem::Detail
         FileLockState &operator=(FileLockState &&) = delete;
         ~FileLockState() noexcept;
 
-        /// Duplicated backend handle that lets the lock outlive its originating wrapper.
-        void *nativeHandle = nullptr;
-        /// Counter shared with the originating file state for explicit-close ResourceBusy checks.
-        std::shared_ptr<std::uint32_t> activeLocks;
+        // Detached lock ownership
+        void *nativeHandle = nullptr;               ///< Duplicated backend handle that lets the lock outlive its originating wrapper.
+        std::shared_ptr<std::uint32_t> activeLocks; ///< Counter shared with the originating file state for explicit-close ResourceBusy checks.
+
+        // Lock state
         bool active = false;
         bool exclusive = false;
     };
 
-    /// Owns one backend directory enumeration and the handles that prevent path-component replacement races.
+    /// @brief Owns one backend directory enumeration and the handles that prevent path-component replacement races.
     struct DirectoryCursorState
     {
         DirectoryCursorState() = default;
@@ -67,15 +69,19 @@ namespace GameWIP::FileSystem::Detail
         DirectoryCursorState &operator=(DirectoryCursorState &&) = delete;
         ~DirectoryCursorState() noexcept;
 
-        Types::Path directoryPath;
-        Types::Directory::Entry bufferedEntry;
-        /// Native handles retained to prevent strict-policy path components from being replaced during enumeration.
-        std::vector<void *> stableHandles;
-        void *nativeFindHandle = nullptr;
-        Types::SymlinkPolicy symlinkPolicy = Types::SymlinkPolicy::DoNotFollow;
-        bool bufferedEntryHidden = false;
-        bool hasBufferedEntry = false;
-        bool finished = false;
+        // Current directory and buffered entry
+        Types::Path directoryPath;             ///< Path used to enumerate direct children.
+        Types::Directory::Entry bufferedEntry; ///< Next visible entry retained for the caller.
+
+        // Handles and policy retained for enumeration
+        std::vector<void *> stableHandles; ///< Native handles retaining strict-policy path components during enumeration.
+        void *nativeFindHandle = nullptr;  ///< Backend enumeration handle.
+        Types::SymlinkPolicy symlinkPolicy = Types::SymlinkPolicy::DoNotFollow; ///< Policy applied while resolving the directory path.
+
+        // Cursor state
+        bool bufferedEntryHidden = false; ///< Whether the buffered entry is hidden.
+        bool hasBufferedEntry = false;    ///< Whether a next visible entry is buffered.
+        bool finished = false;            ///< Whether enumeration reached the end or failed.
     };
 } // namespace GameWIP::FileSystem::Detail
 
@@ -99,9 +105,9 @@ namespace GameWIP::FileSystem::Detail::Platform
     } // namespace TestHooks
 #endif
 
-    // ------------------------------------------------------------
-    // Native operation results
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Native operation results
+    /// ------------------------------------------------------------
 
     /// @brief Result returned by backend entry metadata queries.
     struct EntryQueryResult
@@ -123,21 +129,28 @@ namespace GameWIP::FileSystem::Detail::Platform
         std::unique_ptr<Detail::FileLockState> state;
     };
 
-    /// Cursor-open result; state is present only on success.
+    /// @brief Cursor-open result; state is present only on success.
     struct DirectoryCursorOpenResult
     {
         IO::Types::Status status;
         std::unique_ptr<Detail::DirectoryCursorState> state;
     };
 
-    /// One cursor step; successful exhaustion is represented by hasEntry=false.
+    /// @brief One cursor step; successful exhaustion is represented by hasEntry=false.
     struct DirectoryCursorNextResult
     {
+        // Result status
         IO::Types::Status status;
+
+        // Candidate entry
         Types::Directory::Entry entry;
         bool hidden = false;
         bool hasEntry = false;
     };
+
+    /// ------------------------------------------------------------
+    /// Entry queries
+    /// ------------------------------------------------------------
 
     /// @brief Queries one existing entry using backend-native filesystem semantics.
     /// @details FollowAll follows normal platform path resolution. DoNotFollow and FollowFinal must reject intermediate symlinks
@@ -145,6 +158,10 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @param symlinkPolicy Symlink policy requested by the public operation.
     /// @return Entry metadata, InvalidArgument for invalid policy, or a portable/backend-native failure status.
     [[nodiscard]] EntryQueryResult queryEntry(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
+
+    /// ------------------------------------------------------------
+    /// File operations
+    /// ------------------------------------------------------------
 
     /// @brief Opens a read-only file handle.
     /// @param state Receives newly opened native state on success. Failure leaves it unchanged.
@@ -203,6 +220,10 @@ namespace GameWIP::FileSystem::Detail::Platform
     /// @brief Unlocks a whole-file lock. Failure leaves the lock active.
     [[nodiscard]] IO::Types::Status unlockFile(Detail::FileLockState &state) noexcept;
 
+    /// ------------------------------------------------------------
+    /// Path operations
+    /// ------------------------------------------------------------
+
     /// @brief Moves or replaces one path with the platform-native rename primitive.
     [[nodiscard]] IO::Types::Status movePath(
         const Types::Path &from,
@@ -210,27 +231,38 @@ namespace GameWIP::FileSystem::Detail::Platform
         Types::ReplaceMode replaceMode,
         Types::SymlinkPolicy symlinkPolicy) noexcept;
 
+    /// ------------------------------------------------------------
+    /// Directory operations
+    /// ------------------------------------------------------------
+
     /// @brief Creates one directory level using backend-native path traversal.
     [[nodiscard]] IO::Types::Status createDirectory(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
 
     /// @brief Creates a directory and any missing parents using backend-native path traversal.
     [[nodiscard]] IO::Types::Status createDirectories(const Types::Path &path, const Types::Directory::CreateOptions &options) noexcept;
 
+    /// @brief Reports whether a path names a filesystem root.
+    [[nodiscard]] Types::BoolResult isRootPath(const Types::Path &path) noexcept;
+
     /// @brief Lists direct directory children using backend-native path traversal.
     [[nodiscard]] Types::Directory::ListResult listDirectory(const Types::Path &path, const Types::Directory::ListOptions &options) noexcept;
 
-    /// Opens a streaming cursor over direct children while stabilizing strict-policy path components.
+    /// @brief Opens a streaming cursor over direct children while stabilizing strict-policy path components.
     [[nodiscard]] DirectoryCursorOpenResult openDirectoryCursor(const Types::Path &path, Types::SymlinkPolicy symlinkPolicy) noexcept;
 
-    /// Opens a nested cursor relative to its active parent, retaining only the new directory handle.
+    /// @brief Opens a nested cursor relative to its active parent, retaining only the new directory handle.
     /// The parent cursor must outlive the returned cursor.
     [[nodiscard]] DirectoryCursorOpenResult openChildDirectoryCursor(
         const Detail::DirectoryCursorState &parent,
         const Types::Path &path,
         Types::SymlinkPolicy symlinkPolicy) noexcept;
 
-    /// Reads one direct child without collecting siblings; exhaustion remains successful.
+    /// @brief Reads one direct child without collecting siblings; exhaustion remains successful.
     [[nodiscard]] DirectoryCursorNextResult readDirectoryCursor(Detail::DirectoryCursorState &state) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Metadata and entry mutations
+    /// ------------------------------------------------------------
 
     /// @brief Changes read-only metadata through a backend-native entry handle.
     [[nodiscard]] IO::Types::Status setReadOnly(const Types::Path &path, bool readOnly, Types::SymlinkPolicy symlinkPolicy) noexcept;

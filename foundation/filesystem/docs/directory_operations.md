@@ -39,20 +39,20 @@ exhaustion. The limit status is sticky.
 
 ```cpp
 GameWIP::FileSystem::DirectoryCursor cursor;
-if (auto status = cursor.open("assets"); !status.ok())
+if(auto status = cursor.open("assets"); !status.ok())
 {
     return 1;
 }
 
-for (;;)
+for(;;)
 {
     auto next = cursor.next();
-    if (!next.status.ok())
+    if(!next.status.ok())
     {
         return 1;
     }
 
-    if (!next.hasEntry)
+    if(!next.hasEntry)
     {
         break;
     }
@@ -101,11 +101,14 @@ Open handles can prevent rename, replacement, or removal unless their sharing po
 ## Tree removal
 
 `removeDirectoryTree()` uses an explicit traversal stack whose retained state is proportional to depth rather than total entry count.
+On success, drive and UNC share roots act as containers: their contents are
+removed and the root remains. `removedEntries` counts removed descendants, not
+the root.
 
 - The selected symlink policy applies to the initial path only.
 - Discovered symlinked directories are never followed.
-- `maxEntries` counts successfully removed entries, including the root directory.
-- A limit exactly equal to the tree's complete removal count can succeed and remove the root.
+- For a removable directory root, `maxEntries` counts every removed entry, including the root.
+- A limit equal to an ordinary directory tree's complete removal count can succeed and remove its root.
 - If another entry would exceed the limit, removal stops with
   `SizeLimitExceeded`; `removedEntries` reports the entries already removed and
   the remaining tree stays available.

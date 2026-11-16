@@ -15,7 +15,7 @@ GameWIP::IO::Types::Status loadSmallConfig()
     options.maxBytes = 1024U * 1024U;
 
     const auto result = GameWIP::FileSystem::readAllText("config.json", options);
-    if (!result.status.ok())
+    if(!result.status.ok())
     {
         // result.text can contain data collected before failure.
         return result.status;
@@ -23,7 +23,6 @@ GameWIP::IO::Types::Status loadSmallConfig()
 
     return GameWIP::IO::successStatus();
 }
-
 ```
 
 ## Streaming read with a final nonzero chunk
@@ -35,27 +34,27 @@ GameWIP::IO::Types::Status loadSmallConfig()
 #include <cstddef>
 #include <span>
 
-GameWIP::IO::Types::Status scanFile(const GameWIP::FileSystem::Types::Path& path)
+GameWIP::IO::Types::Status scanFile(const GameWIP::FileSystem::Types::Path &path)
 {
     GameWIP::FileSystem::FileReader reader;
     auto status = reader.open(path);
-    if (!status.ok())
+    if(!status.ok())
     {
         return status;
     }
 
     std::array<std::byte, 8192> buffer{};
 
-    while (true)
+    while(true)
     {
         const auto result = reader.read(buffer);
-        if (result.bytesRead != 0)
+        if(result.bytesRead != 0)
         {
             const std::span<const std::byte> chunk{buffer.data(), result.bytesRead};
             (void)chunk; // Consume the chunk before the next read.
         }
 
-        if (!result.status.ok() || result.endOfStream)
+        if(!result.status.ok() || result.endOfStream)
         {
             status = result.status;
             break;
@@ -65,7 +64,6 @@ GameWIP::IO::Types::Status scanFile(const GameWIP::FileSystem::Types::Path& path
     const auto closeStatus = reader.close();
     return status.ok() ? closeStatus : status;
 }
-
 ```
 
 ## Modify and resize an existing file
@@ -77,7 +75,7 @@ GameWIP::IO::Types::Status scanFile(const GameWIP::FileSystem::Types::Path& path
 #include <span>
 #include <string_view>
 
-GameWIP::IO::Types::Status addMarker(const GameWIP::FileSystem::Types::Path& path)
+GameWIP::IO::Types::Status addMarker(const GameWIP::FileSystem::Types::Path &path)
 {
     namespace FileSystem = GameWIP::FileSystem;
     namespace IO = GameWIP::IO;
@@ -89,28 +87,27 @@ GameWIP::IO::Types::Status addMarker(const GameWIP::FileSystem::Types::Path& pat
     options.initialPosition = FileSystem::Types::File::InitialPosition::End;
 
     auto status = file.open(path, options);
-    if (!status.ok())
+    if(!status.ok())
     {
         return status;
     }
 
     constexpr std::string_view marker = "done";
     const auto write = file.write(std::as_bytes(std::span{marker.data(), marker.size()}));
-    if (!write.status.ok() || write.bytesWritten != marker.size())
+    if(!write.status.ok() || write.bytesWritten != marker.size())
     {
-        const auto closeStatus = file.close();
+        (void)file.close();
         return write.status.ok() ? IO::makeStatus(IO::Types::ErrorCode::PartialWrite) : write.status;
     }
 
     status = file.flush(IO::Types::FlushMode::Data);
-    if (status.ok())
+    if(status.ok())
     {
         status = file.close();
     }
 
     return status;
 }
-
 ```
 
 ## Normal replacement and append
@@ -123,7 +120,7 @@ GameWIP::IO::Types::Status writeSessionLog()
     namespace FileSystem = GameWIP::FileSystem;
 
     const auto replace = FileSystem::writeAllText("session.log", "start\n");
-    if (!replace.status.ok())
+    if(!replace.status.ok())
     {
         return replace.status;
     }
@@ -134,7 +131,6 @@ GameWIP::IO::Types::Status writeSessionLog()
     const auto append = FileSystem::appendText("session.log", "ready\n", options);
     return append.status;
 }
-
 ```
 
 ## Atomic save replacement
@@ -153,7 +149,6 @@ GameWIP::IO::Types::Status commitSave(std::string_view json)
 
     return GameWIP::FileSystem::writeAllTextAtomic("saves/profile.json", json, options);
 }
-
 ```
 
 ## Listing with partial-result handling
@@ -170,9 +165,9 @@ GameWIP::IO::Types::Status listAssets()
     options.maxEntries = 1024;
 
     auto result = GameWIP::FileSystem::listDirectory("assets", options);
-    for (const auto& entry : result.entries)
+    for(const auto &entry : result.entries)
     {
-        const auto& path = entry.path;
+        const auto &path = entry.path;
         const auto kind = entry.info.kind;
         (void)path;
         (void)kind;
@@ -180,7 +175,6 @@ GameWIP::IO::Types::Status listAssets()
 
     return result.status;
 }
-
 ```
 
 ## Metadata, copy, move, and removal
@@ -193,7 +187,7 @@ GameWIP::IO::Types::Status rotateDataFile()
     namespace FileSystem = GameWIP::FileSystem;
 
     const auto size = FileSystem::getFileSize("data.bin");
-    if (!size.status.ok())
+    if(!size.status.ok())
     {
         return size.status;
     }
@@ -204,21 +198,20 @@ GameWIP::IO::Types::Status rotateDataFile()
     copy.createParentDirectories = true;
 
     auto status = FileSystem::copyFile("data.bin", "backup/data.bin", copy);
-    if (status.ok())
+    if(status.ok())
     {
         FileSystem::Types::MoveOptions move{};
         move.replaceMode = FileSystem::Types::ReplaceMode::ReplaceExisting;
         status = FileSystem::movePath("backup/data.bin", "backup/current.bin", move);
     }
 
-    if (status.ok())
+    if(status.ok())
     {
         status = FileSystem::removeFile("backup/current.bin");
     }
 
     return status;
 }
-
 ```
 
 ## UTF-8 path boundary and lexical operations
@@ -231,13 +224,13 @@ GameWIP::IO::Types::Status buildSavePath()
     namespace FileSystem = GameWIP::FileSystem;
 
     const auto leaf = FileSystem::pathFromUtf8("slot-\xE2\x98\x85.json");
-    if (!leaf.status.ok())
+    if(!leaf.status.ok())
     {
         return leaf.status;
     }
 
     const auto joined = FileSystem::joinPath("saves", leaf.path);
-    if (!joined.status.ok())
+    if(!joined.status.ok())
     {
         return joined.status;
     }
@@ -245,7 +238,6 @@ GameWIP::IO::Types::Status buildSavePath()
     const auto text = FileSystem::pathToUtf8(joined.path);
     return text.status;
 }
-
 ```
 
 ## Whole-file lock ownership
@@ -256,19 +248,16 @@ ownership pattern is:
 ```cpp
 #include "filesystem/filesystem.h"
 
-GameWIP::FileSystem::Types::Lock::Result openAndLock(
-    const GameWIP::FileSystem::Types::Path& path,
-    GameWIP::FileSystem::File& owner)
+GameWIP::FileSystem::Types::Lock::Result openAndLock(const GameWIP::FileSystem::Types::Path &path, GameWIP::FileSystem::File &owner)
 {
     const auto status = owner.open(path);
-    if (!status.ok())
+    if(!status.ok())
     {
         return {.status = status};
     }
 
     return owner.tryLockExclusive();
 }
-
 ```
 
 The returned `FileLock` remains responsible for unlocking. Explicit `owner.close()` reports `ResourceBusy` until the lock is released.
@@ -278,17 +267,16 @@ The returned `FileLock` remains responsible for unlocking. Explicit `owner.close
 ```cpp
 #include "filesystem/filesystem.h"
 
-GameWIP::IO::Types::Status temporarilySelectDirectory(
-    const GameWIP::FileSystem::Types::Path& directory)
+GameWIP::IO::Types::Status temporarilySelectDirectory(const GameWIP::FileSystem::Types::Path &directory)
 {
     const auto previous = GameWIP::FileSystem::getCurrentDirectory();
-    if (!previous.status.ok())
+    if(!previous.status.ok())
     {
         return previous.status;
     }
 
     auto status = GameWIP::FileSystem::setCurrentDirectory(directory);
-    if (!status.ok())
+    if(!status.ok())
     {
         return status;
     }
@@ -298,7 +286,6 @@ GameWIP::IO::Types::Status temporarilySelectDirectory(
     const auto restore = GameWIP::FileSystem::setCurrentDirectory(previous.path);
     return restore;
 }
-
 ```
 
 Avoid this pattern in concurrent code: nothing synchronizes other threads' relative-path use or

@@ -14,6 +14,9 @@ ordinary reopen can be replaced between those steps.
 Strict policies must be enforced during handle-relative/native traversal rather than by checking a path and reopening it later. When the backend
 cannot preserve the requested contract, the operation returns `Unsupported`.
 
+Drive and UNC roots are valid directory paths. When a root is the final path component, `FollowFinal` follows it and `DoNotFollow` inspects it
+directly. File-only opens reject directory roots with `IsDirectory`. See @ref filesystem_directory_operations for root-removal behavior.
+
 ## Operation-family behavior
 
 ### Queries and metadata

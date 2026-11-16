@@ -60,16 +60,23 @@ namespace GameWIP::FileSystem
         /// @brief Portable metadata for an existing filesystem entry.
         struct EntryInfo
         {
+            // Entry kind
             /// @brief Portable entry kind.
             EntryKind kind = EntryKind::Other;
+
+            // Size
             /// @brief Entry size in bytes when available.
             std::uint64_t sizeBytes = 0;
             /// @brief Whether sizeBytes is available and meaningful.
             bool hasSize = false;
+
+            // Last-write time
             /// @brief Last-write time when available.
             FileTime lastWriteTime{};
             /// @brief Whether lastWriteTime is available and meaningful.
             bool hasLastWriteTime = false;
+
+            // Attributes
             /// @brief Portable basic read-only state.
             /// @note This is not a complete permissions, ownership, or ACL model.
             bool readOnly = false;
@@ -96,8 +103,11 @@ namespace GameWIP::FileSystem
         /// @brief Options used by removeFile() and removeEmptyDirectory().
         struct RemoveOptions
         {
+            // Missing target
             /// @brief Treat a missing target as success.
             bool succeedIfMissing = false;
+
+            // Path resolution
             /// @brief Symlink traversal policy used to select the entry to remove.
             SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
         };
@@ -105,8 +115,11 @@ namespace GameWIP::FileSystem
         /// @brief Options used by movePath().
         struct MoveOptions
         {
+            // Destination
             /// @brief Destination replacement behavior.
             ReplaceMode replaceMode = ReplaceMode::FailIfExists;
+
+            // Source and parent path
             /// @brief Symlink traversal policy used for source resolution and destination parent traversal.
             SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             /// @brief Create missing destination parent directories before moving.

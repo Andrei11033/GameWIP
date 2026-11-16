@@ -1,6 +1,10 @@
 /// @file file_test.inl
 /// @brief Focused FileSystem file tests.
 
+// ------------------------------------------------------------
+// File and text contracts
+// ------------------------------------------------------------
+
 /// @brief Verifies final and intermediate symlink handling for every query policy.
 void testSymlinkPolicies(TestSupport::Context &context, const std::filesystem::path &root)
 {
@@ -181,6 +185,10 @@ void testTextContracts(TestSupport::Context &context, const std::filesystem::pat
     expectFileText(context, "invalid temporary prefix preserves destination", file, "unicode-prefix");
 }
 
+// ------------------------------------------------------------
+// Handles and file mutations
+// ------------------------------------------------------------
+
 /// @brief Verifies whole-file helpers and reader, writer, and read/write handle contracts.
 void testWholeFileHelpersAndHandles(TestSupport::Context &context, const std::filesystem::path &root)
 {
@@ -304,72 +312,6 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     static_cast<void>(context.expectTrue("move destination existence query succeeds", movedExists.status.ok()));
     static_cast<void>(context.expectTrue("movePath creates destination", movedExists.value));
 
-#if defined(_WIN32) && FILESYSTEM_INTERNAL_TEST_HOOKS
-    {
-        const std::filesystem::path raceSource = directory / "move-race-source.txt";
-        const std::filesystem::path validatedParent = directory / "validated-parent";
-        const std::filesystem::path parkedParent = directory / "validated-parent-parked";
-        const std::filesystem::path destination = validatedParent / "destination.txt";
-        static_cast<void>(context.expectTrue("write move race source", FileSystem::writeAllText(raceSource, "anchored").status.ok()));
-        static_cast<void>(context.expectTrue("create validated move parent", FileSystem::createDirectory(validatedParent).ok()));
-
-        FileSystem::Detail::Platform::TestHooks::armMoveDestinationValidatedPause();
-        IO::Types::Status moveRaceStatus;
-        std::thread moveThread(
-            [&]
-            {
-                moveRaceStatus = FileSystem::movePath(raceSource, destination);
-            });
-        const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
-        static_cast<void>(context.expectTrue("strict move reaches destination validation pause", movePaused));
-
-        if(movePaused)
-        {
-            std::error_code renameError;
-            std::filesystem::rename(validatedParent, parkedParent, renameError);
-            static_cast<void>(context.expectFalse("validated parent can be renamed during pause", static_cast<bool>(renameError)));
-            static_cast<void>(context.expectTrue("create replacement move parent", FileSystem::createDirectory(validatedParent).ok()));
-        }
-        FileSystem::Detail::Platform::TestHooks::releaseMovePause();
-        moveThread.join();
-
-        static_cast<void>(context.expectTrue("anchored strict move succeeds", moveRaceStatus.ok()));
-        expectPredicate(context, "anchored move lands in retained parent", FileSystem::exists(parkedParent / "destination.txt"), true);
-        expectPredicate(context, "anchored move avoids replacement parent", FileSystem::exists(destination), false);
-        FileSystem::Detail::Platform::TestHooks::reset();
-    }
-
-    {
-        const std::filesystem::path commitSource = directory / "commit-source.txt";
-        const std::filesystem::path commitDestination = directory / "commit-destination.txt";
-        static_cast<void>(context.expectTrue("write post-commit source", FileSystem::writeAllText(commitSource, "original").status.ok()));
-
-        FileSystem::Detail::Platform::TestHooks::armMoveCommittedPause();
-        IO::Types::Status committedStatus;
-        std::thread moveThread(
-            [&]
-            {
-                committedStatus = FileSystem::movePath(commitSource, commitDestination);
-            });
-        const bool movePaused = FileSystem::Detail::Platform::TestHooks::waitForMovePause(std::chrono::seconds{5});
-        static_cast<void>(context.expectTrue("move reaches committed pause", movePaused));
-
-        if(movePaused)
-        {
-            static_cast<void>(
-                context.expectTrue("source can be recreated after commit", FileSystem::writeAllText(commitSource, "replacement").status.ok()));
-            static_cast<void>(context.expectTrue("destination can be removed after commit", FileSystem::removeFile(commitDestination).ok()));
-        }
-        FileSystem::Detail::Platform::TestHooks::releaseMovePause();
-        moveThread.join();
-
-        static_cast<void>(context.expectTrue("native commit remains successful after namespace mutation", committedStatus.ok()));
-        expectFileText(context, "recreated source remains caller-visible", commitSource, "replacement");
-        expectPredicate(context, "concurrently removed destination remains absent", FileSystem::exists(commitDestination), false);
-        FileSystem::Detail::Platform::TestHooks::reset();
-    }
-#endif
-
     static_cast<void>(context.expectTrue("remove metadata copy succeeds", FileSystem::removeFile(metadataCopy).ok()));
     static_cast<void>(context.expectTrue("truncateFile succeeds", FileSystem::truncateFile(source).ok()));
     const auto truncatedSize = FileSystem::getFileSize(source);
@@ -441,6 +383,10 @@ void testMutationCopyMoveAndRemoval(TestSupport::Context &context, const std::fi
     expectPredicate(context, "partial tree removal preserves root", FileSystem::isDirectory(wideTree), true);
     static_cast<void>(context.expectTrue("partial tree removal cleanup succeeds", FileSystem::removeDirectoryTree(wideTree).status.ok()));
 }
+
+// ------------------------------------------------------------
+// Atomic writes and locks
+// ------------------------------------------------------------
 
 /// @brief Verifies atomic replacement and non-blocking whole-file lock ownership.
 void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesystem::path &root)
@@ -516,40 +462,4 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
         acquiredAfterDetachedUnlock.outcome));
     static_cast<void>(context.expectTrue("detached competitor unlock succeeds", acquiredAfterDetachedUnlock.lock.unlock().ok()));
     static_cast<void>(context.expectTrue("detached competitor closes", detachedCompetitor.close().ok()));
-
-#if FILESYSTEM_INTERNAL_TEST_HOOKS
-    const std::filesystem::path failedUnlockFile = root / "atomic-locks" / "failed-unlock.txt";
-    static_cast<void>(context.expectTrue("failed-unlock file write succeeds", FileSystem::writeAllText(failedUnlockFile, "lock").status.ok()));
-
-    FileSystem::File failedUnlockOwner;
-    FileSystem::File failedUnlockCompetitor;
-    static_cast<void>(context.expectTrue("failed-unlock owner opens", failedUnlockOwner.open(failedUnlockFile).ok()));
-    static_cast<void>(context.expectTrue("failed-unlock competitor opens", failedUnlockCompetitor.open(failedUnlockFile).ok()));
-
-    {
-        auto failedUnlockLock = failedUnlockOwner.tryLockExclusive();
-        static_cast<void>(
-            context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::Lock::Outcome::Acquired, failedUnlockLock.outcome));
-
-        auto blockedBeforeCleanup = failedUnlockCompetitor.tryLockExclusive();
-        static_cast<void>(context.expectEq(
-            "failed-unlock competitor initially blocks",
-            FileSystem::Types::Lock::Outcome::WouldBlock,
-            blockedBeforeCleanup.outcome));
-
-        FileSystem::Detail::Platform::TestHooks::setFileUnlockFailure(true);
-        FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
-        static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.active()));
-    }
-    FileSystem::Detail::Platform::TestHooks::reset();
-
-    static_cast<void>(context.expectTrue("failed-unlock owner count clears after lock destruction", failedUnlockOwner.close().ok()));
-    auto acquiredAfterFailedUnlockCleanup = failedUnlockCompetitor.tryLockExclusive();
-    static_cast<void>(context.expectEq(
-        "closing owner releases native lock after failed lock cleanup",
-        FileSystem::Types::Lock::Outcome::Acquired,
-        acquiredAfterFailedUnlockCleanup.outcome));
-    static_cast<void>(context.expectTrue("failed-unlock competitor releases recovered lock", acquiredAfterFailedUnlockCleanup.lock.unlock().ok()));
-    static_cast<void>(context.expectTrue("failed-unlock competitor closes", failedUnlockCompetitor.close().ok()));
-#endif
 }

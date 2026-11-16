@@ -29,8 +29,11 @@ namespace GameWIP::FileSystem
             /// @brief Options used by createDirectory() and createDirectories().
             struct CreateOptions
             {
+                // Existing path
                 /// @brief Treat an already-existing directory as success.
                 bool succeedIfAlreadyExists = true;
+
+                // Path resolution
                 /// @brief Symlink traversal policy used while resolving the path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
             };
@@ -38,6 +41,7 @@ namespace GameWIP::FileSystem
             /// @brief Options used by listDirectory().
             struct ListOptions
             {
+                // Entry-kind filters
                 /// @brief Include regular files.
                 bool includeFiles = true;
                 /// @brief Include directories.
@@ -46,10 +50,14 @@ namespace GameWIP::FileSystem
                 bool includeSymlinks = true;
                 /// @brief Include existing entries without another portable kind.
                 bool includeOther = true;
+
+                // Visibility and metadata
                 /// @brief Include entries considered hidden by the backend.
                 bool includeHidden = true;
                 /// @brief Symlink policy used when obtaining child metadata.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Result limit
                 /// @brief Maximum number of accepted entries, or kNoEntryLimit for no caller limit.
                 /// @details Filtering is applied before counting. Exactly N accepted entries may be returned successfully;
                 /// an additional matching entry changes the result to SizeLimitExceeded while preserving those N entries.
@@ -90,26 +98,27 @@ namespace GameWIP::FileSystem
                 /// @brief Whether this step returned one accepted child.
                 bool hasEntry = false;
             };
-        } // namespace Directory
-
-        namespace Directory
-        {
+            // Tree removal
             /// @brief Options used by removeDirectoryTree().
             struct RemoveTreeOptions
             {
+                // Missing target
                 /// @brief Treat a missing target as success.
                 bool succeedIfMissing = false;
+
+                // Initial path
                 /// @brief Symlink traversal policy used only for the initial path.
                 SymlinkPolicy symlinkPolicy = SymlinkPolicy::DoNotFollow;
+
+                // Work limit
                 /// @brief Maximum number of successfully removed entries, or kNoEntryLimit for no caller limit.
-                /// @details The root counts as one entry. An exact limit can complete successfully; an additional
-                /// entry returns SizeLimitExceeded after the accepted removals. A zero limit removes nothing.
+                /// @details A removable root counts as one entry; a drive or share root is left in place and is not counted.
+                /// An additional entry returns SizeLimitExceeded after accepted removals. A zero limit removes nothing.
                 std::uint64_t maxEntries = kNoEntryLimit;
             };
 
             /// @brief Result returned by removeDirectoryTree().
-            /// @details Includes the root. Removal is incremental: SizeLimitExceeded preserves the count already removed
-            /// (see RemoveTreeOptions::maxEntries).
+            /// @details SizeLimitExceeded preserves the count already removed.
             struct RemoveTreeResult
             {
                 /// @brief Operation status.
@@ -154,17 +163,16 @@ namespace GameWIP::FileSystem
         [[nodiscard]] IO::Types::Status close() noexcept;
 
     private:
+        // Backend enumeration
         std::unique_ptr<Detail::DirectoryCursorState> state_;
+
+        // Filters and progress
         Types::Directory::ListOptions options_{};
         std::uint64_t emittedEntries_ = 0;
         bool limitReached_ = false;
     };
 
     /// @}
-
-    // ------------------------------------------------------------
-    // Directory operations
-    // ------------------------------------------------------------
 
     /// @name Directory operations
     /// @{
@@ -195,9 +203,10 @@ namespace GameWIP::FileSystem
     [[nodiscard]] IO::Types::Status removeEmptyDirectory(const Types::Path &path, const Types::RemoveOptions &options = {}) noexcept;
 
     /// @brief Recursively removes a directory tree without following discovered symlinked directories.
+    /// @details Drive and UNC share roots are containers: their contents are removed, but the root remains.
     /// @param path Root directory path.
     /// @param options Missing-target, initial symlink, and entry-limit behavior.
-    /// @return Final status and number of entries removed before completion or failure. The root counts toward maxEntries.
+    /// @return Final status and number of entries removed before completion or failure.
     [[nodiscard]] Types::Directory::RemoveTreeResult removeDirectoryTree(
         const Types::Path &path,
         const Types::Directory::RemoveTreeOptions &options = {}) noexcept;
