@@ -7,7 +7,9 @@
 #include "validation/tests/assert/assert_test.h"
 
 #include "validation/executable_path.h"
+#include "validation/platform_tests.h"
 #include "validation/process_arguments.h"
+#include "validation/tests/internal/path_text.h"
 
 #include "debug/assert/assert.h"
 #include "debug/assert/internal/assert_test_hooks.h"
@@ -31,16 +33,6 @@
 #include <thread>
 #include <utility>
 #include <vector>
-
-#if defined(_WIN32)
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#endif
 
 namespace
 {
@@ -210,9 +202,9 @@ namespace
     using TestSupport::ScopedEnvironmentVariable;
     using ScopedClearedEnvironmentVariable = TestSupport::ScopedUnsetEnvironmentVariable;
 
-    // ------------------------------------------------------------
-    // Test helpers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test helpers
+    /// ------------------------------------------------------------
 
     bool requireInfrastructure(TestContext &context, std::string_view operation, const TestSupport::Types::InfrastructureStatus &status)
     {
@@ -263,25 +255,12 @@ namespace
         return TestSupport::runChildProcess(child);
     }
 
-    std::string pathText(const std::filesystem::path &path)
+    [[nodiscard]] std::string pathText(TestContext &context, const std::filesystem::path &path)
     {
-        return path.generic_string();
+        return GameWIP::Test::Internal::pathToUtf8(context, path, "convert Assert test path");
     }
 
-    std::filesystem::path pathFromText(std::string_view text)
-    {
-        std::u8string converted(text.size(), u8'\0');
-        std::ranges::transform(
-            text,
-            converted.begin(),
-            [](char byte)
-            {
-                return static_cast<char8_t>(byte);
-            });
-        return std::filesystem::path(converted);
-    }
-
-    std::filesystem::path loggerLogFilePath(TestContext &context)
+    std::filesystem::path assertLogFilePath(TestContext &context)
     {
         const Logger::Types::LogFilePathResult result = Logger::getLogFilePath();
 
@@ -293,7 +272,7 @@ namespace
             return {};
         }
 
-        return pathFromText(result.utf8);
+        return GameWIP::Test::Internal::pathFromUtf8(context, result.utf8, "convert Assert log path");
     }
 
     std::string readFile(TestContext &context, const std::filesystem::path &path)
@@ -362,7 +341,11 @@ namespace
         {
             return false;
         }
-        const std::string directoryText = pathText(directory);
+        const std::string directoryText = pathText(context, directory);
+        if(directoryText.empty())
+        {
+            return false;
+        }
 
         Logger::Types::Config config;
         config.output = Logger::Types::OutputMode::File;
@@ -393,9 +376,9 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runAssertTests(int argc, char **argv, const AssertTestOptions &options)
     {
@@ -427,7 +410,6 @@ namespace GameWIP::Test
         TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
-        runner.info(std::format("Assert test report: {}", options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
 
         const TestSupport::Types::Reporting::SuiteResult suite = runner.runSuite(
             "Assert",
@@ -452,7 +434,13 @@ namespace GameWIP::Test
                 const ScopedLoggerShutdown loggerShutdown;
                 context.logRoot = workspace.path();
 
-                context.emit(std::format("[INFO] Assert test log root: {}\n", pathText(context.logRoot)));
+                const std::string logRootText = pathText(context, context.logRoot);
+                if(!logRootText.empty())
+                {
+                    context.emit(std::format("[INFO] Assert test log root: {}\n", logRootText));
+                }
+
+                const std::string reportPath = options.writeReport ? pathText(context, options.reportPath) : "disabled";
                 context.emit(
                     std::format(
                         "[INFO] Assert config: runtime={} enabled={} checks={} diagnostics={}\n",
@@ -469,7 +457,7 @@ namespace GameWIP::Test
                         options.enableAutomatedInteractiveTests,
                         options.enableManualTests,
                         options.stressThreadCount,
-                        options.writeReport ? options.reportPath.string() : std::string{"disabled"}));
+                        reportPath));
 
                 runCase(
                     context,

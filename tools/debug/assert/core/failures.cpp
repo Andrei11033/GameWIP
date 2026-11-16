@@ -1,4 +1,4 @@
-/// @file assert.cpp
+/// @file failures.cpp
 /// @brief Core runtime implementation for Assert failure handling.
 /// @details This file owns bounded failure formatting, synchronous Logger reporting, popup dispatch,
 /// debugger-break policy, abort policy, and interactive action application.
@@ -8,10 +8,9 @@
 
 #include "logger/logger.h"
 
-#include <array>
-
 #if ASSERT_DIAGNOSTICS
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <iterator>
 #include <memory>
@@ -29,11 +28,30 @@ namespace
         Check
     };
 
+    struct FailurePresentation
+    {
+        // Message labels
+        std::string_view source;
+        std::string_view popupTitle;
+        std::string_view genericMessage;
+
+        // Reporting policy
+        GameWIP::Logger::Types::Level level;
+        bool popupEnabled;
+    };
+
+    constexpr FailurePresentation kCheckFailurePresentation{
+        "Check",
+        "Check Failed",
+        "Check failed",
+        GameWIP::Logger::Types::Level::Error,
+        ASSERT_POPUP_ON_CHECK != 0};
+
     using GameWIP::Debug::Assert::FailureAction;
 
-    // ------------------------------------------------------------
-    // Diagnostic text construction
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Diagnostic text construction
+    /// ------------------------------------------------------------
 
 #if ASSERT_DIAGNOSTICS
     /// @brief Returns whether one byte is a UTF-8 continuation byte.
@@ -149,28 +167,18 @@ namespace
     };
 #endif
 
-    /// @brief Returns the logger source/debug label for one failure kind.
-    /// @param kind Failure kind to label.
-    /// @return Static label text.
-    constexpr std::string_view sourceText(FailureKind kind) noexcept
+    /// @brief Returns labels and popup policy for one failure kind.
+    constexpr FailurePresentation failurePresentation(FailureKind kind) noexcept
     {
-        return kind == FailureKind::Assert ? "Assert" : "Check";
-    }
+        switch(kind)
+        {
+        case FailureKind::Assert:
+            return {"Assert", "Assertion Failed", "Assert failed", GameWIP::Logger::Types::Level::Fatal, ASSERT_POPUP_ON_ASSERT != 0};
+        case FailureKind::Check:
+            return kCheckFailurePresentation;
+        }
 
-    /// @brief Returns the assert-owned popup title for one failure kind.
-    /// @param kind Failure kind to label.
-    /// @return Static popup title text.
-    constexpr std::string_view popupTitle(FailureKind kind) noexcept
-    {
-        return kind == FailureKind::Assert ? "Assertion Failed" : "Check Failed";
-    }
-
-    /// @brief Returns whether an assert-owned popup is compiled on for one failure kind.
-    /// @param kind Failure kind to inspect.
-    /// @return True when this failure kind should show a popup.
-    constexpr bool popupEnabled(FailureKind kind) noexcept
-    {
-        return kind == FailureKind::Assert ? (ASSERT_POPUP_ON_ASSERT != 0) : (ASSERT_POPUP_ON_CHECK != 0);
+        return kCheckFailurePresentation;
     }
 
 #if ASSERT_DIAGNOSTICS
@@ -191,7 +199,9 @@ namespace
         std::string_view function) noexcept
     {
         FixedFailureMessage failureMessage;
-        failureMessage.append(sourceText(kind));
+
+        // Add the failure kind and optional condition.
+        failureMessage.append(failurePresentation(kind).source);
         failureMessage.append(" failed");
 
         if(!conditionText.empty())
@@ -200,12 +210,14 @@ namespace
             failureMessage.append(conditionText);
         }
 
+        // Append caller-provided context.
         if(!message.empty())
         {
             failureMessage.append("\nMessage: ");
             failureMessage.append(message);
         }
 
+        // Append the source location when any location detail is available.
         if(!file.empty() || line > 0 || !function.empty())
         {
             failureMessage.append("\nLocation: ");
@@ -229,6 +241,7 @@ namespace
             }
         }
 
+        // Preserve a visible truncation marker within the fixed buffer.
         failureMessage.finish();
         return failureMessage;
     }
@@ -245,14 +258,14 @@ namespace
         int,
         std::string_view) noexcept
     {
-        return kind == FailureKind::Assert ? "Assert failed" : "Check failed";
+        return failurePresentation(kind).genericMessage;
     }
 
 #endif
 
-    // ------------------------------------------------------------
-    // Failure reporting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Failure reporting
+    /// ------------------------------------------------------------
 
     /// @brief Reports one failure through the synchronous Logger report path.
     /// @param kind Failure kind used as the Logger source and severity selector.
@@ -261,11 +274,11 @@ namespace
     {
         try
         {
-            const GameWIP::Logger::Types::Level level =
-                kind == FailureKind::Assert ? GameWIP::Logger::Types::Level::Fatal : GameWIP::Logger::Types::Level::Error;
+            const FailurePresentation presentation = failurePresentation(kind);
+
             // The synchronous report attempt finishes before debugger or termination handling.
             // A queued message could remain pending when the process aborts.
-            GameWIP::Logger::report(level, sourceText(kind), message);
+            GameWIP::Logger::report(presentation.level, presentation.source, message);
         }
         catch(...) // NOLINT(bugprone-empty-catch) -- Failure reporting must preserve this noexcept boundary.
         {
@@ -277,17 +290,19 @@ namespace
     /// @param message Message text to show.
     void showPopupIfEnabled(FailureKind kind, std::string_view message) noexcept
     {
-        if(!popupEnabled(kind))
+        const FailurePresentation presentation = failurePresentation(kind);
+
+        if(!presentation.popupEnabled)
         {
             return;
         }
 
-        GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(popupTitle(kind), message);
+        GameWIP::Debug::Assert::Detail::Platform::showErrorPopup(presentation.popupTitle, message);
     }
 
-    // ------------------------------------------------------------
-    // Interactive failure handling
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Interactive failure handling
+    /// ------------------------------------------------------------
 
     /// @brief Parses a test override action string for interactive asserts.
     /// @param text Environment value text.
@@ -361,7 +376,10 @@ namespace
         // Without an override, debugger state determines the default offered by the action dialog.
         // Interactive dialogs are independent of the ordinary error-popup compile-time toggles.
         const FailureAction defaultAction = defaultInteractiveAction();
-        return GameWIP::Debug::Assert::Detail::Platform::showFailureActionDialog(popupTitle(FailureKind::Assert), message, defaultAction);
+        return GameWIP::Debug::Assert::Detail::Platform::showFailureActionDialog(
+            failurePresentation(FailureKind::Assert).popupTitle,
+            message,
+            defaultAction);
     }
 
     /// @brief Applies the selected action for an interactive fatal assert failure.
@@ -395,9 +413,9 @@ namespace
         std::abort();
     }
 
-    // ------------------------------------------------------------
-    // Failure dispatch
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Failure dispatch
+    /// ------------------------------------------------------------
 
     /// @brief Returns the active text view for a failure message object or generic string view.
     /// @param message Failure message object.

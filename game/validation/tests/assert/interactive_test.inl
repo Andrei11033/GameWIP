@@ -35,7 +35,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
 
     Logger::flush(2s);
     const Logger::Types::Stats stats = Logger::getStats();
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("ASSERT_INTERACTIVE ignore_once not queued", stats.queued, std::size_t{0});
     context.expectEq("ASSERT_INTERACTIVE ignore_once writes one fatal", stats.written, std::size_t{1});
     context.expectTrue("ASSERT_INTERACTIVE ignore_once logs fatal", contents.contains("[Assert][FATAL] Assert failed"), "interactive fatal missing");
@@ -78,7 +78,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
 
     Logger::flush(2s);
     const Logger::Types::Stats stats = Logger::getStats();
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("ASSERT_INTERACTIVE always_ignore not queued", stats.queued, std::size_t{0});
     context.expectEq("ASSERT_INTERACTIVE always_ignore writes once", stats.written, std::size_t{1});
 #if ASSERT_DIAGNOSTICS
@@ -119,7 +119,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
 
 #if ASSERT_ENABLED
     Logger::flush(2s);
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    const std::string contents = readFile(context, assertLogFilePath(context));
 #if ASSERT_DIAGNOSTICS
     context.expectTrue(
         "VERIFY_INTERACTIVE failure logs when enabled",
@@ -162,7 +162,7 @@ void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
     verifyInteractiveAlwaysIgnoreSite(evaluations);
 
     Logger::flush(2s);
-    const std::string contents = readFile(context, loggerLogFilePath(context));
+    const std::string contents = readFile(context, assertLogFilePath(context));
     context.expectEq("VERIFY_INTERACTIVE Always Ignore still evaluates", evaluations, 2);
 #if ASSERT_DIAGNOSTICS
     context.expectEq(

@@ -54,20 +54,22 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     manualInteractiveAlwaysIgnoreSite();
     context.manualCheck("manual assert UI Always Ignore", "Did Always Ignore dismiss the first dialog and suppress the second call's dialog?");
 
-#if defined(_WIN32)
-    if(IsDebuggerPresent() != FALSE)
+    const GameWIP::Validation::PlatformTests::DebuggerStatus debuggerStatus = GameWIP::Validation::PlatformTests::debuggerStatus();
+
+    if(debuggerStatus == GameWIP::Validation::PlatformTests::DebuggerStatus::Attached)
     {
         context.emit("[MANUAL] Assert UI Break: click Break, let the debugger stop, then continue execution.\n");
         manualInteractiveBreakSite();
         context.manualCheck("manual assert UI Break", "Did Break stop in the debugger, and could you resume execution?");
     }
-    else
+    else if(debuggerStatus == GameWIP::Validation::PlatformTests::DebuggerStatus::Detached)
     {
         context.skip("manual assert UI Break", "no debugger is attached");
     }
-#else
-    context.skip("manual assert UI Break", "this manual check is Windows-only");
-#endif
+    else
+    {
+        context.skip("manual assert UI Break", "debugger detection is unavailable");
+    }
 
     if(options.enableChildCrashTests)
     {
@@ -80,7 +82,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
         const ScopedEnvironmentVariable childLogDirectoryOverride(
             context.processState,
             kChildLogDirectoryEnvironmentVariable,
-            pathText(childLogDirectory));
+            pathText(context, childLogDirectory));
         const ScopedClearedEnvironmentVariable clearChildTestAction(context.processState, kTestActionEnvironmentVariable);
         const ScopedClearedEnvironmentVariable clearChildSuppressPopup(context.processState, kSuppressPopupEnvironmentVariable);
 

@@ -60,11 +60,10 @@ CHECK_ONCE_MSG(false, "This warning should only appear once from this call site"
 Use `ENSURE` when the caller needs the boolean result:
 
 ```cpp
-if (!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
+if(!ENSURE_MSG(socket.isOpen(), "Socket should be open"))
 {
     return;
 }
-
 ```
 
 ## Failure handling

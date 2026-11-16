@@ -61,11 +61,10 @@ VERIFY(queue.pop());
 ```
 
 ```cpp
-if (!ENSURE(loadConfig()))
+if(!ENSURE(loadConfig()))
 {
     return false;
 }
-
 ```
 
 ## Related pages

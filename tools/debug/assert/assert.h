@@ -303,6 +303,7 @@ namespace GameWIP::Debug::Assert::Detail
 // ------------------------------------------------------------
 // Assertion macros
 // ------------------------------------------------------------
+
 /// @name Fatal assertion macros
 /// @{
 
@@ -501,6 +502,7 @@ namespace GameWIP::Debug::Assert::Detail
 // ------------------------------------------------------------
 // Check macros
 // ------------------------------------------------------------
+
 /// @name Recoverable check macros
 /// @{
 
@@ -645,6 +647,7 @@ namespace GameWIP::Debug::Assert::Detail
 // ------------------------------------------------------------
 // Debug break macro
 // ------------------------------------------------------------
+
 /// @name Debug break macro
 /// @{
 

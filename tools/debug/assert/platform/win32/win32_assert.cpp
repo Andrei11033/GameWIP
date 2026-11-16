@@ -28,9 +28,9 @@
 
 namespace
 {
-    // ------------------------------------------------------------
-    // Popup suppression
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Popup suppression
+    /// ------------------------------------------------------------
 
     /// @brief Returns whether real Assert UI is suppressed by environment state.
     bool popupsSuppressed() noexcept
@@ -63,9 +63,9 @@ namespace
         static_cast<void>(MessageBoxW(nullptr, message, title, MB_ICONERROR | MB_OK | MB_SETFOREGROUND));
     }
 
-    // ------------------------------------------------------------
-    // Popup text conversion
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Popup text conversion
+    /// ------------------------------------------------------------
 
     /// @brief Builds printable ASCII-only UTF-16 text when strict UTF-8 conversion fails.
     std::wstring asciiFallbackToWide(std::string_view text)
@@ -196,9 +196,9 @@ namespace
         return text;
     }
 
-    // ------------------------------------------------------------
-    // Dialog actions and fallback
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Dialog actions and fallback
+    /// ------------------------------------------------------------
 
     // Button construction and both mappings share these IDs to keep choices and results consistent.
     constexpr int kBreakButtonId = 1001;
