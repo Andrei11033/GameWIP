@@ -135,6 +135,7 @@ class UnicodeAuthorityTests(unittest.TestCase):
 # Validation module discovery
 # ------------------------------------------------------------
 
+
 class ValidationModuleDiscoveryTests(unittest.TestCase):
     def test_discovers_registered_modules_and_ignores_support_folders(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -142,8 +143,7 @@ class ValidationModuleDiscoveryTests(unittest.TestCase):
             fixtures = {
                 "alpha": "gamewip_add_test_module(\n    NAME alpha\n    SOURCES alpha.cpp\n)\n",
                 "internal": "add_library(SharedTestSupport OBJECT support.cpp)\n",
-                "platform": "# gamewip_add_test_module(NAME ignored SOURCES ignored.cpp)\n"
-                "gamewip_add_platform_backend(TARGET Tests ROOT .)\n",
+                "platform": "# gamewip_add_test_module(NAME ignored SOURCES ignored.cpp)\ngamewip_add_platform_backend(TARGET Tests ROOT .)\n",
                 "zeta": "gamewip_add_test_module(NAME zeta SOURCES zeta.cpp)\n",
             }
 

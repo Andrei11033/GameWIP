@@ -134,7 +134,7 @@ function Show-GameWipHygieneStatus
     $tidy = $tidyStatus.Detected
     $runner = Resolve-GameWipToolCommand -Command run-clang-tidy
     $python = Resolve-GameWipToolCommand -Command python
-    $database = Join-Path $RepositoryRoot "build\$($HygieneConfig.AnalyzePreset)\compile_commands.json"
+    $database = Join-Path (Get-GameWipBuildDirectory -PresetName ([string]$HygieneConfig.AnalyzePreset)) 'compile_commands.json'
     Write-GameWipSection 'Hygiene configuration status'
     Write-Host "  Registry:             config/quality/hygiene.json"
     Write-Host "  Default profile:      $($HygieneConfig.DefaultProfile)"
@@ -237,7 +237,7 @@ function Invoke-GameWipHygieneClangTidy
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset
-    $databaseRoot = Join-Path $RepositoryRoot "build\$preset"
+    $databaseRoot = Get-GameWipBuildDirectory -PresetName $preset
 
     $ruleLookup = @{}
     $options = [ordered]@{}
@@ -271,7 +271,7 @@ function Invoke-GameWipHygieneClangTidy
         '-j', '4',
         '-quiet'
     )
-    $path = @((Get-GameWipToolchainPathPrefix $preset), $env:PATH) -join [IO.Path]::PathSeparator
+    $path = @((Get-GameWipToolchainPathPrefix), $env:PATH) -join [IO.Path]::PathSeparator
     $result = Invoke-GameWipProcess -FilePath $python -Arguments $arguments -OutputMode $Script:OperationContext.OutputMode -TimeoutSeconds 7200 -Environment @{ PATH = $path }
     $lines = @($result.Stdout) + @($result.Stderr)
     $findings = @(ConvertFrom-GameWipClangTidyFinding -Lines $lines -RuleLookup $ruleLookup)
@@ -305,7 +305,7 @@ function Invoke-GameWipHygieneCompilerWarnings
     }
 
     $preset = [string]$HygieneConfig.AnalyzePreset
-    $databaseRoot = Join-Path $RepositoryRoot "build\$preset"
+    $databaseRoot = Get-GameWipBuildDirectory -PresetName $preset
     $database = Join-Path $databaseRoot 'compile_commands.json'
     $scriptPath = Join-Path $ScriptsRoot 'lib\hygiene_compiler_warnings.py'
     $ruleLookup = @{}
@@ -331,7 +331,7 @@ function Invoke-GameWipHygieneCompilerWarnings
         $arguments += "--flag=$flag"
     }
 
-    $path = @((Get-GameWipToolchainPathPrefix $preset), $env:PATH) -join [IO.Path]::PathSeparator
+    $path = @((Get-GameWipToolchainPathPrefix), $env:PATH) -join [IO.Path]::PathSeparator
     $result = Invoke-GameWipProcess -FilePath $python -Arguments $arguments -OutputMode $Script:OperationContext.OutputMode -TimeoutSeconds 7200 -Environment @{ PATH = $path }
     $lines = @($result.Stdout) + @($result.Stderr)
     $findings = @(ConvertFrom-GameWipClangTidyFinding -Lines $lines -RuleLookup $ruleLookup)
@@ -398,7 +398,7 @@ function Invoke-GameWipHygieneAudit
         # Prepare it once here so a compiler-only selection works on a fresh tree.
         $preset = [string]$HygieneConfig.AnalyzePreset
         Invoke-GameWipConfigurePreset -Name $preset | Out-Null
-        $database = Join-Path $RepositoryRoot "build\$preset\compile_commands.json"
+        $database = Join-Path (Get-GameWipBuildDirectory -PresetName $preset) 'compile_commands.json'
 
         if (-not (Test-Path -LiteralPath $database -PathType Leaf))
         {

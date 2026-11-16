@@ -71,7 +71,9 @@ CTEST_PRESET = re.compile(r"(?:^|\s)--preset(?:=|\s+)([A-Za-z0-9_.-]+)")
 ISSUE_AREA_OPTIONS = re.compile(r"(?ms)^    id: area\s*$.*?^      options:\s*$\n((?:^        - [^\n]+\n?)+)")
 ISSUE_AREA_MAPPING = re.compile(r"\[['\"]([^'\"]+)['\"],\s*['\"](area:[^'\"]+)['\"]\]")
 CURRENT_AREA_MAPPING_BLOCK = re.compile(r"const AREA_LABELS_BY_VALUE = new Map\(\[(.*?)\]\);", re.DOTALL)
-VALIDATION_TEST_MODULE_PATTERN = re.compile(r"^[ \t]*gamewip_add_test_module[ \t\r\n]*\([ \t\r\n]*NAME[ \t\r\n]+([A-Za-z0-9_-]+)", re.IGNORECASE | re.MULTILINE)
+VALIDATION_TEST_MODULE_PATTERN = re.compile(
+    r"^[ \t]*gamewip_add_test_module[ \t\r\n]*\([ \t\r\n]*NAME[ \t\r\n]+([A-Za-z0-9_-]+)", re.IGNORECASE | re.MULTILINE
+)
 CANONICAL_AREA_MAPPINGS = {
     "CMake / build system": "area:cmake",
     "FileSystem": "area:filesystem",
@@ -371,9 +373,7 @@ def validation_test_module_names() -> list[str]:
     """Return module IDs registered by validation-test CMake files."""
     module_root = ROOT / "game/validation/tests"
     return sorted(
-        name
-        for path in module_root.glob("*/CMakeLists.txt")
-        for name in VALIDATION_TEST_MODULE_PATTERN.findall(path.read_text(encoding="utf-8"))
+        name for path in module_root.glob("*/CMakeLists.txt") for name in VALIDATION_TEST_MODULE_PATTERN.findall(path.read_text(encoding="utf-8"))
     )
 
 

@@ -145,6 +145,59 @@ jobs:
         shell: pwsh
         run: ./scripts/GameWIP.ps1 deps check -NonInteractive
 
+  windows_target_builds:
+    name: Windows ${{ matrix.architecture }} build
+    needs: [change_scope, prepare_dependencies]
+    if: needs.change_scope.outputs.needs_deep == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [x64, arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install host build tools
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          location: C:\MSYS2
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+
+      - name: Restore locked dependency cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/gamewip/cache/dependencies
+          key: gamewip-dependencies-${{ runner.os }}-${{ hashFiles('scripts/config/dependencies.json') }}
+          restore-keys: |
+            gamewip-dependencies-${{ runner.os }}-
+
+      - name: Prepare pinned dependencies
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 deps prepare -Yes -NonInteractive
+
+      - name: Install the pinned Windows compiler
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 tool ensure llvm-mingw -Yes -NonInteractive
+
+      - name: Select target
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 target -TargetPlatform windows -TargetArchitecture '${{ matrix.architecture }}' -Yes -NonInteractive
+
+      - name: Build development preset
+        shell: pwsh
+        run: ./scripts/GameWIP.ps1 build dev -Yes -NonInteractive
+
   package_compatibility:
     name: Packages (CMake)
     needs: [change_scope, prepare_dependencies]
@@ -614,6 +667,7 @@ jobs:
     needs:
       - change_scope
       - prepare_dependencies
+      - windows_target_builds
       - package_compatibility
       - build_test
       - repository_checks
@@ -632,6 +686,7 @@ jobs:
           NEEDS_DEEP: ${{ needs.change_scope.outputs.needs_deep }}
           NEEDS_DOCS: ${{ needs.change_scope.outputs.needs_docs }}
           PREPARE_RESULT: ${{ needs.prepare_dependencies.result }}
+          WINDOWS_TARGET_RESULT: ${{ needs.windows_target_builds.result }}
           PACKAGE_RESULT: ${{ needs.package_compatibility.result }}
           BUILD_RESULT: ${{ needs.build_test.result }}
           REPOSITORY_RESULT: ${{ needs.repository_checks.result }}
@@ -651,6 +706,7 @@ jobs:
           fi
 
           if [[ "$NEEDS_DEEP" == true ]]; then
+            [[ "$WINDOWS_TARGET_RESULT" == success ]] || failures+=("Windows target builds: $WINDOWS_TARGET_RESULT")
             [[ "$PACKAGE_RESULT" == success ]] || failures+=("Packages (CMake): $PACKAGE_RESULT")
             [[ "$BUILD_RESULT" == success ]] || failures+=("Build and Test: $BUILD_RESULT")
             [[ "$COVERAGE_RESULT" == success ]] || failures+=("Coverage: $COVERAGE_RESULT")

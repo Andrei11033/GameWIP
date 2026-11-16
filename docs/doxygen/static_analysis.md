@@ -33,8 +33,9 @@ directly.
 
 The `analyze` preset selects `clang++` and requires the UCRT64 packages for
 CMake, Ninja, Clang, clang-tools-extra, GCC runtime support, Git, and Python.
-AddressSanitizer and UndefinedBehaviorSanitizer use the MSYS2 CLANG64
-environment and are documented in @ref project_build.
+Direct CMake AddressSanitizer and UndefinedBehaviorSanitizer builds use MSYS2
+CLANG64. The Windows helper uses the selected LLVM-MinGW target; see @ref
+project_build.
 
 When invoking CMake or clang tools directly, use the MSYS2 UCRT64 environment
 or put that toolchain first on `PATH`. The analyze preset, `clang-tidy`,
@@ -44,7 +45,9 @@ database that the selected tools cannot use reliably.
 
 ## C++ static analysis
 
-The `analyze` preset configures a compilation database under `build/analyze` and enables the `static-analysis` build target.
+The `analyze` preset enables the `static-analysis` build target. Direct CMake
+places its compilation database under `build/analyze`; the Windows helper uses
+`build/<target>/analyze`.
 
 Run the full local C++ analysis target from the repository root:
 

@@ -143,7 +143,7 @@ void testSessions(TestSupport::Context &context)
     static_cast<void>(context.expectEq("negative deadline consumes nothing", std::string{"deadline"}, session.readText().text));
 
     Hooks::setInputBytes(Terminal::Types::Input::Stream::Stdin, "cancelled");
-    const std::stop_source stopSource;
+    std::stop_source stopSource;
     stopSource.request_stop();
     Terminal::Types::Input::TextOptions cancelledOptions;
     cancelledOptions.stopToken = stopSource.get_token();
@@ -434,7 +434,7 @@ void testSessions(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("default event session opens with event-capable hook", events.open().ok()));
     static_cast<void>(context.expectEq("event session rejects stream reads", ErrorCode::Unsupported, events.readText().status.code));
 
-    const std::stop_source eventStopSource;
+    std::stop_source eventStopSource;
     eventStopSource.request_stop();
     Terminal::Types::Input::EventOptions eventCancelledOptions;
     eventCancelledOptions.stopToken = eventStopSource.get_token();

@@ -10,16 +10,28 @@ function Reset-GameWipPresetBuildTree
 {
     param([Parameter(Mandatory = $true)][string]$Name)
 
+    # Resolve the selected preset's only allowed removal path.
     Assert-GameWipValidPreset -Kind 'configure' -Name $Name
     $buildRoot = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build'))
-    $presetRoot = [IO.Path]::GetFullPath((Join-Path $buildRoot $Name))
+    $target = Get-GameWipSelectedBuildTarget
+    $presetRoot = [IO.Path]::GetFullPath((Get-GameWipBuildDirectory -PresetName $Name -Target $target))
+    $relativePresetRoot = Get-GameWipRepositoryRelativePath -Path $presetRoot
+    $targetRoot = if ($target.platform -eq 'native')
+    {
+        $buildRoot
+    }
+    else
+    {
+        [IO.Path]::GetFullPath((Join-Path $buildRoot ([string]$target.id)))
+    }
     $presetParent = [IO.Path]::GetDirectoryName($presetRoot)
 
-    if (-not [string]::Equals($presetParent, $buildRoot, [StringComparison]::OrdinalIgnoreCase))
+    if (-not [string]::Equals($presetParent, $targetRoot, [StringComparison]::OrdinalIgnoreCase))
     {
-        throw "Refusing to recreate preset '$Name' outside the repository build root."
+        throw "Refusing to recreate preset '$Name' outside target '$($target.id)'."
     }
 
+    # Reject reparse points before recursive removal.
     if (Test-Path -LiteralPath $buildRoot)
     {
         $buildRootItem = Get-Item -LiteralPath $buildRoot -Force
@@ -30,9 +42,20 @@ function Reset-GameWipPresetBuildTree
         }
     }
 
+    if (Test-Path -LiteralPath $targetRoot)
+    {
+        $targetItem = Get-Item -LiteralPath $targetRoot -Force
+
+        if (($targetItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+        {
+            throw "Refusing to recreate preset '$Name' through reparse-point target tree '$targetRoot'."
+        }
+    }
+
+    # Remove only the selected target's preset tree.
     if (-not (Test-Path -LiteralPath $presetRoot))
     {
-        Write-GameWipOperationEvent -Phase plan -Step "fresh-$Name" -Severity info -Message "Preset '$Name' already has no build tree; configuration will create it."
+        Write-GameWipOperationEvent -Phase plan -Step "fresh-$Name" -Severity info -Message "Build tree '$relativePresetRoot' does not exist; configuration will create it."
         return
     }
 
@@ -43,7 +66,7 @@ function Reset-GameWipPresetBuildTree
         throw "Refusing to recursively remove reparse-point preset tree '$presetRoot'."
     }
 
-    Write-GameWipOperationEvent -Phase execute -Step "fresh-$Name" -Severity info -Message "Removing the complete preset build tree '$presetRoot'."
+    Write-GameWipOperationEvent -Phase execute -Step "fresh-$Name" -Severity info -Message "Removing build tree '$relativePresetRoot'."
     Remove-Item -LiteralPath $presetRoot -Recurse -Force
 }
 
@@ -54,15 +77,27 @@ function Invoke-GameWipConfigurePreset
         [switch]$Fresh,
         [switch]$Offline
     )
+
+    # Build target-specific CMake arguments and output paths.
     Assert-GameWipValidPreset -Kind 'configure' -Name $Name
+    $target = Get-GameWipSelectedBuildTarget
+    $buildDirectory = Get-GameWipBuildDirectory -PresetName $Name -Target $target
 
     if ($Fresh)
     {
         Reset-GameWipPresetBuildTree -Name $Name
     }
     Confirm-GameWipToolchain -PresetName $Name
-    $pathPrefix = Get-GameWipToolchainPathPrefix $Name
+    $pathPrefix = Get-GameWipToolchainPathPrefix
     $arguments = @('--preset', $Name)
+    $arguments += @('-B', $buildDirectory)
+
+    if ($target.platform -eq 'windows')
+    {
+        $arguments += "-DGAMEWIP_TARGET_PLATFORM=$($target.platform)"
+        $arguments += "-DGAMEWIP_TARGET_ARCHITECTURE=$($target.architecture)"
+        $arguments += "-DGAMEWIP_LLVM_MINGW_ROOT=$(Get-GameWipBuildTargetToolchainRoot -Target $target)"
+    }
     $offlineValue = if ($Offline)
     {
         'ON'
@@ -72,8 +107,9 @@ function Invoke-GameWipConfigurePreset
         'OFF'
     }
     $arguments += "-DGAMEWIP_DEPENDENCIES_OFFLINE=$offlineValue"
-    $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
+    $cache = Join-Path $buildDirectory 'CMakeCache.txt'
 
+    # Recreate a cache when it belongs to another target compiler.
     if ((Test-GameWipWindowsHost) -and (Test-Path -LiteralPath $cache))
     {
         $compilerEntry = Get-Content -LiteralPath $cache | Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } | Select-Object -First 1
@@ -92,7 +128,7 @@ function Invoke-GameWipConfigurePreset
         # switch makes CMake reset the cache mid-configure and silently drops the preset options.
         if ([string]::IsNullOrWhiteSpace($configuredCompiler) -or -not [IO.Path]::IsPathRooted($configuredCompiler))
         {
-            $compilerState = Get-ChildItem -LiteralPath (Join-Path $RepositoryRoot "build\$Name\CMakeFiles") `
+            $compilerState = Get-ChildItem -LiteralPath (Join-Path $buildDirectory 'CMakeFiles') `
                 -Filter 'CMakeCXXCompiler.cmake' -File -Recurse -ErrorAction SilentlyContinue |
                 Sort-Object LastWriteTimeUtc -Descending |
                 Select-Object -First 1
@@ -110,18 +146,19 @@ function Invoke-GameWipConfigurePreset
             }
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($configuredCompiler) -and [IO.Path]::IsPathRooted($configuredCompiler))
+        if ($target.platform -eq 'windows' -and -not [string]::IsNullOrWhiteSpace($configuredCompiler) -and [IO.Path]::IsPathRooted($configuredCompiler))
         {
             $configuredCompiler = $configuredCompiler.Replace('/', '\')
-            $expectedRoot = ([IO.Path]::GetFullPath($pathPrefix)).TrimEnd('\') + '\'
+            $expectedCompiler = [IO.Path]::GetFullPath((Get-GameWipBuildTargetCompilerPath -Target $target)).Replace('/', '\')
 
-            if (-not $configuredCompiler.StartsWith($expectedRoot, [StringComparison]::OrdinalIgnoreCase))
+            if (-not [string]::Equals($configuredCompiler, $expectedCompiler, [StringComparison]::OrdinalIgnoreCase))
             {
                 Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "The cached compiler belongs to a different toolchain; CMake will recreate this preset cache."
                 $arguments += '--fresh'
             }
         }
     }
+    # Configure the isolated target build tree.
     Invoke-GameWipNative -Name "configure-$Name" -FilePath 'cmake' -Arguments $arguments -PathPrefix $pathPrefix
 }
 
@@ -134,7 +171,8 @@ function Invoke-GameWipBuildPreset
     )
     Assert-GameWipValidPreset -Kind 'build' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
-    $cache = Join-Path $RepositoryRoot "build\$Name\CMakeCache.txt"
+    $buildDirectory = Get-GameWipBuildDirectory -PresetName $Name
+    $cache = Join-Path $buildDirectory 'CMakeCache.txt'
 
     if ($Fresh)
     {
@@ -156,20 +194,37 @@ function Invoke-GameWipBuildPreset
             -Message "Offline dependency mode requested; refreshing preset '$Name' with downloads disabled."
         Invoke-GameWipConfigurePreset -Name $Name -Offline
     }
-    Invoke-GameWipNative -Name "build-$Name" -FilePath 'cmake' -Arguments @('--build', '--preset', $Name, '--parallel') -PathPrefix (Get-GameWipToolchainPathPrefix $Name)
+    Invoke-GameWipNative -Name "build-$Name" -FilePath 'cmake' -Arguments @('--build', $buildDirectory, '--parallel') -PathPrefix (Get-GameWipToolchainPathPrefix)
 }
 
 function Invoke-GameWipBuildTarget
 {
     param([Parameter(Mandatory = $true)][string]$Name, [Parameter(Mandatory = $true)][string]$Target)
     Assert-GameWipValidPreset -Kind 'build' -Name $Name
-    Invoke-GameWipNative -Name "build-$Name-$Target" -FilePath 'cmake' -Arguments @('--build', '--preset', $Name, '--target', $Target) -PathPrefix (Get-GameWipToolchainPathPrefix $Name)
+    $buildDirectory = Get-GameWipBuildDirectory -PresetName $Name
+    Invoke-GameWipNative -Name "build-$Name-$Target" -FilePath 'cmake' -Arguments @('--build', $buildDirectory, '--target', $Target) -PathPrefix (Get-GameWipToolchainPathPrefix)
 }
 
 function Resolve-GameWipProjectExecutable
 {
     param([Parameter(Mandatory = $true)]$Command)
-    $primary = Join-Path $RepositoryRoot $Command.Executable
+    $buildDirectory = Get-GameWipBuildDirectory -PresetName ([string]$Command.BuildPreset)
+    $presetPrefix = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot (Join-Path 'build' ([string]$Command.BuildPreset))))
+
+    $resolvePath = {
+        param([string]$RelativePath)
+        $fullPath = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot $RelativePath))
+
+        if ($fullPath.StartsWith($presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase))
+        {
+            $suffix = $fullPath.Substring($presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar).Length).TrimStart([IO.Path]::DirectorySeparatorChar)
+            return Join-Path $buildDirectory $suffix
+        }
+
+        return $fullPath
+    }
+
+    $primary = & $resolvePath ([string]$Command.Executable)
 
     if (Test-Path -LiteralPath $primary)
     {
@@ -178,7 +233,7 @@ function Resolve-GameWipProjectExecutable
 
     if ($Command.ContainsKey('AlternateExecutable'))
     {
-        $alternate = Join-Path $RepositoryRoot $Command.AlternateExecutable
+        $alternate = & $resolvePath ([string]$Command.AlternateExecutable)
 
         if (Test-Path -LiteralPath $alternate)
         {

@@ -99,8 +99,9 @@ namespace GameWIP::Input::Platform::Win32::Detail
                 return {};
             }
 
-            std::vector<std::byte> detailBuffer(detailSize);
-            auto *detail = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W *>(detailBuffer.data());
+            std::vector<SP_DEVICE_INTERFACE_DETAIL_DATA_W> detailBuffer(
+                (detailSize + sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W) - 1) / sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W));
+            SP_DEVICE_INTERFACE_DETAIL_DATA_W *detail = detailBuffer.data();
             detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
             deviceData = {};
             deviceData.cbSize = sizeof(deviceData);

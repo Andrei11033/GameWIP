@@ -786,6 +786,14 @@ function Invoke-GameWipToolEnsure
         $selected = @($selected | Where-Object { $_.provider.kind -notin @('msys2', 'winget') })
     }
 
+    $unsupportedHostTools = @($selected | Where-Object { -not (Test-GameWipToolHostSupport -Tool $_) })
+
+    foreach ($tool in $unsupportedHostTools)
+    {
+        Write-Verbose "Skipping '$($tool.id)' because it is available only on $($tool.provider.hostPlatform)."
+    }
+    $selected = @($selected | Where-Object { Test-GameWipToolHostSupport -Tool $_ })
+
     foreach ($tool in @($selected | Where-Object { -not $_.capabilities.detectInstalled -or -not $_.capabilities.update }))
     {
         Write-Verbose "Skipping non-installable tool '$($tool.id)' during ensure; its lifecycle is owned by setup, repository state, or an external source."

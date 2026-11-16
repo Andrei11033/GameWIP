@@ -1,10 +1,5 @@
 # Keep runtime implementation sources registered beside their domain folders.
-target_sources(
-    GameWIP
-    PRIVATE
-        runtime_input.h
-        game.cpp
-)
+target_sources(GameWIP PRIVATE runtime_input.h game.cpp)
 
 add_subdirectory(diagnostics)
 add_subdirectory(lifecycle)

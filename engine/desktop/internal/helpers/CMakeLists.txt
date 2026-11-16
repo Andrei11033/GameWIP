@@ -1,5 +1,1 @@
-target_sources(
-    Desktop
-    PRIVATE
-        shell.cpp
-)
+target_sources(Desktop PRIVATE shell.cpp)

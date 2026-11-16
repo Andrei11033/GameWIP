@@ -116,10 +116,10 @@ condition without writing ownership state.
 
 Uninstall removes the repository-owned VS Code workflow extension/keybinding
 block, proven GameWIPTools state, recorded setup-owned applications/extensions,
-the Tracy cache, and setup-generated `build/dev` and `build/docs` trees. It
-preserves software that existed beforehand, the checkout, other build trees,
-user files, ownership-unknown GameWIPTools content, and an MSYS2 tree that may
-contain later user data.
+the Tracy cache, and the `build/dev` and `build/docs` trees. It preserves
+software that existed beforehand, the checkout, other build trees including
+target-specific builds, user files, ownership-unknown GameWIPTools content, and
+an MSYS2 tree that may contain later user data.
 
 ## Adding or changing setup behavior
 

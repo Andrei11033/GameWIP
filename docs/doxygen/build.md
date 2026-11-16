@@ -2,8 +2,8 @@
 
 GameWIP uses CMake presets to keep development, testing, benchmarking,
 profiling, coverage, analysis, documentation, and release builds separate.
-Presets write build trees under `build/<preset>` and set the project composition
-options required by each workflow.
+Native CMake builds use `build/<preset>`. The Windows helper selects a target
+and uses `build/<target>/<preset>` so architectures keep separate caches.
 
 This guide explains the project-level presets and options, what each build
 contains, where its artifacts go, how runtime dependencies are staged, and how
@@ -18,10 +18,12 @@ project_command_line_tools.
 
 Use PowerShell for the `gamewip.bat` helper commands and MSYS2 UCRT64 Bash
 for the direct CMake commands below. PowerShell can also run CMake directly when
-UCRT64 tools are first on `PATH`; the sanitizer examples select CLANG64 instead.
-The supported environment is MSYS2 UCRT64 with CMake 4.4.4
-or newer, Ninja, GCC 16.2 or newer or Clang 23.1.3 or newer as selected by the
-preset, and C++23 support. The compiler floors are declared as `minimum` in
+UCRT64 tools are first on `PATH`; direct sanitizer examples use CLANG64.
+The helper's Windows targets use LLVM-MinGW Clang with libc++ and UCRT. Direct
+CMake commands use the active MSYS2 compiler. The supported environment is
+MSYS2 UCRT64 with CMake 4.4.4 or newer, Ninja, GCC 16.2 or newer or Clang
+23.1.3 or newer as selected by the preset, and C++23 support. Compiler floors
+are declared as `minimum` in
 `scripts/config/project-tools.json`; an older compiler is reported as outdated
 instead of silently producing different diagnostics than CI. The
 root `cmake_minimum_required()` declaration is the authoritative CMake version;
@@ -38,20 +40,35 @@ Before configuring a fresh checkout, prepare the locked dependency cache:
 .\setup.bat deps
 ```
 
-The `asan` and `ubsan` presets use the MSYS2 CLANG64 environment because the Windows sanitizer runtimes are provided there.
-Keep CLANG64 sanitizer builds in their own build directories and place CLANG64
-tools first on `PATH` before configuring those presets.
+Native Windows CMake `asan` and `ubsan` builds use MSYS2 CLANG64. Keep those
+trees separate from helper-managed target trees and place CLANG64 tools first
+on `PATH`. The Windows helper uses the selected LLVM-MinGW target;
+AddressSanitizer is available for x64, but not ARM64.
 
 ## Common workflow
 
-From PowerShell at the repository root, the helper selects the toolchain and
-configures the preset when needed:
+From PowerShell at the repository root, the helper defaults to Windows x64,
+selects LLVM-MinGW, and configures the preset when needed:
 
 ```powershell
+.\gamewip.bat target
 .\gamewip.bat build dev
 .\gamewip.bat test test
 .\gamewip.bat build docs
 ```
+
+Select Windows ARM64 with:
+
+```powershell
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture arm64
+```
+
+`setup.bat repair` installs the pinned LLVM-MinGW toolchain when it is missing.
+Target selection is stored under `build/gamewip/state`; each target uses its own
+preset trees.
+
+The helper does not configure an ARM64 emulator. Run ARM64 executables on an
+ARM64 Windows host; on x64 Windows, select x64 before running CTest.
 
 From MSYS2 UCRT64 Bash, configure and build one preset:
 
@@ -59,6 +76,18 @@ From MSYS2 UCRT64 Bash, configure and build one preset:
 cmake --preset dev
 cmake --build --preset dev
 ```
+
+Direct CMake can select a Windows target with cache variables and a separate
+build directory:
+
+```powershell
+cmake --preset dev -B build/windows-arm64/dev `
+  -DGAMEWIP_TARGET_PLATFORM=windows `
+  -DGAMEWIP_TARGET_ARCHITECTURE=arm64
+cmake --build build/windows-arm64/dev
+```
+
+The Windows helper manages target selection and build paths for this workflow.
 
 Run tests through the validation preset:
 
@@ -96,13 +125,12 @@ the cache and CMake does not download them. Direct CMake invocations use
 .\gamewip.bat build profile -Offline
 ```
 
-Fresh mode removes the complete known `build/<preset>` directory before
+Fresh mode removes the complete selected target's preset directory before
 configuration. A target clean or `cmake --fresh` is not equivalent: either can
 leave orphaned object files, generated sources, instrumentation counters, or
 runtime copies that are no longer part of the current build graph. The helper
-accepts only cataloged preset names whose resolved directory is a direct child
-of the repository build root, and refuses recursive removal through reparse
-points.
+accepts only cataloged preset names within the repository build tree, and
+refuses recursive removal through reparse points.
 
 The high-level `coverage`, `asan`, and `ubsan` actions are fresh by default.
 The `local-release-check` and `sanitizer` bundles also declare fresh build
@@ -110,6 +138,14 @@ trees, while ordinary low-level commands and the `quick` bundle remain
 incremental. GitHub-hosted validation jobs already start in a new runner
 workspace. Workflows may cache downloaded tools or dependencies, but must not
 restore CMake build trees across runs.
+
+### Target selection
+
+Direct CMake builds use the host platform and architecture unless a target is
+selected before compiler detection. Windows cross-builds require both
+`GAMEWIP_TARGET_PLATFORM=windows` and `GAMEWIP_TARGET_ARCHITECTURE=x64` or
+`arm64`; the helper sets these values and keeps each target in a separate build
+tree. `GAMEWIP_LLVM_MINGW_ROOT` may override the managed toolchain root.
 
 ## Presets
 
@@ -121,8 +157,8 @@ restore CMake build trees across runs.
 | `profile` | `RelWithDebInfo` | `GameWIP` | Tracy game build; `--startup-tests` profiles embedded validation. |
 | `release` | `Release` with interprocedural optimization | `GameWIP` | Distributable game without validation, profiling, or assertions. |
 | `coverage` | `Debug` | `GameWIPTests`, coverage target | Correctness tests with coverage instrumentation. |
-| `asan` | `Debug` | `GameWIPTests` | CLANG64 AddressSanitizer validation build. |
-| `ubsan` | `Debug` | `GameWIPTests` | CLANG64 UndefinedBehaviorSanitizer validation build. |
+| `asan` | `Debug` | `GameWIPTests` | AddressSanitizer validation build. |
+| `ubsan` | `Debug` | `GameWIPTests` | UndefinedBehaviorSanitizer validation build. |
 | `analyze` | `RelWithDebInfo` | `static-analysis` target | clang-tidy and clang-format checks for maintained C++ sources. |
 | `docs` | `Release` | `docs` target | Doxygen documentation only. |
 
@@ -135,11 +171,15 @@ are for CI; see `CMakePresets.json`.
 
 ### Print runtime version information
 
+For the helper's default Windows x64 target:
+
 ```powershell
-.\build\dev\GameWIP.exe --version
+.\build\windows-x64\dev\GameWIP.exe --version
 ```
 
-The executable prints the same generated display version used by Doxygen and runtime diagnostics without entering startup validation.
+Direct CMake builds place the executable at `build/dev/GameWIP.exe`. The
+executable prints the generated display version without entering startup
+validation.
 
 ### Configure AddressSanitizer
 
@@ -159,7 +199,8 @@ cmake --build --preset asan
 ctest --preset asan
 ```
 
-Or use the PowerShell helper, which selects CLANG64 and starts a fresh build:
+Or use the PowerShell helper, which uses the selected Windows target and starts
+a fresh build. AddressSanitizer supports x64 only:
 
 ```powershell
 .\gamewip.bat asan
@@ -183,7 +224,8 @@ cmake --build --preset ubsan
 ctest --preset ubsan
 ```
 
-Or use the PowerShell helper, which selects CLANG64 and starts a fresh build:
+Or use the PowerShell helper, which uses the selected Windows target and starts
+a fresh build:
 
 ```powershell
 .\gamewip.bat ubsan
@@ -238,21 +280,21 @@ conversion.
 
 | Artifact | Location | Producer |
 | --- | --- | --- |
-| Build tree | `build/<preset>/` | CMake preset |
-| Game executable | `build/<preset>/GameWIP.exe` | Game target presets |
-| Test executable | `build/test/GameWIPTests.exe` | Test preset |
-| Benchmark executable | `build/benchmark/GameWIPBenchmarks.exe` | Benchmark preset |
-| Validation reports | `build/<preset>/logs/validation/` | Standalone or embedded validation |
-| Validation and benchmark temporary workspaces | `build/<preset>/temp/` | Validation/benchmark runners and child processes |
-| Doxygen HTML | `build/docs/docs/doxygen/html/` | Docs preset |
-| Doxygen warning log | `build/docs/docs/doxygen/doxygen_warnings.log` | Docs preset |
-| Coverage HTML | `build/coverage/coverage/index.html` | Coverage target |
-| Coverage XML | `build/coverage/coverage/coverage.xml` | Coverage target |
+| Build tree | `build/<preset>/` direct; `build/<target>/<preset>/` helper | CMake preset |
+| Game executable | `<build-tree>/GameWIP.exe` | Game target presets |
+| Test executable | `<build-tree>/GameWIPTests.exe` | Test preset |
+| Benchmark executable | `<build-tree>/GameWIPBenchmarks.exe` | Benchmark preset |
+| Validation reports | `<build-tree>/logs/validation/` | Standalone or embedded validation |
+| Validation and benchmark temporary workspaces | `<build-tree>/temp/` | Validation/benchmark runners and child processes |
+| Doxygen HTML | `<build-tree>/docs/doxygen/html/` | Docs preset |
+| Doxygen warning log | `<build-tree>/docs/doxygen/doxygen_warnings.log` | Docs preset |
+| Coverage HTML | `<build-tree>/coverage/index.html` | Coverage target |
+| Coverage XML | `<build-tree>/coverage/coverage.xml` | Coverage target |
 | Helper logs, manifests, and retained results | `build/gamewip/runs/<timestamp>_<action>/` | `gamewip.bat` and `setup.bat` |
 
-Runtime dependency copying places matching MSYS2 runtime DLLs beside project
-executables. The helper derives the runtime search directory from the active
-compiler so UCRT64 and CLANG64 runtime files are not mixed accidentally.
+Runtime dependency copying places matching compiler runtime DLLs beside project
+executables. The helper searches the active compiler and target runtime
+directories so UCRT64 and LLVM-MinGW files are not mixed accidentally.
 
 ## Version display
 
@@ -274,7 +316,7 @@ number before generation.
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
 | A preset cannot find Ninja, CMake, or the compiler. | The expected MSYS2 environment is not first on `PATH`. | Start the correct MSYS2 shell or update `PATH` before configuring. |
-| AddressSanitizer or UndefinedBehaviorSanitizer configuration fails. | The preset is being configured from UCRT64 instead of CLANG64. | Put `C:\MSYS2\clang64\bin` first on `PATH` and use a separate build tree. |
+| Native Windows CMake sanitizer configuration fails. | The preset is being configured from UCRT64 instead of CLANG64. | Put `C:\MSYS2\clang64\bin` first on `PATH` and use a separate build tree. |
 | Docs configuration fails. | Doxygen is not installed or not discoverable. | Install Doxygen or disable `GAMEWIP_BUILD_DOCS`. |
 | Coverage configuration fails. | Tests are disabled while coverage is enabled. | Enable `GAMEWIP_BUILD_TESTS` or use the `coverage` preset. |
 | Startup validation option fails configuration. | Startup validation was enabled while the game executable was disabled. | Enable `GAMEWIP_BUILD_GAME` or disable the startup option. |

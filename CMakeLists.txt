@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 4.4.4)
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/GameWIPTarget.cmake")
+gamewip_prepare_target()
+
 project(GameWIP VERSION 0.1.0 LANGUAGES CXX)
+gamewip_update_target_native_architecture()
 
 # ------------------------------------------------------------
 # Language and platform prerequisites
@@ -86,9 +90,12 @@ if(GAMEWIP_BUILD_TESTS)
     )
     set_tests_properties(validation.version.composition validation.cmake.requirement_propagation PROPERTIES TIMEOUT 120)
 
-    if(WIN32)
+    if(WIN32 AND (NOT CMAKE_CROSSCOMPILING OR GAMEWIP_TARGET_NATIVE_ARCHITECTURE))
         set(_gamewip_application_validation_name validation.cmake.application_manifest)
         set(_gamewip_application_runtime_probe ON)
+    elseif(WIN32)
+        set(_gamewip_application_validation_name validation.cmake.application_manifest)
+        set(_gamewip_application_runtime_probe OFF)
     else()
         set(_gamewip_application_validation_name validation.cmake.application_helper)
         set(_gamewip_application_runtime_probe OFF)
@@ -98,7 +105,7 @@ if(GAMEWIP_BUILD_TESTS)
         COMMAND
             "${CMAKE_COMMAND}" "-DPROJECT_SOURCE_DIR=${PROJECT_SOURCE_DIR}" "-DWORK_DIR=${PROJECT_BINARY_DIR}/application-manifest-tests"
             "-DMODULE_DIR=${PROJECT_SOURCE_DIR}/cmake" "-DGENERATOR=${CMAKE_GENERATOR}" "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
-            "-DBUILD_TYPE=$<CONFIG>" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
+            "-DCXX_FLAGS=${CMAKE_CXX_FLAGS}" "-DBUILD_TYPE=$<CONFIG>" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${CMAKE_MINIMUM_REQUIRED_VERSION}"
             "-DRUN_RUNTIME_PROBE=${_gamewip_application_runtime_probe}" -P "${PROJECT_SOURCE_DIR}/cmake/TestGameWIPApplication.cmake"
     )
     set_tests_properties(${_gamewip_application_validation_name} PROPERTIES LABELS "validation;cmake" TIMEOUT 120)

@@ -91,7 +91,7 @@
     {
       "name": "asan",
       "displayName": "AddressSanitizer tests",
-      "description": "CLANG64 correctness tests with AddressSanitizer instrumentation.",
+      "description": "Correctness tests with AddressSanitizer instrumentation.",
       "inherits": "test",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -102,7 +102,7 @@
     {
       "name": "ubsan",
       "displayName": "UndefinedBehaviorSanitizer tests",
-      "description": "CLANG64 correctness tests with UndefinedBehaviorSanitizer instrumentation.",
+      "description": "Correctness tests with UndefinedBehaviorSanitizer instrumentation.",
       "inherits": "test",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",

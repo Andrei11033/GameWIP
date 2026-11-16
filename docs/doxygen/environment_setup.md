@@ -50,6 +50,10 @@ duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 
 `setup.bat --help`, `setup.bat -h`, and `setup.bat -?` are help aliases.
 
+The project tool registry pins LLVM-MinGW for Windows x64 and ARM64 builds.
+Setup installs it under `C:\MSYS2\GameWIPTools`; `setup.bat repair` installs it
+when it is missing.
+
 ## Dependency cache and offline builds
 
 The setup utility and project helper share the repository-local dependency cache

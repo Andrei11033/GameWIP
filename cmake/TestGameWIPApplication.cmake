@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 foreach(
     required_variable
     IN
-    ITEMS PROJECT_SOURCE_DIR WORK_DIR MODULE_DIR GENERATOR CXX_COMPILER BUILD_TYPE RUN_RUNTIME_PROBE
+    ITEMS PROJECT_SOURCE_DIR WORK_DIR MODULE_DIR GENERATOR CXX_COMPILER CXX_FLAGS BUILD_TYPE RUN_RUNTIME_PROBE
 )
     if(NOT DEFINED ${required_variable})
         message(FATAL_ERROR "${required_variable} is required for application manifest validation.")
@@ -21,8 +21,8 @@ function(configure_case case expected_error)
     execute_process(
         COMMAND
             "${CMAKE_COMMAND}" -S "${FIXTURE_DIR}" -B "${WORK_DIR}/projects/${case}" -G "${GENERATOR}" "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
-            "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}" "-DMODULE_DIR=${MODULE_DIR}"
-            "-DCASE=${case}"
+            "-DCMAKE_CXX_FLAGS=${CXX_FLAGS}" "-DCMAKE_BUILD_TYPE=${BUILD_TYPE}" "-DGAMEWIP_CMAKE_MINIMUM_VERSION=${GAMEWIP_CMAKE_MINIMUM_VERSION}"
+            "-DMODULE_DIR=${MODULE_DIR}" "-DCASE=${case}"
         RESULT_VARIABLE result
         OUTPUT_VARIABLE output
         ERROR_VARIABLE error

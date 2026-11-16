@@ -104,6 +104,58 @@
       "references": []
     },
     {
+      "id": "llvm-mingw",
+      "name": "LLVM-MinGW",
+      "category": "compiler",
+      "provider": {
+        "kind": "githubRelease",
+        "repository": "mstorsjo/llvm-mingw",
+        "releaseTag": "20261104",
+        "installMode": "directoryArchive",
+        "managedDirectory": "tools/llvm-mingw",
+        "binaryDirectory": "bin",
+        "hostPlatform": "windows",
+        "validationFiles": [
+          "bin/x86_64-w64-mingw32-clang.exe",
+          "bin/x86_64-w64-mingw32-clang++.exe",
+          "bin/aarch64-w64-mingw32-clang.exe",
+          "bin/aarch64-w64-mingw32-clang++.exe",
+          "bin/llvm-ar.exe",
+          "bin/llvm-ranlib.exe",
+          "bin/llvm-rc.exe",
+          "bin/llvm-objdump.exe",
+          "bin/llvm-strip.exe",
+          "include/c++/v1/vector",
+          "x86_64-w64-mingw32/lib/libc++.a",
+          "x86_64-w64-mingw32/bin/libc++.dll",
+          "x86_64-w64-mingw32/bin/libclang_rt.asan_dynamic-x86_64.dll",
+          "lib/clang/23/lib/windows/libclang_rt.asan_dynamic-x86_64.dll.a",
+          "aarch64-w64-mingw32/lib/libc++.a",
+          "aarch64-w64-mingw32/bin/libc++.dll"
+        ],
+        "assets": {
+          "windows-amd64": {
+            "archive": "llvm-mingw-20261104-ucrt-x86_64.zip",
+            "sha256": "552191b5754c49a5a20723276a6fc56541ea1922c4c50b7b669022333fc1b40f",
+            "format": "archive"
+          }
+        }
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "20261104",
+      "detection": {
+        "command": "x86_64-w64-mingw32-clang++",
+        "versionArguments": ["--version"],
+        "versionPattern": "clang version ([0-9.]+)"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
       "id": "clang",
       "name": "Clang",
       "category": "compiler",

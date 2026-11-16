@@ -288,6 +288,35 @@ function Assert-GameWipProjectToolConfig
                         throw "GitHub release tool '$($toolInfo.id)' must declare '$field'."
                     }
                 }
+
+                if ($toolInfo.provider.Contains('installMode') -and $toolInfo.provider.installMode -eq 'directoryArchive')
+                {
+                    foreach ($field in @('managedDirectory', 'binaryDirectory', 'hostPlatform', 'validationFiles'))
+                    {
+                        if (-not $toolInfo.provider.Contains($field))
+                        {
+                            throw "GitHub archive tool '$($toolInfo.id)' must declare '$field'."
+                        }
+                    }
+
+                    foreach ($field in @('managedDirectory', 'binaryDirectory'))
+                    {
+                        $path = [string]$toolInfo.provider[$field]
+
+                        if ([string]::IsNullOrWhiteSpace($path) -or $path -match '(^|[/\\])\.\.([/\\]|$)' -or [IO.Path]::IsPathRooted($path))
+                        {
+                            throw "GitHub archive tool '$($toolInfo.id)' has an unsafe '$field' path."
+                        }
+                    }
+
+                    foreach ($relativePath in @($toolInfo.provider.validationFiles))
+                    {
+                        if ([string]::IsNullOrWhiteSpace([string]$relativePath) -or [IO.Path]::IsPathRooted([string]$relativePath) -or [string]$relativePath -match '(^|[/\\])\.\.([/\\]|$)')
+                        {
+                            throw "GitHub archive tool '$($toolInfo.id)' has an unsafe validation path '$relativePath'."
+                        }
+                    }
+                }
             }
             'winget'
             {
@@ -711,6 +740,7 @@ function Assert-GameWipCommandConfig
         'tool'
         'links'
         'deps'
+        'target'
         'config'
         'build'
         'test'
@@ -796,7 +826,7 @@ function Assert-GameWipCommandConfig
         'menu-development', 'menu-validation', 'menu-quality', 'menu-hygiene', 'menu-tools', 'menu-tool-updates',
         'menu-git-workspace', 'menu-github-workflows', 'menu-advanced', 'menu-advanced-validation',
         'menu-dependencies', 'menu-unicode-data', 'menu-run-history', 'deps-check', 'deps-prepare',
-        'ready', 'help', 'config', 'build', 'run', 'doc', 'test', 'module', 'stress', 'wizard', 'bench',
+        'ready', 'help', 'target', 'config', 'build', 'run', 'doc', 'test', 'module', 'stress', 'wizard', 'bench',
         'cov', 'asan', 'ubsan', 'bundle', 'quality-check', 'quality-fix', 'quality-status', 'format-check', 'format-apply',
         'analyze', 'links', 'hygiene-standard', 'hygiene-deep', 'hygiene-check', 'hygiene-list', 'hygiene-status', 'tool-status',
         'tool-plan', 'tool-preview', 'tool-update', 'setup-guidance', 'git-status', 'git-fetch',

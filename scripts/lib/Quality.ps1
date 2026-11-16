@@ -223,6 +223,41 @@ function Invoke-GameWipQualityNative
     Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -Environment $Environment | Out-Null
 }
 
+function Invoke-GameWipGersemi
+{
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('check', 'in-place')][string]$Mode,
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [string[]]$Files = @()
+    )
+
+    $batchSize = 40
+    $batchCount = [int][Math]::Ceiling($Files.Count / [double]$batchSize)
+    $configuration = Join-Path $RepositoryRoot 'config\quality\gersemi.yml'
+
+    # Keep each invocation below Windows command-line limits.
+    for ($offset = 0; $offset -lt $Files.Count; $offset += $batchSize)
+    {
+        $last = [Math]::Min($offset + $batchSize - 1, $Files.Count - 1)
+        $batch = @($Files[$offset..$last])
+        $arguments = [System.Collections.Generic.List[string]]::new()
+        $arguments.Add('--config')
+        $arguments.Add($configuration)
+        $arguments.Add("--$Mode")
+
+        foreach ($file in $batch)
+        {
+            $arguments.Add($file)
+        }
+
+        $batchNumber = [int]($offset / $batchSize) + 1
+        Invoke-GameWipQualityNative `
+            -Name "gersemi-$Mode-$batchNumber-of-$batchCount" `
+            -FilePath $Executable `
+            -Arguments $arguments.ToArray()
+    }
+}
+
 function Get-GameWipPrettierPluginArguments
 {
     $toolInfo = Get-GameWipProjectTool -Id prettier
@@ -640,7 +675,7 @@ function Invoke-GameWipQualityCheck
         },
         @{ Name = 'Gersemi'; Body = { if (-not $useChangedScope -or $cmakeFiles.Count -ne 0)
                 {
-                    Invoke-GameWipQualityNative -Name gersemi-check -FilePath $tools.gersemi -Arguments (@('--config', (Join-Path $qualityConfig 'gersemi.yml'), '--check') + $cmakeFiles)
+                    Invoke-GameWipGersemi -Mode check -Executable $tools.gersemi -Files $cmakeFiles
                 } }
         },
         @{ Name = 'yamllint'; Body = { if (-not $useChangedScope -or $yamlFiles.Count -ne 0)
@@ -825,7 +860,7 @@ function Invoke-GameWipQualityFix
 
     if ($cmakeFiles.Count -ne 0)
     {
-        Invoke-GameWipQualityNative -Name gersemi-format -FilePath $Tools.gersemi -Arguments (@('--config', (Join-Path $qualityConfig 'gersemi.yml'), '--in-place') + $cmakeFiles)
+        Invoke-GameWipGersemi -Mode in-place -Executable $Tools.gersemi -Files $cmakeFiles
     }
 
     if (-not $useChangedScope -or $powerShellFiles.Count -ne 0)

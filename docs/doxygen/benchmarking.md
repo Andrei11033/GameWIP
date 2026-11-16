@@ -43,7 +43,7 @@ Print the complete option set for the pinned Google Benchmark executable without
 running a measurement:
 
 ```powershell
-.\build\benchmark\GameWIPBenchmarks.exe --help
+.\build\windows-x64\benchmark\GameWIPBenchmarks.exe --help
 ```
 
 That generated help is the reference for direct third-party runner flags. This
@@ -222,8 +222,12 @@ Meaningful benchmark coverage has a few requirements:
 Logger scenarios report queue, drop, flush, or error counters where necessary,
 so a fast producer result cannot hide lost work.
 
-Benchmark fixtures are created below `build/benchmark/temp` for standalone runs and below the active game preset's `temp` directory for embedded
-runs. The runner scopes and restores `TEMP`, `TMP`, and `TMPDIR`, so fixture and Logger benchmark files do not spill into the host temporary directory.
+Benchmark fixtures are created below the standalone build tree's `temp`
+directory and below the active game build tree's `temp` directory for embedded
+runs. Direct CMake uses `build/benchmark`; the Windows helper uses
+`build/<target>/benchmark`. The runner scopes and restores `TEMP`, `TMP`, and
+`TMPDIR`, so fixture and Logger benchmark files do not spill into the host
+temporary directory.
 To compare storage backends, place the applicable preset build tree on the representative local or network volume.
 
 ## Outputs and artifacts

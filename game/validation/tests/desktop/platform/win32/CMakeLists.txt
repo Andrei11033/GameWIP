@@ -11,7 +11,6 @@ target_sources(
         accessibility_retained_tests.inl
         accessibility_control_tests.inl
         accessibility_geometry_tests.inl
-
         # Window and shell behavior
         child_arguments.cpp
         desktop_test.cpp
@@ -35,4 +34,7 @@ target_sources(
         desktop_shell_tests.inl
 )
 
-target_link_libraries(GameWIPTestModules PRIVATE shell32 ole32 oleaut32 uiautomationcore uuid)
+target_link_libraries(
+    GameWIPTestModules
+    PRIVATE shell32 ole32 oleaut32 uiautomationcore uuid
+)

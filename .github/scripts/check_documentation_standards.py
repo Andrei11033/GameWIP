@@ -101,6 +101,7 @@ PROJECT_MANUAL_SIDEBAR = (
 # Repository discovery
 # ------------------------------------------------------------
 
+
 def relative(path: Path) -> str:
     return path.relative_to(ROOT).as_posix()
 
@@ -135,6 +136,7 @@ def declared_subpages(path: Path) -> tuple[str, ...]:
 # ------------------------------------------------------------
 # Navigation validation
 # ------------------------------------------------------------
+
 
 def check_page_graph(files: list[Path], errors: list[str]) -> None:
     page_owners: dict[str, Path] = {}
@@ -200,6 +202,7 @@ def check_sidebar_order(errors: list[str]) -> None:
 # ------------------------------------------------------------
 # Documentation ownership
 # ------------------------------------------------------------
+
 
 def check_project_registration(errors: list[str]) -> None:
     registration = (ROOT / "cmake/GameWIPDocumentation.cmake").read_text(encoding="utf-8")
@@ -325,6 +328,7 @@ def check_explanatory_documentation(files: list[Path], errors: list[str]) -> Non
 # ------------------------------------------------------------
 # Validation entry point
 # ------------------------------------------------------------
+
 
 def main() -> int:
     errors: list[str] = []

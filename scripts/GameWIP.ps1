@@ -10,6 +10,8 @@ param(
     [string]$Action = 'menu',
     [Parameter(Position = 1)][string]$Command,
     [Parameter(Position = 2)][string]$Target,
+    [string]$TargetPlatform,
+    [string]$TargetArchitecture,
     [string]$PythonPath,
     [string]$ClangFormatPath,
     [string]$UnicodeDataPath,
@@ -378,6 +380,13 @@ $result = Invoke-GameWipOperation `
                 Test-GameWipDependencyCache -ThrowOnFailure | Out-Null
             }
         }
+        'target'
+        {
+            Invoke-GameWipBuildTargetSelection `
+                -Platform $TargetPlatform `
+                -Architecture $TargetArchitecture `
+                -NonInteractive:$NonInteractive
+        }
         'config'
         {
             $preset = if ([string]::IsNullOrWhiteSpace($Command))
@@ -388,14 +397,16 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+            $buildDirectory = Get-GameWipBuildDirectory -PresetName $preset
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path $buildDirectory
 
             $configurePlan = if ($Fresh)
             {
-                @("Remove build/$preset completely.", "cmake --preset $preset")
+                @("Remove '$relativeBuildDirectory' completely.", "Configure preset '$preset' in '$relativeBuildDirectory'.")
             }
             else
             {
-                @("cmake --preset $preset")
+                @("Configure preset '$preset' in '$relativeBuildDirectory'.")
             }
 
             if ($Offline)
@@ -425,20 +436,22 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+            $buildDirectory = Get-GameWipBuildDirectory -PresetName $preset
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path $buildDirectory
 
             $buildPlan = if ($Fresh)
             {
                 @(
-                    "Remove build/$preset completely.",
+                    "Remove '$relativeBuildDirectory' completely.",
                     'Configure the recreated preset.',
-                    "cmake --build --preset $preset"
+                    "Build '$relativeBuildDirectory'."
                 )
             }
             else
             {
                 @(
                     'Ensure configure prerequisite if absent.',
-                    "cmake --build --preset $preset"
+                    "Build '$relativeBuildDirectory'."
                 )
             }
 
@@ -469,13 +482,15 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
+            $buildDirectory = Get-GameWipBuildDirectory -PresetName $preset
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path $buildDirectory
             $testPlan = if ($Fresh)
             {
-                @("Remove build/$preset completely.", 'Configure and build the recreated preset.', "ctest --preset $preset --output-on-failure")
+                @("Remove '$relativeBuildDirectory' completely.", 'Configure and build the recreated preset.', "Run CTest in '$relativeBuildDirectory'.")
             }
             else
             {
-                @('Ensure the preset build is current unless -SkipBuild is used.', "ctest --preset $preset --output-on-failure")
+                @('Ensure the preset build is current unless -SkipBuild is used.', "Run CTest in '$relativeBuildDirectory'.")
             }
             Invoke-GameWipMutation -Summary "Run CTest preset '$preset'." -Risk local -Plan $testPlan -Body { Invoke-GameWipTestPreset -Name $preset -UseWorkspaceTemp -NoBuild:$NoBuild -Fresh:$Fresh } | Out-Null
         }
@@ -568,7 +583,8 @@ $result = Invoke-GameWipOperation `
         }
         'cov'
         {
-            Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @('Remove build/coverage completely.', 'Configure/build coverage.', 'Run CTest with new profile data.', 'Generate coverage target.') -Body {
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path (Get-GameWipBuildDirectory -PresetName coverage)
+            Invoke-GameWipMutation -Summary 'Run coverage validation from a clean build tree.' -Risk local -Plan @("Remove '$relativeBuildDirectory' completely.", 'Configure/build coverage.', 'Run CTest with new profile data.', 'Generate coverage target.') -Body {
                 Invoke-GameWipConfigurePreset -Name coverage -Fresh
                 Invoke-GameWipBuildPreset -Name coverage
                 Invoke-GameWipTestPreset -Name coverage -UseWorkspaceTemp -NoBuild
@@ -577,7 +593,8 @@ $result = Invoke-GameWipOperation `
         }
         'asan'
         {
-            Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/asan completely.', 'Configure/build asan.', 'Run CTest.') -Body {
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path (Get-GameWipBuildDirectory -PresetName asan)
+            Invoke-GameWipMutation -Summary 'Run AddressSanitizer validation from a clean build tree.' -Risk local -Plan @("Remove '$relativeBuildDirectory' completely.", 'Configure/build asan.', 'Run CTest.') -Body {
                 Invoke-GameWipConfigurePreset -Name asan -Fresh
                 Invoke-GameWipBuildPreset -Name asan
                 Invoke-GameWipTestPreset -Name asan -UseWorkspaceTemp -NoBuild
@@ -585,7 +602,8 @@ $result = Invoke-GameWipOperation `
         }
         'ubsan'
         {
-            Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @('Remove build/ubsan completely.', 'Configure/build ubsan.', 'Run CTest.') -Body {
+            $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path (Get-GameWipBuildDirectory -PresetName ubsan)
+            Invoke-GameWipMutation -Summary 'Run UndefinedBehaviorSanitizer validation from a clean build tree.' -Risk local -Plan @("Remove '$relativeBuildDirectory' completely.", 'Configure/build ubsan.', 'Run CTest.') -Body {
                 Invoke-GameWipConfigurePreset -Name ubsan -Fresh
                 Invoke-GameWipBuildPreset -Name ubsan
                 Invoke-GameWipTestPreset -Name ubsan -UseWorkspaceTemp -NoBuild

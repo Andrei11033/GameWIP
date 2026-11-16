@@ -14,9 +14,9 @@ Run coverage from the repository root:
 .\gamewip.bat cov
 ```
 
-The helper removes and recreates `build/coverage` on every high-level coverage
-run before configuring, building, testing, and generating the report. This keeps
-obsolete `.gcda`/`.gcno` data and generated files from surviving
+The helper removes and recreates the selected target's coverage tree on every
+high-level run before configuring, building, testing, and generating the report.
+This keeps obsolete `.gcda`/`.gcno` data and generated files from surviving
 source moves, target changes, or instrumentation changes.
 
 The equivalent raw CMake sequence is:
@@ -44,13 +44,14 @@ The project rejects `GAMEWIP_ENABLE_COVERAGE=ON` when `GAMEWIP_BUILD_TESTS=OFF`.
 
 ## Outputs and artifacts
 
-The `coverage` target uses `gcovr` to write:
+The `coverage` target uses `gcovr` to write these paths relative to the selected
+build tree:
 
 ```text
-build/coverage/coverage/index.html
-build/coverage/coverage/coverage.xml
-build/coverage/coverage/tests/index.html
-build/coverage/coverage/tests/coverage.xml
+coverage/coverage/index.html
+coverage/coverage/coverage.xml
+coverage/coverage/tests/index.html
+coverage/coverage/tests/coverage.xml
 ```
 
 The report includes maintained implementation sources for Base, Unicode, IO,

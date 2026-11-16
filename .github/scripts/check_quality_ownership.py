@@ -16,6 +16,7 @@ POLICY_PATH = ROOT / "config/quality/file-ownership.json"
 # File ownership rules
 # ------------------------------------------------------------
 
+
 def maintained_worktree_files() -> list[Path]:
     result = subprocess.run(
         ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
@@ -55,6 +56,7 @@ def classify(path: Path, policies: list[dict[str, object]]) -> dict[str, object]
 # ------------------------------------------------------------
 # Text and syntax checks
 # ------------------------------------------------------------
+
 
 def generic_text_failures(path: Path, allow_trailing: bool) -> list[str]:
     data = path.read_bytes()
@@ -102,6 +104,7 @@ def owner_syntax_failures(path: Path, policy_id: str) -> list[str]:
 # ------------------------------------------------------------
 # Validation entry point
 # ------------------------------------------------------------
+
 
 def main() -> int:
     config = json.loads(POLICY_PATH.read_text(encoding="utf-8"))

@@ -13,7 +13,9 @@ project_benchmarking. Library-specific test coverage and approved hooks remain d
 
 ## Common workflow
 
-Configure, build, and run all validation through CTest:
+Configure, build, and run all validation through CTest. Direct CMake commands
+use `build/<preset>`. The Windows helper uses `build/<target>/<preset>` and
+defaults to `windows-x64`:
 
 ```powershell
 cmake --preset test
@@ -29,6 +31,9 @@ ordinary iteration or request a complete preset-tree recreation explicitly:
 .\gamewip.bat test test -CleanBuild
 ```
 
+CTest runs binaries for the selected target. ARM64 cross-builds need an ARM64
+Windows host to run; the helper does not configure an emulator.
+
 Clean-build mode cannot be combined with `-SkipBuild`, because deleting the selected
 tree makes configuration and compilation mandatory. Installed-package consumer
 tests continue to create their own isolated consumer build directories. CI
@@ -43,10 +48,13 @@ launches.
 
 ## Commands
 
+Executable examples below use the helper's default Windows x64 target. Direct
+CMake builds use `build/test` instead of `build/windows-x64/test`.
+
 Run all modules directly:
 
 ```powershell
-.\build\test\GameWIPTests.exe
+.\build\windows-x64\test\GameWIPTests.exe
 ```
 
 CTest registers one entry per correctness module so failures remain focused and
@@ -63,40 +71,41 @@ they are deliberately not performance thresholds.
 Run one module and retain a focused report:
 
 ```powershell
-.\build\test\GameWIPTests.exe `
+.\build\windows-x64\test\GameWIPTests.exe `
   --test-module=filesystem `
   --test-report=logs/validation/filesystem_test_report.txt
 ```
 
 Relative report paths are rooted beside `GameWIPTests.exe`, not in the caller's
-current directory or the operating-system temporary directory. The example
-above therefore writes `build/test/logs/validation/filesystem_test_report.txt`.
+current directory or the operating-system temporary directory. Direct CMake
+builds write under `build/test/logs/validation`; Windows helper builds write
+under `build/<target>/test/logs/validation`.
 
 Disable the retained report for quick local iteration:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=logger --no-test-report
+.\build\windows-x64\test\GameWIPTests.exe --test-module=logger --no-test-report
 ```
 
 Mirror complete suite output to stdout:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
+.\build\windows-x64\test\GameWIPTests.exe --test-module=logger --verbose-tests --no-test-report
 ```
 
 Run all modules except one project module:
 
 ```powershell
-.\build\test\GameWIPTests.exe --skip-test-module=terminal
+.\build\windows-x64\test\GameWIPTests.exe --skip-test-module=terminal
 ```
 
 Run opt-in manual checks:
 
 ```powershell
-.\build\test\GameWIPTests.exe --test-module=test_support --manual-tests
-.\build\test\GameWIPTests.exe --test-module=terminal --manual-tests
-.\build\test\GameWIPTests.exe --test-module=logger --manual-tests
-.\build\test\GameWIPTests.exe --test-module=desktop --manual-tests
+.\build\windows-x64\test\GameWIPTests.exe --test-module=test_support --manual-tests
+.\build\windows-x64\test\GameWIPTests.exe --test-module=terminal --manual-tests
+.\build\windows-x64\test\GameWIPTests.exe --test-module=logger --manual-tests
+.\build\windows-x64\test\GameWIPTests.exe --test-module=desktop --manual-tests
 ```
 
 Each selected module owns its manual scenarios. The Desktop module groups the full visible, shell, DPI, cursor, fullscreen, topology, HDR, and
@@ -209,12 +218,17 @@ and fallible, so inspect `status()` before using `path()`; a failed guard is ine
 exception unwinding but remains best effort; process termination or open native resources can leave diagnostics behind. Apply the same status-first
 rule to current-directory and environment guards before assuming their requested process-state change took effect.
 
-The validation runner scopes `TEMP`, `TMP`, and `TMPDIR` to `build/<preset>/temp` for the complete module invocation and restores their prior values
-before returning. TestSupport workspaces therefore stay inside the active preset tree during standalone and embedded validation, including inherited
-child-process activity. Standalone TestSupport consumers retain the library default of using the host temporary directory.
+The validation runner scopes `TEMP`, `TMP`, and `TMPDIR` to `<build-tree>/temp`
+for the complete module invocation and restores their prior values before
+returning. TestSupport workspaces therefore stay inside the active preset tree
+during standalone and embedded validation, including inherited child-process
+activity. Standalone TestSupport consumers retain the library default of using
+the host temporary directory.
 
-Final validation reports belong under `build/<preset>/logs/validation` unless a caller explicitly supplies an absolute path. Tests must not create
-persistent `logs/`, reports, or fixture output in the source tree or a different preset tree.
+Final validation reports belong under `<build-tree>/logs/validation` unless a
+caller explicitly supplies an absolute path. Tests must not create persistent
+`logs/`, reports, or fixture output in the source tree or a different preset
+tree.
 
 ## Test requirements
 

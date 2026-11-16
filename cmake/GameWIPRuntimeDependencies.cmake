@@ -5,6 +5,7 @@
 
 function(gamewip_copy_runtime_dependencies target_name)
     get_filename_component(gamewip_runtime_search_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    set(gamewip_runtime_search_dirs "${gamewip_runtime_search_dir}" ${GAMEWIP_TARGET_RUNTIME_DIRECTORIES})
 
     set(gamewip_runtime_dependency_tool_arguments)
     if(CMAKE_OBJDUMP)
@@ -16,7 +17,7 @@ function(gamewip_copy_runtime_dependencies target_name)
         POST_BUILD
         COMMAND
             ${CMAKE_COMMAND} "-DGAMEWIP_EXECUTABLE=$<TARGET_FILE:${target_name}>" "-DGAMEWIP_OUTPUT_DIR=$<TARGET_FILE_DIR:${target_name}>"
-            "-DGAMEWIP_RUNTIME_SEARCH_DIR=${gamewip_runtime_search_dir}" ${gamewip_runtime_dependency_tool_arguments} -P
+            "-DGAMEWIP_RUNTIME_SEARCH_DIRS=${gamewip_runtime_search_dirs}" ${gamewip_runtime_dependency_tool_arguments} -P
             "${PROJECT_SOURCE_DIR}/cmake/copy_runtime_dependencies.cmake"
         VERBATIM
     )

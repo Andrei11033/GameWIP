@@ -29,6 +29,7 @@ Examples:
 ```powershell
 .\gamewip.bat build test
 .\gamewip.bat test test
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture arm64
 .\gamewip.bat module unicode
 .\gamewip.bat quality check
 .\gamewip.bat quality hygiene status
@@ -55,6 +56,7 @@ policy.
 | `tool` | List tools, report status, check upstream versions, install or repair declared versions, or update reviewed pins. |
 | `links` | Run the maintained Markdown-link checker. |
 | `deps` | Check or prepare the shared pinned dependency cache. |
+| `target` | Select the Windows build platform and architecture. |
 | `config` | Configure one visible CMake preset. |
 | `build` | Ensure configuration and build one preset. |
 | `test` | Ensure prerequisites and run one CTest preset. |
@@ -66,8 +68,8 @@ policy.
 | `doc` | Build generated documentation. |
 | `analyze` | Run the supported C++ static-analysis preset. |
 | `cov` | Run the coverage validation workflow. |
-| `asan` | Run the CLANG64 AddressSanitizer workflow. |
-| `ubsan` | Run the CLANG64 UndefinedBehaviorSanitizer workflow. |
+| `asan` | Run AddressSanitizer for the selected Windows target; x64 only. |
+| `ubsan` | Run UndefinedBehaviorSanitizer for the selected Windows target. |
 | `bench` | Measure, dry-run, list, or compare benchmarks. |
 | `history` | List, inspect, or clean owned helper run history. |
 | `list` | Print the current action/catalog values. |
@@ -79,6 +81,9 @@ Use the action names above; help flags are covered separately.
 
 The second positional word is the action-specific command or selection. The
 third is used only when another selector is required.
+
+`target` selects a Windows platform and architecture. Omit both target options
+to choose interactively; supply both to select a target directly.
 
 The quality-hygiene selector may be `standard`, `deep`, a configured check ID,
 `list`, or `status`.
@@ -104,6 +109,9 @@ formatter is required.
 .\gamewip.bat tool update all -Preview
 .\gamewip.bat deps check
 .\gamewip.bat deps prepare
+.\gamewip.bat target
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture x64
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture arm64
 .\gamewip.bat config test
 .\gamewip.bat build test
 .\gamewip.bat config test -Offline
@@ -157,7 +165,7 @@ module implementation.
 | `-WorkerCount <count>` | Select stress worker count. |
 | `-PassThroughArgs <arguments>` | Forward arguments only where the selected declarative command permits them. |
 | `-SkipBuild` | Do not build prerequisites automatically; require existing usable build state and fail when it is absent. |
-| `-CleanBuild` | Before `config`, `build`, `test`, or `bundle`, remove each selected preset's complete `build/<preset>` tree and recreate it. Cannot be combined with `-SkipBuild`. |
+| `-CleanBuild` | Before `config`, `build`, `test`, or `bundle`, remove each selected preset's complete build tree and recreate it. Cannot be combined with `-SkipBuild`. |
 | `-FailFast` | Stop the quality gate at the first failed check instead of aggregating independent failures. |
 | `-ChangedOnly` | Restrict supported quality work to ordinary changed maintained files. A changed quality policy expands to the complete maintained scope it can affect. |
 | `-FailOnFindings` | Fail an optional hygiene audit when it produces a `PROVEN` finding. Likely, informational, and centrally explained findings remain report-only. |
@@ -202,9 +210,9 @@ incremental unless `-CleanBuild` is supplied. The high-level `cov`, `asan`, and
 `ubsan` actions always recreate their preset trees so stale instrumentation or
 runtime artifacts cannot affect the result. The `local-release-check` and
 `sanitizer` bundles declare the same policy in the bundle catalog. `sanitizer`
-runs AddressSanitizer and then UndefinedBehaviorSanitizer using fresh
-`build/asan` and `build/ubsan` trees. `quick` remains incremental. Fresh
-recreation is limited to known direct children of the repository `build`
+runs AddressSanitizer and then UndefinedBehaviorSanitizer using fresh `asan` and
+`ubsan` trees for the selected target. `quick` remains incremental. Fresh
+recreation is limited to cataloged preset trees under the repository `build`
 directory and refuses reparse points.
 
 ## Quality and tool policy

@@ -48,6 +48,7 @@ def parse_arguments() -> argparse.Namespace:
 # Markdown discovery and parsing
 # ------------------------------------------------------------
 
+
 def normalized_relative_path(path: Path, root: Path) -> Path | None:
     try:
         return path.resolve().relative_to(root.resolve())
@@ -107,6 +108,7 @@ def iter_link_targets(markdown: str) -> list[str]:
 # Link resolution
 # ------------------------------------------------------------
 
+
 def strip_markdown_title(target: str) -> str:
     if not target:
         return target
@@ -153,6 +155,7 @@ def resolve_target(markdown_file: Path, target: str, root: Path) -> Path | None:
 # ------------------------------------------------------------
 # Validation entry point
 # ------------------------------------------------------------
+
 
 def main() -> int:
     arguments = parse_arguments()

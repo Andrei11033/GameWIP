@@ -231,6 +231,7 @@ function Show-GameWipHelp
     Write-Host '  quality hygiene [standard|deep|check-id|list|status] [-FailOnFindings]'
     Write-Host '  tool <list|status|check-updates|ensure|update> [tool-id|category|all]'
     Write-Host '  deps <check|prepare>'
+    Write-Host '  target [-TargetPlatform windows -TargetArchitecture x64|arm64]'
     Write-Host '  config [preset] [-CleanBuild] [-Offline]'
     Write-Host '  build [preset] [-CleanBuild] [-Offline]'
     Write-Host '  test [preset] [-SkipBuild] [-CleanBuild]'

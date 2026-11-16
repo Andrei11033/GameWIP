@@ -36,6 +36,129 @@ function Get-GameWipGitHubReleaseMetadata
     return $query.Metadata
 }
 
+function Install-GameWipGitHubReleaseDirectoryArchive
+{
+    param(
+        [Parameter(Mandatory = $true)][hashtable]$Tool,
+        [Parameter(Mandatory = $true)][string]$Version,
+        [Parameter(Mandatory = $true)][hashtable]$Asset,
+        [Parameter(Mandatory = $true)][string]$Download
+    )
+
+    # Validate the provider and archive before touching the managed install.
+    if (-not (Test-GameWipWindowsHost))
+    {
+        throw "Tool '$($Tool.id)' is only installable on Windows."
+    }
+
+    $extractRoot = Join-Path $Script:OperationContext.Temp "extract-$($Tool.id)"
+    New-Item -ItemType Directory -Path $extractRoot | Out-Null
+
+    if (-not $Asset.archive.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase))
+    {
+        throw "Directory archive '$($Asset.archive)' must be a ZIP file."
+    }
+
+    Expand-Archive -LiteralPath $Download -DestinationPath $extractRoot
+    $payloadDirectories = @(Get-ChildItem -LiteralPath $extractRoot -Directory -Force)
+
+    if ($payloadDirectories.Count -ne 1 -or @(Get-ChildItem -LiteralPath $extractRoot -File -Force).Count -ne 0)
+    {
+        throw "Directory archive '$($Asset.archive)' must contain one top-level directory."
+    }
+
+    $payload = $payloadDirectories[0].FullName
+
+    # Confirm the extracted tool contains every declared file.
+    foreach ($relativePath in @($Tool.provider.validationFiles))
+    {
+        $candidatePath = Join-Path $payload ([string]$relativePath -replace '/', '\')
+
+        if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf))
+        {
+            throw "Directory archive '$($Asset.archive)' is missing required file '$relativePath'."
+        }
+    }
+
+    $markerPath = Join-Path $payload '.gamewip-tool.json'
+    $marker = [ordered]@{
+        schemaVersion = 1
+        toolId = [string]$Tool.id
+        version = $Version
+        archive = [string]$Asset.archive
+        sha256 = [string]$Asset.sha256
+    }
+    Write-GameWipTextAtomic `
+        -Path $markerPath `
+        -Content (($marker | ConvertTo-Json -Depth 8) + "`n") `
+        -SuppressMutationTracking
+
+    # Stage the verified payload beside the managed tool family.
+    Initialize-GameWipManagedToolRoot
+    $managedRoot = Get-GameWipManagedToolRoot
+    $familyRoot = Join-Path $managedRoot ([string]$Tool.provider.managedDirectory)
+    $toolRoot = Join-Path $familyRoot $Version
+    $incoming = Join-Path $familyRoot ('.{0}.{1}.incoming' -f $Version, [guid]::NewGuid().ToString('N'))
+    $backup = $null
+
+    try
+    {
+        Set-GameWipMutationStarted
+        New-Item -ItemType Directory -Force -Path $familyRoot | Out-Null
+        Copy-Item -LiteralPath $payload -Destination $incoming -Recurse
+
+        if (Test-Path -LiteralPath $toolRoot)
+        {
+            $backup = Join-Path $familyRoot ('.{0}.{1}.backup' -f $Version, [guid]::NewGuid().ToString('N'))
+            Move-Item -LiteralPath $toolRoot -Destination $backup
+        }
+
+        # Swap the complete candidate into place and restore the previous version on failure.
+        try
+        {
+            Move-Item -LiteralPath $incoming -Destination $toolRoot
+            $incoming = $null
+            $installedFiles = @($Tool.provider.validationFiles | Where-Object {
+                    -not (Test-Path -LiteralPath (Join-Path $toolRoot ([string]$_ -replace '/', '\')) -PathType Leaf)
+                })
+
+            if ($installedFiles.Count -ne 0)
+            {
+                throw "Installed '$($Tool.id)' is incomplete: $($installedFiles -join ', ')."
+            }
+        }
+
+        catch
+        {
+            if (Test-Path -LiteralPath $toolRoot)
+            {
+                Remove-Item -LiteralPath $toolRoot -Recurse -Force
+            }
+
+            if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
+            {
+                Move-Item -LiteralPath $backup -Destination $toolRoot
+                $backup = $null
+            }
+            throw
+        }
+
+        if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
+        {
+            Remove-Item -LiteralPath $backup -Recurse -Force
+            $backup = $null
+        }
+    }
+
+    finally
+    {
+        if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
+        {
+            Remove-Item -LiteralPath $incoming -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Install-GameWipGitHubReleaseTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
@@ -81,6 +204,12 @@ function Install-GameWipGitHubReleaseTool
     if ($actualHash -ne $asset.sha256)
     {
         throw "SHA256 mismatch for '$($asset.archive)'."
+    }
+
+    if ($Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
+    {
+        Install-GameWipGitHubReleaseDirectoryArchive -Tool $Tool -Version $Version -Asset $asset -Download $download
+        return
     }
 
     # Stage the executable in operation-owned temporary storage so downloads,

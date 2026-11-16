@@ -43,6 +43,12 @@ function Add-GameWipToolCandidate
 function Get-GameWipToolCandidates
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    if (-not (Test-GameWipToolHostSupport -Tool $Tool))
+    {
+        return @()
+    }
+
     $candidates = [System.Collections.Generic.List[object]]::new()
     $comparer = if (Test-GameWipWindowsHost)
     {

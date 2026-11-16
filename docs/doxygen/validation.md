@@ -171,11 +171,11 @@ ordinary module suite.
 
 Relative report paths are lexically normalized beneath the running executable's
 directory. The default therefore produces
-`logs/validation/latest_test_report.txt` inside the active preset folder, such as
-`build/test`, `build/dev`, or `build/profile`, regardless of the caller's current
-directory. A relative path that still contains a parent-traversal component
-after normalization is rejected. Absolute paths are normalized and honored as
-explicit caller-selected destinations.
+`logs/validation/latest_test_report.txt` inside the active build tree, regardless
+of the caller's current directory. Direct CMake uses `build/<preset>`; Windows
+helper builds use `build/<target>/<preset>`. A relative path that still contains
+a parent-traversal component after normalization is rejected. Absolute paths
+are normalized and honored as explicit caller-selected destinations.
 
 On Windows, executable-directory containment accepts only an ordinary relative
 path with neither a root name nor a root directory. Drive-relative forms such as
@@ -202,9 +202,11 @@ append policy, or it could split or replace the aggregate report.
 Before matching child routes or invoking modules, the runner creates `temp`
 beneath the running executable directory and temporarily points `TEMP`, `TMP`,
 and `TMPDIR` at it. This keeps TestSupport workspaces, subsystem fixtures, and
-inherited child-process temporary activity within the active `build/<preset>`
-tree. The prior environment is restored when validation returns, including when
-embedded startup validation continues into the game runtime. Failure to
+inherited child-process temporary activity within the active build tree. Direct
+CMake builds use `build/<preset>`; Windows helper builds use
+`build/<target>/<preset>`. The prior environment is restored when validation
+returns, including when embedded startup validation continues into the game
+runtime. Failure to
 establish the owned temporary root fails validation before a module can fall
 back to an unrelated host directory.
 

@@ -19,13 +19,16 @@ the `dev` compilation database used by workspace IntelliSense.
 
 ## Configure, build, and run
 
-From PowerShell, use the helper to build the `dev` preset with the configured
-toolchain (see @ref project_build for all presets), then run the executable:
+From PowerShell, use the helper to build the `dev` preset for the selected
+Windows target (see @ref project_build for target selection and all presets):
 
 ```powershell
 .\gamewip.bat build dev
-.\build\dev\GameWIP.exe
+.\build\windows-x64\dev\GameWIP.exe
 ```
+
+The helper defaults to Windows x64. Windows ARM64 uses
+`build/windows-arm64/dev/GameWIP.exe`.
 
 From MSYS2 UCRT64 Bash, the equivalent direct commands are:
 

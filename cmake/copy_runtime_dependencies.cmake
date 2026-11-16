@@ -13,12 +13,19 @@ file(LOCK "${GAMEWIP_OUTPUT_DIR}/.gamewip_runtime_dependencies.lock" GUARD PROCE
 
 # CMake's Windows dependency resolver checks the depending binary's directory
 # before its explicit search directories. Scanning an executable in-place can
-# therefore select an old app-local compiler runtime before the current MSYS2
-# runtime. Scan a clean shadow copy instead. Project DLLs are copied into the
-# shadow directory, while any DLL that also exists in the compiler runtime
-# directory is deliberately omitted so the compiler copy wins.
+# therefore select an old app-local compiler runtime before the active
+# toolchain. Scan a clean shadow copy instead. Project DLLs are copied into the
+# shadow directory, while DLLs provided by the active toolchain are omitted.
 set(runtime_scan_executable "${GAMEWIP_EXECUTABLE}")
 set(runtime_scan_dir "")
+set(runtime_search_paths ${GAMEWIP_RUNTIME_SEARCH_DIRS})
+
+if(DEFINED GAMEWIP_RUNTIME_SEARCH_DIR AND NOT GAMEWIP_RUNTIME_SEARCH_DIR STREQUAL "")
+    list(APPEND runtime_search_paths "${GAMEWIP_RUNTIME_SEARCH_DIR}")
+endif()
+
+list(REMOVE_DUPLICATES runtime_search_paths)
+
 if(WIN32)
     set(runtime_scan_dir "${GAMEWIP_OUTPUT_DIR}/.gamewip_runtime_dependency_scan")
     file(REMOVE_RECURSE "${runtime_scan_dir}")
@@ -31,12 +38,16 @@ if(WIN32)
     file(GLOB app_local_dlls LIST_DIRECTORIES FALSE "${GAMEWIP_OUTPUT_DIR}/*.dll")
     foreach(app_local_dll IN LISTS app_local_dlls)
         get_filename_component(dll_name "${app_local_dll}" NAME)
-        set(compiler_runtime_candidate "")
-        if(DEFINED GAMEWIP_RUNTIME_SEARCH_DIR AND NOT GAMEWIP_RUNTIME_SEARCH_DIR STREQUAL "")
-            set(compiler_runtime_candidate "${GAMEWIP_RUNTIME_SEARCH_DIR}/${dll_name}")
-        endif()
+        set(runtime_candidate_exists OFF)
 
-        if(compiler_runtime_candidate AND EXISTS "${compiler_runtime_candidate}")
+        foreach(runtime_search_path IN LISTS runtime_search_paths)
+            if(EXISTS "${runtime_search_path}/${dll_name}")
+                set(runtime_candidate_exists ON)
+                break()
+            endif()
+        endforeach()
+
+        if(runtime_candidate_exists)
             continue()
         endif()
 
@@ -44,11 +55,11 @@ if(WIN32)
     endforeach()
 endif()
 
-# Add the compiler runtime folder first so omitted app-local runtimes resolve to
-# the compiler that produced the executable.
+# Add toolchain runtime folders first so omitted app-local runtimes resolve to
+# the toolchain that produced the executable.
 set(runtime_search_dirs)
-if(DEFINED GAMEWIP_RUNTIME_SEARCH_DIR AND NOT GAMEWIP_RUNTIME_SEARCH_DIR STREQUAL "")
-    list(APPEND runtime_search_dirs DIRECTORIES "${GAMEWIP_RUNTIME_SEARCH_DIR}")
+if(runtime_search_paths)
+    list(APPEND runtime_search_dirs DIRECTORIES ${runtime_search_paths})
 endif()
 
 if(DEFINED GAMEWIP_OBJDUMP AND NOT GAMEWIP_OBJDUMP STREQUAL "")
@@ -73,7 +84,7 @@ file(
 )
 
 # Copy resolved runtime DLLs beside the executable. Multiple executables share
-# one output folder, so prefer the matching compiler-directory candidate when
+# one output folder, so prefer the matching toolchain-directory candidate when
 # CMake reports both paths as a conflict.
 foreach(filename IN LISTS conflicting_dependencies_FILENAMES)
     set(conflict_variable "conflicting_dependencies_${filename}")
@@ -81,10 +92,20 @@ foreach(filename IN LISTS conflicting_dependencies_FILENAMES)
 
     foreach(candidate IN LISTS ${conflict_variable})
         file(TO_CMAKE_PATH "${candidate}" candidate_path)
-        file(TO_CMAKE_PATH "${GAMEWIP_RUNTIME_SEARCH_DIR}" runtime_search_path)
-        string(FIND "${candidate_path}" "${runtime_search_path}/" runtime_path_position)
-        if(runtime_path_position EQUAL 0)
-            set(preferred_dependency "${candidate}")
+
+        foreach(runtime_search_path IN LISTS runtime_search_paths)
+            file(TO_CMAKE_PATH "${runtime_search_path}" normalized_runtime_search_path)
+            string(TOLOWER "${candidate_path}" normalized_candidate_path)
+            string(TOLOWER "${normalized_runtime_search_path}/" normalized_runtime_search_prefix)
+            string(FIND "${normalized_candidate_path}" "${normalized_runtime_search_prefix}" runtime_path_position)
+
+            if(runtime_path_position EQUAL 0)
+                set(preferred_dependency "${candidate}")
+                break()
+            endif()
+        endforeach()
+
+        if(preferred_dependency)
             break()
         endif()
     endforeach()

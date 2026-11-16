@@ -173,6 +173,18 @@
       "description": "Forward additional arguments to the selected validation or project executable."
     },
     {
+      "id": "TargetPlatform",
+      "kind": "string",
+      "valueName": "platform",
+      "description": "Select a declared build target platform."
+    },
+    {
+      "id": "TargetArchitecture",
+      "kind": "string",
+      "valueName": "architecture",
+      "description": "Select a declared build target architecture."
+    },
+    {
       "id": "SkipBuild",
       "kind": "switch",
       "description": "Do not build prerequisites automatically; require usable existing build state."
@@ -218,6 +230,7 @@
     "tool": ["PythonPath"],
     "links": ["PythonPath"],
     "deps": [],
+    "target": ["TargetPlatform", "TargetArchitecture"],
     "config": ["CleanBuild", "Offline"],
     "build": ["CleanBuild", "Offline"],
     "test": ["SkipBuild", "CleanBuild"],
@@ -351,6 +364,16 @@
       "risk": "local"
     },
     {
+      "id": "target",
+      "title": "Build target",
+      "description": "Select the platform and architecture used by build operations.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
       "id": "config",
       "title": "Configure",
       "description": "Configure a CMake preset.",
@@ -463,7 +486,7 @@
     {
       "id": "asan",
       "title": "AddressSanitizer",
-      "description": "Recreate the CLANG64 tree, then run AddressSanitizer validation.",
+      "description": "Recreate the selected target tree, then run AddressSanitizer validation.",
       "group": "quality",
       "visible": true,
       "network": false,
@@ -473,7 +496,7 @@
     {
       "id": "ubsan",
       "title": "UndefinedBehaviorSanitizer",
-      "description": "Recreate the CLANG64 tree, then run UndefinedBehaviorSanitizer validation.",
+      "description": "Recreate the selected target tree, then run UndefinedBehaviorSanitizer validation.",
       "group": "quality",
       "visible": true,
       "network": false,
@@ -591,6 +614,11 @@
           "key": "4",
           "label": "Build documentation",
           "handler": "doc"
+        },
+        {
+          "key": "5",
+          "label": "Select build target",
+          "handler": "target"
         }
       ]
     },
@@ -1199,7 +1227,7 @@
       ]
     },
     {
-      "name": "CLANG64 sanitizer validation",
+      "name": "Sanitizer validation",
       "id": "sanitizer",
       "freshBuildTrees": true,
       "steps": [

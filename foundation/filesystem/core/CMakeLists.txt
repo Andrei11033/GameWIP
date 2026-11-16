@@ -1,10 +1,4 @@
 target_sources(
     FileSystem
-    PRIVATE
-        directories.cpp
-        handles.cpp
-        metadata.cpp
-        mutations.cpp
-        path.cpp
-        whole_file.cpp
+    PRIVATE directories.cpp handles.cpp metadata.cpp mutations.cpp path.cpp whole_file.cpp
 )

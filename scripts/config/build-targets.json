@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "defaultTarget": "windows-x64",
+  "targets": [
+    {
+      "id": "windows-x64",
+      "name": "Windows x64",
+      "platform": "windows",
+      "architecture": "x64",
+      "backend": "win32",
+      "toolchain": "llvm-mingw",
+      "compilerTriple": "x86_64-w64-mingw32",
+      "processor": "AMD64"
+    },
+    {
+      "id": "windows-arm64",
+      "name": "Windows ARM64",
+      "platform": "windows",
+      "architecture": "arm64",
+      "backend": "win32",
+      "toolchain": "llvm-mingw",
+      "compilerTriple": "aarch64-w64-mingw32",
+      "processor": "ARM64"
+    }
+  ]
+}

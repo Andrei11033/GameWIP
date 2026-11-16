@@ -47,7 +47,7 @@ verbs and PascalCase parameters. `Assert-GameWip...` is the intentional naming
 exception for validation helpers whose contract is to throw on failure; a
 `Test-*` name remains reserved for Boolean queries.
 
-Exact version-sensitive quality-tool pins are declared centrally:
+Exact version-sensitive tool pins are declared centrally:
 
 | Tool | Registry version | Provider |
 | --- | --- | --- |
@@ -61,6 +61,7 @@ Exact version-sensitive quality-tool pins are declared centrally:
 | jsonschema | 4.26.0 | MSYS2 |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
 | actionlint | 1.7.12 | verified GitHub release |
+| LLVM-MinGW | 20261104 | verified GitHub release |
 
 `gamewip tool status` is offline. `gamewip tool check-updates` performs an
 explicit online query without changing files or installations. `gamewip tool

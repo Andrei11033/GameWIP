@@ -14,6 +14,7 @@ REGISTRIES = {
     ROOT / "scripts/config/project.json": ROOT / "scripts/schemas/project.schema.json",
     ROOT / "scripts/config/commands.json": ROOT / "scripts/schemas/commands.schema.json",
     ROOT / "scripts/config/project-tools.json": ROOT / "scripts/schemas/project-tools.schema.json",
+    ROOT / "scripts/config/build-targets.json": ROOT / "scripts/schemas/build-targets.schema.json",
     ROOT / "scripts/setup/config/setup.json": ROOT / "scripts/schemas/setup.schema.json",
     ROOT / "scripts/setup/config/editors.json": ROOT / "scripts/schemas/editors.schema.json",
     ROOT / "config/quality/file-ownership.json": ROOT / "scripts/schemas/quality-file-ownership.schema.json",

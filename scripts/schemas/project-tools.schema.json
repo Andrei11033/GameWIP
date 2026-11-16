@@ -193,6 +193,28 @@
           "type": "string",
           "minLength": 1
         },
+        "installMode": {
+          "enum": ["singleExecutable", "directoryArchive"]
+        },
+        "managedDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binaryDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hostPlatform": {
+          "enum": ["windows"]
+        },
+        "validationFiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "archiveName": {
           "type": "string",
           "minLength": 1
@@ -204,7 +226,22 @@
             "$ref": "#/$defs/asset"
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "installMode": {
+                "const": "directoryArchive"
+              }
+            },
+            "required": ["installMode"]
+          },
+          "then": {
+            "required": ["managedDirectory", "binaryDirectory", "hostPlatform", "validationFiles"]
+          }
+        }
+      ]
     },
     "providerWinget": {
       "type": "object",

@@ -12,6 +12,7 @@ $ErrorActionPreference = 'Stop'
 $RepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
 $ScriptsRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $ProjectConfigPath = Join-Path $ScriptsRoot 'config\project.json'
+$BuildTargetsPath = Join-Path $ScriptsRoot 'config\build-targets.json'
 $CommandConfigPath = Join-Path $ScriptsRoot 'config\commands.json'
 $ProjectToolsPath = Join-Path $ScriptsRoot 'config\project-tools.json'
 $HygieneConfigPath = Join-Path $RepositoryRoot 'config\quality\hygiene.json'
@@ -67,6 +68,7 @@ $libraryFiles = @(
     'Build.ps1',
     'Testing.ps1',
     'Benchmarks.ps1',
+    'BuildTargets.ps1',
     'Documentation.ps1',
     'Bundles.ps1',
     'Quality.ps1',
@@ -81,6 +83,7 @@ foreach ($libraryFile in $libraryFiles)
 }
 
 $ProjectConfig = Read-GameWipJsonConfig -Path $ProjectConfigPath -Name 'project' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project.schema.json')
+$BuildTargets = Read-GameWipJsonConfig -Path $BuildTargetsPath -Name 'build targets' -SchemaPath (Join-Path $ScriptsRoot 'schemas\build-targets.schema.json')
 $CommandConfig = Read-GameWipJsonConfig -Path $CommandConfigPath -Name 'commands' -SchemaPath (Join-Path $ScriptsRoot 'schemas\commands.schema.json')
 $ProjectTools = Read-GameWipJsonConfig -Path $ProjectToolsPath -Name 'project tools' -SchemaPath (Join-Path $ScriptsRoot 'schemas\project-tools.schema.json')
 $HygieneConfig = Read-GameWipJsonConfig -Path $HygieneConfigPath -Name 'hygiene' -SchemaPath (Join-Path $ScriptsRoot 'schemas\hygiene.schema.json')
@@ -89,4 +92,5 @@ $PresetData = Read-GameWipUtf8Text -Path $PresetsPath | ConvertFrom-Json
 Assert-GameWipProjectConfig
 Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
+Assert-GameWipBuildTargetConfig
 Assert-GameWipHygieneConfig

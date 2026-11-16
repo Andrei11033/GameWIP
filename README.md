@@ -32,12 +32,16 @@ tools, and handles updates, repair, and uninstall. See the
 [development environment guide](docs/doxygen/environment_setup.md).
 
 Open `GameWIP.code-workspace`, then build and run the `dev` preset. In PowerShell,
-use the helper to select the configured toolchain:
+the helper defaults to Windows x64 and keeps each target in its own build tree:
 
 ```powershell
+.\gamewip.bat target -TargetPlatform windows -TargetArchitecture x64
 .\gamewip.bat build dev
-.\build\dev\GameWIP.exe
+.\build\windows-x64\dev\GameWIP.exe
 ```
+
+Use `arm64` instead of `x64` to cross-compile for Windows ARM64. Setup installs
+the pinned LLVM-MinGW toolchain when needed.
 
 Or use CMake directly from MSYS2 UCRT64 Bash:
 

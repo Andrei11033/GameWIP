@@ -15,7 +15,7 @@ function Initialize-GameWipTestPresetBuild
         throw '-CleanBuild cannot be combined with -SkipBuild because a recreated preset must be configured and built.'
     }
 
-    $testFile = Join-Path $RepositoryRoot "build\$Name\CTestTestfile.cmake"
+    $testFile = Join-Path (Get-GameWipBuildDirectory -PresetName $Name) 'CTestTestfile.cmake'
 
     if ($NoBuild)
     {
@@ -36,7 +36,13 @@ function Invoke-GameWipTestPreset
     Assert-GameWipValidPreset -Kind 'test' -Name $Name
     Confirm-GameWipToolchain -PresetName $Name
     Initialize-GameWipTestPresetBuild -Name $Name -NoBuild:$NoBuild -Fresh:$Fresh
-    Invoke-GameWipNative -Name "ctest-$Name" -FilePath 'ctest' -Arguments @('--preset', $Name, '--output-on-failure') -UseWorkspaceTemp:$UseWorkspaceTemp -PathPrefix (Get-GameWipToolchainPathPrefix $Name)
+    $buildDirectory = Get-GameWipBuildDirectory -PresetName $Name
+    Invoke-GameWipNative `
+        -Name "ctest-$Name" `
+        -FilePath 'ctest' `
+        -Arguments @('--preset', $Name, '--test-dir', $buildDirectory, '--output-on-failure') `
+        -UseWorkspaceTemp:$UseWorkspaceTemp `
+        -PathPrefix (Get-GameWipToolchainPathPrefix)
 }
 
 function Invoke-GameWipValidationModule

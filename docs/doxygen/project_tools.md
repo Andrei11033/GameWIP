@@ -60,6 +60,11 @@ C:\MSYS2\GameWIPTools\
   powershell\
 ```
 
+Versioned directory archives live under `tools/<tool>/<version>` and expose
+their declared binary directory to tool discovery. The Windows LLVM-MinGW
+toolchain uses this provider mode for the Windows x64 and ARM64 build targets.
+Target selection and compiler setup are documented in @ref project_build.
+
 The directory is separate from repository build output and survives deleting
 `build/`. When GameWIP creates this tree it writes `.gamewip-managed.json`
 inside it. An existing non-empty tree without valid ownership proof must never
@@ -126,11 +131,12 @@ Malformed input fails, and writes remain UTF-8 without a byte-order mark.
 Provider adapters own provider-specific queries, installation, and rollback.
 The shared engine owns discovery, planning, staging, validation, preview,
 consent, application, verification, formatting, and quality. Verified GitHub-release
-providers download and checksum a candidate, verify it before replacement, and
-restore the previous managed tool and shim if replacement fails. If every
-selected declaration and installation is current, the update is a true no-op:
-it neither stages tracked files nor reinstalls an identical tool. The command
-never commits or pushes.
+providers checksum candidates before replacement. Single-executable releases
+use managed shims; directory archives install versioned tool trees. Both restore
+the previous managed state if replacement fails. If every selected declaration
+and installation is current, the update is a true no-op: it neither stages
+tracked files nor reinstalls an identical tool. The command never commits or
+pushes.
 
 `setup.bat update` has a different role. It performs the MSYS2 `pacman -Syu`
 environment update, updates other compatible package-manager software and

@@ -20,6 +20,18 @@ function Test-GameWipWindowsHost
     return [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows)
 }
 
+function Test-GameWipToolHostSupport
+{
+    param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    if (-not $Tool.provider.Contains('hostPlatform'))
+    {
+        return $true
+    }
+
+    return $Tool.provider.hostPlatform -eq 'windows' -and (Test-GameWipWindowsHost)
+}
+
 function Get-GameWipManagedToolRoot
 {
     if (Test-GameWipWindowsHost)
@@ -111,6 +123,11 @@ function Get-GameWipProviderManagedToolPath
 
         'githubRelease'
         {
+            if ($Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
+            {
+                $toolRoot = Join-Path $root (Join-Path ([string]$Tool.provider.managedDirectory) ([string]$Tool.requiredVersion))
+                return @((Join-Path $toolRoot ([string]$Tool.provider.binaryDirectory)))
+            }
             return @((Join-Path $root 'bin'))
         }
 
@@ -187,6 +204,57 @@ function Get-GameWipExecutableNames
 function Get-GameWipToolCandidateVersion
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool, [Parameter(Mandatory = $true)][string]$Path)
+
+    if ($Tool.provider.kind -eq 'githubRelease' -and $Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
+    {
+        # Trust a managed directory tool only when its install marker matches the pin.
+        $toolRoot = Join-Path (Get-GameWipManagedToolRoot) (Join-Path ([string]$Tool.provider.managedDirectory) ([string]$Tool.requiredVersion))
+        $binaryRoot = [IO.Path]::GetFullPath((Join-Path $toolRoot ([string]$Tool.provider.binaryDirectory))).TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
+        $candidatePath = [IO.Path]::GetFullPath($Path)
+
+        if (-not $candidatePath.StartsWith($binaryRoot, [StringComparison]::OrdinalIgnoreCase))
+        {
+            return $null
+        }
+
+        $manifestPath = Join-Path $toolRoot '.gamewip-tool.json'
+
+        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf))
+        {
+            return $null
+        }
+
+        try
+        {
+            $manifest = Read-GameWipUtf8Text -Path $manifestPath | ConvertFrom-Json
+        }
+
+        catch
+        {
+            return $null
+        }
+
+        $asset = $Tool.provider.assets['windows-amd64']
+
+        if ($manifest.schemaVersion -eq 1 -and
+            [string]$manifest.toolId -eq [string]$Tool.id -and
+            [string]$manifest.version -eq [string]$Tool.requiredVersion -and
+            [string]$manifest.archive -eq [string]$asset.archive -and
+            [string]$manifest.sha256 -eq [string]$asset.sha256)
+        {
+            foreach ($relativePath in @($Tool.provider.validationFiles))
+            {
+                if (-not (Test-Path -LiteralPath (Join-Path $toolRoot ([string]$relativePath -replace '/', '\')) -PathType Leaf))
+                {
+                    return $null
+                }
+            }
+
+            return [string]$manifest.version
+        }
+
+        return $null
+    }
 
     if ($Tool.detection.Contains('commandConfigVersionPath'))
     {
@@ -447,6 +515,7 @@ function Test-GameWipToolchain
     {
         $selected = @($selected | Where-Object { $_.versionPolicy -ne 'informational' })
     }
+    $selected = @($selected | Where-Object { Test-GameWipToolHostSupport -Tool $_ })
     $selected = @($selected | Where-Object { $_.capabilities.detectInstalled })
     $results = [System.Collections.Generic.List[object]]::new()
     $failures = [System.Collections.Generic.List[string]]::new()
@@ -675,19 +744,7 @@ function Show-GameWipToolList
 
 function Get-GameWipToolchainPathPrefix
 {
-    param([Parameter(Mandatory = $true)][string]$PresetName)
-
-    if (-not (Test-GameWipWindowsHost))
-    {
-        return ''
-    }
-
-    if ($PresetName -in @('asan', 'ubsan'))
-    {
-        return Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'clang64/bin'
-    }
-
-    return Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
+    return Get-GameWipBuildTargetPathPrefix -Target (Get-GameWipSelectedBuildTarget)
 }
 
 function Test-GameWipProjectReadiness
@@ -763,38 +820,36 @@ function Confirm-GameWipToolchain
         return
     }
 
-    $prefix = Get-GameWipToolchainPathPrefix $PresetName
     $requiredExecutables = [System.Collections.Generic.List[string]]::new()
     $requiredExecutables.Add('cmake.exe')
     $requiredExecutables.Add('ctest.exe')
     $requiredExecutables.Add('ninja.exe')
 
-    if ($PresetName -in @('analyze', 'asan', 'ubsan'))
-    {
-        $requiredExecutables.Add('clang++.exe')
-    }
-    else
-    {
-        $requiredExecutables.Add('g++.exe')
-    }
-
-    if ($PresetName -in @('asan', 'ubsan'))
-    {
-        $requiredExecutables.Add('clang.exe')
-        $requiredExecutables.Add('ld.lld.exe')
-    }
-
+    $target = Get-GameWipSelectedBuildTarget
+    $msys2Bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
     $missingExecutables = @($requiredExecutables | Where-Object {
-            -not (Test-Path -LiteralPath (Join-Path $prefix $_) -PathType Leaf)
+            -not (Test-Path -LiteralPath (Join-Path $msys2Bin $_) -PathType Leaf)
         })
+    $toolchain = Get-GameWipProjectTool -Id ([string]$target.toolchain)
+    $targetToolchainRoot = Get-GameWipBuildTargetToolchainRoot -Target $target
+
+    foreach ($relativePath in @($toolchain.provider.validationFiles))
+    {
+        $path = Join-Path $targetToolchainRoot ([string]$relativePath -replace '/', '\')
+
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf))
+        {
+            $missingExecutables += $path
+        }
+    }
 
     if ($missingExecutables.Count -ne 0)
     {
         throw (New-GameWipDiagnosticException `
                 -Code 'preset-toolchain-incomplete' `
                 -Summary "The '$PresetName' preset toolchain is incomplete." `
-                -Details ("Missing from '{0}': {1}" -f $prefix, ($missingExecutables -join ', ')) `
-                -SuggestedActions @('Run .\setup.bat repair.', "Verify the managed MSYS2 environment for the '$PresetName' preset.", 'Run .\gamewip.bat tool status.'))
+                -Details ("Missing from '{0}' or target toolchain '{1}': {2}" -f $msys2Bin, $targetToolchainRoot, ($missingExecutables -join ', ')) `
+                -SuggestedActions @('Run .\setup.bat repair.', 'Run .\gamewip.bat tool status.', "Run '.\gamewip.bat target' to select a supported target."))
     }
 }
 

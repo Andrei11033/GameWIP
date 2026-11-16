@@ -301,7 +301,7 @@ function Invoke-GameWipDependencyPreparation
             -Name 'dependencies-prepare' `
             -FilePath 'cmake' `
             -Arguments $arguments `
-            -PathPrefix (Get-GameWipToolchainPathPrefix -PresetName 'dev') |
+            -PathPrefix (Get-GameWipToolchainPathPrefix) |
             Out-Null
 
         Test-GameWipDependencyCache -ThrowOnFailure

@@ -3,11 +3,7 @@
 add_library(GameWIPBase INTERFACE)
 add_library(GameWIP::Base ALIAS GameWIPBase)
 
-target_sources(
-    GameWIPBase
-    INTERFACE
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/checked_arithmetic.h>"
-)
+target_sources(GameWIPBase INTERFACE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/checked_arithmetic.h>")
 
 add_subdirectory(platform)
 
