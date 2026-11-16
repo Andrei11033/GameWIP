@@ -13,35 +13,35 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
 {
     namespace Input = GameWIP::Input;
 
-    // ------------------------------------------------------------
-    // Control names and values
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Control names and values
+    /// ------------------------------------------------------------
 
     [[nodiscard]] std::string controlName(Input::Types::StandardId id);
     [[nodiscard]] std::string controlName(const Input::Types::HidControlId &id);
     [[nodiscard]] std::string value(const Input::Types::Value &value);
 
-    // ------------------------------------------------------------
-    // Device summaries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Device summaries
+    /// ------------------------------------------------------------
 
     [[nodiscard]] std::size_t standardControlCount(const Input::Types::DeviceInfo &device);
     [[nodiscard]] std::string backendSummary(std::span<const Input::Types::SourceInfo> sources);
 
-    // ------------------------------------------------------------
-    // Event labels
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event labels
+    /// ------------------------------------------------------------
 
     [[nodiscard]] std::string_view eventKind(Input::Types::EventKind kind) noexcept;
     [[nodiscard]] std::string_view eventCause(Input::Types::EventCause cause) noexcept;
 
-    // ------------------------------------------------------------
-    // Device and value labels
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Device and value labels
+    /// ------------------------------------------------------------
 
     [[nodiscard]] std::string_view valueKind(Input::Types::ValueKind kind) noexcept;
     [[nodiscard]] std::string_view reportingMode(Input::Types::ReportingMode mode) noexcept;
-    [[nodiscard]] std::string_view backend(Input::Types::BackendKind backend) noexcept;
+    [[nodiscard]] std::string_view backend(Input::Types::BackendKind kind) noexcept;
     [[nodiscard]] std::string_view deviceOrigin(Input::Types::DeviceOrigin origin) noexcept;
     [[nodiscard]] std::string_view deviceKind(const Input::Types::DeviceInfo &device) noexcept;
     [[nodiscard]] std::string_view identityConfidence(Input::Types::IdentityConfidence confidence) noexcept;

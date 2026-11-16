@@ -7,7 +7,7 @@
 
 void testFileLoggingAndUtf8Truncation(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "utf8-truncation");
     config.maxMessageLength = 24;
     config.inlineMessageCapacity = 16;
@@ -35,7 +35,7 @@ void testFileLoggingAndUtf8Truncation(TestContext &context)
 
 void testConfigurableTimestampFormatting(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "timestamp-format");
     config.timestampFormat = "literal=%%f ms=%f";
     expectStarted(context, "custom timestamp format init", Logger::init(config.ready()));
@@ -66,7 +66,7 @@ void testConfigurableTimestampFormatting(TestContext &context)
 
 void testMarkedValuesAndRecordFields(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     const Logger::Theme defaultTheme{};
     context.expectTrue(
         "named cyan constant is basic cyan",
@@ -163,7 +163,7 @@ void testMarkedValuesAndRecordFields(TestContext &context)
 
 void testCustomRecordLayoutsAndOwnership(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     constexpr auto customLayout = Logger::makeLayout(
         "{time} {@severity}[{level}]{/} {@area}[{area}]{/} {source_file}:{source_line} {source_function} thread={thread_id} process={process_id} "
         "{message} {fields}");
@@ -216,7 +216,7 @@ void testCustomRecordLayoutsAndOwnership(TestContext &context)
 
 void testRecordFieldLimits(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig boundedFieldsConfig = makeFileConfig(context, "bounded-record-fields");
     boundedFieldsConfig.fieldLayout = Logger::Layouts::expanded();
     boundedFieldsConfig.maxRecordFields = 1;
@@ -235,7 +235,7 @@ void testRecordFieldLimits(TestContext &context)
 
 void testRecordFormattingHonorsMessageBound(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "record-message-bound");
     config.maxMessageLength = 32;
     config.maxFieldValueLength = 256;
@@ -283,7 +283,7 @@ void testRecordFormattingHonorsMessageBound(TestContext &context)
 
 void testLayoutAlignment(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     constexpr auto alignmentLayout =
         Logger::makeLayout("{area:<auto}|{area:^auto}|{area:>auto}|{level:<5}|{level:^5}|{level:>5}|{message:<16}|{message}");
     OwnedLoggerConfig config = makeFileConfig(context, "layout-alignment");
@@ -303,7 +303,7 @@ void testLayoutAlignment(TestContext &context)
 
 void testTruncatedCompiledLayoutFallsBackSafely(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     constexpr auto longLayout = Logger::makeLayout("layout-prefix-that-exceeds-the-message-limit-{message}");
     OwnedLoggerConfig config = makeFileConfig(context, "truncated-compiled-layout");
     config.maxMessageLength = 32;
@@ -329,7 +329,7 @@ void testTruncatedCompiledLayoutFallsBackSafely(TestContext &context)
 void testConsoleThemeAndAreaColors(TestContext &context)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS && TERMINAL_INTERNAL_TEST_HOOKS
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     using GameWIP::Terminal::Types::Output::Capabilities;
     using GameWIP::Terminal::Types::Output::Stream;
     const Stream stream = Stream::Stdout;

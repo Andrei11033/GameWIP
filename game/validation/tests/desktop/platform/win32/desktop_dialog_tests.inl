@@ -28,7 +28,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     {
         const std::array extensions{extension};
         const std::array filters{FileDialogs::Filter{"Files", extensions}};
-        FileDialogs::OpenDescription description{.filters = filters};
+        const FileDialogs::OpenDescription description{.filters = filters};
         static_cast<void>(context.expectEq(
             std::format("extension '{}' is invalid", extension),
             ErrorCode::InvalidArgument,
@@ -336,7 +336,7 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
                 static_cast<void>(CoDecrementMTAUsage(cookie));
             }
         }
-    } mtaUsage;
+    } const mtaUsage;
 
     if(!context.expectTrue("controlled process MTA is available", SUCCEEDED(mtaUsage.result)))
     {
@@ -508,7 +508,7 @@ void testMessageDialogs(TestSupport::Context &context)
         DialogTypes::Severity::Warning,
         DialogTypes::Severity::Error};
 
-    for(DialogTypes::Severity severity : severities)
+    for(const DialogTypes::Severity severity : severities)
     {
         description.severity = severity;
         Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});

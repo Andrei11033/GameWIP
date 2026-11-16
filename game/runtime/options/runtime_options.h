@@ -68,7 +68,7 @@ namespace GameWIP::Game::Runtime
 
     /// @brief Reads runtime environment settings and command-line overrides.
     /// @details Runtime option names, defaults, and fallback behavior are documented in @ref project_game_executable.
-    [[nodiscard]] Options readOptions(int argc, char **argv) noexcept;
+    [[nodiscard]] Options readOptions(int argc, char *const *argv) noexcept;
 
     /// @brief Returns the stable text name of a Logger severity.
     [[nodiscard]] constexpr std::string_view levelName(Logger::Types::Level level) noexcept

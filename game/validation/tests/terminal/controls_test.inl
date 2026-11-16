@@ -91,7 +91,7 @@ void testControls(TestSupport::Context &context)
 
     Hooks::clearCapturedOutput(Terminal::Types::Output::Stream::Stdout);
     {
-        Terminal::CursorHiddenScope failedDestructorScope = Terminal::scopedCursorHidden();
+        const Terminal::CursorHiddenScope failedDestructorScope = Terminal::scopedCursorHidden();
         Hooks::forceNextTextWriteFailure(ErrorCode::WriteFailed);
     }
     {

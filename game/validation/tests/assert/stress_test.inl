@@ -17,7 +17,7 @@ void testCheckOnceThreadStress(TestContext &context, const AssertTestOptions &op
         return;
     }
 
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "check_once_thread_stress"))
     {

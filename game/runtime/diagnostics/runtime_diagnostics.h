@@ -9,10 +9,6 @@
 #include "io/status.h"
 #include "runtime/logging.h"
 
-#if defined(_WIN32)
-#include "input/win32.h"
-#endif
-
 #include <cstdint>
 #include <string_view>
 
@@ -23,9 +19,9 @@ namespace GameWIP::Game::RuntimeDiagnostics
     namespace IO = GameWIP::IO;
     namespace Input = GameWIP::Input;
 
-    // ------------------------------------------------------------
-    // Operation status
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Operation status
+    /// ------------------------------------------------------------
 
     /// @brief Writes a final diagnostic without relying on Logger availability.
     void writeEmergencyMessage(std::string_view message) noexcept;
@@ -39,9 +35,9 @@ namespace GameWIP::Game::RuntimeDiagnostics
     /// @brief Queues a recoverable operation issue with its portable and native status.
     void reportWarning(Logging::Area area, std::string_view action, const IO::Types::Status &status);
 
-    // ------------------------------------------------------------
-    // Window reports
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window reports
+    /// ------------------------------------------------------------
 
     /// @brief Logs one queued Window event when event details are enabled.
     void logWindowEvent(const Desktop::Types::Event &event, bool includeDetails);
@@ -49,12 +45,12 @@ namespace GameWIP::Game::RuntimeDiagnostics
     /// @brief Logs Window startup and, at Debug, its cached state and drawable extents.
     void logWindowSnapshot(const Desktop::Window &window);
 
-    // ------------------------------------------------------------
-    // Input inventory and events
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Input inventory and events
+    /// ------------------------------------------------------------
 
     /// @brief Logs concise device summaries and optional bounded descriptors.
-    void logInputDevices(Input::System &input, bool includeTraceDetails);
+    void logInputDevices(const Input::System &input, bool includeTraceDetails);
 
     /// @brief Logs one bounded grouped device descriptor and optional device event at Trace.
     void logInputDeviceTrace(
@@ -64,25 +60,22 @@ namespace GameWIP::Game::RuntimeDiagnostics
         std::uint64_t captureSequence = 0);
 
     /// @brief Logs device changes and optional control events.
-    void logInputEvents(Input::System &input, const Input::Types::Frame &frame, bool includeTraceDetails, bool includeControlEvents);
+    void logInputEvents(const Input::System &input, const Input::Types::Frame &frame, bool includeTraceDetails, bool includeControlEvents);
 
-    // ------------------------------------------------------------
-    // Input cleanup
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Input cleanup
+    /// ------------------------------------------------------------
 
     /// @brief Captures input health and explicitly closes the input system.
     [[nodiscard]] bool finishInputSystem(Input::System &input);
 
-#if defined(_WIN32)
+    /// ------------------------------------------------------------
+    /// Input cleanup with a platform detach step
+    /// ------------------------------------------------------------
 
-    // ------------------------------------------------------------
-    // Win32 backend reports and cleanup
-    // ------------------------------------------------------------
+    /// @brief Runs a platform detach callback between health capture and session close.
+    using InputDetachCallback = IO::Types::Status (*)(void *context) noexcept;
 
-    /// @brief Logs selected and available Win32 backend states at Trace.
-    void logInputBackends(Input::Platform::Win32::Attachment &attachment);
-
-    /// @brief Captures input health, detaches the Win32 source, and explicitly closes the input system.
-    [[nodiscard]] bool finishInputSystem(Input::System &input, Input::Platform::Win32::Attachment &attachment);
-#endif
+    /// @brief Captures input health, runs an optional detach step, and closes the input system.
+    [[nodiscard]] bool finishInputSystemWithDetach(Input::System &input, InputDetachCallback detach, void *context);
 } // namespace GameWIP::Game::RuntimeDiagnostics

@@ -19,7 +19,7 @@
 {
     const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-    for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+    for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
     {
         if(value != nullptr && std::string_view(value) == argument)
         {
@@ -94,7 +94,7 @@ void testManualFatalPopup(TestContext &context, const LoggerTestOptions &options
         return;
     }
 
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     Logger::Types::Config config = makeConsoleConfig();
     config.enableFatalPopup = true;
     const auto initialized = Logger::init(config);

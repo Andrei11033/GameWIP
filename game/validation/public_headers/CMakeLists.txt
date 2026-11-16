@@ -84,7 +84,6 @@ gamewip_add_public_header_check(InputFrame input_frame_header.cpp GameWIP::Input
 gamewip_add_public_header_check(InputQuery input_query_header.cpp GameWIP::Input)
 gamewip_add_public_header_check(InputSystem input_system_header.cpp GameWIP::Input)
 gamewip_add_public_header_check(InputSynthetic input_synthetic_header.cpp GameWIP::Input)
-gamewip_add_public_header_check(InputWin32 input_win32_header.cpp GameWIP::Input)
 
 # ------------------------------------------------------------
 # Logger

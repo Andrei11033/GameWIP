@@ -29,7 +29,7 @@ void testManualAssertUi(TestContext &context, const AssertTestOptions &options)
     }
 
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "manual_assert_ui"))
     {

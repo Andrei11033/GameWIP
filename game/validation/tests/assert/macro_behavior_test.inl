@@ -61,7 +61,7 @@ void testVerifyEvaluation(TestContext &context)
 /// @brief Verifies that ENSURE evaluates once and returns the condition result.
 void testEnsureBehavior(TestContext &context)
 {
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
     initFileLogger(context, "ensure");
 
     int evaluations = 0;
@@ -87,7 +87,7 @@ void testEnsureBehavior(TestContext &context)
 void testCheckOnceLogging(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "check_once"))
     {

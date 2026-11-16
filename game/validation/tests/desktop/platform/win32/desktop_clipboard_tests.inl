@@ -229,7 +229,7 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
         ErrorCode::InvalidArgument,
         Clipboard::hasFormat(Transfer::FormatView::custom(std::string_view{"a\0b", 3}), Clipboard::kNoWait).status.code));
 
-    std::span<const Transfer::ItemView> emptyItems;
+    const std::span<const Transfer::ItemView> emptyItems;
     const auto emptyWrite = Clipboard::write(emptyItems, Clipboard::kNoWait);
     static_cast<void>(context.expectEq("empty multi-format write is invalid", ErrorCode::InvalidArgument, emptyWrite.status.code));
     static_cast<void>(context.expectEq("invalid write never starts", ClipboardTypes::CommitState::NotStarted, emptyWrite.commitState));
@@ -436,7 +436,7 @@ void testClipboardFixtureContention(TestSupport::Context &context)
         std::atomic<bool> ready = false;
         std::atomic<bool> release = false;
         bool locked = false;
-        std::jthread holder(
+        const std::jthread holder(
             [&]
             {
                 const HWND owner = CreateWindowExW(

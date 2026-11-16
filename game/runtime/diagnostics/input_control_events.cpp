@@ -23,11 +23,11 @@ namespace
     namespace Format = GameWIP::Game::RuntimeDiagnostics::InputEventFormat;
     using LogArea = GameWIP::Game::Logging::Area;
 
-    // ------------------------------------------------------------
-    // Control lookup and classification
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Control lookup and classification
+    /// ------------------------------------------------------------
 
-    [[nodiscard]] const Types::DeviceInfo *findDevice(GameWIP::Input::System &input, Types::DeviceId id)
+    [[nodiscard]] const Types::DeviceInfo *findDevice(const GameWIP::Input::System &input, Types::DeviceId id)
     {
         const Types::DeviceInfo *device = nullptr;
         if(!input.findDevice(id, device).ok())
@@ -157,9 +157,9 @@ namespace
         return element != nullptr && element->identity.standard.has_value() && *element->identity.standard == Standard::Pointer::Position;
     }
 
-    // ------------------------------------------------------------
-    // Structured event metadata
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Structured event metadata
+    /// ------------------------------------------------------------
 
     [[nodiscard]] Logger::Record eventRecord(const Types::Event &event, std::uint64_t captureSequence)
     {
@@ -192,7 +192,7 @@ namespace
         record.field("device_connected", device->connected);
     }
 
-    void logInputDeviceEventTrace(GameWIP::Input::System &input, const Types::Event &event, std::uint64_t captureSequence)
+    void logInputDeviceEventTrace(const GameWIP::Input::System &input, const Types::Event &event, std::uint64_t captureSequence)
     {
         const Types::DeviceEvent *deviceEvent = std::get_if<Types::DeviceEvent>(&event.data);
         if(deviceEvent == nullptr)
@@ -204,11 +204,11 @@ namespace
         GameWIP::Game::RuntimeDiagnostics::logInputDeviceTrace(device, deviceEvent->id, &event, captureSequence);
     }
 
-    // ------------------------------------------------------------
-    // Debug control changes
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Debug control changes
+    /// ------------------------------------------------------------
 
-    void logInputControlChange(GameWIP::Input::System &input, const Types::Event &event)
+    void logInputControlChange(const GameWIP::Input::System &input, const Types::Event &event)
     {
         const Types::ElementEvent *elementEvent = std::get_if<Types::ElementEvent>(&event.data);
         if(elementEvent == nullptr)
@@ -251,7 +251,7 @@ namespace
         }
     }
 
-    void logInputControlRaw(GameWIP::Input::System &input, const Types::Event &event)
+    void logInputControlRaw(const GameWIP::Input::System &input, const Types::Event &event)
     {
         const Types::ElementEvent *elementEvent = std::get_if<Types::ElementEvent>(&event.data);
         if(elementEvent == nullptr)
@@ -327,11 +327,11 @@ namespace
             Logger::code(Format::valueProvenance(element->provenance)));
     }
 
-    // ------------------------------------------------------------
-    // Trace event details
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Trace event details
+    /// ------------------------------------------------------------
 
-    void logInputEventTrace(GameWIP::Input::System &input, const Types::Event &event, std::uint64_t captureSequence)
+    void logInputEventTrace(const GameWIP::Input::System &input, const Types::Event &event, std::uint64_t captureSequence)
     {
         // Ignore uninformative first samples for absolute controls.
         if(event.kind == Types::EventKind::ElementChanged)
@@ -552,21 +552,21 @@ namespace
 
 namespace GameWIP::Game::RuntimeDiagnostics::InputControlEvents
 {
-    // ------------------------------------------------------------
-    // Runtime logging entry points
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runtime logging entry points
+    /// ------------------------------------------------------------
 
-    void logChange(GameWIP::Input::System &input, const GameWIP::Input::Types::Event &event)
+    void logChange(const GameWIP::Input::System &input, const GameWIP::Input::Types::Event &event)
     {
         logInputControlChange(input, event);
     }
 
-    void logRawChange(GameWIP::Input::System &input, const GameWIP::Input::Types::Event &event)
+    void logRawChange(const GameWIP::Input::System &input, const GameWIP::Input::Types::Event &event)
     {
         logInputControlRaw(input, event);
     }
 
-    void logTrace(GameWIP::Input::System &input, const GameWIP::Input::Types::Event &event, std::uint64_t captureSequence)
+    void logTrace(const GameWIP::Input::System &input, const GameWIP::Input::Types::Event &event, std::uint64_t captureSequence)
     {
         logInputEventTrace(input, event, captureSequence);
     }

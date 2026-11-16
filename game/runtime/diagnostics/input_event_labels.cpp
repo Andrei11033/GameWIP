@@ -7,9 +7,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
 {
     namespace Input = GameWIP::Input;
 
-    // ------------------------------------------------------------
-    // Event labels
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event labels
+    /// ------------------------------------------------------------
 
     std::string_view eventKind(Input::Types::EventKind kind) noexcept
     {
@@ -61,9 +61,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
         return "unknown";
     }
 
-    // ------------------------------------------------------------
-    // Value labels
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Value labels
+    /// ------------------------------------------------------------
 
     std::string_view valueKind(Input::Types::ValueKind kind) noexcept
     {
@@ -120,9 +120,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
         return "unknown";
     }
 
-    // ------------------------------------------------------------
-    // Backend and identity labels
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Backend and identity labels
+    /// ------------------------------------------------------------
 
     std::string_view backend(Input::Types::BackendKind kind) noexcept
     {
@@ -185,9 +185,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
         return "unknown";
     }
 
-    // ------------------------------------------------------------
-    // Control and value metadata
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Control and value metadata
+    /// ------------------------------------------------------------
 
     std::string_view standardDomain(Input::Types::StandardDomain domain) noexcept
     {
@@ -241,7 +241,7 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
 
     std::string_view unit(Input::Types::Unit unit) noexcept
     {
-        using Unit = Input::Types::Unit;
+        using Input::Types::Unit;
         switch(unit)
         {
         case Unit::Unspecified:

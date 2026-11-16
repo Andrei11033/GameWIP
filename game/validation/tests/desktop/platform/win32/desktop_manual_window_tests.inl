@@ -311,7 +311,7 @@ void testManualLayeredAndPointer(TestSupport::Context &context, const GameWIP::T
     for(const Desktop::Types::PointerInputMode mode :
         {Desktop::Types::PointerInputMode::AcceptRegions, Desktop::Types::PointerInputMode::IgnoreRegions})
     {
-        Desktop::Types::PointerInputLayout regionLayout{.mode = mode, .regions = region};
+        const Desktop::Types::PointerInputLayout regionLayout{.mode = mode, .regions = region};
         const IO::Types::Status status = window.setPointerInputLayout(regionLayout);
 
         if(capabilities.supports(Desktop::Types::Capability::PointerRegions))

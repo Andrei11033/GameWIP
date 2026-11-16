@@ -23,9 +23,9 @@ namespace
     namespace Logger = GameWIP::Logger;
     namespace Logging = GameWIP::Game::Logging;
 
-    // ------------------------------------------------------------
-    // Display names and mode formatting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Display names and mode formatting
+    /// ------------------------------------------------------------
 
     [[nodiscard]] constexpr std::string_view colorSpaceName(Display::ColorSpace colorSpace) noexcept
     {
@@ -91,9 +91,9 @@ namespace
         return report;
     }
 
-    // ------------------------------------------------------------
-    // Optional display query fields
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Optional display query fields
+    /// ------------------------------------------------------------
 
     void logDisplayQueryFailure(Display::MonitorId monitor, std::string_view query, const GameWIP::IO::Types::Status &status)
     {
@@ -181,9 +181,9 @@ namespace
         }
     }
 
-    // ------------------------------------------------------------
-    // Debug and Trace reports
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Debug and Trace reports
+    /// ------------------------------------------------------------
 
     void logDisplaySummary(
         const Display::Info &monitor,
@@ -252,9 +252,9 @@ namespace
 
 namespace GameWIP::Game
 {
-    // ------------------------------------------------------------
-    // Display enumeration
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Display enumeration
+    /// ------------------------------------------------------------
 
     Desktop::Types::Result<std::vector<Desktop::Types::Display::Info>> inspectDisplays()
     {

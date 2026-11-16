@@ -149,7 +149,7 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ProgressDialog title updates live", progress.setTitle("Updated title").ok()));
     static_cast<void>(context.expectTrue("ProgressDialog heading updates live", progress.setHeading("Updated heading").ok()));
     static_cast<void>(context.expectTrue("ProgressDialog message updates live", progress.setMessage("Updated message").ok()));
-    auto updated = Desktop::TestHooks::inspectProgressDialog(progress);
+    const auto updated = Desktop::TestHooks::inspectProgressDialog(progress);
     static_cast<void>(context.expectEq("updated title reaches native window", std::wstring{L"Updated title"}, updated.title));
     static_cast<void>(context.expectEq("updated heading reaches native control", std::wstring{L"Updated heading"}, updated.heading));
     static_cast<void>(context.expectEq("updated message reaches native control", std::wstring{L"Updated message"}, updated.message));
@@ -381,7 +381,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
 
 void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
 {
-    auto description = progressDescription();
+    const auto description = progressDescription();
     Desktop::ProgressDialog progress;
     static_cast<void>(context.expectTrue("ProgressDialog opens for native loss", progress.open(description).ok()));
     static_cast<void>(

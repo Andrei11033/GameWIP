@@ -52,7 +52,7 @@ namespace
         {
             return;
         }
-        Input::Types::SyntheticDeviceDescription description{
+        const Input::Types::SyntheticDeviceDescription description{
             .name = "Synthetic Test Device",
             .persistentKey = "test:synthetic-device",
             .elements =
@@ -280,7 +280,7 @@ namespace GameWIP::Test
 {
     int runInputTests(const InputTestOptions &options)
     {
-        TestSupport::Types::Reporting::Options reportOptions = RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.runSuite("Input system lifecycle", testSystemLifecycle);

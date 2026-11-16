@@ -86,7 +86,7 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value != nullptr && std::string_view(value) == argument)
             {
@@ -158,7 +158,7 @@ namespace
     /// @brief Runs one manual prompt against deterministic captured input.
     TestSupport::Types::Reporting::ManualAnswer promptWithInput(std::string_view input)
     {
-        ScopedPromptStreams streams(input);
+        const ScopedPromptStreams streams(input);
         return TestSupport::promptManualCheck("automated prompt check");
     }
 
@@ -270,7 +270,7 @@ namespace GameWIP::Test
         }
         const std::filesystem::path &runRoot = workspace.path();
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("TestSupport library test root: {}", runRoot.string()));

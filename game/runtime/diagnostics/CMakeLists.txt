@@ -1,0 +1,16 @@
+target_sources(
+    GameWIP
+    PRIVATE
+        display_report.cpp
+        display_report.h
+        input_control_events.cpp
+        input_control_events.h
+        input_devices.cpp
+        input_event_format.cpp
+        input_event_format.h
+        input_event_labels.cpp
+        input_events.cpp
+        input_reports.h
+        runtime_diagnostics.cpp
+        runtime_diagnostics.h
+)

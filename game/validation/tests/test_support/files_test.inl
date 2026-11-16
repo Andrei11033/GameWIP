@@ -96,7 +96,7 @@ void testFileHelpers(TestSupport::Context &context, const std::filesystem::path 
     {
         TestSupport::ScopedProcessState conflictProcessState;
         {
-            TestSupport::ScopedCurrentPath destructorOnly(conflictProcessState, root);
+            const TestSupport::ScopedCurrentPath destructorOnly(conflictProcessState, root);
             static_cast<void>(context.expectTrue("Destructor-only current-path conflict setup succeeds", destructorOnly.status().ok()));
             std::error_code error;
             std::filesystem::current_path(originalCurrentPath, error);

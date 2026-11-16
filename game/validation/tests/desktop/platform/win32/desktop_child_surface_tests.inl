@@ -39,7 +39,7 @@ void testChildSurfaces(TestSupport::Context &context)
     }
 
     // Reject invalid queues and verify the default owned queue.
-    std::span<ChildEvent> emptyStorage;
+    const std::span<ChildEvent> emptyStorage;
     static_cast<void>(context.expectEq(
         "empty caller-owned ChildSurface queue is invalid",
         ErrorCode::InvalidArgument,
@@ -193,7 +193,7 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("placeBelow succeeds for a valid sibling", surface.placeBelow(sibling).ok()));
     static_cast<void>(context.expectEq("placeBelow produces adjacent native order", surfaceHwnd, GetWindow(siblingHwnd, GW_HWNDNEXT)));
     static_cast<void>(context.expectEq("self sibling is invalid", ErrorCode::InvalidArgument, surface.placeAbove(surface).code));
-    Desktop::ChildSurface closedSibling;
+    const Desktop::ChildSurface closedSibling;
     static_cast<void>(context.expectEq("closed sibling is invalid", ErrorCode::InvalidArgument, surface.placeBelow(closedSibling).code));
 
     Desktop::Window otherParent;

@@ -3,7 +3,7 @@
 
 void testReportsAndHealth(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "reports", Logger::Types::Level::Fatal);
     config.enableDebugOutput = false;
     config.enableFatalPopup = false;
@@ -63,7 +63,7 @@ void testReportsAndHealth(TestContext &context)
 void testReportNoDrainScenario(TestContext &context)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "report-no-drain");
     config.workerBatchSize = 1;
     const auto initialized = Logger::init(config.ready());
@@ -80,7 +80,7 @@ void testReportNoDrainScenario(TestContext &context)
         {
             GameWIP::Logger::TestHooks::releaseWorkerDeliveryPause();
         }
-    } releasePause;
+    } const releasePause;
     GameWIP::Logger::TestHooks::armWorkerDeliveryPause();
     Logger::info(kTestSource, "older queued line deliberately held");
     GameWIP::Logger::TestHooks::waitForWorkerDeliveryPause();
@@ -159,7 +159,7 @@ int runReportNoDrainChild()
 
 void testFlushContracts(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "flush-contracts");
     expectStarted(context, "flush contract init", Logger::init(config.ready()));
     Logger::info(kTestSource, "flush me");
@@ -185,7 +185,7 @@ void testFlushContracts(TestContext &context)
 void testFatalPopupFailure(TestContext &context)
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "fatal-popup");
     config.enableFatalPopup = true;
     expectStarted(context, "fatal popup init", Logger::init(config.ready()));

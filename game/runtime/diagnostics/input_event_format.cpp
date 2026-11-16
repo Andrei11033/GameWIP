@@ -16,9 +16,9 @@ namespace
     namespace Standard = GameWIP::Input::Standard;
     namespace Types = GameWIP::Input::Types;
 
-    // ------------------------------------------------------------
-    // Standard control-name tables
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Standard control-name tables
+    /// ------------------------------------------------------------
 
     struct StandardName
     {
@@ -101,9 +101,9 @@ namespace
         StandardName{Standard::Gamepad::Capture, "Capture"},
         StandardName{Standard::Gamepad::Mute, "Mute"}};
 
-    // ------------------------------------------------------------
-    // Numeric and vector formatting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Numeric and vector formatting
+    /// ------------------------------------------------------------
 
     template <typename T> [[nodiscard]] std::string formatNumber(T value)
     {
@@ -132,9 +132,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
 {
     namespace Input = GameWIP::Input;
 
-    // ------------------------------------------------------------
-    // Standard control names
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Standard control names
+    /// ------------------------------------------------------------
 
     std::string controlName(Input::Types::StandardId id)
     {
@@ -240,9 +240,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
         return {};
     }
 
-    // ------------------------------------------------------------
-    // HID control names
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// HID control names
+    /// ------------------------------------------------------------
 
     std::string controlName(const Input::Types::HidControlId &id)
     {
@@ -283,9 +283,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
         return std::format("HID {:04X}:{:04X}", id.usagePage, id.usage);
     }
 
-    // ------------------------------------------------------------
-    // Typed value formatting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Typed value formatting
+    /// ------------------------------------------------------------
 
     std::string value(const Input::Types::Value &inputValue)
     {
@@ -346,9 +346,9 @@ namespace GameWIP::Game::RuntimeDiagnostics::InputEventFormat
             inputValue);
     }
 
-    // ------------------------------------------------------------
-    // Device summaries
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Device summaries
+    /// ------------------------------------------------------------
 
     std::string backendSummary(std::span<const Input::Types::SourceInfo> sources)
     {

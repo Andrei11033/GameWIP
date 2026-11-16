@@ -568,7 +568,7 @@ namespace GameWIP::Test
         constexpr std::string_view manualCasePrefix = "--desktop-manual-case=";
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value != nullptr && std::string_view(value).starts_with(manualSuitePrefix))
             {

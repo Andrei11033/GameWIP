@@ -25,7 +25,7 @@ int runShellLaunchProbeChild(int argc, char **argv)
     std::string_view expectedTarget;
     std::filesystem::path receiptPath;
 
-    for(char *argument : arguments)
+    for(const char *argument : arguments)
     {
         if(argument != nullptr && std::string_view{argument}.starts_with(targetPrefix))
         {
@@ -38,7 +38,7 @@ int runShellLaunchProbeChild(int argc, char **argv)
         }
     }
 
-    for(char *argument : arguments)
+    for(const char *argument : arguments)
     {
         if(argument == nullptr || !std::string_view{argument}.starts_with(prefix))
         {
@@ -61,7 +61,7 @@ int runShellLaunchProbeChild(int argc, char **argv)
         {
             std::string receivedArguments;
 
-            for(char *received : arguments)
+            for(const char *received : arguments)
             {
                 receivedArguments += received == nullptr ? "<null>" : received;
                 receivedArguments.push_back('\n');
@@ -542,7 +542,7 @@ void testManualFilesAndShell(
             const std::string ownerKey = std::format("GameWIP.Validation.Shell.{}", GetCurrentProcessId());
             const std::string extension = std::format(".gamewip-validation-{}", GetCurrentProcessId());
             const std::string scheme = std::format("gamewip-validation-{}", GetCurrentProcessId());
-            TestSupport::ScopedTemporaryDirectory registrationFixtures("desktop-manual-shell-registration");
+            const TestSupport::ScopedTemporaryDirectory registrationFixtures("desktop-manual-shell-registration");
 
             if(!context.expectTrue("shell registration fixtures create", registrationFixtures.status().ok()))
             {
@@ -1091,7 +1091,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     paintManualValidationSurface(targetWindow, ManualSurfaceLayout::DragDropTarget);
 
     // Create controlled files, text, image, and custom-format payloads.
-    TestSupport::ScopedTemporaryDirectory fixtures("desktop-drag-interop");
+    const TestSupport::ScopedTemporaryDirectory fixtures("desktop-drag-interop");
 
     if(!context.expectTrue("drag fixture directory creates", fixtures.status().ok()))
     {
@@ -1161,7 +1161,7 @@ void testManualDragDrop(TestSupport::Context &context, const GameWIP::Test::Desk
     capture.clear(target);
 
     // Verify same-process delivery and exact payload ownership.
-    ManualDragDropRun sameProcess = runManualDragDropSource(
+    const ManualDragDropRun sameProcess = runManualDragDropSource(
         context,
         sourceWindow,
         &targetWindow,

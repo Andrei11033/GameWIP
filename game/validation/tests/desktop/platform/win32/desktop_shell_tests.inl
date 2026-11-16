@@ -44,7 +44,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
         {
             CoUninitialize();
         }
-    } initialization;
+    } const initialization;
     const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
     const std::array<ShellTypes::LaunchArgumentView, 2> arguments{
         ShellTypes::LiteralLaunchArgumentView{"--desktop-test-child=shell-launch-probe"},
@@ -61,7 +61,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     {
         link->Release();
     };
-    std::unique_ptr<IShellLinkW, decltype(releaseLink)> link(static_cast<IShellLinkW *>(rawLink), releaseLink);
+    const std::unique_ptr<IShellLinkW, decltype(releaseLink)> link(static_cast<IShellLinkW *>(rawLink), releaseLink);
     IPropertyStore *rawProperties = nullptr;
 
     if(context.expectTrue("jump link exposes property store", SUCCEEDED(link->QueryInterface(IID_PPV_ARGS(&rawProperties)))))
@@ -70,7 +70,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
         {
             properties->Release();
         };
-        std::unique_ptr<IPropertyStore, decltype(releaseProperties)> properties(rawProperties, releaseProperties);
+        const std::unique_ptr<IPropertyStore, decltype(releaseProperties)> properties(rawProperties, releaseProperties);
         PROPVARIANT title{};
         const HRESULT titleResult = properties->GetValue(PKEY_Title, &title);
         static_cast<void>(
@@ -134,7 +134,7 @@ namespace RegistrationTypes = Desktop::Types::Registration;
 void testShellRegistrationOwnership(TestSupport::Context &context, const std::filesystem::path &executable)
 {
     // Create isolated executables for owner and conflict scenarios.
-    TestSupport::ScopedTemporaryDirectory fixtures("desktop-shell-registration-ownership");
+    const TestSupport::ScopedTemporaryDirectory fixtures("desktop-shell-registration-ownership");
 
     if(!context.expectTrue("shell registration ownership fixture creates", fixtures.status().ok()))
     {
@@ -180,10 +180,10 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
             {
                 remove();
             }
-        } cleanup{[&]
-                  {
-                      static_cast<void>(unregister(owner));
-                  }};
+        } const cleanup{[&]
+                        {
+                            static_cast<void>(unregister(owner));
+                        }};
         const RegistrationTypes::Verb malformedVerb{"invalid-label", std::string_view{"\xC3", 1}, action};
         const auto registerOwner = [&](std::string_view key,
                                        RegistrationTypes::ConflictPolicy policy,
@@ -404,7 +404,7 @@ void testShellRegistrationOwnership(TestSupport::Context &context, const std::fi
 void testShellRegistrationApplicationOwnership(TestSupport::Context &context, const std::filesystem::path &executable)
 {
     // Prepare a unique executable identity and registry fixtures.
-    TestSupport::ScopedTemporaryDirectory fixtures("desktop-shell-application-ownership");
+    const TestSupport::ScopedTemporaryDirectory fixtures("desktop-shell-application-ownership");
 
     if(!context.expectTrue("application ownership fixture creates", fixtures.status().ok()))
     {
@@ -443,12 +443,12 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
         {
             remove();
         }
-    } cleanup{[&]
-              {
-                  Desktop::TestHooks::resetFailures();
-                  static_cast<void>(Desktop::Registration::unregisterFileExtension(owner, target));
-                  static_cast<void>(removeApplicationFixture());
-              }};
+    } const cleanup{[&]
+                    {
+                        Desktop::TestHooks::resetFailures();
+                        static_cast<void>(Desktop::Registration::unregisterFileExtension(owner, target));
+                        static_cast<void>(removeApplicationFixture());
+                    }};
 
     const auto seedApplication = [&](bool withOwner)
     {
@@ -634,7 +634,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         {
             CoUninitialize();
         }
-    } apartmentCleanup;
+    } const apartmentCleanup;
     // Always exercise generic separators, even when the test host was started by PowerShell.
     const std::filesystem::path absoluteExecutable = std::filesystem::absolute(executable);
     const std::string executableIdentity = std::format("{}-{}", GetCurrentProcessId(), GetTickCount64());
@@ -655,7 +655,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             std::error_code ignored;
             std::filesystem::remove(path, ignored);
         }
-    } executableCleanup{launchExecutable};
+    } const executableCleanup{launchExecutable};
 
     // Register each association and resolve its selected target.
     for(const bool file : {true, false})
@@ -665,7 +665,7 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
         const std::string owner = "GameWIP.LaunchRegression." + token;
         const std::string tokenArgument = "--desktop-shell-launch-token=" + token;
         const std::string kind = file ? "file" : "URI";
-        TestSupport::ScopedTemporaryDirectory fixtures("desktop-association-launch");
+        const TestSupport::ScopedTemporaryDirectory fixtures("desktop-association-launch");
 
         if(!context.expectTrue(kind + " launch fixture creates", fixtures.status().ok()))
         {
@@ -690,19 +690,19 @@ void testShellRegistrationLaunch(TestSupport::Context &context, const std::files
             {
                 remove();
             }
-        } cleanup{[&]
-                  {
-                      if(file)
-                      {
-                          static_cast<void>(Desktop::Registration::unregisterFileExtension(owner, target));
-                      }
-                      else
-                      {
-                          static_cast<void>(Desktop::Registration::unregisterUriScheme(owner, target));
-                      }
-                      static_cast<void>(TestSupport::removeIfExists(receiptPath));
-                      static_cast<void>(TestSupport::removeIfExists(receiptPath.string() + ".arguments"));
-                  }};
+        } const cleanup{[&]
+                        {
+                            if(file)
+                            {
+                                static_cast<void>(Desktop::Registration::unregisterFileExtension(owner, target));
+                            }
+                            else
+                            {
+                                static_cast<void>(Desktop::Registration::unregisterUriScheme(owner, target));
+                            }
+                            static_cast<void>(TestSupport::removeIfExists(receiptPath));
+                            static_cast<void>(TestSupport::removeIfExists(receiptPath.string() + ".arguments"));
+                        }};
         RegistrationTypes::Result registration;
 
         if(file)
@@ -1201,7 +1201,7 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 
     // Bind taskbar state to the Window lifetime.
     Desktop::TaskbarItem taskbar;
-    Desktop::Types::Shell::Progress progress{Desktop::Types::Shell::ProgressState::Normal, 0.5};
+    const Desktop::Types::Shell::Progress progress{Desktop::Types::Shell::ProgressState::Normal, 0.5};
     TaskbarTypes::Description taskbarDescription;
     taskbarDescription.progress = progress;
     const IO::Types::Status taskbarStatus = taskbar.open(window, taskbarDescription);

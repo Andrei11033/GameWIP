@@ -66,7 +66,7 @@ void testDragDrop(TestSupport::Context &context)
 
     // Validate text payloads.
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
-    DD::Description validSource{validTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left};
+    const DD::Description validSource{validTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left};
     static_cast<void>(context.expectTrue("valid source data prepares", Desktop::TestHooks::prepareDragDropSource(validSource).ok()));
     static_cast<void>(context.expectEq("empty source is invalid", ErrorCode::InvalidArgument, Desktop::TestHooks::prepareDragDropSource({}).code));
     DD::Description invalidSourceEffects = validSource;
@@ -462,7 +462,7 @@ void testDragDrop(TestSupport::Context &context)
 
     auto releasableFormats =
         std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Custom, std::string(2048, 'x')}});
-    std::weak_ptr<const std::vector<Transfer::Format>> releasedFormats = releasableFormats;
+    const std::weak_ptr<const std::vector<Transfer::Format>> releasedFormats = releasableFormats;
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{7}, {}, std::nullopt, DD::Effect::None, releasableFormats}));
     releasableFormats.reset();
     DD::Event releasedEvent;
@@ -471,7 +471,7 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("pop clears retained slot storage", releasedFormats.expired()));
     auto clearableFormats =
         std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Custom, std::string(2048, 'y')}});
-    std::weak_ptr<const std::vector<Transfer::Format>> clearedFormats = clearableFormats;
+    const std::weak_ptr<const std::vector<Transfer::Format>> clearedFormats = clearableFormats;
     static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{8}, {}, std::nullopt, DD::Effect::None, clearableFormats}));
     clearableFormats.reset();
     target.clearEvents();

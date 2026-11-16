@@ -157,7 +157,7 @@ namespace
 
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
-        TestSupport::Section section(context.testContext, name);
+        const TestSupport::Section section(context.testContext, name);
         try
         {
             std::forward<Function>(function)();
@@ -318,7 +318,7 @@ namespace GameWIP::Test
             return runFatalTerminateChild();
         }
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         const TestSupport::Types::Reporting::SuiteResult suite = runner.runSuite(

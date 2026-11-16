@@ -3,7 +3,7 @@
 
 void testQueryDefaultsAndLifecycle(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
 
     const Logger::Types::LogFilePathResult beforeInitPath = Logger::getLogFilePath();
     context.expectEq("log path before init reports NotOpen", beforeInitPath.status.code, IO::Types::ErrorCode::NotOpen);
@@ -24,7 +24,7 @@ void testQueryDefaultsAndLifecycle(TestContext &context)
 
 void testShutdownAndHealthEpoch(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     OwnedLoggerConfig config = makeFileConfig(context, "health-epoch");
     expectStarted(context, "health epoch init", Logger::init(config.ready()));
 

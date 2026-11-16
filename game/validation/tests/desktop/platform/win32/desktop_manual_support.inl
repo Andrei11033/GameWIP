@@ -629,7 +629,7 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     }
     else if(layout == ManualSurfaceLayout::DragDropTarget)
     {
-        RECT preferred = clippedRect(120, 90, 480, 270);
+        const RECT preferred = clippedRect(120, 90, 480, 270);
         fill(preferred, RGB(20, 128, 94));
         drawText(L"GAMEWIP DROP TARGET", clippedRect(20, 20, 540, 70), 24, RGB(255, 255, 255), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         drawText(L"REGION 2 - MOVE PREFERRED", preferred, 18, RGB(255, 255, 255), DT_CENTER | DT_VCENTER | DT_WORDBREAK);
@@ -642,12 +642,12 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     }
     else if(layout == ManualSurfaceLayout::CustomChromePrimary)
     {
-        RECT drag = clippedRect(0, 0, 760, 48);
-        RECT gap = clippedRect(760, 0, 800, 48);
-        RECT menu = clippedRect(0, 0, 48, 48);
-        RECT minimize = clippedRect(800, 0, 848, 48);
-        RECT maximize = clippedRect(848, 0, 896, 48);
-        RECT close = clippedRect(896, 0, 960, 48);
+        const RECT drag = clippedRect(0, 0, 760, 48);
+        const RECT gap = clippedRect(760, 0, 800, 48);
+        const RECT menu = clippedRect(0, 0, 48, 48);
+        const RECT minimize = clippedRect(800, 0, 848, 48);
+        const RECT maximize = clippedRect(848, 0, 896, 48);
+        const RECT close = clippedRect(896, 0, 960, 48);
         fill(drag, RGB(15, 112, 132));
         fill(gap, RGB(55, 65, 78));
         fill(menu, RGB(12, 84, 105));
@@ -675,8 +675,8 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     }
     else if(layout == ManualSurfaceLayout::CustomChromeReplacement)
     {
-        RECT inactive = clippedRect(0, 0, 960, 48);
-        RECT replacement = clippedRect(0, 48, 640, 88);
+        const RECT inactive = clippedRect(0, 0, 960, 48);
+        const RECT replacement = clippedRect(0, 48, 640, 88);
         fill(inactive, RGB(80, 48, 55));
         fill(replacement, RGB(15, 132, 102));
         drawText(L"OLD TOP STRIP - INACTIVE", inactive, 18, RGB(255, 210, 210), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
@@ -697,8 +697,8 @@ void paintManualValidationSurface(const Desktop::Window &window, ManualSurfaceLa
     else
     {
         const LONG middle = client.top + (client.bottom - client.top) / 2;
-        RECT title{client.left, middle - logical(38), client.right, middle - logical(4)};
-        RECT subtitle{client.left, middle + logical(4), client.right, middle + logical(38)};
+        const RECT title{client.left, middle - logical(38), client.right, middle - logical(4)};
+        const RECT subtitle{client.left, middle + logical(4), client.right, middle + logical(38)};
         drawText(L"GameWIP manual validation surface", title, 28, RGB(255, 255, 255), DT_CENTER | DT_VCENTER | DT_SINGLELINE);
         drawText(
             L"The blue surface and cyan inset border must cover the complete client area.",

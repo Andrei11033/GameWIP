@@ -468,7 +468,7 @@ namespace GameWIP::Test
 
     int runUnicodeTests(int, char **, const UnicodeTestOptions &options)
     {
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info("Unicode library target: strict UTF-8/UTF-16 primitives and Unicode 17.0.0 extended grapheme boundaries");

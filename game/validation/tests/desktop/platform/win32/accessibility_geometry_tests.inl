@@ -28,8 +28,8 @@ void testGeometryAndExceptionalLifetime(Context &context)
     Desktop::TestHooks::applyPresentationPublicationSnapshot(*window, host);
 
     const auto origin = window->clientPosition();
-    Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
-    Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
+    const Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
+    const Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
 
     if(!context.expectTrue("geometry providers exist", provider && root))
     {
@@ -89,7 +89,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
 
     check(context, "exceptional lifetime reenable", bridge.enable().ok());
     check(context, "exceptional lifetime fresh publish", bridge.publish(tree.view(2)).ok());
-    Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
+    const Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
     std::thread destroyer(
         [owned = std::move(window)] mutable
         {

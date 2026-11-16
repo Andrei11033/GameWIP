@@ -28,9 +28,9 @@ namespace
     constexpr std::size_t kMaxTraceButtons = 16;
     constexpr std::size_t kMaxTraceOtherControls = 16;
 
-    // ------------------------------------------------------------
-    // Control and component formatting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Control and component formatting
+    /// ------------------------------------------------------------
 
     [[nodiscard]] std::string formatScalar(const Types::Scalar &value)
     {
@@ -104,9 +104,9 @@ namespace
         report += std::format("; {} [{}]", Logger::quoted(name), details);
     }
 
-    // ------------------------------------------------------------
-    // Device report construction
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Device report construction
+    /// ------------------------------------------------------------
 
     [[nodiscard]] std::string deviceAction(const Types::Event *event)
     {
@@ -301,67 +301,9 @@ namespace
 
 namespace GameWIP::Game::RuntimeDiagnostics
 {
-#if defined(_WIN32)
-
-    // ------------------------------------------------------------
-    // Backend status reporting
-    // ------------------------------------------------------------
-
-    void logInputBackends(Input::Platform::Win32::Attachment &attachment)
-    {
-        if(!Logger::shouldLog(Logger::Types::Level::Trace, LogArea::Input))
-        {
-            return;
-        }
-
-        const auto statusName = [](Input::Types::BackendStatus status) -> std::string_view
-        {
-            using Status = Input::Types::BackendStatus;
-            switch(status)
-            {
-            case Status::Enabled:
-                return "enabled";
-            case Status::Disabled:
-                return "disabled";
-            case Status::Unavailable:
-                return "unavailable";
-            case Status::Unsupported:
-                return "unsupported";
-            case Status::Failed:
-                return "failed";
-            }
-            return "unknown";
-        };
-
-        std::vector<Input::Types::BackendInfo> backends;
-        const IO::Types::Status queryStatus = attachment.backends(backends);
-        if(!queryStatus.ok())
-        {
-            reportWarning(LogArea::Input, "Failed to query Win32 input backends", queryStatus);
-            return;
-        }
-
-        std::string report;
-        for(const Input::Types::BackendInfo &backend : backends)
-        {
-            if(!report.empty())
-            {
-                report += '\n';
-            }
-            report += std::format("  {}: {}", Logger::code(InputEventFormat::backend(backend.backend)), statusName(backend.status));
-            if(!backend.detail.empty())
-            {
-                report += std::format(" ({})", Logger::code(backend.detail));
-            }
-        }
-
-        Logger::trace(LogArea::Input, Logger::record().field("backend_count", backends.size()), "Win32 input backends:\n{}", report);
-    }
-#endif
-
-    // ------------------------------------------------------------
-    // Device inventory and descriptors
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Device inventory and descriptors
+    /// ------------------------------------------------------------
 
     void logInputDeviceTrace(
         const Input::Types::DeviceInfo *device,
@@ -370,7 +312,7 @@ namespace GameWIP::Game::RuntimeDiagnostics
         std::uint64_t captureSequence)
     {
         Logger::Record record = Logger::record();
-        std::string action = deviceAction(event);
+        const std::string action = deviceAction(event);
         // Add event identity when this report follows a captured change.
         if(event != nullptr)
         {
@@ -396,7 +338,7 @@ namespace GameWIP::Game::RuntimeDiagnostics
         Logger::trace(LogArea::Input, record, "{}", report);
     }
 
-    void logInputDevices(Input::System &input, bool includeTraceDetails)
+    void logInputDevices(const Input::System &input, bool includeTraceDetails)
     {
         // Skip enumeration when the selected log levels do not need an inventory.
         const bool logInventory = Logger::shouldLog(Logger::Types::Level::Info, LogArea::Input);

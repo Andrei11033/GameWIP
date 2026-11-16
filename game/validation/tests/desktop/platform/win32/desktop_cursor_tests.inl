@@ -99,7 +99,7 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     static_assert(noexcept(Desktop::setCursor(std::declval<Desktop::Window &>(), std::declval<const Desktop::Cursor &>())));
     static_assert(noexcept(Desktop::hasCustomCursor(std::declval<const Desktop::Window &>())));
 
-    Desktop::Cursor empty;
+    const Desktop::Cursor empty;
     static_cast<void>(context.expectFalse("default Cursor is invalid", empty.isValid()));
 
     const auto expectInvalid = [&context](std::string_view name, const Desktop::Types::Cursor::ImageView &image)
@@ -162,7 +162,7 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     std::ranges::copy(packedRows.first(8), paddedRows.first(8).begin());
     std::ranges::copy(packedRows.subspan(8), paddedRows.subspan(12, 8).begin());
     const Desktop::Types::Cursor::ImageView paddedImage = CursorTest::image(paddedPixels, 96, 12);
-    auto padded = Desktop::createCursor(std::span{&paddedImage, std::size_t{1}});
+    const auto padded = Desktop::createCursor(std::span{&paddedImage, std::size_t{1}});
     static_cast<void>(context.expectTrue("padded cursor rows create successfully", padded.status.ok()));
 
     Desktop::Cursor copy = *packed;
@@ -170,7 +170,7 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
     Desktop::Cursor assigned;
     assigned = copy;
     static_cast<void>(context.expectTrue("copy-assigned Cursor remains valid", assigned.isValid()));
-    Desktop::Cursor moved = std::move(copy);
+    const Desktop::Cursor moved = std::move(copy);
     static_cast<void>(context.expectTrue("moved Cursor remains valid", moved.isValid()));
     Desktop::Cursor moveAssigned;
     moveAssigned = std::move(assigned);
@@ -203,7 +203,7 @@ void testCursorNativeResources(TestSupport::Context &context)
 
         // Intentional copy: this verifies that sharing a cursor does not duplicate native variants.
         // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
-        Desktop::Cursor shared = *one;
+        const Desktop::Cursor shared = *one;
         static_cast<void>(context.expectEq(
             "copying a Cursor does not duplicate native variants",
             createdBefore + 1,
@@ -286,7 +286,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
         return;
     }
 
-    Desktop::Cursor invalid;
+    const Desktop::Cursor invalid;
     static_cast<void>(context.expectEq("invalid Cursor selection is rejected", ErrorCode::InvalidArgument, Desktop::setCursor(window, invalid).code));
     static_cast<void>(context.expectTrue("first custom Cursor selection succeeds", Desktop::setCursor(window, *first).ok()));
     static_cast<void>(context.expectTrue("custom Cursor binding is reported", Desktop::hasCustomCursor(window)));

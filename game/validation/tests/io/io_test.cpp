@@ -624,9 +624,9 @@ namespace GameWIP::Test
     /// Test runner
     /// ------------------------------------------------------------
 
-    int runIOTests([[maybe_unused]] int argc, [[maybe_unused]] char **argv, const IOTestOptions &options)
+    int runIOTests([[maybe_unused]] int argc, [[maybe_unused]] char *const *argv, const IOTestOptions &options)
     {
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("IO test options: report={}", options.writeReport ? options.reportPath.string() : std::string_view{"disabled"}));

@@ -27,7 +27,7 @@ int runStartGateChild()
                         [&](std::size_t)
                         {
                             {
-                                std::lock_guard lock(mutex);
+                                const std::lock_guard lock(mutex);
                                 ++approaching;
                             }
                             condition.notify_all();
@@ -56,7 +56,7 @@ int runStartGateChild()
                 {
                     gate.open();
                 }
-            } release{gate};
+            } const release{gate};
             {
                 std::unique_lock lock(mutex);
                 const bool ready = condition.wait_for(
@@ -197,14 +197,14 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         /// @brief Records the identity of this per-worker callable copy.
         void operator()(std::size_t)
         {
-            std::lock_guard lock(*mutex);
+            const std::lock_guard lock(*mutex);
             ids->insert(id);
         }
     };
 
-    auto nextWorkerId = std::make_shared<std::atomic<std::size_t>>(0);
-    auto addressMutex = std::make_shared<std::mutex>();
-    auto workerIds = std::make_shared<std::set<std::size_t>>();
+    const auto nextWorkerId = std::make_shared<std::atomic<std::size_t>>(0);
+    const auto addressMutex = std::make_shared<std::mutex>();
+    const auto workerIds = std::make_shared<std::set<std::size_t>>();
     TestSupport::runWorkers(4, WorkerCopyRecorder{nextWorkerId, addressMutex, workerIds});
     static_cast<void>(context.expectEq("runWorkers gives each worker its own callable copy", std::size_t{4}, workerIds->size()));
 
@@ -214,7 +214,7 @@ void testStressHelpers(TestSupport::Context &context, const std::filesystem::pat
         4,
         [&](std::size_t workerIndex)
         {
-            std::lock_guard lock(workerIndexMutex);
+            const std::lock_guard lock(workerIndexMutex);
             workerIndices.insert(workerIndex);
         });
     static_cast<void>(context.expectEq("runWorkers passes each worker its index", std::set<std::size_t>{0, 1, 2, 3}, workerIndices));

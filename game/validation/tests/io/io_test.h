@@ -27,5 +27,5 @@ namespace GameWIP::Test
     /// @param argv Borrowed process argument values; pointed-to strings must remain valid for the call.
     /// @param options Runtime report toggles.
     /// @return Zero when every IO self-test passes, nonzero otherwise.
-    int runIOTests(int argc, char **argv, const IOTestOptions &options = {});
+    int runIOTests(int argc, char *const *argv, const IOTestOptions &options = {});
 } // namespace GameWIP::Test

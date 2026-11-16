@@ -140,14 +140,14 @@ namespace
             static_cast<void>(
                 context.expectEq("failed-unlock owner acquires lock", FileSystem::Types::Lock::Outcome::Acquired, failedUnlockLock.outcome));
 
-            auto blockedBeforeCleanup = failedUnlockCompetitor.tryLockExclusive();
+            const auto blockedBeforeCleanup = failedUnlockCompetitor.tryLockExclusive();
             static_cast<void>(context.expectEq(
                 "failed-unlock competitor initially blocks",
                 FileSystem::Types::Lock::Outcome::WouldBlock,
                 blockedBeforeCleanup.outcome));
 
             FileSystem::Detail::Platform::TestHooks::setFileUnlockFailure(true);
-            FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
+            const FileSystem::FileLock lockDestroyedDuringFailure = std::move(failedUnlockLock.lock);
             static_cast<void>(context.expectTrue("failed-unlock injected lock remains active", lockDestroyedDuringFailure.active()));
         }
 

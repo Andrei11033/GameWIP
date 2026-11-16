@@ -9,6 +9,7 @@
 #include "validation/executable_path.h"
 #include "validation/process_arguments.h"
 #include "validation/tests/internal/runner_test_hooks.h"
+#include "validation/tests/runner/platform.h"
 #include "validation/tests/runner_helpers.h"
 
 #include "test_support/test_support.h"
@@ -79,9 +80,9 @@ namespace
         std::streambuf *previousError_ = nullptr;
     };
 
-    // ------------------------------------------------------------
-    // Runner probes
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runner probes
+    /// ------------------------------------------------------------
 
     void recordInvocation(ProbeRecord &record, std::string_view name, const ValidationTests::ModuleInvocation &invocation)
     {
@@ -136,7 +137,7 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value != nullptr && std::string_view(value) == expected)
             {
@@ -203,7 +204,7 @@ namespace
             argumentPointers.push_back(argument.data());
         }
 
-        ScopedRunnerOutput capturedOutput;
+        const ScopedRunnerOutput capturedOutput;
         return ValidationTests::Detail::runWithModules(
             static_cast<int>(argumentPointers.size()),
             argumentPointers.data(),
@@ -216,9 +217,19 @@ namespace
         return runProbeWithModules(arguments, kProbeModules, std::move(options));
     }
 
-    // ------------------------------------------------------------
-    // Runner test cases
-    // ------------------------------------------------------------
+    Validation::TestResult runDefaultProbeWithOptions(ValidationTests::RunOptions options)
+    {
+        return runProbe({}, std::move(options));
+    }
+
+    bool reportOutputEnabled()
+    {
+        return probeState.alpha.writeReport;
+    }
+
+    /// ------------------------------------------------------------
+    /// Runner test cases
+    /// ------------------------------------------------------------
 
     void testDefaultManualOptions(TestSupport::Context &context)
     {
@@ -319,21 +330,7 @@ namespace
         static_cast<void>(context.expectTrue("multiple reserved child selectors are handled", result.handledChildInvocation));
         static_cast<void>(context.expectEq("multiple reserved child selectors run no module", std::size_t{0}, result.modulesRun));
 
-#if defined(_WIN32)
-        ValidationTests::RunOptions rootRelative = unattendedOptions();
-        rootRelative.writeReport = true;
-        rootRelative.reportPath = R"(\escaped-report.txt)";
-        result = runProbe({}, std::move(rootRelative));
-        static_cast<void>(context.expectTrue("root-relative report rejection does not fail tests", result.ok()));
-        static_cast<void>(context.expectFalse("root-relative report path disables report output", probeState.alpha.writeReport));
-
-        ValidationTests::RunOptions driveRelative = unattendedOptions();
-        driveRelative.writeReport = true;
-        driveRelative.reportPath = "C:escaped-report.txt";
-        result = runProbe({}, std::move(driveRelative));
-        static_cast<void>(context.expectTrue("drive-relative report rejection does not fail tests", result.ok()));
-        static_cast<void>(context.expectFalse("drive-relative report path disables report output", probeState.alpha.writeReport));
-#endif
+        GameWIP::Test::RunnerPlatform::testWin32ReportPaths(context, runDefaultProbeWithOptions, unattendedOptions, reportOutputEnabled);
     }
 
     void testReportResolutionAndAggregation(TestSupport::Context &context)
@@ -476,13 +473,13 @@ namespace
 
 namespace GameWIP::Test
 {
-    // ------------------------------------------------------------
-    // Test runner
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Test runner
+    /// ------------------------------------------------------------
 
     int runRunnerTests(const RunnerTestOptions &options)
     {
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.runSuite("Validation runner default options", testDefaultManualOptions);

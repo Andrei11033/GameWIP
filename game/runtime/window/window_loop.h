@@ -38,16 +38,16 @@ namespace GameWIP::Game::Runtime
         double maximumWaitMilliseconds = 0.0; ///< Longest wait for a cadence tick.
     };
 
-    // ------------------------------------------------------------
-    // Event-loop summary
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event-loop summary
+    /// ------------------------------------------------------------
 
     /// @brief Logs aggregate loop behavior for normal closure and pump failures.
     void logWindowEventLoopSummary(const Desktop::Window &window, const EventLoopSummary &summary, double elapsedSeconds, std::string_view outcome);
 
-    // ------------------------------------------------------------
-    // Window and Input pumping
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window and Input pumping
+    /// ------------------------------------------------------------
 
     /// @brief Pumps Window events and captures Input until close or a Window pump failure.
     [[nodiscard]] bool pumpWindowEvents(

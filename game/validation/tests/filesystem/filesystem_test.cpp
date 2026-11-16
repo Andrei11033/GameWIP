@@ -188,7 +188,7 @@ namespace GameWIP::Test
         }
         const std::filesystem::path &runRoot = workspace.path();
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(std::format("FileSystem library test root: {}", runRoot.string()));

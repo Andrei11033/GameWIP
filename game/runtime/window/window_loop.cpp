@@ -26,9 +26,9 @@ namespace
 
 namespace GameWIP::Game::Runtime
 {
-    // ------------------------------------------------------------
-    // Event-loop summary
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Event-loop summary
+    /// ------------------------------------------------------------
 
     void logWindowEventLoopSummary(const Desktop::Window &window, const EventLoopSummary &summary, double elapsedSeconds, std::string_view outcome)
     {
@@ -64,9 +64,9 @@ namespace GameWIP::Game::Runtime
         }
     }
 
-    // ------------------------------------------------------------
-    // Window and Input pumping
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window and Input pumping
+    /// ------------------------------------------------------------
 
     bool pumpWindowEvents(
         Desktop::Window &window,

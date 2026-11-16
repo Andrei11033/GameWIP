@@ -154,7 +154,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     consoleOnlyOptions.reportPath = consoleOnlyPath;
     std::string consoleOnlyOutput;
     {
-        ScopedPromptStreams captured("");
+        const ScopedPromptStreams captured("");
         TestSupport::Context consoleOnly("ConsoleOnly", consoleOnlyOptions);
         consoleOnly.pass("console only line");
         consoleOnlyOutput = captured.output.str();
@@ -191,7 +191,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
     std::string failedConsoleOutput;
     std::string failedConsoleError;
     {
-        ScopedPromptStreams captured("");
+        const ScopedPromptStreams captured("");
         TestSupport::Context failedConsole("FailedConsoleWriter", failedConsoleOptions);
         failedConsole.pass("not duplicated");
         failedConsoleOutput = captured.output.str();
@@ -251,7 +251,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
 
     const std::filesystem::path invalidParent = root / "invalid_report_parent";
     static_cast<void>(context.expectTrue("Invalid report parent fixture writes", TestSupport::writeTextFile(invalidParent, "not a directory").ok()));
-    TestSupport::Types::Reporting::Options invalidReportOptions = quietReport(invalidParent / "child.txt");
+    const TestSupport::Types::Reporting::Options invalidReportOptions = quietReport(invalidParent / "child.txt");
     TestSupport::Context invalidReport("InvalidReport", invalidReportOptions);
     const TestSupport::Types::Reporting::SinkStatus invalidStatus = invalidReport.reportStatus();
     static_cast<void>(
@@ -264,7 +264,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
 
     std::string conciseOutput;
     {
-        ScopedPromptStreams captured("");
+        const ScopedPromptStreams captured("");
         TestSupport::Types::Reporting::Options conciseOptions;
         conciseOptions.writeReport = false;
         conciseOptions.consoleVerbosity = TestSupport::Types::Reporting::ConsoleVerbosity::Concise;
@@ -284,7 +284,7 @@ void testReportModes(TestSupport::Context &context, const std::filesystem::path 
 
     std::string minimalOutput;
     {
-        ScopedPromptStreams captured("");
+        const ScopedPromptStreams captured("");
         TestSupport::Types::Reporting::Options minimalOptions;
         minimalOptions.writeReport = false;
         minimalOptions.consoleVerbosity = TestSupport::Types::Reporting::ConsoleVerbosity::Minimal;
@@ -329,7 +329,7 @@ void testPromptManualCheck(TestSupport::Context &context)
 
     const auto promptReason = [&](std::string_view input, std::string_view expected)
     {
-        ScopedPromptStreams streams(input);
+        const ScopedPromptStreams streams(input);
         std::string reason = "stale reason";
         const auto answer = TestSupport::promptManualCheck("reason check", reason);
         return answer == TestSupport::Types::Reporting::ManualAnswer::Skipped && reason == expected;
@@ -406,7 +406,7 @@ void testRunnerAndSection(TestSupport::Context &context, const std::filesystem::
         "FirstSuite",
         [&runnerOwnedContextStayedActive](TestSupport::Context &suite)
         {
-            TestSupport::Section section(suite, "small section");
+            const TestSupport::Section section(suite, "small section");
             suite.pass("suite pass");
             suite.skip("suite skip", "not applicable");
             runnerOwnedContextStayedActive = suite.finalize().state == TestSupport::Types::Reporting::SinkState::Active;

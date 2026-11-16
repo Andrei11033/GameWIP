@@ -17,7 +17,7 @@ void verifyInteractiveAlwaysIgnoreSite(int &evaluations)
 void testInteractiveIgnoreOnce(TestContext &context)
 {
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "interactive_ignore_once"))
     {
@@ -59,7 +59,7 @@ void testInteractiveIgnoreOnce(TestContext &context)
 void testInteractiveAlwaysIgnore(TestContext &context)
 {
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "interactive_always_ignore"))
     {
@@ -94,7 +94,7 @@ void testInteractiveAlwaysIgnore(TestContext &context)
 /// @brief Verifies interactive VERIFY evaluates its expression exactly once per invocation.
 void testVerifyInteractiveEvaluation(TestContext &context)
 {
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "verify_interactive"))
     {
@@ -142,7 +142,7 @@ void testVerifyInteractiveEvaluation(TestContext &context)
 void testVerifyInteractiveAlwaysIgnoreStillEvaluates(TestContext &context)
 {
 #if ASSERT_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "verify_interactive_always_ignore"))
     {

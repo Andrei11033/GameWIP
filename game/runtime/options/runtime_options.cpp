@@ -11,9 +11,9 @@
 
 namespace
 {
-    // ------------------------------------------------------------
-    // Shared setting parsers
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Shared setting parsers
+    /// ------------------------------------------------------------
 
     template <typename Integer> [[nodiscard]] bool parseInteger(std::string_view value, Integer &result) noexcept
     {
@@ -23,7 +23,7 @@ namespace
 
     [[nodiscard]] bool parseLogLevel(std::string_view value, GameWIP::Logger::Types::Level &level) noexcept
     {
-        using Level = GameWIP::Logger::Types::Level;
+        using GameWIP::Logger::Types::Level;
         if(value == "trace")
         {
             level = Level::Trace;
@@ -55,9 +55,9 @@ namespace
         return true;
     }
 
-    // ------------------------------------------------------------
-    // Backend list parsing
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Backend list parsing
+    /// ------------------------------------------------------------
 
     [[nodiscard]] bool parseInputBackendName(std::string_view value, GameWIP::Input::Types::BackendKind &backend) noexcept
     {
@@ -146,7 +146,7 @@ namespace
 
 namespace GameWIP::Game::Runtime
 {
-    Options readOptions(int argc, char **argv) noexcept
+    Options readOptions(int argc, char *const *argv) noexcept
     {
         Options options;
 

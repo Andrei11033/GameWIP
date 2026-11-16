@@ -23,9 +23,9 @@ namespace
     namespace WindowEvents = GameWIP::Desktop::Types::Events;
     using LogArea = GameWIP::Game::Logging::Area;
 
-    // ------------------------------------------------------------
-    // Window labels
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window labels
+    /// ------------------------------------------------------------
 
     /// @brief Returns a stable name for a top-level window mode.
     [[nodiscard]] constexpr std::string_view windowModeName(GameWIP::Desktop::Types::WindowMode mode) noexcept
@@ -125,9 +125,9 @@ namespace
 
 namespace GameWIP::Game::RuntimeDiagnostics
 {
-    // ------------------------------------------------------------
-    // Operation status
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Operation status
+    /// ------------------------------------------------------------
 
     void writeEmergencyMessage(std::string_view message) noexcept
     {
@@ -194,9 +194,9 @@ namespace GameWIP::Game::RuntimeDiagnostics
             Logger::number(status.nativeCode));
     }
 
-    // ------------------------------------------------------------
-    // Window event reports
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window event reports
+    /// ------------------------------------------------------------
 
     void logWindowEvent(const Desktop::Types::Event &event, bool includeDetails)
     {
@@ -242,8 +242,6 @@ namespace GameWIP::Game::RuntimeDiagnostics
         switch(event.kind())
         {
         case Kind::CloseRequested:
-            break;
-
         case Kind::NativeDestroyed:
         case Kind::InteractiveMoveResizeStarted:
         case Kind::InteractiveMoveResizeEnded:
@@ -394,9 +392,9 @@ namespace GameWIP::Game::RuntimeDiagnostics
         }
     }
 
-    // ------------------------------------------------------------
-    // Window startup state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window startup state
+    /// ------------------------------------------------------------
 
     void logWindowSnapshot(const Desktop::Window &window)
     {

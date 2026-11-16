@@ -173,7 +173,7 @@ void testDescriptionValidation(TestSupport::Context &context)
     Desktop::Window window;
     static_cast<void>(
         context.expectEq("zero internal queue capacity is invalid", ErrorCode::InvalidArgument, window.open({}, Desktop::Events::owned(0)).code));
-    std::span<Desktop::Types::Event> empty;
+    const std::span<Desktop::Types::Event> empty;
     static_cast<void>(
         context.expectEq("empty external queue is invalid", ErrorCode::InvalidArgument, window.open({}, Desktop::Events::borrowed(empty)).code));
 }

@@ -5,7 +5,7 @@
 void testDiagnosticConfiguration(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "diagnostics"))
     {
@@ -36,7 +36,7 @@ void testDiagnosticConfiguration(TestContext &context)
 void testDiagnosticMessageEvaluation(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "diagnostic_message_evaluation"))
     {
@@ -92,7 +92,7 @@ void testCompiledOutMessageEvaluation(TestContext &context)
 void testUtf8DiagnosticTruncation(TestContext &context)
 {
 #if ASSERT_CHECKS_ENABLED && ASSERT_DIAGNOSTICS
-    ScopedLoggerShutdown loggerShutdown;
+    const ScopedLoggerShutdown loggerShutdown;
 
     if(!initFileLogger(context, "utf8_truncation"))
     {

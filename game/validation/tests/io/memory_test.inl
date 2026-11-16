@@ -242,13 +242,13 @@ void testMemoryWriter(TestSupport::Context &context)
     const IO::Types::CopyTextResult textCopy = textWriter.copyText();
     static_cast<void>(context.expectTrue("MemoryWriter text copy succeeds", textCopy.status.ok()));
     static_cast<void>(context.expectEq("MemoryWriter text copy preserves NUL bytes", std::string("a\0b", 3), textCopy.text));
-    IO::MemoryWriter movedWriter(std::move(textWriter));
+    const IO::MemoryWriter movedWriter(std::move(textWriter));
     const IO::Types::CopyTextResult movedText = movedWriter.copyText();
     static_cast<void>(context.expectTrue("MemoryWriter moved text copy succeeds", movedText.status.ok()));
     static_cast<void>(context.expectEq("MemoryWriter move preserves bytes", std::string("a\0b", 3), movedText.text));
     static_cast<void>(context.expectTrue("MemoryWriter move preserves open state", movedWriter.isOpen()));
 
-    IO::MemoryWriter emptyTextWriter;
+    const IO::MemoryWriter emptyTextWriter;
     const IO::Types::CopyTextResult emptyText = emptyTextWriter.copyText();
     static_cast<void>(context.expectTrue("MemoryWriter empty text copy succeeds", emptyText.status.ok()));
     static_cast<void>(context.expectTrue("MemoryWriter empty text copy is empty", emptyText.text.empty()));

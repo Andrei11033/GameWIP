@@ -63,7 +63,7 @@ namespace GameWIP::Validation
     /// @param argc Original process argument count.
     /// @param argv Borrowed original process argument values; only benchmark-owned arguments are forwarded in embedded mode.
     /// @return Runner result, or a successful empty result when startup benchmarks are disabled.
-    [[nodiscard]] inline BenchmarkResult runBenchmarks(int argc, char **argv)
+    [[nodiscard]] inline BenchmarkResult runBenchmarks(int argc, char *const *argv)
     {
 #if GAMEWIP_STARTUP_BENCHMARKS_ENABLED
         return Benchmarks::run(argc, argv, true);

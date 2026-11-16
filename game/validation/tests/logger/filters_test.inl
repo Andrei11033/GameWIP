@@ -3,7 +3,7 @@
 
 void testFilteredFormattedRegisteredSource(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     std::array sources{Logger::defineSource(TestSource::Core, "Core"), Logger::defineSource(TestSource::Render, "Render")};
     OwnedLoggerConfig config = makeFileConfig(context, "filtered_formatted_source");
     config.sources = sources;
@@ -33,7 +33,7 @@ void testFilteredFormattedRegisteredSource(TestContext &context)
 
 void testFilterStatusesAndConcurrency(TestContext &context, const LoggerTestOptions &options)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     std::array sources{Logger::defineSource(TestSource::Core, "Core"), Logger::defineSource(TestSource::Render, "Render")};
     OwnedLoggerConfig config = makeFileConfig(context, "filters");
     config.sources = sources;

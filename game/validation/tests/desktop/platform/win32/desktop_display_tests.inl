@@ -5,7 +5,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
 {
     namespace Feedback = Desktop::Display;
 
-    Desktop::Window closed;
+    const Desktop::Window closed;
     static_cast<void>(context.expectEq("closed Window rejects display-color query", ErrorCode::NotOpen, Feedback::getColorInfo(closed).status.code));
     static_cast<void>(context.expectEq(
         "invalid monitor rejects display-color query",

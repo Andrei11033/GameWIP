@@ -87,7 +87,7 @@ template <> struct std::formatter<TerminalThrowingFormat>
     /// @brief Throws deliberately so Terminal formatting error conversion can be verified.
     template <typename FormatContext> auto format(const TerminalThrowingFormat &, FormatContext &context) const
     {
-        auto output = std::format_to(context.out(), "partial");
+        const auto output = std::format_to(context.out(), "partial");
         throw std::format_error("terminal test formatter failure");
         return output;
     }
@@ -211,7 +211,7 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value != nullptr && std::string_view(value) == expected)
             {
@@ -517,7 +517,7 @@ namespace GameWIP::Test
             return GameWIP::Test::TerminalPlatform::runCancellationSignalFailureChild();
         }
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
         runner.info(

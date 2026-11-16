@@ -44,7 +44,7 @@ void testChildProcesses(TestSupport::Context &context, const std::filesystem::pa
     }
 
     {
-        TestSupport::ScopedEnvironmentVariable parentUnset(processState, kChildUnsetVariable, "parent-value");
+        const TestSupport::ScopedEnvironmentVariable parentUnset(processState, kChildUnsetVariable, "parent-value");
         static_cast<void>(context.expectTrue("Child environment parent fixture succeeds", parentUnset.status().ok()));
 
         TestSupport::Types::Process::Options childOptions;

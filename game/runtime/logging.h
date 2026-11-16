@@ -10,9 +10,9 @@
 
 namespace GameWIP::Game::Logging
 {
-    // ------------------------------------------------------------
-    // Logger areas
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Logger areas
+    /// ------------------------------------------------------------
 
     /// @brief Runtime subsystems used as registered Logger areas.
     enum class Area : std::uint32_t
@@ -25,9 +25,9 @@ namespace GameWIP::Game::Logging
         Runtime = 6
     };
 
-    // ------------------------------------------------------------
-    // Registered sources
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Registered sources
+    /// ------------------------------------------------------------
 
     /// @brief Source definitions installed before runtime logging begins.
     /// @details RGB values match distinct basic terminal colors when RGB output is unavailable.

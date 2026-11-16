@@ -23,7 +23,7 @@ void testManualFocusedDialogs(TestSupport::Context &context)
 
     if(saveSelected)
     {
-        TestSupport::ScopedTemporaryDirectory fixtures("desktop-save-overwrite");
+        const TestSupport::ScopedTemporaryDirectory fixtures("desktop-save-overwrite");
         const auto path = fixtures.path() / "overwrite-check.gamewip";
         constexpr std::string_view marker = "Existing file must remain unchanged by the path picker.\n";
 
@@ -170,7 +170,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
     const std::array<FileDialogs::Filter, 2> filters{
         FileDialogs::Filter{"Text", textExtensions},
         FileDialogs::Filter{"GameWIP project", projectExtensions}};
-    FileDialogs::OpenDescription open{
+    const FileDialogs::OpenDescription open{
         .owner = &owner,
         .title = "Choose one file for GameWIP validation",
         .filters = filters,
@@ -192,7 +192,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         manyFiles.outcome == DialogTypes::Outcome::Accepted && manyFiles.paths.size() >= 2));
     recordManualCheck(context, owner, "open multiple files", "Did multi-selection preserve the selected native file order and filter behavior?");
 
-    FileDialogs::SaveDescription save{
+    const FileDialogs::SaveDescription save{
         .owner = &owner,
         .title = "Choose a save path for GameWIP validation",
         .filters = filters,
@@ -243,7 +243,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
 
     for(const MessageCase &testCase : messageCases)
     {
-        MessageDialogs::Description message{
+        const MessageDialogs::Description message{
             .owner = &owner,
             .title = "GameWIP Message validation",
             .message = testCase.label,
@@ -270,7 +270,7 @@ void testManualDialogs(TestSupport::Context &context, const GameWIP::Test::Deskt
         PromptDialogs::Option{{1}, "Current user"},
         PromptDialogs::Option{{2}, "All users"},
         PromptDialogs::Option{{3}, "Portable"}};
-    PromptDialogs::Description prompt{
+    const PromptDialogs::Description prompt{
         .owner = &owner,
         .title = "GameWIP Prompt validation",
         .heading = "Choose installation behavior",

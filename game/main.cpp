@@ -25,9 +25,9 @@
 
 namespace
 {
-    // ------------------------------------------------------------
-    // Argument routing
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Argument routing
+    /// ------------------------------------------------------------
 
     /// @brief Returns whether the process was invoked only to print version metadata.
     bool requestsVersion(GameWIP::Validation::ProcessArguments arguments) noexcept
@@ -56,7 +56,7 @@ namespace
     }
 
     /// @brief Removes runtime-owned arguments before forwarding to startup validation and benchmarks.
-    [[nodiscard]] std::vector<char *> argumentsForStartupTools(int argc, char **argv)
+    [[nodiscard]] std::vector<char *> argumentsForStartupTools(int argc, char *const *argv)
     {
         std::vector<char *> filtered;
         if(argc <= 0 || argv == nullptr)
@@ -76,9 +76,9 @@ namespace
         return filtered;
     }
 
-    // ------------------------------------------------------------
-    // Command-line help
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Command-line help
+    /// ------------------------------------------------------------
 
     /// @brief Prints the supported GameWIP executable command line without starting runtime services.
     void printHelp() noexcept

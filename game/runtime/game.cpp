@@ -9,6 +9,7 @@
 #include "runtime/logging.h"
 #include "runtime/options/runtime_options.h"
 #include "runtime/profiling.h"
+#include "runtime/runtime_input.h"
 #include "runtime/window/window_loop.h"
 
 #include "logger/logging.h"
@@ -17,18 +18,13 @@
 
 #include <gamewip/version.h>
 
-#if defined(_WIN32)
-#include "input/native/desktop_win32.h"
-#endif
-
 #include <chrono>
+#include <cstddef>
 #include <cstdlib>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
-#include <vector>
 
 namespace
 {
@@ -39,38 +35,12 @@ namespace
     namespace Diagnostics = GameWIP::Game::RuntimeDiagnostics;
     using LogArea = GameLogging::Area;
 
-    // ------------------------------------------------------------
-    // Session state
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Window lifecycle
+    /// ------------------------------------------------------------
 
     /// @brief Window label shared by runtime lifecycle messages.
     inline constexpr std::string_view kWindowName = "Borderless fullscreen window";
-
-    /// @brief Input system and its optional Win32 window attachment for one runtime session.
-    struct RuntimeInput
-    {
-        // Input session
-        GameWIP::Input::System system;
-        GameWIP::Input::Types::Frame frame;
-#if defined(_WIN32)
-        // Win32 window attachment
-        GameWIP::Input::Platform::Win32::Attachment attachment;
-#endif
-
-        /// @brief Reports health and closes the Input resources owned by this session.
-        [[nodiscard]] bool finish()
-        {
-#if defined(_WIN32)
-            return Diagnostics::finishInputSystem(system, attachment);
-#else
-            return Diagnostics::finishInputSystem(system);
-#endif
-        }
-    };
-
-    // ------------------------------------------------------------
-    // Window lifecycle
-    // ------------------------------------------------------------
 
     /// @brief Describes the initial fullscreen window and optional display target.
     [[nodiscard]] GameWIP::Desktop::Types::Description runtimeWindowDescription(
@@ -115,9 +85,9 @@ namespace
         GameWIP::Profiling::message(std::format("Runtime stopped after {:.1f}s", elapsedSeconds));
     }
 
-    // ------------------------------------------------------------
-    // Runtime option reporting
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runtime option reporting
+    /// ------------------------------------------------------------
 
     [[nodiscard]] std::string inputBackendSelection(const Runtime::Options &options)
     {
@@ -254,9 +224,9 @@ namespace
             enabledOptions);
     }
 
-    // ------------------------------------------------------------
-    // Session execution
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Session execution
+    /// ------------------------------------------------------------
 
     /// @brief Runs the session's display, Input, window, and cleanup sequence.
     [[nodiscard]] int runSession(const Runtime::Options &options)
@@ -296,21 +266,10 @@ namespace
         }
 
         // Open the Input session.
-        RuntimeInput input;
+        Runtime::RuntimeInput input;
         GameWIP::Input::Types::Configuration inputConfiguration;
         inputConfiguration.captureRawReports = options.inputDebug && Logger::shouldLog(Logger::Types::Level::Trace, LogArea::Input);
-#if defined(_WIN32)
-        if(options.inputBackendsConfigured)
-        {
-            std::vector<GameWIP::Input::Types::BackendKind> enabledBackends;
-            enabledBackends.reserve(options.inputBackendCount);
-            for(std::size_t index = 0; index < options.inputBackendCount; ++index)
-            {
-                enabledBackends.push_back(options.inputBackends[index]);
-            }
-            inputConfiguration.enabledBackends = std::move(enabledBackends);
-        }
-#endif
+        input.applyBackendSelection(options, inputConfiguration);
         const GameWIP::IO::Types::Status inputOpenStatus = input.system.open(inputConfiguration);
         if(!inputOpenStatus.ok())
         {
@@ -332,25 +291,26 @@ namespace
         GameWIP::Profiling::message("Borderless fullscreen window opened");
         Diagnostics::logWindowSnapshot(window);
 
-#if defined(_WIN32)
-        // Attach Input to the Window.
-        const GameWIP::IO::Types::Status inputAttachStatus = GameWIP::Input::Platform::Win32::attachToWindow(input.system, input.attachment, window);
-        if(!inputAttachStatus.ok())
+        // Attach Input to the Window when the active platform has a native adapter.
+        if(input.usesWindowAttachment())
         {
-            Diagnostics::reportFailure(LogArea::Input, "Failed to attach Input to Desktop Window", inputAttachStatus);
-            static_cast<void>(input.finish());
-
-            const GameWIP::IO::Types::Status cleanupStatus = closeRuntimeWindow(window);
-            if(!cleanupStatus.ok())
+            const GameWIP::IO::Types::Status inputAttachStatus = input.attachToWindow(window);
+            if(!inputAttachStatus.ok())
             {
-                Diagnostics::reportFailure(LogArea::Window, "Failed to close window after input attach failure", cleanupStatus);
-            }
-            return EXIT_FAILURE;
-        }
+                Diagnostics::reportFailure(LogArea::Input, "Failed to attach Input to Desktop Window", inputAttachStatus);
+                static_cast<void>(input.finish());
 
-        Logger::info(LogArea::Input, "Input linked to window");
-        Diagnostics::logInputBackends(input.attachment);
-#endif
+                const GameWIP::IO::Types::Status cleanupStatus = closeRuntimeWindow(window);
+                if(!cleanupStatus.ok())
+                {
+                    Diagnostics::reportFailure(LogArea::Window, "Failed to close window after input attach failure", cleanupStatus);
+                }
+                return EXIT_FAILURE;
+            }
+
+            Logger::info(LogArea::Input, "Input linked to window");
+            input.logBackends();
+        }
 
         // Capture initial Input state and report connected devices.
         const GameWIP::Input::Types::CaptureResult initialCapture = input.system.capture(input.frame);
@@ -414,11 +374,11 @@ namespace
 
 namespace GameWIP::Game
 {
-    // ------------------------------------------------------------
-    // Runtime entry point
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Runtime entry point
+    /// ------------------------------------------------------------
 
-    int run(int argc, char **argv)
+    int run(int argc, char *const *argv)
     {
         GAMEWIP_PROFILE_ZONE("Game runtime", Color::kRuntime);
 

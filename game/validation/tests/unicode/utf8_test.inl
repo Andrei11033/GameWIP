@@ -332,7 +332,7 @@ void testConversions(TestSupport::Context &context)
 #if defined(__clang__)
 #pragma clang unsafe_buffer_usage begin
 #endif
-    std::span<char> overlappingUtf8Destination(
+    const std::span<char> overlappingUtf8Destination(
         reinterpret_cast<char *>(reverseOverlapStorage.data()),
         reverseOverlapStorage.size() * sizeof(char16_t));
 #if defined(__clang__)

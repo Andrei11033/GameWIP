@@ -27,7 +27,7 @@ void testText(Context &context)
     tree.nodes[1].text = A::TextContent{text, A::TextDirection::LeftToRight, "en-US", annotations, fragments, {}, 0};
     tree.nodes[1].actions.flags = action(A::ActionKind::SetTextSelection) | action(A::ActionKind::ScrollTo);
     check(context, "rich text publishes", bridge.publish(tree.view()).ok());
-    Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
+    const Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
     if(!context.expectTrue("text provider exists", static_cast<bool>(provider)))
     {
@@ -167,7 +167,7 @@ void testTextSemantics(Context &context)
     host.clientSize = {200, 100};
     host.visible = true;
     Desktop::TestHooks::applyPresentationPublicationSnapshot(window, host);
-    Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
+    const Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
     if(!context.expectTrue("text semantics provider exists", static_cast<bool>(provider)))
     {
@@ -325,7 +325,7 @@ void testTextAttributes(Context &context)
         {{{0, 1}, A::TextAnnotationKind::Emphasis, "bold"}, {{1, 2}, A::TextAnnotationKind::Emphasis, "bold"}}};
     auto &content = tree.nodes[1].text.emplace(A::TextContent{"ab", A::TextDirection::LeftToRight, "en-US", annotations});
     check(context, "adjacent bold annotations publish", bridge.publish(tree.view()).ok());
-    Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
+    const Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
     if(!context.expectTrue("attribute provider exists", static_cast<bool>(provider)))
     {

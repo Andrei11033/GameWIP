@@ -182,7 +182,7 @@ namespace
 
     template <typename Function> void runCase(TestContext &context, std::string_view name, Function &&function)
     {
-        TestSupport::Section section(context.testContext, name);
+        const TestSupport::Section section(context.testContext, name);
         try
         {
             std::forward<Function>(function)();
@@ -229,7 +229,7 @@ namespace
     {
         const auto arguments = GameWIP::Validation::processArguments(argc, argv);
 
-        for(char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
+        for(const char *value : arguments.subspan(std::min<std::size_t>(1, arguments.size())))
         {
             if(value != nullptr && std::string_view(value) == argument)
             {
@@ -407,7 +407,7 @@ namespace GameWIP::Test
             return runUnreachableChild();
         }
 
-        TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
+        const TestSupport::Types::Reporting::Options reportOptions = GameWIP::Test::RunnerHelpers::makeReportingOptions(options);
 
         TestSupport::Runner runner(reportOptions);
 

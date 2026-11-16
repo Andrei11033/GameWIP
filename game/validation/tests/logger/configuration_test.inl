@@ -19,7 +19,7 @@ void expectStarted(TestContext &context, std::string_view name, const Logger::Ty
 
 void testInitResultModel(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
 
     Logger::Types::Config disabled = makeConsoleConfig();
     disabled.output = Logger::Types::OutputMode::None;
@@ -159,7 +159,7 @@ void testInitResultModel(TestContext &context)
 
 void testFileFallbackAndSetupStatus(TestContext &context)
 {
-    ScopedLoggerShutdown shutdown;
+    const ScopedLoggerShutdown shutdown;
     const std::filesystem::path blockingPath = context.logRoot / "not-a-directory";
     {
         std::ofstream file(blockingPath);

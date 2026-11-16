@@ -24,9 +24,9 @@ namespace
     namespace Logger = GameWIP::Logger;
     using LogArea = GameWIP::Game::Logging::Area;
 
-    // ------------------------------------------------------------
-    // Logger labels
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Logger labels
+    /// ------------------------------------------------------------
 
     /// @brief Converts Logger output modes into stable diagnostic labels.
     [[nodiscard]] constexpr std::string_view outputModeName(Logger::Types::OutputMode mode) noexcept
@@ -84,9 +84,9 @@ namespace
 
 namespace GameWIP::Game::Runtime
 {
-    // ------------------------------------------------------------
-    // Logger initialization and reports
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Logger initialization and reports
+    /// ------------------------------------------------------------
 
     Logger::Types::Init::Result initializeLogger(const Options &options)
     {
@@ -202,9 +202,9 @@ namespace GameWIP::Game::Runtime
             "Logger started");
     }
 
-    // ------------------------------------------------------------
-    // Logger shutdown
-    // ------------------------------------------------------------
+    /// ------------------------------------------------------------
+    /// Logger shutdown
+    /// ------------------------------------------------------------
 
     int finishRuntime(int primaryExitCode)
     {

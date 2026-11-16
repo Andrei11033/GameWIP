@@ -127,7 +127,7 @@ void testCapacityAndInteraction(Context &context)
     Tree tree;
     tree.nodes[0].language = "en-US";
     check(context, "bounded registry initial publication", bridge.publish(tree.view()).ok());
-    Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
+    const Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
 
     if(!context.expectTrue("registry retains initial provider", static_cast<bool>(retained)))
     {

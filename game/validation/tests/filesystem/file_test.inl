@@ -427,7 +427,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
             .access = FileSystem::Types::File::Access::ReadWrite,
             .mode = FileSystem::Types::File::OpenMode::OpenExisting});
     static_cast<void>(context.expectTrue("competing lock file opens", competingOpenStatus.ok()));
-    auto competingLock = competingLockFile.tryLockExclusive();
+    const auto competingLock = competingLockFile.tryLockExclusive();
     static_cast<void>(context.expectTrue("competing exclusive lock call succeeds", competingLock.status.ok()));
     static_cast<void>(context.expectEq("competing exclusive lock would block", FileSystem::Types::Lock::Outcome::WouldBlock, competingLock.outcome));
     static_cast<void>(context.expectTrue("competing lock file closes", competingLockFile.close().ok()));
@@ -449,7 +449,7 @@ void testAtomicWriteAndLocks(TestSupport::Context &context, const std::filesyste
 
     FileSystem::File detachedCompetitor;
     static_cast<void>(context.expectTrue("detached lock competitor opens", detachedCompetitor.open(detachedOwnerFile).ok()));
-    auto blockedByDetachedOwner = detachedCompetitor.tryLockExclusive();
+    const auto blockedByDetachedOwner = detachedCompetitor.tryLockExclusive();
     static_cast<void>(context.expectEq(
         "lock remains active after source handle destruction",
         FileSystem::Types::Lock::Outcome::WouldBlock,

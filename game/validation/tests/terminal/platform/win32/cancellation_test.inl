@@ -128,7 +128,7 @@ void testCancellationSignalFailure(TestSupport::Context &context, const std::fil
 void testCancellationResetFailure(TestSupport::Context &context)
 {
     Hooks::reset();
-    std::stop_source stopSource;
+    const std::stop_source stopSource;
     Hooks::forceNextCancellationResetFailure();
     const PlatformHooks::Win32ConsoleWaitResult failed =
         PlatformHooks::waitForConsoleRecordForTest(std::chrono::milliseconds{0}, stopSource.get_token());

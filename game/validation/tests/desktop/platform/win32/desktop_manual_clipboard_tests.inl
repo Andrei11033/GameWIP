@@ -7,7 +7,7 @@ void testManualClipboard(TestSupport::Context &context, const GameWIP::Test::Des
     {
         return;
     }
-    TestSupport::ScopedTemporaryDirectory fixtures("desktop-clipboard-manual");
+    const TestSupport::ScopedTemporaryDirectory fixtures("desktop-clipboard-manual");
 
     if(!context.expectTrue("clipboard fixture directory creates", fixtures.status().ok()))
     {
