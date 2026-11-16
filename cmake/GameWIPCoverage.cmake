@@ -60,6 +60,8 @@ function(gamewip_create_coverage_target)
             "${PROJECT_SOURCE_DIR}/tools/test_support"
             --filter
             "${PROJECT_SOURCE_DIR}/engine/desktop"
+            --filter
+            "${PROJECT_SOURCE_DIR}/engine/input"
         )
 
         add_custom_target(
