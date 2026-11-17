@@ -13,22 +13,15 @@ function Invoke-GameWipDocumentationBuild
         [switch]$Open
     )
 
-    $oldPath = $env:Path
+    $buildDirectory = Get-GameWipBuildDirectory -PresetName 'docs'
     Push-Location $RepositoryRoot
 
     try
     {
-        $toolchainPathPrefix = Get-GameWipToolchainPathPrefix
+        Invoke-GameWipConfigurePreset -Name 'docs' | Out-Null
+        Invoke-GameWipBuildTarget -Name 'docs' -Target 'docs' | Out-Null
 
-        if (-not [string]::IsNullOrWhiteSpace($toolchainPathPrefix))
-        {
-            $env:Path = @($toolchainPathPrefix, $oldPath) -join [IO.Path]::PathSeparator
-        }
-
-        Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--preset', 'docs') | Out-Null
-        Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--build', '--preset', 'docs', '--parallel') | Out-Null
-
-        $documentationRoot = [IO.Path]::Combine([string[]]@($RepositoryRoot, 'build', 'docs', 'docs', 'doxygen'))
+        $documentationRoot = [IO.Path]::Combine([string[]]@($buildDirectory, 'docs', 'doxygen'))
         $warningLog = Join-Path $documentationRoot 'doxygen_warnings.log'
 
         if (-not (Test-Path -LiteralPath $warningLog))
@@ -54,7 +47,6 @@ function Invoke-GameWipDocumentationBuild
 
     finally
     {
-        $env:Path = $oldPath
         Pop-Location
     }
 }
