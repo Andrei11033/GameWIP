@@ -10,8 +10,8 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
-#include <cstring>
 #include <format>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -59,7 +59,10 @@ namespace GameWIP::Game::RuntimeDiagnostics
                 }
 
                 RAWINPUT raw{};
-                std::memcpy(&raw, report.bytes.data(), std::min(report.bytes.size(), sizeof(raw)));
+                const std::span<const std::byte> reportBytes{report.bytes};
+                const std::size_t copySize = std::min(reportBytes.size(), sizeof(raw));
+                const std::span<std::byte> rawBytes = std::as_writable_bytes(std::span{&raw, std::size_t{1}});
+                std::ranges::copy(reportBytes.first(copySize), rawBytes.begin());
                 if(raw.header.dwType != RIM_TYPEKEYBOARD)
                 {
                     continue;
@@ -117,7 +120,10 @@ namespace GameWIP::Game::RuntimeDiagnostics
                 }
 
                 RAWINPUT raw{};
-                std::memcpy(&raw, report.bytes.data(), std::min(report.bytes.size(), sizeof(raw)));
+                const std::span<const std::byte> reportBytes{report.bytes};
+                const std::size_t copySize = std::min(reportBytes.size(), sizeof(raw));
+                const std::span<std::byte> rawBytes = std::as_writable_bytes(std::span{&raw, std::size_t{1}});
+                std::ranges::copy(reportBytes.first(copySize), rawBytes.begin());
                 if(raw.header.dwType != RIM_TYPEMOUSE || (raw.data.mouse.usButtonFlags & buttonFlags) == 0)
                 {
                     continue;
@@ -166,8 +172,8 @@ namespace GameWIP::Game::RuntimeDiagnostics
                     continue;
                 }
 
-                if(std::find(reportedDevices.begin(), reportedDevices.begin() + static_cast<std::ptrdiff_t>(reportedDeviceCount), report.device) !=
-                   reportedDevices.begin() + static_cast<std::ptrdiff_t>(reportedDeviceCount))
+                const auto reported = std::span{reportedDevices}.first(reportedDeviceCount);
+                if(std::ranges::find(reported, report.device) != reported.end())
                 {
                     continue;
                 }
@@ -176,7 +182,7 @@ namespace GameWIP::Game::RuntimeDiagnostics
                 {
                     return;
                 }
-                reportedDevices[reportedDeviceCount++] = report.device;
+                reportedDevices.at(reportedDeviceCount++) = report.device;
 
                 // Keep the bytes in the message instead of repeating them as fields.
                 const std::size_t previewCount = std::min(report.bytes.size(), kPreviewBytes);

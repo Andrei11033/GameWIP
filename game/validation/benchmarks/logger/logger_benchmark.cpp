@@ -3,6 +3,7 @@
 
 #include "logger/logger.h"
 #include "filesystem/path.h"
+#include "io/status.h"
 #include "test_support/test_support.h"
 
 #include <benchmark/benchmark.h>
@@ -19,6 +20,7 @@
 namespace
 {
     namespace FileSystem = GameWIP::FileSystem;
+    namespace IO = GameWIP::IO;
     namespace Logger = GameWIP::Logger;
     namespace TestSupport = GameWIP::TestSupport;
 
@@ -55,6 +57,11 @@ namespace
         return result.status.ok() && result.outcome == Logger::Types::FlushOutcome::Completed;
     }
 
+    [[nodiscard]] std::string pathConversionError(std::string_view pathName, const IO::Types::Status &status)
+    {
+        return std::format("Could not convert {} (status={}, native={}).", pathName, IO::errorCodeName(status.code), status.nativeCode);
+    }
+
     class LoggerFixture : public benchmark::Fixture
     {
     public:
@@ -86,9 +93,7 @@ namespace
 
                     if(!directory.status.ok())
                     {
-                        const std::string error =
-                            std::format("Could not convert Logger benchmark path: {}.", TestSupport::formatInfrastructureStatus(directory.status));
-                        state.SkipWithError(error);
+                        state.SkipWithError(pathConversionError("Logger benchmark path", directory.status));
                         workspace_.reset();
                         return false;
                     }
@@ -321,10 +326,7 @@ namespace
 
                         if(!directory.status.ok())
                         {
-                            state.SkipWithError(
-                                std::format(
-                                    "Could not convert multi-producer workspace path: {}.",
-                                    TestSupport::formatInfrastructureStatus(directory.status)));
+                            state.SkipWithError(pathConversionError("multi-producer workspace path", directory.status));
                             workspace.reset();
                             initialized = false;
                         }

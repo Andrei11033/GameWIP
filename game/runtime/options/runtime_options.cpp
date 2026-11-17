@@ -7,6 +7,8 @@
 #include <charconv>
 #include <cstdint>
 #include <cstdlib>
+#include <ranges>
+#include <span>
 #include <system_error>
 
 namespace
@@ -111,9 +113,9 @@ namespace
             const std::size_t separator = value.find(',', offset);
             const std::size_t end = separator == std::string_view::npos ? value.size() : separator;
             GameWIP::Input::Types::BackendKind backend{};
+            const auto selectedBackends = std::span{backends}.first(count);
             if(end == offset || !parseInputBackendName(value.substr(offset, end - offset), backend) || count == backends.size() ||
-               std::find(backends.begin(), backends.begin() + static_cast<std::ptrdiff_t>(count), backend) !=
-                   backends.begin() + static_cast<std::ptrdiff_t>(count))
+               std::ranges::find(selectedBackends, backend) != selectedBackends.end())
             {
                 return false;
             }
@@ -167,16 +169,16 @@ namespace GameWIP::Game::Runtime
         }
 
         // Parse runtime switches from left to right so the last valid value wins.
-        if(argv != nullptr)
+        if(argv != nullptr && argc > 1)
         {
-            for(int index = 1; index < argc; ++index)
+            for(char *argumentPointer : std::views::counted(argv, argc) | std::views::drop(1))
             {
-                if(argv[index] == nullptr)
+                if(argumentPointer == nullptr)
                 {
                     continue;
                 }
 
-                const std::string_view argument{argv[index]};
+                const std::string_view argument{argumentPointer};
                 constexpr std::string_view kLogLevelOption = "--logLevel";
                 constexpr std::string_view kLogLevelPrefix = "--logLevel=";
                 constexpr std::string_view kInputDevicesOption = "--inputDevices";

@@ -116,7 +116,7 @@ namespace GameWIP::Game::Runtime
                 }
             }
             summary.eventsDrained += drained;
-            GAMEWIP_PROFILE_PLOT("Window events per pump", drained);
+            GAMEWIP_PROFILE_PLOT("Window events per pump", static_cast<std::int64_t>(drained));
 
             // Report new queue drops once, with the current queue capacity.
             const auto queue = window.eventQueueInfo();
@@ -161,8 +161,8 @@ namespace GameWIP::Game::Runtime
                 ++summary.inputCaptures;
                 summary.inputEvents += inputFrame.events().size();
                 summary.inputEventsDropped += inputFrame.droppedEvents();
-                GAMEWIP_PROFILE_PLOT("Input events per capture", inputFrame.events().size());
-                GAMEWIP_PROFILE_PLOT("Input event drops per capture", inputFrame.droppedEvents());
+                GAMEWIP_PROFILE_PLOT("Input events per capture", static_cast<std::int64_t>(inputFrame.events().size()));
+                GAMEWIP_PROFILE_PLOT("Input event drops per capture", static_cast<std::int64_t>(inputFrame.droppedEvents()));
 
                 // Count device changes in this frame.
                 for(const Input::Types::Event &inputEvent : inputFrame.events())

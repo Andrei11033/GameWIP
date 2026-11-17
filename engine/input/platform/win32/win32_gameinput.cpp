@@ -8,8 +8,8 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <cmath>
-#include <cstring>
 #include <format>
 #include <new>
 #include <string>
@@ -394,20 +394,16 @@ namespace GameWIP::Input::Platform::Win32::Detail
         GameInputApi::IGameInput *gameInput = nullptr;
         HRESULT result = E_NOTIMPL;
 
-        GameInputInitializeFunction initialize = nullptr;
-        const FARPROC initializeAddress = GetProcAddress(module, "GameInputInitialize");
-        static_assert(sizeof(initialize) == sizeof(initializeAddress));
-        std::memcpy(&initialize, &initializeAddress, sizeof(initialize));
+        static_assert(sizeof(GameInputInitializeFunction) == sizeof(FARPROC));
+        const GameInputInitializeFunction initialize = std::bit_cast<GameInputInitializeFunction>(GetProcAddress(module, "GameInputInitialize"));
         if(initialize != nullptr)
         {
             result = initialize(GameInputApi::IID_IGameInput, reinterpret_cast<void **>(&gameInput));
         }
         else
         {
-            GameInputCreateFunction create = nullptr;
-            const FARPROC createAddress = GetProcAddress(module, "GameInputCreate");
-            static_assert(sizeof(create) == sizeof(createAddress));
-            std::memcpy(&create, &createAddress, sizeof(create));
+            static_assert(sizeof(GameInputCreateFunction) == sizeof(FARPROC));
+            const GameInputCreateFunction create = std::bit_cast<GameInputCreateFunction>(GetProcAddress(module, "GameInputCreate"));
             if(create == nullptr)
             {
                 FreeLibrary(module);

@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <ranges>
 #include <string_view>
 #include <vector>
 
@@ -65,13 +66,16 @@ namespace
         }
 
         filtered.reserve(static_cast<std::size_t>(argc));
-        for(int index = 0; index < argc; ++index)
+        bool executableArgument = true;
+        for(char *argument : std::views::counted(argv, argc))
         {
-            if(index != 0 && argv[index] != nullptr && isRuntimeOption(argv[index]))
+            if(!executableArgument && argument != nullptr && isRuntimeOption(argument))
             {
+                executableArgument = false;
                 continue;
             }
-            filtered.push_back(argv[index]);
+            filtered.push_back(argument);
+            executableArgument = false;
         }
         return filtered;
     }

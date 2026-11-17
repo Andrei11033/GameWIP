@@ -8,11 +8,13 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
+#include <bit>
 #include <format>
 #include <new>
+#include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace GameWIP::Input::Platform::Win32::Detail
 {
@@ -213,6 +215,21 @@ namespace GameWIP::Input::Platform::Win32::Detail
         {
             const std::size_t nativeOffset = static_cast<std::size_t>(offset);
             return nativeOffset <= extent && size <= extent - nativeOffset;
+        }
+
+        template <typename T> [[nodiscard]] bool readNativeValue(std::span<const std::byte> bytes, std::size_t offset, T &value) noexcept
+        {
+            static_assert(std::is_trivially_copyable_v<T>);
+
+            if(offset > bytes.size() || sizeof(T) > bytes.size() - offset)
+            {
+                return false;
+            }
+
+            std::array<std::byte, sizeof(T)> valueBytes{};
+            std::ranges::copy(bytes.subspan(offset, sizeof(T)), valueBytes.begin());
+            value = std::bit_cast<T>(valueBytes);
+            return true;
         }
 
         /// ------------------------------------------------------------
@@ -610,10 +627,8 @@ namespace GameWIP::Input::Platform::Win32::Detail
             return status(IO::Types::ErrorCode::Unsupported);
         }
 
-        DirectInput8CreateFunction create = nullptr;
-        const FARPROC createAddress = GetProcAddress(module, "DirectInput8Create");
-        static_assert(sizeof(create) == sizeof(createAddress));
-        std::memcpy(&create, &createAddress, sizeof(create));
+        static_assert(sizeof(DirectInput8CreateFunction) == sizeof(FARPROC));
+        const DirectInput8CreateFunction create = std::bit_cast<DirectInput8CreateFunction>(GetProcAddress(module, "DirectInput8Create"));
         if(create == nullptr)
         {
             FreeLibrary(module);
@@ -839,11 +854,12 @@ namespace GameWIP::Input::Platform::Win32::Detail
                         Standard::Mouse::X1,
                         Standard::Mouse::X2,
                     };
+                    const auto mouseButtons = std::to_array(mouse.rgbButtons);
                     for(std::size_t index = 0; index < buttons.size(); ++index)
                     {
                         if(ElementBinding *element = standardElement(binding, buttons[index]); element != nullptr)
                         {
-                            publish(state, element->id, (mouse.rgbButtons[index] & 0x80U) != 0, false);
+                            publish(state, element->id, (mouseButtons.at(index) & 0x80U) != 0, false);
                         }
                     }
 
@@ -862,7 +878,7 @@ namespace GameWIP::Input::Platform::Win32::Detail
                            element.nativeIndex < offsetof(DIMOUSESTATE2, rgbButtons) + sizeof(mouse.rgbButtons))
                         {
                             const std::size_t index = element.nativeIndex - offsetof(DIMOUSESTATE2, rgbButtons);
-                            publish(state, element.id, (mouse.rgbButtons[index] & 0x80U) != 0, false);
+                            publish(state, element.id, (mouseButtons.at(index) & 0x80U) != 0, false);
                         }
                     }
                     continue;
@@ -880,25 +896,32 @@ namespace GameWIP::Input::Platform::Win32::Detail
                     continue;
                 }
 
-                const auto *bytes = reinterpret_cast<const std::byte *>(&joystick);
+                const std::span<const std::byte> reportBytes = std::as_bytes(std::span{&joystick, std::size_t{1}});
                 for(const ElementBinding &element : binding.elements)
                 {
-                    if(element.role == ElementRole::NativeAxis && objectOffsetFits(element.nativeIndex, sizeof(LONG), sizeof(joystick)))
+                    if(element.role == ElementRole::NativeAxis)
                     {
                         LONG value = 0;
-                        std::memcpy(&value, bytes + element.nativeIndex, sizeof(value));
-                        publish(state, element.id, static_cast<std::int64_t>(value), false);
+                        if(readNativeValue(reportBytes, element.nativeIndex, value))
+                        {
+                            publish(state, element.id, static_cast<std::int64_t>(value), false);
+                        }
                     }
-                    else if(element.role == ElementRole::NativeButton && objectOffsetFits(element.nativeIndex, sizeof(BYTE), sizeof(joystick)))
+                    else if(element.role == ElementRole::NativeButton)
                     {
-                        const BYTE value = std::to_integer<BYTE>(bytes[element.nativeIndex]);
-                        publish(state, element.id, (value & 0x80U) != 0, false);
+                        BYTE value = 0;
+                        if(readNativeValue(reportBytes, element.nativeIndex, value))
+                        {
+                            publish(state, element.id, (value & 0x80U) != 0, false);
+                        }
                     }
-                    else if(element.role == ElementRole::NativeSwitch && objectOffsetFits(element.nativeIndex, sizeof(DWORD), sizeof(joystick)))
+                    else if(element.role == ElementRole::NativeSwitch)
                     {
                         DWORD value = 0;
-                        std::memcpy(&value, bytes + element.nativeIndex, sizeof(value));
-                        publish(state, element.id, static_cast<std::uint64_t>(value), false);
+                        if(readNativeValue(reportBytes, element.nativeIndex, value))
+                        {
+                            publish(state, element.id, static_cast<std::uint64_t>(value), false);
+                        }
                     }
                 }
             }

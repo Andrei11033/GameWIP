@@ -6,6 +6,11 @@ if(GAMEWIP_ENABLE_TRACY)
     set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 
     gamewip_make_dependency_available(tracy)
+
+    if(MINGW AND TARGET TracyClient)
+        # Keep diagnostics from the pinned Tracy client local to its target.
+        target_compile_options(TracyClient PRIVATE -Wno-format -Wno-unused-value)
+    endif()
 endif()
 
 if(GAMEWIP_BENCHMARKS_REQUIRED)
