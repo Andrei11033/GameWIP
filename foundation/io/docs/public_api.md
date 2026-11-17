@@ -51,9 +51,12 @@ is independent of `bytesRead` and may be true on the final non-empty read
 
 @ref io_error_model owns error-code selection and diagnostic rules.
 
+`Reader` and `Writer` are movable, non-copyable platform-neutral interfaces.
+Each requires one operation.
+
 ## Reader interface
 
-`Reader` is the platform-neutral input contract. It is movable, non-copyable, and has one required operation:
+The required read operation is:
 
 ```cpp
 virtual Types::ReadResult read(std::span<std::byte> destination) noexcept = 0;
@@ -67,7 +70,7 @@ are rejected) and supports bounded seeking while open. See @ref io_reader_writer
 
 ## Writer interface
 
-`Writer` is the platform-neutral output contract. It is movable, non-copyable, and has one required operation:
+The required write operation is:
 
 ```cpp
 virtual Types::WriteResult write(std::span<const std::byte> bytes) noexcept = 0;

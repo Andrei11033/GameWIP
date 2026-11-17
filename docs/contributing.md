@@ -196,10 +196,8 @@ local quality commands.
 
 ## Project automation
 
-Use a closing keyword such as `Closes #6` in the pull request body. Project
-automation synchronizes issue and pull request metadata, including status,
-assignees, labels, milestones, and dependencies. See
-@ref project_repository_automation for the rule order and dry-run commands.
+Link related issues in the pull request body; @ref project_repository_automation
+defines the closing keywords, metadata rules, and dry-run commands.
 
 ## Finish with a readable merge
 

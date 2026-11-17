@@ -38,8 +38,6 @@ exported-symbol allowlists, sanitizer builds, and Logger benchmarks.
 The hot normal logging/filter path must not gain structured results, UTF-8 whole-message scans, or success-path diagnostic allocation. Benchmarks
 retain output-disabled, filtered formatted, accepted file, registered-source, and multi-producer scenarios.
 
-Manual runs report prompted observations separately from setup and contract assertions.
-
 ## Related pages
 
 - @ref logger_test_hooks

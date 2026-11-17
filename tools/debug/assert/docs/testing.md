@@ -44,8 +44,6 @@ with lazy messages. The normal runtime
 package is also consumed with Assert and its dependencies in separate prefixes. Consumer executables select application manifest requirements through
 the shared helper described in @ref assert_configuration.
 
-Manual runs report prompted observations separately from setup and contract assertions.
-
 ## Related pages
 
 - @ref assert_macro_behavior

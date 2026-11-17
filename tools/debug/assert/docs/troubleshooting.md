@@ -16,8 +16,8 @@ into the condition expression or surrounding code.
 
 ## A popup appears during automated tests
 
-Automated tests must not depend on real UI. Suppress popups through the
-documented environment controls; see @ref assert_testing.
+Suppress popups through the documented environment controls; see
+@ref assert_testing.
 
 ## Popup settings did not change after reconfiguring Assert
 

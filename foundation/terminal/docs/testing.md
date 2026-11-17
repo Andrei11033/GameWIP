@@ -76,8 +76,6 @@ input, native structured Left-Arrow delivery, managed session restoration, and c
 streams are not real terminals. Use `s reason` to retain an observation's skip reason; end-of-input is recorded separately.
 Event-wrapper checks cover matching, nonmatching and const access, and alternative replacement. Native decoder tests own payload-field coverage.
 
-Manual runs report prompted observations separately from setup and contract assertions.
-
 ## Test hooks
 
 The validation preset enables internal hooks for approved build-tree targets. Their complete availability, reset, override, capture, and

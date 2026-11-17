@@ -10,6 +10,8 @@ yellow, manual checks and summaries cyan, info gray, metrics blue, and stress re
 and red otherwise. Terminal's `Auto` style mode leaves redirected output plain; standalone TestSupport is plain by default. Report files always
 remain plain and receive the complete report while enabled.
 
+Manual prompt outcomes appear separately from setup and contract assertions.
+
 If a custom writer returns `false`, TestSupport reports the failure and does not retry the line, since it may have been partially written.
 
 `Context` owns per-suite counts and expectations. `Runner` aggregates completed suites. `Types::Reporting::Summary` contains passed/failed/skipped

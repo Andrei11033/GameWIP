@@ -248,8 +248,8 @@ A backend integrates through these boundaries:
 
 ## CMake option integration
 
-Project composition options use the `GAMEWIP_` prefix and are defined in `cmake/GameWIPOptions.cmake`. Maintainer-facing CMake helper conventions are
-documented in @ref project_cmake_infrastructure.
+Project options and defaults are listed in @ref project_build. Maintainer CMake
+helper conventions are in @ref project_cmake_infrastructure.
 
 A project option must be reflected in all of the following:
 
