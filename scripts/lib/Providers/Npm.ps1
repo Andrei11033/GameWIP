@@ -23,29 +23,18 @@ function Get-GameWipNpmToolLatestVersion
     return Get-GameWipNpmPackageLatestVersion -Package ([string]$Tool.provider.package)
 }
 
-function Get-GameWipNpmGlobalModuleRoot
+function Get-GameWipNpmManagedModuleRoot
 {
-    if (Test-GameWipWindowsHost)
+    $modulePath = if (Test-GameWipWindowsHost)
     {
-        return Join-Path ((Get-GameWipManagedToolRoot)) 'npm\lib\node_modules'
+        'npm\lib\node_modules'
+    }
+    else
+    {
+        'npm/lib/node_modules'
     }
 
-    $npm = Resolve-GameWipToolCommand -Command npm
-
-    if ($null -eq $npm)
-    {
-        throw 'npm is unavailable; cannot resolve the global module root.'
-    }
-
-    $result = Invoke-GameWipProcess -FilePath $npm -Arguments @('root', '--global') -OutputMode LogOnly -TimeoutSeconds 20
-    $output = ($result.Stdout -join "`n").Trim()
-
-    if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($output))
-    {
-        throw 'Unable to resolve the global npm module root.'
-    }
-
-    return $output
+    return Join-Path (Get-GameWipManagedToolRoot) $modulePath
 }
 
 function Get-GameWipNpmPackageInstallPath
@@ -152,7 +141,7 @@ function Get-GameWipNpmToolDependencyStatus
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
 
-    $moduleRoot = Get-GameWipNpmGlobalModuleRoot
+    $moduleRoot = Get-GameWipNpmManagedModuleRoot
 
     foreach ($dependency in @($Tool.provider.dependencies))
     {

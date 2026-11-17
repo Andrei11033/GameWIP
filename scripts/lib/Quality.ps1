@@ -271,7 +271,7 @@ function Get-GameWipPrettierPluginArguments
 
     # Resolve the managed plugin explicitly because Prettier's ESM loader does
     # not reliably find globally installed package-name plugins from the repo.
-    $moduleRoot = Get-GameWipNpmGlobalModuleRoot
+    $moduleRoot = Get-GameWipNpmManagedModuleRoot
     $pluginEntry = Get-GameWipNpmInstalledPackageEntryPath `
         -ModuleRoot $moduleRoot `
         -Package ([string]$pluginDependency.package)
@@ -629,7 +629,7 @@ function Invoke-GameWipQualityCheck
             Get-GameWipMaintainedWorktreeFile -Extensions @('.md')
         })
 
-    $nodePath = Get-GameWipNpmGlobalModuleRoot
+    $nodePath = Get-GameWipNpmManagedModuleRoot
     $prettierPluginArguments = Get-GameWipPrettierPluginArguments
     $python = (Resolve-GameWipPython).Path
     $managedPython = Get-GameWipPythonEnvironmentInterpreterPath -Root (Join-Path (Get-GameWipManagedToolRoot) 'python')

@@ -534,6 +534,52 @@ function Test-GameWipToolPlanRequiresInstall
     )
 }
 
+function Assert-GameWipToolInstallVerified
+{
+    param([Parameter(Mandatory = $true)][hashtable]$Tool)
+
+    $status = Get-GameWipToolStatus -Tool $Tool
+    $detected = $status.Detected
+    $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $Tool -Detected $detected
+
+    if ($status.Ready -and $providerOk)
+    {
+        return $status
+    }
+
+    $details = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($dependency in @($status.DependencyFailures))
+    {
+        $reason = if ($dependency.Reason)
+        {
+            " - $($dependency.Reason)"
+        }
+        else
+        {
+            ''
+        }
+        $details.Add("$($dependency.Package): $($dependency.State)$reason") | Out-Null
+    }
+
+    if ($status.Error)
+    {
+        $details.Add([string]$status.Error) | Out-Null
+    }
+
+    if (-not $providerOk)
+    {
+        $details.Add('tool was not found under its declared provider') | Out-Null
+    }
+
+    if ($details.Count -eq 0)
+    {
+        $details.Add("compatibility: $($status.Compatibility)") | Out-Null
+    }
+
+    throw "Tool '$($Tool.id)' failed post-install verification (state=$($status.State), location=$($detected.Location), details=$($details -join '; '))."
+}
+
 function Invoke-GameWipToolInstallPlan
 {
     param(
@@ -563,23 +609,8 @@ function Invoke-GameWipToolInstallPlan
         Write-GameWipOperationEvent -Phase execute -Step $item.Tool.id -Severity progress -Message "Installing/verifying $($item.Tool.name) $(if ($version) { $version } else { '' })..."
         $functionName = Get-GameWipProviderFunction -Tool $installTool -Operation Install
         & $functionName -Tool $installTool -Version $version
-        $verifiedStatus = Get-GameWipToolStatus -Tool $installTool
+        $verifiedStatus = Assert-GameWipToolInstallVerified -Tool $installTool
         $verified = $verifiedStatus.Detected
-        $providerOk = Test-GameWipDetectedToolFromDeclaredProvider -Tool $installTool -Detected $verified
-
-        if (-not $verifiedStatus.Ready -or -not $providerOk)
-        {
-            $dependencyDetails = @($verifiedStatus.DependencyFailures | ForEach-Object { "$($_.Package): $($_.State)" })
-            $providerDetails = if ($providerOk)
-            {
-                'compatible'
-            }
-            else
-            {
-                'wrong provider source'
-            }
-            throw "Tool '$($installTool.id)' failed post-install verification (state=$($verifiedStatus.State), provider=$providerDetails, location=$($verified.Location), dependencies=$($dependencyDetails -join '; '))."
-        }
 
         Add-GameWipOperationChange -Message "Installed/verified $($installTool.id) at $($verified.Location)"
     }
@@ -926,13 +957,8 @@ function Invoke-GameWipToolEnsure
             }
             $functionName = Get-GameWipProviderFunction -Tool $tool -Operation Install
             & $functionName -Tool $tool -Version $version
-            $verifiedStatus = Get-GameWipToolStatus -Tool $tool
+            $verifiedStatus = Assert-GameWipToolInstallVerified -Tool $tool
             $verified = $verifiedStatus.Detected
-
-            if (-not $verifiedStatus.Ready)
-            {
-                throw "Tool '$($tool.id)' is '$($verifiedStatus.State)' after ensure: $($verifiedStatus.Failures -join '; ')"
-            }
             $verb = switch ([string]$item.Action)
             {
                 'install'
