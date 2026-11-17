@@ -107,13 +107,15 @@ function Invoke-GameWipSetupNative
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
         [string[]]$ArgumentList = @(),
-        [int[]]$AllowedExitCodes = @(0)
+        [int[]]$AllowedExitCodes = @(0),
+        [switch]$InheritConsole
     )
     $result = Invoke-GameWipNative `
         -Name ([IO.Path]::GetFileNameWithoutExtension($FilePath)) `
         -FilePath $FilePath `
         -Arguments $ArgumentList `
-        -AllowedExitCodes $AllowedExitCodes
+        -AllowedExitCodes $AllowedExitCodes `
+        -InheritConsole:$InheritConsole
     return [int]$result.ExitCode
 }
 

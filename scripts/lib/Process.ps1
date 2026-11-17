@@ -302,7 +302,21 @@ function Invoke-GameWipProcess
     }
 
     $displayCommandLine = ConvertTo-GameWipNativeCommandLine -FilePath $FilePath -Arguments $DisplayArguments
-    $launch = Resolve-GameWipOwnedProcessLaunch -FilePath $FilePath -Arguments $Arguments
+
+    # Interactive children need the caller's session and controlling terminal.
+    $launch = if ($InheritConsole)
+    {
+        $consoleLaunch = Resolve-GameWipProcessLaunch -FilePath $FilePath -Arguments $Arguments
+        [pscustomobject]@{
+            FilePath = $consoleLaunch.FilePath
+            ArgumentLine = $consoleLaunch.ArgumentLine
+            OwnProcessGroup = $false
+        }
+    }
+    else
+    {
+        Resolve-GameWipOwnedProcessLaunch -FilePath $FilePath -Arguments $Arguments
+    }
     $previousEnvironment = @{}
 
     foreach ($entry in $Environment.GetEnumerator())

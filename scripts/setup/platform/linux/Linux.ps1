@@ -105,7 +105,7 @@ function Invoke-GameWipLinuxPrivilegedCommand
     }
     else
     {
-        Invoke-GameWipSetupNative -FilePath $sudo -ArgumentList @('-v') | Out-Null
+        Invoke-GameWipSetupNative -FilePath $sudo -ArgumentList @('-v') -InheritConsole | Out-Null
         $arguments = @('-n', $FilePath) + $Arguments
     }
 
