@@ -173,8 +173,15 @@ function Initialize-GameWipRepository
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$Branch, [switch]$ChooseBranch)
     Initialize-GameWipZipCheckout -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:$ChooseBranch
-    $ucrtBin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64\bin'
-    Invoke-GameWipNative -Name 'setup-configure-dev' -FilePath cmake -Arguments @('--preset', 'dev') -PathPrefix $ucrtBin | Out-Null
+
+    $configure = @{
+        Name = 'setup-configure-dev'
+        FilePath = 'cmake'
+        Arguments = @('--preset', 'dev')
+        PathPrefix = Get-GameWipToolchainPathPrefix
+    }
+
+    Invoke-GameWipNative @configure | Out-Null
 }
 
 function Invoke-GameWipRepositoryUpdate

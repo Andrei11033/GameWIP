@@ -18,12 +18,18 @@ function Invoke-GameWipDocumentationBuild
 
     try
     {
-        $ucrtBin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64\bin'
-        $env:Path = @($ucrtBin, $oldPath) -join [IO.Path]::PathSeparator
+        $toolchainPathPrefix = Get-GameWipToolchainPathPrefix
+
+        if (-not [string]::IsNullOrWhiteSpace($toolchainPathPrefix))
+        {
+            $env:Path = @($toolchainPathPrefix, $oldPath) -join [IO.Path]::PathSeparator
+        }
+
         Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--preset', 'docs') | Out-Null
         Invoke-GameWipSetupNative -FilePath 'cmake' -ArgumentList @('--build', '--preset', 'docs', '--parallel') | Out-Null
 
-        $warningLog = Join-Path $RepositoryRoot 'build\docs\docs\doxygen\doxygen_warnings.log'
+        $documentationRoot = [IO.Path]::Combine([string[]]@($RepositoryRoot, 'build', 'docs', 'docs', 'doxygen'))
+        $warningLog = Join-Path $documentationRoot 'doxygen_warnings.log'
 
         if (-not (Test-Path -LiteralPath $warningLog))
         {
@@ -36,7 +42,7 @@ function Invoke-GameWipDocumentationBuild
             throw 'Doxygen emitted warnings.'
         }
 
-        $index = Join-Path $RepositoryRoot 'build\docs\docs\doxygen\html\index.html'
+        $index = Join-Path (Join-Path $documentationRoot 'html') 'index.html'
         Write-Host "  Ready: $index"
 
         if ($Open)
