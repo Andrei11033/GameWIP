@@ -70,6 +70,66 @@ function Reset-GameWipPresetBuildTree
     Remove-Item -LiteralPath $presetRoot -Recurse -Force
 }
 
+function Test-GameWipPresetConfigured
+{
+    param([Parameter(Mandatory = $true)][string]$BuildDirectory)
+
+    $cachePath = Join-Path $BuildDirectory 'CMakeCache.txt'
+
+    if (-not (Test-Path -LiteralPath $cachePath -PathType Leaf))
+    {
+        return $false
+    }
+
+    $cacheValues = @{}
+
+    foreach ($line in Get-Content -LiteralPath $cachePath -ErrorAction SilentlyContinue)
+    {
+        if ($line -match '^(?<key>[^:#]+):[^=]*=(?<value>.*)$')
+        {
+            $cacheValues[$Matches.key] = $Matches.value
+        }
+    }
+
+    if ($cacheValues['CMAKE_PROJECT_NAME'] -ne 'GameWIP' -or $cacheValues['CMAKE_GENERATOR'] -notlike 'Ninja*')
+    {
+        return $false
+    }
+
+    $configuredSource = [string]$cacheValues['CMAKE_HOME_DIRECTORY']
+
+    if ([string]::IsNullOrWhiteSpace($configuredSource))
+    {
+        return $false
+    }
+
+    try
+    {
+        $configuredSource = [IO.Path]::GetFullPath($configuredSource)
+        $expectedSource = [IO.Path]::GetFullPath($RepositoryRoot)
+    }
+    catch
+    {
+        return $false
+    }
+
+    $pathComparison = if (Test-GameWipWindowsHost)
+    {
+        [StringComparison]::OrdinalIgnoreCase
+    }
+    else
+    {
+        [StringComparison]::Ordinal
+    }
+
+    if (-not [string]::Equals($configuredSource, $expectedSource, $pathComparison))
+    {
+        return $false
+    }
+
+    return Test-Path -LiteralPath (Join-Path $BuildDirectory 'build.ninja') -PathType Leaf
+}
+
 function Invoke-GameWipConfigurePreset
 {
     param(
@@ -108,6 +168,13 @@ function Invoke-GameWipConfigurePreset
     }
     $arguments += "-DGAMEWIP_DEPENDENCIES_OFFLINE=$offlineValue"
     $cache = Join-Path $buildDirectory 'CMakeCache.txt'
+
+    # Replace partial or foreign caches before configuring the preset.
+    if ((Test-Path -LiteralPath $cache) -and -not (Test-GameWipPresetConfigured -BuildDirectory $buildDirectory))
+    {
+        Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "Preset '$Name' has no usable CMake configuration; CMake will regenerate it."
+        $arguments += '--fresh'
+    }
 
     # Recreate a cache when it belongs to another target compiler.
     if ((Test-Path -LiteralPath $cache) -and $target.platform -eq 'windows')
@@ -162,7 +229,11 @@ function Invoke-GameWipConfigurePreset
             if (-not [string]::Equals($configuredCompiler, $expectedCompiler, $pathComparison))
             {
                 Write-GameWipOperationEvent -Phase plan -Step "configure-$Name" -Severity info -Message "The cached compiler belongs to a different toolchain; CMake will recreate this preset cache."
-                $arguments += '--fresh'
+
+                if ($arguments -notcontains '--fresh')
+                {
+                    $arguments += '--fresh'
+                }
             }
         }
     }
@@ -188,9 +259,17 @@ function Invoke-GameWipBuildPreset
         Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message "Fresh build requested; configuration is a prerequisite."
         Invoke-GameWipConfigurePreset -Name $Name -Offline:$Offline
     }
-    elseif (-not (Test-Path -LiteralPath $cache))
+    elseif (-not (Test-GameWipPresetConfigured -BuildDirectory $buildDirectory))
     {
-        Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message "Build preset '$Name' is not configured; configuration is a prerequisite."
+        $message = if (Test-Path -LiteralPath $cache)
+        {
+            "Build preset '$Name' has no usable CMake configuration; configuration is a prerequisite."
+        }
+        else
+        {
+            "Build preset '$Name' is not configured; configuration is a prerequisite."
+        }
+        Write-GameWipOperationEvent -Phase plan -Step "build-$Name" -Severity info -Message $message
         Invoke-GameWipConfigurePreset -Name $Name -Offline:$Offline
     }
     elseif ($Offline)

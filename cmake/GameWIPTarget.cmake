@@ -2,6 +2,30 @@ include_guard(GLOBAL)
 
 # Selects a configured target before project() initializes the compiler.
 
+# Normalize host architecture names for toolchain selection.
+function(gamewip_get_host_architecture output_variable)
+    string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" host_processor)
+
+    if(host_processor STREQUAL "" AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+        execute_process(COMMAND uname -m RESULT_VARIABLE uname_result OUTPUT_VARIABLE host_processor OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+
+        if(NOT "${uname_result}" STREQUAL "0")
+            set(host_processor "")
+        endif()
+        string(TOLOWER "${host_processor}" host_processor)
+    endif()
+
+    if(host_processor MATCHES "^(amd64|x86_64|x64)$")
+        set(host_architecture "x64")
+    elseif(host_processor MATCHES "^(arm64|aarch64)$")
+        set(host_architecture "arm64")
+    else()
+        set(host_architecture "")
+    endif()
+
+    set("${output_variable}" "${host_architecture}" PARENT_SCOPE)
+endfunction()
+
 function(gamewip_prepare_target)
     set(GAMEWIP_TARGET_PLATFORM "native" CACHE STRING "GameWIP build target platform")
     set_property(CACHE GAMEWIP_TARGET_PLATFORM PROPERTY STRINGS native windows)
@@ -94,14 +118,14 @@ function(gamewip_prepare_target)
         set(gamewip_host_asset_key "windows-amd64")
         set(gamewip_validation_json_path provider validationFiles)
     elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
-        string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" gamewip_host_processor)
+        gamewip_get_host_architecture(gamewip_host_architecture)
 
-        if(gamewip_host_processor MATCHES "^(amd64|x86_64|x64)$")
+        if(gamewip_host_architecture STREQUAL "x64")
             set(gamewip_host_asset_key "linux-amd64")
-        elseif(gamewip_host_processor MATCHES "^(arm64|aarch64)$")
+        elseif(gamewip_host_architecture STREQUAL "arm64")
             set(gamewip_host_asset_key "linux-arm64")
         else()
-            message(FATAL_ERROR "Unsupported LLVM-MinGW host architecture '${CMAKE_HOST_SYSTEM_PROCESSOR}'.")
+            message(FATAL_ERROR "Unsupported LLVM-MinGW Linux host architecture '${CMAKE_HOST_SYSTEM_PROCESSOR}'.")
         endif()
         set(gamewip_validation_json_path provider assets "${gamewip_host_asset_key}" validationFiles)
     else()
@@ -166,13 +190,13 @@ function(gamewip_update_target_native_architecture)
         return()
     endif()
 
-    string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" gamewip_host_processor)
+    gamewip_get_host_architecture(gamewip_host_architecture)
     string(TOLOWER "${GAMEWIP_TARGET_PROCESSOR}" gamewip_target_processor)
     set(gamewip_target_native_architecture OFF)
 
-    if(gamewip_target_processor STREQUAL "amd64" AND gamewip_host_processor MATCHES "^(amd64|x86_64|x64)$")
+    if(gamewip_target_processor STREQUAL "amd64" AND gamewip_host_architecture STREQUAL "x64")
         set(gamewip_target_native_architecture ON)
-    elseif(gamewip_target_processor STREQUAL "arm64" AND gamewip_host_processor MATCHES "^(arm64|aarch64)$")
+    elseif(gamewip_target_processor STREQUAL "arm64" AND gamewip_host_architecture STREQUAL "arm64")
         set(gamewip_target_native_architecture ON)
     endif()
 

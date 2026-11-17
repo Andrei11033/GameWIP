@@ -10,14 +10,9 @@ orchestration path.
 ## Provider and version policy
 
 The supported providers are MSYS2, npm, Python, PowerShell Gallery, verified
-GitHub releases, WinGet, and external/manual state. Provider
-selection follows this order when the tool is available from more than one
-source:
-
-1. An official MSYS2/pacman package.
-2. The tool's native ecosystem under the persistent GameWIP tool root.
-3. A checksum-verified standalone release.
-4. Explicit external/manual ownership.
+GitHub releases, WinGet, and external/manual state. Each tool's registry entry
+selects its provider. Discovery checks that provider's managed location first,
+then other GameWIP-managed locations and `PATH`.
 
 `exact` pins version-sensitive tools. `minimum` accepts the declared version or
 newer. `managed` lets the owning package manager select a compatible version.
@@ -36,9 +31,9 @@ owns setup-action metadata and the IDs needed to bootstrap a provider host.
 
 On Windows, the Python provider uses MSYS2 UCRT64 Python. GameWIP creates its
 managed environment at `C:\MSYS2\GameWIPTools\python` with MSYS2 system
-packages visible, so native Windows CPython is not required. MSYS2 provides
-compiled tools and dependencies such as Ruff and jsonschema; pure-Python tools
-such as yamllint are installed in the managed environment.
+packages visible, so native Windows CPython is not required. Ruff uses verified
+upstream binaries on Windows and Linux; Python packages such as yamllint and
+jsonschema use the managed environment.
 
 The GitHub CLI is a managed WinGet tool because the workflow status and dispatch
 commands depend on it. Its sign-in state is intentionally not managed by setup.

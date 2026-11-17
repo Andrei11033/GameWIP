@@ -22,7 +22,15 @@ function New-GameWipToolQueryResult
 function Invoke-GameWipToolQueryProcess
 {
     param([string]$FilePath, [string[]]$Arguments, [string]$Provider)
-    $result = Invoke-GameWipProcess -FilePath $FilePath -Arguments $Arguments -OutputMode LogOnly -TimeoutSeconds 30
+    $timeoutSeconds = if ($Provider -eq 'npm')
+    {
+        60
+    }
+    else
+    {
+        30
+    }
+    $result = Invoke-GameWipProcess -FilePath $FilePath -Arguments $Arguments -OutputMode LogOnly -TimeoutSeconds $timeoutSeconds
 
     if ($result.Cancelled)
     {
@@ -31,7 +39,7 @@ function Invoke-GameWipToolQueryProcess
 
     if ($result.TimedOut)
     {
-        return New-GameWipToolQueryResult -State unavailable -Provider $Provider -Version $null -Reason 'query timed out'
+        return New-GameWipToolQueryResult -State unavailable -Provider $Provider -Version $null -Reason "query timed out after ${timeoutSeconds}s"
     }
 
     if ($result.ExitCode -ne 0)

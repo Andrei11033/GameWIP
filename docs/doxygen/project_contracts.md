@@ -47,18 +47,18 @@ verbs and PascalCase parameters. `Assert-GameWip...` is the intentional naming
 exception for validation helpers whose contract is to throw on failure; a
 `Test-*` name remains reserved for Boolean queries.
 
-Exact version-sensitive tool pins are declared centrally:
+Required tool versions and providers are declared centrally:
 
 | Tool | Registry version | Provider |
 | --- | --- | --- |
-| Ruff | 0.17.1 | MSYS2 |
+| Ruff | 0.17.1 | verified GitHub release |
 | ESLint | 10.13.0 | npm |
 | Prettier | 3.9.10 | npm |
 | prettier-plugin-powershell | 2.2.0 | npm dependency of Prettier |
 | Gersemi | 0.29.2 | verified GitHub release |
 | markdownlint-cli2 | 0.24.0 | npm |
 | yamllint | 1.38.0 | Python |
-| jsonschema | 4.26.0 | MSYS2 |
+| jsonschema | 4.26.0 | Python |
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
 | actionlint | 1.7.12 | verified GitHub release |
 | LLVM-MinGW | 20261104 | verified GitHub release |

@@ -753,9 +753,14 @@ function Assert-GameWipPinnedToolAvailable
             }
             $query = Invoke-GameWipToolQueryProcess -FilePath $npm -Arguments @('view', "$($Tool.provider.package)@$version", 'version') -Provider npm
 
-            if ($query.State -ne 'process' -or $query.Output.Trim() -ne $version)
+            if ($query.State -ne 'process')
             {
-                throw "Pinned npm package '$($Tool.provider.package)@$version' is unavailable."
+                throw "Pinned npm package '$($Tool.provider.package)@$version' could not be verified: $($query.State) ($($query.Reason))."
+            }
+
+            if ($query.Output.Trim() -ne $version)
+            {
+                throw "Pinned npm package '$($Tool.provider.package)@$version' returned version '$($query.Output.Trim())'."
             }
             foreach ($dependency in $(if ($Tool.provider.Contains('dependencies'))
                     {
@@ -770,7 +775,7 @@ function Assert-GameWipPinnedToolAvailable
 
                 if ($depQuery.State -ne 'process')
                 {
-                    throw "Pinned npm dependency '$($dependency.package)@$($dependency.version)' is unavailable."
+                    throw "Pinned npm dependency '$($dependency.package)@$($dependency.version)' could not be verified: $($depQuery.State) ($($depQuery.Reason))."
                 }
             }
         }
@@ -805,6 +810,7 @@ function Invoke-GameWipToolEnsure
 {
     param([string]$Selector = 'all', [switch]$ConsentAlreadyGranted)
     $selected = @(Get-GameWipProjectToolSelection -Selector $Selector)
+    $skippedTools = [System.Collections.Generic.List[object]]::new()
 
     if (-not (Test-GameWipWindowsHost))
     {
@@ -812,7 +818,7 @@ function Invoke-GameWipToolEnsure
 
         foreach ($tool in $hostManaged)
         {
-            Write-Verbose "Skipping Windows-managed provider '$($tool.id)' on this host; the runner/package image owns it."
+            $skippedTools.Add([pscustomobject]@{ Id = [string]$tool.id; Reason = 'Windows-only provider' }) | Out-Null
         }
         $selected = @($selected | Where-Object { $_.provider.kind -notin @('msys2', 'winget') })
     }
@@ -821,13 +827,13 @@ function Invoke-GameWipToolEnsure
 
     foreach ($tool in $unsupportedHostTools)
     {
-        Write-Verbose "Skipping '$($tool.id)' because it is available only on $($tool.provider.hostPlatform)."
+        $skippedTools.Add([pscustomobject]@{ Id = [string]$tool.id; Reason = "no release asset for this host ($($tool.provider.hostPlatform))" }) | Out-Null
     }
     $selected = @($selected | Where-Object { Test-GameWipToolHostSupport -Tool $_ })
 
     foreach ($tool in @($selected | Where-Object { -not $_.capabilities.detectInstalled -or -not $_.capabilities.update }))
     {
-        Write-Verbose "Skipping non-installable tool '$($tool.id)' during ensure; its lifecycle is owned by setup, repository state, or an external source."
+        $skippedTools.Add([pscustomobject]@{ Id = [string]$tool.id; Reason = 'managed outside this command' }) | Out-Null
     }
     $selected = @($selected | Where-Object { $_.capabilities.detectInstalled -and $_.capabilities.update })
     $plan = [System.Collections.Generic.List[object]]::new()
@@ -907,12 +913,30 @@ function Invoke-GameWipToolEnsure
         Write-Host ' ' -NoNewline
         Write-GameWipSemanticText -Object $location -Semantic Muted
     }
+
+    if ($skippedTools.Count -ne 0)
+    {
+        foreach ($group in @($skippedTools | Group-Object Reason))
+        {
+            $toolIds = ($group.Group | ForEach-Object { $_.Id }) -join ', '
+            Write-GameWipSemanticText -Object "Skipped: $toolIds ($($group.Name))" -Semantic Warning
+        }
+    }
+
     $needed = @($plan | Where-Object { $_.NeedsInstall })
 
     if ($needed.Count -eq 0)
     {
-        Write-GameWipSemanticText -Object 'All selected tools' -Semantic Success -NoNewline
-        Write-Host ' already satisfy the declared policy.'
+        $message = if ($skippedTools.Count -eq 0)
+        {
+            'All selected tools already satisfy the declared policy.'
+        }
+        else
+        {
+            'All installable selected tools already satisfy the declared policy.'
+        }
+        $semantic = if ($skippedTools.Count -eq 0) { 'Success' } else { 'Warning' }
+        Write-GameWipSemanticText -Object $message -Semantic $semantic
         return
     }
 

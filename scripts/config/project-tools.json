@@ -452,11 +452,25 @@
       "name": "Ruff",
       "category": "quality",
       "provider": {
-        "kind": "msys2",
-        "environment": "ucrt64",
-        "package": "mingw-w64-ucrt-x86_64-ruff"
+        "kind": "githubRelease",
+        "repository": "astral-sh/ruff",
+        "releaseTag": "0.17.1",
+        "assets": {
+          "windows-amd64": {
+            "archive": "ruff-x86_64-pc-windows-msvc.zip",
+            "sha256": "a841fb7e59680508b9394bfea32e369b3907cc6620a491c65d8d1f479498db82"
+          },
+          "linux-amd64": {
+            "archive": "ruff-x86_64-unknown-linux-gnu.tar.gz",
+            "sha256": "a293ac937715ae6fb6b64da86761598379e6149f40fbc00fde9ba8a2a562ac65"
+          },
+          "linux-arm64": {
+            "archive": "ruff-aarch64-unknown-linux-gnu.tar.gz",
+            "sha256": "d3ead1f0ed779e777a034ccd9286be6bd9bd3cdaba732ff9797f8288a283e9e2"
+          }
+        }
       },
-      "versionPolicy": "minimum",
+      "versionPolicy": "exact",
       "requiredVersion": "0.17.1",
       "detection": {
         "command": "ruff",
@@ -472,7 +486,7 @@
         {
           "path": "docs/doxygen/project_contracts.md",
           "kind": "text",
-          "pattern": "| Ruff | {version} | MSYS2 |",
+          "pattern": "| Ruff | {version} | verified GitHub release |",
           "expectedCount": 1
         }
       ]
@@ -559,9 +573,8 @@
       "name": "jsonschema",
       "category": "quality",
       "provider": {
-        "kind": "msys2",
-        "environment": "ucrt64",
-        "package": "mingw-w64-ucrt-x86_64-python-jsonschema"
+        "kind": "python",
+        "package": "jsonschema"
       },
       "versionPolicy": "minimum",
       "requiredVersion": "4.26.0",
@@ -579,7 +592,7 @@
         {
           "path": "docs/doxygen/project_contracts.md",
           "kind": "text",
-          "pattern": "| jsonschema | {version} | MSYS2 |",
+          "pattern": "| jsonschema | {version} | Python |",
           "expectedCount": 1
         }
       ]
