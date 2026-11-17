@@ -40,7 +40,21 @@ function Invoke-GameWipDocumentationBuild
 
         if ($Open)
         {
-            Start-Process -FilePath $index
+            if (Test-GameWipWindowsHost)
+            {
+                Start-Process -FilePath $index
+            }
+            else
+            {
+                $openCommand = Resolve-GameWipSetupCommand -Name 'xdg-open'
+
+                if ($null -eq $openCommand)
+                {
+                    throw 'Could not open the generated manual because xdg-open was not found.'
+                }
+
+                Invoke-GameWipSetupNative -FilePath $openCommand -ArgumentList @($index) | Out-Null
+            }
             Write-Host '  Opened the generated manual in the default browser.'
         }
     }

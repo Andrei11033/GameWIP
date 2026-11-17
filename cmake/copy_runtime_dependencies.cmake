@@ -19,6 +19,12 @@ file(LOCK "${GAMEWIP_OUTPUT_DIR}/.gamewip_runtime_dependencies.lock" GUARD PROCE
 set(runtime_scan_executable "${GAMEWIP_EXECUTABLE}")
 set(runtime_scan_dir "")
 set(runtime_search_paths ${GAMEWIP_RUNTIME_SEARCH_DIRS})
+set(gamewip_target_is_windows OFF)
+
+if(GAMEWIP_TARGET_PLATFORM STREQUAL "windows" OR WIN32)
+    set(gamewip_target_is_windows ON)
+    set(CMAKE_GET_RUNTIME_DEPENDENCIES_PLATFORM "windows+pe")
+endif()
 
 if(DEFINED GAMEWIP_RUNTIME_SEARCH_DIR AND NOT GAMEWIP_RUNTIME_SEARCH_DIR STREQUAL "")
     list(APPEND runtime_search_paths "${GAMEWIP_RUNTIME_SEARCH_DIR}")
@@ -26,7 +32,7 @@ endif()
 
 list(REMOVE_DUPLICATES runtime_search_paths)
 
-if(WIN32)
+if(gamewip_target_is_windows)
     set(runtime_scan_dir "${GAMEWIP_OUTPUT_DIR}/.gamewip_runtime_dependency_scan")
     file(REMOVE_RECURSE "${runtime_scan_dir}")
     file(MAKE_DIRECTORY "${runtime_scan_dir}")
@@ -57,9 +63,15 @@ endif()
 
 # Add toolchain runtime folders first so omitted app-local runtimes resolve to
 # the toolchain that produced the executable.
+set(runtime_dependency_directories ${runtime_search_paths})
+
+if(runtime_scan_dir)
+    list(APPEND runtime_dependency_directories "${runtime_scan_dir}")
+endif()
+
 set(runtime_search_dirs)
-if(runtime_search_paths)
-    list(APPEND runtime_search_dirs DIRECTORIES ${runtime_search_paths})
+if(runtime_dependency_directories)
+    list(APPEND runtime_search_dirs DIRECTORIES ${runtime_dependency_directories})
 endif()
 
 if(DEFINED GAMEWIP_OBJDUMP AND NOT GAMEWIP_OBJDUMP STREQUAL "")
@@ -73,15 +85,51 @@ if(POLICY CMP0207)
 endif()
 
 # Resolve runtime DLLs used by the executable.
+set(runtime_pre_exclude_regexes "^api-ms-.*" "^ext-ms-.*")
+
+if(gamewip_target_is_windows AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    # A Linux host has no Windows system directories to resolve these imports
+    # from. They are operating-system components, so exclude their names here.
+    list(APPEND runtime_pre_exclude_regexes "^(advapi32|gdi32|kernel32|ole32|oleaut32|shell32|uiautomationcore|user32)\\.dll$")
+endif()
+
 file(
     GET_RUNTIME_DEPENDENCIES
     RESOLVED_DEPENDENCIES_VAR resolved_dependencies
     UNRESOLVED_DEPENDENCIES_VAR unresolved_dependencies
     CONFLICTING_DEPENDENCIES_PREFIX conflicting_dependencies
     EXECUTABLES "${runtime_scan_executable}" ${runtime_search_dirs}
-    PRE_EXCLUDE_REGEXES "^api-ms-.*" "^ext-ms-.*"
+    PRE_EXCLUDE_REGEXES ${runtime_pre_exclude_regexes}
     POST_EXCLUDE_REGEXES ".*[/\\][Ww][Ii][Nn][Dd][Oo][Ww][Ss][/\\].*" ".*[/\\][Ss]ystem32[/\\].*"
 )
+
+if(gamewip_target_is_windows AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    # CMake's PE resolver does not recognize app-local DLLs beside a Windows
+    # cross-build executable on Linux. Windows still resolves these by name
+    # from the executable directory, and the files are already in our output.
+    set(unresolved_cross_dependencies)
+
+    foreach(unresolved_dependency IN LISTS unresolved_dependencies)
+        string(TOLOWER "${unresolved_dependency}" unresolved_name_lower)
+        set(app_local_dependency_exists OFF)
+
+        foreach(app_local_dll IN LISTS app_local_dlls)
+            get_filename_component(app_local_name "${app_local_dll}" NAME)
+            string(TOLOWER "${app_local_name}" app_local_name_lower)
+
+            if(unresolved_name_lower STREQUAL app_local_name_lower)
+                set(app_local_dependency_exists ON)
+                break()
+            endif()
+        endforeach()
+
+        if(NOT app_local_dependency_exists)
+            list(APPEND unresolved_cross_dependencies "${unresolved_dependency}")
+        endif()
+    endforeach()
+
+    set(unresolved_dependencies ${unresolved_cross_dependencies})
+endif()
 
 # Copy resolved runtime DLLs beside the executable. Multiple executables share
 # one output folder, so prefer the matching toolchain-directory candidate when

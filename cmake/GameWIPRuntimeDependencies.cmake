@@ -6,10 +6,14 @@
 function(gamewip_copy_runtime_dependencies target_name)
     get_filename_component(gamewip_runtime_search_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
     set(gamewip_runtime_search_dirs "${gamewip_runtime_search_dir}" ${GAMEWIP_TARGET_RUNTIME_DIRECTORIES})
+    set_property(TARGET "${target_name}" APPEND PROPERTY LINK_DEPENDS "${PROJECT_SOURCE_DIR}/cmake/copy_runtime_dependencies.cmake")
 
     set(gamewip_runtime_dependency_tool_arguments)
     if(CMAKE_OBJDUMP)
         list(APPEND gamewip_runtime_dependency_tool_arguments "-DGAMEWIP_OBJDUMP=${CMAKE_OBJDUMP}")
+    endif()
+    if(DEFINED GAMEWIP_TARGET_PLATFORM)
+        list(APPEND gamewip_runtime_dependency_tool_arguments "-DGAMEWIP_TARGET_PLATFORM=${GAMEWIP_TARGET_PLATFORM}")
     endif()
 
     add_custom_command(

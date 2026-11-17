@@ -935,7 +935,12 @@ function Invoke-GameWipToolEnsure
         {
             'All installable selected tools already satisfy the declared policy.'
         }
-        $semantic = if ($skippedTools.Count -eq 0) { 'Success' } else { 'Warning' }
+        $semantic = 'Success'
+
+        if ($skippedTools.Count -gt 0)
+        {
+            $semantic = 'Warning'
+        }
         Write-GameWipSemanticText -Object $message -Semantic $semantic
         return
     }
