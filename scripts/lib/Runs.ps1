@@ -50,12 +50,61 @@ function Initialize-GameWipToolRun
         NextStepIndex = 1
         Steps = [System.Collections.Generic.List[object]]::new()
         Outputs = [System.Collections.Generic.List[object]]::new()
+        Failure = $null
+        FinalizationFailure = $null
         Details = [ordered]@{}
         Changes = @()
         Preserved = @()
         Warnings = @()
         NextActions = @()
         Events = @()
+    }
+}
+
+function ConvertTo-GameWipRunFailure
+{
+    param([Parameter(Mandatory = $true)][System.Management.Automation.ErrorRecord]$ErrorRecord)
+
+    $exception = $ErrorRecord.Exception
+    $code = if ($exception.Data.Contains('GameWipCode'))
+    {
+        [string]$exception.Data['GameWipCode']
+    }
+    else
+    {
+        'operation-failed'
+    }
+    $details = if ($exception.Data.Contains('GameWipDetails'))
+    {
+        [string]$exception.Data['GameWipDetails']
+    }
+    else
+    {
+        ''
+    }
+    $suggestedActions = if ($exception.Data.Contains('GameWipSuggestedActions'))
+    {
+        @($exception.Data['GameWipSuggestedActions'])
+    }
+    else
+    {
+        @()
+    }
+    $logPath = if ($exception.Data.Contains('GameWipLogPath'))
+    {
+        [string]$exception.Data['GameWipLogPath']
+    }
+    else
+    {
+        ''
+    }
+
+    return [pscustomobject]@{
+        Code = $code
+        Summary = $exception.Message
+        Details = $details
+        SuggestedActions = $suggestedActions
+        LogPath = $logPath
     }
 }
 
@@ -132,6 +181,8 @@ function ConvertTo-GameWipRunDocument
         repository = $Run.Repository
         startedAt = $Run.StartedAt
         finishedAt = $Run.FinishedAt
+        failure = $Run.Failure
+        finalizationFailure = $Run.FinalizationFailure
         details = $Run.Details
         steps = @($Run.Steps)
         outputs = @($Run.Outputs)
@@ -165,7 +216,28 @@ function Save-GameWipToolRun
     $lines.Add("Started: $($Run.StartedAt)") | Out-Null
     $lines.Add("Finished: $($Run.FinishedAt)") | Out-Null
     $lines.Add("Repository: $($Run.Repository)") | Out-Null
-    $lines.Add("Failed steps: $($failed.Count)") | Out-Null
+
+    if ($null -ne $Run.Failure)
+    {
+        $lines.Add("Failure: [$($Run.Failure.Code)] $($Run.Failure.Summary)") | Out-Null
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$Run.Failure.Details))
+        {
+            $lines.Add("Failure details: $($Run.Failure.Details)") | Out-Null
+        }
+    }
+
+    if ($null -ne $Run.FinalizationFailure)
+    {
+        $lines.Add("Finalization failure: [$($Run.FinalizationFailure.Code)] $($Run.FinalizationFailure.Summary)") | Out-Null
+
+        if (-not [string]::IsNullOrWhiteSpace([string]$Run.FinalizationFailure.Details))
+        {
+            $lines.Add("Finalization details: $($Run.FinalizationFailure.Details)") | Out-Null
+        }
+    }
+
+    $lines.Add("Failed process steps: $($failed.Count)") | Out-Null
     $lines.Add('') | Out-Null
 
     foreach ($step in $Run.Steps)

@@ -142,10 +142,11 @@ function Get-GameWipPowerShellGalleryCandidates
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool)
     $items = [System.Collections.Generic.List[object]]::new()
+    $providerRoots = @(Get-GameWipProviderManagedToolPath -Tool $Tool)
 
-    if (Test-GameWipWindowsHost)
+    if ($providerRoots.Count -ne 0)
     {
-        $managedRoot = Join-Path ((Get-GameWipManagedToolRoot)) "powershell\$($Tool.provider.package)"
+        $managedRoot = Join-Path $providerRoots[0] ([string]$Tool.provider.package)
 
         foreach ($directory in @(Get-ChildItem -LiteralPath $managedRoot -Directory -ErrorAction SilentlyContinue))
         {

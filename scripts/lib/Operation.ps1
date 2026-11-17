@@ -790,6 +790,17 @@ function Invoke-GameWipOperation
                 $context.Run.Warnings = @($context.Warnings)
                 $context.Run.NextActions = @($context.NextActions)
                 $context.Run.Events = @($context.Events)
+
+                if ($null -ne $failure)
+                {
+                    $context.Run.Failure = ConvertTo-GameWipRunFailure -ErrorRecord $failure
+                }
+
+                if ($null -ne $finalizationFailure)
+                {
+                    $context.Run.FinalizationFailure = ConvertTo-GameWipRunFailure -ErrorRecord $finalizationFailure
+                }
+
                 Save-GameWipToolRun -Run $context.Run -Status $status | Out-Null
             }
         }
