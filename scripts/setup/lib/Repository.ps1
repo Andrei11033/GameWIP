@@ -174,14 +174,8 @@ function Initialize-GameWipRepository
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot, [string]$Branch, [switch]$ChooseBranch)
     Initialize-GameWipZipCheckout -RepositoryRoot $RepositoryRoot -Branch $Branch -ChooseBranch:$ChooseBranch
 
-    $configure = @{
-        Name = 'setup-configure-dev'
-        FilePath = 'cmake'
-        Arguments = @('--preset', 'dev')
-        PathPrefix = Get-GameWipToolchainPathPrefix
-    }
-
-    Invoke-GameWipNative @configure | Out-Null
+    # Configure the selected development target through the shared build path.
+    Invoke-GameWipConfigurePreset -Name 'dev' | Out-Null
 }
 
 function Invoke-GameWipRepositoryUpdate
