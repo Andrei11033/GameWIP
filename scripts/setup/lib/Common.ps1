@@ -108,14 +108,16 @@ function Invoke-GameWipSetupNative
         [Parameter(Mandatory = $true)][string]$FilePath,
         [string[]]$ArgumentList = @(),
         [int[]]$AllowedExitCodes = @(0),
-        [switch]$InheritConsole
+        [switch]$InheritConsole,
+        [switch]$PreserveConsoleSession
     )
     $result = Invoke-GameWipNative `
         -Name ([IO.Path]::GetFileNameWithoutExtension($FilePath)) `
         -FilePath $FilePath `
         -Arguments $ArgumentList `
         -AllowedExitCodes $AllowedExitCodes `
-        -InheritConsole:$InheritConsole
+        -InheritConsole:$InheritConsole `
+        -PreserveConsoleSession:$PreserveConsoleSession
     return [int]$result.ExitCode
 }
 

@@ -253,7 +253,8 @@ function Invoke-GameWipProcess
         [ValidateRange(0, 86400)][int]$TimeoutSeconds = 0,
         [int[]]$SuccessfulExitCodes = @(0),
         [string]$LogPath,
-        [switch]$InheritConsole
+        [switch]$InheritConsole,
+        [switch]$PreserveConsoleSession
     )
 
     Assert-GameWipNotCancelled
@@ -303,13 +304,13 @@ function Invoke-GameWipProcess
 
     $displayCommandLine = ConvertTo-GameWipNativeCommandLine -FilePath $FilePath -Arguments $DisplayArguments
 
-    # Interactive children need the caller's session and controlling terminal.
-    $launch = if ($InheritConsole)
+    # Some commands need the caller's session while keeping output captured.
+    $launch = if ($InheritConsole -or $PreserveConsoleSession)
     {
-        $consoleLaunch = Resolve-GameWipProcessLaunch -FilePath $FilePath -Arguments $Arguments
+        $sessionLaunch = Resolve-GameWipProcessLaunch -FilePath $FilePath -Arguments $Arguments
         [pscustomobject]@{
-            FilePath = $consoleLaunch.FilePath
-            ArgumentLine = $consoleLaunch.ArgumentLine
+            FilePath = $sessionLaunch.FilePath
+            ArgumentLine = $sessionLaunch.ArgumentLine
             OwnProcessGroup = $false
         }
     }
@@ -573,7 +574,8 @@ function Invoke-GameWipNative
         [ValidateRange(0, 86400)][int]$TimeoutSeconds = 0,
         [ValidateSet('Summary', 'Stream', 'LogOnly')][string]$OutputMode,
         [int[]]$AllowedExitCodes = @(0),
-        [switch]$InheritConsole
+        [switch]$InheritConsole,
+        [switch]$PreserveConsoleSession
     )
 
     Initialize-GameWipRunLog
@@ -640,7 +642,8 @@ function Invoke-GameWipNative
             -OutputMode $effectiveOutputMode `
             -SuccessfulExitCodes $AllowedExitCodes `
             -LogPath $step.LogPath `
-            -InheritConsole:$InheritConsole
+            -InheritConsole:$InheritConsole `
+            -PreserveConsoleSession:$PreserveConsoleSession
     }
 
     catch [System.OperationCanceledException]

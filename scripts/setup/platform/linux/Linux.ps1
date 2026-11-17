@@ -95,7 +95,12 @@ function Invoke-GameWipLinuxPrivilegedCommand
 
     if ($NonInteractive)
     {
-        $check = Invoke-GameWipProcess -FilePath $sudo -Arguments @('-n', 'true') -OutputMode LogOnly -TimeoutSeconds 10
+        $check = Invoke-GameWipProcess `
+            -FilePath $sudo `
+            -Arguments @('-n', 'true') `
+            -OutputMode LogOnly `
+            -TimeoutSeconds 10 `
+            -PreserveConsoleSession
 
         if ($check.ExitCode -ne 0)
         {
@@ -109,7 +114,11 @@ function Invoke-GameWipLinuxPrivilegedCommand
         $arguments = @('-n', $FilePath) + $Arguments
     }
 
-    Invoke-GameWipSetupNative -FilePath $sudo -ArgumentList $arguments | Out-Null
+    # Keep sudo in the session that accepted credentials while retaining its output.
+    Invoke-GameWipSetupNative `
+        -FilePath $sudo `
+        -ArgumentList $arguments `
+        -PreserveConsoleSession | Out-Null
 }
 
 # ------------------------------------------------------------
