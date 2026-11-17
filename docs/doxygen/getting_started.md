@@ -43,9 +43,6 @@ bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
 bash ./gamewip.sh build dev
 ```
 
-The Windows executable must run on Windows. Native Linux game builds are not
-available yet.
-
 From MSYS2 UCRT64 Bash, the equivalent direct commands are:
 
 ```bash
@@ -82,8 +79,7 @@ cmake --build --preset test
 ctest --preset test
 ```
 
-Linux helper test commands are currently unavailable because the configured
-tests are Windows executables. Build them on Linux, then run them on Windows.
+For Linux cross-build validation, see @ref project_build.
 
 The validation architecture, module registration, child-process routing, report
 paths, and startup behavior are documented in @ref project_validation. Test

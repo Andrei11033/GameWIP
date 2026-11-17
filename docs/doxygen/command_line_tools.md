@@ -26,8 +26,7 @@ default, or `q` or Esc to cancel.
 ```
 
 The examples below use Windows PowerShell. On Linux, pass the same arguments to
-`bash ./gamewip.sh`; for example, `bash ./gamewip.sh build dev`. Linux currently
-cross-builds Windows targets; their executables must run on Windows.
+`bash ./gamewip.sh`; for example, `bash ./gamewip.sh build dev`.
 
 Examples:
 

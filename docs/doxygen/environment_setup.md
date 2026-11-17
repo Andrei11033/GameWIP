@@ -5,8 +5,7 @@ GameWIP setup supports Windows and Linux. Windows uses `setup.bat`; Linux uses
 helper. Linux requires PowerShell 7 to be installed first.
 
 Linux setup prepares host packages, pinned CMake, LLVM-MinGW, and the project
-toolchain for Windows cross-builds. Native Linux game builds are not available
-until Linux platform backends are implemented.
+toolchain for Windows cross-builds.
 
 ## Quick start
 
@@ -82,8 +81,7 @@ bash ./gamewip.sh config dev
 bash ./gamewip.sh build dev
 ```
 
-Choose `arm64` to produce Windows ARM64 binaries. Windows-target executables
-cannot run on the Linux host.
+Choose `arm64` to produce Windows ARM64 binaries.
 
 ## Dependency cache and offline builds
 

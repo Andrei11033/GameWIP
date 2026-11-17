@@ -91,7 +91,7 @@ cmake --build build/windows-arm64/dev
 
 The Windows helper manages target selection and build paths for this workflow.
 
-Run Windows-target tests through the validation preset on Windows:
+Run tests through the validation preset:
 
 ```bash
 cmake --preset test
@@ -99,8 +99,7 @@ cmake --build --preset test
 ctest --preset test
 ```
 
-Linux can cross-build the test executables, but cannot run them. Use the Linux
-helper to configure/build, then run CTest on Windows.
+Cross-build tests with the Linux helper, then run CTest on Windows.
 
 Generate documentation through the docs preset:
 

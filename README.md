@@ -55,8 +55,6 @@ bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
 bash ./gamewip.sh build dev
 ```
 
-The resulting Windows executable must run on Windows.
-
 Or use CMake directly from MSYS2 UCRT64 Bash:
 
 ```bash

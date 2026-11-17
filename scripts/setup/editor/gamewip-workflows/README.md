@@ -24,9 +24,9 @@ Game run tasks use a dedicated terminal for executable output. Tasks call
 tasks use the shared task terminal, keeping build diagnostics separate from
 the running game's output.
 
-Run and test tasks report when the selected Windows executable cannot run on
-Linux. VS Code debug launch is Windows-only; executable paths and runtime
-settings follow the selected build target on Windows.
+On Linux, run and test tasks report that execution is unavailable. VS Code debug
+launch is Windows-only; executable paths and runtime settings follow the
+selected target on Windows.
 
 ## Shortcut reference
 
