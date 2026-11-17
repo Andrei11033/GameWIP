@@ -2,14 +2,16 @@
 set -euo pipefail
 
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$repository_root/scripts/lib/powershell_bootstrap.sh"
 
-if ! command -v pwsh >/dev/null 2>&1; then
-    printf 'PowerShell 7 (pwsh) is required. See scripts/setup/README.md.\n' >&2
-    exit 127
+if ! gamewip_require_setup_powershell "$repository_root" "$@"; then
+    exit 1
 fi
+
+export PATH="${GAMEWIP_POWERSHELL_COMMAND%/*}:$PATH"
 
 if [[ "${1-}" == "--help" || "${1-}" == "-h" || "${1-}" == "-?" ]]; then
-    exec pwsh -NoProfile -File "$repository_root/scripts/setup/Setup.ps1" help
+    exec "$GAMEWIP_POWERSHELL_COMMAND" -NoProfile -File "$repository_root/scripts/setup/Setup.ps1" help
 fi
 
-exec pwsh -NoProfile -File "$repository_root/scripts/setup/Setup.ps1" "$@"
+exec "$GAMEWIP_POWERSHELL_COMMAND" -NoProfile -File "$repository_root/scripts/setup/Setup.ps1" "$@"

@@ -7,8 +7,9 @@ environment should use the generated
 details below are for maintainers changing what setup installs or how it
 verifies the machine.
 
-Linux runs require PowerShell 7 and support Ubuntu, Debian, and CachyOS. Linux
-package installation uses the shared operation plan and consent flow.
+Linux setup supports Ubuntu, Debian, and CachyOS. If PowerShell 7 is missing,
+`setup.sh` offers to install its verified, project-managed runtime before it
+dispatches to the shared setup flow.
 
 ## Layout
 

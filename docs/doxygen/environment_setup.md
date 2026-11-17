@@ -2,7 +2,9 @@
 
 GameWIP setup supports Windows and Linux. Windows uses `setup.bat`; Linux uses
 `setup.sh` on Ubuntu, Debian, and CachyOS. Both dispatch to the same PowerShell
-helper. Linux requires PowerShell 7 to be installed first.
+helper. If PowerShell 7 is missing, `setup.sh` offers to install its pinned,
+hash-verified runtime under `build/gamewip/tools/powershell`; `gamewip.sh`
+reuses it. Preview does not install the runtime.
 
 Linux setup prepares host packages, pinned CMake, LLVM-MinGW, and the project
 toolchain for Windows cross-builds.
@@ -13,9 +15,7 @@ toolchain for Windows cross-builds.
 .\setup.bat
 ```
 
-On Linux, install PowerShell 7 using the
-[Microsoft installation guide](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-linux),
-then run:
+On Linux, run:
 
 ```bash
 bash ./setup.sh

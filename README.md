@@ -31,8 +31,8 @@ Windows:
 
 Setup prepares the development environment and pinned dependencies. Update and
 repair are available on both platforms; Windows setup also prepares profiler tools.
-Linux setup supports Ubuntu, Debian, and CachyOS. Install PowerShell 7 first,
-then run `bash ./setup.sh`. See the
+Linux setup supports Ubuntu, Debian, and CachyOS. If PowerShell 7 is missing,
+`setup.sh` offers to install its verified runtime before setup. See the
 [development environment guide](docs/doxygen/environment_setup.md).
 
 Open `GameWIP.code-workspace`, then build and run the `dev` preset. In PowerShell,
