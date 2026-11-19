@@ -159,7 +159,7 @@ function Invoke-GameWipConfigurePreset
         $toolchainVariable = ([string]$target.toolchain).ToUpperInvariant() -replace '-', '_'
         $toolchainRootVariable = "GAMEWIP_${toolchainVariable}_ROOT"
         $toolchainRoot = Get-GameWipBuildTargetToolchainRoot -Target $target
-        $arguments += "-$toolchainRootVariable=$toolchainRoot"
+        $arguments += "-D$toolchainRootVariable=$toolchainRoot"
     }
     $offlineValue = if ($Offline)
     {

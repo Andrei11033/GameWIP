@@ -78,52 +78,7 @@ function Invoke-GameWipLinuxOwnedTreeRemoval
 
     Set-GameWipMutationStarted
 
-    $pending = [System.Collections.Generic.Stack[object]]::new()
-    $pending.Push([pscustomobject]@{ Path = $canonicalPath; RemoveDirectory = $false })
-
-    while ($pending.Count -gt 0)
-    {
-        $entry = $pending.Pop()
-        $attributes = Get-GameWipLinuxPathAttributes -Path $entry.Path
-
-        if ($null -eq $attributes)
-        {
-            continue
-        }
-
-        $isDirectory = ($attributes -band [IO.FileAttributes]::Directory) -ne 0
-        $isLink = ($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0
-
-        if ($isLink)
-        {
-            if ($isDirectory)
-            {
-                [IO.Directory]::Delete($entry.Path)
-            }
-            else
-            {
-                [IO.File]::Delete($entry.Path)
-            }
-        }
-        elseif ($isDirectory -and -not $entry.RemoveDirectory)
-        {
-            $pending.Push([pscustomobject]@{ Path = $entry.Path; RemoveDirectory = $true })
-
-            foreach ($child in [IO.Directory]::EnumerateFileSystemEntries($entry.Path))
-            {
-                $pending.Push([pscustomobject]@{ Path = $child; RemoveDirectory = $false })
-            }
-        }
-        elseif ($isDirectory)
-        {
-            [IO.Directory]::Delete($entry.Path)
-        }
-        else
-        {
-            [IO.File]::Delete($entry.Path)
-        }
-    }
-
+    Remove-GameWipOwnedTreeEntries -Path $canonicalPath
 }
 
 function Test-GameWipLinuxJsonToolMarker

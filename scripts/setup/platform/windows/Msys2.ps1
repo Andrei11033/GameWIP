@@ -42,9 +42,18 @@ function Get-GameWipExistingMsys2Roots
             'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
         ))
     {
-        foreach ($application in @(Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue | Where-Object { [string]$_.DisplayName -match '(?i)msys2' }))
+        # Registry uninstall entries may omit optional fields.
+        foreach ($application in @(Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue))
         {
-            $root = [string]$application.InstallLocation
+            $displayName = $application.PSObject.Properties['DisplayName']
+
+            if ($null -eq $displayName -or [string]$displayName.Value -notmatch '(?i)msys2')
+            {
+                continue
+            }
+
+            $installLocation = $application.PSObject.Properties['InstallLocation']
+            $root = if ($null -ne $installLocation) { [string]$installLocation.Value } else { '' }
 
             if ([string]::IsNullOrWhiteSpace($root))
             {
@@ -54,7 +63,8 @@ function Get-GameWipExistingMsys2Roots
 
             if ([string]::IsNullOrWhiteSpace($root))
             {
-                $uninstallString = [string]$application.UninstallString
+                $uninstallValue = $application.PSObject.Properties['UninstallString']
+                $uninstallString = if ($null -ne $uninstallValue) { [string]$uninstallValue.Value } else { '' }
                 $match = [regex]::Match($uninstallString, '(?i)(?:"(?<path>[^\"]+\\uninstall\.exe)"|(?<path>[^\s]+\\uninstall\.exe))')
 
                 if ($match.Success)

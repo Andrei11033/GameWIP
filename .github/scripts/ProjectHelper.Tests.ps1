@@ -960,6 +960,76 @@ finally
     Remove-Item -LiteralPath $freshTestRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# Configure arguments must use CMake's cache-definition prefix for every target toolchain.
+# Preserve the functions replaced by this test.
+$configureArgumentFunctions = @{}
+$configureArgumentFunctionNames = @(
+    'Assert-GameWipValidPreset',
+    'Get-GameWipSelectedBuildTarget',
+    'Get-GameWipBuildDirectory',
+    'Confirm-GameWipToolchain',
+    'Get-GameWipToolchainPathPrefix',
+    'Get-GameWipBuildTargetToolchainRoot',
+    'Invoke-GameWipNative'
+)
+
+foreach ($name in $configureArgumentFunctionNames)
+{
+    $configureArgumentFunctions[$name] = (Get-Command $name).ScriptBlock
+}
+
+$configureArgumentPath = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('configure-arguments-' + [guid]::NewGuid().ToString('N'))
+$Script:ConfigureArgumentRoot = $configureArgumentPath
+$Script:ConfigureArgumentTarget = $null
+$Script:ConfigureArgumentCapture = @()
+
+try
+{
+    # Capture configure arguments without invoking CMake.
+    Set-Item -Path function:Assert-GameWipValidPreset -Value { param([string]$Kind, [string]$Name) }
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return $Script:ConfigureArgumentTarget }
+    Set-Item -Path function:Get-GameWipBuildDirectory -Value { param([string]$PresetName, $Target) return Join-Path $Script:ConfigureArgumentRoot $Target.id }
+    Set-Item -Path function:Confirm-GameWipToolchain -Value { param([string]$PresetName) }
+    Set-Item -Path function:Get-GameWipToolchainPathPrefix -Value { return @() }
+    Set-Item -Path function:Get-GameWipBuildTargetToolchainRoot -Value { param($Target) return $Script:ConfigureArgumentRoot }
+    Set-Item -Path function:Invoke-GameWipNative -Value {
+        param([string]$Name, [string]$FilePath, [string[]]$Arguments, [string[]]$PathPrefix)
+        $Script:ConfigureArgumentCapture = @($Arguments)
+    }
+
+    # Verify both target toolchain definitions.
+    foreach ($target in @(
+            [pscustomobject]@{ id = 'windows-x64'; platform = 'windows'; architecture = 'x64'; toolchain = 'llvm-mingw' }
+            [pscustomobject]@{ id = 'linux-x64'; platform = 'linux'; architecture = 'x64'; toolchain = 'zig' }
+        ))
+    {
+        $Script:ConfigureArgumentTarget = $target
+        Invoke-GameWipConfigurePreset -Name dev
+        $toolchainVariable = "GAMEWIP_$($target.toolchain.ToUpperInvariant().Replace('-', '_'))_ROOT"
+        $expectedRootArgument = "-D$toolchainVariable=$configureArgumentPath"
+
+        if ($Script:ConfigureArgumentCapture -notcontains $expectedRootArgument)
+        {
+            throw "Configure omitted the CMake toolchain-root definition for '$($target.id)'."
+        }
+    }
+}
+
+finally
+{
+    # Restore project functions and remove test state.
+    foreach ($name in $configureArgumentFunctionNames)
+    {
+        Set-Item -Path "function:$name" -Value $configureArgumentFunctions[$name]
+    }
+    Remove-Variable -Name ConfigureArgumentRoot, ConfigureArgumentTarget, ConfigureArgumentCapture -Scope Script -ErrorAction SilentlyContinue
+}
+
+if (Test-Path -LiteralPath $configureArgumentPath)
+{
+    Remove-Item -LiteralPath $configureArgumentPath -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 $conflictingBuildPolicyRejected = $false
 
 try
@@ -1002,6 +1072,98 @@ else
 if ((Get-GameWipPythonEnvironmentInterpreterPath -Root $syntheticPythonRoot) -ne $expectedPythonPath)
 {
     throw 'Python provider interpreter-path resolution is not platform-correct.'
+}
+
+# Owned-tree cleanup unlinks nested links and refuses linked deletion roots.
+# Create a marked tree and an external target.
+$storageTempRoot = Get-GameWipStorageAreaPath -Area temp
+$ownedTreeTestRoot = Join-Path $storageTempRoot ('owned-tree-test-' + [guid]::NewGuid().ToString('N'))
+$ownedTreeTargetRoot = Join-Path $storageTempRoot ('owned-tree-target-' + [guid]::NewGuid().ToString('N'))
+$ownedTreeLinkedRoot = Join-Path $storageTempRoot ('owned-tree-link-' + [guid]::NewGuid().ToString('N'))
+$ownedTreeInternalLink = Join-Path $ownedTreeTestRoot 'linked-target'
+$ownedTreeRootLinkRejected = $false
+$ownedTreeLinksCreated = $false
+
+try
+{
+    New-Item -ItemType Directory -Path $ownedTreeTestRoot, $ownedTreeTargetRoot -Force | Out-Null
+    [IO.File]::WriteAllText((Join-Path $ownedTreeTestRoot '.gamewip-owned.json'), '{}')
+    $outsideMarker = Join-Path $ownedTreeTargetRoot 'preserved.txt'
+    [IO.File]::WriteAllText($outsideMarker, 'preserved')
+
+    try
+    {
+        New-Item -ItemType SymbolicLink -Path $ownedTreeInternalLink -Target $ownedTreeTargetRoot -ErrorAction Stop | Out-Null
+        New-Item -ItemType SymbolicLink -Path $ownedTreeLinkedRoot -Target $ownedTreeTargetRoot -ErrorAction Stop | Out-Null
+        $ownedTreeLinksCreated = $true
+    }
+
+    catch
+    {
+        if ($env:GAMEWIP_REQUIRE_SYMLINK_TESTS -eq '1')
+        {
+            throw
+        }
+    }
+
+    # Confirm cleanup removes links without touching their targets.
+    if ($ownedTreeLinksCreated)
+    {
+        Invoke-GameWipOwnedTreeRemoval -Path $ownedTreeTestRoot -OwnedRoot $storageTempRoot -RequireMarker
+
+        if ((Test-Path -LiteralPath $ownedTreeTestRoot) -or -not (Test-Path -LiteralPath $outsideMarker))
+        {
+            throw 'Owned-tree cleanup followed or retained a nested symbolic link.'
+        }
+
+        try
+        {
+            Invoke-GameWipOwnedTreeRemoval -Path $ownedTreeLinkedRoot -OwnedRoot $storageTempRoot
+        }
+
+        catch
+        {
+            $ownedTreeRootLinkRejected = $_.Exception.Message -like '*linked*'
+        }
+
+        if (-not $ownedTreeRootLinkRejected -or -not (Test-Path -LiteralPath $outsideMarker))
+        {
+            throw 'Owned-tree cleanup did not reject a linked root while preserving its target.'
+        }
+    }
+    elseif ($env:GAMEWIP_REQUIRE_SYMLINK_TESTS -eq '1')
+    {
+        throw 'The required owned-tree symbolic-link tests could not run.'
+    }
+}
+
+finally
+{
+    # Remove test links before cleaning up both directories.
+    foreach ($linkPath in @($ownedTreeInternalLink, $ownedTreeLinkedRoot))
+    {
+        $attributes = Get-GameWipFileSystemAttributes -Path $linkPath
+
+        if ($null -ne $attributes -and ($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+        {
+            if (($attributes -band [IO.FileAttributes]::Directory) -ne 0)
+            {
+                [IO.Directory]::Delete($linkPath)
+            }
+            else
+            {
+                [IO.File]::Delete($linkPath)
+            }
+        }
+    }
+
+    foreach ($treePath in @($ownedTreeTestRoot, $ownedTreeTargetRoot))
+    {
+        if (Test-Path -LiteralPath $treePath)
+        {
+            Invoke-GameWipOwnedTreeRemoval -Path $treePath -OwnedRoot $storageTempRoot
+        }
+    }
 }
 
 $jsonSchemaTool = Get-GameWipProjectTool -Id 'jsonschema'

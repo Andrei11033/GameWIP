@@ -437,14 +437,16 @@ function Get-GameWipMsys2SetupPlan
     # Compare each environment with the selected installation.
     foreach ($environment in @('Common', 'Ucrt64', 'Clang64'))
     {
-        $missing = if ($installed.State -eq 'ready')
-        {
-            @($packages[$environment] | Where-Object { -not $installedNames.Contains([string]$_) })
-        }
-        else
-        {
-            @($packages[$environment])
-        }
+        $missing = @(
+            if ($installed.State -eq 'ready')
+            {
+                $packages[$environment] | Where-Object { -not $installedNames.Contains([string]$_) }
+            }
+            else
+            {
+                $packages[$environment]
+            }
+        )
 
         if ($missing.Count -ne 0)
         {

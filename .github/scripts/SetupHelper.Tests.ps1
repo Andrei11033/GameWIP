@@ -327,7 +327,8 @@ $originalLinuxFunctions = @{}
 
 foreach ($name in $linuxFunctionNames)
 {
-    $originalLinuxFunctions[$name] = (Get-Command -Name $name -ErrorAction SilentlyContinue).ScriptBlock
+    $command = Get-Command -Name $name -ErrorAction SilentlyContinue
+    $originalLinuxFunctions[$name] = if ($null -ne $command) { $command.ScriptBlock } else { $null }
 }
 
 . (Join-Path $SetupRoot 'platform/linux/Linux.ps1')
@@ -628,6 +629,98 @@ if ($script:simulatedAttempts -ne 2)
 if (($output -join "`n") -notmatch 'attempt 2 of 3')
 {
     throw 'Pacman retry feedback omitted the successful retry.'
+}
+
+if (Test-GameWipWindowsHost)
+{
+    # Incomplete uninstall entries must not break MSYS2 discovery.
+    function Get-ItemProperty
+    {
+        param([string]$Path, [string]$ErrorAction)
+        $null = $Path, $ErrorAction
+        return @(
+            [pscustomobject]@{ InstallLocation = 'C:\GameWIP-Test\MSYS2' }
+            [pscustomobject]@{ DisplayName = 'MSYS2' }
+        )
+    }
+
+    try
+    {
+        $null = @(Get-GameWipExistingMsys2Roots)
+    }
+
+    finally
+    {
+        Remove-Item function:Get-ItemProperty -ErrorAction SilentlyContinue
+    }
+
+    # Prepare a deterministic installed MSYS2 fixture.
+    $msys2PlanFunctionNames = @(
+        'Get-GameWipMsys2Root',
+        'Get-GameWipMsys2PackageConfig',
+        'Get-GameWipMsys2InstalledPackageNames'
+    )
+    $originalMsys2PlanFunctions = @{}
+
+    foreach ($name in $msys2PlanFunctionNames)
+    {
+        $originalMsys2PlanFunctions[$name] = (Get-Command -Name $name).ScriptBlock
+    }
+
+    $msys2PlanRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('msys2-plan-' + [guid]::NewGuid().ToString('N'))
+    $msys2PlanBinaryDirectory = Join-Path (Join-Path $msys2PlanRoot 'usr') 'bin'
+    $Script:Msys2PlanRoot = $msys2PlanRoot
+    $Script:Msys2PlanInstalledPackages = @('common-test', 'ucrt-test', 'clang-test')
+
+    try
+    {
+        New-Item -ItemType Directory -Path $msys2PlanBinaryDirectory -Force | Out-Null
+        [IO.File]::WriteAllText((Join-Path $msys2PlanBinaryDirectory 'bash.exe'), '')
+
+        Set-Item -Path function:Get-GameWipMsys2Root -Value { return $Script:Msys2PlanRoot }
+        Set-Item -Path function:Get-GameWipMsys2PackageConfig -Value {
+            param([hashtable]$ProjectTools)
+            $null = $ProjectTools
+            return @{ Common = @('common-test'); Ucrt64 = @('ucrt-test'); Clang64 = @('clang-test') }
+        }
+        Set-Item -Path function:Get-GameWipMsys2InstalledPackageNames -Value {
+            param([string]$MsysRoot)
+            $null = $MsysRoot
+            return [pscustomobject]@{ State = 'ready'; Packages = @($Script:Msys2PlanInstalledPackages); Reason = $null }
+        }
+
+        # Exercise empty and single-package missing sets.
+        $completePlan = @(Get-GameWipMsys2SetupPlan)
+
+        if (@($completePlan | Where-Object { $_ -like 'Install * MSYS2 packages:*' }).Count -ne 0)
+        {
+            throw 'MSYS2 setup planned package installation when every package was present.'
+        }
+
+        $Script:Msys2PlanInstalledPackages = @('common-test', 'clang-test')
+        $partialPlan = @(Get-GameWipMsys2SetupPlan)
+
+        if ($partialPlan -notcontains 'Install Ucrt64 MSYS2 packages: ucrt-test.')
+        {
+            throw 'MSYS2 setup omitted a single missing package.'
+        }
+    }
+
+    finally
+    {
+        # Restore discovery functions and remove the fixture.
+        foreach ($name in $msys2PlanFunctionNames)
+        {
+            Set-Item -Path "function:$name" -Value $originalMsys2PlanFunctions[$name]
+        }
+
+        if (Test-Path -LiteralPath $msys2PlanRoot)
+        {
+            Remove-Item -LiteralPath $msys2PlanRoot -Recurse -Force
+        }
+
+        Remove-Variable -Name Msys2PlanRoot, Msys2PlanInstalledPackages -Scope Script -ErrorAction SilentlyContinue
+    }
 }
 
 # Destructive setup actions must never be consented by non-interactive mode alone.
