@@ -4,6 +4,76 @@
 # MSYS2 package operations
 # ------------------------------------------------------------
 
+function Get-GameWipMsys2BaseArchive
+{
+    # GitHub's /releases/latest endpoint points to the nightly channel.
+    $releaseQuery = Invoke-GameWipHttpJson `
+        -Uri 'https://api.github.com/repos/msys2/msys2-installer/releases?per_page=100' `
+        -Headers @{ Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2026-03-10' }
+
+    if ($releaseQuery.State -ne 'resolved')
+    {
+        throw "Could not retrieve MSYS2 release metadata: $($releaseQuery.Reason)"
+    }
+
+    # Select the newest dated stable release, excluding the nightly channel.
+    $release = @(
+        $releaseQuery.Value |
+            Where-Object {
+                -not $_.draft -and
+                -not $_.prerelease -and
+                [string]$_.tag_name -match '^\d{4}-\d{2}-\d{2}$'
+            } |
+            Sort-Object { [string]$_.tag_name } -Descending |
+            Select-Object -First 1
+    ) | Select-Object -First 1
+
+    if ($null -eq $release)
+    {
+        throw 'The MSYS2 release list did not contain a dated stable release.'
+    }
+
+    # Locate the archive and checksum assets for the selected release.
+    $releaseDate = ([string]$release.tag_name).Replace('-', '')
+    $archiveName = "msys2-base-x86_64-$releaseDate.sfx.exe"
+    $archiveAsset = $release.assets | Where-Object { $_.name -eq $archiveName } | Select-Object -First 1
+    $checksumAsset = $release.assets | Where-Object { $_.name -eq "$archiveName.sha256" } | Select-Object -First 1
+
+    if ($null -eq $archiveAsset -or $null -eq $checksumAsset)
+    {
+        throw "MSYS2 release '$($release.tag_name)' is missing its base archive or SHA-256 asset."
+    }
+
+    # Read the checksum published alongside the archive.
+    $checksum = Invoke-GameWipHttpRead -Uri ([string]$checksumAsset.browser_download_url) -MaxAttempts 3 -TimeoutSeconds 30
+
+    if ($checksum.State -ne 'resolved')
+    {
+        throw "Could not retrieve the MSYS2 archive checksum: $($checksum.Reason)"
+    }
+
+    # Decode text assets returned as bytes by Windows PowerShell 5.1.
+    $checksumContent = $checksum.Value.Content
+
+    if ($checksumContent -is [byte[]])
+    {
+        $checksumContent = [Text.Encoding]::UTF8.GetString($checksumContent)
+    }
+
+    $expectedMatch = [regex]::Match([string]$checksumContent, '(?i)\b[0-9a-f]{64}\b')
+
+    if (-not $expectedMatch.Success)
+    {
+        throw 'The MSYS2 archive checksum response did not contain a SHA-256 digest.'
+    }
+
+    return [pscustomobject]@{
+        Name = $archiveName
+        Uri = [string]$archiveAsset.browser_download_url
+        Sha256 = $expectedMatch.Value.ToLowerInvariant()
+    }
+}
+
 function Install-GameWipMsys2BaseArchive
 {
     param([Parameter(Mandatory = $true)][string]$MsysRoot)
@@ -27,24 +97,11 @@ function Install-GameWipMsys2BaseArchive
         throw "Refusing to install a new MSYS2 root outside build/: '$MsysRoot'. Select an existing installation or use a root beneath '$buildRoot'."
     }
 
-    $archiveName = 'msys2-base-x86_64-latest.sfx.exe'
-    $archiveUri = "https://repo.msys2.org/distrib/x86_64/$archiveName"
+    # Resolve the current stable archive before creating managed files.
+    $archive = Get-GameWipMsys2BaseArchive
     $cacheRoot = Join-Path (Get-GameWipStorageAreaPath -Area cache) 'msys2'
-    $archivePath = Join-Path $cacheRoot $archiveName
-    $checksumUri = "$archiveUri.sha256"
-    $checksum = Invoke-GameWipHttpRead -Uri $checksumUri -MaxAttempts 3 -TimeoutSeconds 30
-
-    if ($checksum.State -ne 'resolved')
-    {
-        throw "Could not retrieve the MSYS2 archive checksum: $($checksum.Reason)"
-    }
-    $expectedMatch = [regex]::Match([string]$checksum.Value.Content, '(?i)\b[0-9a-f]{64}\b')
-
-    if (-not $expectedMatch.Success)
-    {
-        throw 'The MSYS2 archive checksum response did not contain a SHA-256 digest.'
-    }
-    $expectedHash = $expectedMatch.Value.ToLowerInvariant()
+    $archivePath = Join-Path $cacheRoot $archive.Name
+    $expectedHash = $archive.Sha256
     $archiveMatches = Test-Path -LiteralPath $archivePath -PathType Leaf
 
     if ($archiveMatches)
@@ -55,7 +112,7 @@ function Install-GameWipMsys2BaseArchive
     if (-not $archiveMatches)
     {
         $download = Invoke-GameWipDownload `
-            -Uri $archiveUri `
+            -Uri $archive.Uri `
             -OutFile $archivePath `
             -TimeoutSeconds 300 `
             -Label 'MSYS2 base archive'

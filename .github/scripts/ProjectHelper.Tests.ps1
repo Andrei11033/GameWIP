@@ -1030,6 +1030,82 @@ if (Test-Path -LiteralPath $configureArgumentPath)
     Remove-Item -LiteralPath $configureArgumentPath -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# MSYS2 bootstrap must choose a dated stable release, not the nightly channel.
+$msys2ReleaseFunctionNames = @('Invoke-GameWipHttpJson', 'Invoke-GameWipHttpRead')
+$originalMsys2ReleaseFunctions = @{}
+
+foreach ($name in $msys2ReleaseFunctionNames)
+{
+    $originalMsys2ReleaseFunctions[$name] = (Get-Command -Name $name).ScriptBlock
+}
+
+$Script:Msys2ReleaseFixture = @(
+    [pscustomobject]@{ tag_name = '2026-06-11'; draft = $false; prerelease = $false; assets = @(
+            [pscustomobject]@{ name = 'msys2-base-x86_64-20260611.sfx.exe'; browser_download_url = 'https://example.test/20260611.exe' }
+            [pscustomobject]@{ name = 'msys2-base-x86_64-20260611.sfx.exe.sha256'; browser_download_url = 'https://example.test/20260611.sha256' }
+        )
+    }
+    [pscustomobject]@{ tag_name = 'nightly-x86_64'; draft = $false; prerelease = $false; assets = @() }
+    [pscustomobject]@{ tag_name = '2026-10-01'; draft = $false; prerelease = $true; assets = @() }
+    [pscustomobject]@{ tag_name = '2026-10-15'; draft = $true; prerelease = $false; assets = @() }
+    [pscustomobject]@{ tag_name = '2026-09-27'; draft = $false; prerelease = $false; assets = @(
+            [pscustomobject]@{ name = 'msys2-base-x86_64-20260927.sfx.exe'; browser_download_url = 'https://example.test/20260927.exe' }
+            [pscustomobject]@{ name = 'msys2-base-x86_64-20260927.sfx.exe.sha256'; browser_download_url = 'https://example.test/20260927.sha256' }
+        )
+    }
+)
+$Script:Msys2ReleaseChecksumUri = $null
+$Script:Msys2ReleaseHash = 'a' * 64
+
+try
+{
+    # Mock network responses and verify the selected archive and checksum.
+    Set-Item -Path function:Invoke-GameWipHttpJson -Value {
+        param([string]$Uri, [hashtable]$Headers)
+        $null = $Headers
+
+        if ($Uri -ne 'https://api.github.com/repos/msys2/msys2-installer/releases?per_page=100')
+        {
+            throw "Unexpected MSYS2 release query '$Uri'."
+        }
+
+        return [pscustomobject]@{ State = 'resolved'; Value = [object[]]$Script:Msys2ReleaseFixture; Reason = '' }
+    }
+    Set-Item -Path function:Invoke-GameWipHttpRead -Value {
+        param([string]$Uri, [int]$MaxAttempts, [int]$TimeoutSeconds)
+        $null = $MaxAttempts, $TimeoutSeconds
+        $Script:Msys2ReleaseChecksumUri = $Uri
+        return [pscustomobject]@{
+            State = 'resolved'
+            Value = [pscustomobject]@{
+                Content = [Text.Encoding]::UTF8.GetBytes("$($Script:Msys2ReleaseHash)  msys2-base.sfx.exe.sha256`n")
+            }
+            Reason = ''
+        }
+    }
+
+    $msys2Archive = Get-GameWipMsys2BaseArchive
+
+    if ($msys2Archive.Name -ne 'msys2-base-x86_64-20260927.sfx.exe' -or
+        $msys2Archive.Uri -ne 'https://example.test/20260927.exe' -or
+        $msys2Archive.Sha256 -ne $Script:Msys2ReleaseHash -or
+        $Script:Msys2ReleaseChecksumUri -ne 'https://example.test/20260927.sha256')
+    {
+        throw 'MSYS2 bootstrap did not select the latest stable archive and its checksum.'
+    }
+}
+
+finally
+{
+    # Restore the network functions and remove test state.
+    foreach ($name in $msys2ReleaseFunctionNames)
+    {
+        Set-Item -Path "function:$name" -Value $originalMsys2ReleaseFunctions[$name]
+    }
+
+    Remove-Variable -Name Msys2ReleaseFixture, Msys2ReleaseChecksumUri, Msys2ReleaseHash -Scope Script -ErrorAction SilentlyContinue
+}
+
 $conflictingBuildPolicyRejected = $false
 
 try
