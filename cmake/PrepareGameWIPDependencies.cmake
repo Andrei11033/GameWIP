@@ -28,8 +28,10 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
 
     set(_final_source_directory "${_fetchcontent_root}/${_cache_directory}-src")
     set(_dependency_staging_directory "${_staging_root}/${_cache_directory}")
+
+    # Keep temporary source and binary output in one removable tree.
     set(_staging_source_directory "${_dependency_staging_directory}/source")
-    set(_staging_subbuild_directory "${_dependency_staging_directory}/subbuild")
+    set(_staging_binary_directory "${_dependency_staging_directory}/binary")
 
     set(_cached_commit "")
 
@@ -69,7 +71,7 @@ foreach(gamewip_dependency IN ITEMS tracy benchmark)
             GIT_REPOSITORY "${_repository}"
             GIT_TAG "${_commit}"
             SOURCE_DIR "${_staging_source_directory}"
-            SUBBUILD_DIR "${_staging_subbuild_directory}"
+            BINARY_DIR "${_staging_binary_directory}"
         )
 
         if(NOT EXISTS "${_staging_source_directory}/CMakeLists.txt")
