@@ -439,14 +439,7 @@ function Get-GameWipTrackedToolMutationPlan
             throw 'Node.js is required to stage source-preserving project-tools.json mutations, but node could not be resolved through project-tool discovery.'
         }
 
-        $temporaryRoot = if ($null -ne $Script:OperationContext -and -not [string]::IsNullOrWhiteSpace([string]$Script:OperationContext.Temp))
-        {
-            [string]$Script:OperationContext.Temp
-        }
-        else
-        {
-            [IO.Path]::GetTempPath()
-        }
+        $temporaryRoot = Get-GameWipTemporaryRoot
         $mutationSpecification = Join-Path $temporaryRoot ('project-tools.mutations.' + [guid]::NewGuid().ToString('N') + '.json')
         $temporaryRegistry = Join-Path $temporaryRoot ('project-tools.staged.' + [guid]::NewGuid().ToString('N') + '.json')
         $mutationData = [ordered]@{ schemaVersion = 1; mutations = @($registryMutations) }
@@ -803,6 +796,22 @@ function Assert-GameWipPinnedToolAvailable
                 throw "Pinned GitHub-release tool '$($Tool.id)' lacks verified release metadata."
             }
         }
+        'archive'
+        {
+            $assetKey = Get-GameWipHostAssetKey
+
+            if ($null -eq $assetKey -or -not $Tool.provider.assets.ContainsKey($assetKey))
+            {
+                throw "Pinned archive tool '$($Tool.id)' has no asset for host '$assetKey'."
+            }
+
+            $asset = $Tool.provider.assets[$assetKey]
+
+            if ($asset.sha256 -notmatch '^[0-9a-f]{64}$')
+            {
+                throw "Pinned archive tool '$($Tool.id)' has no valid SHA-256 for '$assetKey'."
+            }
+        }
     }
 }
 
@@ -959,8 +968,46 @@ function Invoke-GameWipToolEnsure
         'local'
     }
 
-    if (-not $ConsentAlreadyGranted -and -not (Confirm-GameWipMutation -Summary "Install/update $($needed.Count) selected tool(s) without changing repository pins?" -Risk $risk -Plan @($needed | ForEach-Object { "$($_.Action) $($_.Tool.id): declared $($_.Tool.versionPolicy) version" })))
+    $installPlan = foreach ($item in $needed)
     {
+        if ($item.Tool.provider.kind -eq 'winget')
+        {
+            "$($item.Action) $($item.Tool.name) through WinGet package '$($item.Tool.provider.package)' outside build/"
+        }
+        else
+        {
+            "$($item.Action) $($item.Tool.id): declared $($item.Tool.versionPolicy) version"
+        }
+    }
+
+    if (-not $ConsentAlreadyGranted -and -not (Confirm-GameWipMutation -Summary "Install/update $($needed.Count) selected tool(s) without changing repository pins?" -Risk $risk -Plan @($installPlan)))
+    {
+        return
+    }
+
+    $approved = [System.Collections.Generic.List[object]]::new()
+
+    foreach ($item in $needed)
+    {
+        if ($item.Action -eq 'install' -and $item.Tool.provider.kind -eq 'winget' -and
+            -not (Confirm-GameWipExternalInstall -Name ([string]$item.Tool.name) -Provider WinGet -Package ([string]$item.Tool.provider.package)))
+        {
+            $skippedTools.Add([pscustomobject]@{ Id = [string]$item.Tool.id; Reason = 'host installation declined' }) | Out-Null
+            Add-GameWipOperationPreserved -Message "Left $($item.Tool.name) uninstalled after the WinGet prompt was declined."
+            Write-GameWipSemanticText -Object "Skipped $($item.Tool.name); it remains missing." -Semantic Warning
+            continue
+        }
+
+        $approved.Add($item) | Out-Null
+    }
+    $needed = @($approved)
+
+    if ($needed.Count -eq 0)
+    {
+        if ($skippedTools.Count -ne 0)
+        {
+            Write-GameWipSemanticText -Object 'No approved tool changes; declined host installs remain missing.' -Semantic Warning
+        }
         return
     }
 

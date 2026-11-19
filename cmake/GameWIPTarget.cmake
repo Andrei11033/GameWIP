@@ -1,4 +1,5 @@
 include_guard(GLOBAL)
+include("${CMAKE_CURRENT_LIST_DIR}/GameWIPStorage.cmake")
 
 # Selects a configured target before project() initializes the compiler.
 
@@ -28,7 +29,7 @@ endfunction()
 
 function(gamewip_prepare_target)
     set(GAMEWIP_TARGET_PLATFORM "native" CACHE STRING "GameWIP build target platform")
-    set_property(CACHE GAMEWIP_TARGET_PLATFORM PROPERTY STRINGS native windows)
+    set_property(CACHE GAMEWIP_TARGET_PLATFORM PROPERTY STRINGS native windows linux)
     set(GAMEWIP_TARGET_ARCHITECTURE "native" CACHE STRING "GameWIP build target architecture")
     set_property(CACHE GAMEWIP_TARGET_ARCHITECTURE PROPERTY STRINGS native x64 arm64)
 
@@ -36,12 +37,12 @@ function(gamewip_prepare_target)
         return()
     endif()
 
-    if(NOT GAMEWIP_TARGET_PLATFORM STREQUAL "windows")
-        message(FATAL_ERROR "Unsupported GameWIP target platform '${GAMEWIP_TARGET_PLATFORM}'. Use 'native' or 'windows'.")
+    if(NOT GAMEWIP_TARGET_PLATFORM MATCHES "^(windows|linux)$")
+        message(FATAL_ERROR "Unsupported GameWIP target platform '${GAMEWIP_TARGET_PLATFORM}'. Use 'native', 'windows', or 'linux'.")
     endif()
 
     if(GAMEWIP_TARGET_ARCHITECTURE STREQUAL "native")
-        message(FATAL_ERROR "Set GAMEWIP_TARGET_ARCHITECTURE when GAMEWIP_TARGET_PLATFORM is 'windows'.")
+        message(FATAL_ERROR "Set GAMEWIP_TARGET_ARCHITECTURE when GAMEWIP_TARGET_PLATFORM is '${GAMEWIP_TARGET_PLATFORM}'.")
     endif()
 
     # Resolve the platform and architecture through the shared target catalog.
@@ -66,7 +67,7 @@ function(gamewip_prepare_target)
     endif()
 
     # Reject unsupported target features before project() selects a compiler.
-    if(GAMEWIP_TARGET_ARCHITECTURE STREQUAL "arm64" AND GAMEWIP_ENABLE_ADDRESS_SANITIZER)
+    if(GAMEWIP_TARGET_PLATFORM STREQUAL "windows" AND GAMEWIP_TARGET_ARCHITECTURE STREQUAL "arm64" AND GAMEWIP_ENABLE_ADDRESS_SANITIZER)
         message(
             FATAL_ERROR
             "AddressSanitizer is not available for Windows ARM64 with LLVM-MinGW. "
@@ -112,11 +113,22 @@ function(gamewip_prepare_target)
     string(JSON gamewip_tool_version GET "${gamewip_tools_json}" tools ${gamewip_tool_index} requiredVersion)
     string(JSON gamewip_tool_directory GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider managedDirectory)
     string(JSON gamewip_tool_binary_directory GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider binaryDirectory)
+    string(JSON gamewip_tool_compiler ERROR_VARIABLE gamewip_tool_compiler_error GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider compiler)
+
+    if(gamewip_tool_compiler_error)
+        set(gamewip_tool_compiler "")
+    endif()
 
     # Select the verified toolchain archive for this host architecture.
     if(CMAKE_HOST_WIN32)
-        set(gamewip_host_asset_key "windows-amd64")
-        set(gamewip_validation_json_path provider validationFiles)
+        gamewip_get_host_architecture(gamewip_host_architecture)
+        if(gamewip_host_architecture STREQUAL "x64")
+            set(gamewip_host_asset_key "windows-amd64")
+        elseif(gamewip_host_architecture STREQUAL "arm64")
+            set(gamewip_host_asset_key "windows-arm64")
+        else()
+            message(FATAL_ERROR "Unsupported Windows host architecture '${CMAKE_HOST_SYSTEM_PROCESSOR}'.")
+        endif()
     elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
         gamewip_get_host_architecture(gamewip_host_architecture)
 
@@ -125,53 +137,79 @@ function(gamewip_prepare_target)
         elseif(gamewip_host_architecture STREQUAL "arm64")
             set(gamewip_host_asset_key "linux-arm64")
         else()
-            message(FATAL_ERROR "Unsupported LLVM-MinGW Linux host architecture '${CMAKE_HOST_SYSTEM_PROCESSOR}'.")
+            message(FATAL_ERROR "Unsupported Linux host architecture '${CMAKE_HOST_SYSTEM_PROCESSOR}'.")
         endif()
-        set(gamewip_validation_json_path provider assets "${gamewip_host_asset_key}" validationFiles)
     else()
-        message(FATAL_ERROR "LLVM-MinGW Windows targets are not configured for host '${CMAKE_HOST_SYSTEM_NAME}'.")
+        message(FATAL_ERROR "Cross-target toolchains are not configured for host '${CMAKE_HOST_SYSTEM_NAME}'.")
     endif()
-    string(JSON gamewip_tool_validation_count LENGTH "${gamewip_tools_json}" tools ${gamewip_tool_index} ${gamewip_validation_json_path})
 
-    if(NOT DEFINED GAMEWIP_LLVM_MINGW_ROOT OR GAMEWIP_LLVM_MINGW_ROOT STREQUAL "")
-        file(READ "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../scripts/config/project.json" gamewip_project_json)
+    # Read the toolchain's host asset and its validation files.
+    string(JSON gamewip_asset_type ERROR_VARIABLE gamewip_asset_error TYPE "${gamewip_tools_json}" tools ${gamewip_tool_index} provider assets "${gamewip_host_asset_key}")
+    if(gamewip_asset_error OR gamewip_asset_type STREQUAL "NULL")
+        message(FATAL_ERROR "Toolchain '${gamewip_target_toolchain}' has no verified asset for host '${gamewip_host_asset_key}'.")
+    endif()
 
-        if(CMAKE_HOST_WIN32)
-            string(JSON gamewip_managed_tools_root GET "${gamewip_project_json}" managedEnvironment gameWipToolsRoot)
-        else()
-            string(JSON gamewip_storage_root GET "${gamewip_project_json}" storage root)
-            set(gamewip_managed_tools_root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../${gamewip_storage_root}")
-            get_filename_component(gamewip_managed_tools_root "${gamewip_managed_tools_root}" ABSOLUTE)
-        endif()
-        set(GAMEWIP_LLVM_MINGW_ROOT
+    string(JSON gamewip_tool_validation_count ERROR_VARIABLE gamewip_asset_validation_error LENGTH "${gamewip_tools_json}" tools ${gamewip_tool_index} provider assets "${gamewip_host_asset_key}" validationFiles)
+    if(gamewip_asset_validation_error)
+        string(JSON gamewip_tool_validation_count LENGTH "${gamewip_tools_json}" tools ${gamewip_tool_index} provider validationFiles)
+        set(gamewip_validation_json_path provider validationFiles)
+    else()
+        set(gamewip_validation_json_path provider assets "${gamewip_host_asset_key}" validationFiles)
+    endif()
+
+    # Resolve the managed root from the shared tool registry.
+    string(TOUPPER "${gamewip_target_toolchain}" gamewip_toolchain_variable)
+    string(REPLACE "-" "_" gamewip_toolchain_variable "${gamewip_toolchain_variable}")
+    set(gamewip_toolchain_root_variable "GAMEWIP_${gamewip_toolchain_variable}_ROOT")
+    if(NOT DEFINED ${gamewip_toolchain_root_variable} OR "${${gamewip_toolchain_root_variable}}" STREQUAL "")
+        gamewip_get_managed_environment_path(gamewip_managed_tools_root gameWipToolsRoot)
+        set(${gamewip_toolchain_root_variable}
             "${gamewip_managed_tools_root}/${gamewip_tool_directory}/${gamewip_tool_version}"
             CACHE PATH
-            "LLVM-MinGW toolchain root"
+            "${gamewip_target_toolchain} toolchain root"
         )
     endif()
 
-    string(REPLACE "\\" "/" GAMEWIP_LLVM_MINGW_ROOT "${GAMEWIP_LLVM_MINGW_ROOT}")
-    set(GAMEWIP_LLVM_MINGW_ROOT "${GAMEWIP_LLVM_MINGW_ROOT}" CACHE PATH "LLVM-MinGW toolchain root" FORCE)
-    set(GAMEWIP_LLVM_MINGW_BINARY_DIRECTORY "${gamewip_tool_binary_directory}" CACHE INTERNAL "LLVM-MinGW binary directory" FORCE)
+    string(REPLACE "\\" "/" gamewip_toolchain_root "${${gamewip_toolchain_root_variable}}")
+    set(${gamewip_toolchain_root_variable} "${gamewip_toolchain_root}" CACHE PATH "${gamewip_target_toolchain} toolchain root" FORCE)
+    set(GAMEWIP_${gamewip_toolchain_variable}_BINARY_DIRECTORY "${gamewip_tool_binary_directory}" CACHE INTERNAL "${gamewip_target_toolchain} binary directory" FORCE)
+    set(GAMEWIP_${gamewip_toolchain_variable}_COMPILER "${gamewip_tool_compiler}" CACHE INTERNAL "${gamewip_target_toolchain} compiler command" FORCE)
 
-    math(EXPR gamewip_tool_validation_last "${gamewip_tool_validation_count} - 1")
-    foreach(index RANGE 0 ${gamewip_tool_validation_last})
-        string(JSON validation_file GET "${gamewip_tools_json}" tools ${gamewip_tool_index} ${gamewip_validation_json_path} ${index})
+    # Compiler providers may keep their standard library outside the binary directory.
+    if(gamewip_tool_compiler)
+        set(gamewip_compiler_suffix "")
 
-        if(NOT EXISTS "${GAMEWIP_LLVM_MINGW_ROOT}/${validation_file}")
-            if(CMAKE_HOST_WIN32)
-                set(gamewip_setup_hint "Run '.\\setup.bat repair'.")
-            else()
-                set(gamewip_setup_hint "Run 'bash ./setup.sh repair'.")
-            endif()
-            message(
-                FATAL_ERROR
-                "LLVM-MinGW is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. ${gamewip_setup_hint}"
-            )
+        if(CMAKE_HOST_WIN32)
+            set(gamewip_compiler_suffix ".exe")
         endif()
-    endforeach()
 
-    set(gamewip_toolchain_file "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/GameWIPLLVMMinGW.cmake")
+        set(gamewip_compiler_path "${gamewip_toolchain_root}/${gamewip_tool_binary_directory}/${gamewip_tool_compiler}${gamewip_compiler_suffix}")
+
+        if(NOT EXISTS "${gamewip_compiler_path}")
+            message(FATAL_ERROR "Toolchain '${gamewip_target_toolchain}' is missing compiler '${gamewip_compiler_path}'.")
+        endif()
+    else()
+        math(EXPR gamewip_tool_validation_last "${gamewip_tool_validation_count} - 1")
+        foreach(index RANGE 0 ${gamewip_tool_validation_last})
+            string(JSON validation_file GET "${gamewip_tools_json}" tools ${gamewip_tool_index} ${gamewip_validation_json_path} ${index})
+
+            if(NOT EXISTS "${gamewip_toolchain_root}/${validation_file}")
+                if(CMAKE_HOST_WIN32)
+                    set(gamewip_setup_hint "Run '.\\setup.bat repair'.")
+                else()
+                    set(gamewip_setup_hint "Run 'bash ./setup.sh repair'.")
+                endif()
+                message(FATAL_ERROR "Toolchain '${gamewip_target_toolchain}' is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. ${gamewip_setup_hint}")
+            endif()
+        endforeach()
+    endif()
+
+    string(JSON gamewip_toolchain_file GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider cmakeToolchain)
+    set(gamewip_toolchain_file "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/${gamewip_toolchain_file}")
+
+    if(NOT EXISTS "${gamewip_toolchain_file}")
+        message(FATAL_ERROR "Toolchain '${gamewip_target_toolchain}' references missing CMake file '${gamewip_toolchain_file}'.")
+    endif()
 
     # Load the selected compiler and target system during project().
     if(DEFINED CMAKE_TOOLCHAIN_FILE AND NOT CMAKE_TOOLCHAIN_FILE STREQUAL "" AND NOT CMAKE_TOOLCHAIN_FILE STREQUAL gamewip_toolchain_file)
@@ -186,17 +224,26 @@ endfunction()
 # ------------------------------------------------------------
 
 function(gamewip_update_target_native_architecture)
-    if(NOT GAMEWIP_TARGET_PLATFORM STREQUAL "windows")
+    if(GAMEWIP_TARGET_PLATFORM STREQUAL "native")
+        return()
+    endif()
+
+    if(CMAKE_HOST_WIN32)
+        set(gamewip_host_platform windows)
+    elseif(CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+        set(gamewip_host_platform linux)
+    else()
+        return()
+    endif()
+
+    if(NOT GAMEWIP_TARGET_PLATFORM STREQUAL gamewip_host_platform)
         return()
     endif()
 
     gamewip_get_host_architecture(gamewip_host_architecture)
-    string(TOLOWER "${GAMEWIP_TARGET_PROCESSOR}" gamewip_target_processor)
     set(gamewip_target_native_architecture OFF)
 
-    if(gamewip_target_processor STREQUAL "amd64" AND gamewip_host_architecture STREQUAL "x64")
-        set(gamewip_target_native_architecture ON)
-    elseif(gamewip_target_processor STREQUAL "arm64" AND gamewip_host_architecture STREQUAL "arm64")
+    if(GAMEWIP_TARGET_ARCHITECTURE STREQUAL gamewip_host_architecture)
         set(gamewip_target_native_architecture ON)
     endif()
 

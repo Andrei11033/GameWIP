@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 
 function Get-GameWipSetupState
 {
-    $defaultState = [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); msys2InstalledBySetup = $false }
+    $defaultState = [ordered]@{ schemaVersion = 1; wingetPackages = @(); vscodeExtensions = @(); systemPackages = @(); msys2InstalledBySetup = $false }
 
     if (-not (Test-Path -LiteralPath $script:SetupStatePath -PathType Leaf))
     {
@@ -44,10 +44,34 @@ function Get-GameWipSetupState
     $script:SetupStateReadStatus = 'valid'
     [string[]]$wingetPackages = @($state.wingetPackages | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
     [string[]]$vscodeExtensions = @($state.vscodeExtensions | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $systemPackages = [System.Collections.Generic.List[object]]::new()
+    $systemPackageKeys = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $storedSystemPackages = if ($null -ne $state.PSObject.Properties['systemPackages'])
+    {
+        @($state.systemPackages)
+    }
+    else
+    {
+        @()
+    }
+
+    foreach ($entry in $storedSystemPackages)
+    {
+        $manager = [string]$entry.manager
+        $package = [string]$entry.package
+        $key = "$manager`:$package"
+
+        if ($manager -in @('apt', 'pacman') -and $package -match '^[A-Za-z0-9][A-Za-z0-9+_.-]*$' -and $systemPackageKeys.Add($key))
+        {
+            $systemPackages.Add([ordered]@{ manager = $manager; package = $package }) | Out-Null
+        }
+    }
+
     return [ordered]@{
         schemaVersion = 1
         wingetPackages = @($wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
         vscodeExtensions = @($vscodeExtensions | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        systemPackages = @($systemPackages.ToArray() | Sort-Object manager, package)
         msys2InstalledBySetup = [bool]$state.msys2InstalledBySetup
     }
 }
@@ -73,6 +97,34 @@ function Add-GameWipOwnedWingetPackage
     param([Parameter(Mandatory = $true)][string]$Id)
     $state = Get-GameWipSetupState
     $state.wingetPackages = @(@($state.wingetPackages) + @($Id) | Sort-Object -Unique)
+    Save-GameWipSetupState -State $state
+}
+
+function Add-GameWipOwnedSystemPackages
+{
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('apt', 'pacman')][string]$Manager,
+        [Parameter(Mandatory = $true)][string[]]$Packages
+    )
+
+    $state = Get-GameWipSetupState
+    $entries = [System.Collections.Generic.Dictionary[string, object]]::new([StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($entry in @($state.systemPackages))
+    {
+        $entries["$($entry.manager):$($entry.package)"] = $entry
+    }
+
+    foreach ($package in $Packages)
+    {
+        if ($package -match '^[A-Za-z0-9][A-Za-z0-9+_.-]*$')
+        {
+            $key = "$Manager`:$package"
+            $entries[$key] = [ordered]@{ manager = $Manager; package = $package }
+        }
+    }
+
+    $state.systemPackages = @($entries.Values | Sort-Object manager, package)
     Save-GameWipSetupState -State $state
 }
 

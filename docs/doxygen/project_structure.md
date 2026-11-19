@@ -24,7 +24,7 @@ and workflow pages describe the behavior inside each area.
 | `docs/doxygen/` | Doxygen sources for the project manual pages. |
 | `docs/` | Vision, roadmap, decisions, versioning, and contributor workflow records. |
 | `.github/` | Pull-request policy, CI, documentation publishing, and repository automation. |
-| `build/gamewip/cache/dependencies/` | Setup-managed locked third-party dependency sources. |
+| `<storage-root>/cache/dependencies/` (default `build/gamewip/cache/dependencies/`) | Setup-managed locked third-party dependency sources. |
 
 Build output belongs under the build directories selected by CMake presets.
 

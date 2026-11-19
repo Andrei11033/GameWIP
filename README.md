@@ -11,10 +11,11 @@ vehicles, structures, weapons, components, and meaningful destruction.
 I use the project to learn C++ and systems programming while keeping API
 contracts, ownership, builds, and validation deliberately strict.
 
-The game currently targets Windows 11. The development helpers support Windows
-and Linux, including Linux cross-builds for Windows. GameWIP is pre-1.0; active
-work is tracked in the [R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176)
-and the [roadmap](docs/roadmap.md).
+The game currently targets Windows 11. The helpers can select Linux x64 and
+ARM64 compiler targets from Windows or Linux; full Linux builds await Linux
+platform backends. GameWIP is pre-1.0; active work is tracked in the
+[R01 milestone](https://github.com/Andrei11033/GameWIP/milestone/176) and the
+[roadmap](docs/roadmap.md).
 
 ## Development approach
 
@@ -47,8 +48,8 @@ the helper defaults to Windows x64 and keeps each target in its own build tree:
 Use `arm64` instead of `x64` to cross-compile for Windows ARM64. Setup installs
 the pinned LLVM-MinGW toolchain when needed.
 
-On Linux, setup installs the host tools and LLVM-MinGW. Configure and build the
-Windows x64 target with:
+On Linux, setup prepares the host tools and both cross-compilers. To build the
+Windows x64 target:
 
 ```bash
 bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64

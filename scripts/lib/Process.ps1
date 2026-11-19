@@ -276,14 +276,7 @@ function Invoke-GameWipProcess
         }
     }
 
-    $temporaryRoot = if ($null -ne $Script:OperationContext -and -not [string]::IsNullOrWhiteSpace([string]$Script:OperationContext.Temp))
-    {
-        $Script:OperationContext.Temp
-    }
-    else
-    {
-        [IO.Path]::GetTempPath()
-    }
+    $temporaryRoot = Get-GameWipTemporaryRoot
     $captureId = [guid]::NewGuid().ToString('N')
     $stdoutPath = Join-Path $temporaryRoot "$captureId.stdout.log"
     $stderrPath = Join-Path $temporaryRoot "$captureId.stderr.log"
@@ -318,9 +311,21 @@ function Invoke-GameWipProcess
     {
         Resolve-GameWipOwnedProcessLaunch -FilePath $FilePath -Arguments $Arguments
     }
-    $previousEnvironment = @{}
+    $processEnvironment = @{}
 
     foreach ($entry in $Environment.GetEnumerator())
+    {
+        $processEnvironment[[string]$entry.Key] = [string]$entry.Value
+    }
+
+    if ([IO.Path]::GetFileNameWithoutExtension($FilePath) -match '^python(?:\d+(?:\.\d+)*)?$')
+    {
+        $processEnvironment.PYTHONDONTWRITEBYTECODE = '1'
+    }
+
+    $previousEnvironment = @{}
+
+    foreach ($entry in $processEnvironment.GetEnumerator())
     {
         $previousEnvironment[$entry.Key] = [Environment]::GetEnvironmentVariable([string]$entry.Key, 'Process')
         [Environment]::SetEnvironmentVariable([string]$entry.Key, [string]$entry.Value, 'Process')

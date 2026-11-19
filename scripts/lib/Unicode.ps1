@@ -87,9 +87,16 @@ function Get-GameWipUnicodePath
     }
     else
     {
-        Join-Path ([string]$ProjectConfig.storage.cache) 'unicode'
+        Join-Path (Get-GameWipStorageAreaPath -Area cache) 'unicode'
     }
-    $cacheRoot = Resolve-GameWipRepositoryPath -Path $cacheRootSetting
+    $cacheRoot = if ([IO.Path]::IsPathRooted($cacheRootSetting))
+    {
+        [IO.Path]::GetFullPath($cacheRootSetting)
+    }
+    else
+    {
+        Resolve-GameWipRepositoryPath -Path $cacheRootSetting
+    }
     $version = [string]$unicodeConfig.Version
     $versionRoot = Join-Path $cacheRoot $version
     return [pscustomobject]@{

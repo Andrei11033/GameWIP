@@ -173,6 +173,39 @@
       "description": "Forward additional arguments to the selected validation or project executable."
     },
     {
+      "id": "BuildBeforeRun",
+      "kind": "switch",
+      "description": "Build the selected preset before running its project command."
+    },
+    {
+      "id": "LogLevel",
+      "kind": "choice",
+      "valueName": "level",
+      "choices": ["default", "trace", "debug", "info", "warn", "error", "fatal"],
+      "description": "Set the runtime log level; default keeps the build-selected level."
+    },
+    {
+      "id": "InputDebug",
+      "kind": "switch",
+      "description": "Log live Input control changes."
+    },
+    {
+      "id": "InputDevices",
+      "kind": "switch",
+      "description": "Log detailed Input device descriptors at Trace."
+    },
+    {
+      "id": "WindowEvents",
+      "kind": "switch",
+      "description": "Log each Window event."
+    },
+    {
+      "id": "InputBackends",
+      "kind": "string",
+      "valueName": "list",
+      "description": "Select comma-separated Windows Input backends for the game runtime."
+    },
+    {
       "id": "TargetPlatform",
       "kind": "string",
       "valueName": "platform",
@@ -237,7 +270,8 @@
     "module": ["SkipBuild", "PassThroughArgs"],
     "wizard": ["SkipBuild"],
     "stress": ["RunCount", "WorkerCount", "PassThroughArgs", "SkipBuild", "FailFast", "UseCallerTemp"],
-    "run": ["SkipBuild", "PassThroughArgs"],
+    "run": ["SkipBuild", "PassThroughArgs", "BuildBeforeRun", "LogLevel", "InputDebug", "InputDevices", "WindowEvents", "InputBackends"],
+    "runtime": ["SkipBuild"],
     "bundle": ["SkipBuild", "CleanBuild"],
     "doc": ["PythonPath", "CleanBuild"],
     "analyze": ["CleanBuild"],
@@ -436,7 +470,17 @@
     {
       "id": "run",
       "title": "Project command",
-      "description": "Run a cataloged executable-backed project command.",
+      "description": "Ensure its executable, apply game runtime options, and run it.",
+      "group": "development",
+      "visible": true,
+      "network": false,
+      "mutation": "local",
+      "risk": "local"
+    },
+    {
+      "id": "runtime",
+      "title": "Game runtime builder",
+      "description": "Select a game executable, configure its runtime options, and run it.",
       "group": "development",
       "visible": true,
       "network": false,
@@ -607,7 +651,7 @@
         },
         {
           "key": "3",
-          "label": "Run project command",
+          "label": "Run game executable",
           "handler": "run"
         },
         {
@@ -1064,6 +1108,55 @@
       "id": "unicode"
     }
   ],
+  "runtimeBuilderOptions": [
+    {
+      "id": "log-level",
+      "title": "Runtime log level",
+      "description": "Default keeps the level selected by the build.",
+      "kind": "choice",
+      "arguments": ["--logLevel={value}"],
+      "choices": ["default", "trace", "debug", "info", "warn", "error", "fatal"],
+      "default": "default",
+      "omitDefault": true
+    },
+    {
+      "id": "input-debug",
+      "title": "Log live Input changes?",
+      "description": "Reports changed controls at Debug and event details at Trace.",
+      "kind": "boolean",
+      "arguments": ["--inputDebug"],
+      "default": false
+    },
+    {
+      "id": "input-devices",
+      "title": "Log Input device details?",
+      "description": "Device descriptors are reported at Trace.",
+      "kind": "boolean",
+      "arguments": ["--inputDevices"],
+      "default": false
+    },
+    {
+      "id": "window-events",
+      "title": "Log every Window event?",
+      "description": "Reports each Window event at Debug and Trace.",
+      "kind": "boolean",
+      "arguments": ["--windowEvents"],
+      "default": false
+    },
+    {
+      "id": "input-backends",
+      "title": "Select Windows Input backends",
+      "description": "Choose backends; leave all unselected to use every available backend.",
+      "kind": "multi-choice",
+      "arguments": ["--inputBackends={value}"],
+      "choices": ["rawInput", "hid", "xinput", "gameInput", "directInput", "windowMessages", "none"],
+      "default": [],
+      "valueSeparator": ",",
+      "exclusiveChoices": ["none"],
+      "requiresPlatforms": ["windows"]
+    }
+  ],
+  "defaultRuntimeCommand": "game-dev",
   "defaultBuildPreset": "test",
   "unicode": {
     "version": "17.0.0",
@@ -1123,6 +1216,7 @@
       "arguments": [],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+      "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
       "targetRuntimePath": true
@@ -1135,6 +1229,7 @@
       "arguments": ["--startup-tests"],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+      "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
       "targetRuntimePath": true
@@ -1147,6 +1242,7 @@
       "arguments": [],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+      "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
       "targetRuntimePath": true,
@@ -1160,6 +1256,7 @@
       "arguments": ["--startup-tests"],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+      "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
       "targetRuntimePath": true,
@@ -1173,6 +1270,7 @@
       "arguments": [],
       "useWorkspaceTemp": false,
       "acceptsExtraArgs": true,
+      "runtimeOptions": true,
       "workingDirectory": "build",
       "inheritConsole": true,
       "targetRuntimePath": true

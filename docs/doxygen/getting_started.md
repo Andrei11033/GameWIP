@@ -44,6 +44,9 @@ bash ./gamewip.sh target -TargetPlatform windows -TargetArchitecture x64
 bash ./gamewip.sh build dev
 ```
 
+The helper also selects Linux x64 and ARM64 compiler targets on Windows and
+Linux. Full project configuration waits for Linux platform backends.
+
 From MSYS2 UCRT64 Bash, the equivalent direct commands are:
 
 ```bash

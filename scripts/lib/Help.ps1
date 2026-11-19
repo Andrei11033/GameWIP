@@ -64,6 +64,13 @@ function Show-GameWipProjectCatalog
         }
     }
 
+    Write-GameWipSection 'Runtime builder options'
+
+    foreach ($option in $CommandConfig.RuntimeBuilderOptions)
+    {
+        Write-Host ('  {0,-18} [{1}] {2}' -f $option.Id, $option.Kind, $option.Title)
+    }
+
     Write-GameWipSection 'Project commands'
 
     foreach ($command in $CommandConfig.ProjectCommands)
@@ -232,14 +239,17 @@ function Show-GameWipHelp
     Write-Host '  quality hygiene [standard|deep|check-id|list|status] [-FailOnFindings]'
     Write-Host '  tool <list|status|check-updates|ensure|update> [tool-id|category|all]'
     Write-Host '  deps <check|prepare>'
-    Write-Host '  target [-TargetPlatform windows -TargetArchitecture x64|arm64]'
+    Write-Host '  target [-TargetPlatform windows|linux -TargetArchitecture x64|arm64]'
     Write-Host '  config [preset] [-CleanBuild] [-Offline]'
     Write-Host '  build [preset] [-CleanBuild] [-Offline]'
     Write-Host '  test [preset] [-SkipBuild] [-CleanBuild]'
     Write-Host '  module [name] [-SkipBuild] [-PassThroughArgs <arguments>]'
     Write-Host '  wizard [-SkipBuild]'
     Write-Host '  stress [name] [-RunCount N] [-WorkerCount N] [-FailFast] [-SkipBuild]'
-    Write-Host '  run [project-command] [-SkipBuild] [-PassThroughArgs <arguments>]'
+    Write-Host '  run [project-command] [-BuildBeforeRun] [-SkipBuild] [-PassThroughArgs <arguments>]'
+    Write-Host '      [-LogLevel <level>] [-InputDebug] [-InputDevices] [-WindowEvents]'
+    Write-Host '      [-InputBackends <list>]'
+    Write-Host '  runtime [-SkipBuild]'
     Write-Host '  bundle [id] [-SkipBuild] [-CleanBuild]'
     Write-Host '  doc [-CleanBuild] | analyze [-CleanBuild] | cov | asan | ubsan | links'
     Write-Host '  bench <run|dry-run|list|compare> [options]'

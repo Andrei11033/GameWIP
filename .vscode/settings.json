@@ -15,11 +15,22 @@
   "[cpp]": {
     "editor.defaultFormatter": "ms-vscode.cpptools"
   },
+  "python.defaultInterpreterPath": "${workspaceFolder}/build/gamewip/tools/managed/python",
+  "python-envs.workspaceSearchPaths": ["./build/gamewip/tools/managed/python"],
   "python-envs.pythonProjects": [
     {
       "path": ".",
-      "envManager": "ms-python.python:system",
+      "envManager": "ms-python.python:venv",
       "packageManager": "ms-python.python:pip"
     }
-  ]
+  ],
+  "python.analysis.exclude": ["**/build", "**/external"],
+  "python.testing.unittestEnabled": true,
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestArgs": ["-v", "-s", ".github/scripts", "-p", "test_*.py"],
+  "ruff.configuration": "${workspaceFolder}/config/quality/ruff.toml",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true
+  }
 }

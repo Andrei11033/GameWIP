@@ -14,8 +14,8 @@ Rebuild the Windows tools from the Tracy client locked by the checkout:
 
 The focused command produces `tracy-profiler.exe`, `tracy-capture.exe`,
 `tracy-csvexport.exe`, `tracy-import-chrome.exe`, `tracy-import-fuchsia.exe`,
-and `tracy-update.exe` under
-`C:\MSYS2\GameWIPTools\tools\tracy`. It uses UCRT64 GCC/Ninja Release builds
+and `tracy-update.exe` under `<managed-tools-root>/tools/tracy` (default
+`build/gamewip/tools/managed/tools/tracy`). It uses UCRT64 GCC/Ninja Release builds
 with a reproducible `x86-64-v3` baseline, stages the tools and required UCRT
 DLLs, and replaces existing tools only after verification. Visual Studio is not
 required. First use may take several minutes because the GUI profiler compiles
@@ -31,7 +31,8 @@ cmake --build --preset profile
 Start the matching profiler, then run the profiling build:
 
 ```powershell
-Start-Process 'C:\MSYS2\GameWIPTools\tools\tracy\tracy-profiler.exe'
+$toolsRoot = if ($env:GAMEWIP_MANAGED_TOOLS_ROOT) { $env:GAMEWIP_MANAGED_TOOLS_ROOT } else { 'build/gamewip/tools/managed' }
+Start-Process (Join-Path $toolsRoot 'tools/tracy/tracy-profiler.exe')
 .\build\profile\GameWIP.exe
 ```
 
@@ -123,7 +124,7 @@ Tracy must not appear in public library APIs, installed public headers, package 
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
 | The profiling build cannot find Tracy. | The locked dependency cache is not ready. | Run `setup.bat deps`, then reconfigure. |
-| The profiler executable is missing or mismatched. | `C:\MSYS2\GameWIPTools\tools\tracy` was not prepared for the locked client. | Run `setup.bat profiler`; existing tools remain intact if rebuilding fails. |
+| The profiler executable is missing or mismatched. | The configured managed-tools root was not prepared for the locked client. | Run `setup.bat profiler`; existing tools remain intact if rebuilding fails. |
 | A disabled build still references Tracy. | A Tracy include or symbol leaked outside the enable guard. | Move the include to private implementation code and guard instrumentation. |
 | A capture is too noisy. | Markers are too fine-grained or use unstable names. | Collapse markers to meaningful phases and remove high-cardinality names. |
 | A profile suggests an optimization but benchmarks do not change. | The benchmark does not represent the profiled workload or the hotspot is end-to-end only. | Adjust the benchmark or keep the evidence as profiling-only. |

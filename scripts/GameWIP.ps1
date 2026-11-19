@@ -31,6 +31,12 @@ param(
     [ValidateRange(1, 100000)][int]$RunCount = 0,
     [ValidateRange(1, 256)][int]$WorkerCount = 0,
     [string[]]$PassThroughArgs = @(),
+    [ValidateSet('default', 'trace', 'debug', 'info', 'warn', 'error', 'fatal')][string]$LogLevel = 'default',
+    [switch]$InputDebug,
+    [switch]$InputDevices,
+    [switch]$WindowEvents,
+    [string]$InputBackends,
+    [switch]$BuildBeforeRun,
     [switch]$SkipBuild,
     [switch]$CleanBuild,
     [switch]$Offline,
@@ -68,6 +74,12 @@ $Candidate = $CandidatePath
 $Count = $RunCount
 $Parallel = $WorkerCount
 $ExtraArgs = @($PassThroughArgs)
+$RuntimeLogLevel = $LogLevel
+$RuntimeInputDebug = $InputDebug
+$RuntimeInputDevices = $InputDevices
+$RuntimeWindowEvents = $WindowEvents
+$RuntimeInputBackends = $InputBackends
+$RunBuildBefore = $BuildBeforeRun
 $NoBuild = $SkipBuild
 $Fresh = $CleanBuild
 $StopOnFailure = $FailFast
@@ -96,6 +108,12 @@ $Action = $resolvedAction
 if ($Action -notin @('help', 'list', 'menu'))
 {
     Assert-GameWipActionOptions -Action $Action -BoundParameters $PSBoundParameters
+}
+
+if ($Action -eq 'run' -and $BuildBeforeRun -and $SkipBuild)
+{
+    Write-GameWipHost '-BuildBeforeRun cannot be combined with -SkipBuild.' -ForegroundColor Red
+    exit 2
 }
 
 # Keep common PowerShell -Verbose semantics without inventing a parallel flag.
@@ -548,7 +566,53 @@ $result = Invoke-GameWipOperation `
             {
                 $Command
             }
-            Invoke-GameWipMutation -Summary "Run project command '$id'." -Risk local -Plan @('Ensure its executable unless -SkipBuild is used.', 'Execute the cataloged project command.') -Body { Invoke-GameWipProjectCommand -Id $id -Arguments $ExtraArgs -NoBuild:$NoBuild } | Out-Null
+            $projectCommand = Get-GameWipProjectCommand -Id $id
+            $runtimeArguments = @(New-GameWipRuntimeArguments `
+                    -Command $projectCommand `
+                    -LogLevel $RuntimeLogLevel `
+                    -InputDebug:$RuntimeInputDebug `
+                    -InputDevices:$RuntimeInputDevices `
+                    -WindowEvents:$RuntimeWindowEvents `
+                    -InputBackends $RuntimeInputBackends)
+
+            if ($ExtraArgs.Count -gt 0 -and -not [bool]$projectCommand.AcceptsExtraArgs)
+            {
+                throw "Project command '$id' does not accept extra arguments."
+            }
+
+            $runPlan = [System.Collections.Generic.List[string]]::new()
+
+            if ($RunBuildBefore)
+            {
+                $runPlan.Add("Configure and build preset '$($projectCommand.BuildPreset)' before execution.") | Out-Null
+            }
+            else
+            {
+                $runPlan.Add('Ensure its executable unless -SkipBuild is used.') | Out-Null
+            }
+            $executable = Resolve-GameWipProjectExecutable -Command $projectCommand
+            $plannedArguments = @($projectCommand.Arguments) + $runtimeArguments + $ExtraArgs
+            $runPlan.Add("Run: $(ConvertTo-GameWipNativeCommandLine -FilePath $executable -Arguments $plannedArguments)") | Out-Null
+            Invoke-GameWipMutation `
+                -Summary "Run project command '$id'." `
+                -Risk local `
+                -Plan $runPlan.ToArray() `
+                -Body {
+                Invoke-GameWipProjectCommand `
+                    -Id $id `
+                    -Arguments $ExtraArgs `
+                    -LogLevel $RuntimeLogLevel `
+                    -InputDebug:$RuntimeInputDebug `
+                    -InputDevices:$RuntimeInputDevices `
+                    -WindowEvents:$RuntimeWindowEvents `
+                    -InputBackends $RuntimeInputBackends `
+                    -NoBuild:$NoBuild `
+                    -ForceBuild:$RunBuildBefore
+            } | Out-Null
+        }
+        'runtime'
+        {
+            Invoke-GameWipRuntimeCommandWizard -NoBuild:$NoBuild
         }
         'bundle'
         {

@@ -93,6 +93,9 @@
           "$ref": "#/$defs/providerGitHubRelease"
         },
         {
+          "$ref": "#/$defs/providerArchive"
+        },
+        {
           "$ref": "#/$defs/providerWinget"
         },
         {
@@ -204,6 +207,10 @@
           "type": "string",
           "minLength": 1
         },
+        "cmakeToolchain": {
+          "type": "string",
+          "minLength": 1
+        },
         "hostPlatform": {
           "enum": ["windows", "linux"]
         },
@@ -243,6 +250,46 @@
         }
       ]
     },
+    "providerArchive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "baseUrl", "installMode", "managedDirectory", "binaryDirectory", "compiler", "cmakeToolchain", "assets"],
+      "properties": {
+        "kind": {
+          "const": "archive"
+        },
+        "baseUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "installMode": {
+          "const": "directoryArchive"
+        },
+        "managedDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binaryDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "compiler": {
+          "type": "string",
+          "minLength": 1
+        },
+        "cmakeToolchain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assets": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "$ref": "#/$defs/asset"
+          }
+        }
+      }
+    },
     "providerWinget": {
       "type": "object",
       "additionalProperties": false,
@@ -279,6 +326,16 @@
           "type": "string",
           "minLength": 1,
           "format": "uri"
+        },
+        "hostPlatform": {
+          "enum": ["windows", "linux"]
+        },
+        "managedPath": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bootstrap": {
+          "enum": ["msys2BaseArchive"]
         }
       }
     },

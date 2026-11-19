@@ -131,7 +131,7 @@ function Get-GameWipSelectedBuildTarget
 
     $target = Get-GameWipBuildTarget -Id ([string]$selection.targetId)
 
-    if ($target.platform -eq 'windows')
+    if ($target.platform -ne 'native')
     {
         $hostAssetKey = Get-GameWipHostAssetKey
         $toolchain = Get-GameWipProjectTool -Id ([string]$target.toolchain)
@@ -150,16 +150,51 @@ function Assert-GameWipSelectedTargetRunnable
     param([string]$Action = 'This action')
     $target = Get-GameWipSelectedBuildTarget
 
-    if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux) -and
-        $target.platform -eq 'windows')
+    $hostPlatform = if (Test-GameWipWindowsHost)
     {
-        $suggestedActions = @(
-            'Build the target with the config/build action.',
-            'Run the executable on Windows after copying the target build tree.'
-        )
+        'windows'
+    }
+    elseif ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+    {
+        'linux'
+    }
+    else
+    {
+        'native'
+    }
+
+    $hostArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+    $hostArchitecture = switch ($hostArchitecture)
+    {
+        'x64'
+        {
+            'x64'
+        }
+        'arm64'
+        {
+            'arm64'
+        }
+        default
+        {
+            'unsupported'
+        }
+    }
+
+    if ($target.platform -ne 'native' -and $target.platform -ne $hostPlatform)
+    {
+        $suggestedActions = @('Build the target on this host, then run it on a matching target system.')
         throw (New-GameWipDiagnosticException `
                 -Code 'target-execution-unsupported' `
-                -Summary "$Action cannot run the selected Windows target on this Linux host." `
+                -Summary "$Action cannot run the selected $($target.platform) target on this $hostPlatform host." `
+                -SuggestedActions $suggestedActions)
+    }
+
+    if ($target.platform -ne 'native' -and $target.architecture -ne $hostArchitecture)
+    {
+        $suggestedActions = @('Build the target here, then run it on a matching architecture; no emulator is configured.')
+        throw (New-GameWipDiagnosticException `
+                -Code 'target-architecture-unsupported' `
+                -Summary "$Action cannot run the selected $($target.architecture) target on this $hostArchitecture host." `
                 -SuggestedActions $suggestedActions)
     }
 }
@@ -192,7 +227,7 @@ function Invoke-GameWipBuildTargetSelection
         -not [Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux) -and
         -not [string]::IsNullOrWhiteSpace($Platform))
     {
-        throw 'Windows cross-target selection is supported on Windows and Linux hosts only.'
+        throw 'Cross-target selection is supported on Windows and Linux hosts only.'
     }
 
     # Resolve explicit arguments or prompt from the configured target list.
@@ -251,6 +286,18 @@ function Get-GameWipBuildTargetToolchainRoot
     param([Parameter(Mandatory = $true)]$Target)
     $tool = Get-GameWipProjectTool -Id ([string]$Target.toolchain)
 
+    if ($tool.provider.Contains('compiler'))
+    {
+        $compilerPath = Resolve-GameWipToolCommand -Tool $tool
+
+        if ($null -eq $compilerPath)
+        {
+            throw "Toolchain '$($tool.id)' is unavailable. Run '$(Get-GameWipSetupHelperCommand) repair'."
+        }
+
+        return Split-Path -Parent $compilerPath
+    }
+
     if (-not $tool.provider.Contains('managedDirectory'))
     {
         throw "Build target '$($Target.id)' uses a toolchain without a managed directory."
@@ -264,6 +311,19 @@ function Get-GameWipBuildTargetCompilerPath
 {
     param([Parameter(Mandatory = $true)]$Target)
     $tool = Get-GameWipProjectTool -Id ([string]$Target.toolchain)
+
+    if ($tool.provider.Contains('compiler'))
+    {
+        $compilerPath = Resolve-GameWipToolCommand -Tool $tool
+
+        if ($null -eq $compilerPath)
+        {
+            throw "Toolchain '$($tool.id)' is unavailable. Run '$(Get-GameWipSetupHelperCommand) repair'."
+        }
+
+        return $compilerPath
+    }
+
     $toolchainRoot = Get-GameWipBuildTargetToolchainRoot -Target $Target
     $binaryDirectory = [string]$tool.provider.binaryDirectory
     $compilerName = "$($Target.compilerTriple)-clang++"
@@ -307,7 +367,17 @@ function Get-GameWipBuildTargetPathPrefix
         return @($cmakeBin, $toolchainBin) -join [IO.Path]::PathSeparator
     }
 
-    $targetRuntimeBin = Join-Path (Get-GameWipBuildTargetToolchainRoot -Target $Target) (Join-Path ([string]$Target.compilerTriple) 'bin')
-    $msys2Bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
-    return @($toolchainBin, $targetRuntimeBin, $msys2Bin) -join [IO.Path]::PathSeparator
+    $targetRuntimeBin = if ($Target.platform -eq 'windows')
+    {
+        Join-Path (Get-GameWipBuildTargetToolchainRoot -Target $Target) (Join-Path ([string]$Target.compilerTriple) 'bin')
+    }
+    else
+    {
+        ''
+    }
+    $msys2Bin = Join-Path (Get-GameWipMsys2Root) 'ucrt64/bin'
+    $pathEntries = @($toolchainBin, $targetRuntimeBin, $msys2Bin) | Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_)
+    }
+    return $pathEntries -join [IO.Path]::PathSeparator
 }

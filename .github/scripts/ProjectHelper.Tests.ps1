@@ -19,8 +19,9 @@ $powerShellPath = (Get-Process -Id $PID).Path
 # ------------------------------------------------------------
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $helperPath help 2>&1 | Out-String)
+$requiredHelperUsage = "$(Get-GameWipProjectHelperCommand) <action> [command] [target]"
 
-foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Available commands', 'ready', 'quality', 'quality hygiene', '-FailOnFindings', 'tool', 'history', 'config [preset]', '-Preview', '-NonInteractive', '-Yes', '-SkipBuild', '-CleanBuild', '-NoColor', '-Json', '-OutputPath', '-PassThroughArgs'))
+foreach ($requiredHelpText in @($requiredHelperUsage, 'Available commands', 'ready', 'quality', 'quality hygiene', '-FailOnFindings', 'tool', 'history', 'config [preset]', '-Preview', '-NonInteractive', '-Yes', '-SkipBuild', '-CleanBuild', '-NoColor', '-Json', '-OutputPath', '-PassThroughArgs', '-BuildBeforeRun', '-LogLevel'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -31,9 +32,231 @@ foreach ($requiredHelpText in @('gamewip.bat <action> [command] [target]', 'Avai
 Assert-GameWipCommandConfig
 Assert-GameWipProjectToolConfig
 Assert-GameWipHygieneConfig
+Assert-GameWipBuildTargetConfig
+
+$linuxTargets = @($BuildTargets.targets | Where-Object platform -eq 'linux')
+$linuxTargetIds = @($linuxTargets | ForEach-Object { [string]$_.id })
+
+if (($linuxTargetIds -join '|') -cne 'linux-x64|linux-arm64' -or
+    @($linuxTargets | Where-Object { $_.backend -ne 'linux' -or $_.toolchain -ne 'zig' }).Count -ne 0)
+{
+    throw 'Linux x64 and ARM64 targets must use the Linux backend and Zig toolchain.'
+}
+
+$linuxReadinessToolIds = @(Get-GameWipProjectReadinessToolIds -Target $linuxTargets[0])
+
+if (($linuxReadinessToolIds -join '|') -cne 'cmake|ninja|zig')
+{
+    throw "Linux target readiness selected unrelated tools: '$($linuxReadinessToolIds -join '|')'."
+}
+
+$zigProcessImplementation = (Get-Command Invoke-GameWipProcess).ScriptBlock
+
+try
+{
+    Set-Item -Path function:Invoke-GameWipProcess -Value {
+        param([string]$FilePath, [string[]]$Arguments, [hashtable]$Environment, [string]$OutputMode, [int]$TimeoutSeconds)
+        $null = $FilePath, $Arguments, $Environment, $OutputMode, $TimeoutSeconds
+        return [pscustomobject]@{ ExitCode = 0; Stdout = @('0.17.1'); Stderr = @() }
+    }
+
+    $zigTool = Get-GameWipProjectTool -Id zig
+    $externalZigPath = Join-Path ([IO.Path]::GetTempPath()) $(if (Test-GameWipWindowsHost) { 'external-zig/zig.exe' } else { 'external-zig/zig' })
+    $externalZigVersion = Get-GameWipToolCandidateVersion -Tool $zigTool -Path $externalZigPath
+
+    if ($externalZigVersion -ne [string]$zigTool.requiredVersion)
+    {
+        throw "An exact system Zig install was not accepted for reuse: '$externalZigVersion'."
+    }
+}
+
+finally
+{
+    Set-Item -Path function:Invoke-GameWipProcess -Value $zigProcessImplementation
+}
+
+$zigPreflightRoot = Join-Path $repositoryRoot ('build\gamewip\temp\zig-preflight-test-' + [guid]::NewGuid().ToString('N'))
+$zigPreflightCompilerPath = Join-Path $zigPreflightRoot $(if (Test-GameWipWindowsHost) { 'zig.exe' } else { 'zig' })
+New-Item -ItemType Directory -Force -Path $zigPreflightRoot | Out-Null
+New-Item -ItemType File -Path $zigPreflightCompilerPath | Out-Null
+$preflightFunctions = @{}
+
+foreach ($functionName in @(
+        'Get-GameWipSelectedBuildTarget',
+        'Test-GameWipWindowsHost',
+        'Get-GameWipProjectTool',
+        'Get-GameWipToolStatus',
+        'Get-GameWipBuildTargetToolchainRoot',
+        'Get-GameWipBuildTargetCompilerPath',
+        'Get-GameWipToolValidationFiles'
+    ))
+{
+    $preflightFunctions[$functionName] = (Get-Command $functionName).ScriptBlock
+}
+
+try
+{
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'linux'; architecture = 'x64'; toolchain = 'zig' } }
+    Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
+    Set-Item -Path function:Get-GameWipProjectTool -Value {
+        param([string]$Id)
+        $provider = @{ kind = 'system' }
+        if ($Id -eq 'zig')
+        {
+            $provider = @{ kind = 'archive'; compiler = 'zig' }
+        }
+        return @{ id = $Id; provider = $provider }
+    }
+    Set-Item -Path function:Get-GameWipToolStatus -Value {
+        param([hashtable]$Tool)
+        return @{ Ready = $true; State = 'compatible' }
+    }
+    Set-Item -Path function:Get-GameWipBuildTargetToolchainRoot -Value { return $zigPreflightRoot }
+    Set-Item -Path function:Get-GameWipBuildTargetCompilerPath -Value { return $zigPreflightCompilerPath }
+    Set-Item -Path function:Get-GameWipToolValidationFiles -Value { return @('zig', 'lib/std/std.zig') }
+    Confirm-GameWipToolchain -PresetName dev
+}
+
+finally
+{
+    foreach ($functionName in $preflightFunctions.Keys)
+    {
+        Set-Item -Path "function:$functionName" -Value $preflightFunctions[$functionName]
+    }
+
+    Remove-Item -LiteralPath $zigPreflightRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+$savedRuntimeTarget = (Get-Command Get-GameWipSelectedBuildTarget).ScriptBlock
+
+try
+{
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value { return @{ platform = 'windows'; architecture = 'x64' } }
+    $gameCommand = Get-GameWipProjectCommand -Id game-dev
+    $runtimeArguments = @(New-GameWipRuntimeArguments `
+            -Command $gameCommand `
+            -LogLevel trace `
+            -InputDebug `
+            -InputDevices `
+            -WindowEvents `
+            -InputBackends 'hid,rawInput')
+
+    if (($runtimeArguments -join '|') -cne '--logLevel=trace|--inputDebug|--inputDevices|--windowEvents|--inputBackends=hid,rawInput')
+    {
+        throw "Game runtime argument builder returned '$($runtimeArguments -join '|')'."
+    }
+
+    if (@(New-GameWipRuntimeArguments -Command $gameCommand).Count -ne 0)
+    {
+        throw 'Default game runtime settings unexpectedly added command-line arguments.'
+    }
+
+    $runtimeBuilderOptions = @($CommandConfig.RuntimeBuilderOptions)
+    $linuxBuilderOptions = @(Get-GameWipCommandBuilderOptions -Options $runtimeBuilderOptions -Platform linux)
+    $windowsBuilderOptions = @(Get-GameWipCommandBuilderOptions -Options $runtimeBuilderOptions -Platform windows)
+    $logLevelOption = @($runtimeBuilderOptions | Where-Object Id -eq 'log-level')[0]
+    $inputDebugOption = @($runtimeBuilderOptions | Where-Object Id -eq 'input-debug')[0]
+    $inputBackendsOption = @($windowsBuilderOptions | Where-Object Id -eq 'input-backends')[0]
+
+    if (@($linuxBuilderOptions | Where-Object Id -eq 'input-backends').Count -ne 0 -or $null -eq $inputBackendsOption)
+    {
+        throw 'Runtime builder did not filter the Windows-only Input backend option by target platform.'
+    }
+
+    if (@(ConvertTo-GameWipCommandBuilderArguments -Option $logLevelOption -Value default).Count -ne 0 -or
+        (@(ConvertTo-GameWipCommandBuilderArguments -Option $inputDebugOption -Value $true) -join '|') -cne '--inputDebug' -or
+        (@(ConvertTo-GameWipCommandBuilderArguments -Option $inputBackendsOption -Value @('hid', 'rawInput')) -join '|') -cne '--inputBackends=hid,rawInput' -or
+        @(ConvertTo-GameWipCommandBuilderArguments -Option $inputBackendsOption -Value @()).Count -ne 0)
+    {
+        throw 'Runtime builder option arguments do not match the executable command line.'
+    }
+
+    $exclusiveRuntimeBackendRejected = $false
+
+    try
+    {
+        ConvertTo-GameWipCommandBuilderArguments -Option $inputBackendsOption -Value @('none', 'hid') | Out-Null
+    }
+
+    catch
+    {
+        $exclusiveRuntimeBackendRejected = $_.Exception.Message -like '*exclusive choice*'
+    }
+
+    if (-not $exclusiveRuntimeBackendRejected)
+    {
+        throw 'Runtime builder allowed the exclusive none backend to be combined with another backend.'
+    }
+
+    $invalidBackendRejected = $false
+
+    try
+    {
+        New-GameWipRuntimeArguments -Command $gameCommand -InputBackends 'hid,unknown' | Out-Null
+    }
+
+    catch
+    {
+        $invalidBackendRejected = $_.Exception.Message -like '*Invalid -InputBackends list*'
+    }
+
+    if (-not $invalidBackendRejected)
+    {
+        throw 'Game runtime accepted an unknown Input backend.'
+    }
+
+    $nonGameRuntimeRejected = $false
+
+    try
+    {
+        New-GameWipRuntimeArguments -Command (Get-GameWipProjectCommand -Id dev-version) -LogLevel trace | Out-Null
+    }
+
+    catch
+    {
+        $nonGameRuntimeRejected = $_.Exception.Message -like '*does not accept game runtime options*'
+    }
+
+    if (-not $nonGameRuntimeRejected)
+    {
+        throw 'A non-game project command accepted game runtime options.'
+    }
+}
+
+finally
+{
+    Set-Item -Path function:Get-GameWipSelectedBuildTarget -Value $savedRuntimeTarget
+}
+
+# ------------------------------------------------------------
+# Target executable path resolution
+# ------------------------------------------------------------
+
+$savedExecutableHostCheck = (Get-Command Test-GameWipWindowsHost).ScriptBlock
+$savedBuildDirectoryResolver = (Get-Command Get-GameWipBuildDirectory).ScriptBlock
+
+try
+{
+    Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
+    Set-Item -Path function:Get-GameWipBuildDirectory -Value { param([string]$PresetName) return 'C:\gamewip-target-build' }
+    $caseMismatchCommand = @{ BuildPreset = 'dev'; Executable = 'build/DEV/GameWIP.exe' }
+    $resolvedCaseMismatch = Resolve-GameWipProjectExecutable -Command $caseMismatchCommand
+    $expectedCaseMismatch = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build/DEV/GameWIP.exe'))
+
+    if ($resolvedCaseMismatch -cne $expectedCaseMismatch)
+    {
+        throw 'Linux executable path resolution treated a case-mismatched build directory as the configured preset.'
+    }
+}
+
+finally
+{
+    Set-Item -Path function:Test-GameWipWindowsHost -Value $savedExecutableHostCheck
+    Set-Item -Path function:Get-GameWipBuildDirectory -Value $savedBuildDirectoryResolver
+}
 
 # The module catalog follows registrations, not support-folder CMake files.
-$moduleDiscoveryRoot = Join-Path ([IO.Path]::GetTempPath()) ('gamewip-module-discovery-' + [guid]::NewGuid().ToString('N'))
+$moduleDiscoveryRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('gamewip-module-discovery-' + [guid]::NewGuid().ToString('N'))
 
 try
 {
@@ -78,7 +301,7 @@ if ($CommandConfig.ActionOptions.unicode -notcontains 'ClangFormatPath')
     throw 'Unicode operations must accept the clang-format override.'
 }
 
-foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'ChangedOnly', 'FailOnFindings', 'UseCallerTemp', 'UnicodeDataPath', 'ItemNumber'))
+foreach ($requiredOption in @('SkipBuild', 'CleanBuild', 'NameFilter', 'MinimumTime', 'OutputPath', 'BaselinePath', 'CandidatePath', 'RunCount', 'WorkerCount', 'PassThroughArgs', 'BuildBeforeRun', 'LogLevel', 'InputDebug', 'InputDevices', 'WindowEvents', 'InputBackends', 'ChangedOnly', 'FailOnFindings', 'UseCallerTemp', 'UnicodeDataPath', 'ItemNumber'))
 {
     if (@($CommandConfig.Options | Where-Object Id -eq $requiredOption).Count -ne 1)
     {
@@ -274,7 +497,7 @@ finally
 
 # Both advisory providers need setup even when selected alone. Stub execution,
 # but require the audit to create its database before dispatching either one.
-$hygieneFixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('gamewip-hygiene-' + [guid]::NewGuid().ToString('N'))
+$hygieneFixtureRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('gamewip-hygiene-' + [guid]::NewGuid().ToString('N'))
 $savedHygieneRoot = $Script:RepositoryRoot
 $hygieneFunctions = @{}
 
@@ -289,7 +512,7 @@ try
     Set-Item -Path function:Invoke-GameWipConfigurePreset -Value {
         param([string]$Name)
         $Script:HygieneConfigureCount++
-        $directory = Join-Path $Script:RepositoryRoot "build\$Name"
+        $directory = Get-GameWipBuildDirectory -PresetName $Name
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
         [IO.File]::WriteAllText((Join-Path $directory 'compile_commands.json'), '[]')
     }
@@ -367,6 +590,7 @@ $releaseBundle = Get-GameWipProjectBundle -Id local-release-check
 $savedReleaseSteps = $releaseBundle.Steps
 $savedFreshPolicy = $releaseBundle.FreshBuildTrees
 $savedProjectCommandInvoker = (Get-Command Invoke-GameWipProjectCommand).ScriptBlock
+$savedTargetRunnableCheck = (Get-Command Assert-GameWipSelectedTargetRunnable).ScriptBlock
 $Script:BundleBoundArguments = $null
 
 try
@@ -377,6 +601,7 @@ try
         param([string]$Id, [string[]]$Arguments, [switch]$NoBuild, [switch]$ForceBuild)
         $Script:BundleBoundArguments = $PSBoundParameters.ContainsKey('Arguments')
     }
+    Set-Item -Path function:Assert-GameWipSelectedTargetRunnable -Value { param([string]$Action) $null = $Action }
     Invoke-GameWipBundle -Id local-release-check
 
     if ($Script:BundleBoundArguments)
@@ -390,6 +615,7 @@ finally
     $releaseBundle.Steps = $savedReleaseSteps
     $releaseBundle.FreshBuildTrees = $savedFreshPolicy
     Set-Item -Path function:Invoke-GameWipProjectCommand -Value $savedProjectCommandInvoker
+    Set-Item -Path function:Assert-GameWipSelectedTargetRunnable -Value $savedTargetRunnableCheck
     Remove-Variable -Name BundleBoundArguments -Scope Script -ErrorAction SilentlyContinue
 }
 
@@ -691,13 +917,13 @@ $savedRepositoryRoot = $Script:RepositoryRoot
 
 try
 {
-    $testTree = Join-Path $freshTestRoot 'build\test'
-    $neighborTree = Join-Path $freshTestRoot 'build\coverage'
+    $Script:RepositoryRoot = $freshTestRoot
+    $testTree = Get-GameWipBuildDirectory -PresetName test
+    $neighborTree = Get-GameWipBuildDirectory -PresetName coverage
     [IO.Directory]::CreateDirectory($testTree) | Out-Null
     [IO.Directory]::CreateDirectory($neighborTree) | Out-Null
     [IO.File]::WriteAllText((Join-Path $testTree 'stale.gcno'), 'stale')
     [IO.File]::WriteAllText((Join-Path $neighborTree 'preserved.txt'), 'preserved')
-    $Script:RepositoryRoot = $freshTestRoot
     Reset-GameWipPresetBuildTree -Name test
 
     if (Test-Path -LiteralPath $testTree)
@@ -788,7 +1014,7 @@ if ((Get-GameWipToolCompatibility -Tool $jsonSchemaTool -Detected $detectedJsonS
 
 $actionIds = @($CommandConfig.Actions | ForEach-Object { [string]$_.Id })
 
-foreach ($requiredAction in @('menu', 'ready', 'quality', 'tool', 'history', 'analyze', 'help'))
+foreach ($requiredAction in @('menu', 'ready', 'quality', 'tool', 'history', 'analyze', 'runtime', 'help'))
 {
     if ($actionIds -notcontains $requiredAction)
     {
@@ -877,7 +1103,7 @@ if (-not $interactiveRejected)
 # Incidental operation-body output must not turn the final result into an
 # array or hide its Status property.
 $originalRunRoot = [string]$ProjectConfig.storage.runs
-$resultShapeRoot = 'build/gamewip/temp/result-shape-test-' + [guid]::NewGuid().ToString('N')
+$resultShapeRoot = 'temp/result-shape-test-' + [guid]::NewGuid().ToString('N')
 
 try
 {
@@ -891,7 +1117,7 @@ try
 finally
 {
     $ProjectConfig.storage.runs = $originalRunRoot
-    $resultShapePath = Join-Path $repositoryRoot $resultShapeRoot
+    $resultShapePath = Resolve-GameWipStoragePath -RelativePath $resultShapeRoot
 
     if (Test-Path -LiteralPath $resultShapePath)
     {
@@ -1149,7 +1375,7 @@ if (-not (Test-GameWipWindowsHost))
 {
     $ownedProcess = $null
     $descendantIds = @()
-    $unixCancellationRoot = Join-Path $repositoryRoot ('build/gamewip/temp/unix-cancellation-test-' + [guid]::NewGuid().ToString('N'))
+    $unixCancellationRoot = Resolve-GameWipStoragePath -RelativePath ('temp/unix-cancellation-test-' + [guid]::NewGuid().ToString('N'))
 
     try
     {

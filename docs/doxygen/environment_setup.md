@@ -3,11 +3,55 @@
 GameWIP setup supports Windows and Linux. Windows uses `setup.bat`; Linux uses
 `setup.sh` on Ubuntu, Debian, and CachyOS. Both dispatch to the same PowerShell
 helper. If PowerShell 7 is missing, `setup.sh` offers to install its pinned,
-hash-verified runtime under `build/gamewip/tools/powershell`; `gamewip.sh`
-reuses it. Preview does not install the runtime.
+hash-verified runtime under `<storage-root>/tools/powershell` (default
+`build/gamewip/tools/powershell`); `gamewip.sh` reuses it. Preview does not
+install the runtime.
 
-Linux setup prepares host packages, pinned CMake, LLVM-MinGW, and the project
-toolchain for Windows cross-builds.
+Linux setup prepares host packages, pinned CMake, LLVM-MinGW for Windows
+cross-builds, and Zig for Linux targets. An exact compatible system Zig is
+reused; otherwise setup installs the pinned archive.
+
+## Storage and tool locations
+
+Helper data defaults to `build/gamewip/`: caches, state, temporary files, run
+receipts, PowerShell, and managed tools. Preset build trees and the default
+install prefix also remain under `build/`.
+
+Set these environment variables before running setup or the project helper.
+Pass the same names as CMake cache variables when configuring directly:
+
+| Variable | Default | Rules |
+| --- | --- | --- |
+| `GAMEWIP_STORAGE_ROOT` | `build/gamewip` | Absolute or checkout-relative path beneath the checkout's `build/` directory. |
+| `GAMEWIP_MSYS2_ROOT` | `<storage-root>/tools/msys2` | New installs stay under `build/`; an external value must name an existing installation. |
+| `GAMEWIP_MANAGED_TOOLS_ROOT` | `<storage-root>/tools/managed` | New installs stay under `build/`; an external value must name an existing directory. |
+
+For example, to reuse an existing Windows MSYS2 installation and choose a
+separate managed-tools directory:
+
+```powershell
+$env:GAMEWIP_MSYS2_ROOT = 'C:\MSYS2'
+$env:GAMEWIP_MANAGED_TOOLS_ROOT = 'C:\MSYS2\GameWIPTools'
+```
+
+Set `GAMEWIP_STORAGE_ROOT` to another directory inside the checkout's `build/`
+tree to relocate helper storage. An explicitly selected existing installation
+may be outside it; new managed roots may not. On Linux, set the same variables
+with `export`; for example, `GAMEWIP_MANAGED_TOOLS_ROOT="$HOME/GameWIPTools"`
+selects an existing tools directory. Use absolute managed-root paths for direct
+shell commands. VS Code must inherit the same variables to use the selected
+compiler and debugger paths. The roots must stay separate; `GameWIPTools` may be
+a direct child of the MSYS2 root. Setup asks before using a discovered external
+MSYS2 root or adopting an unowned managed-tools directory.
+
+APT, pacman, and WinGet keep host packages outside the checkout. Setup lists
+Linux package changes before confirmation and records packages that were
+missing before installation for optional removal. CachyOS uses `pacman -Syu`,
+which performs a full system upgrade. VS Code extensions and keybindings use
+the editor's user directories. Helper caches, state, run data, and new managed
+installs remain under `build/`. Setup does not install or update VS Code; if it
+is missing, its integration is skipped. Windows setup asks before installing
+Visual Studio when selected.
 
 ## Quick start
 
@@ -54,7 +98,7 @@ duplicate keys, unknown handlers, and incomplete menu catalogs before use.
 | `tool` | `setup.bat tool` | `bash ./setup.sh tool` |
 | `doc` | `setup.bat doc` | `bash ./setup.sh doc` |
 | `profiler` | `setup.bat profiler` | — |
-| `uninstall` | `setup.bat uninstall` | — |
+| `uninstall` | `setup.bat uninstall` | `bash ./setup.sh uninstall` |
 | `vs` | `setup.bat vs` | — |
 | `list` | `setup.bat list` | `bash ./setup.sh list` |
 | `help` | `setup.bat help` | `bash ./setup.sh help` |
@@ -69,9 +113,10 @@ aliases.
 Linux uses the same help aliases with `bash ./setup.sh`. Setup can integrate an
 existing VS Code installation but does not install VS Code.
 
-The project tool registry pins LLVM-MinGW for Windows x64 and ARM64 builds.
-Windows setup installs it under `C:\MSYS2\GameWIPTools`; Linux stores its
-verified CMake and LLVM-MinGW tools under `build/gamewip`.
+The project tool registry pins LLVM-MinGW for Windows x64 and ARM64 builds and
+Zig for Linux x64 and ARM64 targets. Windows setup stores MSYS2 and managed
+tools under the configured roots; Linux stores verified CMake, LLVM-MinGW, and
+Zig tools under the managed-tools root.
 
 Select a Windows build target on Linux, then configure and build it:
 
@@ -83,10 +128,16 @@ bash ./gamewip.sh build dev
 
 Choose `arm64` to produce Windows ARM64 binaries.
 
+To select a Linux target, use `linux` with either `x64` or `arm64`. The helper
+uses Zig on Windows and Linux; full project configuration waits for Linux
+platform backends.
+
 ## Dependency cache and offline builds
 
-The setup utility and project helper share the repository-local dependency cache
-under `build/gamewip/cache/dependencies`. The cache is controlled by
+The setup utility and project helper share the dependency cache under
+`<storage-root>/cache/dependencies` (default `build/gamewip/cache/dependencies`).
+Direct CMake users can set `GAMEWIP_DEPENDENCY_CACHE_DIR` to another path. The
+cache is controlled by
 `scripts/config/dependencies.json`, which records each repository and exact
 commit. Preparation reuses a matching source tree and only fetches a missing or
 out-of-date commit.
@@ -182,14 +233,19 @@ Windows or `bash ./setup.sh repair` on Linux to restore declared state.
 
 ## Environment ownership
 
-Windows-managed tools live under `C:\MSYS2\GameWIPTools`; Linux-managed tools
-live under `build/gamewip`. On Windows, setup preserves non-empty roots
-without valid GameWIP ownership proof and asks before adopting them. The Linux
-tool root is inside the checkout build tree.
+With the default storage root, Windows-managed tools use
+`build/gamewip/tools/msys2` and `build/gamewip/tools/managed`; Linux-managed
+tools use `build/gamewip/tools/managed`. The root variables above can select
+existing installations. On Windows, setup preserves non-empty roots without
+valid GameWIP ownership proof and asks before adopting them. Without an external
+override, managed tool roots remain inside the checkout build tree.
 
-Uninstall removes only resources with sufficient GameWIP ownership evidence. It
-preserves pre-existing software, the checkout, unrelated build trees, and
-content with unknown ownership.
+Uninstall removes only resources with sufficient GameWIP ownership evidence.
+Linux uninstall removes verified managed tools, editor integration, and APT or
+pacman packages recorded as newly installed by setup. It preserves pre-existing
+or unrecorded packages, caches, receipts, build trees, and checkout files, plus
+content with unknown ownership. `setup.sh` removes its active managed PowerShell
+runtime after it exits; direct `Setup.ps1` runs preserve that runtime.
 
 ## Project tools and environment updates
 

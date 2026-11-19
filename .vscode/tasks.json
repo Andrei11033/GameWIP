@@ -401,7 +401,7 @@
         "options": {
           "cwd": "${workspaceFolder}",
           "env": {
-            "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+            "PATH": "${command:gamewip-workflows.targetRuntimePath}"
           }
         }
       },
@@ -421,7 +421,7 @@
         "options": {
           "cwd": "${workspaceFolder}",
           "env": {
-            "PATH": "C:\\MSYS2\\clang64\\bin;${env:PATH}"
+            "PATH": "${command:gamewip-workflows.targetRuntimePath}"
           }
         }
       },

@@ -232,10 +232,11 @@ To compare storage backends, place the applicable preset build tree on the repre
 
 ## Outputs and artifacts
 
-Each helper invocation creates one action-named directory:
+Each helper invocation creates one action-named directory under
+`<storage-root>` (default `build/gamewip`):
 
 ```text
-build/gamewip/runs/<timestamp>_benchmark-run/
+<storage-root>/runs/<timestamp>_benchmark-run/
   summary.txt
   summary.json
   manifest.json

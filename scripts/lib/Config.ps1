@@ -133,25 +133,72 @@ function Assert-GameWipProjectConfig
         }
     }
 
-    $expectedStorage = [ordered]@{
-        root = 'build/gamewip'
-        cache = 'build/gamewip/cache'
-        state = 'build/gamewip/state'
-        temp = 'build/gamewip/temp'
-        runs = 'build/gamewip/runs'
+    $storageRoot = Get-GameWipStorageRoot
+    $storagePaths = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($area in @('cache', 'state', 'temp', 'runs'))
+    {
+        $relativePath = [string]$ProjectConfig.storage[$area]
+
+        if ([string]::IsNullOrWhiteSpace($relativePath) -or [IO.Path]::IsPathRooted($relativePath))
+        {
+            throw "Project storage '$area' must be a non-empty relative path."
+        }
+
+        $resolvedPath = Resolve-GameWipStoragePath -RelativePath $relativePath
+
+        if ($resolvedPath.Equals($storageRoot, [StringComparison]::OrdinalIgnoreCase))
+        {
+            throw "Project storage '$area' must be a child of the storage root."
+        }
+
+        if ($storagePaths.Contains($resolvedPath))
+        {
+            throw "Project storage paths must be distinct; '$area' duplicates '$resolvedPath'."
+        }
+
+        $storagePaths.Add($resolvedPath)
     }
 
-    foreach ($entry in $expectedStorage.GetEnumerator())
+    foreach ($name in @('msys2Root', 'gameWipToolsRoot'))
     {
-        if ([string]$ProjectConfig.storage[$entry.Key] -ne $entry.Value)
+        $relativePath = [string]$ProjectConfig.managedEnvironment[$name]
+
+        if ([string]::IsNullOrWhiteSpace($relativePath) -or [IO.Path]::IsPathRooted($relativePath))
         {
-            throw "Project storage '$($entry.Key)' must be '$($entry.Value)'."
+            throw "Managed environment path '$name' must be a non-empty path relative to the storage root."
+        }
+
+        $resolvedPath = Resolve-GameWipStoragePath -RelativePath $relativePath
+
+        if ($resolvedPath.Equals($storageRoot, [StringComparison]::OrdinalIgnoreCase))
+        {
+            throw "Managed environment path '$name' must be a child of the storage root."
         }
     }
 
-    if ([string]$ProjectConfig.managedEnvironment.msys2Root -ne 'C:\MSYS2' -or [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot -ne 'C:\MSYS2\GameWIPTools')
+    $msys2Root = Get-GameWipMsys2Root
+    $managedToolRoot = Get-GameWipManagedToolRoot
+    $pathComparison = if (Test-GameWipWindowsHost)
     {
-        throw 'Project managed-environment roots do not match the repository contract.'
+        [StringComparison]::OrdinalIgnoreCase
+    }
+    else
+    {
+        [StringComparison]::Ordinal
+    }
+
+    $managedToolsParent = [IO.Path]::GetDirectoryName((Get-GameWipCanonicalPath -Path $managedToolRoot))
+    $managedToolsName = [IO.Path]::GetFileName((Get-GameWipCanonicalPath -Path $managedToolRoot))
+    $isExistingMsys2Layout = $managedToolsParent.Equals((Get-GameWipCanonicalPath -Path $msys2Root), $pathComparison) -and
+        $managedToolsName.Equals('GameWIPTools', $pathComparison)
+    $msys2ContainsManagedTools = Test-GameWipPathWithinRoot -Path $managedToolRoot -Root $msys2Root
+    $managedToolsContainMsys2 = Test-GameWipPathWithinRoot -Path $msys2Root -Root $managedToolRoot
+
+    if ($msys2Root.Equals($storageRoot, $pathComparison) -or $managedToolRoot.Equals($storageRoot, $pathComparison) -or
+        $managedToolsContainMsys2 -or ($msys2ContainsManagedTools -and -not $isExistingMsys2Layout))
+    {
+        throw 'The MSYS2 and managed-tools roots must be separate; only GameWIPTools directly inside MSYS2 is supported.'
     }
 }
 
@@ -176,7 +223,7 @@ function Resolve-GameWipCommandConfigValue
 function Assert-GameWipProjectToolConfig
 {
     Assert-GameWipUniqueId -Items @($ProjectTools.tools) -Label 'project tool'
-    $providerKinds = @('msys2', 'npm', 'python', 'powershellGallery', 'githubRelease', 'winget', 'external')
+    $providerKinds = @('msys2', 'npm', 'python', 'powershellGallery', 'githubRelease', 'archive', 'winget', 'external')
     $liveReferences = @{}
     $rootPath = [IO.Path]::GetFullPath($RepositoryRoot).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     $pathComparison = if (Test-GameWipWindowsHost)
@@ -331,6 +378,49 @@ function Assert-GameWipProjectToolConfig
                                 throw "GitHub archive tool '$($toolInfo.id)' has an unsafe asset validation path '$relativePath'."
                             }
                         }
+                    }
+                }
+            }
+            'archive'
+            {
+                foreach ($field in @('baseUrl', 'managedDirectory', 'binaryDirectory', 'compiler', 'cmakeToolchain', 'assets'))
+                {
+                    if (-not $toolInfo.provider.Contains($field))
+                    {
+                        throw "Archive tool '$($toolInfo.id)' must declare '$field'."
+                    }
+                }
+
+                foreach ($field in @('managedDirectory', 'binaryDirectory'))
+                {
+                    $path = [string]$toolInfo.provider[$field]
+
+                    if ([string]::IsNullOrWhiteSpace($path) -or $path -match '(^|[/\\])\.\.([/\\]|$)' -or [IO.Path]::IsPathRooted($path))
+                    {
+                        throw "Archive tool '$($toolInfo.id)' has an unsafe '$field' path."
+                    }
+                }
+
+                if ([string]$toolInfo.provider.compiler -notmatch '^[A-Za-z0-9._+-]+$')
+                {
+                    throw "Archive tool '$($toolInfo.id)' has an invalid compiler command."
+                }
+
+                if ($toolInfo.versionPolicy -ne 'exact')
+                {
+                    throw "Archive tool '$($toolInfo.id)' must pin an exact version."
+                }
+
+                foreach ($assetKey in @($toolInfo.provider.assets.Keys))
+                {
+                    $asset = $toolInfo.provider.assets[$assetKey]
+
+                    if (-not $asset.Contains('archive') -or
+                        $asset.archive -notmatch '(?i)\.(zip|tar\.gz|tar\.xz)$' -or
+                        $asset.sha256 -notmatch '^[0-9a-f]{64}$' -or
+                        -not $asset.Contains('validationFiles'))
+                    {
+                        throw "Archive tool '$($toolInfo.id)' has invalid verified asset metadata for '$assetKey'."
                     }
                 }
             }
@@ -573,6 +663,113 @@ function Assert-GameWipUniqueId
     }
 }
 
+function Assert-GameWipCommandBuilderOptionSet
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][object[]]$Options,
+        [string[]]$ValidCommonCapabilities = @(),
+        [string[]]$ValidPlatforms = @()
+    )
+    Assert-GameWipUniqueId -Label "$Label option" -Items $Options
+    $validKinds = @('boolean', 'choice', 'integer', 'text', 'multi-choice')
+
+    foreach ($option in $Options)
+    {
+        $optionLabel = "$Label option '$($option.Id)'"
+
+        if ($validKinds -notcontains [string]$option.Kind)
+        {
+            throw "$optionLabel has unknown kind '$($option.Kind)'."
+        }
+
+        $hasValue = @($option.Arguments | Where-Object { ([string]$_).Contains('{value}') }).Count -gt 0
+
+        if ($option.Kind -eq 'boolean' -and $hasValue)
+        {
+            throw "$optionLabel must not contain '{value}'."
+        }
+
+        if ($option.Kind -ne 'boolean' -and -not $hasValue)
+        {
+            throw "$optionLabel must contain '{value}'."
+        }
+
+        $requiredCapabilities = if ($option.ContainsKey('requiresCommon'))
+        {
+            @($option.requiresCommon)
+        }
+        else
+        {
+            @()
+        }
+
+        foreach ($capability in $requiredCapabilities)
+        {
+            if ($ValidCommonCapabilities -notcontains [string]$capability)
+            {
+                throw "$optionLabel requires unknown common capability '$capability'."
+            }
+        }
+
+        $requiredPlatforms = if ($option.ContainsKey('requiresPlatforms'))
+        {
+            @($option.requiresPlatforms)
+        }
+        else
+        {
+            @()
+        }
+
+        foreach ($platform in $requiredPlatforms)
+        {
+            if ($ValidPlatforms -notcontains [string]$platform)
+            {
+                throw "$optionLabel requires unknown platform '$platform'."
+            }
+        }
+
+        if ($option.Kind -in @('choice', 'multi-choice'))
+        {
+            $choices = @($option.Choices)
+
+            if ($choices.Count -eq 0)
+            {
+                throw "$optionLabel must declare choices."
+            }
+        }
+
+        if ($option.Kind -eq 'choice' -and $choices -notcontains [string]$option.Default)
+        {
+            throw "Default for $optionLabel is not one of its choices."
+        }
+
+        if ($option.Kind -eq 'multi-choice')
+        {
+            if ([string]::IsNullOrEmpty([string]$option.ValueSeparator))
+            {
+                throw "$optionLabel must declare a value separator."
+            }
+
+            foreach ($default in @($option.Default))
+            {
+                if ($choices -notcontains [string]$default)
+                {
+                    throw "Default for $optionLabel contains unknown choice '$default'."
+                }
+            }
+
+            foreach ($exclusive in @($option.ExclusiveChoices))
+            {
+                if ($choices -notcontains [string]$exclusive)
+                {
+                    throw "$optionLabel marks unknown choice '$exclusive' as exclusive."
+                }
+            }
+        }
+    }
+}
+
 function Assert-GameWipBundleAcyclic
 {
     param(
@@ -764,6 +961,7 @@ function Assert-GameWipCommandConfig
         'wizard'
         'stress'
         'run'
+        'runtime'
         'bundle'
         'doc'
         'analyze'
@@ -938,8 +1136,6 @@ function Assert-GameWipCommandConfig
         throw "Unknown default validation module '$($CommandConfig.DefaultModule)'."
     }
 
-    # Validate module-specific builder options.
-    $validBuilderKinds = @('boolean', 'choice', 'integer', 'text')
     $validCommonCapabilities = @('manual-tests', 'verbose-tests', 'test-support-child-process', 'report')
 
     foreach ($module in @($CommandConfig.Modules))
@@ -958,50 +1154,16 @@ function Assert-GameWipCommandConfig
             continue
         }
 
-        Assert-GameWipUniqueId -Label "validation builder option in '$($module.Id)'" -Items $options
-
-        foreach ($option in $options)
-        {
-            if ($validBuilderKinds -notcontains [string]$option.Kind)
-            {
-                throw "Unknown validation builder option kind '$($option.Kind)' in '$($module.Id)/$($option.Id)'."
-            }
-
-            $requiredCapabilities = @(if ($option -is [hashtable] -and $option.ContainsKey('requiresCommon'))
-                {
-                    @($option['requiresCommon'])
-                }
-                else
-                {
-                    @()
-                })
-
-            foreach ($capability in $requiredCapabilities)
-            {
-                if ($validCommonCapabilities -notcontains [string]$capability)
-                {
-                    throw "Unknown common capability '$capability' in validation builder option '$($module.Id)/$($option.Id)'."
-                }
-            }
-
-            $hasValue = @($option.Arguments | Where-Object { $_.Contains('{value}') }).Count -gt 0
-
-            if ($option.Kind -eq 'boolean' -and $hasValue)
-            {
-                throw "Boolean validation builder option '$($module.Id)/$($option.Id)' must not contain '{value}'."
-            }
-
-            if ($option.Kind -ne 'boolean' -and -not $hasValue)
-            {
-                throw "Validation builder option '$($module.Id)/$($option.Id)' must contain '{value}'."
-            }
-
-            if ($option.Kind -eq 'choice' -and @($option.Choices) -notcontains [string]$option.Default)
-            {
-                throw "Default for validation builder option '$($module.Id)/$($option.Id)' is not one of its choices."
-            }
-        }
+        Assert-GameWipCommandBuilderOptionSet `
+            -Label "validation '$($module.Id)'" `
+            -Options $options `
+            -ValidCommonCapabilities $validCommonCapabilities
     }
+
+    Assert-GameWipCommandBuilderOptionSet `
+        -Label 'runtime' `
+        -Options @($CommandConfig.RuntimeBuilderOptions) `
+        -ValidPlatforms @('windows', 'linux')
 
     # Validate project commands and bundle steps.
     foreach ($command in $commands)
@@ -1024,13 +1186,30 @@ function Assert-GameWipCommandConfig
             throw "Project command '$($command.Id)' has an unsupported working directory '$($command.WorkingDirectory)'."
         }
 
-        foreach ($field in @('InheritConsole', 'TargetRuntimePath', 'StartTracyProfiler'))
+        foreach ($field in @('InheritConsole', 'TargetRuntimePath', 'StartTracyProfiler', 'RuntimeOptions'))
         {
             if ($command.ContainsKey($field) -and $command[$field] -isnot [bool])
             {
                 throw "Project command '$($command.Id)' must set '$field' to a Boolean value."
             }
         }
+    }
+
+    $runtimeCommands = @($commands | Where-Object { $_.ContainsKey('RuntimeOptions') -and [bool]$_.RuntimeOptions })
+
+    if ($runtimeCommands.Count -eq 0)
+    {
+        throw 'The runtime command builder requires at least one project command with RuntimeOptions enabled.'
+    }
+
+    if (@($runtimeCommands | Where-Object { -not [bool]$_.AcceptsExtraArgs }).Count -gt 0)
+    {
+        throw 'Every project command with RuntimeOptions enabled must accept extra arguments.'
+    }
+
+    if (@($runtimeCommands | ForEach-Object { [string]$_.Id }) -notcontains [string]$CommandConfig.DefaultRuntimeCommand)
+    {
+        throw "Default runtime command '$($CommandConfig.DefaultRuntimeCommand)' is not enabled for runtime options."
     }
 
     $commandIds = @($commands | ForEach-Object { $_.Id })

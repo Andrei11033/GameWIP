@@ -28,6 +28,7 @@ concepts.
 | `CMakePresets.json` | Supported configure, build, and test presets. |
 | `cmake/GameWIPTarget.cmake` | Target selection and compiler setup before `project()`. |
 | `cmake/GameWIPLLVMMinGW.cmake` | LLVM-MinGW compiler and Windows target configuration. |
+| `cmake/GameWIPZig.cmake` | Zig compiler and Linux target configuration. |
 | `cmake/GameWIPOptions.cmake` | Project composition options and option compatibility checks. |
 | `cmake/GameWIPPlatform.cmake` | Normalized platform resolution and required backend selection. |
 | `cmake/GameWIPPackage.cmake` | Shared package configuration, version, and export installation. |

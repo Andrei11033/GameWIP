@@ -21,6 +21,26 @@
       "toolchain": "llvm-mingw",
       "compilerTriple": "aarch64-w64-mingw32",
       "processor": "ARM64"
+    },
+    {
+      "id": "linux-x64",
+      "name": "Linux x64",
+      "platform": "linux",
+      "architecture": "x64",
+      "backend": "linux",
+      "toolchain": "zig",
+      "compilerTriple": "x86_64-linux-gnu.2.35",
+      "processor": "x86_64"
+    },
+    {
+      "id": "linux-arm64",
+      "name": "Linux ARM64",
+      "platform": "linux",
+      "architecture": "arm64",
+      "backend": "linux",
+      "toolchain": "zig",
+      "compilerTriple": "aarch64-linux-gnu.2.35",
+      "processor": "aarch64"
     }
   ]
 }

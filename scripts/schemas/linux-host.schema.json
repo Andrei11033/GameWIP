@@ -49,10 +49,11 @@
     "packageManager": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["updateArguments", "installArguments", "packages"],
+      "required": ["updateArguments", "installArguments", "removeArguments", "packages"],
       "properties": {
         "updateArguments": { "type": "array", "items": { "type": "string" } },
         "installArguments": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "removeArguments": { "type": "array", "minItems": 1, "items": { "type": "string" } },
         "packages": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } }
       }
     },

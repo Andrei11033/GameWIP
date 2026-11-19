@@ -8,7 +8,8 @@
   "packageManagers": {
     "apt": {
       "updateArguments": ["update"],
-      "installArguments": ["install", "--yes", "--no-install-recommends"],
+      "installArguments": ["install", "--yes", "--no-install-recommends", "--no-upgrade"],
+      "removeArguments": ["remove", "--yes"],
       "packages": [
         "build-essential",
         "ca-certificates",
@@ -35,6 +36,7 @@
     "pacman": {
       "updateArguments": [],
       "installArguments": ["-Syu", "--needed", "--noconfirm"],
+      "removeArguments": ["-R", "--noconfirm"],
       "packages": [
         "base-devel",
         "ca-certificates",

@@ -3,9 +3,12 @@
 GameWIP uses CMake presets to keep development, testing, benchmarking,
 profiling, coverage, analysis, documentation, and release builds separate.
 Native CMake builds use `build/<preset>`. The helper uses
-`build/<target>/<preset>` for Windows targets so architectures keep separate
-caches. Linux currently cross-builds Windows targets; native Linux game builds
-are not available yet.
+`build/<target>/<preset>` for Windows and Linux targets so their caches stay
+separate. Zig provides Linux x64 and ARM64 compiler targets on both Windows and
+Linux hosts. Full project builds wait for Linux platform backends.
+
+The default CMake install prefix is `<build-tree>/install`. Set
+`CMAKE_INSTALL_PREFIX` explicitly when an install needs a different destination.
 
 This guide explains the project-level presets and options, what each build
 contains, where its artifacts go, how runtime dependencies are staged, and how
@@ -21,6 +24,8 @@ project_command_line_tools.
 Use PowerShell for `gamewip.bat` on Windows and `bash ./gamewip.sh` on Linux.
 Direct CMake examples below use MSYS2 UCRT64 Bash; direct sanitizer examples use
 CLANG64. The helper's Windows targets use LLVM-MinGW Clang with libc++ and UCRT.
+Linux targets use Zig with a glibc 2.35 baseline; a matching system Zig is
+reused, otherwise setup installs the pinned archive.
 Direct CMake commands use the active MSYS2 compiler. The supported Windows
 environment is
 MSYS2 UCRT64 with CMake 4.4.4 or newer, Ninja, GCC 16.2 or newer or Clang
@@ -44,7 +49,10 @@ Before configuring a fresh checkout, prepare the locked dependency cache:
 
 Native Windows CMake `asan` and `ubsan` builds use MSYS2 CLANG64. Keep those
 trees separate from helper-managed target trees and place CLANG64 tools first
-on `PATH`. The Windows helper uses the selected LLVM-MinGW target;
+on `PATH`. Direct commands below use the default MSYS2 root. Set
+`GAMEWIP_MSYS2_ROOT` to an absolute path when using an existing installation or
+when the storage root has changed. The Windows helper uses the selected
+LLVM-MinGW target;
 AddressSanitizer is available for x64, but not ARM64.
 
 ## Common workflow
@@ -66,8 +74,23 @@ Select Windows ARM64 with:
 ```
 
 `setup.bat repair` installs the pinned LLVM-MinGW toolchain when it is missing.
-Target selection is stored under `build/gamewip/state`; each target uses its own
-preset trees.
+Target selection is stored under `<storage-root>/state` (default
+`build/gamewip/state`); each target uses its own preset trees.
+
+Select Linux x64 or ARM64 from either host:
+
+```powershell
+.\gamewip.bat target -TargetPlatform linux -TargetArchitecture x64
+.\gamewip.bat target -TargetPlatform linux -TargetArchitecture arm64
+```
+
+```bash
+bash ./gamewip.sh target -TargetPlatform linux -TargetArchitecture x64
+bash ./gamewip.sh target -TargetPlatform linux -TargetArchitecture arm64
+```
+
+The target selection and compiler are ready for Linux backend work. Project
+configuration stops when it reaches a library without a Linux backend.
 
 The helper does not configure an ARM64 emulator. Run ARM64 executables on an
 ARM64 Windows host; on x64 Windows, select x64 before running CTest.
@@ -79,8 +102,8 @@ cmake --preset dev
 cmake --build --preset dev
 ```
 
-Direct CMake can select a Windows target with cache variables and a separate
-build directory:
+Direct CMake can select a target with cache variables and a separate build
+directory. The helper supplies the selected toolchain root automatically.
 
 ```powershell
 cmake --preset dev -B build/windows-arm64/dev `
@@ -146,10 +169,10 @@ restore CMake build trees across runs.
 ### Target selection
 
 Direct CMake builds use the host platform and architecture unless a target is
-selected before compiler detection. Windows cross-builds require both
-`GAMEWIP_TARGET_PLATFORM=windows` and `GAMEWIP_TARGET_ARCHITECTURE=x64` or
-`arm64`; the helper sets these values and keeps each target in a separate build
-tree. `GAMEWIP_LLVM_MINGW_ROOT` may override the managed toolchain root.
+selected before compiler detection. Set `GAMEWIP_TARGET_PLATFORM` to `windows`
+or `linux` and `GAMEWIP_TARGET_ARCHITECTURE` to `x64` or `arm64`. The helper
+keeps each target in a separate build tree. `GAMEWIP_LLVM_MINGW_ROOT` and
+`GAMEWIP_ZIG_ROOT` can select existing toolchain directories.
 
 ## Presets
 
@@ -188,7 +211,8 @@ validation.
 ### Configure AddressSanitizer
 
 ```powershell
-$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+$msys2Root = if ($env:GAMEWIP_MSYS2_ROOT) { $env:GAMEWIP_MSYS2_ROOT } else { 'build/gamewip/tools/msys2' }
+$env:PATH = "$(Join-Path $msys2Root 'clang64/bin');$env:PATH"
 cmake --preset asan
 cmake --build --preset asan
 ctest --preset asan
@@ -213,7 +237,8 @@ a fresh build. AddressSanitizer supports x64 only:
 ### Configure UndefinedBehaviorSanitizer
 
 ```powershell
-$env:PATH = "C:\MSYS2\clang64\bin;$env:PATH"
+$msys2Root = if ($env:GAMEWIP_MSYS2_ROOT) { $env:GAMEWIP_MSYS2_ROOT } else { 'build/gamewip/tools/msys2' }
+$env:PATH = "$(Join-Path $msys2Root 'clang64/bin');$env:PATH"
 cmake --preset ubsan
 cmake --build --preset ubsan
 ctest --preset ubsan
@@ -294,7 +319,8 @@ conversion.
 | Doxygen warning log | `<build-tree>/docs/doxygen/doxygen_warnings.log` | Docs preset |
 | Coverage HTML | `<build-tree>/coverage/index.html` | Coverage target |
 | Coverage XML | `<build-tree>/coverage/coverage.xml` | Coverage target |
-| Helper logs, manifests, and retained results | `build/gamewip/runs/<timestamp>_<action>/` | `gamewip.bat` and `setup.bat` |
+| Helper logs, manifests, and retained results | `<storage-root>/runs/<timestamp>_<action>/` (default `build/gamewip/runs/`) | `gamewip.bat` and `setup.bat` |
+| Default CMake install prefix | `<build-tree>/install/` | `cmake --install` |
 
 Runtime dependency copying places matching compiler runtime DLLs beside project
 executables. The helper searches the active compiler and target runtime
@@ -319,8 +345,8 @@ number before generation.
 
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
-| A preset cannot find Ninja, CMake, or the compiler. | The expected MSYS2 environment is not first on `PATH`. | Start the correct MSYS2 shell or update `PATH` before configuring. |
-| Native Windows CMake sanitizer configuration fails. | The preset is being configured from UCRT64 instead of CLANG64. | Put `C:\MSYS2\clang64\bin` first on `PATH` and use a separate build tree. |
+| A preset cannot find Ninja, CMake, or the compiler. | A selected tool is missing or unavailable on `PATH`. | Run `setup.bat repair` or `bash ./setup.sh repair`, then check the selected target. |
+| Native Windows CMake sanitizer configuration fails. | The preset is being configured from UCRT64 instead of CLANG64. | Put `<msys2-root>/clang64/bin` first on `PATH` and use a separate build tree. |
 | Docs configuration fails. | Doxygen is not installed or not discoverable. | Install Doxygen or disable `GAMEWIP_BUILD_DOCS`. |
 | Coverage configuration fails. | Tests are disabled while coverage is enabled. | Enable `GAMEWIP_BUILD_TESTS` or use the `coverage` preset. |
 | Startup validation option fails configuration. | Startup validation was enabled while the game executable was disabled. | Enable `GAMEWIP_BUILD_GAME` or disable the startup option. |

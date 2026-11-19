@@ -313,87 +313,7 @@ function Get-GameWipValidationBuilderOptions
         {
             @()
         })
-    $applicable = [System.Collections.Generic.List[object]]::new()
-
-    foreach ($option in $options)
-    {
-        $required = @(if ($option -is [hashtable] -and $option.ContainsKey('requiresCommon'))
-            {
-                @($option['requiresCommon'])
-            }
-            else
-            {
-                @()
-            })
-        $isApplicable = $true
-
-        foreach ($capability in $required)
-        {
-            if ($CommonCapabilities -notcontains [string]$capability)
-            {
-                $isApplicable = $false
-            }
-        }
-
-        if ($isApplicable)
-        {
-            $applicable.Add($option) | Out-Null
-        }
-    }
-
-    return $applicable.ToArray()
-}
-
-function ConvertTo-GameWipValidationBuilderArguments
-{
-    param([Parameter(Mandatory = $true)]$Option, [Parameter(Mandatory = $true)]$Value)
-
-    if ($Option.Kind -eq 'boolean')
-    {
-        return @($Option.Arguments | Where-Object { [bool]$Value } | ForEach-Object { [string]$_ })
-    }
-
-    if ($Option.OmitDefault -and ([string]$Value -eq [string]$Option.Default))
-    {
-        return @()
-    }
-
-    return @($Option.Arguments | ForEach-Object { ([string]$_).Replace('{value}', [string]$Value) })
-}
-
-function Read-GameWipValidationBuilderOptionResult
-{
-    param([Parameter(Mandatory = $true)]$Option)
-    Write-GameWipSemanticText -Object $Option.Description -Semantic Muted
-
-    switch ([string]$Option.Kind)
-    {
-        'boolean'
-        {
-            return Read-GameWipYesNo -Prompt $Option.Title -Default ([bool]$Option.Default)
-        }
-
-        'choice'
-        {
-            $choiceResult = Read-GameWipMenuChoiceResult -Prompt $Option.Title -Choices ([string[]]$Option.Choices) -Default ([string]$Option.Default)
-
-            if ($choiceResult.Status -eq 'Cancelled')
-            {
-                return New-GameWipChoiceResult -Status Cancelled -Value $null
-            }
-            return $choiceResult.Value
-        }
-
-        'integer'
-        {
-            return Read-GameWipIntegerValue -Prompt $Option.Title -Default ([int]$Option.Default)
-        }
-
-        'text'
-        {
-            return Read-GameWipTextValue -Prompt $Option.Title -Default ([string]$Option.Default)
-        }
-    }
+    return Get-GameWipCommandBuilderOptions -Options $options -CommonCapabilities $CommonCapabilities
 }
 
 # ------------------------------------------------------------
@@ -473,16 +393,21 @@ function Invoke-GameWipValidationCommandWizard
         {
             foreach ($option in @(Get-GameWipValidationBuilderOptions -ModuleName $moduleName -CommonCapabilities $capabilities))
             {
-                $value = Read-GameWipValidationBuilderOptionResult -Option $option
+                $value = Read-GameWipCommandBuilderOptionResult -Option $option
 
                 if ($value -is [psobject] -and $value.PSObject.Properties.Name -contains 'Status' -and $value.Status -eq 'Cancelled')
                 {
                     return
                 }
 
+                if ($option.Kind -eq 'multi-choice')
+                {
+                    $value = @($value.Value)
+                }
+
                 if ($null -ne $value)
                 {
-                    foreach ($argument in @(ConvertTo-GameWipValidationBuilderArguments -Option $option -Value $value))
+                    foreach ($argument in @(ConvertTo-GameWipCommandBuilderArguments -Option $option -Value $value))
                     {
                         $builderArguments.Add($argument) | Out-Null
                     }

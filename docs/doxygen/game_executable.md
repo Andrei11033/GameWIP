@@ -88,6 +88,17 @@ startup-benchmark build may reject other arguments.
 Use `GameWIPTests.exe --help` and `GameWIPBenchmarks.exe --help` for their
 current option sets, or start at @ref project_command_line_tools.
 
+Run `.\gamewip.bat runtime` or select **Development > Run game executable**
+to open the interactive builder. On Linux, use `bash ./gamewip.sh runtime`.
+The direct `run` action accepts the same options:
+
+```powershell
+.\gamewip.bat run game-dev -BuildBeforeRun -LogLevel trace -InputDebug -WindowEvents
+```
+
+`-BuildBeforeRun` rebuilds the selected preset before launch. Without it, the
+helper builds only when the executable is missing.
+
 Embedded validation retains relative reports under `logs/validation` beside the game
 executable and scopes disposable validation or benchmark fixtures to its preset's
 `temp` directory. Those temporary environment changes are restored before the

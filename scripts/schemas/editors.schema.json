@@ -32,7 +32,20 @@
     "editor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["key", "id", "name", "recommended", "handler", "package"],
+      "required": ["key", "id", "name", "recommended", "handler"],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "handler": { "const": "visual-studio" }
+            },
+            "required": ["handler"]
+          },
+          "then": {
+            "required": ["package"]
+          }
+        }
+      ],
       "properties": {
         "key": {
           "type": "string",

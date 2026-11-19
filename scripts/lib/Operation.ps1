@@ -357,6 +357,35 @@ function Confirm-GameWipMutation
     return Read-GameWipYesNo -Prompt 'Apply this plan?' -Default $false
 }
 
+function Confirm-GameWipExternalInstall
+{
+    param(
+        [Parameter(Mandatory = $true)][string]$Name,
+        [Parameter(Mandatory = $true)][string]$Provider,
+        [Parameter(Mandatory = $true)][string]$Package
+    )
+
+    $message = "Install $Name through $Provider package '$Package' outside build/?"
+    Write-GameWipOperationEvent -Phase plan -Step external-install -Severity info -Message $message
+
+    if ($null -ne $Script:OperationContext -and $Script:OperationContext.Preview)
+    {
+        return $false
+    }
+
+    if ($null -ne $Script:OperationContext -and $Script:OperationContext.Yes)
+    {
+        return $true
+    }
+
+    if ($null -ne $Script:OperationContext -and $Script:OperationContext.NonInteractive)
+    {
+        return $false
+    }
+
+    return Read-GameWipYesNo -Prompt $message -Default $false
+}
+
 # ------------------------------------------------------------
 # Owned process cleanup
 # ------------------------------------------------------------
@@ -719,7 +748,7 @@ function Invoke-GameWipOperation
         Initialize-GameWipStorage
         $context.Run = Initialize-GameWipToolRun `
             -RepositoryRoot $RepositoryRoot `
-            -RunLogRoot $ProjectConfig.storage.runs `
+            -RunLogRoot (Get-GameWipStorageAreaPath -Area runs) `
             -Tool 'project-tool' `
             -Action $Label
         $context.Temp = Initialize-GameWipOperationTemp

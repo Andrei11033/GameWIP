@@ -62,6 +62,7 @@ Required tool versions and providers are declared centrally:
 | PSScriptAnalyzer | 1.25.0 | PowerShell Gallery |
 | actionlint | 1.7.12 | verified GitHub release |
 | LLVM-MinGW | 20261104 | verified GitHub release |
+| Zig | 0.17.1 | verified archive |
 
 `gamewip tool status` is offline. `gamewip tool check-updates` performs an
 explicit online query without changing files or installations. `gamewip tool
@@ -82,11 +83,17 @@ root because editors and C++ tools discover them by searching upward.
 
 `setup.bat update` brings the machine into compliance with the versions already
 declared by the checkout. It does not advance exact project pins. Non-pacman
-tools persist under `C:\MSYS2\GameWIPTools` in the `bin`, `tools`, `npm`,
-`python`, and `powershell` subdirectories.
+tools default to `build/gamewip/tools/managed`; MSYS2 defaults to
+`build/gamewip/tools/msys2`. `GAMEWIP_MANAGED_TOOLS_ROOT` and
+`GAMEWIP_MSYS2_ROOT` can select existing installations.
 
-Repository-local helper data is disposable and confined to
-`build/gamewip/{cache,state,temp,runs}`. Each operation owns a unique marked
+APT, pacman, and WinGet packages remain host-managed and outside the checkout.
+Setup lists system package changes before confirmation. VS Code extensions and
+keybindings use the editor's user directories.
+
+Repository-local helper data defaults to
+`build/gamewip/{cache,state,temp,runs}` and can be moved beneath `build/` with
+`GAMEWIP_STORAGE_ROOT`. Each operation owns a unique marked
 temporary directory and removes it in `finally`. Deleting `build/` is supported.
 Read-only status and quality actions recreate their required storage without
 reinstalling persistent tools.

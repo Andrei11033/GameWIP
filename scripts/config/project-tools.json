@@ -6,10 +6,11 @@
       "name": "MSYS2",
       "category": "environment",
       "provider": {
-        "kind": "winget",
-        "package": "MSYS2.MSYS2",
+        "kind": "external",
+        "homepage": "https://www.msys2.org/",
+        "hostPlatform": "windows",
         "managedPath": "usr/bin/bash.exe",
-        "installArguments": ["--override", "install --confirm-command --root {msys2Root}"]
+        "bootstrap": "msys2BaseArchive"
       },
       "versionPolicy": "managed",
       "detection": {
@@ -21,28 +22,6 @@
         "detectInstalled": true,
         "checkLatest": false,
         "update": false
-      },
-      "references": []
-    },
-    {
-      "id": "msys2-git",
-      "name": "MSYS2 Git",
-      "category": "source-control",
-      "provider": {
-        "kind": "msys2",
-        "environment": "common",
-        "package": "git"
-      },
-      "versionPolicy": "managed",
-      "detection": {
-        "command": "git",
-        "versionArguments": ["--version"],
-        "versionPattern": "git version ([0-9.]+)"
-      },
-      "capabilities": {
-        "detectInstalled": true,
-        "checkLatest": true,
-        "update": true
       },
       "references": []
     },
@@ -114,6 +93,7 @@
         "installMode": "directoryArchive",
         "managedDirectory": "tools/llvm-mingw",
         "binaryDirectory": "bin",
+        "cmakeToolchain": "GameWIPLLVMMinGW.cmake",
         "validationFiles": [
           "bin/x86_64-w64-mingw32-clang.exe",
           "bin/x86_64-w64-mingw32-clang++.exe",
@@ -196,6 +176,55 @@
       "capabilities": {
         "detectInstalled": true,
         "checkLatest": true,
+        "update": true
+      },
+      "references": []
+    },
+    {
+      "id": "zig",
+      "name": "Zig",
+      "category": "compiler",
+      "provider": {
+        "kind": "archive",
+        "baseUrl": "https://ziglang.org/download",
+        "installMode": "directoryArchive",
+        "managedDirectory": "tools/zig",
+        "binaryDirectory": ".",
+        "compiler": "zig",
+        "cmakeToolchain": "GameWIPZig.cmake",
+        "assets": {
+          "windows-amd64": {
+            "archive": "zig-x86_64-windows-0.17.1.zip",
+            "sha256": "b03f477a1943673e02aca0f570e8030dffd536ce1f45cbc4d3326ec31159562e",
+            "validationFiles": ["zig.exe", "lib/std/std.zig"]
+          },
+          "windows-arm64": {
+            "archive": "zig-aarch64-windows-0.17.1.zip",
+            "sha256": "4789895bdb1e312a2ea73b2a7c0a0cc8d2ab62ba6976e834a7c54cf443377c15",
+            "validationFiles": ["zig.exe", "lib/std/std.zig"]
+          },
+          "linux-amd64": {
+            "archive": "zig-x86_64-linux-0.17.1.tar.xz",
+            "sha256": "3581863e3cbcfd0fce0efc682ce7e9e93da96668a977791d356a26d2a7e9b17a",
+            "validationFiles": ["zig", "lib/std/std.zig"]
+          },
+          "linux-arm64": {
+            "archive": "zig-aarch64-linux-0.17.1.tar.xz",
+            "sha256": "a1546d5646eb184437918d6635ca6b762a0e889eac09cef720ee7a1ed3fe7795",
+            "validationFiles": ["zig", "lib/std/std.zig"]
+          }
+        }
+      },
+      "versionPolicy": "exact",
+      "requiredVersion": "0.17.1",
+      "detection": {
+        "command": "zig",
+        "versionArguments": ["version"],
+        "versionPattern": "(?m)^([0-9]+\\.[0-9]+\\.[0-9]+)$"
+      },
+      "capabilities": {
+        "detectInstalled": true,
+        "checkLatest": false,
         "update": true
       },
       "references": []

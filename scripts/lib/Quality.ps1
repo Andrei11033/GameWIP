@@ -647,12 +647,12 @@ function Invoke-GameWipQualityCheck
         },
         @{ Name = 'ruff lint'; Body = { if (-not $useChangedScope -or $pythonFiles.Count -ne 0)
                 {
-                    Invoke-GameWipQualityNative -Name ruff-check -FilePath $tools.ruff -Arguments (@('check', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
+                    Invoke-GameWipQualityNative -Name ruff-check -FilePath $tools.ruff -Arguments (@('check', '--config', (Join-Path $qualityConfig 'ruff.toml'), '--cache-dir', (Join-Path (Get-GameWipStorageAreaPath -Area cache) 'ruff')) + $pythonFiles)
                 } }
         },
         @{ Name = 'ruff format'; Body = { if (-not $useChangedScope -or $pythonFiles.Count -ne 0)
                 {
-                    Invoke-GameWipQualityNative -Name ruff-format-check -FilePath $tools.ruff -Arguments (@('format', '--check', '--config', (Join-Path $qualityConfig 'ruff.toml')) + $pythonFiles)
+                    Invoke-GameWipQualityNative -Name ruff-format-check -FilePath $tools.ruff -Arguments (@('format', '--check', '--config', (Join-Path $qualityConfig 'ruff.toml'), '--cache-dir', (Join-Path (Get-GameWipStorageAreaPath -Area cache) 'ruff')) + $pythonFiles)
                 } }
         },
         @{ Name = 'PowerShell'; Body = { if (-not $useChangedScope -or $powerShellFiles.Count -ne 0)

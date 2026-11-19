@@ -8,7 +8,7 @@ Set-StrictMode -Version Latest
 
 function Get-GameWipDependencyCacheRoot
 {
-    $cacheRoot = Resolve-GameWipRepositoryPath -Path ([string]$ProjectConfig.storage.cache)
+    $cacheRoot = Get-GameWipStorageAreaPath -Area cache
     return [IO.Path]::GetFullPath((Join-Path $cacheRoot 'dependencies'))
 }
 

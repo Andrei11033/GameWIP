@@ -219,7 +219,7 @@ function Test-GameWipOperationOwnerActive
 
 function Invoke-GameWipStaleOperationTempCleanup
 {
-    $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
+    $tempRoot = Get-GameWipStorageAreaPath -Area temp
     $cutoff = (Get-Date).ToUniversalTime().AddDays(-1)
 
     foreach ($directory in @(Get-ChildItem -LiteralPath $tempRoot -Directory -ErrorAction SilentlyContinue))
@@ -250,7 +250,7 @@ function Initialize-GameWipOperationTemp
 {
     Initialize-GameWipStorage
     Invoke-GameWipStaleOperationTempCleanup
-    $tempRoot = Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.temp
+    $tempRoot = Get-GameWipStorageAreaPath -Area temp
     $operationId = '{0}-{1}' -f $PID, ([guid]::NewGuid().ToString('N').Substring(0, 12))
     $operationPath = Join-Path $tempRoot $operationId
     New-Item -ItemType Directory -Path $operationPath | Out-Null

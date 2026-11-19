@@ -81,11 +81,11 @@ function Get-GameWipToolCandidates
             $environment = [string]$Tool.provider.environment
             $bin = if ($environment -eq 'common')
             {
-                Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'usr\bin'
+                Join-Path (Get-GameWipMsys2Root) 'usr\bin'
             }
             else
             {
-                Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) "$environment\bin"
+                Join-Path (Get-GameWipMsys2Root) "$environment\bin"
             }
 
             foreach ($command in $commands)
@@ -96,9 +96,9 @@ function Get-GameWipToolCandidates
                 }
             }
         }
-        elseif ($Tool.provider.kind -eq 'winget' -and $Tool.provider.Contains('managedPath'))
+        elseif ($Tool.provider.kind -in @('winget', 'external') -and $Tool.provider.Contains('managedPath'))
         {
-            Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) ([string]$Tool.provider.managedPath)) -Source 'managed environment' -Priority 20 -SelectionReason 'declared provider location'
+            Add-GameWipToolCandidate -Candidates $candidates -Seen $seen -Path (Join-Path (Get-GameWipMsys2Root) ([string]$Tool.provider.managedPath)) -Source 'managed environment' -Priority 20 -SelectionReason 'declared provider location'
         }
     }
 
@@ -229,7 +229,7 @@ function Resolve-GameWipToolCommand
 
         foreach ($environment in @('ucrt64', 'clang64', 'usr'))
         {
-            $bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) "$environment\bin"
+            $bin = Join-Path (Get-GameWipMsys2Root) "$environment\bin"
 
             foreach ($name in $names)
             {

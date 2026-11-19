@@ -36,149 +36,6 @@ function Get-GameWipGitHubReleaseMetadata
     return $query.Metadata
 }
 
-function Install-GameWipGitHubReleaseDirectoryArchive
-{
-    param(
-        [Parameter(Mandatory = $true)][hashtable]$Tool,
-        [Parameter(Mandatory = $true)][string]$Version,
-        [Parameter(Mandatory = $true)][hashtable]$Asset,
-        [Parameter(Mandatory = $true)][string]$Download
-    )
-
-    # Validate the provider and archive before touching the managed install.
-    $extractRoot = Join-Path $Script:OperationContext.Temp "extract-$($Tool.id)"
-    New-Item -ItemType Directory -Path $extractRoot | Out-Null
-
-    $archiveName = [string]$Asset.archive
-
-    if ($archiveName.EndsWith('.zip', [StringComparison]::OrdinalIgnoreCase))
-    {
-        Expand-Archive -LiteralPath $Download -DestinationPath $extractRoot
-    }
-    elseif ($archiveName.EndsWith('.tar.gz', [StringComparison]::OrdinalIgnoreCase) -or
-        $archiveName.EndsWith('.tgz', [StringComparison]::OrdinalIgnoreCase))
-    {
-        Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xzf', $Download, '-C', $extractRoot) | Out-Null
-    }
-    elseif ($archiveName.EndsWith('.tar.xz', [StringComparison]::OrdinalIgnoreCase))
-    {
-        Invoke-GameWipProviderNative -Name "extract-$($Tool.id)" -FilePath tar -Arguments @('-xJf', $Download, '-C', $extractRoot) | Out-Null
-    }
-    else
-    {
-        throw "Unsupported directory archive format '$archiveName'."
-    }
-
-    $payloadDirectories = @(Get-ChildItem -LiteralPath $extractRoot -Directory -Force)
-
-    if ($payloadDirectories.Count -ne 1 -or @(Get-ChildItem -LiteralPath $extractRoot -File -Force).Count -ne 0)
-    {
-        throw "Directory archive '$($Asset.archive)' must contain one top-level directory."
-    }
-
-    $payload = $payloadDirectories[0].FullName
-
-    # Confirm the extracted tool contains every declared file.
-    $assetKey = Get-GameWipHostAssetKey
-
-    foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $assetKey))
-    {
-        $candidatePath = Join-Path $payload ([string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
-
-        if (-not (Test-Path -LiteralPath $candidatePath -PathType Leaf))
-        {
-            throw "Directory archive '$($Asset.archive)' is missing required file '$relativePath'."
-        }
-    }
-
-    $markerPath = Join-Path $payload '.gamewip-tool.json'
-    $marker = [ordered]@{
-        schemaVersion = 1
-        toolId = [string]$Tool.id
-        version = $Version
-        archive = [string]$Asset.archive
-        sha256 = [string]$Asset.sha256
-    }
-    Write-GameWipTextAtomic `
-        -Path $markerPath `
-        -Content (($marker | ConvertTo-Json -Depth 8) + "`n") `
-        -SuppressMutationTracking
-
-    # Stage the verified payload beside the managed tool family.
-    Initialize-GameWipManagedToolRoot
-    $managedRoot = Get-GameWipManagedToolRoot
-    $familyRoot = Join-Path $managedRoot ([string]$Tool.provider.managedDirectory)
-    $toolRoot = Join-Path $familyRoot $Version
-    $incoming = Join-Path $familyRoot ('.{0}.{1}.incoming' -f $Version, [guid]::NewGuid().ToString('N'))
-    $backup = $null
-
-    try
-    {
-        Set-GameWipMutationStarted
-        New-Item -ItemType Directory -Force -Path $familyRoot | Out-Null
-
-        if (Test-GameWipWindowsHost)
-        {
-            Copy-Item -LiteralPath $payload -Destination $incoming -Recurse
-        }
-        else
-        {
-            Move-Item -LiteralPath $payload -Destination $incoming
-        }
-
-        if (Test-Path -LiteralPath $toolRoot)
-        {
-            $backup = Join-Path $familyRoot ('.{0}.{1}.backup' -f $Version, [guid]::NewGuid().ToString('N'))
-            Move-Item -LiteralPath $toolRoot -Destination $backup
-        }
-
-        # Swap the complete candidate into place and restore the previous version on failure.
-        try
-        {
-            Move-Item -LiteralPath $incoming -Destination $toolRoot
-            $incoming = $null
-            $installedFiles = @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $assetKey | Where-Object {
-                    $relativePath = [string]$_.Replace('/', [IO.Path]::DirectorySeparatorChar)
-                    -not (Test-Path -LiteralPath (Join-Path $toolRoot $relativePath) -PathType Leaf)
-                })
-
-            if ($installedFiles.Count -ne 0)
-            {
-                throw "Installed '$($Tool.id)' is incomplete: $($installedFiles -join ', ')."
-            }
-        }
-
-        catch
-        {
-            if (Test-Path -LiteralPath $toolRoot)
-            {
-                Remove-Item -LiteralPath $toolRoot -Recurse -Force
-            }
-
-            if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
-            {
-                Move-Item -LiteralPath $backup -Destination $toolRoot
-                $backup = $null
-            }
-            throw
-        }
-
-        if ($null -ne $backup -and (Test-Path -LiteralPath $backup))
-        {
-            Remove-Item -LiteralPath $backup -Recurse -Force
-            $backup = $null
-        }
-    }
-
-    finally
-    {
-        if ($null -ne $incoming -and (Test-Path -LiteralPath $incoming))
-        {
-            Remove-Item -LiteralPath $incoming -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
-
 function Install-GameWipGitHubReleaseTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
@@ -226,7 +83,12 @@ function Install-GameWipGitHubReleaseTool
 
     if ($Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
     {
-        Install-GameWipGitHubReleaseDirectoryArchive -Tool $Tool -Version $Version -Asset $asset -Download $download
+        Install-GameWipVerifiedDirectoryArchive `
+            -Tool $Tool `
+            -Version $Version `
+            -Asset $asset `
+            -AssetKey $platformKey `
+            -Download $download
         return
     }
 

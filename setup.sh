@@ -14,4 +14,22 @@ if [[ "${1-}" == "--help" || "${1-}" == "-h" || "${1-}" == "-?" ]]; then
     exec "$GAMEWIP_POWERSHELL_COMMAND" -NoProfile -File "$repository_root/scripts/setup/Setup.ps1" help
 fi
 
-exec "$GAMEWIP_POWERSHELL_COMMAND" -NoProfile -File "$repository_root/scripts/setup/Setup.ps1" "$@"
+launch_token="${BASHPID:-$$}-$RANDOM-$RANDOM"
+
+if GAMEWIP_SETUP_LAUNCH_TOKEN="$launch_token" \
+    "$GAMEWIP_POWERSHELL_COMMAND" \
+    -NoProfile \
+    -File "$repository_root/scripts/setup/Setup.ps1" \
+    "$@"; then
+    setup_exit_code=0
+else
+    setup_exit_code=$?
+fi
+
+if ! gamewip_finish_setup_uninstall "$repository_root" "$setup_exit_code" "$launch_token"; then
+    if [[ "$setup_exit_code" -eq 0 ]]; then
+        setup_exit_code=1
+    fi
+fi
+
+exit "$setup_exit_code"

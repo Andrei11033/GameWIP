@@ -4,6 +4,10 @@
 # resolution is unsafe.
 
 function(gamewip_copy_runtime_dependencies target_name)
+    if(GAMEWIP_TARGET_PLATFORM STREQUAL "linux" AND NOT GAMEWIP_TARGET_NATIVE_ARCHITECTURE)
+        return()
+    endif()
+
     get_filename_component(gamewip_runtime_search_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
     set(gamewip_runtime_search_dirs "${gamewip_runtime_search_dir}" ${GAMEWIP_TARGET_RUNTIME_DIRECTORIES})
     set_property(TARGET "${target_name}" APPEND PROPERTY LINK_DEPENDS "${PROJECT_SOURCE_DIR}/cmake/copy_runtime_dependencies.cmake")

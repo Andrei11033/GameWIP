@@ -23,12 +23,35 @@ function Get-GameWipWingetToolLatestVersion
     return $null
 }
 
+function Get-GameWipWingetInstallStatus
+{
+    param([Parameter(Mandatory = $true)][string]$Id)
+    $listed = Invoke-GameWipProcess -FilePath winget -Arguments @('list', '--id', $Id, '--exact', '--accept-source-agreements') -OutputMode LogOnly -TimeoutSeconds 60
+    $installed = $listed.ExitCode -eq 0 -and (($listed.Stdout -join "`n") -match [regex]::Escape($Id))
+
+    return [pscustomobject]@{
+        Installed = $installed
+        Result = $listed
+    }
+}
+
 function Install-GameWipWingetTool
 {
-    param([hashtable]$Tool, [AllowNull()][string]$Version)
+    param(
+        [hashtable]$Tool,
+        [AllowNull()][string]$Version,
+        [AllowNull()]$InstalledStatus
+    )
     $null = $Version
-    $listed = Invoke-GameWipProcess -FilePath winget -Arguments @('list', '--id', [string]$Tool.provider.package, '--exact', '--accept-source-agreements') -OutputMode LogOnly -TimeoutSeconds 60
-    $installed = $listed.ExitCode -eq 0 -and (($listed.Stdout -join "`n") -match [regex]::Escape([string]$Tool.provider.package))
+    $status = if ($null -ne $InstalledStatus)
+    {
+        $InstalledStatus
+    }
+    else
+    {
+        Get-GameWipWingetInstallStatus -Id ([string]$Tool.provider.package)
+    }
+    $installed = [bool]$status.Installed
     $verb = if ($installed)
     {
         'upgrade'
@@ -43,7 +66,7 @@ function Install-GameWipWingetTool
     {
         foreach ($argument in @($Tool.provider.installArguments))
         {
-            $arguments += ([string]$argument).Replace('{msys2Root}', [string]$ProjectConfig.managedEnvironment.msys2Root)
+            $arguments += ([string]$argument).Replace('{msys2Root}', (Get-GameWipMsys2Root))
         }
     }
     $allowed = @(0)

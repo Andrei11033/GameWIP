@@ -79,7 +79,7 @@ function Get-GameWipEditorPreferencePath
 {
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
 
-    return Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.state 'editor-selection.json')
+    return Join-Path (Get-GameWipStorageAreaPath -Area state) 'editor-selection.json'
 }
 
 function Get-GameWipEditorSelection
@@ -250,19 +250,19 @@ function Install-GameWipEditorSelection
         {
             'vscode'
             {
-                if ((Test-GameWipWindowsHost) -and $Update -and (Test-GameWipWingetPackage -Id $option.Package))
+                $installEditor = $true
+
+                if (-not (Test-GameWipSetupCommand -Name $option.Command))
                 {
-                    Invoke-GameWipWingetPackageUpdate -Id $option.Package
+                    Add-GameWipOperationPreserved -Message "Left $($option.Name) unchanged because it is not installed."
+                    Write-GameWipSemanticText -Object "$($option.Name) is not installed; editor integration was skipped." -Semantic Warning
+                    $installEditor = $false
                 }
-                elseif ((Test-GameWipWindowsHost) -and -not (Test-GameWipSetupCommand -Name $option.Command))
+
+                if ($installEditor)
                 {
-                    Install-GameWipWingetPackage -Id $option.Package
+                    Install-GameWipEditorIntegration -RepositoryRoot $RepositoryRoot -Extensions $option.Extensions
                 }
-                elseif (-not (Test-GameWipSetupCommand -Name $option.Command))
-                {
-                    throw 'Visual Studio Code is not installed. Install it, then rerun setup editor.'
-                }
-                Install-GameWipEditorIntegration -RepositoryRoot $RepositoryRoot -Extensions $option.Extensions
             }
             'visual-studio'
             {
@@ -587,7 +587,7 @@ function Install-GameWipEditorIntegration
 
     if ($null -eq $codePath)
     {
-        throw 'Visual Studio Code was not found after installation.'
+        throw 'Visual Studio Code is unavailable; editor integration cannot be applied.'
     }
 
     foreach ($extension in $Extensions)

@@ -3,9 +3,11 @@ cmake_minimum_required(VERSION "${GAMEWIP_CMAKE_MINIMUM_VERSION}")
 cmake_policy(SET CMP0168 NEW)
 
 get_filename_component(GAMEWIP_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+include("${GAMEWIP_SOURCE_ROOT}/cmake/GameWIPStorage.cmake")
 
 if(NOT DEFINED GAMEWIP_DEPENDENCY_CACHE_DIR OR GAMEWIP_DEPENDENCY_CACHE_DIR STREQUAL "")
-    set(GAMEWIP_DEPENDENCY_CACHE_DIR "${GAMEWIP_SOURCE_ROOT}/build/gamewip/cache/dependencies")
+    gamewip_get_storage_path(_gamewip_cache_root cache)
+    set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_cache_root}/dependencies")
 endif()
 
 include("${GAMEWIP_SOURCE_ROOT}/cmake/GameWIPDependencies.cmake")

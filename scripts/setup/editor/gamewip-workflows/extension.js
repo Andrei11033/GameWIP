@@ -43,6 +43,30 @@ function readJson(root, relativePath) {
     }
 }
 
+function getStorageRoot(root, project) {
+    const configuredRoot = process.env.GAMEWIP_STORAGE_ROOT || project.storage.root;
+    const storageRoot = path.resolve(root, configuredRoot);
+    const buildRoot = path.resolve(root, 'build');
+    const relativePath = path.relative(buildRoot, storageRoot);
+
+    if (relativePath === '' || relativePath.startsWith(`..${path.sep}`) || relativePath === '..' || path.isAbsolute(relativePath)) {
+        throw new Error(`GAMEWIP_STORAGE_ROOT must be a child of ${buildRoot}: ${storageRoot}`);
+    }
+
+    return storageRoot;
+}
+
+function getManagedRoot(context, setting, environmentVariable) {
+    const configuredPath = process.env[environmentVariable] || context.project.managedEnvironment[setting];
+    const managedRoot = path.resolve(context.storageRoot, configuredPath);
+
+    if (managedRoot === path.parse(managedRoot).root || managedRoot === context.storageRoot) {
+        throw new Error(`${environmentVariable} cannot point to a filesystem root or the storage root.`);
+    }
+
+    return managedRoot;
+}
+
 // ------------------------------------------------------------
 // Selected target and build paths
 // ------------------------------------------------------------
@@ -51,7 +75,8 @@ function getBuildContext() {
     const root = findRepositoryRoot();
     const project = readJson(root, path.join('scripts', 'config', 'project.json'));
     const catalog = readJson(root, path.join('scripts', 'config', 'build-targets.json'));
-    const selectionPath = path.join(root, project.storage.state, 'build-target.json');
+    const storageRoot = getStorageRoot(root, project);
+    const selectionPath = path.join(storageRoot, project.storage.state, 'build-target.json');
     let targetId;
 
     if (fs.existsSync(selectionPath)) {
@@ -76,7 +101,7 @@ function getBuildContext() {
         throw new Error('VS Code cannot launch or debug the selected Windows target on this host. Build it here, then run or debug it on Windows.');
     }
 
-    return { root, project, target };
+    return { root, project, storageRoot, target };
 }
 
 function getBuildDirectory(context, preset) {
@@ -112,12 +137,12 @@ function getTargetRuntimePath() {
     }
 
     const toolchainRoot = path.join(
-        context.project.managedEnvironment.gameWipToolsRoot,
+        getManagedRoot(context, 'gameWipToolsRoot', 'GAMEWIP_MANAGED_TOOLS_ROOT'),
         toolchain.provider.managedDirectory,
         toolchain.requiredVersion,
     );
     const targetRuntime = path.join(toolchainRoot, context.target.compilerTriple, 'bin');
-    const msys2Runtime = path.join(context.project.managedEnvironment.msys2Root, 'ucrt64', 'bin');
+    const msys2Runtime = path.join(getManagedRoot(context, 'msys2Root', 'GAMEWIP_MSYS2_ROOT'), 'ucrt64', 'bin');
 
     return [path.join(toolchainRoot, toolchain.provider.binaryDirectory), targetRuntime, msys2Runtime, process.env.PATH || '']
         .filter(Boolean)
@@ -131,7 +156,7 @@ function getDebuggerPath() {
         throw new Error('The configured GDB path is available only on Windows.');
     }
 
-    const debuggerPath = path.join(context.project.managedEnvironment.msys2Root, 'ucrt64', 'bin', 'gdb.exe');
+    const debuggerPath = path.join(getManagedRoot(context, 'msys2Root', 'GAMEWIP_MSYS2_ROOT'), 'ucrt64', 'bin', 'gdb.exe');
 
     if (!fs.existsSync(debuggerPath)) {
         throw new Error(`GDB was not found at ${debuggerPath}. Run '.\\setup.bat repair' to install it.`);

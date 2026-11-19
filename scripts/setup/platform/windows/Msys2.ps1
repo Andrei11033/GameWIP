@@ -6,6 +6,93 @@
 
 Set-StrictMode -Version Latest
 
+function Get-GameWipExistingMsys2Roots
+{
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    $candidatesFound = [System.Collections.Generic.List[string]]::new()
+    $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($root in @(
+            'C:\msys64',
+            'C:\msys32',
+            (Join-Path $env:LOCALAPPDATA 'Programs/msys64'),
+            (Join-Path $env:LOCALAPPDATA 'Programs/msys32'),
+            (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'MSYS2'),
+            (Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'MSYS2')
+        ))
+    {
+        if (-not [string]::IsNullOrWhiteSpace([string]$root))
+        {
+            $candidates.Add([string]$root) | Out-Null
+        }
+    }
+
+    foreach ($application in @('pacman.exe', 'bash.exe'))
+    {
+        foreach ($command in @(Get-Command $application -CommandType Application -All -ErrorAction SilentlyContinue))
+        {
+            $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent ([string]$command.Source)))
+            $candidates.Add($root) | Out-Null
+        }
+    }
+
+    foreach ($registryPath in @(
+            'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*',
+            'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        ))
+    {
+        foreach ($application in @(Get-ItemProperty -Path $registryPath -ErrorAction SilentlyContinue | Where-Object { [string]$_.DisplayName -match '(?i)msys2' }))
+        {
+            $root = [string]$application.InstallLocation
+
+            if ([string]::IsNullOrWhiteSpace($root))
+            {
+                $appPath = $application.PSObject.Properties['Inno Setup: App Path']
+                $root = if ($null -ne $appPath) { [string]$appPath.Value } else { '' }
+            }
+
+            if ([string]::IsNullOrWhiteSpace($root))
+            {
+                $uninstallString = [string]$application.UninstallString
+                $match = [regex]::Match($uninstallString, '(?i)(?:"(?<path>[^\"]+\\uninstall\.exe)"|(?<path>[^\s]+\\uninstall\.exe))')
+
+                if ($match.Success)
+                {
+                    $root = Split-Path -Parent $match.Groups['path'].Value
+                }
+            }
+
+            if (-not [string]::IsNullOrWhiteSpace($root))
+            {
+                $candidates.Add($root) | Out-Null
+            }
+        }
+    }
+
+    $defaultRoot = Get-GameWipMsys2Root
+
+    foreach ($candidate in $candidates)
+    {
+        if (-not (Test-Path -LiteralPath $candidate -PathType Container))
+        {
+            continue
+        }
+        $root = [IO.Path]::GetFullPath($candidate)
+
+        if ($root.Equals($defaultRoot, [StringComparison]::OrdinalIgnoreCase) -or
+            -not (Test-Path -LiteralPath (Join-Path $root 'usr/bin/bash.exe') -PathType Leaf) -or
+            -not (Test-Path -LiteralPath (Join-Path $root 'usr/bin/pacman.exe') -PathType Leaf) -or
+            -not $seen.Add($root))
+        {
+            continue
+        }
+        $candidatesFound.Add($root) | Out-Null
+    }
+
+    return @($candidatesFound | Sort-Object)
+}
+
 function Invoke-GameWipMsys2
 {
     param([Parameter(Mandatory = $true)][string]$MsysRoot, [Parameter(Mandatory = $true)][string]$Command)

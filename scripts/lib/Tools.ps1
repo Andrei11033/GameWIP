@@ -6,7 +6,7 @@
 
 Set-StrictMode -Version Latest
 
-foreach ($providerFile in @('Msys2.ps1', 'Npm.ps1', 'Python.ps1', 'PowerShellGallery.ps1', 'GitHubRelease.ps1', 'Winget.ps1', 'External.ps1'))
+foreach ($providerFile in @('Msys2.ps1', 'Npm.ps1', 'Python.ps1', 'PowerShellGallery.ps1', 'Archive.ps1', 'GitHubRelease.ps1', 'Winget.ps1', 'External.ps1'))
 {
     . (Join-Path $PSScriptRoot (Join-Path 'Providers' $providerFile))
 }
@@ -44,7 +44,24 @@ function Get-GameWipHostAssetKey
 {
     if (Test-GameWipWindowsHost)
     {
-        return 'windows-amd64'
+        $hostArchitecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+        $architecture = switch ($hostArchitecture)
+        {
+            'x64'
+            {
+                'amd64'
+            }
+            'arm64'
+            {
+                'arm64'
+            }
+            default
+            {
+                return $null
+            }
+        }
+
+        return "windows-$architecture"
     }
 
     if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
@@ -123,16 +140,6 @@ function Get-GameWipToolValidationFiles
     return @()
 }
 
-function Get-GameWipManagedToolRoot
-{
-    if (Test-GameWipWindowsHost)
-    {
-        return [string]$ProjectConfig.managedEnvironment.gameWipToolsRoot
-    }
-
-    return Resolve-GameWipStoragePath -RelativePath ([string]$ProjectConfig.storage.root)
-}
-
 function Get-GameWipProjectTool
 {
     param([Parameter(Mandatory = $true)][string]$Id)
@@ -201,7 +208,20 @@ function Get-GameWipProviderManagedToolPath
         return @()
     }
 
-    switch ([string]$Tool.provider.kind)
+    $providerKind = [string]$Tool.provider.kind
+
+    if ($providerKind -in @('githubRelease', 'archive'))
+    {
+        if ($Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
+        {
+            $toolRoot = Join-Path $root (Join-Path ([string]$Tool.provider.managedDirectory) ([string]$Tool.requiredVersion))
+            return @((Join-Path $toolRoot ([string]$Tool.provider.binaryDirectory)))
+        }
+
+        return @((Join-Path $root 'bin'))
+    }
+
+    switch ($providerKind)
     {
         'python'
         {
@@ -211,16 +231,6 @@ function Get-GameWipProviderManagedToolPath
         'npm'
         {
             return @((Join-Path $root 'npm'), (Join-Path $root 'npm/bin'))
-        }
-
-        'githubRelease'
-        {
-            if ($Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
-            {
-                $toolRoot = Join-Path $root (Join-Path ([string]$Tool.provider.managedDirectory) ([string]$Tool.requiredVersion))
-                return @((Join-Path $toolRoot ([string]$Tool.provider.binaryDirectory)))
-            }
-            return @((Join-Path $root 'bin'))
         }
 
         'powershellGallery'
@@ -297,7 +307,7 @@ function Get-GameWipToolCandidateVersion
 {
     param([Parameter(Mandatory = $true)][hashtable]$Tool, [Parameter(Mandatory = $true)][string]$Path)
 
-    if ($Tool.provider.kind -eq 'githubRelease' -and $Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
+    if ($Tool.provider.kind -in @('githubRelease', 'archive') -and $Tool.provider.Contains('installMode') -and $Tool.provider.installMode -eq 'directoryArchive')
     {
         # Trust a managed directory tool only when its install marker matches the pin.
         $toolRoot = Join-Path (Get-GameWipManagedToolRoot) (Join-Path ([string]$Tool.provider.managedDirectory) ([string]$Tool.requiredVersion))
@@ -314,56 +324,61 @@ function Get-GameWipToolCandidateVersion
 
         if (-not $candidatePath.StartsWith($binaryRoot, $pathComparison))
         {
-            return $null
-        }
-
-        $manifestPath = Join-Path $toolRoot '.gamewip-tool.json'
-
-        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf))
-        {
-            return $null
-        }
-
-        try
-        {
-            $manifest = Read-GameWipUtf8Text -Path $manifestPath | ConvertFrom-Json
-        }
-
-        catch
-        {
-            return $null
-        }
-
-        $assetKey = Get-GameWipHostAssetKey
-        $asset = if ($null -ne $assetKey -and $Tool.provider.assets.ContainsKey($assetKey))
-        {
-            $Tool.provider.assets[$assetKey]
+            if ($Tool.provider.kind -eq 'githubRelease')
+            {
+                return $null
+            }
         }
         else
         {
-            return $null
-        }
+            $manifestPath = Join-Path $toolRoot '.gamewip-tool.json'
 
-        if ($manifest.schemaVersion -eq 1 -and
-            [string]$manifest.toolId -eq [string]$Tool.id -and
-            [string]$manifest.version -eq [string]$Tool.requiredVersion -and
-            [string]$manifest.archive -eq [string]$asset.archive -and
-            [string]$manifest.sha256 -eq [string]$asset.sha256)
-        {
-            foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $assetKey))
+            if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf))
             {
-                $relativePath = [string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar)
-
-                if (-not (Test-Path -LiteralPath (Join-Path $toolRoot $relativePath) -PathType Leaf))
-                {
-                    return $null
-                }
+                return $null
             }
 
-            return [string]$manifest.version
-        }
+            try
+            {
+                $manifest = Read-GameWipUtf8Text -Path $manifestPath | ConvertFrom-Json
+            }
 
-        return $null
+            catch
+            {
+                return $null
+            }
+
+            $assetKey = Get-GameWipHostAssetKey
+            $asset = if ($null -ne $assetKey -and $Tool.provider.assets.ContainsKey($assetKey))
+            {
+                $Tool.provider.assets[$assetKey]
+            }
+            else
+            {
+                return $null
+            }
+
+            if ($manifest.schemaVersion -eq 1 -and
+                [string]$manifest.toolId -eq [string]$Tool.id -and
+                [string]$manifest.version -eq [string]$Tool.requiredVersion -and
+                [string]$manifest.archive -eq [string]$asset.archive -and
+                [string]$manifest.sha256 -eq [string]$asset.sha256)
+            {
+                foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $Tool -AssetKey $assetKey))
+                {
+                    $relativePath = [string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar)
+
+                    if (-not (Test-Path -LiteralPath (Join-Path $toolRoot $relativePath) -PathType Leaf))
+                    {
+                        return $null
+                    }
+                }
+
+                return [string]$manifest.version
+            }
+
+            return $null
+        }
     }
 
     if ($Tool.detection.Contains('commandConfigVersionPath'))
@@ -769,9 +784,22 @@ function Test-GameWipDetectedToolFromDeclaredProvider
             return [string]$Detected.Source -like 'GameWIPTools githubRelease*'
         }
 
+        'archive'
+        {
+            return [string]$Detected.Source -like 'GameWIPTools archive*'
+        }
+
         'powershellGallery'
         {
             return [string]$Detected.Source -like 'GameWIPTools powershellGallery*'
+        }
+        'external'
+        {
+            if ($Tool.provider.Contains('managedPath'))
+            {
+                return [string]$Detected.Source -eq 'managed environment'
+            }
+            return $true
         }
         default
         {
@@ -804,6 +832,10 @@ function Get-GameWipProviderFunction
         'githubRelease'
         {
             'GitHubRelease'
+        }
+        'archive'
+        {
+            'Archive'
         }
         'winget'
         {
@@ -869,6 +901,21 @@ function Get-GameWipToolchainPathPrefix
     return Get-GameWipBuildTargetPathPrefix -Target (Get-GameWipSelectedBuildTarget)
 }
 
+function Get-GameWipProjectReadinessToolIds
+{
+    param([Parameter(Mandatory = $true)]$Target)
+
+    if ($Target.platform -eq 'linux' -or
+        ($Target.platform -eq 'windows' -and -not (Test-GameWipWindowsHost)))
+    {
+        return @('cmake', 'ninja', [string]$Target.toolchain)
+    }
+
+    return @($ProjectTools.tools | Where-Object {
+            $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
+        } | ForEach-Object { [string]$_.id })
+}
+
 function Test-GameWipProjectReadiness
 {
     param([switch]$ThrowOnFailure)
@@ -878,16 +925,7 @@ function Test-GameWipProjectReadiness
     Write-GameWipSection 'Project readiness'
 
     $target = Get-GameWipSelectedBuildTarget
-    $toolIds = if ($target.platform -eq 'windows' -and -not (Test-GameWipWindowsHost))
-    {
-        @('cmake', 'ninja', [string]$target.toolchain)
-    }
-    else
-    {
-        @($ProjectTools.tools | Where-Object {
-                $_.capabilities.detectInstalled -and $_.versionPolicy -ne 'informational'
-            } | ForEach-Object { [string]$_.id })
-    }
+    $toolIds = @(Get-GameWipProjectReadinessToolIds -Target $target)
     $toolchain = Test-GameWipToolchain -ToolIds $toolIds -DisplayStatus -Indent 2
 
     foreach ($failure in @($toolchain.Failures))
@@ -937,7 +975,7 @@ function Test-GameWipProjectReadiness
         -Object '  Ready:' `
         -Semantic Success `
         -NoNewline
-    Write-Host ' the complete declared project toolchain is available.'
+    Write-Host ' the selected project toolchain is available.'
 
     return $true
 }
@@ -950,7 +988,7 @@ function Confirm-GameWipToolchain
 
     if (Test-GameWipWindowsHost)
     {
-        $msys2Bin = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin'
+        $msys2Bin = Join-Path (Get-GameWipMsys2Root) 'ucrt64/bin'
 
         foreach ($executable in @('cmake.exe', 'ctest.exe', 'ninja.exe'))
         {
@@ -976,15 +1014,34 @@ function Confirm-GameWipToolchain
         }
     }
     $toolchain = Get-GameWipProjectTool -Id ([string]$target.toolchain)
-    $targetToolchainRoot = Get-GameWipBuildTargetToolchainRoot -Target $target
+    $toolchainStatus = Get-GameWipToolStatus -Tool $toolchain
 
-    foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $toolchain))
+    if (-not $toolchainStatus.Ready)
     {
-        $path = Join-Path $targetToolchainRoot ([string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
+        $missingExecutables.Add("$($toolchain.id) ($($toolchainStatus.State))") | Out-Null
+    }
 
-        if (-not (Test-Path -LiteralPath $path -PathType Leaf))
+    if ($toolchain.provider.Contains('compiler'))
+    {
+        $compilerPath = Get-GameWipBuildTargetCompilerPath -Target $target
+
+        if (-not (Test-Path -LiteralPath $compilerPath -PathType Leaf))
         {
-            $missingExecutables.Add($path) | Out-Null
+            $missingExecutables.Add($compilerPath) | Out-Null
+        }
+    }
+    else
+    {
+        $targetToolchainRoot = Get-GameWipBuildTargetToolchainRoot -Target $target
+
+        foreach ($relativePath in @(Get-GameWipToolValidationFiles -Tool $toolchain))
+        {
+            $path = Join-Path $targetToolchainRoot ([string]$relativePath.Replace('/', [IO.Path]::DirectorySeparatorChar))
+
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf))
+            {
+                $missingExecutables.Add($path) | Out-Null
+            }
         }
     }
 
@@ -1018,7 +1075,7 @@ function Resolve-GameWipPython
     }
     elseif (Test-GameWipWindowsHost)
     {
-        $configured = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin/python.exe'
+        $configured = Join-Path (Get-GameWipMsys2Root) 'ucrt64/bin/python.exe'
 
         if (Test-Path -LiteralPath $configured)
         {
@@ -1074,7 +1131,7 @@ function Resolve-GameWipClangFormat
     }
     elseif (Test-GameWipWindowsHost)
     {
-        $configured = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'ucrt64/bin/clang-format.exe'
+        $configured = Join-Path (Get-GameWipMsys2Root) 'ucrt64/bin/clang-format.exe'
 
         if (Test-Path -LiteralPath $configured)
         {

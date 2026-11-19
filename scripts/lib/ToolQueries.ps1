@@ -156,7 +156,7 @@ function Get-GameWipToolLatestQuery
 
         'msys2'
         {
-            $bash = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) 'usr\bin\bash.exe'
+            $bash = Join-Path (Get-GameWipMsys2Root) 'usr\bin\bash.exe'
 
             if (-not (Test-Path -LiteralPath $bash))
             {

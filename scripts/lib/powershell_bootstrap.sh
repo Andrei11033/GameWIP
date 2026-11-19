@@ -11,6 +11,48 @@ GAMEWIP_POWERSHELL_ARM64_SHA256='e59c89776eaa59790d44b3edd14277435225ab08b6e7603
 GAMEWIP_POWERSHELL_COMMAND=''
 
 # ------------------------------------------------------------
+# Storage root
+# ------------------------------------------------------------
+
+gamewip_resolve_storage_root()
+{
+    local repository_root="$1"
+    local build_root=""
+    local storage_root=""
+    local configured_root="${GAMEWIP_STORAGE_ROOT:-build/gamewip}"
+
+    if ! command -v realpath >/dev/null 2>&1; then
+        printf 'The PowerShell bootstrap requires realpath to validate its storage root.\n' >&2
+        return 1
+    fi
+
+    build_root="$(realpath -m -- "$repository_root/build")"
+
+    if [[ "$configured_root" == /* ]]; then
+        storage_root="$(realpath -m -- "$configured_root")"
+    else
+        storage_root="$(realpath -m -- "$repository_root/$configured_root")"
+    fi
+
+    case "$storage_root/" in
+        "$build_root/"*) ;;
+        *)
+            printf 'GAMEWIP_STORAGE_ROOT must be a child of %s; found %s.\n' "$build_root" "$storage_root" >&2
+            return 1
+            ;;
+    esac
+
+    if [[ "$storage_root" == "$build_root" ]]; then
+        printf 'GAMEWIP_STORAGE_ROOT cannot be the build directory itself.\n' >&2
+        return 1
+    fi
+
+    GAMEWIP_STORAGE_ROOT="$storage_root"
+    export GAMEWIP_STORAGE_ROOT
+    printf '%s\n' "$storage_root"
+}
+
+# ------------------------------------------------------------
 # Runtime discovery
 # ------------------------------------------------------------
 
@@ -45,9 +87,16 @@ gamewip_is_managed_powershell()
 gamewip_find_powershell()
 {
     local repository_root="$1"
+    local storage_root=''
     local candidate=''
     local architecture=''
     local expected_sha256=''
+
+    if ! storage_root="$(gamewip_resolve_storage_root "$repository_root")"; then
+        return 1
+    fi
+    GAMEWIP_STORAGE_ROOT="$storage_root"
+    export GAMEWIP_STORAGE_ROOT
 
     if candidate="$(command -v pwsh 2>/dev/null)" && gamewip_is_supported_powershell "$candidate"; then
         GAMEWIP_POWERSHELL_COMMAND="$candidate"
@@ -68,7 +117,7 @@ gamewip_find_powershell()
             ;;
     esac
 
-    candidate="$repository_root/build/gamewip/tools/powershell/$GAMEWIP_POWERSHELL_VERSION/pwsh"
+    candidate="$storage_root/tools/powershell/$GAMEWIP_POWERSHELL_VERSION/pwsh"
     if gamewip_is_managed_powershell \
         "$candidate" \
         "${candidate%/*}/.gamewip-tool" \
@@ -92,6 +141,7 @@ gamewip_install_powershell()
 
     local repository_root="$1"
     local architecture=''
+    local storage_root=''
     local archive_name=''
     local expected_sha256=''
     local install_root=''
@@ -117,7 +167,7 @@ gamewip_install_powershell()
             ;;
     esac
 
-    for command_name in curl sha256sum tar mktemp mkdir chmod mv rm; do
+    for command_name in curl sha256sum tar mktemp mkdir chmod mv rm realpath; do
         if ! command -v "$command_name" >/dev/null 2>&1; then
             printf 'PowerShell bootstrap requires %s. Install it, then rerun setup.sh.\n' "$command_name" >&2
             return 1
@@ -125,10 +175,13 @@ gamewip_install_powershell()
     done
 
     archive_name="powershell-$GAMEWIP_POWERSHELL_VERSION-linux-$architecture.tar.gz"
-    tools_root="$repository_root/build/gamewip/tools/powershell"
+    storage_root="$(gamewip_resolve_storage_root "$repository_root")"
+    GAMEWIP_STORAGE_ROOT="$storage_root"
+    export GAMEWIP_STORAGE_ROOT
+    tools_root="$storage_root/tools/powershell"
     install_root="$tools_root/$GAMEWIP_POWERSHELL_VERSION"
 
-    if [[ -e "$install_root" ]]; then
+    if [[ -e "$install_root" || -L "$install_root" ]]; then
         if gamewip_is_managed_powershell \
             "$install_root/pwsh" \
             "$install_root/.gamewip-tool" \
@@ -235,8 +288,8 @@ gamewip_require_setup_powershell()
         return 1
     else
         printf 'PowerShell 7 is required by setup.sh.\n' >&2
-        printf 'Install the verified PowerShell %s runtime under build/gamewip/tools/powershell? [y/N] ' \
-            "$GAMEWIP_POWERSHELL_VERSION" >&2
+        printf 'Install the verified PowerShell %s runtime under %s/tools/powershell? [y/N] ' \
+            "$GAMEWIP_POWERSHELL_VERSION" "${GAMEWIP_STORAGE_ROOT:-build/gamewip}" >&2
 
         if ! IFS= read -r answer; then
             answer=''
@@ -252,4 +305,108 @@ gamewip_require_setup_powershell()
             return 1
             ;;
     esac
+}
+
+gamewip_finish_setup_uninstall()
+{
+    local repository_root="$1"
+    local exit_code="$2"
+    local launch_token="$3"
+    local runtime_root=""
+    local runtime_parent=""
+    local pending_marker=''
+    local pending_token=''
+    local architecture=''
+    local expected_sha256=''
+    local process_executable=''
+    local managed_path=''
+
+    runtime_root="${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}/tools/powershell/$GAMEWIP_POWERSHELL_VERSION"
+    runtime_parent="${runtime_root%/*}"
+
+    if [[ "$GAMEWIP_POWERSHELL_COMMAND" != "$runtime_root/pwsh" || ! -d "$runtime_root" || -L "$runtime_root" ]]; then
+        return 0
+    fi
+
+    for managed_path in \
+        "$repository_root/build" \
+        "${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}" \
+        "${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}/tools" \
+        "${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}/tools/powershell"; do
+        if [[ -L "$managed_path" ]]; then
+            printf 'Managed PowerShell path crosses a symbolic link; preserved %s.\n' "$runtime_root" >&2
+            return 0
+        fi
+    done
+
+    pending_marker="$runtime_root/.gamewip-uninstall-pending"
+
+    if [[ ! -f "$pending_marker" || -L "$pending_marker" ]]; then
+        return 0
+    fi
+
+    pending_token="$(<"$pending_marker")"
+
+    if [[ "$pending_token" != "$launch_token" ]]; then
+        printf 'Managed PowerShell cleanup request did not match this setup run; preserving %s.\n' "$runtime_root" >&2
+        return 0
+    fi
+
+    if [[ "$exit_code" -ne 0 ]]; then
+        if ! rm -f -- "$pending_marker"; then
+            printf 'Could not clear the failed uninstall marker: %s\n' "$pending_marker" >&2
+            return 1
+        fi
+        printf 'Setup did not finish cleanly; preserved managed PowerShell at %s.\n' "$runtime_root" >&2
+        return 0
+    fi
+
+    if ! command -v readlink >/dev/null 2>&1; then
+        printf 'Cannot check whether managed PowerShell is still in use; preserved %s.\n' "$runtime_root" >&2
+        return 0
+    fi
+
+    case "$(uname -m)" in
+        x86_64 | amd64)
+            architecture='x64'
+            expected_sha256="$GAMEWIP_POWERSHELL_X64_SHA256"
+            ;;
+        aarch64 | arm64)
+            architecture='arm64'
+            expected_sha256="$GAMEWIP_POWERSHELL_ARM64_SHA256"
+            ;;
+        *)
+            printf 'Cannot validate managed PowerShell architecture; preserved %s.\n' "$runtime_root" >&2
+            return 1
+            ;;
+    esac
+
+    if ! gamewip_is_managed_powershell \
+        "$GAMEWIP_POWERSHELL_COMMAND" \
+        "$runtime_root/.gamewip-tool" \
+        "$architecture" \
+        "$expected_sha256"; then
+        printf 'Managed PowerShell ownership check failed; preserved %s.\n' "$runtime_root" >&2
+        return 1
+    fi
+
+    for process_executable in /proc/[0-9]*/exe; do
+        [[ -e "$process_executable" ]] || continue
+
+        if [[ "$(readlink -- "$process_executable" 2>/dev/null || true)" == "$GAMEWIP_POWERSHELL_COMMAND" ]]; then
+            if ! rm -f -- "$pending_marker"; then
+                printf 'Could not clear the active-runtime uninstall marker: %s\n' "$pending_marker" >&2
+                return 1
+            fi
+            printf 'Managed PowerShell is still in use; preserved %s.\n' "$runtime_root" >&2
+            return 0
+        fi
+    done
+
+    if ! rm -f -- "$pending_marker" || ! rm -rf -- "$runtime_root"; then
+        printf 'Could not remove managed PowerShell at %s.\n' "$runtime_root" >&2
+        return 1
+    fi
+    rmdir -- "$runtime_parent" 2>/dev/null || true
+    printf 'Removed managed PowerShell after setup exited: %s\n' "$runtime_root"
 }

@@ -5,17 +5,27 @@ Set-StrictMode -Version Latest
 $SetupRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config/setup.json') -Name 'setup' -SchemaPath (Join-Path $ScriptsRoot 'schemas/setup.schema.json')
 $EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config/editors.json') -Name 'editors' -SchemaPath (Join-Path $ScriptsRoot 'schemas/editors.schema.json')
-$script:SetupStatePath = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.state 'setup.json')
-$ToolConfig = @{ MsysRoot = [string]$ProjectConfig.managedEnvironment.msys2Root }
+$script:SetupStatePath = Join-Path (Get-GameWipStorageAreaPath -Area state) 'setup.json'
+$ToolConfig = @{ MsysRoot = Get-GameWipMsys2Root }
 
-foreach ($file in @('Common.ps1', 'Winget.ps1', 'Msys2.ps1', 'Repository.ps1', 'VisualStudio.ps1', 'Editor.ps1', 'Tracy.ps1', 'Documentation.ps1', 'Uninstall.ps1'))
+foreach ($file in @('Common.ps1', 'Repository.ps1', 'Editor.ps1', 'Documentation.ps1', 'Uninstall.ps1'))
 {
     . (Join-Path $PSScriptRoot $file)
 }
 
-if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
+if (Test-GameWipWindowsHost)
+{
+    $windowsPlatformRoot = Join-Path $SetupRoot 'platform/windows'
+
+    foreach ($file in @('Winget.ps1', 'Msys2.ps1', 'VisualStudio.ps1', 'Tracy.ps1', 'Uninstall.ps1'))
+    {
+        . (Join-Path $windowsPlatformRoot $file)
+    }
+}
+elseif ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Linux))
 {
     . (Join-Path $SetupRoot 'platform/linux/Linux.ps1')
+    . (Join-Path $SetupRoot 'platform/linux/Uninstall.ps1')
 }
 
 # ------------------------------------------------------------
@@ -264,6 +274,71 @@ function Show-GameWipSetupSizeEstimate
     Write-Host '  Temporary build space: up to approximately 6 GB, primarily Tracy and documentation.'
 }
 
+function Select-GameWipExistingMsys2
+{
+    # Respect explicit roots, previews, and noninteractive runs.
+    if (-not (Test-GameWipWindowsHost) -or
+        -not [string]::IsNullOrWhiteSpace([string]$env:GAMEWIP_MSYS2_ROOT) -or
+        $Preview -or $NonInteractive)
+    {
+        return
+    }
+
+    $localRoot = Get-GameWipMsys2Root
+
+    if (Test-Path -LiteralPath (Join-Path $localRoot 'usr/bin/bash.exe') -PathType Leaf)
+    {
+        return
+    }
+    $existingRoots = @(Get-GameWipExistingMsys2Roots)
+
+    if ($existingRoots.Count -eq 0)
+    {
+        return
+    }
+    Write-GameWipSection 'Existing MSYS2 installation'
+    Write-Host 'Choose whether to reuse an existing installation or create a separate copy under the GameWIP build folder.'
+
+    # Ask before reusing a discovered installation.
+    if ($existingRoots.Count -eq 1)
+    {
+        $selectedRoot = $existingRoots[0]
+
+        if (-not (Read-GameWipYesNo -Prompt "Use the existing MSYS2 installation at '$selectedRoot'? Setup may add the listed GameWIP packages." -Default $false))
+        {
+            Write-Host "  A separate MSYS2 copy will be installed under '$localRoot'."
+            return
+        }
+    }
+    else
+    {
+        for ($index = 0; $index -lt $existingRoots.Count; ++$index)
+        {
+            Write-Host ('  {0}. {1}' -f ($index + 1), $existingRoots[$index])
+        }
+        Write-Host '  Press Enter to install a separate local copy.'
+        $selection = Read-Host 'Select an existing MSYS2 installation to reuse'
+
+        if ([string]::IsNullOrWhiteSpace($selection))
+        {
+            Write-Host "  A separate MSYS2 copy will be installed under '$localRoot'."
+            return
+        }
+        $selectedIndex = 0
+
+        if (-not [int]::TryParse($selection, [ref]$selectedIndex) -or $selectedIndex -lt 1 -or $selectedIndex -gt $existingRoots.Count)
+        {
+            throw "Invalid MSYS2 selection '$selection'."
+        }
+        $selectedRoot = $existingRoots[$selectedIndex - 1]
+    }
+
+    # Share the selected root with the setup and tool providers.
+    $env:GAMEWIP_MSYS2_ROOT = $selectedRoot
+    $ToolConfig.MsysRoot = Get-GameWipMsys2Root
+    Write-Host "  Selected existing MSYS2: $($ToolConfig.MsysRoot)"
+}
+
 # ------------------------------------------------------------
 # Setup steps
 # ------------------------------------------------------------
@@ -276,10 +351,18 @@ function Initialize-GameWipSetupManagedToolRoot
     }
 
     $root = Get-GameWipManagedToolRoot
+    $buildRoot = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot 'build'))
 
     if (Test-Path -LiteralPath $root)
     {
         $entries = @(Get-ChildItem -LiteralPath $root -Force -ErrorAction SilentlyContinue | Where-Object Name -ne '.gamewip-managed.json')
+
+        if (-not (Test-GameWipPathWithinRoot -Path $root -Root $buildRoot) -and
+            -not (Test-GameWipManagedToolRootOwnership -Root $root) -and
+            $entries.Count -eq 0)
+        {
+            throw "An external managed-tools root must contain an existing installation; new GameWIP-managed roots must stay under '$buildRoot'."
+        }
 
         if (-not (Test-GameWipManagedToolRootOwnership -Root $root) -and $entries.Count -ne 0)
         {
@@ -307,44 +390,85 @@ function Initialize-GameWipSetupManagedToolRoot
     Initialize-GameWipManagedToolRoot
 }
 
-function Write-GameWipMsys2Ownership
-{
-    param([ValidateSet('created', 'claimedEmpty', 'adopted')][string]$Origin = 'created')
-    $markerPath = Join-Path ([string]$ProjectConfig.managedEnvironment.msys2Root) '.gamewip-managed.json'
-    $marker = New-GameWipOwnershipMarker -Resource 'msys2' -Origin $Origin -Payload ([ordered]@{ installedBySetup = $true })
-    Write-GameWipJsonAtomic -Path $markerPath -Value $marker
-}
-
 function Invoke-GameWipSetupMsys2Step
 {
     param([switch]$Update)
     Write-GameWipSection 'MSYS2 UCRT64 and CLANG64'
-    $msys2Tool = Get-GameWipProjectTool -Id msys2
     $bash = Join-Path $ToolConfig.MsysRoot 'usr\bin\bash.exe'
 
     if (-not (Test-Path -LiteralPath $bash))
     {
-        $before = (Get-GameWipToolStatus -Tool $msys2Tool).Detected
-        Install-GameWipWingetTool -Tool $msys2Tool -Version $null
-
-        if (-not $before.Installed)
-        {
-            Add-GameWipOwnedWingetPackage -Id ([string]$msys2Tool.provider.package)
-        }
-        $state = Get-GameWipSetupState
-        $state.msys2InstalledBySetup = $true
-        Save-GameWipSetupState -State $state
-        Write-GameWipMsys2Ownership -Origin created
-        Add-GameWipOperationChange -Message "Installed MSYS2 at $($ToolConfig.MsysRoot)"
+        Install-GameWipMsys2BaseArchive -MsysRoot $ToolConfig.MsysRoot
     }
     $packages = Get-GameWipMsys2PackageConfig -ProjectTools $ProjectTools
     Install-GameWipMsys2PackageSet -MsysRoot $ToolConfig.MsysRoot -PackageConfig $packages -Update:$Update
     Test-GameWipMsys2Toolchain -ProjectTools $ProjectTools
 }
 
+function Get-GameWipMsys2SetupPlan
+{
+    param([switch]$Update)
+
+    # List the installation choice and any missing package sets.
+    $root = Get-GameWipMsys2Root
+    $bash = Join-Path $root 'usr/bin/bash.exe'
+    $hasExistingInstall = Test-Path -LiteralPath $bash -PathType Leaf
+    $plan = [System.Collections.Generic.List[string]]::new()
+
+    if ($hasExistingInstall)
+    {
+        $plan.Add("Use existing MSYS2 at '$root'.") | Out-Null
+    }
+    else
+    {
+        $plan.Add("Install the MSYS2 base archive under '$root'.") | Out-Null
+    }
+    $packages = Get-GameWipMsys2PackageConfig -ProjectTools $ProjectTools
+    $installed = if ($hasExistingInstall)
+    {
+        Get-GameWipMsys2InstalledPackageNames -MsysRoot $root
+    }
+    else
+    {
+        [pscustomobject]@{ State = 'missing'; Packages = @() }
+    }
+    $installedNames = [System.Collections.Generic.HashSet[string]]::new([string[]]$installed.Packages)
+
+    # Compare each environment with the selected installation.
+    foreach ($environment in @('Common', 'Ucrt64', 'Clang64'))
+    {
+        $missing = if ($installed.State -eq 'ready')
+        {
+            @($packages[$environment] | Where-Object { -not $installedNames.Contains([string]$_) })
+        }
+        else
+        {
+            @($packages[$environment])
+        }
+
+        if ($missing.Count -ne 0)
+        {
+            $plan.Add("Install $environment MSYS2 packages: $($missing -join ', ').") | Out-Null
+        }
+    }
+
+    if ($Update)
+    {
+        $plan.Add('Refresh MSYS2 packages with pacman -Syu.') | Out-Null
+    }
+
+    return $plan.ToArray()
+}
+
 function Invoke-GameWipSetupToolStep
 {
     Write-GameWipSection 'Project tools'
+
+    if ((Test-GameWipWindowsHost) -and
+        -not (Test-Path -LiteralPath (Join-Path (Get-GameWipMsys2Root) 'usr/bin/bash.exe') -PathType Leaf))
+    {
+        Invoke-GameWipSetupMsys2Step
+    }
     Initialize-GameWipSetupManagedToolRoot
     Invoke-GameWipToolEnsure -Selector all -ConsentAlreadyGranted
 }
@@ -398,11 +522,6 @@ function Invoke-GameWipSetupEditorStep
 
     if (-not (Test-GameWipWindowsHost) -and -not (Test-GameWipSetupCommand -Name 'code'))
     {
-        if ($Choose)
-        {
-            throw 'Visual Studio Code is not installed. Install it, then rerun setup editor.'
-        }
-
         Write-Host '  VS Code is not installed; editor integration is skipped.'
         return
     }
@@ -461,14 +580,7 @@ function Invoke-GameWipSetupEnvironmentCheck
     Write-GameWipSection 'Environment check'
     $failures = [System.Collections.Generic.List[string]]::new()
     $target = Get-GameWipSelectedBuildTarget
-    $toolIds = if (-not (Test-GameWipWindowsHost) -and $target.platform -eq 'windows')
-    {
-        @('cmake', 'ninja', [string]$target.toolchain)
-    }
-    else
-    {
-        @()
-    }
+    $toolIds = @(Get-GameWipProjectReadinessToolIds -Target $target)
     $toolchain = Test-GameWipToolchain -ToolIds $toolIds -DisplayStatus -Indent 4
 
     foreach ($failure in @($toolchain.Failures))
@@ -498,17 +610,46 @@ function Invoke-GameWipSetupEnvironmentCheck
     $selected = @(Get-GameWipEditorSelection -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig)
 
     $codeInstalled = Test-GameWipSetupCommand -Name 'code'
+    $editorsToCheck = [System.Collections.Generic.List[string]]::new()
 
-    if ((Test-GameWipWindowsHost) -or $codeInstalled)
+    foreach ($id in $selected)
     {
-        foreach ($failure in @(Get-GameWipEditorFailure -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $selected))
+        $option = $EditorConfig.Options | Where-Object { $_.Id -eq $id } | Select-Object -First 1
+
+        if ($option.Handler -eq 'vscode')
         {
-            $failures.Add($failure) | Out-Null
+            if ($codeInstalled)
+            {
+                $editorsToCheck.Add($id) | Out-Null
+            }
+            else
+            {
+                Write-Host '  VS Code is not installed; its integration checks are skipped.'
+            }
+
+            continue
         }
+
+        if ($option.Handler -eq 'visual-studio' -and (Test-GameWipWindowsHost))
+        {
+            if (Get-GameWipVisualStudioInstallation)
+            {
+                $editorsToCheck.Add($id) | Out-Null
+            }
+            else
+            {
+                Write-Host '  Visual Studio is not installed; its integration checks are skipped.'
+            }
+
+            continue
+        }
+
+        $editorsToCheck.Add($id) | Out-Null
     }
-    elseif (-not (Test-GameWipWindowsHost))
+
+    foreach ($failure in @(Get-GameWipEditorFailure -RepositoryRoot $RepositoryRoot -EditorConfig $EditorConfig -SelectedEditors $editorsToCheck.ToArray()))
     {
-        Write-Host '  VS Code is not installed; editor checks are skipped.'
+        $failures.Add($failure) | Out-Null
     }
     Write-Host '  Checking GameWIP dependency cache...'
 
@@ -539,6 +680,39 @@ function Invoke-GameWipSetupEnvironmentCheck
 # Planning and execution
 # ------------------------------------------------------------
 
+function Get-GameWipWindowsHostInstallPlan
+{
+    if (-not (Test-GameWipWindowsHost))
+    {
+        return @()
+    }
+    $packages = @(
+        $ProjectTools.tools |
+            Where-Object { $_.provider.kind -eq 'winget' } |
+            ForEach-Object { "$($_.name) ($($_.provider.package))" }
+    )
+
+    if ($packages.Count -eq 0)
+    {
+        return @()
+    }
+
+    return @("Ask before installing missing WinGet host tools outside build/: $($packages -join ', ').")
+}
+
+function Get-GameWipEditorInstallPlan
+{
+    if (Test-GameWipWindowsHost)
+    {
+        return @(
+            'Use existing VS Code; skip its integration if missing.',
+            'Ask before installing Visual Studio when selected.'
+        )
+    }
+
+    return @('Use installed editors and skip integrations for missing editors.')
+}
+
 function Get-GameWipSetupPlan
 {
     param([Parameter(Mandatory = $true)][string]$SelectedAction)
@@ -549,13 +723,15 @@ function Get-GameWipSetupPlan
         {
             $hostPlan = if (Test-GameWipWindowsHost)
             {
-                @('Install/verify MSYS2 toolchains.')
+                @(Get-GameWipMsys2SetupPlan -Update)
             }
             else
             {
                 @(Get-GameWipSetupLinuxPlan)
             }
-            $commonPlan = @('Install or repair declared project tools.', 'Prepare the repository and development configuration.', 'Prepare or reuse the locked dependency cache.', 'Apply available editor integrations.')
+            $commonPlan = @('Install or repair declared project tools.', 'Prepare the repository and development configuration.', 'Prepare or reuse the locked dependency cache.')
+            $commonPlan += @(Get-GameWipWindowsHostInstallPlan)
+            $commonPlan += @(Get-GameWipEditorInstallPlan)
 
             if (Test-GameWipWindowsHost)
             {
@@ -570,20 +746,36 @@ function Get-GameWipSetupPlan
         {
             if (Test-GameWipWindowsHost)
             {
-                return @('Reapply declared environment state without advancing project pins.', 'Prepare or reuse the locked dependency cache.', 'Verify complete environment.')
+                return @(Get-GameWipMsys2SetupPlan) +
+                    @('Repair declared project tools.') +
+                    @(Get-GameWipWindowsHostInstallPlan) +
+                    @('Prepare or reuse the locked dependency cache.') +
+                    @(Get-GameWipEditorInstallPlan) +
+                    @('Verify complete environment.')
             }
 
-            return @(Get-GameWipSetupLinuxPlan) + @('Repair declared project tools.', 'Prepare or reuse the locked dependency cache.', 'Verify the selected environment.')
+            return @(Get-GameWipSetupLinuxPlan) +
+                @('Repair declared project tools.', 'Prepare or reuse the locked dependency cache.') +
+                @(Get-GameWipEditorInstallPlan) +
+                @('Verify the selected environment.')
         }
 
         'update'
         {
             if (Test-GameWipWindowsHost)
             {
-                return @('Update MSYS2/environment packages without advancing exact project pins.', 'Install or update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.', 'Refresh integrations.', 'Verify complete environment.')
+                return @(Get-GameWipMsys2SetupPlan -Update) +
+                    @('Install or update declared project tools.') +
+                    @(Get-GameWipWindowsHostInstallPlan) +
+                    @('Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
+                    @(Get-GameWipEditorInstallPlan) +
+                    @('Verify complete environment.')
             }
 
-            return @(Get-GameWipSetupLinuxPlan) + @('Update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.', 'Refresh available integrations.', 'Verify the selected environment.')
+            return @(Get-GameWipSetupLinuxPlan) +
+                @('Update declared project tools.', 'Fast-forward repository.', 'Prepare or refresh dependencies for the updated lock file.') +
+                @(Get-GameWipEditorInstallPlan) +
+                @('Verify the selected environment.')
         }
 
         'deps'
@@ -593,12 +785,19 @@ function Get-GameWipSetupPlan
 
         'tool'
         {
-            return @('Install, update, or repair tools at versions already declared by the checkout.', 'Do not modify project pins.')
+            $toolPlan = @('Install, update, or repair tools at versions already declared by the checkout.', 'Do not modify project pins.')
+
+            if (Test-GameWipWindowsHost)
+            {
+                return @(Get-GameWipMsys2SetupPlan) + $toolPlan + @(Get-GameWipWindowsHostInstallPlan)
+            }
+
+            return $toolPlan
         }
 
         'msys2'
         {
-            return @('Install/repair declared UCRT64 and CLANG64 packages.')
+            return @(Get-GameWipMsys2SetupPlan)
         }
 
         'system'
@@ -613,12 +812,16 @@ function Get-GameWipSetupPlan
 
         'editor'
         {
-            return @('Apply selected editor/IDE integrations.')
+            return @(Get-GameWipEditorInstallPlan)
         }
 
         'vs'
         {
-            return @('Install/repair Visual Studio using .vsconfig.')
+            $visualStudio = $EditorConfig.Options | Where-Object Handler -eq 'visual-studio' | Select-Object -First 1
+            return @(
+                'Use an existing Visual Studio installation and apply .vsconfig.',
+                "If Visual Studio is missing, ask before installing $($visualStudio.Package) outside build/."
+            )
         }
 
         'profiler'
@@ -797,6 +1000,10 @@ function Invoke-GameWipSetupOperation
         if ($SelectedAction -in @('full', 'repair', 'update'))
         {
             Show-GameWipSetupSizeEstimate
+        }
+        if ($SelectedAction -in @('full', 'repair', 'update', 'msys2', 'tool'))
+        {
+            Select-GameWipExistingMsys2
         }
         $plan = @(Get-GameWipSetupPlan -SelectedAction $SelectedAction)
         Invoke-GameWipMutation -Summary $actionInfo.Description -Risk ([string]$actionInfo.Risk) -Plan $plan -Body { Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction } | Out-Null

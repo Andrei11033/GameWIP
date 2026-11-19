@@ -53,23 +53,74 @@ function Get-GameWipSetupLinuxPlan
 
     $packageStep = if ($distribution.PackageManager -eq 'pacman')
     {
-        "Run pacman -Syu to install host packages for $($distribution.Name). This includes a full system upgrade."
+        "Run pacman -Syu --needed for $($distribution.Name): $packages. This includes a full system upgrade."
     }
     else
     {
-        "Refresh apt indexes and install host packages for $($distribution.Name): $packages."
+        "Run apt-get update, then install missing packages without upgrades for $($distribution.Name): $packages."
     }
 
     return @(
         $packageStep,
-        "Install verified CMake $cmakeVersion if the system version is too old.",
-        'Install the selected LLVM-MinGW host archive when project tools are ensured.'
+        "Install verified CMake $cmakeVersion under the managed-tools root if the system version is too old."
     )
 }
 
 # ------------------------------------------------------------
 # Privileged package commands
 # ------------------------------------------------------------
+
+function Get-GameWipLinuxInstalledPackages
+{
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('apt', 'pacman')][string]$Manager,
+        [Parameter(Mandatory = $true)][string[]]$Packages
+    )
+
+    $requested = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($package in $Packages)
+    {
+        $requested.Add($package) | Out-Null
+    }
+
+    if ($Manager -eq 'apt')
+    {
+        $result = Invoke-GameWipProcess `
+            -FilePath dpkg-query `
+            -Arguments @('-W', '-f=${binary:Package}\t${db:Status-Status}\n') `
+            -OutputMode LogOnly `
+            -TimeoutSeconds 60
+        $installed = foreach ($line in $result.Stdout)
+        {
+            $columns = ([string]$line).Split("`t")
+
+            if ($columns.Count -ge 2 -and $columns[1] -eq 'installed' -and $requested.Contains($columns[0]))
+            {
+                $columns[0]
+            }
+        }
+    }
+    else
+    {
+        $result = Invoke-GameWipProcess `
+            -FilePath pacman `
+            -Arguments @('-Qq') `
+            -OutputMode LogOnly `
+            -TimeoutSeconds 60
+        $installed = foreach ($line in $result.Stdout)
+        {
+            $package = ([string]$line).Trim()
+
+            if ($requested.Contains($package))
+            {
+                $package
+            }
+        }
+    }
+
+    return @($installed | Sort-Object -Unique)
+}
 
 function Invoke-GameWipLinuxPrivilegedCommand
 {
@@ -322,14 +373,61 @@ function Invoke-GameWipSetupLinuxPrerequisites
     Write-GameWipSection "Linux prerequisites: $($distribution.Name)"
     Write-Host "  Package manager: $command"
     Write-Host "  Packages: $(@($manager.packages) -join ', ')"
+    $packagesBefore = [System.Collections.Generic.HashSet[string]]::new(
+        [string[]]@(Get-GameWipLinuxInstalledPackages -Manager $distribution.PackageManager -Packages @($manager.packages)),
+        [StringComparer]::OrdinalIgnoreCase
+    )
 
-    if ($manager.updateArguments.Count -ne 0)
+    try
     {
-        Invoke-GameWipLinuxPrivilegedCommand -FilePath $command -Arguments @($manager.updateArguments)
+        if ($manager.updateArguments.Count -ne 0)
+        {
+            Invoke-GameWipLinuxPrivilegedCommand -FilePath $command -Arguments @($manager.updateArguments)
+        }
+
+        Invoke-GameWipLinuxPrivilegedCommand `
+            -FilePath $command `
+            -Arguments (@($manager.installArguments) + @($manager.packages))
+    }
+
+    finally
+    {
+        $packagesAfter = @(Get-GameWipLinuxInstalledPackages -Manager $distribution.PackageManager -Packages @($manager.packages))
+        $newPackages = @($packagesAfter | Where-Object { -not $packagesBefore.Contains([string]$_) })
+
+        if ($newPackages.Count -ne 0)
+        {
+            Add-GameWipOwnedSystemPackages -Manager $distribution.PackageManager -Packages $newPackages
+            Write-Host "  Recorded newly installed packages for optional uninstall: $($newPackages -join ', ')"
+        }
+    }
+
+    Install-GameWipLinuxCMake
+}
+
+function Remove-GameWipLinuxSystemPackages
+{
+    param(
+        [Parameter(Mandatory = $true)][ValidateSet('apt', 'pacman')][string]$Manager,
+        [Parameter(Mandatory = $true)][string[]]$Packages
+    )
+
+    if ($Packages.Count -eq 0)
+    {
+        return
+    }
+
+    $packageManager = $LinuxSetupConfig.packageManagers[$Manager]
+    $command = if ($Manager -eq 'apt')
+    {
+        'apt-get'
+    }
+    else
+    {
+        'pacman'
     }
 
     Invoke-GameWipLinuxPrivilegedCommand `
         -FilePath $command `
-        -Arguments (@($manager.installArguments) + @($manager.packages))
-    Install-GameWipLinuxCMake
+        -Arguments (@($packageManager.removeArguments) + @($Packages))
 }

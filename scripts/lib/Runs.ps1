@@ -30,7 +30,7 @@ function Initialize-GameWipToolRun
 
     $timestamp = Get-Date -Format 'yyyy-MM-dd_HHmmss_fff'
     $safeAction = ConvertTo-GameWipToolSafeName -Text $Action
-    $root = Join-Path $RepositoryRoot (Join-Path $RunLogRoot "${timestamp}_${safeAction}")
+    $root = Join-Path $RunLogRoot "${timestamp}_${safeAction}"
     $logs = Join-Path $root 'logs'
     $artifacts = Join-Path $root 'artifacts'
     New-Item -ItemType Directory -Force -Path $logs, $artifacts | Out-Null
@@ -322,7 +322,7 @@ function Initialize-GameWipRunLog
     }
     $Script:OperationContext.Run = Initialize-GameWipToolRun `
         -RepositoryRoot $RepositoryRoot `
-        -RunLogRoot $ProjectConfig.storage.runs `
+        -RunLogRoot (Get-GameWipStorageAreaPath -Area runs) `
         -Tool 'project-tool' `
         -Action $runAction
     $Script:RunContext = $Script:OperationContext.Run
@@ -330,7 +330,7 @@ function Initialize-GameWipRunLog
 
 function Get-GameWipRunRoot
 {
-    return Resolve-GameWipStoragePath -RelativePath $ProjectConfig.storage.runs
+    return Get-GameWipStorageAreaPath -Area runs
 }
 
 function Get-GameWipRetainedRun

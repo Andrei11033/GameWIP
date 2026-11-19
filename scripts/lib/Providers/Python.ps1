@@ -46,7 +46,9 @@ function Invoke-GameWipPythonProviderProcess
         [string[]]$Arguments = @()
     )
 
-    Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -TimeoutSeconds 600
+    $cacheRoot = Join-Path (Get-GameWipStorageAreaPath -Area cache) 'pip'
+    New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
+    Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -Environment @{ PIP_CACHE_DIR = $cacheRoot } -TimeoutSeconds 600
 }
 
 function New-GameWipPythonToolEnvironment

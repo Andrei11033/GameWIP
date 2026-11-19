@@ -112,6 +112,7 @@ SUPPORTED_PROVIDERS = {
     "python",
     "powershellGallery",
     "githubRelease",
+    "archive",
     "winget",
     "external",
 }
@@ -758,6 +759,15 @@ def check_registry_relationships(failures: list[str]) -> None:
         if provider == "githubRelease" and not provider_info.get("releaseTag"):
             failures.append(f"scripts/config/project-tools.json: GitHub release tool '{tool_id}' does not retain its actual upstream release tag")
 
+        if provider == "archive":
+            if entry.get("versionPolicy") != "exact":
+                failures.append(f"scripts/config/project-tools.json: archive tool '{tool_id}' must use an exact version pin")
+            if not provider_info.get("baseUrl"):
+                failures.append(f"scripts/config/project-tools.json: archive tool '{tool_id}' lacks its download base URL")
+            for asset_key, asset in provider_info.get("assets", {}).items():
+                if not asset.get("archive") or len(asset.get("sha256", "")) != 64 or not asset.get("validationFiles"):
+                    failures.append(f"scripts/config/project-tools.json: archive tool '{tool_id}' has incomplete asset metadata for '{asset_key}'")
+
         version = entry.get("requiredVersion", "")
 
         for reference in entry.get("references", []):
@@ -835,14 +845,22 @@ def check_registry_relationships(failures: list[str]) -> None:
     # Keep repository storage and registry schemas under their declared authorities.
     expected_storage = {
         "root": "build/gamewip",
-        "cache": "build/gamewip/cache",
-        "state": "build/gamewip/state",
-        "temp": "build/gamewip/temp",
-        "runs": "build/gamewip/runs",
+        "cache": "cache",
+        "state": "state",
+        "temp": "temp",
+        "runs": "runs",
     }
 
     if project.get("storage") != expected_storage:
         failures.append("scripts/config/project.json: repository-local storage must use build/gamewip/{cache,state,temp,runs}")
+
+    expected_managed_environment = {
+        "msys2Root": "tools/msys2",
+        "gameWipToolsRoot": "tools/managed",
+    }
+
+    if project.get("managedEnvironment") != expected_managed_environment:
+        failures.append("scripts/config/project.json: managed environments must remain below build/gamewip/tools")
 
     registry_schemas = {
         "scripts/config/project.json": "scripts/schemas/project.schema.json",

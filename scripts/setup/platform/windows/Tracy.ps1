@@ -75,7 +75,7 @@ function Get-GameWipTracyExecutableSet
 
 function Get-GameWipTracyToolRoot
 {
-    return (Join-Path ([string]$ProjectConfig.managedEnvironment.gameWipToolsRoot) 'tools\tracy')
+    return (Join-Path (Get-GameWipManagedToolRoot) 'tools\tracy')
 }
 
 function Test-GameWipTracyToolSet
@@ -262,7 +262,7 @@ function Invoke-GameWipTracyToolBuild
         }
     }
     $tracyRoot = Get-GameWipTracySourcePath
-    $setupRoot = Join-Path $RepositoryRoot (Join-Path $ProjectConfig.storage.cache 'tracy')
+    $setupRoot = Join-Path (Get-GameWipStorageAreaPath -Area cache) 'tracy'
     $buildRoot = Join-Path $setupRoot 'ucrt64'
     $stageRoot = Join-Path $Script:OperationContext.Temp 'tracy-stage'
     $cacheRoot = Join-Path $setupRoot 'cpm-cache'

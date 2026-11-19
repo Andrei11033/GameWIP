@@ -6,7 +6,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $repositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$setupScript = Join-Path $repositoryRoot 'scripts\setup\Windows.ps1'
+$setupScript = Join-Path $repositoryRoot 'scripts\setup\Setup.ps1'
 $powerShellPath = (Get-Process -Id $PID).Path
 
 # ------------------------------------------------------------
@@ -38,7 +38,7 @@ foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'unin
         throw "Missing setup action '$requiredAction'."
     }
 }
-$expectedMenuOrder = @('full', 'check', 'repair', 'update', 'repo', 'tool', 'deps', 'msys2', 'editor', 'doc', 'profiler', 'vs', 'uninstall')
+$expectedMenuOrder = @('full', 'check', 'repair', 'update', 'repo', 'tool', 'deps', 'msys2', 'system', 'editor', 'doc', 'profiler', 'vs', 'uninstall')
 $actualMenuOrder = @($menuActions | ForEach-Object { [string]$_.Id })
 
 if (($actualMenuOrder -join "`n") -cne ($expectedMenuOrder -join "`n"))
@@ -70,8 +70,16 @@ foreach ($action in $actions)
 }
 
 $helpOutput = (& $powerShellPath -NoProfile -ExecutionPolicy Bypass -File $setupScript help 2>&1 | Out-String)
+$expectedSetupUsage = if ([Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([Runtime.InteropServices.OSPlatform]::Windows))
+{
+    'setup.bat <action>'
+}
+else
+{
+    'bash ./setup.sh <action>'
+}
 
-foreach ($requiredHelpText in @('setup.bat <action>', 'Setup actions', '-Preview', '-NonInteractive', '-Yes', '-OutputMode', '-Quiet', '-NoColor', '-Json'))
+foreach ($requiredHelpText in @($expectedSetupUsage, 'Setup actions', '-Preview', '-NonInteractive', '-Yes', '-OutputMode', '-Quiet', '-NoColor', '-Json'))
 {
     if ($helpOutput -notmatch [regex]::Escape($requiredHelpText))
     {
@@ -96,22 +104,143 @@ foreach ($requiredOption in @('Preview', 'NonInteractive', 'Yes', 'Json', 'Quiet
 $SetupRoot = Join-Path $repositoryRoot 'scripts\setup'
 $SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\setup.json') -Name setup -SchemaPath (Join-Path $repositoryRoot 'scripts\schemas\setup.schema.json')
 $EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\editors.json') -Name editors -SchemaPath (Join-Path $repositoryRoot 'scripts\schemas\editors.schema.json')
-$script:SetupStatePath = Join-Path $repositoryRoot (Join-Path $ProjectConfig.storage.state 'setup.json')
-$ToolConfig = @{ MsysRoot = [string]$ProjectConfig.managedEnvironment.msys2Root }
+$script:SetupStatePath = Join-Path (Get-GameWipStorageAreaPath -Area state) 'setup.json'
+$ToolConfig = @{ MsysRoot = Get-GameWipMsys2Root }
 
-foreach ($file in @('Common.ps1', 'Msys2.ps1', 'Editor.ps1', 'Uninstall.ps1'))
+foreach ($file in @('Common.ps1', 'Editor.ps1'))
 {
     . (Join-Path $SetupRoot (Join-Path 'lib' $file))
 }
+
 . (Join-Path $SetupRoot 'lib\Orchestration.ps1')
+
+# Missing Windows host tools must be disclosed before the setup plan is applied.
+$originalHostCheck = (Get-Command Test-GameWipWindowsHost).ScriptBlock
+
+try
+{
+    Set-Item -Path function:Test-GameWipWindowsHost -Value { return $true }
+    $hostInstallPlan = @(Get-GameWipWindowsHostInstallPlan)
+    $hostInstallPlanText = $hostInstallPlan -join "`n"
+
+    foreach ($expectedPackage in @('Git (Git.Git)', 'GitHub CLI (GitHub.cli)', 'outside build/'))
+    {
+        if ($hostInstallPlanText -notmatch [regex]::Escape($expectedPackage))
+        {
+            throw "Windows host install plan omits '$expectedPackage'."
+        }
+    }
+}
+
+finally
+{
+    Set-Item -Path function:Test-GameWipWindowsHost -Value $originalHostCheck
+}
+
+# Missing optional editors follow the same skip policy on both hosts.
+$editorTestOverrides = @{}
+
+foreach ($name in @('Test-GameWipWindowsHost', 'Test-GameWipSetupCommand', 'Select-GameWipEditor', 'Confirm-GameWipExternalInstall', 'Install-GameWipEditorIntegration'))
+{
+    $editorTestOverrides[$name] = (Get-Command -Name $name).ScriptBlock
+}
+
+try
+{
+    Set-Item -Path function:Test-GameWipWindowsHost -Value { return $false }
+    Set-Item -Path function:Test-GameWipSetupCommand -Value { param([string]$Name) return $false }
+    Set-Item -Path function:Select-GameWipEditor -Value { throw 'Editor selection ran without an installed Linux editor.' }
+    $linuxEditorPlan = @(Get-GameWipEditorInstallPlan) -join "`n"
+
+    if ($linuxEditorPlan -notmatch 'skip integrations for missing editors')
+    {
+        throw 'Linux editor plan does not disclose that missing integrations are skipped.'
+    }
+
+    Invoke-GameWipSetupEditorStep -Choose
+
+    Set-Item -Path function:Test-GameWipWindowsHost -Value { return $true }
+    $windowsEditorPlan = @(Get-GameWipEditorInstallPlan) -join "`n"
+
+    if ($windowsEditorPlan -notmatch 'Use existing VS Code' -or $windowsEditorPlan -notmatch 'Ask before installing Visual Studio')
+    {
+        throw 'Windows editor plan does not disclose the VS Code and Visual Studio install policies.'
+    }
+
+    Set-Item -Path function:Confirm-GameWipExternalInstall -Value { throw 'Missing VS Code unexpectedly triggered an install prompt.' }
+    Set-Item -Path function:Install-GameWipEditorIntegration -Value { throw 'Editor integration ran after its install was declined.' }
+    Install-GameWipEditorSelection -RepositoryRoot $repositoryRoot -EditorConfig $EditorConfig -SelectedEditors @('vscode')
+}
+
+finally
+{
+    foreach ($name in $editorTestOverrides.Keys)
+    {
+        Set-Item -Path "function:$name" -Value $editorTestOverrides[$name]
+    }
+
+    Remove-Variable -Name TestSetupHostPlatform -Scope Script -ErrorAction SilentlyContinue
+}
+
+if (-not (Test-GameWipWindowsHost))
+{
+    foreach ($functionName in @('Invoke-GameWipMsys2PacmanWithRetry', 'Get-GameWipMsys2Ownership'))
+    {
+        if (Get-Command -Name $functionName -ErrorAction SilentlyContinue)
+        {
+            throw "Windows-only setup function '$functionName' loaded on Linux."
+        }
+    }
+
+    # Load the Windows package provider only for its retry unit test.
+    . (Join-Path $SetupRoot 'platform/windows/Msys2.ps1')
+
+    if (-not (Get-Command Invoke-GameWipUninstall -ErrorAction SilentlyContinue))
+    {
+        throw 'Linux setup did not load its uninstall implementation.'
+    }
+}
+
 Assert-GameWipSetupActionCatalog
 
-foreach ($action in $SetupActionConfig.Actions)
+$originalWindowsHostCheck = (Get-Command Test-GameWipWindowsHost).ScriptBlock
+
+try
 {
-    if ((Resolve-GameWipSetupActionName -Name ([string]$action.Id).ToUpperInvariant()) -cne $action.Id)
+    foreach ($hostPlatform in @('windows', 'linux'))
     {
-        throw "Canonical setup action '$($action.Id)' did not resolve."
+        Set-Item -Path function:Test-GameWipWindowsHost -Value { return $script:TestSetupHostPlatform -eq 'windows' }
+        $script:TestSetupHostPlatform = $hostPlatform
+        $availableActionIds = @(Get-GameWipAvailableSetupActions | ForEach-Object { [string]$_.Id })
+
+        foreach ($action in $SetupActionConfig.Actions)
+        {
+            $platforms = @(
+                if ($action.ContainsKey('Platforms'))
+                {
+                    $action.Platforms | ForEach-Object { [string]$_ }
+                }
+            )
+            $shouldBeAvailable = $platforms.Count -eq 0 -or $platforms -contains $hostPlatform
+            $resolvedAction = Resolve-GameWipSetupActionName -Name ([string]$action.Id).ToUpperInvariant()
+
+            if ($shouldBeAvailable -and ($resolvedAction -cne $action.Id -or $availableActionIds -cnotcontains $action.Id))
+            {
+                throw "Setup action '$($action.Id)' is missing from the $hostPlatform action catalog."
+            }
+
+            if (-not $shouldBeAvailable -and ($null -ne $resolvedAction -or $availableActionIds -ccontains $action.Id))
+            {
+                throw "Setup action '$($action.Id)' should be hidden on $hostPlatform."
+            }
+        }
     }
+}
+
+finally
+{
+    Set-Item -Path function:Test-GameWipWindowsHost -Value $originalWindowsHostCheck
+    Remove-Variable -Name TestSetupHostPlatform -Scope Script -ErrorAction SilentlyContinue
 }
 
 $originalSetupStatePath = $script:SetupStatePath
@@ -133,14 +262,30 @@ try
         schemaVersion = 1
         wingetPackages = @('package.id')
         vscodeExtensions = @('publisher.extension')
+        systemPackages = @([ordered]@{ manager = 'apt'; package = 'git' })
         msys2InstalledBySetup = $true
     } | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
     $validState = Get-GameWipSetupState
 
     if ($script:SetupStateReadStatus -ne 'valid' -or @($validState.wingetPackages) -notcontains 'package.id' -or
-        @($validState.vscodeExtensions) -notcontains 'publisher.extension' -or -not $validState.msys2InstalledBySetup)
+        @($validState.vscodeExtensions) -notcontains 'publisher.extension' -or
+        @($validState.systemPackages | Where-Object { $_.manager -eq 'apt' -and $_.package -eq 'git' }).Count -ne 1 -or
+        -not $validState.msys2InstalledBySetup)
     {
         throw 'A complete setup state must preserve all ownership fields.'
+    }
+
+    [ordered]@{
+        schemaVersion = 1
+        wingetPackages = @('package.id')
+        vscodeExtensions = @('publisher.extension')
+        msys2InstalledBySetup = $true
+    } | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
+    $legacyState = Get-GameWipSetupState
+
+    if ($script:SetupStateReadStatus -ne 'valid' -or @($legacyState.systemPackages).Count -ne 0)
+    {
+        throw 'Setup state created before system package tracking must remain valid.'
     }
 
     foreach ($missingField in @('wingetPackages', 'vscodeExtensions', 'msys2InstalledBySetup'))
@@ -169,8 +314,91 @@ finally
     Remove-Item -LiteralPath $setupStateTestRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
+# Linux package ownership records only packages newly added by setup.
+$linuxPackageTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\linux-package-test-' + [guid]::NewGuid().ToString('N'))
+$originalSetupStatePath = $script:SetupStatePath
+$linuxFunctionNames = @(
+    'Get-GameWipLinuxDistribution',
+    'Get-GameWipLinuxInstalledPackages',
+    'Invoke-GameWipLinuxPrivilegedCommand',
+    'Install-GameWipLinuxCMake'
+)
+$originalLinuxFunctions = @{}
+
+foreach ($name in $linuxFunctionNames)
+{
+    $originalLinuxFunctions[$name] = (Get-Command -Name $name -ErrorAction SilentlyContinue).ScriptBlock
+}
+
+. (Join-Path $SetupRoot 'platform/linux/Linux.ps1')
+$linuxImplementationFunctions = @{}
+
+foreach ($name in $linuxFunctionNames)
+{
+    $linuxImplementationFunctions[$name] = (Get-Command -Name $name).ScriptBlock
+}
+
+try
+{
+    New-Item -ItemType Directory -Force -Path $linuxPackageTestRoot | Out-Null
+    $script:SetupStatePath = Join-Path $linuxPackageTestRoot 'setup.json'
+    $script:LinuxPackageQueryCount = 0
+    $script:LinuxPackageCommands = [System.Collections.Generic.List[object]]::new()
+
+    Set-Item -Path function:Get-GameWipLinuxDistribution -Value {
+        return [pscustomobject]@{ Id = 'ubuntu'; Name = 'Ubuntu'; PackageManager = 'apt' }
+    }
+    Set-Item -Path function:Get-GameWipLinuxInstalledPackages -Value {
+        param([string]$Manager, [string[]]$Packages)
+        ++$script:LinuxPackageQueryCount
+
+        if ($script:LinuxPackageQueryCount -eq 1)
+        {
+            return @('git')
+        }
+
+        return @('git', 'clang')
+    }
+    Set-Item -Path function:Invoke-GameWipLinuxPrivilegedCommand -Value {
+        param([string]$FilePath, [string[]]$Arguments)
+        $script:LinuxPackageCommands.Add([pscustomobject]@{ FilePath = $FilePath; Arguments = @($Arguments) }) | Out-Null
+    }
+    Set-Item -Path function:Install-GameWipLinuxCMake -Value { }
+
+    Invoke-GameWipSetupLinuxPrerequisites
+    $recordedPackages = @(Get-GameWipSetupState).systemPackages
+
+    if ($script:SetupStateReadStatus -ne 'valid' -or
+        @($recordedPackages | Where-Object { $_.manager -eq 'apt' -and $_.package -eq 'clang' }).Count -ne 1 -or
+        @($recordedPackages | Where-Object { $_.package -eq 'git' }).Count -ne 0 -or
+        $script:LinuxPackageCommands.Count -ne 2)
+    {
+        throw 'Linux package ownership did not record only packages newly installed by setup.'
+    }
+}
+
+finally
+{
+    $script:SetupStatePath = $originalSetupStatePath
+
+    foreach ($name in $linuxFunctionNames)
+    {
+        if ($null -ne $originalLinuxFunctions[$name])
+        {
+            Set-Item -Path "function:$name" -Value $originalLinuxFunctions[$name]
+        }
+        else
+        {
+            Remove-Item -Path "function:$name" -ErrorAction SilentlyContinue
+        }
+    }
+
+    Remove-Item -LiteralPath $linuxPackageTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Variable -Name LinuxPackageQueryCount, LinuxPackageCommands -Scope Script -ErrorAction SilentlyContinue
+}
+
 $originalSetupStateRoot = [string]$ProjectConfig.storage.state
-$editorStateRoot = 'build/gamewip/temp/editor-state-test-' + [guid]::NewGuid().ToString('N')
+$editorStateRoot = 'temp/editor-state-test-' + [guid]::NewGuid().ToString('N')
 
 try
 {
@@ -188,7 +416,7 @@ try
 finally
 {
     $ProjectConfig.storage.state = $originalSetupStateRoot
-    Remove-Item -LiteralPath (Join-Path $repositoryRoot $editorStateRoot) -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Resolve-GameWipStoragePath -RelativePath $editorStateRoot) -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 # ------------------------------------------------------------
@@ -307,7 +535,7 @@ finally
 # ------------------------------------------------------------
 
 $originalSetupRunRoot = [string]$ProjectConfig.storage.runs
-$setupPreviewRoot = 'build/gamewip/temp/setup-preview-test-' + [guid]::NewGuid().ToString('N')
+$setupPreviewRoot = 'temp/setup-preview-test-' + [guid]::NewGuid().ToString('N')
 
 $originalSetupActionBody = (Get-Command Invoke-GameWipSetupActionBody).ScriptBlock
 $originalSetupWindowsAssertion = (Get-Command Assert-GameWipSetupWindows).ScriptBlock
@@ -350,7 +578,7 @@ finally
 {
     $ProjectConfig.storage.runs = $originalSetupRunRoot
 
-    $setupPreviewPath = Join-Path $repositoryRoot $setupPreviewRoot
+    $setupPreviewPath = Resolve-GameWipStoragePath -RelativePath $setupPreviewRoot
 
     if (Test-Path -LiteralPath $setupPreviewPath)
     {
@@ -422,5 +650,225 @@ if (-not $rejected)
 }
 
 $Script:OperationContext = $null
+
+# Missing host applications default to No; an explicit -Yes accepts the plan.
+$originalYesNoPrompt = (Get-Command Read-GameWipYesNo).ScriptBlock
+$originalOperationContext = $Script:OperationContext
+
+try
+{
+    Set-Item -Path function:Read-GameWipYesNo -Value { param([string]$Prompt, [bool]$Default) return $false }
+    $Script:OperationContext = New-GameWipOperationContext -Label 'external-install-consent'
+
+    if (Confirm-GameWipExternalInstall -Name 'GitHub CLI' -Provider WinGet -Package 'GitHub.cli')
+    {
+        throw 'A declined external host install was approved.'
+    }
+
+    $Script:OperationContext = New-GameWipOperationContext -Label 'external-install-yes' -Yes
+
+    if (-not (Confirm-GameWipExternalInstall -Name 'GitHub CLI' -Provider WinGet -Package 'GitHub.cli'))
+    {
+        throw 'An explicitly approved external host install was declined.'
+    }
+}
+
+finally
+{
+    Set-Item -Path function:Read-GameWipYesNo -Value $originalYesNoPrompt
+    $Script:OperationContext = $originalOperationContext
+}
+
+if (-not (Test-GameWipWindowsHost))
+{
+    # Linux uninstall removes only marked tools and never follows nested links.
+    $testRoot = Resolve-GameWipStoragePath -RelativePath ('temp/linux-uninstall-test-' + [guid]::NewGuid().ToString('N'))
+    $managedRoot = Join-Path $testRoot 'managed'
+    $originalSetupStatePath = $script:SetupStatePath
+    $originalLaunchToken = [string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN
+    $overrideNames = @(
+        'Get-GameWipManagedToolRoot',
+        'Get-GameWipSetupState',
+        'Get-GameWipEditorPreferencePath',
+        'Invoke-GameWipEditorIntegrationRemoval',
+        'Test-GameWipSetupCommand',
+        'Confirm-GameWipMutation',
+        'Test-GameWipLinuxCurrentPowerShell',
+        'Get-GameWipLinuxInstalledPackages',
+        'Remove-GameWipLinuxSystemPackages'
+    )
+    $originalOverrides = @{}
+
+    foreach ($name in $overrideNames)
+    {
+        $originalOverrides[$name] = (Get-Command -Name $name).ScriptBlock
+    }
+
+    try
+    {
+        New-Item -ItemType Directory -Force -Path $managedRoot | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $testRoot 'cache') | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot 'tools/llvm-mingw/20261104') | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot 'tools/powershell/7.7.0') | Out-Null
+        New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot 'tools/custom') | Out-Null
+
+        foreach ($name in @('bin', 'npm', 'python', 'powershell', 'cmake'))
+        {
+            New-Item -ItemType Directory -Force -Path (Join-Path $managedRoot $name) | Out-Null
+            Set-Content -LiteralPath (Join-Path $managedRoot "$name/payload.txt") -Value $name
+        }
+
+        $rootMarker = New-GameWipOwnershipMarker -Resource project-tools -Origin created -Payload ([ordered]@{
+                installedBySetup = $true
+                adoptedByUser = $false
+            })
+        Write-GameWipJsonAtomic -Path (Join-Path $managedRoot '.gamewip-managed.json') -Value $rootMarker
+
+        $llvmMingwTool = Get-GameWipProjectTool -Id llvm-mingw
+        $llvmMingwAsset = $llvmMingwTool.provider.assets['linux-amd64']
+
+        foreach ($tool in @(
+                @{ Path = (Join-Path $managedRoot 'cmake'); Id = 'cmake'; Version = '4.4.4'; Archive = 'cmake-4.4.4-linux-x86_64.tar.gz'; Sha256 = ('a' * 64); Marker = '.gamewip-tool.json' },
+                @{ Path = (Join-Path $managedRoot 'tools/llvm-mingw/20261104'); Id = 'llvm-mingw'; Version = [string]$llvmMingwTool.requiredVersion; Archive = [string]$llvmMingwAsset.archive; Sha256 = [string]$llvmMingwAsset.sha256; Marker = '.gamewip-tool.json' }
+            ))
+        {
+            Write-GameWipJsonAtomic -Path (Join-Path $tool.Path $tool.Marker) -Value ([ordered]@{
+                    schemaVersion = 1
+                    toolId = $tool.Id
+                    version = $tool.Version
+                    archive = $tool.Archive
+                    sha256 = $tool.Sha256
+                })
+        }
+
+        $powerShellRoot = Join-Path $managedRoot 'tools/powershell/7.7.0'
+        Set-Content -LiteralPath (Join-Path $powerShellRoot 'pwsh') -Value 'runtime'
+        Set-Content -LiteralPath (Join-Path $powerShellRoot '.gamewip-tool') -Value @(
+            'version=7.7.0',
+            'archive=powershell-7.7.0-linux-x64.tar.gz',
+            ('sha256=' + ('b' * 64))
+        )
+        Set-Content -LiteralPath (Join-Path $managedRoot 'tools/custom/user.txt') -Value 'preserve'
+        Set-Content -LiteralPath (Join-Path $testRoot 'cache/keep.txt') -Value 'preserve'
+        Set-Content -LiteralPath (Join-Path $testRoot 'build-target.json') -Value 'preserve'
+        Set-Content -LiteralPath (Join-Path $testRoot 'run-receipt.txt') -Value 'preserve'
+        $sentinelPath = Join-Path $testRoot 'outside-sentinel.txt'
+        Set-Content -LiteralPath $sentinelPath -Value 'preserve'
+        [void][IO.File]::CreateSymbolicLink((Join-Path $managedRoot 'python/outside-link'), $sentinelPath)
+        $script:SetupStatePath = Join-Path $testRoot 'setup.json'
+        $editorPreferencePath = Join-Path $testRoot 'editor-selection.json'
+        Set-Content -LiteralPath $script:SetupStatePath -Value '{}'
+        Set-Content -LiteralPath $editorPreferencePath -Value '{}'
+
+        Set-Item -Path function:Get-GameWipManagedToolRoot -Value { return $script:LinuxUninstallTestManagedRoot }
+        $script:LinuxUninstallTestSystemPackages = @(
+            [ordered]@{
+                manager = (Get-GameWipLinuxDistribution).PackageManager
+                package = 'gamewip-test-package'
+            }
+        )
+        $script:LinuxUninstallRemovedPackages = @()
+        Set-Item -Path function:Get-GameWipSetupState -Value { return [ordered]@{ vscodeExtensions = @(); systemPackages = $script:LinuxUninstallTestSystemPackages } }
+        Set-Item -Path function:Get-GameWipEditorPreferencePath -Value { return $script:LinuxUninstallTestEditorPreferencePath }
+        Set-Item -Path function:Invoke-GameWipEditorIntegrationRemoval -Value { }
+        Set-Item -Path function:Test-GameWipSetupCommand -Value { return $false }
+        Set-Item -Path function:Confirm-GameWipMutation -Value { return $true }
+        Set-Item -Path function:Get-GameWipLinuxInstalledPackages -Value { param([string]$Manager, [string[]]$Packages) return $Packages }
+        Set-Item -Path function:Remove-GameWipLinuxSystemPackages -Value {
+            param([string]$Manager, [string[]]$Packages)
+            $script:LinuxUninstallRemovedPackages = @($Packages)
+        }
+        Set-Item -Path function:Test-GameWipLinuxCurrentPowerShell -Value {
+            param([string]$Path)
+            return $Path -eq $script:LinuxUninstallTestCurrentPowerShell
+        }
+        $script:LinuxUninstallTestManagedRoot = $managedRoot
+        $script:LinuxUninstallTestEditorPreferencePath = $editorPreferencePath
+        $script:LinuxUninstallTestCurrentPowerShell = $powerShellRoot
+        Remove-Item Env:GAMEWIP_SETUP_LAUNCH_TOKEN -ErrorAction SilentlyContinue
+
+        $inventory = Get-GameWipLinuxUninstallInventory -RepositoryRoot $repositoryRoot
+
+        if ($inventory.RemovePaths -notcontains (Join-Path $managedRoot 'cmake') -or
+            $inventory.RemovePaths -notcontains (Join-Path $managedRoot 'tools/llvm-mingw/20261104') -or
+            $inventory.Preserved -notcontains "$powerShellRoot (currently running helper; use system PowerShell to remove it)")
+        {
+            throw "Linux uninstall inventory mismatch. Planned: $($inventory.RemovePaths -join ', '). Preserved: $($inventory.Preserved -join ', ')."
+        }
+
+        $launchToken = '123-456-789'
+        $env:GAMEWIP_SETUP_LAUNCH_TOKEN = $launchToken
+        $inventory = Get-GameWipLinuxUninstallInventory -RepositoryRoot $repositoryRoot
+
+        if ($inventory.DeferredPowerShellPaths -notcontains $powerShellRoot)
+        {
+            throw 'Linux uninstall did not schedule its active managed PowerShell runtime for cleanup.'
+        }
+
+        Invoke-GameWipUninstall -RepositoryRoot $repositoryRoot
+
+        if ($script:LinuxUninstallRemovedPackages -notcontains 'gamewip-test-package')
+        {
+            throw 'Linux uninstall did not remove the recorded GameWIP-added package.'
+        }
+
+        foreach ($name in @('bin', 'npm', 'python', 'powershell', 'cmake', 'tools/llvm-mingw/20261104'))
+        {
+            if (Test-Path -LiteralPath (Join-Path $managedRoot $name))
+            {
+                throw "Linux uninstall left managed tool data at '$name'."
+            }
+        }
+
+        foreach ($path in @(
+                (Join-Path $managedRoot 'tools/custom/user.txt'),
+                (Join-Path $powerShellRoot '.gamewip-tool'),
+                (Join-Path $testRoot 'cache/keep.txt'),
+                (Join-Path $testRoot 'build-target.json'),
+                (Join-Path $testRoot 'run-receipt.txt'),
+                $sentinelPath
+            ))
+        {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf))
+            {
+                throw "Linux uninstall removed preserved data at '$path'."
+            }
+        }
+
+        $cleanupToken = Get-Content -Raw -LiteralPath (Join-Path $powerShellRoot '.gamewip-uninstall-pending')
+
+        if ($cleanupToken -cne $launchToken)
+        {
+            throw 'Linux uninstall wrote an invalid deferred PowerShell cleanup token.'
+        }
+
+        if ((Test-Path -LiteralPath $script:SetupStatePath) -or (Test-Path -LiteralPath $editorPreferencePath))
+        {
+            throw 'Linux uninstall left disposable setup state behind.'
+        }
+    }
+
+    finally
+    {
+        $script:SetupStatePath = $originalSetupStatePath
+
+        if ([string]::IsNullOrEmpty($originalLaunchToken))
+        {
+            Remove-Item Env:GAMEWIP_SETUP_LAUNCH_TOKEN -ErrorAction SilentlyContinue
+        }
+        else
+        {
+            $env:GAMEWIP_SETUP_LAUNCH_TOKEN = $originalLaunchToken
+        }
+
+        foreach ($name in $overrideNames)
+        {
+            Set-Item -Path "function:$name" -Value $originalOverrides[$name]
+        }
+
+        Remove-Variable -Name LinuxUninstallTestManagedRoot, LinuxUninstallTestEditorPreferencePath, LinuxUninstallTestCurrentPowerShell -Scope Script -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 
 Write-Host 'Setup helper regression tests passed.'

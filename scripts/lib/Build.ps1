@@ -152,11 +152,14 @@ function Invoke-GameWipConfigurePreset
     $arguments = @('--preset', $Name)
     $arguments += @('-B', $buildDirectory)
 
-    if ($target.platform -eq 'windows')
+    if ($target.platform -in @('windows', 'linux'))
     {
         $arguments += "-DGAMEWIP_TARGET_PLATFORM=$($target.platform)"
         $arguments += "-DGAMEWIP_TARGET_ARCHITECTURE=$($target.architecture)"
-        $arguments += "-DGAMEWIP_LLVM_MINGW_ROOT=$(Get-GameWipBuildTargetToolchainRoot -Target $target)"
+        $toolchainVariable = ([string]$target.toolchain).ToUpperInvariant() -replace '-', '_'
+        $toolchainRootVariable = "GAMEWIP_${toolchainVariable}_ROOT"
+        $toolchainRoot = Get-GameWipBuildTargetToolchainRoot -Target $target
+        $arguments += "-$toolchainRootVariable=$toolchainRoot"
     }
     $offlineValue = if ($Offline)
     {
@@ -177,7 +180,7 @@ function Invoke-GameWipConfigurePreset
     }
 
     # Recreate a cache when it belongs to another target compiler.
-    if ((Test-Path -LiteralPath $cache) -and $target.platform -eq 'windows')
+    if ((Test-Path -LiteralPath $cache) -and $target.platform -in @('windows', 'linux'))
     {
         $compilerEntry = Get-Content -LiteralPath $cache | Where-Object { $_ -match '^CMAKE_CXX_COMPILER:(?:FILEPATH|STRING)=' } | Select-Object -First 1
         $configuredCompiler = if ($null -ne $compilerEntry)
@@ -213,7 +216,7 @@ function Invoke-GameWipConfigurePreset
             }
         }
 
-        if ($target.platform -eq 'windows' -and -not [string]::IsNullOrWhiteSpace($configuredCompiler) -and [IO.Path]::IsPathRooted($configuredCompiler))
+        if ($target.platform -in @('windows', 'linux') -and -not [string]::IsNullOrWhiteSpace($configuredCompiler) -and [IO.Path]::IsPathRooted($configuredCompiler))
         {
             $configuredCompiler = [IO.Path]::GetFullPath($configuredCompiler)
             $expectedCompiler = [IO.Path]::GetFullPath((Get-GameWipBuildTargetCompilerPath -Target $target))
@@ -301,8 +304,16 @@ function Resolve-GameWipProjectExecutable
     $resolvePath = {
         param([string]$RelativePath)
         $fullPath = [IO.Path]::GetFullPath((Join-Path $RepositoryRoot $RelativePath))
+        $pathComparison = if (Test-GameWipWindowsHost)
+        {
+            [StringComparison]::OrdinalIgnoreCase
+        }
+        else
+        {
+            [StringComparison]::Ordinal
+        }
 
-        if ($fullPath.StartsWith($presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase))
+        if ($fullPath.StartsWith($presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar, $pathComparison))
         {
             $suffix = $fullPath.Substring($presetPrefix.TrimEnd([IO.Path]::DirectorySeparatorChar).Length).TrimStart([IO.Path]::DirectorySeparatorChar)
             return Join-Path $buildDirectory $suffix
@@ -386,15 +397,109 @@ function Initialize-GameWipProjectCommandBuild
     Invoke-GameWipBuildPreset -Name $Command.BuildPreset
 }
 
+function New-GameWipRuntimeArguments
+{
+    param(
+        [Parameter(Mandatory = $true)][hashtable]$Command,
+        [ValidateSet('default', 'trace', 'debug', 'info', 'warn', 'error', 'fatal')][string]$LogLevel = 'default',
+        [switch]$InputDebug,
+        [switch]$InputDevices,
+        [switch]$WindowEvents,
+        [string]$InputBackends = ''
+    )
+
+    # Reject runtime options for commands that cannot forward them.
+    $hasRuntimeOptions = $LogLevel -ne 'default'
+
+    if (-not $hasRuntimeOptions)
+    {
+        $hasRuntimeOptions = $InputDebug -or $InputDevices -or $WindowEvents -or -not [string]::IsNullOrWhiteSpace($InputBackends)
+    }
+
+    if ($hasRuntimeOptions -and (-not $Command.ContainsKey('RuntimeOptions') -or -not [bool]$Command.RuntimeOptions))
+    {
+        throw "Project command '$($Command.Id)' does not accept game runtime options."
+    }
+
+    # Add general runtime logging and diagnostic switches.
+    $arguments = [System.Collections.Generic.List[string]]::new()
+
+    if ($LogLevel -ne 'default')
+    {
+        $arguments.Add("--logLevel=$LogLevel") | Out-Null
+    }
+
+    if ($InputDebug)
+    {
+        $arguments.Add('--inputDebug') | Out-Null
+    }
+
+    if ($InputDevices)
+    {
+        $arguments.Add('--inputDevices') | Out-Null
+    }
+
+    if ($WindowEvents)
+    {
+        $arguments.Add('--windowEvents') | Out-Null
+    }
+
+    # Validate backend selection before adding the Windows-only option.
+    if (-not [string]::IsNullOrWhiteSpace($InputBackends))
+    {
+        $target = Get-GameWipSelectedBuildTarget
+
+        if ([string]$target.platform -ne 'windows')
+        {
+            throw 'The -InputBackends option is available only for Windows build targets.'
+        }
+
+        $selectedBackends = @($InputBackends.Split(',') | ForEach-Object { $_.Trim() })
+        $validBackends = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+
+        foreach ($backend in @('rawInput', 'hid', 'xinput', 'gameInput', 'directInput', 'windowMessages'))
+        {
+            $validBackends.Add($backend) | Out-Null
+        }
+
+        if ($selectedBackends.Count -eq 0 -or @($selectedBackends | Where-Object { -not $validBackends.Contains($_) -and $_ -cne 'none' }).Count -ne 0)
+        {
+            throw "Invalid -InputBackends list '$InputBackends'. Use rawInput, hid, xinput, gameInput, directInput, windowMessages, or none."
+        }
+
+        if (($selectedBackends -contains 'none' -and $selectedBackends.Count -ne 1) -or
+            @($selectedBackends | Select-Object -Unique).Count -ne $selectedBackends.Count)
+        {
+            throw "Invalid -InputBackends list '$InputBackends': 'none' cannot be combined and backends cannot repeat."
+        }
+
+        $arguments.Add("--inputBackends=$($selectedBackends -join ',')") | Out-Null
+    }
+
+    return $arguments.ToArray()
+}
+
 function Invoke-GameWipProjectCommand
 {
     param(
         [Parameter(Mandatory = $true)][string]$Id,
         [string[]]$Arguments = @(),
+        [ValidateSet('default', 'trace', 'debug', 'info', 'warn', 'error', 'fatal')][string]$LogLevel = 'default',
+        [switch]$InputDebug,
+        [switch]$InputDevices,
+        [switch]$WindowEvents,
+        [string]$InputBackends = '',
         [switch]$NoBuild,
         [switch]$ForceBuild
     )
     $command = Get-GameWipProjectCommand -Id $Id
+    $runtimeArguments = @(New-GameWipRuntimeArguments `
+            -Command $command `
+            -LogLevel $LogLevel `
+            -InputDebug:$InputDebug `
+            -InputDevices:$InputDevices `
+            -WindowEvents:$WindowEvents `
+            -InputBackends $InputBackends)
 
     $hasArguments = $null -ne $Arguments -and $Arguments.Length -ne 0
 
@@ -415,7 +520,7 @@ function Invoke-GameWipProjectCommand
         Initialize-GameWipProjectCommandBuild -Command $command -NoBuild:$NoBuild
     }
     $executable = Resolve-GameWipProjectExecutable -Command $command
-    $projectArguments = @($command.Arguments) + @($Arguments)
+    $projectArguments = @($command.Arguments) + $runtimeArguments + @($Arguments)
     $inheritConsole = $projectArguments -contains '--manual-tests'
     $workingDirectory = $RepositoryRoot
 

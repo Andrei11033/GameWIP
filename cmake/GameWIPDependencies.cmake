@@ -10,6 +10,7 @@
 # - gamewip_prepare_archive_dependency(<dependency-name> <out-source-directory>)
 
 get_filename_component(GAMEWIP_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+include("${CMAKE_CURRENT_LIST_DIR}/GameWIPStorage.cmake")
 
 # ------------------------------------------------------------
 # Dependency cache setup
@@ -18,14 +19,49 @@ get_filename_component(GAMEWIP_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLU
 set(GAMEWIP_DEPENDENCY_LOCK_FILE "${GAMEWIP_SOURCE_ROOT}/scripts/config/dependencies.json" CACHE FILEPATH "GameWIP dependency lock file")
 
 if(PROJECT_IS_TOP_LEVEL)
-    set(_gamewip_default_dependency_cache "${GAMEWIP_SOURCE_ROOT}/build/gamewip/cache/dependencies")
+    gamewip_get_storage_path(_gamewip_cache_root cache)
+    set(_gamewip_default_dependency_cache "${_gamewip_cache_root}/dependencies")
+
+    # Follow storage-root changes while the dependency cache still uses its default.
+    get_property(_gamewip_dependency_cache_is_cached CACHE GAMEWIP_DEPENDENCY_CACHE_DIR PROPERTY TYPE SET)
+
+    if(NOT _gamewip_dependency_cache_is_cached)
+        set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache")
+        set(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT ON CACHE INTERNAL "Whether the dependency cache follows GameWIP storage" FORCE)
+    elseif(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT)
+        get_filename_component(_gamewip_current_dependency_cache "${GAMEWIP_DEPENDENCY_CACHE_DIR}" ABSOLUTE BASE_DIR "${GAMEWIP_SOURCE_ROOT}")
+        get_filename_component(_gamewip_previous_dependency_default "${GAMEWIP_DEPENDENCY_CACHE_DEFAULT}" ABSOLUTE BASE_DIR "${GAMEWIP_SOURCE_ROOT}")
+
+        if(_gamewip_current_dependency_cache STREQUAL _gamewip_previous_dependency_default)
+            set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache" FORCE)
+        else()
+            set(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT OFF CACHE INTERNAL "Whether the dependency cache follows GameWIP storage" FORCE)
+        endif()
+    elseif(NOT DEFINED GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT)
+        # Migrate the former default while preserving custom cache paths.
+        get_filename_component(_gamewip_current_dependency_cache "${GAMEWIP_DEPENDENCY_CACHE_DIR}" ABSOLUTE BASE_DIR "${GAMEWIP_SOURCE_ROOT}")
+        get_filename_component(_gamewip_legacy_dependency_default "${GAMEWIP_SOURCE_ROOT}/build/gamewip/cache/dependencies" ABSOLUTE)
+
+        if(_gamewip_current_dependency_cache STREQUAL _gamewip_legacy_dependency_default)
+            set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache" FORCE)
+            set(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT ON CACHE INTERNAL "Whether the dependency cache follows GameWIP storage" FORCE)
+        else()
+            set(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT OFF CACHE INTERNAL "Whether the dependency cache follows GameWIP storage" FORCE)
+        endif()
+    endif()
+
+    set(GAMEWIP_DEPENDENCY_CACHE_DEFAULT "${_gamewip_default_dependency_cache}" CACHE INTERNAL "Current default GameWIP dependency cache" FORCE)
 else()
     set(_gamewip_default_dependency_cache "")
+    set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache")
 endif()
 
-set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache")
-
 unset(_gamewip_default_dependency_cache)
+unset(_gamewip_cache_root)
+unset(_gamewip_dependency_cache_is_cached)
+unset(_gamewip_current_dependency_cache)
+unset(_gamewip_previous_dependency_default)
+unset(_gamewip_legacy_dependency_default)
 
 if(GAMEWIP_DEPENDENCY_CACHE_DIR)
     if(IS_ABSOLUTE "${GAMEWIP_DEPENDENCY_CACHE_DIR}")

@@ -218,7 +218,7 @@
       "network": true,
       "mutation": "destructive",
       "key": "U",
-      "platforms": ["windows"]
+      "platforms": ["windows", "linux"]
     },
     {
       "id": "list",
