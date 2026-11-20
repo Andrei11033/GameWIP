@@ -637,15 +637,15 @@ $result = Invoke-GameWipOperation `
             $relativeBuildDirectory = Get-GameWipRepositoryRelativePath -Path $buildDirectory
             $documentationPlan = if ($Fresh)
             {
-                @("Remove '$relativeBuildDirectory' completely.", 'Configure and build docs preset.')
+                @("Remove '$relativeBuildDirectory' completely.", 'Configure docs preset and build Doxygen documentation.')
             }
             else
             {
-                @('Configure docs preset.', 'Build docs preset.')
+                @('Configure docs preset.', 'Build Doxygen documentation.')
             }
             Invoke-GameWipMutation -Summary 'Build generated documentation.' -Risk local -Plan $documentationPlan -Body {
                 Invoke-GameWipConfigurePreset -Name docs -Fresh:$Fresh
-                Invoke-GameWipBuildPreset -Name docs
+                Invoke-GameWipBuildTarget -Name docs -Target docs
             } | Out-Null
         }
         'analyze'

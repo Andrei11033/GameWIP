@@ -221,7 +221,8 @@ function Invoke-GameWipQualityNative
         [string[]]$Arguments = @(),
         [hashtable]$Environment = @{}
     )
-    Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -Environment $Environment | Out-Null
+    $pathPrefix = @(Get-GameWipManagedToolPath) -join [IO.Path]::PathSeparator
+    Invoke-GameWipNative -Name $Name -FilePath $FilePath -Arguments $Arguments -PathPrefix $pathPrefix -Environment $Environment | Out-Null
 }
 
 function Invoke-GameWipGersemi

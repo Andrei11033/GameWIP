@@ -6,9 +6,12 @@
 
 Set-StrictMode -Version Latest
 
-function Get-GameWipFileSha256
+function Get-GameWipFileHash
 {
-    param([Parameter(Mandatory = $true)][string]$Path)
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateSet('SHA256', 'SHA512')][string]$Algorithm
+    )
 
     $fullPath = [IO.Path]::GetFullPath($Path)
 
@@ -21,16 +24,23 @@ function Get-GameWipFileSha256
 
     try
     {
-        $sha256 = [System.Security.Cryptography.SHA256]::Create()
+        $hasher = if ($Algorithm -eq 'SHA256')
+        {
+            [System.Security.Cryptography.SHA256]::Create()
+        }
+        else
+        {
+            [System.Security.Cryptography.SHA512]::Create()
+        }
 
         try
         {
-            return ([BitConverter]::ToString($sha256.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+            return ([BitConverter]::ToString($hasher.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
         }
 
         finally
         {
-            $sha256.Dispose()
+            $hasher.Dispose()
         }
     }
 
@@ -38,6 +48,18 @@ function Get-GameWipFileSha256
     {
         $stream.Dispose()
     }
+}
+
+function Get-GameWipFileSha256
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+    return Get-GameWipFileHash -Path $Path -Algorithm SHA256
+}
+
+function Get-GameWipFileSha512
+{
+    param([Parameter(Mandatory = $true)][string]$Path)
+    return Get-GameWipFileHash -Path $Path -Algorithm SHA512
 }
 
 function Update-GameWipProcessPath
@@ -212,7 +234,7 @@ function Resolve-GameWipManagedRoot
 
     if (-not $pathIsUnderBuild -and (Test-GameWipWindowsHost) -and $EnvironmentVariable -eq 'GAMEWIP_MSYS2_ROOT' -and
         (-not (Test-Path -LiteralPath (Join-Path $resolvedPath 'usr/bin/bash.exe') -PathType Leaf) -or
-            -not (Test-Path -LiteralPath (Join-Path $resolvedPath 'usr/bin/pacman.exe') -PathType Leaf)))
+        -not (Test-Path -LiteralPath (Join-Path $resolvedPath 'usr/bin/pacman.exe') -PathType Leaf)))
     {
         throw "$EnvironmentVariable must point to an existing MSYS2 installation; new installations must stay under '$buildRoot'."
     }
@@ -359,9 +381,9 @@ function Assert-GameWipNoReparsePointInOwnedPath
 
     # Refuse linked or missing ancestors before touching the owned tree.
     $relativePath = $canonicalPath.Substring($canonicalRoot.Length).TrimStart([char[]]@(
-        [IO.Path]::DirectorySeparatorChar,
-        [IO.Path]::AltDirectorySeparatorChar
-    ))
+            [IO.Path]::DirectorySeparatorChar,
+            [IO.Path]::AltDirectorySeparatorChar
+        ))
     $segments = @($relativePath -split '[\\/]' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     $currentPath = $canonicalRoot
 
@@ -425,6 +447,12 @@ function Remove-GameWipOwnedTreeEntries
         }
         else
         {
+            if (($attributes -band [IO.FileAttributes]::ReadOnly) -ne 0)
+            {
+                $writableAttributes = $attributes -band (-bnot [IO.FileAttributes]::ReadOnly)
+                [IO.File]::SetAttributes($entry.Path, $writableAttributes)
+            }
+
             [IO.File]::Delete($entry.Path)
         }
     }

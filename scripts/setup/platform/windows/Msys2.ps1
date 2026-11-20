@@ -53,18 +53,39 @@ function Get-GameWipExistingMsys2Roots
             }
 
             $installLocation = $application.PSObject.Properties['InstallLocation']
-            $root = if ($null -ne $installLocation) { [string]$installLocation.Value } else { '' }
+            $root = if ($null -ne $installLocation)
+            {
+                [string]$installLocation.Value
+            }
+            else
+            {
+                ''
+            }
 
             if ([string]::IsNullOrWhiteSpace($root))
             {
                 $appPath = $application.PSObject.Properties['Inno Setup: App Path']
-                $root = if ($null -ne $appPath) { [string]$appPath.Value } else { '' }
+                $root = if ($null -ne $appPath)
+                {
+                    [string]$appPath.Value
+                }
+                else
+                {
+                    ''
+                }
             }
 
             if ([string]::IsNullOrWhiteSpace($root))
             {
                 $uninstallValue = $application.PSObject.Properties['UninstallString']
-                $uninstallString = if ($null -ne $uninstallValue) { [string]$uninstallValue.Value } else { '' }
+                $uninstallString = if ($null -ne $uninstallValue)
+                {
+                    [string]$uninstallValue.Value
+                }
+                else
+                {
+                    ''
+                }
                 $match = [regex]::Match($uninstallString, '(?i)(?:"(?<path>[^\"]+\\uninstall\.exe)"|(?<path>[^\s]+\\uninstall\.exe))')
 
                 if ($match.Success)
@@ -169,10 +190,38 @@ function Get-GameWipMsys2PackageConfig
 {
     param([Parameter(Mandatory = $true)][hashtable]$ProjectTools)
     $result = @{ Common = @(); Ucrt64 = @(); Clang64 = @() }
+    $packageEntries = [System.Collections.Generic.List[object]]::new()
 
-    foreach ($toolInfo in @($ProjectTools.tools | Where-Object { $_.provider.kind -eq 'msys2' }))
+    foreach ($toolInfo in @($ProjectTools.tools))
     {
-        $key = switch ([string]$toolInfo.provider.environment)
+        $provider = $toolInfo.provider
+
+        if ($provider.kind -eq 'msys2')
+        {
+            $packageEntries.Add($provider) | Out-Null
+            $dependencies = if ($provider.Contains('dependencies'))
+            {
+                @($provider.dependencies)
+            }
+            else
+            {
+                @()
+            }
+
+            foreach ($dependency in $dependencies)
+            {
+                $packageEntries.Add($dependency) | Out-Null
+            }
+        }
+        elseif ($provider.kind -eq 'python' -and $provider.Contains('windowsMsys2'))
+        {
+            $packageEntries.Add($provider.windowsMsys2) | Out-Null
+        }
+    }
+
+    foreach ($packageInfo in $packageEntries)
+    {
+        $key = switch ([string]$packageInfo.environment)
         {
             'common'
             {
@@ -188,41 +237,10 @@ function Get-GameWipMsys2PackageConfig
             }
             default
             {
-                throw "Unknown MSYS2 environment '$($toolInfo.provider.environment)'."
+                throw "Unknown MSYS2 environment '$($packageInfo.environment)'."
             }
         }
-        $result[$key] += [string]$toolInfo.provider.package
-
-        foreach ($dependency in $(if ($toolInfo.provider.Contains('dependencies'))
-                {
-                    @($toolInfo.provider.dependencies)
-                }
-                else
-                {
-                    @()
-                }))
-        {
-            $dependencyKey = switch ([string]$dependency.environment)
-            {
-                'common'
-                {
-                    'Common'
-                }
-                'ucrt64'
-                {
-                    'Ucrt64'
-                }
-                'clang64'
-                {
-                    'Clang64'
-                }
-                default
-                {
-                    throw "Unknown MSYS2 dependency environment '$($dependency.environment)'."
-                }
-            }
-            $result[$dependencyKey] += [string]$dependency.package
-        }
+        $result[$key] += [string]$packageInfo.package
     }
 
     foreach ($key in @('Common', 'Ucrt64', 'Clang64'))

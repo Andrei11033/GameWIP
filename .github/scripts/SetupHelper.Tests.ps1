@@ -101,6 +101,64 @@ foreach ($requiredOption in @('Preview', 'NonInteractive', 'Yes', 'Json', 'Quiet
 
 # Bootstrap project internals without invoking the setup executable entrypoint.
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
+
+# Verify MSYS2 archive layout normalization without a network install.
+$msysLayoutTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('msys-layout-test-' + [guid]::NewGuid().ToString('N'))
+$msysNestedRoot = Join-Path $msysLayoutTestRoot 'msys64'
+$msysNestedBin = Join-Path $msysNestedRoot 'usr/bin'
+New-Item -ItemType Directory -Force -Path $msysNestedBin | Out-Null
+[IO.File]::WriteAllText((Join-Path $msysNestedBin 'bash.exe'), 'fixture')
+[IO.File]::WriteAllText((Join-Path $msysLayoutTestRoot '.gamewip-managed.json'), '{}')
+
+try
+{
+    Complete-GameWipMsys2BaseArchiveExtraction -MsysRoot $msysLayoutTestRoot
+
+    if (-not (Test-Path -LiteralPath (Join-Path $msysLayoutTestRoot 'usr/bin/bash.exe') -PathType Leaf) -or
+        (Test-Path -LiteralPath $msysNestedRoot))
+    {
+        throw 'MSYS2 archive contents were not moved to the selected installation root.'
+    }
+}
+
+finally
+{
+    if (Test-Path -LiteralPath $msysLayoutTestRoot)
+    {
+        Remove-Item -LiteralPath $msysLayoutTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# Read-only files inside a verified owned tree must not block cleanup.
+$readOnlyTreeTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('read-only-tree-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $readOnlyTreeTestRoot | Out-Null
+$readOnlyFile = Join-Path $readOnlyTreeTestRoot 'read-only.txt'
+[IO.File]::WriteAllText($readOnlyFile, 'fixture')
+[IO.File]::SetAttributes($readOnlyFile, [IO.FileAttributes]::ReadOnly)
+
+try
+{
+    Remove-GameWipOwnedTreeEntries -Path $readOnlyTreeTestRoot
+
+    if (Test-Path -LiteralPath $readOnlyTreeTestRoot)
+    {
+        throw 'Read-only owned-tree cleanup left its test directory behind.'
+    }
+}
+
+finally
+{
+    if (Test-Path -LiteralPath $readOnlyFile)
+    {
+        [IO.File]::SetAttributes($readOnlyFile, [IO.FileAttributes]::Normal)
+    }
+
+    if (Test-Path -LiteralPath $readOnlyTreeTestRoot)
+    {
+        Remove-Item -LiteralPath $readOnlyTreeTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $SetupRoot = Join-Path $repositoryRoot 'scripts\setup'
 $SetupActionConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\setup.json') -Name setup -SchemaPath (Join-Path $repositoryRoot 'scripts\schemas\setup.schema.json')
 $EditorConfig = Read-GameWipJsonConfig -Path (Join-Path $SetupRoot 'config\editors.json') -Name editors -SchemaPath (Join-Path $repositoryRoot 'scripts\schemas\editors.schema.json')
@@ -199,6 +257,16 @@ if (-not (Test-GameWipWindowsHost))
     {
         throw 'Linux setup did not load its uninstall implementation.'
     }
+}
+
+$jsonSchemaTool = Get-GameWipProjectTool -Id 'jsonschema'
+$windowsPythonPackage = $jsonSchemaTool.provider.windowsMsys2
+$msys2PackageConfig = Get-GameWipMsys2PackageConfig -ProjectTools $ProjectTools
+
+if ([string]$windowsPythonPackage.environment -ne 'ucrt64' -or
+    $msys2PackageConfig.Ucrt64 -notcontains [string]$windowsPythonPackage.package)
+{
+    throw 'The declared Windows Python package was omitted from the MSYS2 package plan.'
 }
 
 Assert-GameWipSetupActionCatalog
@@ -328,7 +396,14 @@ $originalLinuxFunctions = @{}
 foreach ($name in $linuxFunctionNames)
 {
     $command = Get-Command -Name $name -ErrorAction SilentlyContinue
-    $originalLinuxFunctions[$name] = if ($null -ne $command) { $command.ScriptBlock } else { $null }
+    $originalLinuxFunctions[$name] = if ($null -ne $command)
+    {
+        $command.ScriptBlock
+    }
+    else
+    {
+        $null
+    }
 }
 
 . (Join-Path $SetupRoot 'platform/linux/Linux.ps1')

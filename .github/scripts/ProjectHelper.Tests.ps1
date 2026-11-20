@@ -14,6 +14,41 @@ $powerShellPath = (Get-Process -Id $PID).Path
 # entrypoint is exercised only as a child process.
 . (Join-Path $repositoryRoot 'scripts\lib\Bootstrap.ps1') -RepositoryRoot $repositoryRoot
 
+# Verify repository-owned hashes before environment-dependent checks.
+$hashRoot = Join-Path $repositoryRoot ('build\gamewip\temp\hash-test-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $hashRoot | Out-Null
+
+try
+{
+    $hashPath = Join-Path $hashRoot 'sample.txt'
+    [IO.File]::WriteAllText($hashPath, 'first', [Text.UTF8Encoding]::new($false))
+    $firstHash = Get-GameWipFileSha256 -Path $hashPath
+    $firstSha512 = Get-GameWipFileSha512 -Path $hashPath
+
+    if ($firstHash -notmatch '^[0-9a-f]{64}$' -or $firstHash -ne (Get-GameWipFileSha256 -Path $hashPath))
+    {
+        throw 'Repository-owned SHA-256 hashing is not stable.'
+    }
+
+    if ($firstSha512 -notmatch '^[0-9a-f]{128}$' -or $firstSha512 -ne (Get-GameWipFileSha512 -Path $hashPath))
+    {
+        throw 'Repository-owned SHA-512 hashing is not stable.'
+    }
+
+    [IO.File]::WriteAllText($hashPath, 'second', [Text.UTF8Encoding]::new($false))
+
+    if ($firstHash -eq (Get-GameWipFileSha256 -Path $hashPath) -or
+        $firstSha512 -eq (Get-GameWipFileSha512 -Path $hashPath))
+    {
+        throw 'Repository-owned file hashing did not detect a content change.'
+    }
+}
+
+finally
+{
+    Remove-Item -LiteralPath $hashRoot -Recurse -Force -ErrorAction SilentlyContinue
+}
+
 # ------------------------------------------------------------
 # Command catalog and menu contracts
 # ------------------------------------------------------------
@@ -61,7 +96,14 @@ try
     }
 
     $zigTool = Get-GameWipProjectTool -Id zig
-    $externalZigPath = Join-Path ([IO.Path]::GetTempPath()) $(if (Test-GameWipWindowsHost) { 'external-zig/zig.exe' } else { 'external-zig/zig' })
+    $externalZigPath = Join-Path ([IO.Path]::GetTempPath()) $(if (Test-GameWipWindowsHost)
+        {
+            'external-zig/zig.exe'
+        }
+        else
+        {
+            'external-zig/zig'
+        })
     $externalZigVersion = Get-GameWipToolCandidateVersion -Tool $zigTool -Path $externalZigPath
 
     if ($externalZigVersion -ne [string]$zigTool.requiredVersion)
@@ -76,7 +118,14 @@ finally
 }
 
 $zigPreflightRoot = Join-Path $repositoryRoot ('build\gamewip\temp\zig-preflight-test-' + [guid]::NewGuid().ToString('N'))
-$zigPreflightCompilerPath = Join-Path $zigPreflightRoot $(if (Test-GameWipWindowsHost) { 'zig.exe' } else { 'zig' })
+$zigPreflightCompilerPath = Join-Path $zigPreflightRoot $(if (Test-GameWipWindowsHost)
+    {
+        'zig.exe'
+    }
+    else
+    {
+        'zig'
+    })
 New-Item -ItemType Directory -Force -Path $zigPreflightRoot | Out-Null
 New-Item -ItemType File -Path $zigPreflightCompilerPath | Out-Null
 $preflightFunctions = @{}
@@ -898,7 +947,9 @@ $schemaTestRoot = Join-Path $repositoryRoot ('build\gamewip\temp\schema-test-' +
 
 try
 {
-    if ((Initialize-GameWipToolRun -RepositoryRoot $schemaTestRoot -RunLogRoot runs -Tool test -Action schema-check).SchemaVersion -ne 1)
+    $schemaTestRunRoot = Join-Path $schemaTestRoot 'runs'
+
+    if ((Initialize-GameWipToolRun -RepositoryRoot $schemaTestRoot -RunLogRoot $schemaTestRunRoot -Tool test -Action schema-check).SchemaVersion -ne 1)
     {
         throw 'Retained run receipts must remain at schema version 1.'
     }
@@ -1150,6 +1201,94 @@ if ((Get-GameWipPythonEnvironmentInterpreterPath -Root $syntheticPythonRoot) -ne
     throw 'Python provider interpreter-path resolution is not platform-correct.'
 }
 
+$jsonSchemaTool = Get-GameWipProjectTool -Id 'jsonschema'
+
+if (Test-GameWipWindowsHost)
+{
+    $pythonNativeTestRoot = Join-Path (Get-GameWipStorageAreaPath -Area temp) ('python-native-test-' + [guid]::NewGuid().ToString('N'))
+    $pythonNativeTestInterpreter = Join-Path $pythonNativeTestRoot 'python.exe'
+    New-Item -ItemType Directory -Force -Path $pythonNativeTestRoot | Out-Null
+    [IO.File]::WriteAllText($pythonNativeTestInterpreter, 'fixture')
+    $pythonNativeFunctionNames = @(
+        'Test-GameWipWindowsHost',
+        'Get-GameWipToolLatestQuery',
+        'Initialize-GameWipManagedToolRoot',
+        'Get-GameWipManagedToolRoot',
+        'Get-GameWipPythonEnvironmentInterpreterPath',
+        'Install-GameWipMsys2Tool',
+        'Install-GameWipPythonPackageSpecification',
+        'Get-GameWipMsys2ToolDependencyStatus'
+    )
+    $originalPythonNativeFunctions = @{}
+
+    foreach ($name in $pythonNativeFunctionNames)
+    {
+        $originalPythonNativeFunctions[$name] = (Get-Command -Name $name).ScriptBlock
+    }
+
+    try
+    {
+        Set-Item -Path function:Test-GameWipWindowsHost -Value { return $true }
+        Set-Item -Path function:Get-GameWipToolLatestQuery -Value {
+            param([hashtable]$Tool)
+            $script:PythonNativeQueryTool = $Tool
+            return [pscustomobject]@{ State = 'resolved'; Version = '4.26.1' }
+        }
+        Set-Item -Path function:Initialize-GameWipManagedToolRoot -Value {}
+        Set-Item -Path function:Get-GameWipManagedToolRoot -Value { return $script:PythonNativeTestRoot }
+        Set-Item -Path function:Get-GameWipPythonEnvironmentInterpreterPath -Value { return $script:PythonNativeTestInterpreter }
+        Set-Item -Path function:Install-GameWipMsys2Tool -Value {
+            param([hashtable]$Tool, [AllowNull()][string]$Version)
+            $script:PythonNativeInstallTool = $Tool
+            $script:PythonNativeInstallVersion = $Version
+        }
+        Set-Item -Path function:Install-GameWipPythonPackageSpecification -Value {
+            $script:PythonPipInstallCalled = $true
+        }
+        Set-Item -Path function:Get-GameWipMsys2ToolDependencyStatus -Value {
+            param([hashtable]$Tool)
+            $script:PythonNativeDependencyTool = $Tool
+            return @([pscustomobject]@{ Package = 'fixture'; State = 'compatible' })
+        }
+        $script:PythonNativeTestRoot = $pythonNativeTestRoot
+        $script:PythonNativeTestInterpreter = $pythonNativeTestInterpreter
+        $script:PythonPipInstallCalled = $false
+
+        if ((Get-GameWipPythonToolLatestVersion -Tool $jsonSchemaTool) -ne '4.26.1' -or
+            [string]$script:PythonNativeQueryTool.provider.package -ne [string]$jsonSchemaTool.provider.windowsMsys2.package)
+        {
+            throw 'Windows Python latest-version checks did not use the declared MSYS2 package.'
+        }
+
+        Install-GameWipPythonTool -Tool $jsonSchemaTool -Version '4.26.0'
+
+        if ([string]$script:PythonNativeInstallTool.provider.package -ne [string]$jsonSchemaTool.provider.windowsMsys2.package -or
+            $script:PythonNativeInstallVersion -ne '4.26.0' -or $script:PythonPipInstallCalled)
+        {
+            throw 'Windows Python installation did not use the declared MSYS2 package exclusively.'
+        }
+
+        $nativeDependencies = @(Get-GameWipToolProviderDependencyStatus -Tool $jsonSchemaTool)
+
+        if ($nativeDependencies.Count -ne 1 -or
+            [string]$script:PythonNativeDependencyTool.provider.dependencies[0].package -ne [string]$jsonSchemaTool.provider.windowsMsys2.package)
+        {
+            throw 'Windows Python package status did not verify the declared MSYS2 package.'
+        }
+    }
+
+    finally
+    {
+        foreach ($name in $pythonNativeFunctionNames)
+        {
+            Set-Item -Path "function:$name" -Value $originalPythonNativeFunctions[$name]
+        }
+
+        Remove-Item -LiteralPath $pythonNativeTestRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Variable -Name PythonNativeTestRoot, PythonNativeTestInterpreter, PythonNativeQueryTool, PythonNativeInstallTool, PythonNativeInstallVersion, PythonPipInstallCalled, PythonNativeDependencyTool -Scope Script -ErrorAction SilentlyContinue
+    }
+}
+
 # Owned-tree cleanup unlinks nested links and refuses linked deletion roots.
 # Create a marked tree and an external target.
 $storageTempRoot = Get-GameWipStorageAreaPath -Area temp
@@ -1242,7 +1381,6 @@ finally
     }
 }
 
-$jsonSchemaTool = Get-GameWipProjectTool -Id 'jsonschema'
 $detectedJsonSchema = Get-GameWipDetectedTool -Tool $jsonSchemaTool
 
 if ((Get-GameWipToolCompatibility -Tool $jsonSchemaTool -Detected $detectedJsonSchema) -ne 'compatible')
@@ -1570,7 +1708,7 @@ New-Item -ItemType Directory -Force -Path $runRoot | Out-Null
 
 try
 {
-    $run = Initialize-GameWipToolRun -RepositoryRoot $runRoot -RunLogRoot 'runs' -Tool 'test' -Action 'sample'
+    $run = Initialize-GameWipToolRun -RepositoryRoot $runRoot -RunLogRoot (Join-Path $runRoot 'runs') -Tool 'test' -Action 'sample'
     $firstStep = Initialize-GameWipToolRunStep -Run $run -Name first -CommandLine 'first command'
     $secondStep = Initialize-GameWipToolRunStep -Run $run -Name second -CommandLine 'second command'
 
@@ -1702,33 +1840,6 @@ if (-not (Test-GameWipWindowsHost))
         }
         Remove-Item -LiteralPath $unixCancellationRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
-}
-
-$hashRoot = Join-Path $repositoryRoot ('build\gamewip\temp\hash-test-' + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Force -Path $hashRoot | Out-Null
-
-try
-{
-    $hashPath = Join-Path $hashRoot 'sample.txt'
-    [IO.File]::WriteAllText($hashPath, 'first', [Text.UTF8Encoding]::new($false))
-    $firstHash = Get-GameWipFileSha256 -Path $hashPath
-
-    if ($firstHash -notmatch '^[0-9a-f]{64}$' -or $firstHash -ne (Get-GameWipFileSha256 -Path $hashPath))
-    {
-        throw 'Repository-owned SHA-256 hashing is not stable.'
-    }
-
-    [IO.File]::WriteAllText($hashPath, 'second', [Text.UTF8Encoding]::new($false))
-
-    if ($firstHash -eq (Get-GameWipFileSha256 -Path $hashPath))
-    {
-        throw 'Repository-owned SHA-256 hashing did not detect a content change.'
-    }
-}
-
-finally
-{
-    Remove-Item -LiteralPath $hashRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 $Script:OperationContext = New-GameWipOperationContext -Label 'mutation-state-before-write'
@@ -2001,6 +2112,8 @@ $savedRepositoryRoot = $Script:RepositoryRoot
 $savedProjectToolsPath = $Script:ProjectToolsPath
 $savedProjectTools = $Script:ProjectTools
 $savedOperationContext = $Script:OperationContext
+$savedMsys2RootResolver = (Get-Command Get-GameWipMsys2Root).ScriptBlock
+$trackedPlanMsys2Root = Get-GameWipMsys2Root
 
 try
 {
@@ -2061,6 +2174,8 @@ try
     $Script:ProjectTools = $testRegistry
     $Script:OperationContext = New-GameWipOperationContext -Label 'tracked-plan-test'
     $Script:OperationContext.Temp = $trackedPlanRoot
+    $Script:TrackedPlanMsys2Root = $trackedPlanMsys2Root
+    Set-Item -Path function:Get-GameWipMsys2Root -Value { return $Script:TrackedPlanMsys2Root }
 
     $plan = @(
         [pscustomobject]@{
@@ -2173,6 +2288,8 @@ finally
     $Script:ProjectToolsPath = $savedProjectToolsPath
     $Script:ProjectTools = $savedProjectTools
     $Script:OperationContext = $savedOperationContext
+    Set-Item -Path function:Get-GameWipMsys2Root -Value $savedMsys2RootResolver
+    Remove-Variable -Name TrackedPlanMsys2Root -Scope Script -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $trackedPlanRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 

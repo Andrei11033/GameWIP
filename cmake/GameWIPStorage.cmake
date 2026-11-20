@@ -93,7 +93,10 @@ function(gamewip_get_managed_environment_path output_variable setting)
 
     # External overrides may reuse installations but cannot create new roots.
     if(NOT managed_path_is_in_build AND NOT IS_DIRECTORY "${managed_path}")
-        message(FATAL_ERROR "Managed environment path '${setting}' may point outside build/ only to an existing installation; new GameWIP-managed roots must stay under '${build_root}'.")
+        message(
+            FATAL_ERROR
+            "Managed environment path '${setting}' may point outside build/ only to an existing installation; new GameWIP-managed roots must stay under '${build_root}'."
+        )
     endif()
 
     if(NOT managed_path_is_child OR managed_path STREQUAL managed_root OR managed_path STREQUAL storage_root OR managed_path STREQUAL build_root)

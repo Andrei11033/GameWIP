@@ -32,8 +32,9 @@ owns setup-action metadata and the IDs needed to bootstrap a provider host.
 On Windows, the Python provider uses MSYS2 UCRT64 Python. GameWIP creates its
 managed environment under `<managed-tools-root>/python` with MSYS2 system
 packages visible, so native Windows CPython is not required. Ruff uses verified
-upstream binaries on Windows and Linux; Python packages such as yamllint and
-jsonschema use the managed environment.
+upstream binaries on Windows and Linux; Python tools use the managed environment.
+When a Python package has no compatible MSYS2 build, its registry entry can
+select a native package for Windows while Linux continues to use pip.
 
 The VS Code workspace discovers the default Python environment under
 `build/gamewip/tools/managed/python` after setup creates it and uses the shared

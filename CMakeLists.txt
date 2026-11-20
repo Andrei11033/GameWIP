@@ -29,14 +29,12 @@ if(PROJECT_IS_TOP_LEVEL)
     elseif(NOT DEFINED GAMEWIP_INSTALL_PREFIX_AUTO_DEFAULT)
         # Move CMake's former system-wide default while preserving custom prefixes.
         if(WIN32)
-            set(gamewip_legacy_install_defaults
-                "C:/Program Files/${PROJECT_NAME}"
-                "C:/Program Files (x86)/${PROJECT_NAME}"
-            )
+            set(gamewip_legacy_install_defaults "C:/Program Files/${PROJECT_NAME}" "C:/Program Files (x86)/${PROJECT_NAME}")
 
             if(DEFINED ENV{ProgramFiles} AND NOT "$ENV{ProgramFiles}" STREQUAL "")
                 get_filename_component(gamewip_program_files_parent "$ENV{ProgramFiles}" DIRECTORY)
-                list(APPEND gamewip_legacy_install_defaults
+                list(
+                    APPEND gamewip_legacy_install_defaults
                     "$ENV{ProgramFiles}/${PROJECT_NAME}"
                     "${gamewip_program_files_parent}/Program Files (x86)/${PROJECT_NAME}"
                 )

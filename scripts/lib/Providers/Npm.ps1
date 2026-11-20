@@ -232,5 +232,10 @@ function Install-GameWipNpmTool
 
     $cacheRoot = Join-Path (Get-GameWipStorageAreaPath -Area cache) 'npm'
     New-Item -ItemType Directory -Force -Path $cacheRoot | Out-Null
-    Invoke-GameWipProviderNative -Name "npm-install-$($Tool.id)" -FilePath $npm -Arguments (@('install', '--global', '--prefix', $root, '--cache', $cacheRoot, '--no-audit', '--no-fund') + $specifications) | Out-Null
+    $pathPrefix = @(Get-GameWipManagedToolPath) -join [IO.Path]::PathSeparator
+    Invoke-GameWipProviderNative `
+        -Name "npm-install-$($Tool.id)" `
+        -FilePath $npm `
+        -Arguments (@('install', '--global', '--prefix', $root, '--cache', $cacheRoot, '--no-audit', '--no-fund') + $specifications) `
+        -PathPrefix $pathPrefix | Out-Null
 }

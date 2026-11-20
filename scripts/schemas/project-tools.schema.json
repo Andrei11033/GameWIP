@@ -158,11 +158,28 @@
           "type": "string",
           "minLength": 1
         },
+        "windowsMsys2": {
+          "$ref": "#/$defs/providerMsys2Package"
+        },
         "dependencies": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/providerPackage"
           }
+        }
+      }
+    },
+    "providerMsys2Package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "package"],
+      "properties": {
+        "environment": {
+          "enum": ["common", "ucrt64", "clang64"]
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
         }
       }
     },

@@ -191,7 +191,7 @@ function Assert-GameWipProjectConfig
     $managedToolsParent = [IO.Path]::GetDirectoryName((Get-GameWipCanonicalPath -Path $managedToolRoot))
     $managedToolsName = [IO.Path]::GetFileName((Get-GameWipCanonicalPath -Path $managedToolRoot))
     $isExistingMsys2Layout = $managedToolsParent.Equals((Get-GameWipCanonicalPath -Path $msys2Root), $pathComparison) -and
-        $managedToolsName.Equals('GameWIPTools', $pathComparison)
+    $managedToolsName.Equals('GameWIPTools', $pathComparison)
     $msys2ContainsManagedTools = Test-GameWipPathWithinRoot -Path $managedToolRoot -Root $msys2Root
     $managedToolsContainMsys2 = Test-GameWipPathWithinRoot -Path $msys2Root -Root $managedToolRoot
 
@@ -317,6 +317,17 @@ function Assert-GameWipProjectToolConfig
                 if (-not $toolInfo.provider.Contains('package'))
                 {
                     throw "Python tool '$($toolInfo.id)' must declare its package."
+                }
+
+                if ($toolInfo.provider.Contains('windowsMsys2'))
+                {
+                    $nativeProvider = $toolInfo.provider.windowsMsys2
+
+                    if ([string]$nativeProvider.environment -notin @('common', 'ucrt64', 'clang64') -or
+                        [string]::IsNullOrWhiteSpace([string]$nativeProvider.package))
+                    {
+                        throw "Python tool '$($toolInfo.id)' has an invalid Windows MSYS2 package declaration."
+                    }
                 }
             }
             'powershellGallery'

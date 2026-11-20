@@ -95,7 +95,7 @@ function Get-GameWipDependencyCacheStatus
             $sourcePresent = Test-Path -LiteralPath $validationPath -PathType Leaf
             $actualSha512 = if (Test-Path -LiteralPath $archivePath -PathType Leaf)
             {
-                (Get-FileHash -LiteralPath $archivePath -Algorithm SHA512).Hash
+                Get-GameWipFileSha512 -Path $archivePath
             }
             else
             {

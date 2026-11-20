@@ -162,5 +162,22 @@ class ValidationModuleDiscoveryTests(unittest.TestCase):
                 CHECKER.ROOT = previous_root
 
 
+# ------------------------------------------------------------
+# Validation tool references
+# ------------------------------------------------------------
+
+
+class ValidationToolReferenceTests(unittest.TestCase):
+    def test_discovers_only_explicit_tool_ensure_commands(self) -> None:
+        workflow = """
+        run: ./scripts/GameWIP.ps1 tool ensure llvm-mingw -Yes -NonInteractive
+        run: ./scripts/GameWIP.ps1 build dev -Yes -NonInteractive
+        """
+        self.assertEqual(CHECKER.validation_tool_ids(workflow), {"llvm-mingw"})
+
+    def test_tool_reference_is_case_insensitive(self) -> None:
+        self.assertEqual(CHECKER.validation_tool_ids("tool ENSURE Zig"), {"zig"})
+
+
 if __name__ == "__main__":
     unittest.main()

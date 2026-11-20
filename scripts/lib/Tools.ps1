@@ -188,7 +188,7 @@ function Get-GameWipManagedToolPath
         return @()
     }
 
-    return @(
+    $paths = @(
         (Join-Path $root 'bin'),
         (Join-Path $root 'cmake/bin'),
         (Join-Path $root 'npm'),
@@ -196,6 +196,18 @@ function Get-GameWipManagedToolPath
         (Join-Path $root 'python/bin'),
         (Join-Path $root 'powershell')
     )
+
+    if (Test-GameWipWindowsHost)
+    {
+        $ucrtBin = Join-Path (Get-GameWipMsys2Root) 'ucrt64/bin'
+
+        if (Test-Path -LiteralPath $ucrtBin -PathType Container)
+        {
+            $paths += $ucrtBin
+        }
+    }
+
+    return $paths
 }
 
 function Get-GameWipProviderManagedToolPath
@@ -503,6 +515,19 @@ function Get-GameWipToolProviderDependencyStatus
     if (-not (Test-GameWipWindowsHost) -and [string]$Tool.provider.kind -eq 'msys2')
     {
         return @()
+    }
+
+    if ((Test-GameWipWindowsHost) -and
+        [string]$Tool.provider.kind -eq 'python' -and
+        $Tool.provider.Contains('windowsMsys2'))
+    {
+        $nativeProvider = $Tool.provider.windowsMsys2
+        $nativeTool = @{
+            provider = @{
+                dependencies = @($nativeProvider)
+            }
+        }
+        return @(Get-GameWipMsys2ToolDependencyStatus -Tool $nativeTool)
     }
 
     $dependencies = @(
@@ -867,6 +892,7 @@ function Invoke-GameWipProviderNative
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)][string]$FilePath,
         [string[]]$Arguments = @(),
+        [string]$PathPrefix,
         [int[]]$AllowedExitCodes = @(0),
         [int]$TimeoutSeconds = 600
     )
@@ -874,6 +900,7 @@ function Invoke-GameWipProviderNative
         -Name $Name `
         -FilePath $FilePath `
         -Arguments $Arguments `
+        -PathPrefix $PathPrefix `
         -AllowedExitCodes $AllowedExitCodes `
         -TimeoutSeconds $TimeoutSeconds
     return [int]$result.ExitCode

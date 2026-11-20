@@ -345,11 +345,11 @@ function Show-GameWipDevelopmentMenu
                         -Risk local `
                         -Plan @(
                         'Configure docs preset.'
-                        'Build docs preset.'
+                        'Build Doxygen documentation.'
                     ) `
                         -Body {
                         Invoke-GameWipConfigurePreset -Name docs
-                        Invoke-GameWipBuildPreset -Name docs
+                        Invoke-GameWipBuildTarget -Name docs -Target docs
                     } | Out-Null
                 } | Out-Null
             }

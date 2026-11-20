@@ -729,6 +729,26 @@ function Assert-GameWipPinnedToolAvailable
     {
         'python'
         {
+            if ((Test-GameWipWindowsHost) -and $Tool.provider.Contains('windowsMsys2'))
+            {
+                $nativeProvider = $Tool.provider.windowsMsys2
+                $queryTool = @{
+                    provider = @{
+                        kind = 'msys2'
+                        environment = [string]$nativeProvider.environment
+                        package = [string]$nativeProvider.package
+                    }
+                    capabilities = @{ checkLatest = $true }
+                }
+                $query = Get-GameWipToolLatestQuery -Tool $queryTool
+
+                if ($query.State -ne 'resolved' -or [string]$query.Version -ne $version)
+                {
+                    throw "Pinned MSYS2 package '$($nativeProvider.package) $version' is unavailable."
+                }
+                break
+            }
+
             $result = Invoke-GameWipHttpJson -Uri "https://pypi.org/pypi/$($Tool.provider.package)/$version/json" -MaxAttempts 3 -TimeoutSeconds 20
 
             if ($result.State -ne 'resolved')

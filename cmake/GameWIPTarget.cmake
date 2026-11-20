@@ -7,6 +7,15 @@ include("${CMAKE_CURRENT_LIST_DIR}/GameWIPStorage.cmake")
 function(gamewip_get_host_architecture output_variable)
     string(TOLOWER "${CMAKE_HOST_SYSTEM_PROCESSOR}" host_processor)
 
+    if(host_processor STREQUAL "" AND CMAKE_HOST_WIN32)
+        if(NOT "$ENV{PROCESSOR_ARCHITEW6432}" STREQUAL "")
+            set(host_processor "$ENV{PROCESSOR_ARCHITEW6432}")
+        elseif(NOT "$ENV{PROCESSOR_ARCHITECTURE}" STREQUAL "")
+            set(host_processor "$ENV{PROCESSOR_ARCHITECTURE}")
+        endif()
+        string(TOLOWER "${host_processor}" host_processor)
+    endif()
+
     if(host_processor STREQUAL "" AND CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
         execute_process(COMMAND uname -m RESULT_VARIABLE uname_result OUTPUT_VARIABLE host_processor OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 
@@ -113,7 +122,15 @@ function(gamewip_prepare_target)
     string(JSON gamewip_tool_version GET "${gamewip_tools_json}" tools ${gamewip_tool_index} requiredVersion)
     string(JSON gamewip_tool_directory GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider managedDirectory)
     string(JSON gamewip_tool_binary_directory GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider binaryDirectory)
-    string(JSON gamewip_tool_compiler ERROR_VARIABLE gamewip_tool_compiler_error GET "${gamewip_tools_json}" tools ${gamewip_tool_index} provider compiler)
+    string(
+        JSON gamewip_tool_compiler
+        ERROR_VARIABLE gamewip_tool_compiler_error
+        GET "${gamewip_tools_json}"
+        tools
+        ${gamewip_tool_index}
+        provider
+        compiler
+    )
 
     if(gamewip_tool_compiler_error)
         set(gamewip_tool_compiler "")
@@ -144,12 +161,31 @@ function(gamewip_prepare_target)
     endif()
 
     # Read the toolchain's host asset and its validation files.
-    string(JSON gamewip_asset_type ERROR_VARIABLE gamewip_asset_error TYPE "${gamewip_tools_json}" tools ${gamewip_tool_index} provider assets "${gamewip_host_asset_key}")
+    string(
+        JSON gamewip_asset_type
+        ERROR_VARIABLE gamewip_asset_error
+        TYPE "${gamewip_tools_json}"
+        tools
+        ${gamewip_tool_index}
+        provider
+        assets
+        "${gamewip_host_asset_key}"
+    )
     if(gamewip_asset_error OR gamewip_asset_type STREQUAL "NULL")
         message(FATAL_ERROR "Toolchain '${gamewip_target_toolchain}' has no verified asset for host '${gamewip_host_asset_key}'.")
     endif()
 
-    string(JSON gamewip_tool_validation_count ERROR_VARIABLE gamewip_asset_validation_error LENGTH "${gamewip_tools_json}" tools ${gamewip_tool_index} provider assets "${gamewip_host_asset_key}" validationFiles)
+    string(
+        JSON gamewip_tool_validation_count
+        ERROR_VARIABLE gamewip_asset_validation_error
+        LENGTH "${gamewip_tools_json}"
+        tools
+        ${gamewip_tool_index}
+        provider
+        assets
+        "${gamewip_host_asset_key}"
+        validationFiles
+    )
     if(gamewip_asset_validation_error)
         string(JSON gamewip_tool_validation_count LENGTH "${gamewip_tools_json}" tools ${gamewip_tool_index} provider validationFiles)
         set(gamewip_validation_json_path provider validationFiles)
@@ -172,7 +208,12 @@ function(gamewip_prepare_target)
 
     string(REPLACE "\\" "/" gamewip_toolchain_root "${${gamewip_toolchain_root_variable}}")
     set(${gamewip_toolchain_root_variable} "${gamewip_toolchain_root}" CACHE PATH "${gamewip_target_toolchain} toolchain root" FORCE)
-    set(GAMEWIP_${gamewip_toolchain_variable}_BINARY_DIRECTORY "${gamewip_tool_binary_directory}" CACHE INTERNAL "${gamewip_target_toolchain} binary directory" FORCE)
+    set(GAMEWIP_${gamewip_toolchain_variable}_BINARY_DIRECTORY
+        "${gamewip_tool_binary_directory}"
+        CACHE INTERNAL
+        "${gamewip_target_toolchain} binary directory"
+        FORCE
+    )
     set(GAMEWIP_${gamewip_toolchain_variable}_COMPILER "${gamewip_tool_compiler}" CACHE INTERNAL "${gamewip_target_toolchain} compiler command" FORCE)
 
     # Compiler providers may keep their standard library outside the binary directory.
@@ -199,7 +240,10 @@ function(gamewip_prepare_target)
                 else()
                     set(gamewip_setup_hint "Run 'bash ./setup.sh repair'.")
                 endif()
-                message(FATAL_ERROR "Toolchain '${gamewip_target_toolchain}' is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. ${gamewip_setup_hint}")
+                message(
+                    FATAL_ERROR
+                    "Toolchain '${gamewip_target_toolchain}' is incomplete for ${GAMEWIP_TARGET_PLATFORM}/${GAMEWIP_TARGET_ARCHITECTURE}; missing '${validation_file}'. ${gamewip_setup_hint}"
+                )
             endif()
         endforeach()
     endif()

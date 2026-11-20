@@ -603,7 +603,11 @@
       "category": "quality",
       "provider": {
         "kind": "python",
-        "package": "jsonschema"
+        "package": "jsonschema",
+        "windowsMsys2": {
+          "environment": "ucrt64",
+          "package": "mingw-w64-ucrt-x86_64-python-jsonschema"
+        }
       },
       "versionPolicy": "minimum",
       "requiredVersion": "4.26.0",

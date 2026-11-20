@@ -7,7 +7,21 @@
 function Get-GameWipPythonToolLatestVersion
 {
     param([hashtable]$Tool)
-    $query = Get-GameWipToolLatestQuery -Tool $Tool
+    $queryTool = $Tool
+
+    if ((Test-GameWipWindowsHost) -and $Tool.provider.Contains('windowsMsys2'))
+    {
+        $nativeProvider = $Tool.provider.windowsMsys2
+        $queryTool = @{
+            provider = @{
+                kind = 'msys2'
+                environment = [string]$nativeProvider.environment
+                package = [string]$nativeProvider.package
+            }
+            capabilities = @{ checkLatest = $true }
+        }
+    }
+    $query = Get-GameWipToolLatestQuery -Tool $queryTool
 
     if ($query.State -eq 'resolved')
     {
@@ -80,6 +94,21 @@ function Install-GameWipPythonPackageSpecification
 function Install-GameWipPythonTool
 {
     param([hashtable]$Tool, [AllowNull()][string]$Version)
+
+    if ((Test-GameWipWindowsHost) -and $Tool.provider.Contains('windowsMsys2'))
+    {
+        $nativeProvider = $Tool.provider.windowsMsys2
+        $nativeTool = @{
+            id = [string]$Tool.id
+            provider = @{
+                kind = 'msys2'
+                environment = [string]$nativeProvider.environment
+                package = [string]$nativeProvider.package
+            }
+        }
+        Install-GameWipMsys2Tool -Tool $nativeTool -Version $Version
+    }
+
     Initialize-GameWipManagedToolRoot
     $root = Join-Path ((Get-GameWipManagedToolRoot)) 'python'
 
@@ -95,6 +124,11 @@ function Install-GameWipPythonTool
     if (-not (Test-Path -LiteralPath $environmentPythonPath))
     {
         throw "Managed Python environment was not created at '$environmentPythonPath'."
+    }
+
+    if ((Test-GameWipWindowsHost) -and $Tool.provider.Contains('windowsMsys2'))
+    {
+        return
     }
 
     $specification = if ($Version)

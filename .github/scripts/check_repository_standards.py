@@ -63,6 +63,14 @@ REQUIRED_CHECK_NAMES = {
 ACTION_REFERENCE = re.compile(r"^\s*uses:\s*([^\s#]+)")
 ACTION_VERSION_ANNOTATION = re.compile(r"^\s*uses:\s*([^\s#]+)(?:\s+#\s*(\S(?:.*\S)?))?\s*$")
 ACTION_VERSION = re.compile(r"^v[0-9]+(?:\.[0-9]+){0,2}$")
+VALIDATION_TOOL_REFERENCE = re.compile(r"\btool\s+ensure\s+([a-z0-9][a-z0-9_-]*)", re.IGNORECASE)
+
+
+def validation_tool_ids(text: str) -> set[str]:
+    """Return tool IDs explicitly provisioned by the validation workflow."""
+    return {match.group(1).lower() for match in VALIDATION_TOOL_REFERENCE.finditer(text)}
+
+
 FULL_COMMIT_PIN = re.compile(r"^[^\s@]+@[0-9a-f]{40}$")
 JOB_START = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$")
 JOB_TIMEOUT = re.compile(r"^    timeout-minutes:\s*[1-9][0-9]*\s*$")
@@ -721,9 +729,14 @@ def check_registry_relationships(failures: list[str]) -> None:
 
     provider_files = {path.stem.lower() for path in (ROOT / "scripts/lib/Providers").glob("*.ps1")}
     validation_text = (WORKFLOW_ROOT / "validation.yml").read_text(encoding="utf-8")
+    validation_tools = validation_tool_ids(validation_text)
     tool_docs = (ROOT / "docs/doxygen/project_contracts.md").read_text(encoding="utf-8")
     live_references = set()
     repository_root = ROOT.resolve()
+
+    for tool_id in validation_tools:
+        if tool_id not in tool_by_id:
+            failures.append(f".github/workflows/validation.yml: tool '{tool_id}' is not registered in project-tool metadata")
 
     for entry in tool_entries:
         tool_id = entry.get("id")
@@ -835,12 +848,8 @@ def check_registry_relationships(failures: list[str]) -> None:
                     failures.append(f"scripts/config/project-tools.json: duplicate live reference '{relative}' for '{tool_id}'")
                 live_references.add(live_key)
 
-        if entry.get("versionPolicy") == "exact":
-            if version not in tool_docs:
-                failures.append(f"docs/doxygen/project_contracts.md: exact tool '{tool_id}' version '{version}' is stale")
-
-            if tool_id not in validation_text:
-                failures.append(f".github/workflows/validation.yml: exact tool '{tool_id}' is not provisioned from registry metadata")
+        if entry.get("versionPolicy") == "exact" and version not in tool_docs:
+            failures.append(f"docs/doxygen/project_contracts.md: exact tool '{tool_id}' version '{version}' is stale")
 
     # Keep repository storage and registry schemas under their declared authorities.
     expected_storage = {
