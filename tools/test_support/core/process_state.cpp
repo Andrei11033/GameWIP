@@ -2,7 +2,9 @@
 /// @brief Process-global environment and coordination guard implementation for TestSupport.
 
 #include "test_support/process.h"
-#include "test_support/internal/test_support_platform.h"
+#include "test_support/internal/process_state.h"
+#include "test_support/platform/backend.h"
+#include "test_support/internal/status.h"
 
 #include <new>
 #include <system_error>
@@ -12,11 +14,6 @@ namespace GameWIP::TestSupport::Detail
     namespace
     {
         std::recursive_mutex processStateMutexInstance;
-
-        [[nodiscard]] Types::InfrastructureStatus failureStatus(Types::InfrastructureError error, std::uint64_t code = 0) noexcept
-        {
-            return Types::InfrastructureStatus{.error = error, .nativeCode = code};
-        }
 
         [[nodiscard]] Types::InfrastructureStatus restoreEnvironmentVariable(
             std::string_view name,

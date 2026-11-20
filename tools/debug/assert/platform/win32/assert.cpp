@@ -1,4 +1,4 @@
-/// @file win32_assert.cpp
+/// @file assert.cpp
 /// @brief Windows platform backend for Assert UI, debugger detection, and debug breaks.
 /// @details The backend prefers Task Dialog for interactive failures, falls back to MessageBox,
 /// converts UTF-8 diagnostics to UTF-16, and bounds popup text before showing UI.
@@ -276,6 +276,10 @@ namespace
 #if ASSERT_INTERNAL_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
+    /// ------------------------------------------------------------
+    /// Diagnostic failure validation
+    /// ------------------------------------------------------------
+
     bool runDiagnosticPreparationEmergencyPathForTest() noexcept
     {
         nextDiagnosticPreparationFailure.store(true, std::memory_order_release);
@@ -294,6 +298,10 @@ namespace GameWIP::Debug::Assert::TestHooks
 
 namespace GameWIP::Debug::Assert::Detail::Platform
 {
+    /// ------------------------------------------------------------
+    /// Failure presentation and debugger operations
+    /// ------------------------------------------------------------
+
     void showErrorPopup(std::string_view title, std::string_view message) noexcept
     {
         try

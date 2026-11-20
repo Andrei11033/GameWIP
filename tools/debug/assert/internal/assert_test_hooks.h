@@ -12,6 +12,10 @@
 #if ASSERT_INTERNAL_TEST_HOOKS
 namespace GameWIP::Debug::Assert::TestHooks
 {
+    /// ------------------------------------------------------------
+    /// Diagnostic failure validation
+    /// ------------------------------------------------------------
+
     /// @brief Validates diagnostic-preparation failure handling inside the noexcept popup boundary.
     /// @return True only when the armed one-shot failure was consumed by the real popup path.
     /// @warning Test-only and source-tree-only. Final native presentation is suppressed for the current test thread.

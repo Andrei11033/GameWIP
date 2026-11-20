@@ -1,4 +1,4 @@
-/// @file helpers.h
+/// @file text.h
 /// @brief Shared private text helpers for the TestSupport Win32 backend.
 
 #pragma once

@@ -8,9 +8,10 @@
 
 #include "logger/logger.h"
 
+#include <array>
+
 #if ASSERT_DIAGNOSTICS
 #include <algorithm>
-#include <array>
 #include <charconv>
 #include <iterator>
 #include <memory>

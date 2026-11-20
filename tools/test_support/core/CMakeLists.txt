@@ -1,4 +1,12 @@
 target_sources(
     TestSupport
-    PRIVATE files.cpp process_state.cpp report_sink.cpp reporting.cpp status.cpp stress.cpp
+    PRIVATE
+        context.cpp
+        files.cpp
+        process_state.cpp
+        report_sink.cpp
+        runner.cpp
+        scoped_files.cpp
+        status.cpp
+        stress.cpp
 )

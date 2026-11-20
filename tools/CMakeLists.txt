@@ -22,7 +22,7 @@ else()
 endif()
 set(ASSERT_ENABLE_TEST_HOOKS ${GAMEWIP_TESTS_REQUIRED} CACHE BOOL "Enable Assert internal test hooks" FORCE)
 
-add_subdirectory(debug/assert)
+add_subdirectory(debug)
 
 # ------------------------------------------------------------
 # TestSupport

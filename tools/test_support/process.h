@@ -17,12 +17,6 @@
 
 namespace GameWIP::TestSupport
 {
-    namespace Detail
-    {
-        /// @brief Returns the library-wide process-state mutex.
-        [[nodiscard]] std::recursive_mutex &processStateMutex() noexcept;
-    } // namespace Detail
-
     /// @brief Serializes TestSupport operations that mutate or snapshot process-global state.
     /// @details Hold this object for the complete lifetime of environment/current-directory guards and
     /// while coordinating child launches that inherit parent process state. Direct native or standard-library

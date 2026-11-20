@@ -1,8 +1,10 @@
-/// @file win32_child_process.cpp
+/// @file child_process.cpp
 /// @brief Windows child-process backend for the TestSupport library.
 
 #include "test_support/process.h"
-#include "test_support/platform/win32/internal/helpers.h"
+#include "test_support/internal/process_state.h"
+#include "test_support/platform/win32/internal/child_process.h"
+#include "test_support/platform/win32/internal/output_capture.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -15,15 +17,12 @@
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
-#include <cwchar>
-#include <cwctype>
-#include <exception>
 #include <functional>
 #include <limits>
 #include <new>
+#include <optional>
 #include <stdexcept>
 #include <string>
-#include <string_view>
 #include <system_error>
 #include <thread>
 #include <utility>
@@ -36,23 +35,6 @@ namespace GameWIP::TestSupport
         /// ------------------------------------------------------------
         /// Native handles and startup attributes
         /// ------------------------------------------------------------
-
-        struct NativeInfrastructureFailure final : std::exception
-        {
-            NativeInfrastructureFailure(Types::InfrastructureError failure, std::uint64_t code) noexcept
-                : error(failure)
-                , nativeCode(code)
-            {
-            }
-
-            [[nodiscard]] const char *what() const noexcept override
-            {
-                return "Native process infrastructure failure";
-            }
-
-            Types::InfrastructureError error;
-            std::uint64_t nativeCode;
-        };
 
         class UniqueHandle
         {
@@ -109,6 +91,7 @@ namespace GameWIP::TestSupport
         public:
             explicit StartupAttributeList(const std::vector<HANDLE> &handles)
             {
+                // Query the attribute-list storage size.
                 SIZE_T requiredBytes = 0;
                 static_cast<void>(InitializeProcThreadAttributeList(nullptr, 1, 0, &requiredBytes));
 
@@ -118,6 +101,7 @@ namespace GameWIP::TestSupport
                     return;
                 }
 
+                // Allocate and initialize the handle allowlist.
                 storage_.resize(requiredBytes);
                 list_ = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage_.data());
 
@@ -128,6 +112,7 @@ namespace GameWIP::TestSupport
                     return;
                 }
 
+                // Limit inheritance to the explicitly selected handles.
                 initialized_ = true;
 
                 if(UpdateProcThreadAttribute(
@@ -209,208 +194,6 @@ namespace GameWIP::TestSupport
         }
 
         /// ------------------------------------------------------------
-        /// UTF-8, path, and command-line conversion
-        /// ------------------------------------------------------------
-
-        [[nodiscard]] std::wstring pathToWide(const std::filesystem::path &path)
-        {
-            std::wstring text = path.wstring();
-
-            if(text.contains(L'\0'))
-            {
-                throw std::invalid_argument("Child-process executable path contains an embedded null");
-            }
-            return text;
-        }
-
-        [[nodiscard]] bool needsQuoting(std::wstring_view text)
-        {
-            return text.empty() || text.find_first_of(L" \t\n\v\"") != std::wstring_view::npos;
-        }
-
-        [[nodiscard]] std::wstring quoteWindowsArgument(std::wstring_view text)
-        {
-            if(!needsQuoting(text))
-            {
-                return std::wstring(text);
-            }
-
-            std::wstring quoted;
-            quoted.push_back(L'"');
-            std::size_t backslashes = 0;
-
-            for(wchar_t ch : text)
-            {
-                if(ch == L'\\')
-                {
-                    ++backslashes;
-                    continue;
-                }
-
-                if(ch == L'"')
-                {
-                    quoted.append(backslashes * 2 + 1, L'\\');
-                    quoted.push_back(ch);
-                    backslashes = 0;
-                    continue;
-                }
-                quoted.append(backslashes, L'\\');
-                backslashes = 0;
-                quoted.push_back(ch);
-            }
-            quoted.append(backslashes * 2, L'\\');
-            quoted.push_back(L'"');
-            return quoted;
-        }
-
-        [[nodiscard]] std::wstring buildCommandLine(const Types::Process::Options &options)
-        {
-            std::wstring commandLine = quoteWindowsArgument(pathToWide(options.executablePath));
-
-            for(const std::string &argument : options.arguments)
-            {
-                commandLine.push_back(L' ');
-                commandLine += quoteWindowsArgument(Detail::Platform::Win32::utf8ToWide(argument));
-            }
-
-            return commandLine;
-        }
-
-        /// ------------------------------------------------------------
-        /// Child environment block construction
-        /// ------------------------------------------------------------
-
-        [[nodiscard]] std::wstring lowerEnvironmentName(std::wstring_view text)
-        {
-            std::wstring lowered(text);
-
-            for(wchar_t &ch : lowered)
-            {
-                ch = static_cast<wchar_t>(std::towlower(ch));
-            }
-
-            return lowered;
-        }
-
-        [[nodiscard]] std::wstring environmentEntryName(std::wstring_view entry)
-        {
-            if(!entry.empty() && entry.front() == L'=')
-            {
-                const std::size_t secondEquals = entry.find(L'=', 1);
-                return secondEquals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, secondEquals));
-            }
-            const std::size_t equals = entry.find(L'=');
-            return equals == std::wstring_view::npos ? std::wstring(entry) : std::wstring(entry.substr(0, equals));
-        }
-
-        [[nodiscard]] bool sameEnvironmentName(std::wstring_view left, std::wstring_view right)
-        {
-            return lowerEnvironmentName(left) == lowerEnvironmentName(right);
-        }
-
-        void applyEnvironmentOverride(std::vector<std::wstring> &entries, const Types::Process::EnvironmentOverride &variable)
-        {
-            if(variable.name.empty() || variable.name.contains('='))
-            {
-                throw std::invalid_argument("Child-process environment names must be non-empty and cannot contain '='");
-            }
-            const std::wstring variableName = Detail::Platform::Win32::utf8ToWide(variable.name);
-            const auto matchesName = [&variableName](const std::wstring &entry)
-            {
-                return sameEnvironmentName(environmentEntryName(entry), variableName);
-            };
-
-            if(!variable.value)
-            {
-                entries.erase(std::remove_if(entries.begin(), entries.end(), matchesName), entries.end());
-                return;
-            }
-            const std::wstring replacement = variableName + L"=" + Detail::Platform::Win32::utf8ToWide(*variable.value);
-            const auto existing = std::find_if(entries.begin(), entries.end(), matchesName);
-
-            if(existing != entries.end())
-            {
-                *existing = replacement;
-            }
-            else
-            {
-                entries.push_back(replacement);
-            }
-        }
-
-        [[nodiscard]] std::vector<std::wstring> inheritedEnvironmentEntries()
-        {
-            std::vector<std::wstring> entries;
-            LPWCH environmentStrings = GetEnvironmentStringsW();
-
-            if(environmentStrings == nullptr)
-            {
-                throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
-            }
-
-            try
-            {
-                // The returned environment block is documented as double-NUL-terminated and has no separate length API.
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage begin
-#endif
-                for(LPWCH current = environmentStrings; *current != L'\0'; current += std::wcslen(current) + 1)
-                {
-                    entries.emplace_back(current);
-                }
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage end
-#endif
-            }
-            catch(...)
-            {
-                static_cast<void>(FreeEnvironmentStringsW(environmentStrings));
-                throw;
-            }
-
-            if(FreeEnvironmentStringsW(environmentStrings) == FALSE)
-            {
-                throw NativeInfrastructureFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
-            }
-
-            return entries;
-        }
-
-        [[nodiscard]] std::wstring buildEnvironmentBlock(const Types::Process::Options &options)
-        {
-            std::vector<std::wstring> entries = options.inheritParentEnvironment ? inheritedEnvironmentEntries() : std::vector<std::wstring>{};
-
-            for(const Types::Process::EnvironmentOverride &variable : options.environmentOverrides)
-            {
-                applyEnvironmentOverride(entries, variable);
-            }
-
-            std::sort(
-                entries.begin(),
-                entries.end(),
-                [](const std::wstring &left, const std::wstring &right)
-                {
-                    return lowerEnvironmentName(environmentEntryName(left)) < lowerEnvironmentName(environmentEntryName(right));
-                });
-
-            std::wstring block;
-
-            for(const std::wstring &entry : entries)
-            {
-                block += entry;
-                block.push_back(L'\0');
-            }
-            block.push_back(L'\0');
-
-            if(entries.empty())
-            {
-                block.push_back(L'\0');
-            }
-
-            return block;
-        }
-
-        /// ------------------------------------------------------------
         /// Timeout conversion
         /// ------------------------------------------------------------
 
@@ -431,7 +214,7 @@ namespace GameWIP::TestSupport
         }
 
         /// ------------------------------------------------------------
-        /// Process cleanup and output capture
+        /// Process cleanup and capture-reader shutdown
         /// ------------------------------------------------------------
 
         void terminateProcessAndWait(HANDLE processHandle, DWORD terminationCode) noexcept
@@ -444,78 +227,6 @@ namespace GameWIP::TestSupport
         {
             static_cast<void>(TerminateJobObject(jobHandle, terminationCode));
             static_cast<void>(WaitForSingleObject(processHandle, INFINITE));
-        }
-
-        void readCapturedOutput(
-            HANDLE outputReadHandle,
-            HANDLE outputDoneHandle,
-            std::size_t captureLimit,
-            std::string &outputBytes,
-            bool &outputTruncated,
-            Types::InfrastructureStatus &outputStatus) noexcept
-        {
-            const auto setOutputFailure = [&outputStatus](Types::InfrastructureError error, std::uint64_t nativeCode = 0) noexcept
-            {
-                if(outputStatus.ok())
-                {
-                    outputStatus.error = error;
-                    outputStatus.nativeCode = nativeCode;
-                }
-            };
-
-            try
-            {
-                char buffer[4096];
-                {
-                    while(true)
-                    {
-                        DWORD bytesRead = 0;
-
-                        if(ReadFile(outputReadHandle, buffer, static_cast<DWORD>(sizeof(buffer)), &bytesRead, nullptr) == FALSE)
-                        {
-                            const DWORD readError = GetLastError();
-
-                            if(readError != ERROR_BROKEN_PIPE)
-                            {
-                                setOutputFailure(Types::InfrastructureError::CaptureFailed, readError);
-                            }
-                            break;
-                        }
-
-                        if(bytesRead == 0)
-                        {
-                            break;
-                        }
-
-                        const std::size_t retained = outputBytes.size();
-                        const std::size_t available = retained < captureLimit ? captureLimit - retained : 0;
-                        const std::size_t appendCount = std::min<std::size_t>(available, bytesRead);
-
-                        if(appendCount > 0)
-                        {
-                            outputBytes.append(buffer, appendCount);
-                        }
-
-                        if(appendCount < bytesRead)
-                        {
-                            outputTruncated = true;
-                        }
-                    }
-                }
-            }
-            catch(const std::bad_alloc &)
-            {
-                setOutputFailure(Types::InfrastructureError::OutOfMemory);
-            }
-            catch(...)
-            {
-                setOutputFailure(Types::InfrastructureError::CaptureFailed);
-            }
-
-            if(SetEvent(outputDoneHandle) == FALSE)
-            {
-                setOutputFailure(Types::InfrastructureError::CaptureFailed, GetLastError());
-            }
         }
 
         void finishOutputReader(
@@ -597,11 +308,11 @@ namespace GameWIP::TestSupport
                 return result;
             }
 
-            std::wstring commandLine = buildCommandLine(options);
+            std::wstring commandLine = Detail::Platform::Win32::buildCommandLine(options);
             std::wstring environmentBlock;
             std::wstring workingDirectory;
 
-            // Create one cleanup owner for the whole child process tree.
+            // Create a job that owns and cleans up the complete child process tree.
             UniqueHandle jobHandle(CreateJobObjectW(nullptr, nullptr));
 
             if(jobHandle.get() == nullptr)
@@ -609,6 +320,7 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
+
             JOBOBJECT_EXTENDED_LIMIT_INFORMATION jobLimits{};
             jobLimits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
 
@@ -618,6 +330,7 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, GetLastError());
                 return result;
             }
+
             // Configure child standard handles and the optional capture pipe.
             // Standard handles must be inheritable, but the parent read end must not be.
             SECURITY_ATTRIBUTES securityAttributes{};
@@ -689,6 +402,7 @@ namespace GameWIP::TestSupport
                 setFailure(Types::InfrastructureError::ProcessSetupFailed, attributeList.nativeCode());
                 return result;
             }
+
             STARTUPINFOEXW startupInfo{};
             startupInfo.StartupInfo.cb = sizeof(startupInfo);
             startupInfo.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
@@ -703,14 +417,14 @@ namespace GameWIP::TestSupport
 
             if(options.workingDirectory)
             {
-                workingDirectory = pathToWide(*options.workingDirectory);
+                workingDirectory = Detail::Platform::Win32::pathToWide(*options.workingDirectory);
                 currentDirectory = workingDirectory.c_str();
             }
 
             BOOL created = FALSE;
             {
                 std::lock_guard stateLock(Detail::processStateMutex());
-                environmentBlock = buildEnvironmentBlock(options);
+                environmentBlock = Detail::Platform::Win32::buildEnvironmentBlock(options);
 
                 // Start suspended so cleanup and capture setup finish before child code runs.
                 created = CreateProcessW(
@@ -776,7 +490,7 @@ namespace GameWIP::TestSupport
                     const HANDLE outputDoneHandle = outputDoneEvent.get();
                     const std::size_t captureLimit = options.maxCapturedOutputBytes;
                     outputReader = std::thread(
-                        readCapturedOutput,
+                        Detail::Platform::Win32::readCapturedOutput,
                         outputReadHandle,
                         outputDoneHandle,
                         captureLimit,
@@ -884,7 +598,7 @@ namespace GameWIP::TestSupport
             result.outputBytes = std::move(outputBytes);
             return result;
         }
-        catch(const NativeInfrastructureFailure &failure)
+        catch(const Detail::Platform::Win32::NativeInfrastructureFailure &failure)
         {
             setFailure(failure.error, failure.nativeCode);
             return result;

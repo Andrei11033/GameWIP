@@ -10,6 +10,10 @@
 
 namespace GameWIP::Debug::Assert::Detail::Platform
 {
+    /// ------------------------------------------------------------
+    /// Failure presentation and debugger operations
+    /// ------------------------------------------------------------
+
     /// @brief Displays a non-interactive Assert error popup through the active platform backend.
     /// @param title Popup title text.
     /// @param message Popup message text.

@@ -1,7 +1,7 @@
 /// @file text.cpp
 /// @brief UTF-8 and UTF-16 conversion for the TestSupport Win32 backend.
 
-#include "test_support/platform/win32/internal/helpers.h"
+#include "test_support/platform/win32/internal/text.h"
 
 #include "unicode/unicode.h"
 

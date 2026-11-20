@@ -1,4 +1,4 @@
-/// @file test_support_platform.h
+/// @file backend.h
 /// @brief Internal platform abstraction used by the TestSupport library.
 
 #pragma once
@@ -11,6 +11,10 @@
 
 namespace GameWIP::TestSupport::Detail::Platform
 {
+    /// ------------------------------------------------------------
+    /// Process environment contract
+    /// ------------------------------------------------------------
+
     /// @brief Result of one platform environment read.
     struct EnvironmentReadResult
     {

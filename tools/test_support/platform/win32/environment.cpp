@@ -1,8 +1,8 @@
-/// @file win32_environment.cpp
+/// @file environment.cpp
 /// @brief Windows environment-variable backend for the TestSupport library.
 
-#include "test_support/internal/test_support_platform.h"
-#include "test_support/platform/win32/internal/helpers.h"
+#include "test_support/platform/backend.h"
+#include "test_support/platform/win32/internal/text.h"
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -12,6 +12,7 @@
 #endif
 #include <windows.h>
 
+#include <cstdint>
 #include <new>
 #include <stdexcept>
 #include <string>
@@ -34,6 +35,40 @@ namespace
         if(name.empty() || name.contains('='))
         {
             throw std::invalid_argument("Environment variable name must be non-empty and cannot contain '='");
+        }
+    }
+
+    /// ------------------------------------------------------------
+    /// Environment mutation
+    /// ------------------------------------------------------------
+
+    [[nodiscard]] GameWIP::TestSupport::Types::InfrastructureStatus writeEnvironmentVariable(std::string_view name, std::string_view value) noexcept
+    {
+        try
+        {
+            validateEnvironmentName(name);
+            const std::wstring nameWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(name);
+            const std::wstring valueWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(value);
+            const errno_t error = _wputenv_s(nameWide.c_str(), valueWide.c_str());
+            return error == 0
+                       ? GameWIP::TestSupport::Types::InfrastructureStatus{}
+                       : environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
+        }
+        catch(const std::bad_alloc &)
+        {
+            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::OutOfMemory);
+        }
+        catch(const std::invalid_argument &)
+        {
+            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
+        }
+        catch(const std::length_error &)
+        {
+            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::InvalidArgument);
+        }
+        catch(...)
+        {
+            return environmentFailure(GameWIP::TestSupport::Types::InfrastructureError::EnvironmentFailed);
         }
     }
 } // namespace
@@ -113,58 +148,11 @@ namespace GameWIP::TestSupport::Detail::Platform
 
     Types::InfrastructureStatus setEnvironmentVariableValue(std::string_view name, std::string_view value) noexcept
     {
-        try
-        {
-            validateEnvironmentName(name);
-            const std::wstring nameWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(name);
-            const std::wstring valueWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(value);
-            const errno_t error = _wputenv_s(nameWide.c_str(), valueWide.c_str());
-            return error == 0 ? Types::InfrastructureStatus{}
-                              : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
-        }
-        catch(const std::bad_alloc &)
-        {
-            return environmentFailure(Types::InfrastructureError::OutOfMemory);
-        }
-        catch(const std::invalid_argument &)
-        {
-            return environmentFailure(Types::InfrastructureError::InvalidArgument);
-        }
-        catch(const std::length_error &)
-        {
-            return environmentFailure(Types::InfrastructureError::InvalidArgument);
-        }
-        catch(...)
-        {
-            return environmentFailure(Types::InfrastructureError::EnvironmentFailed);
-        }
+        return writeEnvironmentVariable(name, value);
     }
 
     Types::InfrastructureStatus unsetEnvironmentVariableValue(std::string_view name) noexcept
     {
-        try
-        {
-            validateEnvironmentName(name);
-            const std::wstring nameWide = GameWIP::TestSupport::Detail::Platform::Win32::utf8ToWide(name);
-            const errno_t error = _wputenv_s(nameWide.c_str(), L"");
-            return error == 0 ? Types::InfrastructureStatus{}
-                              : environmentFailure(Types::InfrastructureError::EnvironmentFailed, static_cast<std::uint64_t>(error));
-        }
-        catch(const std::bad_alloc &)
-        {
-            return environmentFailure(Types::InfrastructureError::OutOfMemory);
-        }
-        catch(const std::invalid_argument &)
-        {
-            return environmentFailure(Types::InfrastructureError::InvalidArgument);
-        }
-        catch(const std::length_error &)
-        {
-            return environmentFailure(Types::InfrastructureError::InvalidArgument);
-        }
-        catch(...)
-        {
-            return environmentFailure(Types::InfrastructureError::EnvironmentFailed);
-        }
+        return writeEnvironmentVariable(name, std::string_view{});
     }
 } // namespace GameWIP::TestSupport::Detail::Platform

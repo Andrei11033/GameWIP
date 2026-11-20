@@ -7,6 +7,8 @@ The normal umbrella is `test_support/test_support.h`. Focused public entry heade
 `stress.h` under the `test_support/` include directory. Passive values live in the single `GameWIP::TestSupport::Types` tree; active runners,
 contexts, guards, process helpers, and stress helpers live directly in `GameWIP::TestSupport`.
 
+The current TestSupport platform backend is Win32.
+
 ## How the library is organized
 
 A `Runner` owns suite registration, execution, aggregate results, and optional
@@ -16,6 +18,8 @@ temporary files, current-directory and environment guards, child processes,
 manual observations, timing samples, and bounded stress runs. These helpers
 make cleanup and diagnostics consistent, but they do not make process-global
 state safe to mutate concurrently.
+
+The current TestSupport platform backend is Win32.
 
 ## Consumer manual
 
