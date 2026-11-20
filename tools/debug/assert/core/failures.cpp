@@ -4,7 +4,7 @@
 /// debugger-break policy, abort policy, and interactive action application.
 
 #include "debug/assert/assert.h"
-#include "debug/assert/internal/assert_platform.h"
+#include "debug/assert/platform/backend.h"
 
 #include "logger/logger.h"
 
@@ -285,7 +285,15 @@ namespace
         }
     }
 
-    /// @brief Shows the assert-owned popup when enabled for this failure kind.
+    /// @brief Returns true when real Assert UI is suppressed by the environment.
+    /// @return True when `INTERNAL_ASSERT_SUPPRESS_POPUP` is exactly `1`.
+    bool popupsSuppressedByEnvironment() noexcept
+    {
+        const char *value = std::getenv("INTERNAL_ASSERT_SUPPRESS_POPUP");
+        return value != nullptr && std::string_view(value) == "1";
+    }
+
+    /// @brief Shows the unsuppressed Assert-owned popup when enabled for this failure kind.
     /// @param kind Failure kind used for title/config selection.
     /// @param message Message text to show.
     void showPopupIfEnabled(FailureKind kind, std::string_view message) noexcept
@@ -293,6 +301,11 @@ namespace
         const FailurePresentation presentation = failurePresentation(kind);
 
         if(!presentation.popupEnabled)
+        {
+            return;
+        }
+
+        if(popupsSuppressedByEnvironment())
         {
             return;
         }
@@ -334,14 +347,6 @@ namespace
         }
 
         return false;
-    }
-
-    /// @brief Returns true when real assert UI is suppressed by the environment.
-    /// @return True when `INTERNAL_ASSERT_SUPPRESS_POPUP` is exactly `1`.
-    bool popupsSuppressedByEnvironment() noexcept
-    {
-        const char *value = std::getenv("INTERNAL_ASSERT_SUPPRESS_POPUP");
-        return value != nullptr && std::string_view(value) == "1";
     }
 
     /// @brief Returns the safest default action for the current debugger state.

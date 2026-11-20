@@ -26,6 +26,9 @@ consumed. This interface is not installed and is not consumer API.
 Abort, unreachable, and debugger-break paths run in child processes so the parent suite can continue and assert exact results. Automated interactive
 tests use deterministic environment paths and do not open real dialogs.
 
+`INTERNAL_ASSERT_SUPPRESS_POPUP=1` skips ordinary popups and selects Abort for interactive failures. `INTERNAL_ASSERT_TEST_ACTION` selects an
+interactive action for child tests.
+
 Disabled or unavailable scenarios count as skips; compiled-out macro evaluation remains an actual behavioral test.
 
 Real Win32 UI is manual and runtime opt-in. It asks for operator confirmation of Ignore Once, suppression after Always Ignore, Break with a debugger,

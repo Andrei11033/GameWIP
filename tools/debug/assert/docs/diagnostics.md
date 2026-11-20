@@ -33,16 +33,9 @@ Fatal assertion failures report at Logger Fatal severity through Logger's synchr
 severity through the same synchronous path. This avoids leaving failure diagnostics queued while assertion handling proceeds to popup, break, abort,
 or continuation behavior.
 
-## Popup policy
+## Popup behavior
 
-`ASSERT_POPUP_ON_ASSERT` controls whether fatal assertion reports may show
-Assert-owned UI. `ASSERT_POPUP_ON_CHECK` controls whether recoverable check
-failures may show UI. These are CMake-owned Assert options compiled privately
-into the runtime; consumer translation units must not redefine them.
-
-Automated tests must not depend on real UI. The validation suite uses the
-documented environment-controlled paths for interactive behavior, plus the
-source-tree-only diagnostic-preparation seam documented in @ref assert_testing.
+Popup enablement is configured by the CMake options in @ref assert_configuration. Automated UI coverage is documented in @ref assert_testing.
 
 ## Related pages
 

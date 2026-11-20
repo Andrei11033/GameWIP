@@ -3,7 +3,7 @@
 /// @details The backend prefers Task Dialog for interactive failures, falls back to MessageBox,
 /// converts UTF-8 diagnostics to UTF-16, and bounds popup text before showing UI.
 
-#include "debug/assert/internal/assert_platform.h"
+#include "debug/assert/platform/backend.h"
 #include "debug/assert/internal/assert_test_hooks.h"
 #include "base/platform/win32/dynamic_library.h"
 #include "unicode/unicode.h"
@@ -28,19 +28,6 @@
 
 namespace
 {
-    /// ------------------------------------------------------------
-    /// Popup suppression
-    /// ------------------------------------------------------------
-
-    /// @brief Returns whether real Assert UI is suppressed by environment state.
-    bool popupsSuppressed() noexcept
-    {
-        // Only the exact value "1" suppresses UI. Two code units hold that value and its terminator.
-        wchar_t value[2]{};
-        const DWORD size = GetEnvironmentVariableW(L"INTERNAL_ASSERT_SUPPRESS_POPUP", value, static_cast<DWORD>(sizeof(value) / sizeof(value[0])));
-        return size == 1 && value[0] == L'1';
-    }
-
     using GameWIP::Debug::Assert::FailureAction;
 
 #if ASSERT_INTERNAL_TEST_HOOKS
@@ -309,11 +296,6 @@ namespace GameWIP::Debug::Assert::Detail::Platform
 {
     void showErrorPopup(std::string_view title, std::string_view message) noexcept
     {
-        if(popupsSuppressed())
-        {
-            return;
-        }
-
         try
         {
             const PopupText text = preparePopupText(title, message);
