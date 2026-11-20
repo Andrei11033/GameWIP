@@ -148,7 +148,7 @@ namespace GameWIP::Logger
 
         // Message formatting
 
-        [[nodiscard]] std::string prefix() const
+        [[nodiscard]] std::string prefixContent() const
         {
             // Start with the formatted record fields.
             std::string result = fieldText();
@@ -206,12 +206,6 @@ namespace GameWIP::Logger
                 }
             }
 
-            // Add the prefix-to-message separator when content exists.
-            if(!result.empty())
-            {
-                result.append(": ");
-            }
-
             return result;
         }
 
@@ -236,25 +230,23 @@ namespace GameWIP::Logger
 
         [[nodiscard]] std::string decorate(std::string_view message, FieldLayout defaultLayout, LayoutTemplate defaultTemplate = {}) const
         {
-            // Build metadata before selecting the configured field layout.
-            std::string prefixText = prefix();
             const std::string_view selectedTemplate = customLayout_.empty() ? defaultTemplate.text : std::string_view(customLayout_);
 
             // Apply a validated custom template when one is available.
             if(!selectedTemplate.empty())
             {
-                if(!prefixText.empty())
-                {
-                    prefixText.resize(prefixText.size() - 2);
-                }
+                const std::string fields = fieldText();
                 std::string result;
-                result.reserve(selectedTemplate.size() + prefixText.size() + message.size() + 8);
+                result.reserve(selectedTemplate.size() + fields.size() + message.size() + 8);
+
+                // Store the selected layout and structured fields.
                 result.push_back(Detail::Core::Protocol::kLayoutBegin);
                 result.append(selectedTemplate);
                 result.push_back(Detail::Core::Protocol::kLayoutSeparator);
-                result.append(fieldText());
+                result.append(fields);
                 result.push_back(Detail::Core::Protocol::kLayoutSeparator);
 
+                // Serialize optional source and runtime metadata in envelope order.
                 const auto appendMetadata = [&result](std::string_view value)
                 {
                     result.append(value);
@@ -266,18 +258,20 @@ namespace GameWIP::Logger
                 appendMetadata(includeThreadId_ ? std::format("{}", std::this_thread::get_id()) : std::string{});
                 result.append(includeProcessId_ ? std::format("{}", Detail::Core::currentProcessId()) : std::string{});
 
+                // Close the metadata envelope before appending the message.
                 result.push_back(Detail::Core::Protocol::kLayoutBegin);
                 result.append(message);
                 return result;
             }
+
+            // Build prefix content before selecting the configured field layout.
+            std::string prefixText = prefixContent();
 
             // Use the built-in layout when no custom template was selected.
             if(prefixText.empty())
             {
                 return std::string(message);
             }
-
-            prefixText.resize(prefixText.size() - 2);
 
             const FieldLayout selected = hasLayout_ ? layout_ : defaultLayout;
             bool expanded = selected == FieldLayout::Expanded;

@@ -1,10 +1,11 @@
-/// @file logger_core.h
+/// @file core.h
 /// @brief Private Logger contracts shared by core implementation files.
 
 #pragma once
 
-#include "logger/internal/logger_platform.h"
+#include "logger/internal/format_scratch.h"
 #include "logger/internal/state.h"
+#include "logger/platform/backend.h"
 #include "terminal/output.h"
 #include "unicode/unicode.h"
 
@@ -23,7 +24,7 @@
 #include <vector>
 
 #if LOGGER_INTERNAL_TEST_HOOKS
-#include "logger/internal/logger_test_hooks.h"
+#include "logger/internal/test_hooks.h"
 #endif
 
 namespace GameWIP::Logger::Detail::Core

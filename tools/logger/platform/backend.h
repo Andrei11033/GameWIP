@@ -1,11 +1,13 @@
-/// @file logger_platform.h
-/// @brief Private platform bridge for Logger.
+/// @file backend.h
+/// @brief Private platform operations used by Logger core.
 
 #pragma once
 
 #include "io/status.h"
+#include "logger/internal/format_scratch.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <ctime>
 #include <string>
 #include <string_view>
@@ -20,12 +22,11 @@ namespace GameWIP::Logger::Detail::Platform
         bool available = false;          ///< Whether the platform backend returned memory counters.
     };
 
-    /// @brief Returns the current thread's nested formatting scratch buffer.
-    /// @details Public formatting templates use platform-owned storage so MinGW can replace compiler TLS with FLS.
-    std::string &formatScratchForThread();
+    /// @brief Returns or creates the current thread's formatting scratch storage.
+    [[nodiscard]] FormatScratchStorage &formatScratchStorageForThread();
 
-    /// @brief Releases one nested formatting scratch lease for the current thread.
-    void releaseFormatScratchForThread() noexcept;
+    /// @brief Returns current-thread scratch storage without creating it.
+    [[nodiscard]] FormatScratchStorage *findFormatScratchStorageForThread() noexcept;
 
     /// @brief Writes one UTF-8 diagnostic line to the platform debugger channel.
     [[nodiscard]] IO::Types::Status writeDebugOutput(std::string_view line);

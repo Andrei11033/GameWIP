@@ -5,9 +5,12 @@ target_sources(
         console.cpp
         filters.cpp
         format.cpp
+        format_scratch.cpp
         initialization.cpp
+        layout.cpp
         lifecycle.cpp
         logging.cpp
+        process.cpp
         queue.cpp
         reports.cpp
         runtime.cpp

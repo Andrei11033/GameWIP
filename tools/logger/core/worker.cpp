@@ -1,7 +1,7 @@
 /// @file worker.cpp
 /// @brief Logger queue worker and sink delivery loop.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 #include <mutex>
 #include <string>

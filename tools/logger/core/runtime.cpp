@@ -1,7 +1,7 @@
 /// @file runtime.cpp
 /// @brief Process-wide Logger runtime state, health, output policy, and configuration normalization helpers.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 #include <cmath>
 
@@ -218,12 +218,14 @@ namespace GameWIP::Logger::Detail::Core
             return;
         }
 
+        // Retain the failure before applying any channel fallback.
         std::lock_guard<std::mutex> lock(loggerState().logMutex);
         loggerState().lastFailureSource = source;
         loggerState().lastHealthError = status.code;
         loggerState().lastHealthNativeCode = status.nativeCode;
         ++loggerState().healthFailureCount;
 
+        // Disable only the failed channel and update the surviving normal output.
         if(disableChannel)
         {
             switch(source)
@@ -264,6 +266,7 @@ namespace GameWIP::Logger::Detail::Core
             }
         }
 
+        // Publish the resulting health and hot-path policy together.
         loggerState().healthState = loggerState().mode == OutputMode::None ? Types::Health::State::Disabled : Types::Health::State::Degraded;
         publishRuntimeStateUnlocked();
     }
@@ -371,6 +374,7 @@ namespace GameWIP::Logger::Detail::Core
         std::unique_ptr<char[]> &&ringArena,
         std::unique_ptr<char[]> &&batchArena)
     {
+        // Apply the selected output, filter, and queue limits.
         loggerState().logFilePath.clear();
         loggerState().mode = config.output;
         loggerState().fallbackToConsoleOnFileFailure = config.fallbackToConsoleOnFileFailure;
@@ -383,6 +387,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().inlineMessageCapacity = inlineMessageCapacity;
         loggerState().workerBatchSize = workerBatchSize;
 
+        // Install presentation and record limits.
         loggerState().sourceNameWidth = 0;
         loggerState().consoleColorEnabled = config.enableConsoleColor;
         loggerState().theme = config.theme;
@@ -393,6 +398,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().maxFieldKeyLengthAtomic.store(config.maxFieldKeyLength, std::memory_order_release);
         loggerState().maxFieldValueLengthAtomic.store(config.maxFieldValueLength, std::memory_order_release);
 
+        // Apply diagnostic and memory policies.
         loggerState().debugOutputEnabled = config.enableDebugOutput;
         loggerState().fatalPopupEnabled = config.enableFatalPopup;
         loggerState().flushFileEveryBatch = config.flushFileEveryBatch;
@@ -401,6 +407,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().releaseStorageOnShutdown = config.releaseStorageOnShutdown;
         loggerState().enabledLevelMask = levelMask;
 
+        // Publish source metadata and reset cached diagnostics.
         loggerState().sourceRegistry.store(std::move(sourceRegistry), std::memory_order_release);
         {
             std::lock_guard<std::mutex> timestampLock(loggerState().debugTimestampMutex);
@@ -430,6 +437,7 @@ namespace GameWIP::Logger::Detail::Core
 #endif
         loggerState().workerBatch = std::move(batch);
 
+        // Start the new runtime with empty queue and statistics state.
         loggerState().droppedLogs.store(0, std::memory_order_relaxed);
         resetAtomicStats();
         loggerState().workerRunning = false;
@@ -439,6 +447,7 @@ namespace GameWIP::Logger::Detail::Core
         loggerState().queueDepth.store(0, std::memory_order_relaxed);
         loggerState().publishedQueueDepth.store(0, std::memory_order_relaxed);
 
+        // Publish mirrors used by lock-free producer checks.
         loggerState().maxMessageLengthAtomic.store(messageLength, std::memory_order_release);
         loggerState().formatPolicyAtomic.store(toFormatPolicyValue(config.formatPolicy), std::memory_order_release);
         loggerState().releaseMessageMemoryAfterWriteAtomic.store(config.releaseMessageMemoryAfterWrite, std::memory_order_release);

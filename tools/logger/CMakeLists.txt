@@ -30,7 +30,7 @@ file(MAKE_DIRECTORY "${LOGGER_GENERATED_INCLUDE_DIR}/logger")
 
 gamewip_generate_export_header(
     # LOGGER_EXPORT is the installed production/runtime ABI. Source-tree
-    # validation hooks use logger_test_export.h and are never installed.
+    # validation hooks use test_export.h and are never installed.
     TARGET Logger
     OUTPUT "${LOGGER_GENERATED_INCLUDE_DIR}/logger/logger_export.h"
     EXPORT_MACRO LOGGER_EXPORT

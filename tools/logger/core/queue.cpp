@@ -1,7 +1,7 @@
 /// @file queue.cpp
 /// @brief Bounded MPSC queue storage, ordered publication, producer admission, and asynchronous worker draining.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 #include "base/checked_arithmetic.h"
 
 namespace GameWIP::Logger::Detail::Core
@@ -56,12 +56,14 @@ namespace GameWIP::Logger::Detail::Core
     {
         try
         {
+            // Clear outputs before preparing replacement storage.
             ring.reset();
             ringSize = 0;
             batch.clear();
             ringArena.reset();
             batchArena.reset();
 
+            // Allocate queue objects before their inline message arenas.
             if(GameWIP::Base::wouldMultiplyOverflow(hardLimit, sizeof(QueueSlot)))
             {
                 return false;
@@ -80,6 +82,8 @@ namespace GameWIP::Logger::Detail::Core
                 batchArena.reset();
                 return false;
             }
+
+            // Bind every entry to its preallocated inline text slice.
             std::span<QueueSlot> ringView = ownedArrayView(ring, ringSize);
             const std::size_t ringArenaSize = ringSize * inlineMessageCapacity;
             const std::size_t batchArenaSize = batch.size() * inlineMessageCapacity;
@@ -122,26 +126,17 @@ namespace GameWIP::Logger::Detail::Core
     /// @pre loggerState().logMutex is held.
     void clearQueueUnlocked()
     {
-        const bool releaseHeapCapacity = loggerState().releaseMessageMemoryAfterWrite;
-
         for(std::size_t index = 0; index < loggerState().logRingSize; ++index)
         {
             QueueSlot &slot = loggerState().logRingView[index];
-            QueuedLogEntry &entry = slot.entry;
-            entry.usesRegisteredSource = false;
-            entry.sourceId = 0;
-            entry.sourceText.clear(releaseHeapCapacity);
-            entry.message.clear(releaseHeapCapacity);
+            clearLogEntry(slot.entry);
             slot.skip = false;
             slot.sequence.store(index, std::memory_order_relaxed);
         }
 
         for(QueuedLogEntry &entry : loggerState().workerBatch)
         {
-            entry.usesRegisteredSource = false;
-            entry.sourceId = 0;
-            entry.sourceText.clear(releaseHeapCapacity);
-            entry.message.clear(releaseHeapCapacity);
+            clearLogEntry(entry);
         }
         loggerState().enqueueTicket.store(0, std::memory_order_relaxed);
         loggerState().dequeueTicket.store(0, std::memory_order_relaxed);
@@ -171,7 +166,6 @@ namespace GameWIP::Logger::Detail::Core
     void clearLogEntry(QueuedLogEntry &entry)
     {
         const bool releaseHeapCapacity = loggerState().releaseMessageMemoryAfterWrite;
-        entry.level = LogLevel::Info;
         entry.usesRegisteredSource = false;
         entry.sourceId = 0;
         entry.sourceText.clear(releaseHeapCapacity);
@@ -309,11 +303,13 @@ namespace GameWIP::Logger::Detail::Core
             return EnqueueStatus::DroppedHard;
         }
 
+        // Claim the next ring slot and wait for its previous use to finish.
         const std::size_t ticket = loggerState().enqueueTicket.fetch_add(1, std::memory_order_acq_rel);
         QueueSlot &slot = loggerState().logRingView[ticket % capacity];
 
         waitForQueueSlot(slot, ticket);
 
+        // Copy the borrowed producer data into queue-owned storage.
         try
         {
             slot.skip = false;
@@ -327,6 +323,7 @@ namespace GameWIP::Logger::Detail::Core
             return EnqueueStatus::AllocationFailure;
         }
 
+        // Publish only after the complete entry is ready.
         publishQueueSlot(slot, ticket, outNotifyWorker);
 
         return EnqueueStatus::Queued;
@@ -361,6 +358,7 @@ namespace GameWIP::Logger::Detail::Core
                 ++batchCount;
             }
 
+            // Recycle the slot and advance the ordered queue head.
             slot.skip = false;
             clearLogEntry(slot.entry);
             slot.sequence.store(ticket + capacity, std::memory_order_release);
@@ -381,6 +379,7 @@ namespace GameWIP::Logger::Detail::Core
         EnqueueOutcome result;
         ProducerActivity producer;
 
+        // Join the active-producer count before checking runtime acceptance.
         if(!producer.enter())
         {
             return result;
@@ -393,6 +392,7 @@ namespace GameWIP::Logger::Detail::Core
             return result;
         }
 
+        // Reserve depth and apply soft/hard drop policy.
         std::size_t previousDepth = 0;
         const EnqueueStatus reserveStatus = reserveQueueDepth(entry, previousDepth);
 
@@ -416,6 +416,7 @@ namespace GameWIP::Logger::Detail::Core
             return result;
         }
 
+        // Publish the entry, then update counters for the accepted result.
         bool entryWasTruncated = false;
         bool notifyWorker = false;
         const EnqueueStatus publishStatus = publishReservedQueueEntry(entry, entryWasTruncated, notifyWorker);

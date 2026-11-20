@@ -113,7 +113,7 @@ the message/format argument.
 status.
 
 `report`, `reportError`, and `reportFatal` also accept `Record` before preformatted, compile-time formatted, or `runtimeFormat()` messages, using
-the same fields and metadata layout as normal logging. `reportFatal` retains its fatal-popup behavior when that channel is enabled.
+the same fields and metadata layout as normal logging.
 
 ## Diagnostics
 

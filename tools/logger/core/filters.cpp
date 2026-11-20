@@ -1,7 +1,7 @@
 /// @file filters.cpp
 /// @brief Logger runtime filtering, source registration, and source lookup helpers.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
@@ -199,6 +199,7 @@ namespace GameWIP::Logger::Detail::Core
         outStatus = {};
         try
         {
+            // Build a complete replacement before publishing it to runtime state.
             registry.reset();
 
             if(definitions.empty() && filters.empty())
@@ -227,6 +228,7 @@ namespace GameWIP::Logger::Detail::Core
                 sources.emplace_back(definition.id, std::string(definition.name), definition.color, true);
             }
 
+            // Sort once so lookups and duplicate checks use compact binary searches.
             std::sort(
                 sources.begin(),
                 sources.end(),
@@ -247,6 +249,8 @@ namespace GameWIP::Logger::Detail::Core
                 outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                 return false;
             }
+
+            // Validate each initial filter and apply it to its registered source.
             std::vector<SourceId> filteredSources;
             filteredSources.reserve(filters.size());
 
@@ -278,6 +282,7 @@ namespace GameWIP::Logger::Detail::Core
                 return false;
             }
 
+            // Build the optional dense index, then commit the prepared registry.
             rebuildSourceLookup(*preparedRegistry);
             registry = std::move(preparedRegistry);
             return true;
@@ -302,9 +307,11 @@ namespace GameWIP::Logger::Detail::Core
     /// @return True when all level filters are valid and non-duplicated.
     bool prepareLevelMask(std::span<const LevelFilter> filters, std::uint8_t &outMask)
     {
+        // Unspecified levels remain enabled.
         outMask = kAllLevelMask;
         std::uint8_t seenLevels = 0;
 
+        // Apply each unique, valid override.
         for(const LevelFilter &filter : filters)
         {
             const std::uint8_t bit = levelBit(filter.level);

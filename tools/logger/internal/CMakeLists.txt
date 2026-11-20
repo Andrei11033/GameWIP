@@ -1,4 +1,13 @@
 target_sources(
     Logger
-    PRIVATE core_types.h logger_core.h logger_platform.h logger_test_export.h logger_test_hooks.h state.h storage.h
+    PRIVATE
+        core.h
+        core_types.h
+        format_scratch.h
+        queue_storage.h
+        source_registry.h
+        state.h
+        test_export.h
+        test_hooks.h
+        text_storage.h
 )

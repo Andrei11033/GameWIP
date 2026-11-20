@@ -12,6 +12,7 @@ target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` umbrella, and focused
 `logger/record.h`, `logger/message_format.h`, `logger/logging.h`, and `logger/reports.h` headers. It also installs optional
 `logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h` header, and `GameWIP::Logger`.
+The detail headers contain template definitions required by the installed API; they are not independent API entry points.
 
 `logger.h` exposes `IO::Types::Status`, so IO is a public package dependency and `LoggerConfig.cmake` resolves the exact matching IO package. Terminal
 remains an installed dependency used by Logger's console implementation. FileSystem and Unicode are private implementation dependencies.
@@ -46,7 +47,7 @@ shared library must first quiesce Logger calls and worker threads, as required f
 
 ## Source-tree-only interfaces
 
-The short `Logger` target, `logger/internal/*`, implementation sources, hooks, tests, and benchmarks are repository interfaces only.
+The short `Logger` target, `logger/internal/*`, `logger/platform/backend.h`, implementation sources, hooks, tests, and benchmarks are repository interfaces only.
 
 ## Related pages
 

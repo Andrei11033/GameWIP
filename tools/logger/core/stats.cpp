@@ -1,7 +1,7 @@
 /// @file stats.cpp
 /// @brief Logger statistics snapshots and retained-memory accounting helpers.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
@@ -273,6 +273,8 @@ GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats() noexcept
     try
     {
         LoggerMemoryStats memory;
+
+        // Snapshot Logger-owned capacities while holding the state lock.
         {
             std::lock_guard<std::mutex> lock(loggerState().logMutex);
             memory.queueStorageBytes = queueStorageBytesUnlocked();
@@ -287,6 +289,7 @@ GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats() noexcept
                                          memory.entryTextHeapCapacityBytes + layoutTemplateBytes + timestampFormatBytes;
         }
 
+        // Query process counters after releasing the Logger lock.
         const auto process = GameWIP::Logger::Detail::Platform::queryProcessMemory();
         memory.processWorkingSetBytes = process.workingSetBytes;
         memory.processPrivateBytes = process.privateBytes;

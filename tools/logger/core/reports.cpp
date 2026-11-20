@@ -1,7 +1,7 @@
 /// @file reports.cpp
 /// @brief Synchronous report construction, fatal handling, and debugger output.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
@@ -364,6 +364,7 @@ Status GameWIP::Logger::Detail::Core::writeDebugOutputInternal(LogLevel level, s
 
     try
     {
+        // Bound the text and build a plain diagnostic line.
         std::string boundedScratch;
         bool truncated = false;
         const std::string_view messageText = boundedMessageView(message, false, boundedScratch, truncated);
@@ -379,6 +380,7 @@ Status GameWIP::Logger::Detail::Core::writeDebugOutputInternal(LogLevel level, s
         line = plainOutputText(line);
         line.push_back('\n');
 
+        // Write to the native debugger channel and retain failures in health.
         const Status status = GameWIP::Logger::Detail::Platform::writeDebugOutput(line);
         if(!status.ok())
         {

@@ -1,4 +1,4 @@
-/// @file logger_test_export.h
+/// @file test_export.h
 /// @brief Source-tree-only visibility annotation for Logger validation hooks.
 
 #pragma once

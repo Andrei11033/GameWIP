@@ -1,7 +1,7 @@
 /// @file console.cpp
 /// @brief Logger console style resolution and terminal output.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {
@@ -88,6 +88,7 @@ namespace GameWIP::Logger::Detail::Core
 
     std::string plainOutputText(std::string_view text)
     {
+        // Remove the record envelope, leaving only its message payload.
         if(!text.empty() && text.front() == Protocol::kLayoutBegin)
         {
             const std::size_t payloadBegin = text.find(Protocol::kLayoutBegin, 1);
@@ -100,6 +101,8 @@ namespace GameWIP::Logger::Detail::Core
 
         std::string result;
         result.reserve(text.size());
+
+        // Strip styling markers while copying visible text.
         for(std::size_t index = 0; index < text.size(); ++index)
         {
             if(text[index] == Protocol::kStyleBegin)

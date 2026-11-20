@@ -78,8 +78,11 @@ namespace GameWIP::Logger
         static const Color BrightWhite;   ///< ANSI bright white.
         // NOLINTEND(readability-identifier-naming)
 
+        // Selected representation
         Kind kind = Kind::Default;  ///< Color representation selected for this value.
         Basic basic = Basic::White; ///< Basic color when kind is Basic.
+
+        // RGB channels
         std::uint8_t red = 0;       ///< Red channel when kind is Rgb.
         std::uint8_t green = 0;     ///< Green channel when kind is Rgb.
         std::uint8_t blue = 0;      ///< Blue channel when kind is Rgb.
@@ -279,8 +282,11 @@ namespace GameWIP::Logger
         /// @brief Associates a SourceId with its UTF-8 display name during initialization.
         struct SourceDefinition
         {
-            SourceId id = 0;                           ///< Source identifier.
-            std::string_view name = {};                ///< Valid non-empty UTF-8 display name.
+            // Source identity
+            SourceId id = 0;            ///< Source identifier.
+            std::string_view name = {}; ///< Valid non-empty UTF-8 display name.
+
+            // Display
             std::optional<Color> color = std::nullopt; ///< Optional foreground color for the source label.
         };
 

@@ -19,7 +19,7 @@
 #endif
 
 #if LOGGER_INTERNAL_TEST_HOOKS
-#include "logger/internal/logger_test_hooks.h"
+#include "logger/internal/test_hooks.h"
 #endif
 
 #ifndef TERMINAL_INTERNAL_TEST_HOOKS

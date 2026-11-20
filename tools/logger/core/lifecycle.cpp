@@ -1,7 +1,7 @@
 /// @file lifecycle.cpp
 /// @brief Logger initialization wrappers, flushing, and shutdown.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 #include <chrono>
 #include <mutex>

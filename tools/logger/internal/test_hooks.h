@@ -1,9 +1,9 @@
-/// @file logger_test_hooks.h
+/// @file test_hooks.h
 /// @brief Source-tree validation hooks for deterministic Logger failures and concurrency milestones.
 
 #pragma once
 
-#include "logger/internal/logger_test_export.h"
+#include "logger/internal/test_export.h"
 #include "logger/logger.h"
 
 #ifndef LOGGER_INTERNAL_TEST_HOOKS

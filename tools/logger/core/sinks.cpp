@@ -1,7 +1,7 @@
 /// @file sinks.cpp
 /// @brief Logger console/file sink delivery and flushing.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {

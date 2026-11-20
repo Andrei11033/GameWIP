@@ -1,7 +1,7 @@
 /// @file initialization.cpp
 /// @brief Logger initialization, configuration preparation, and startup.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 #include <algorithm>
 #include <cstdlib>

@@ -1,5 +1,5 @@
-/// @file storage.h
-/// @brief Queue entries, source metadata, and retained message storage.
+/// @file text_storage.h
+/// @brief Inline and dynamic storage for retained Logger text.
 
 #pragma once
 
@@ -7,16 +7,11 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cstddef>
-#include <cstdint>
-#include <memory>
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 namespace GameWIP::Logger::Detail::Core
 {
@@ -349,127 +344,4 @@ namespace GameWIP::Logger::Detail::Core
         bool heapActive_ = false;
         std::string heapText_;
     };
-
-    /// ------------------------------------------------------------
-    /// Queue and source state
-    /// ------------------------------------------------------------
-
-    struct QueuedLogEntry
-    {
-        LogLevel level = LogLevel::Info;
-        bool usesRegisteredSource = false;
-        SourceId sourceId = 0;
-        InlineLogText<kInlineSourceCapacity> sourceText;
-        DynamicLogText message;
-    };
-
-    struct PendingLogEntry
-    {
-        LogLevel level = LogLevel::Info;
-        bool usesRegisteredSource = false;
-        SourceId sourceId = 0;
-        InlineLogText<kInlineSourceCapacity> sourceText;
-        std::string_view message;
-        bool alreadyTruncated = false;
-    };
-
-    struct QueueSlot
-    {
-        std::atomic<std::size_t> sequence{0};
-        bool skip = false;
-        QueuedLogEntry entry;
-        QueueSlot() = default;
-        QueueSlot(const QueueSlot &) = delete;
-        QueueSlot &operator=(const QueueSlot &) = delete;
-        QueueSlot(QueueSlot &&) = delete;
-        QueueSlot &operator=(QueueSlot &&) = delete;
-    };
-
-    struct RegisteredSource
-    {
-        SourceId id = 0;
-        std::string name;
-        std::optional<Color> color;
-        mutable std::atomic<bool> enabled{true};
-
-        RegisteredSource() = default;
-        RegisteredSource(SourceId source, std::string displayName, std::optional<Color> sourceColor, bool sourceEnabled)
-            : id(source)
-            , name(std::move(displayName))
-            , color(sourceColor)
-            , enabled(sourceEnabled)
-        {
-        }
-
-        RegisteredSource(const RegisteredSource &other)
-            : id(other.id)
-            , name(other.name)
-            , color(other.color)
-            , enabled(other.enabled.load(std::memory_order_relaxed))
-        {
-        }
-
-        RegisteredSource(RegisteredSource &&other) noexcept
-            : id(other.id)
-            , name(std::move(other.name))
-            , color(other.color)
-            , enabled(other.enabled.load(std::memory_order_relaxed))
-        {
-        }
-
-        RegisteredSource &operator=(const RegisteredSource &other)
-        {
-            if(this != &other)
-            {
-                id = other.id;
-                name = other.name;
-                color = other.color;
-                enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
-            }
-
-            return *this;
-        }
-
-        RegisteredSource &operator=(RegisteredSource &&other) noexcept
-        {
-            if(this != &other)
-            {
-                id = other.id;
-                name = std::move(other.name);
-                color = other.color;
-                enabled.store(other.enabled.load(std::memory_order_relaxed), std::memory_order_relaxed);
-            }
-
-            return *this;
-        }
-    };
-
-    struct SourceRegistry
-    {
-        std::vector<RegisteredSource> sources;
-        std::vector<std::size_t> directSourceLookup;
-        SourceId directSourceBase = 0;
-    };
-
-#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
-    template <typename Value> using AtomicSharedPointer = std::atomic<std::shared_ptr<Value>>;
-#else
-    template <typename Value> class AtomicSharedPointer
-    {
-    public:
-        [[nodiscard]] std::shared_ptr<Value> load(std::memory_order order) const
-        {
-            return std::atomic_load_explicit(&value_, order);
-        }
-
-        void store(std::shared_ptr<Value> value, std::memory_order order)
-        {
-            std::atomic_store_explicit(&value_, std::move(value), order);
-        }
-
-    private:
-        std::shared_ptr<Value> value_;
-    };
-#endif
-
 } // namespace GameWIP::Logger::Detail::Core

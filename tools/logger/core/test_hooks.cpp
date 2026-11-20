@@ -1,7 +1,7 @@
 /// @file test_hooks.cpp
 /// @brief Logger internal test hook definitions.
 
-#include "logger/internal/logger_core.h"
+#include "logger/internal/core.h"
 
 namespace GameWIP::Logger::Detail::Core
 {

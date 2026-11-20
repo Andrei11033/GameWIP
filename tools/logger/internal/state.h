@@ -3,19 +3,49 @@
 
 #pragma once
 
-#include "logger/internal/storage.h"
+#include "logger/internal/queue_storage.h"
+#include "logger/internal/source_registry.h"
 
 #include <atomic>
 #include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <ctime>
+#include <memory>
 #include <mutex>
+#include <span>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 namespace GameWIP::Logger::Detail::Core
 {
+    /// ------------------------------------------------------------
+    /// Atomic shared-pointer storage
+    /// ------------------------------------------------------------
+
+#if defined(__cpp_lib_atomic_shared_ptr) && __cpp_lib_atomic_shared_ptr >= 201711L
+    template <typename Value> using AtomicSharedPointer = std::atomic<std::shared_ptr<Value>>;
+#else
+    template <typename Value> class AtomicSharedPointer
+    {
+    public:
+        [[nodiscard]] std::shared_ptr<Value> load(std::memory_order order) const
+        {
+            return std::atomic_load_explicit(&value_, order);
+        }
+
+        void store(std::shared_ptr<Value> value, std::memory_order order)
+        {
+            std::atomic_store_explicit(&value_, std::move(value), order);
+        }
+
+    private:
+        std::shared_ptr<Value> value_;
+    };
+#endif
+
     /// ------------------------------------------------------------
     /// Process-wide logger state
     /// ------------------------------------------------------------
@@ -149,6 +179,7 @@ namespace GameWIP::Logger::Detail::Core
 
         bool enter()
         {
+            // Join before checking shutdown so lifecycle waits include this call.
             loggerState().activeProducers.fetch_add(1, std::memory_order_acq_rel);
             active = true;
 
@@ -169,6 +200,7 @@ namespace GameWIP::Logger::Detail::Core
             }
             active = false;
 
+            // Wake shutdown when the final producer leaves.
             if(loggerState().activeProducers.fetch_sub(1, std::memory_order_acq_rel) == 1)
             {
                 std::lock_guard<std::mutex> lock(loggerState().logMutex);
