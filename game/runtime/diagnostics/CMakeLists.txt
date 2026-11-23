@@ -12,6 +12,7 @@ target_sources(
         input_events.cpp
         input_reports.cpp
         input_reports.h
-        runtime_diagnostics.cpp
         runtime_diagnostics.h
+        runtime_status.cpp
+        window_reports.cpp
 )

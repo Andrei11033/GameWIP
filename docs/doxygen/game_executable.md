@@ -28,7 +28,8 @@ integration code and reusable libraries.
 | `game/runtime/diagnostics/display_report.h` | Startup display inspection entry point. |
 | `game/runtime/diagnostics/display_report.cpp` | Display, mode, and HDR/color report formatting and logging. |
 | `game/runtime/diagnostics/runtime_diagnostics.h` | Internal runtime status, input-device, and window-event reporting helpers. |
-| `game/runtime/diagnostics/runtime_diagnostics.cpp` | Structured window and operation-status diagnostics. |
+| `game/runtime/diagnostics/runtime_status.cpp` | Emergency output and structured operation-status reporting. |
+| `game/runtime/diagnostics/window_reports.cpp` | Window event labels, event details, and startup-state reporting. |
 | `game/runtime/diagnostics/input_devices.cpp` | Input device inventory at Debug and grouped descriptors at Trace. |
 | `game/runtime/diagnostics/input_control_events.h` | Internal entry points for opt-in control logging. |
 | `game/runtime/diagnostics/input_control_events.cpp` | Compact control changes at Debug and detailed events at Trace. |
