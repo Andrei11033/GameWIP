@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <format>
 #include <initializer_list>
 #include <limits>
@@ -30,6 +31,10 @@ namespace
 
     using GameWIP::Test::IOTestOptions;
     using IO::Types::ErrorCode;
+
+    /// ------------------------------------------------------------
+    /// Fixture values
+    /// ------------------------------------------------------------
 
     /// @brief Converts integer literals into a byte vector for readable fixtures.
     [[nodiscard]] std::vector<std::byte> makeBytes(std::initializer_list<unsigned int> values)
@@ -76,6 +81,10 @@ namespace
     {
         return std::as_bytes(std::span<const char>(text.data(), text.size()));
     }
+
+    /// ------------------------------------------------------------
+    /// Reader fixtures
+    /// ------------------------------------------------------------
 
     /// @brief Reader with only the required operation, used to verify optional-operation defaults.
     class MinimalReader final : public IO::Reader
@@ -447,6 +456,10 @@ namespace
         std::size_t position_ = 0;
     };
 
+    /// ------------------------------------------------------------
+    /// Writer fixtures
+    /// ------------------------------------------------------------
+
     /// @brief Writer that accepts bounded chunks and retains all accepted bytes.
     class ChunkedWriter final : public IO::Writer
     {
@@ -548,6 +561,11 @@ namespace
         }
     };
 
+    /// ------------------------------------------------------------
+    /// Compile-time contracts
+    /// ------------------------------------------------------------
+
+    // Fixture and memory-stream ownership
     static_assert(std::is_nothrow_move_constructible_v<MinimalReader>);
     static_assert(std::is_nothrow_move_assignable_v<MinimalReader>);
     static_assert(!std::is_copy_constructible_v<MinimalReader>);
@@ -560,11 +578,15 @@ namespace
     static_assert(std::is_nothrow_move_assignable_v<IO::MemoryReader>);
     static_assert(std::is_nothrow_move_constructible_v<IO::MemoryWriter>);
     static_assert(std::is_nothrow_move_assignable_v<IO::MemoryWriter>);
+
+    // Flush-mode validation
     static_assert(IO::isValidFlushMode(IO::Types::FlushMode::None));
     static_assert(IO::isValidFlushMode(IO::Types::FlushMode::Data));
     static_assert(IO::isValidFlushMode(IO::Types::FlushMode::DataAndMetadataBestEffort));
     static_assert(!IO::isValidFlushMode(static_cast<IO::Types::FlushMode>(-1)));
     static_assert(noexcept(IO::isValidFlushMode(IO::Types::FlushMode::None)));
+
+    // Non-throwing operation contracts
     static_assert(noexcept(IO::makeStatus(ErrorCode::Unknown)));
     static_assert(noexcept(std::declval<IO::Reader &>().isOpen()));
     static_assert(noexcept(std::declval<IO::Reader &>().canSeek()));
@@ -586,6 +608,8 @@ namespace
     static_assert(noexcept(IO::writeAllText(std::declval<IO::Writer &>(), std::declval<std::string_view>())));
     static_assert(noexcept(std::declval<IO::MemoryWriter &>().reserve(0)));
     static_assert(noexcept(std::declval<const IO::MemoryWriter &>().copyText()));
+
+    // Borrowed source and result types
     static_assert(std::is_same_v<decltype(std::declval<const IO::MemoryWriter &>().copyText()), IO::Types::CopyTextResult>);
     static_assert(std::is_constructible_v<IO::MemoryReader, std::string &>);
     static_assert(!std::is_constructible_v<IO::MemoryReader, std::string &&>);

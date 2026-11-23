@@ -1,9 +1,14 @@
 /// @file read_test.inl
 /// @brief Focused IO read tests.
 
+/// ------------------------------------------------------------
+/// Whole-stream byte reads
+/// ------------------------------------------------------------
+
 /// @brief Verifies whole-reader byte draining across known-size, unknown-size, limit, and failure paths.
 void testReadAllBytes(TestSupport::Context &context)
 {
+    // Check known-size reads, current position, and hard limits.
     const std::vector<std::byte> source = makeBytes({0xde, 0xad, 0x00, 0xbe, 0xef});
 
     IO::MemoryReader reader(spanOf(source));
@@ -47,6 +52,7 @@ void testReadAllBytes(TestSupport::Context &context)
     const IO::Types::ReadAllBytesResult emptyZeroLimit = IO::readAllBytes(emptyZeroLimitReader, 0, 2);
     static_cast<void>(context.expectTrue("readAllBytes zero limit accepts empty known stream", emptyZeroLimit.status.ok()));
 
+    // Check unknown-size reads, scratch reuse, and limit probes.
     std::array<std::byte, 2> scratch{};
     UnknownSizeChunkReader scratchReader(spanOf(source), 1);
     const IO::Types::ReadAllBytesResult scratchResult = IO::readAllBytes(scratchReader, std::span<std::byte>(scratch));
@@ -83,6 +89,7 @@ void testReadAllBytes(TestSupport::Context &context)
     const IO::Types::ReadAllBytesResult emptyScratch = IO::readAllBytes(emptyScratchReader, std::span<std::byte>{});
     static_cast<void>(context.expectEq("readAllBytes rejects empty scratch", ErrorCode::InvalidArgument, emptyScratch.status.code));
 
+    // Check capability fallbacks, reported progress, and invalid reader results.
     SizeWithoutPositionReader sizeWithoutPositionReader(spanOf(source), 2);
     const IO::Types::ReadAllBytesResult sizeWithoutPosition = IO::readAllBytes(sizeWithoutPositionReader, std::span<std::byte>(scratch));
     static_cast<void>(context.expectTrue("readAllBytes falls back when size is known but position is not", sizeWithoutPosition.status.ok()));
@@ -138,9 +145,14 @@ void testReadAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectEq("readAllBytes rejects zero buffer size", ErrorCode::InvalidArgument, invalidBuffer.status.code));
 }
 
+/// ------------------------------------------------------------
+/// Whole-stream text reads
+/// ------------------------------------------------------------
+
 /// @brief Verifies whole-reader text draining and byte-limit behavior.
 void testReadAllText(TestSupport::Context &context)
 {
+    // Check valid UTF-8 across memory and scratch-buffer reads.
     const std::string text("alpha\0beta", 10);
 
     IO::MemoryReader reader(bytesOf(text));
@@ -160,6 +172,7 @@ void testReadAllText(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("readAllText accepts UTF-8 split across reader chunks", splitUnicodeResult.status.ok()));
     static_cast<void>(context.expectEq("readAllText preserves split UTF-8", unicodeText, splitUnicodeResult.text));
 
+    // Preserve only the valid prefix when input or a read boundary cuts UTF-8.
     const std::string malformedText = makeStringBytes({0x6f, 0x6b, 0xff, 0x21});
     IO::MemoryReader malformedReader(bytesOf(malformedText));
     const IO::Types::ReadAllTextResult malformedResult = IO::readAllText(malformedReader);
@@ -195,6 +208,7 @@ void testReadAllText(TestSupport::Context &context)
         context.expectEq("readAllText incomplete early EOF reports EncodingFailed", ErrorCode::EncodingFailed, incompletePartial.status.code));
     static_cast<void>(context.expectEq("readAllText incomplete early EOF preserves valid prefix", std::string{"A"}, incompletePartial.text));
 
+    // Check hard limits, exact-limit EOF probes, and partial reads.
     IO::MemoryReader exactLimitReader(bytesOf(text));
     const IO::Types::ReadAllTextResult exactLimit = IO::readAllText(exactLimitReader, text.size(), 4);
     static_cast<void>(context.expectTrue("readAllText accepts exact byte limit", exactLimit.status.ok()));
@@ -274,6 +288,7 @@ void testReadAllText(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("readAllText zero limit rejects non-empty unknown stream", ErrorCode::SizeLimitExceeded, zeroLimitUnknown.status.code));
 
+    // Check capability failures and invalid reader progress.
     ReportedSizeReader shortKnownReader(bytesOf(text), text.size() + 2);
     const IO::Types::ReadAllTextResult shortKnown = IO::readAllText(shortKnownReader, IO::kNoByteLimit, 4);
     static_cast<void>(context.expectEq("readAllText reports early known-size EOF as PartialRead", ErrorCode::PartialRead, shortKnown.status.code));

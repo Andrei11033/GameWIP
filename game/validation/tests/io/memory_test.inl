@@ -8,6 +8,7 @@
 /// @brief Verifies MemoryReader construction, reads, state, and close behavior.
 void testMemoryReader(TestSupport::Context &context)
 {
+    // Check reads, position, and end-of-stream state.
     const std::vector<std::byte> source = makeBytes({0x41, 0x00, 0x42, 0xff});
     IO::MemoryReader reader(source);
     static_cast<void>(context.expectTrue("MemoryReader starts open", reader.isOpen()));
@@ -65,6 +66,7 @@ void testMemoryReader(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("MemoryReader empty read succeeds", emptyRead.status.ok()));
     static_cast<void>(context.expectTrue("MemoryReader empty read reports EOS at end", emptyRead.endOfStream));
 
+    // Check character-backed bytes and overlapping reads.
     IO::MemoryReader textReader("abc");
     const IO::Types::ReadAllTextResult textResult = IO::readAllText(textReader);
     static_cast<void>(context.expectTrue("MemoryReader string view read succeeds", textResult.status.ok()));
@@ -76,6 +78,7 @@ void testMemoryReader(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("MemoryReader overlapping read succeeds", overlapRead.status.ok()));
     static_cast<void>(context.expectEq("MemoryReader overlapping read preserves source order", makeBytes({0x10, 0x10, 0x20, 0x30}), overlapSource));
 
+    // Check closed-state behavior.
     static_cast<void>(context.expectTrue("MemoryReader close succeeds", movedReader.close().ok()));
     static_cast<void>(context.expectFalse("MemoryReader reports closed state", movedReader.isOpen()));
     static_cast<void>(context.expectFalse("MemoryReader cannot seek after close", movedReader.canSeek()));
@@ -110,6 +113,7 @@ void testMemoryReaderSeek(TestSupport::Context &context)
         SeekCase{"end", -1, IO::Types::SeekOrigin::End, 3, std::byte{0x40}},
     };
 
+    // Apply each valid seek origin and verify the next byte.
     for(const SeekCase &test : cases)
     {
         const std::string name = std::format("MemoryReader seek from {}", test.name);
@@ -140,6 +144,7 @@ void testMemoryReaderSeek(TestSupport::Context &context)
         return;
     }
 
+    // Rejected seeks leave the current position unchanged.
     struct RejectedSeek
     {
         std::string_view name;
@@ -173,6 +178,7 @@ void testMemoryReaderSeek(TestSupport::Context &context)
 /// @brief Verifies MemoryWriter ownership, aliasing, reserve, clear, and close behavior.
 void testMemoryWriter(TestSupport::Context &context)
 {
+    // Check open-state, append, and reusable capacity behavior.
     IO::MemoryWriter writer;
     const std::vector<std::byte> source = makeBytes({0x01, 0x00, 0x02, 0xff});
     const IO::Types::Status initialReserve = writer.reserve(8);
@@ -231,6 +237,7 @@ void testMemoryWriter(TestSupport::Context &context)
     static_cast<void>(context.expectEq("MemoryWriter rejected reserve preserves bytes", copyBytes(bytesOf(retainedText)), copyBytes(writer.bytes())));
     static_cast<void>(context.expectEq("MemoryWriter rejected reserve preserves capacity", capacityBeforeFailure, writer.capacity()));
 
+    // Check validated text copies and move ownership.
     IO::MemoryWriter textWriter;
     const auto textWrite = IO::writeAllText(textWriter, std::string_view{"a\0b", 3});
 
@@ -265,6 +272,7 @@ void testMemoryWriter(TestSupport::Context &context)
     static_cast<void>(context.expectEq("MemoryWriter text copy rejects malformed UTF-8", ErrorCode::EncodingFailed, invalidText.status.code));
     static_cast<void>(context.expectTrue("MemoryWriter malformed text copy returns no text", invalidText.text.empty()));
 
+    // Check self-aliasing appends and ownership transfer.
     IO::MemoryWriter aliasWriter;
 
     if(!context.expectEq("MemoryWriter alias fixture reserve", ErrorCode::Success, aliasWriter.reserve(source.size()).code))
@@ -294,6 +302,7 @@ void testMemoryWriter(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("MemoryWriter remains open after takeBytes", aliasWriter.isOpen()));
     static_cast<void>(context.expectEq("MemoryWriter takeBytes resets position", std::uint64_t{0}, aliasWriter.position().position));
 
+    // Check close preserves collected output and rejects new writes.
     static_cast<void>(context.expectTrue("MemoryWriter close succeeds", writer.close().ok()));
     static_cast<void>(context.expectEq("MemoryWriter close preserves bytes", copyBytes(bytesOf(retainedText)), copyBytes(writer.bytes())));
     static_cast<void>(context.expectFalse("MemoryWriter reports closed state", writer.isOpen()));

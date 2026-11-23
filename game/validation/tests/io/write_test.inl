@@ -1,9 +1,14 @@
 /// @file write_test.inl
 /// @brief Focused IO write tests.
 
+/// ------------------------------------------------------------
+/// Whole-stream byte writes
+/// ------------------------------------------------------------
+
 /// @brief Verifies complete byte writes, partial progress, zero progress, and invalid backend counts.
 void testWriteAllBytes(TestSupport::Context &context)
 {
+    // Retry successful short writes until all bytes are accepted.
     const std::vector<std::byte> source = makeBytes({0x01, 0x02, 0x00, 0x03, 0xff});
 
     ChunkedWriter chunkedWriter(2);
@@ -12,6 +17,7 @@ void testWriteAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectEq("writeAllBytes reports complete progress", source.size(), chunkedResult.bytesWritten));
     static_cast<void>(context.expectEq("writeAllBytes preserves bytes across partial writes", source, chunkedWriter.bytes()));
 
+    // Preserve progress and stop on backend failures or invalid counts.
     ChunkedWriter zeroProgressWriter(0);
     const IO::Types::WriteResult zeroProgressResult = IO::writeAllBytes(zeroProgressWriter, spanOf(source));
     static_cast<void>(context.expectEq("writeAllBytes rejects zero-byte progress", ErrorCode::WriteFailed, zeroProgressResult.status.code));
@@ -33,15 +39,21 @@ void testWriteAllBytes(TestSupport::Context &context)
     static_cast<void>(context.expectEq("writeAllBytes rejects invalid writer byte count", ErrorCode::WriteFailed, invalidCountResult.status.code));
     static_cast<void>(context.expectEq("writeAllBytes invalid count preserves prior progress", std::size_t{0}, invalidCountResult.bytesWritten));
 
+    // Empty input succeeds without calling the writer.
     FailingWriter emptyFailingWriter(ErrorCode::WriteFailed);
     const IO::Types::WriteResult emptyResult = IO::writeAllBytes(emptyFailingWriter, std::span<const std::byte>{});
     static_cast<void>(context.expectTrue("writeAllBytes empty input succeeds without calling writer", emptyResult.status.ok()));
     static_cast<void>(context.expectEq("writeAllBytes empty input reports zero", std::size_t{0}, emptyResult.bytesWritten));
 }
 
+/// ------------------------------------------------------------
+/// Whole-stream text writes
+/// ------------------------------------------------------------
+
 /// @brief Verifies text writes preserve byte progress and failure status.
 void testWriteAllText(TestSupport::Context &context)
 {
+    // Validate the successful byte and UTF-8 paths.
     const std::string text("a\0b\0c", 5);
 
     ChunkedWriter chunkedWriter(2);
@@ -56,6 +68,7 @@ void testWriteAllText(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("writeAllText accepts valid multi-byte UTF-8", unicodeResult.status.ok()));
     static_cast<void>(context.expectEq("writeAllText preserves valid multi-byte UTF-8", copyBytes(bytesOf(unicodeText)), unicodeWriter.bytes()));
 
+    // Reject malformed text before the writer receives any bytes.
     FailingWriter failingWriter(ErrorCode::WriteFailed);
     const IO::Types::WriteResult failureResult = IO::writeAllText(failingWriter, text);
     static_cast<void>(context.expectEq("writeAllText propagates writer failure", ErrorCode::WriteFailed, failureResult.status.code));

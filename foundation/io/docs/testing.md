@@ -5,10 +5,18 @@
 ## Focused module
 
 The `io` correctness module checks the public contract through the shared GameWIP
-validation runner. Run it with:
+validation runner. For a direct CMake build, run:
+
+Windows:
 
 ```powershell
 .\build\test\GameWIPTests.exe --test-module=io --no-test-report
+```
+
+Linux:
+
+```sh
+./build/test/GameWIPTests --test-module=io --no-test-report
 ```
 
 Use @ref project_testing for configure/build commands, reporting, CTest behavior, and validation authoring rules.

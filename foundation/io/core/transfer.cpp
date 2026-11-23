@@ -1,11 +1,10 @@
 /// @file transfer.cpp
-/// @brief Implements IO status helpers, default interfaces, memory streams, and whole-transfer algorithms.
+/// @brief Whole-stream transfer algorithms.
 
 #include "io/transfer.h"
 #include "unicode/unicode.h"
 
 #include <algorithm>
-#include <cstring>
 #include <memory>
 #include <new>
 #include <span>
@@ -14,10 +13,14 @@
 #include <vector>
 
 /// @brief Internal helpers for whole-stream transfer operations.
-namespace GameWIP::IO::Detail::Core
+namespace GameWIP::IO::Internal::Core
 {
     namespace
     {
+        /// ------------------------------------------------------------
+        /// Capability queries
+        /// ------------------------------------------------------------
+
         // Non-seekable readers are allowed to use the streaming path; other
         // capability failures must propagate instead of being hidden.
         [[nodiscard]] bool isUnsupportedReaderCapability(const Types::Status &status) noexcept
@@ -110,6 +113,10 @@ namespace GameWIP::IO::Detail::Core
             return result;
         }
 
+        /// ------------------------------------------------------------
+        /// Known-size reads
+        /// ------------------------------------------------------------
+
         [[nodiscard]] Types::ReadAllBytesResult readAllBytesKnownSize(Reader &reader, std::uint64_t knownByteCount, std::uint64_t maxBytes) noexcept
         {
             Types::ReadAllBytesResult result;
@@ -130,6 +137,7 @@ namespace GameWIP::IO::Detail::Core
             {
                 return result;
             }
+
             const auto expectedSize = static_cast<std::size_t>(knownByteCount);
 
             try
@@ -212,6 +220,7 @@ namespace GameWIP::IO::Detail::Core
             {
                 return result;
             }
+
             const auto expectedSize = static_cast<std::size_t>(knownByteCount);
 
             try
@@ -274,6 +283,10 @@ namespace GameWIP::IO::Detail::Core
 
             return result;
         }
+
+        /// ------------------------------------------------------------
+        /// Streaming buffer helpers
+        /// ------------------------------------------------------------
 
         // These helpers copy scratch data directly into their destinations so
         // the transfer path does not create a second temporary range.
@@ -373,6 +386,60 @@ namespace GameWIP::IO::Detail::Core
 
             return makeStatus(Types::ErrorCode::ReadFailed);
         }
+
+        /// ------------------------------------------------------------
+        /// Unknown-size read storage
+        /// ------------------------------------------------------------
+
+        /// @brief Owns the temporary storage used by internally buffered reads.
+        struct ReadScratchBuffer
+        {
+            // Allocation result
+            Types::Status status;
+
+            // Owned storage and its view
+            std::unique_ptr<std::byte[]> storage;
+            std::span<std::byte> bytes;
+        };
+
+        [[nodiscard]] ReadScratchBuffer makeReadScratchBuffer(std::size_t size) noexcept
+        {
+            ReadScratchBuffer result;
+
+            try
+            {
+                result.storage = std::make_unique_for_overwrite<std::byte[]>(size);
+            }
+            catch(const std::bad_alloc &)
+            {
+                result.status = makeStatus(Types::ErrorCode::OutOfMemory);
+                return result;
+            }
+            catch(const std::length_error &)
+            {
+                result.status = makeStatus(Types::ErrorCode::SizeLimitExceeded);
+                return result;
+            }
+            catch(...)
+            {
+                result.status = makeStatus(Types::ErrorCode::Unknown);
+                return result;
+            }
+
+            // size is the exact allocation count used for this scratch array.
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage begin
+#endif
+            result.bytes = std::span<std::byte>(result.storage.get(), size);
+#if defined(__clang__)
+#pragma clang unsafe_buffer_usage end
+#endif
+            return result;
+        }
+
+        /// ------------------------------------------------------------
+        /// Unknown-size reads
+        /// ------------------------------------------------------------
 
         [[nodiscard]] Types::ReadAllBytesResult readAllBytesWithScratch(
             Reader &reader,
@@ -488,11 +555,11 @@ namespace GameWIP::IO::Detail::Core
             }
         }
     } // namespace
-} // namespace GameWIP::IO::Detail::Core
+} // namespace GameWIP::IO::Internal::Core
 
 namespace GameWIP::IO
 {
-    using namespace Detail::Core;
+    using namespace Internal::Core;
 
     /// ------------------------------------------------------------
     /// Whole-stream reads
@@ -521,36 +588,16 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
+
         const auto effectiveBufferSize = static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(bufferSize), maxBytes));
-        std::unique_ptr<std::byte[]> buffer;
+        ReadScratchBuffer scratch = makeReadScratchBuffer(effectiveBufferSize);
 
-        // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
-        try
+        if(!scratch.status.ok())
         {
-            buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
-        }
-        catch(const std::bad_alloc &)
-        {
-            return {.status = makeStatus(Types::ErrorCode::OutOfMemory)};
-        }
-        catch(const std::length_error &)
-        {
-            return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded)};
-        }
-        catch(...)
-        {
-            return {.status = makeStatus(Types::ErrorCode::Unknown)};
+            return {.status = std::move(scratch.status)};
         }
 
-        // effectiveBufferSize is the exact allocation count used for this operation-owned scratch array.
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage begin
-#endif
-        const std::span<std::byte> scratch(buffer.get(), effectiveBufferSize);
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage end
-#endif
-        return readAllBytesWithScratch(reader, scratch, maxBytes);
+        return readAllBytesWithScratch(reader, scratch.bytes, maxBytes);
     }
 
     Types::ReadAllBytesResult readAllBytes(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept
@@ -576,6 +623,7 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
+
         return readAllBytesWithScratch(reader, scratchBuffer, maxBytes);
     }
 
@@ -602,36 +650,16 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
+
         const auto effectiveBufferSize = static_cast<std::size_t>(std::min<std::uint64_t>(static_cast<std::uint64_t>(bufferSize), maxBytes));
-        std::unique_ptr<std::byte[]> buffer;
+        ReadScratchBuffer scratch = makeReadScratchBuffer(effectiveBufferSize);
 
-        // The scratch bytes are immediately overwritten by Reader::read(), so avoid value-initializing them.
-        try
+        if(!scratch.status.ok())
         {
-            buffer = std::make_unique_for_overwrite<std::byte[]>(effectiveBufferSize);
-        }
-        catch(const std::bad_alloc &)
-        {
-            return {.status = makeStatus(Types::ErrorCode::OutOfMemory)};
-        }
-        catch(const std::length_error &)
-        {
-            return {.status = makeStatus(Types::ErrorCode::SizeLimitExceeded)};
-        }
-        catch(...)
-        {
-            return {.status = makeStatus(Types::ErrorCode::Unknown)};
+            return {.status = std::move(scratch.status)};
         }
 
-        // effectiveBufferSize is the exact allocation count used for this operation-owned scratch array.
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage begin
-#endif
-        const std::span<std::byte> scratch(buffer.get(), effectiveBufferSize);
-#if defined(__clang__)
-#pragma clang unsafe_buffer_usage end
-#endif
-        return finalizeReadAllText(readAllTextWithScratch(reader, scratch, maxBytes));
+        return finalizeReadAllText(readAllTextWithScratch(reader, scratch.bytes, maxBytes));
     }
 
     Types::ReadAllTextResult readAllText(Reader &reader, std::span<std::byte> scratchBuffer, std::uint64_t maxBytes) noexcept
@@ -657,6 +685,7 @@ namespace GameWIP::IO
         {
             return {.status = probeForMoreData(reader)};
         }
+
         return finalizeReadAllText(readAllTextWithScratch(reader, scratchBuffer, maxBytes));
     }
 

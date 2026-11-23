@@ -37,6 +37,7 @@ the result to memory:
 ```cpp
 #include "io/io.h"
 
+#include <cstdint>
 #include <string>
 
 int main()

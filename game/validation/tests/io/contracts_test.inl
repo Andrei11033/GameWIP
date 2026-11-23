@@ -69,6 +69,7 @@ void testErrorCodeNames(TestSupport::Context &context)
 /// @brief Verifies status helpers and default Reader/Writer optional-operation contracts.
 void testStatusAndDefaultContracts(TestSupport::Context &context)
 {
+    // Check status values and diagnostic details.
     const IO::Types::Status success = IO::successStatus();
     static_cast<void>(context.expectTrue("successStatus returns success", success.ok()));
     static_cast<void>(context.expectEq("successStatus native code defaults to zero", std::int64_t{0}, success.nativeCode));
@@ -80,6 +81,7 @@ void testStatusAndDefaultContracts(TestSupport::Context &context)
     static_cast<void>(context.expectEq("makeStatus preserves native code", std::int64_t{42}, failure.nativeCode));
     static_cast<void>(context.expectEq("makeStatus preserves message", std::string{"read failed"}, failure.message));
 
+    // Check the default Reader capabilities and lifecycle.
     MinimalReader reader;
     static_cast<void>(context.expectTrue("Reader isOpen defaults to true", reader.isOpen()));
     static_cast<void>(context.expectFalse("Reader canSeek defaults to false", reader.canSeek()));
@@ -90,6 +92,7 @@ void testStatusAndDefaultContracts(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("Reader seek defaults to NotSeekable", ErrorCode::NotSeekable, reader.seek(0, IO::Types::SeekOrigin::Begin).code));
 
+    // Check the default Writer capabilities and lifecycle.
     ChunkedWriter writer(1);
     static_cast<void>(context.expectTrue("Writer isOpen defaults to true", writer.isOpen()));
     static_cast<void>(context.expectFalse("Writer canSeek defaults to false", writer.canSeek()));

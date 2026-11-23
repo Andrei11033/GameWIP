@@ -1,1 +1,9 @@
-target_sources(IO PRIVATE streams.cpp transfer.cpp)
+target_sources(
+    IO
+    PRIVATE
+        memory_reader.cpp
+        memory_writer.cpp
+        status.cpp
+        stream.cpp
+        transfer.cpp
+)

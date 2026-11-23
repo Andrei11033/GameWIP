@@ -64,8 +64,11 @@ namespace GameWIP::IO
         /// @brief Result returned by stream position operations.
         struct PositionResult
         {
+            // Operation status
             /// @brief Operation status.
             Status status;
+
+            // Stream position
             /// @brief Current stream position in bytes from the beginning when status is successful.
             std::uint64_t position = 0;
         };
@@ -73,8 +76,11 @@ namespace GameWIP::IO
         /// @brief Result returned by size query operations.
         struct SizeResult
         {
+            // Operation status
             /// @brief Operation status.
             Status status;
+
+            // Stream size
             /// @brief Total stream size in bytes when status is successful.
             std::uint64_t sizeBytes = 0;
         };
