@@ -4,8 +4,8 @@
 #include "desktop/dialogs.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
-#include "desktop/internal/dialogs_platform.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/dialogs.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
 
 #include <atomic>
@@ -56,7 +56,7 @@ namespace GameWIP::Desktop
         }
 
         /// @brief Validates state presence, owner-thread access, and native liveness.
-        [[nodiscard]] IO::Types::Status requireLiveState(const Detail::ProgressDialogState *state, bool owned) noexcept
+        [[nodiscard]] IO::Types::Status requireLiveState(const Internal::ProgressDialogState *state, bool owned) noexcept
         {
             if(state == nullptr)
             {
@@ -87,16 +87,16 @@ namespace GameWIP::Desktop
 
         if(state_->platform && !ownedByCurrentThread())
         {
-            if(Detail::Platform::deferProgressCleanupToOwner(state_))
+            if(Platform::deferProgressCleanupToOwner(state_))
             {
                 ownerThreadToken_.store(0, std::memory_order_release);
                 return;
             }
-            static_cast<void>(Detail::Platform::closeProgressBestEffort(*state_));
+            static_cast<void>(Platform::closeProgressBestEffort(*state_));
         }
         else
         {
-            if(!Detail::Platform::closeProgressBestEffort(*state_) && Detail::Platform::deferProgressCleanupToOwner(state_))
+            if(!Platform::closeProgressBestEffort(*state_) && Platform::deferProgressCleanupToOwner(state_))
             {
                 ownerThreadToken_.store(0, std::memory_order_release);
                 return;
@@ -129,18 +129,18 @@ namespace GameWIP::Desktop
             }
         }
 
-        Detail::WindowState *ownerState = nullptr;
+        Internal::WindowState *ownerState = nullptr;
 
         if(description.owner != nullptr)
         {
-            ownerState = Detail::WindowAccess::state(*description.owner);
+            ownerState = Internal::WindowAccess::state(*description.owner);
 
-            if(ownerState == nullptr || !Detail::Platform::hasLiveNativeWindow(*ownerState))
+            if(ownerState == nullptr || !Platform::hasLiveNativeWindow(*ownerState))
             {
                 return error(ErrorCode::NotOpen);
             }
 
-            if(!Detail::Platform::ownedByCurrentThread(*ownerState))
+            if(!Platform::ownedByCurrentThread(*ownerState))
             {
                 return error(ErrorCode::ResourceBusy);
             }
@@ -148,11 +148,11 @@ namespace GameWIP::Desktop
 
         try
         {
-            if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
             {
                 return error(ErrorCode::OutOfMemory);
             }
-            auto candidate = std::make_unique<Detail::ProgressDialogState>();
+            auto candidate = std::make_unique<Internal::ProgressDialogState>();
             candidate->ownerToken = currentThreadToken();
             candidate->ownerId = ownerState != nullptr ? ownerState->id : Types::WindowId{};
             candidate->mode = description.presentationMode;
@@ -161,16 +161,16 @@ namespace GameWIP::Desktop
             candidate->blocksOwner = description.blocksOwner;
             candidate->cancelRequested = false;
 
-            IO::Types::Status status = Detail::Platform::openProgress(*candidate, description);
+            IO::Types::Status status = Platform::openProgress(*candidate, description);
 
             if(!status.ok())
             {
-                if(!Detail::Platform::closeProgressBestEffort(*candidate))
+                if(!Platform::closeProgressBestEffort(*candidate))
                 {
                     // The candidate remains private to this failed open. Its
                     // owner-thread dispatcher retains any cleanup that could
                     // not complete synchronously.
-                    static_cast<void>(Detail::Platform::deferProgressCleanupToOwner(candidate));
+                    static_cast<void>(Platform::deferProgressCleanupToOwner(candidate));
                 }
 
                 return status;
@@ -215,7 +215,7 @@ namespace GameWIP::Desktop
         }
 
         status = validateText(title);
-        return status.ok() ? Detail::Platform::setProgressTitle(*state_, title) : status;
+        return status.ok() ? Platform::setProgressTitle(*state_, title) : status;
     }
 
     IO::Types::Status ProgressDialog::setHeading(std::string_view heading) noexcept
@@ -228,7 +228,7 @@ namespace GameWIP::Desktop
         }
 
         status = validateText(heading);
-        return status.ok() ? Detail::Platform::setProgressHeading(*state_, heading) : status;
+        return status.ok() ? Platform::setProgressHeading(*state_, heading) : status;
     }
 
     IO::Types::Status ProgressDialog::setMessage(std::string_view message) noexcept
@@ -241,7 +241,7 @@ namespace GameWIP::Desktop
         }
 
         status = validateText(message);
-        return status.ok() ? Detail::Platform::setProgressMessage(*state_, message) : status;
+        return status.ok() ? Platform::setProgressMessage(*state_, message) : status;
     }
 
     IO::Types::Status ProgressDialog::setMode(Types::Dialogs::Progress::Mode mode) noexcept
@@ -258,7 +258,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::InvalidArgument);
         }
 
-        status = Detail::Platform::setProgressMode(*state_, mode);
+        status = Platform::setProgressMode(*state_, mode);
 
         if(status.ok())
         {
@@ -282,7 +282,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::InvalidArgument);
         }
 
-        status = Detail::Platform::setProgressValue(*state_, progress);
+        status = Platform::setProgressValue(*state_, progress);
 
         if(status.ok())
         {
@@ -324,7 +324,7 @@ namespace GameWIP::Desktop
             return IO::successStatus();
         }
 
-        const Detail::Platform::ProgressCloseResult result = Detail::Platform::closeProgress(*state_);
+        const Platform::ProgressCloseResult result = Platform::closeProgress(*state_);
 
         if(result.resourceClosed)
         {

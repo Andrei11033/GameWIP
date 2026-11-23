@@ -9,7 +9,7 @@
 
 #include <string>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// @brief Builds a native executable and argument string from a portable launch action.
     [[nodiscard]] IO::Types::Status makeLaunchCommand(
@@ -17,4 +17,4 @@ namespace GameWIP::Desktop::Detail::Platform
         bool allowPlaceholders,
         std::wstring &executable,
         std::wstring &arguments);
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

@@ -1,29 +1,44 @@
-/// @file child_surface_platform.h
-/// @brief Internal portable-to-native backend contract for ChildSurface.
+/// @file child_surface.h
+/// @brief Portable backend contract for ChildSurface.
 
 #pragma once
 
 #include "desktop/internal/child_surface_state.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 
 #include <memory>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
-    /// @brief Opens a child HWND owned by the parent Window's dispatcher thread.
+    /// ------------------------------------------------------------
+    /// Shared portable state
+    /// ------------------------------------------------------------
+
+    using Internal::ChildSurfaceState;
+    using Internal::WindowState;
+
+    /// ------------------------------------------------------------
+    /// Lifetime and ownership
+    /// ------------------------------------------------------------
+
+    /// @brief Opens a native child surface on the parent Window's dispatcher thread.
     [[nodiscard]] IO::Types::Status openChildSurface(ChildSurfaceState &state, WindowState &parent) noexcept;
-    /// @brief Closes a child HWND and reports whether native ownership ended.
+    /// @brief Closes a native child surface and reports whether ownership ended.
     [[nodiscard]] CloseResult closeChildSurface(ChildSurfaceState &state) noexcept;
     /// @brief Attempts owner-thread child cleanup without throwing or publishing errors.
     void closeChildSurfaceBestEffort(ChildSurfaceState &state) noexcept;
     /// @brief Transfers wrong-thread child cleanup to the owning dispatcher.
     [[nodiscard]] bool deferChildSurfaceCleanupToOwner(std::unique_ptr<ChildSurfaceState> &state) noexcept;
-    /// @brief Tests whether the current thread may mutate the child HWND.
+    /// @brief Tests whether the current thread may mutate the child surface.
     [[nodiscard]] bool isChildSurfaceOwnedByCurrentThread(const ChildSurfaceState &state) noexcept;
-    /// @brief Tests whether the child HWND is still a live native resource.
+    /// @brief Tests whether the child surface is still a live native resource.
     [[nodiscard]] bool hasLiveNativeChildSurface(const ChildSurfaceState &state) noexcept;
-    /// @brief Returns the native module and child HWND for owner-thread interop.
+    /// @brief Returns native handles for owner-thread interoperability.
     [[nodiscard]] NativeHandleView childSurfaceNativeHandle(const ChildSurfaceState &state) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Geometry and placement
+    /// ------------------------------------------------------------
 
     /// @brief Applies a logical child rectangle and refreshes cached screen geometry.
     [[nodiscard]] IO::Types::Status setChildSurfaceRect(ChildSurfaceState &state, Types::LogicalRect rect) noexcept;
@@ -36,6 +51,10 @@ namespace GameWIP::Desktop::Detail::Platform
         const ChildSurfaceState &state,
         Types::ScreenPosition position) noexcept;
 
+    /// ------------------------------------------------------------
+    /// Visibility and ordering
+    /// ------------------------------------------------------------
+
     /// @brief Shows or hides the native child surface.
     [[nodiscard]] IO::Types::Status showChildSurface(ChildSurfaceState &state, bool visible) noexcept;
     /// @brief Enables or disables native input delivery to the child surface.
@@ -44,4 +63,4 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status orderChildSurface(ChildSurfaceState &state, const ChildSurfaceState *sibling, bool above) noexcept;
     /// @brief Places a child surface at the front or back of its parent's child list.
     [[nodiscard]] IO::Types::Status orderChildSurfaceEdge(ChildSurfaceState &state, bool front) noexcept;
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

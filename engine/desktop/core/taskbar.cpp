@@ -4,9 +4,9 @@
 #include "desktop/shell_taskbar.h"
 
 #include "desktop/internal/shell_helpers.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include "desktop/internal/shell_state.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
 
 #include <cstdint>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// Taskbar description helpers
@@ -112,7 +112,7 @@ namespace GameWIP::Desktop::Detail
             return validateThumbnailButtons(description.thumbnailButtons, state.thumbnailButtons);
         }
     } // namespace
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop
 {
@@ -122,7 +122,7 @@ namespace GameWIP::Desktop
 
     namespace
     {
-        using Detail::TaskbarItemState;
+        using Internal::TaskbarItemState;
         using IO::Types::ErrorCode;
 
         /// @brief Builds a portable status from a single error code.
@@ -134,7 +134,7 @@ namespace GameWIP::Desktop
         /// @brief Releases the event-queue binding retained by one taskbar item.
         void releaseTaskbarQueue(TaskbarItemState &state) noexcept
         {
-            Detail::unbindQueue(state.eventQueue);
+            Internal::unbindQueue(state.eventQueue);
             state.eventQueue = nullptr;
         }
 
@@ -169,8 +169,8 @@ namespace GameWIP::Desktop
         }
         else
         {
-            Detail::Platform::closeTaskbarBestEffort(*state_);
-            Detail::unbindQueue(state_->eventQueue);
+            Platform::closeTaskbarBestEffort(*state_);
+            Internal::unbindQueue(state_->eventQueue);
             state_.reset();
         }
     }
@@ -183,14 +183,14 @@ namespace GameWIP::Desktop
             return error(ErrorCode::AlreadyOpen);
         }
 
-        Detail::WindowState *windowState = Detail::WindowAccess::state(window);
+        Internal::WindowState *windowState = Internal::WindowAccess::state(window);
 
-        if(windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
+        if(windowState == nullptr || !Platform::hasLiveNativeWindow(*windowState))
         {
             return error(ErrorCode::NotOpen);
         }
 
-        if(!Detail::Platform::ownedByCurrentThread(*windowState))
+        if(!Platform::ownedByCurrentThread(*windowState))
         {
             return error(ErrorCode::ResourceBusy);
         }
@@ -208,22 +208,22 @@ namespace GameWIP::Desktop
         try
         {
             // Prepare owned state and open the native taskbar before publishing the binding.
-            auto candidate = std::make_unique<Detail::TaskbarItemState>();
+            auto candidate = std::make_unique<Internal::TaskbarItemState>();
             candidate->ownerThread = std::this_thread::get_id();
             candidate->window = windowState;
             candidate->windowId = windowState->id;
-            IO::Types::Status status = Detail::copyDescription(description, *candidate);
+            IO::Types::Status status = Internal::copyDescription(description, *candidate);
 
             if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
-            status = Detail::Platform::openTaskbar(*candidate);
+            status = Platform::openTaskbar(*candidate);
 
             if(!status.ok())
             {
-                Detail::Platform::closeTaskbarBestEffort(*candidate);
+                Platform::closeTaskbarBestEffort(*candidate);
                 return status;
             }
             windowState->taskbarItem = candidate.get();
@@ -248,14 +248,14 @@ namespace GameWIP::Desktop
             return error(ErrorCode::AlreadyOpen);
         }
 
-        Detail::WindowState *windowState = Detail::WindowAccess::state(window);
+        Internal::WindowState *windowState = Internal::WindowAccess::state(window);
 
-        if(windowState == nullptr || !Detail::Platform::hasLiveNativeWindow(*windowState))
+        if(windowState == nullptr || !Platform::hasLiveNativeWindow(*windowState))
         {
             return error(ErrorCode::NotOpen);
         }
 
-        if(!Detail::Platform::ownedByCurrentThread(*windowState))
+        if(!Platform::ownedByCurrentThread(*windowState))
         {
             return error(ErrorCode::ResourceBusy);
         }
@@ -268,30 +268,30 @@ namespace GameWIP::Desktop
         try
         {
             // Prepare retained data and bind the event queue.
-            auto candidate = std::make_unique<Detail::TaskbarItemState>();
+            auto candidate = std::make_unique<Internal::TaskbarItemState>();
             candidate->ownerThread = std::this_thread::get_id();
             candidate->window = windowState;
             candidate->windowId = windowState->id;
-            IO::Types::Status status = Detail::copyDescription(description, *candidate);
+            IO::Types::Status status = Internal::copyDescription(description, *candidate);
 
             if(!status.ok())
             {
                 return status;
             }
 
-            status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
+            status = Internal::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
             if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
-            status = Detail::Platform::openTaskbar(*candidate);
+            status = Platform::openTaskbar(*candidate);
 
             if(!status.ok())
             {
-                Detail::unbindQueue(candidate->eventQueue);
-                Detail::Platform::closeTaskbarBestEffort(*candidate);
+                Internal::unbindQueue(candidate->eventQueue);
+                Platform::closeTaskbarBestEffort(*candidate);
                 return status;
             }
 
@@ -342,7 +342,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::ResourceBusy);
         }
 
-        const IO::Types::Status status = Detail::Platform::closeTaskbar(*state_);
+        const IO::Types::Status status = Platform::closeTaskbar(*state_);
 
         if(!status.ok())
         {
@@ -361,14 +361,14 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TaskbarItem::setProgress(std::optional<Types::Shell::Progress> progress) noexcept
     {
-        IO::Types::Status status = requireOwnedTaskbar(Detail::TaskbarItemAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
             return status;
         }
 
-        status = Detail::validateProgress(progress);
+        status = Internal::validateProgress(progress);
 
         if(!status.ok())
         {
@@ -377,12 +377,12 @@ namespace GameWIP::Desktop
 
         const auto old = state_->progress;
         state_->progress = progress;
-        status = Detail::Platform::applyTaskbar(*state_);
+        status = Platform::applyTaskbar(*state_);
 
         if(!status.ok())
         {
             state_->progress = old;
-            static_cast<void>(Detail::Platform::applyTaskbar(*state_));
+            static_cast<void>(Platform::applyTaskbar(*state_));
         }
 
         return status;
@@ -390,7 +390,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TaskbarItem::setOverlayIcon(std::optional<Types::IconImageView> icon) noexcept
     {
-        IO::Types::Status status = requireOwnedTaskbar(Detail::TaskbarItemAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -400,12 +400,12 @@ namespace GameWIP::Desktop
         try
         {
             // Copy the replacement icon before swapping it into retained state.
-            std::optional<Detail::OwnedIconImage> replacement;
+            std::optional<Internal::OwnedIconImage> replacement;
 
             if(icon.has_value())
             {
                 replacement.emplace();
-                status = Detail::copyIcon(*icon, *replacement);
+                status = Internal::copyIcon(*icon, *replacement);
 
                 if(!status.ok())
                 {
@@ -413,15 +413,15 @@ namespace GameWIP::Desktop
                 }
             }
 
-            std::optional<Detail::OwnedIconImage> old;
+            std::optional<Internal::OwnedIconImage> old;
             old.swap(state_->overlayIcon);
             state_->overlayIcon.swap(replacement);
-            status = Detail::Platform::applyTaskbar(*state_);
+            status = Platform::applyTaskbar(*state_);
 
             if(!status.ok())
             {
                 state_->overlayIcon.swap(old);
-                static_cast<void>(Detail::Platform::applyTaskbar(*state_));
+                static_cast<void>(Platform::applyTaskbar(*state_));
             }
 
             return status;
@@ -438,7 +438,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TaskbarItem::setThumbnailButtons(std::span<const Types::Taskbar::ThumbnailButton> buttons) noexcept
     {
-        IO::Types::Status status = requireOwnedTaskbar(Detail::TaskbarItemAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedTaskbar(Internal::TaskbarItemAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -452,8 +452,8 @@ namespace GameWIP::Desktop
 
         try
         {
-            std::vector<Detail::OwnedThumbnailButton> replacement;
-            status = Detail::validateThumbnailButtons(buttons, replacement);
+            std::vector<Internal::OwnedThumbnailButton> replacement;
+            status = Internal::validateThumbnailButtons(buttons, replacement);
 
             if(!status.ok())
             {
@@ -463,12 +463,12 @@ namespace GameWIP::Desktop
             state_->thumbnailButtons = std::move(replacement);
 
             // Restore the previous buttons if native publication fails.
-            status = Detail::Platform::applyTaskbar(*state_);
+            status = Platform::applyTaskbar(*state_);
 
             if(!status.ok())
             {
                 state_->thumbnailButtons = std::move(old);
-                static_cast<void>(Detail::Platform::applyTaskbar(*state_));
+                static_cast<void>(Platform::applyTaskbar(*state_));
             }
 
             return status;

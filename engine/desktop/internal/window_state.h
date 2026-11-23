@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "desktop/internal/helpers/event_storage.h"
 #include "desktop/internal/presentation_publication_state.h"
 #include "desktop/internal/renderer_integration_state.h"
 #include "desktop/window.h"
@@ -15,7 +16,7 @@
 #include <thread>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     struct WindowData;
 
@@ -23,9 +24,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         void operator()(WindowData *data) const noexcept;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Mirrors owner-thread cached geometry into an active accessibility bridge.
     void publishAccessibilityGeometry(WindowState &window) noexcept;
@@ -50,16 +51,7 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
-            if(!eventStorage.empty())
-            {
-                for(std::size_t index = 0; index < eventCount; ++index)
-                {
-                    eventStorage[(eventHead + index) % eventStorage.size()] = {};
-                }
-            }
-            eventHead = 0;
-            eventCount = 0;
-            eventStorage = {};
+            clearRetainedEventStorage(eventStorage, eventHead, eventCount);
         }
 
         // Native ownership and thread binding
@@ -133,14 +125,15 @@ namespace GameWIP::Desktop::Detail
 
         // Native event and teardown state
         bool suppressEvents = false;                 ///< Suppresses construction-time native callbacks.
-        bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
+        bool nativeDestroyedPendingFinalize = false; ///< Native Window is gone; owner-thread finalization remains.
 
         // Shell and accessibility integrations
         TaskbarItemState *taskbarItem = nullptr;
         AccessibilityState *accessibility = nullptr;
-        // A foreign-thread Window destructor transfers this optional owner with deferred native state.
-        // Keep the callback pointer stable and readable until the owner destroys the HWND.
-        std::unique_ptr<AccessibilityState, AccessibilityStateDeleter> deferredAccessibilityOwner;
+
+        // Deferred accessibility cleanup
+        std::unique_ptr<AccessibilityState, AccessibilityStateDeleter>
+            deferredAccessibilityOwner; ///< Retained when cleanup moves to the owner thread.
     };
 
     /// @brief Returns whether a Window payload may be superseded by a later payload of the same type.
@@ -294,4 +287,4 @@ namespace GameWIP::Desktop::Detail
             return window.presentationPublication_;
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

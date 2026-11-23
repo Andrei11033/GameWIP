@@ -1,12 +1,23 @@
-/// @file clipboard_platform.h
-/// @brief Internal portable-to-native Clipboard backend contract.
+/// @file clipboard.h
+/// @brief Portable backend contract for Clipboard.
 
 #pragma once
 
 #include "desktop/clipboard.h"
 
-namespace GameWIP::Desktop::Detail::Platform
+#include <chrono>
+#include <cstddef>
+#include <span>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace GameWIP::Desktop::Platform
 {
+    /// ------------------------------------------------------------
+    /// Read formats and values
+    /// ------------------------------------------------------------
+
     /// @brief Tests native clipboard availability for one portable format.
     [[nodiscard]] Types::Result<bool> clipboardHasFormat(Types::DataTransfer::FormatView format, std::chrono::milliseconds timeout) noexcept;
     /// @brief Enumerates portable formats currently available on the clipboard.
@@ -23,10 +34,14 @@ namespace GameWIP::Desktop::Detail::Platform
         std::string_view formatName,
         std::chrono::milliseconds timeout) noexcept;
 
+    /// ------------------------------------------------------------
+    /// Write and clear
+    /// ------------------------------------------------------------
+
     /// @brief Publishes portable items to the clipboard within the access deadline.
     [[nodiscard]] Types::Clipboard::WriteResult clipboardWrite(
         std::span<const Types::DataTransfer::ItemView> items,
         std::chrono::milliseconds timeout) noexcept;
     /// @brief Clears the clipboard within the access deadline.
     [[nodiscard]] Types::Clipboard::ClearResult clipboardClear(std::chrono::milliseconds timeout) noexcept;
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

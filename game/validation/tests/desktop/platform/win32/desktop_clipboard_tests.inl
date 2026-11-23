@@ -265,7 +265,7 @@ void testClipboardValuesAndValidation(TestSupport::Context &context)
         ErrorCode::InvalidArgument,
         Clipboard::writeImage({{2, 1}, 0, onePixel}, Clipboard::kNoWait).status.code));
 #if DESKTOP_INTERNAL_TEST_HOOKS
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardAccess);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardAccess);
     static_cast<void>(context.expectEq(
         "maximum positive timeout saturates its deadline without waiting",
         ErrorCode::ResourceBusy,
@@ -544,46 +544,46 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     static_cast<void>(context.expectEq("preparation failure preserves old clipboard", std::string{"preserve me"}, *Clipboard::readText()));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-    Desktop::TestHooks::resetFailures();
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardAccess);
+    Desktop::Internal::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardAccess);
     static_cast<void>(context.expectEq("access busy is deterministic", ErrorCode::ResourceBusy, Clipboard::readText(Clipboard::kNoWait).status.code));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardAccess);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardAccess);
     static_cast<void>(context.expectEq("convenience overload shares access semantics", ErrorCode::ResourceBusy, Clipboard::readText().status.code));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardAllocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardAllocation);
     const auto allocationFailure = Clipboard::writeText("allocation");
     static_cast<void>(context.expectEq("allocation failure translates", ErrorCode::OutOfMemory, allocationFailure.status.code));
     static_cast<void>(context.expectEq("allocation failure does not start", ClipboardTypes::CommitState::NotStarted, allocationFailure.commitState));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardOwnerCreation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardOwnerCreation);
     static_cast<void>(context.expectEq("helper owner failure translates", ErrorCode::OpenFailed, Clipboard::writeText("owner").status.code));
 
     static_cast<void>(Clipboard::write(items));
-    Desktop::TestHooks::failClipboardEnumerationAfter(1);
+    Desktop::Internal::TestHooks::failClipboardEnumerationAfter(1);
     const auto partialEnumeration = Clipboard::getFormats();
     static_cast<void>(context.expectEq("partial enumeration reports read failure", ErrorCode::ReadFailed, partialEnumeration.status.code));
     static_cast<void>(context.expectFalse("partial enumeration does not expose a failed payload", partialEnumeration.value.has_value()));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardRead);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardRead);
     static_cast<void>(context.expectEq("native read failure translates", ErrorCode::ReadFailed, Clipboard::readText().status.code));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardClear);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardClear);
     const auto clearFailure = Clipboard::write(items);
     static_cast<void>(context.expectEq("native clear failure does not start", ClipboardTypes::CommitState::NotStarted, clearFailure.commitState));
     static_cast<void>(context.expectEq("native clear failure publishes zero", std::size_t{0}, clearFailure.formatsPublished));
 
-    Desktop::TestHooks::failClipboardPublicationAt(0);
+    Desktop::Internal::TestHooks::failClipboardPublicationAt(0);
     const auto firstFailure = Clipboard::write(items);
     static_cast<void>(context.expectEq("first publication failure reports Cleared", ClipboardTypes::CommitState::Cleared, firstFailure.commitState));
     static_cast<void>(context.expectEq("first publication failure count is zero", std::size_t{0}, firstFailure.formatsPublished));
 
-    Desktop::TestHooks::failClipboardPublicationAt(2);
+    Desktop::Internal::TestHooks::failClipboardPublicationAt(2);
     const auto partialFailure = Clipboard::write(items);
     static_cast<void>(
         context.expectEq("later publication failure is partial", ClipboardTypes::CommitState::PartiallyPublished, partialFailure.commitState));
     static_cast<void>(context.expectEq("partial publication reports exact prefix", std::size_t{2}, partialFailure.formatsPublished));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardClose);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardClose);
     const auto closeAfterWrite = Clipboard::writeText("committed despite close failure");
     static_cast<void>(context.expectEq("close failure after full publication is reported", ErrorCode::CloseFailed, closeAfterWrite.status.code));
     static_cast<void>(context.expectEq("close failure preserves Published", ClipboardTypes::CommitState::Published, closeAfterWrite.commitState));
@@ -591,11 +591,11 @@ void testClipboardMultiFormatAndFailures(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("published side effect survives close failure", std::string{"committed despite close failure"}, *Clipboard::readText()));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ClipboardClose);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ClipboardClose);
     const auto closeAfterClear = Clipboard::clear();
     static_cast<void>(context.expectEq("close failure after clear is reported", ErrorCode::CloseFailed, closeAfterClear.status.code));
     static_cast<void>(context.expectTrue("close failure preserves cleared side effect", closeAfterClear.cleared));
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
 #endif
 
     std::atomic_bool holderReady = false;

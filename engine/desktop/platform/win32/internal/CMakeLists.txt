@@ -1,6 +1,7 @@
 target_sources(
     Desktop
     PRIVATE
+        test_hooks.h
         win32_accessibility.h
         win32_accessibility_helpers.h
         win32_accessibility_provider.h
@@ -9,8 +10,8 @@ target_sources(
         win32_data_transfer.h
         win32_shell_helpers.h
         win32_shell_launch.h
-        win32_window_backend.h
         win32_unicode.h
+        win32_window_backend.h
 )
 
 add_subdirectory(helpers)

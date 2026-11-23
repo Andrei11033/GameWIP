@@ -8,15 +8,20 @@ Desktop deterministic failure/state hooks are source-tree-only and are enabled w
 `desktop/internal/desktop_test_hooks.h` is not installed and is not a supported consumer header. Installed package validation explicitly checks that
 `DESKTOP_INTERNAL_TEST_HOOKS` does not leak through `GameWIP::Desktop`.
 
+Win32-only native hooks are declared in `desktop/platform/win32/internal/test_hooks.h`. That header is also source-tree-only and is compiled only
+when internal test hooks are enabled.
+
 ## Reset rule
 
-Failure controls and armed dialog completions belong to the calling thread.
-Call `resetFailures()` before each scenario and before cleanup or leaving it.
-`failNext()` arms one failure point; a later call replaces an unconsumed point.
-The point clears when its matching boundary consumes it. Indexed publication,
-enumeration, cursor-creation, and consecutive-revocation controls remain armed
-until consumed or reset. Inspect captured dialog snapshots before resetting:
-reset also clears completions and their last snapshots.
+Failure controls belong to the calling thread. Call `resetFailures()` before
+each scenario and before cleanup or leaving it. `failNext()` arms one failure
+point; a later call replaces an unconsumed point. The point clears when its
+matching boundary consumes it. Indexed publication, enumeration,
+cursor-creation, and consecutive-revocation controls remain armed until
+consumed or reset.
+
+Win32 dialog completions and snapshots have separate state. Use
+`GameWIP::Desktop::Internal::TestHooks::Win32::resetDialogState()` to clear them.
 
 Reset does not undo native mutations or remove live resources. Close the
 resources through their public API after clearing failure controls. Native
@@ -104,19 +109,19 @@ the first open; reset before retry and before native cleanup:
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
 namespace D = GameWIP::Desktop;
-D::TestHooks::resetFailures();
+D::Internal::TestHooks::resetFailures();
 D::NotificationCenter center;
-D::TestHooks::failNext(D::TestHooks::FailurePoint::ShellNativeOpen);
+D::Internal::TestHooks::failNext(D::Internal::TestHooks::FailurePoint::ShellNativeOpen);
 const auto failed = center.open();
 // Expect failed.code == GameWIP::IO::Types::ErrorCode::NativeFailure.
-D::TestHooks::resetFailures();
+D::Internal::TestHooks::resetFailures();
 const auto retried = center.open();
-D::TestHooks::resetFailures();
+D::Internal::TestHooks::resetFailures();
 if(retried.ok())
 {
     static_cast<void>(center.close());
 }
-D::TestHooks::resetFailures();
+D::Internal::TestHooks::resetFailures();
 #endif
 ```
 

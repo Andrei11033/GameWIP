@@ -25,7 +25,7 @@ namespace GameWIP::Desktop
         class Facade;
     } // namespace Accessibility
 
-    namespace Detail
+    namespace Internal
     {
         struct AccessibilityState;
         struct AccessibilityStateDeleter
@@ -36,7 +36,7 @@ namespace GameWIP::Desktop
         class PresentationPublicationState;
         struct WindowState;
         struct WindowAccess;
-    } // namespace Detail
+    } // namespace Internal
 
     namespace Types
     {
@@ -507,11 +507,11 @@ namespace GameWIP::Desktop
         /// @}
 
     private:
-        friend struct Detail::WindowAccess;
-        std::unique_ptr<Detail::PresentationPublicationState> presentationPublication_; ///< Lazy, one-way concurrent-read state.
-        std::unique_ptr<Detail::WindowState> state_;
-        std::unique_ptr<Detail::RendererIntegrationState> rendererIntegration_;
-        std::unique_ptr<Detail::AccessibilityState, Detail::AccessibilityStateDeleter>
+        friend struct Internal::WindowAccess;
+        std::unique_ptr<Internal::PresentationPublicationState> presentationPublication_; ///< Lazy, one-way concurrent-read state.
+        std::unique_ptr<Internal::WindowState> state_;
+        std::unique_ptr<Internal::RendererIntegrationState> rendererIntegration_;
+        std::unique_ptr<Internal::AccessibilityState, Internal::AccessibilityStateDeleter>
             accessibilityState_; ///< Lazy state retained across open lifetimes.
     };
 } // namespace GameWIP::Desktop

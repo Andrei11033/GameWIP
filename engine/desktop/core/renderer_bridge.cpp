@@ -17,9 +17,9 @@ namespace GameWIP::Desktop::Renderer
     namespace
     {
         /// @brief Validates that a renderer bridge operation runs on a live Window owner thread.
-        [[nodiscard]] IO::Types::Status requireOwner(Window &window, Detail::WindowState *&state) noexcept
+        [[nodiscard]] IO::Types::Status requireOwner(Window &window, Internal::WindowState *&state) noexcept
         {
-            state = Detail::WindowAccess::state(window);
+            state = Internal::WindowAccess::state(window);
 
             if(state == nullptr || !window.isOpen())
             {
@@ -35,15 +35,15 @@ namespace GameWIP::Desktop::Renderer
         }
 
         /// @brief Lazily creates optional renderer state while converting allocation failures to null.
-        [[nodiscard]] Detail::RendererIntegrationState *ensureIntegration(Window &window) noexcept
+        [[nodiscard]] Internal::RendererIntegrationState *ensureIntegration(Window &window) noexcept
         {
             try
             {
-                if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+                if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
                 {
                     return nullptr;
                 }
-                return Detail::WindowAccess::ensureRendererIntegration(window);
+                return Internal::WindowAccess::ensureRendererIntegration(window);
             }
             catch(...)
             {
@@ -58,7 +58,7 @@ namespace GameWIP::Desktop::Renderer
 
     IO::Types::Status enableConcurrentPresentationReads(Window &window) noexcept
     {
-        Detail::WindowState *state = nullptr;
+        Internal::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
 
         if(!status.ok())
@@ -66,24 +66,24 @@ namespace GameWIP::Desktop::Renderer
             return status;
         }
 
-        if(Detail::WindowAccess::presentationPublication(window) != nullptr)
+        if(Internal::WindowAccess::presentationPublication(window) != nullptr)
         {
             return IO::successStatus();
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+        if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
 
         try
         {
-            auto publication = std::make_unique<Detail::PresentationPublicationState>();
-            Detail::publishCachedPresentationState(*publication, *state);
-            const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+            auto publication = std::make_unique<Internal::PresentationPublicationState>();
+            Internal::publishCachedPresentationState(*publication, *state);
+            const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
             publication->publishOccluded(renderer != nullptr && renderer->occlusionProviderAttached && renderer->occluded);
-            Detail::WindowAccess::presentationPublicationOwner(window) = std::move(publication);
-            Detail::WindowAccess::bindPresentationPublication(window, *state);
+            Internal::WindowAccess::presentationPublicationOwner(window) = std::move(publication);
+            Internal::WindowAccess::bindPresentationPublication(window, *state);
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -98,7 +98,7 @@ namespace GameWIP::Desktop::Renderer
 
     bool concurrentPresentationReadsEnabled(const Window &window) noexcept
     {
-        return Detail::WindowAccess::presentationPublication(window) != nullptr;
+        return Internal::WindowAccess::presentationPublication(window) != nullptr;
     }
 
     /// ------------------------------------------------------------
@@ -107,7 +107,7 @@ namespace GameWIP::Desktop::Renderer
 
     IO::Types::Status attachOcclusionProvider(Window &window) noexcept
     {
-        Detail::WindowState *state = nullptr;
+        Internal::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
 
         if(!status.ok())
@@ -119,7 +119,7 @@ namespace GameWIP::Desktop::Renderer
         {
             return IO::makeStatus(IO::Types::ErrorCode::Unsupported);
         }
-        Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
 
         if(renderer != nullptr && renderer->occlusionProviderAttached)
         {
@@ -138,7 +138,7 @@ namespace GameWIP::Desktop::Renderer
         renderer->occlusionProviderAttached = true;
         renderer->occluded = false;
 
-        if(Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+        if(Internal::PresentationPublicationState *publication = Internal::WindowAccess::presentationPublication(window))
         {
             publication->publishOccluded(false);
         }
@@ -148,13 +148,13 @@ namespace GameWIP::Desktop::Renderer
 
     bool hasOcclusionProvider(const Window &window) noexcept
     {
-        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
         return window.isOpen() && window.ownedByCurrentThread() && renderer != nullptr && renderer->occlusionProviderAttached;
     }
 
     IO::Types::Status reportOcclusion(Window &window, bool occluded) noexcept
     {
-        Detail::WindowState *state = nullptr;
+        Internal::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
 
         if(!status.ok())
@@ -162,7 +162,7 @@ namespace GameWIP::Desktop::Renderer
             return status;
         }
 
-        Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
 
         if(renderer == nullptr || !renderer->occlusionProviderAttached)
         {
@@ -175,18 +175,18 @@ namespace GameWIP::Desktop::Renderer
         }
         renderer->occluded = occluded;
 
-        if(Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+        if(Internal::PresentationPublicationState *publication = Internal::WindowAccess::presentationPublication(window))
         {
             publication->publishOccluded(occluded);
         }
 
-        static_cast<void>(Detail::enqueueEvent(*state, Types::Events::OcclusionChanged{occluded}));
+        static_cast<void>(Internal::enqueueEvent(*state, Types::Events::OcclusionChanged{occluded}));
         return IO::successStatus();
     }
 
     IO::Types::Status detachOcclusionProvider(Window &window) noexcept
     {
-        Detail::WindowState *state = nullptr;
+        Internal::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
 
         if(!status.ok())
@@ -194,7 +194,7 @@ namespace GameWIP::Desktop::Renderer
             return status;
         }
 
-        Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
 
         if(renderer == nullptr || !renderer->occlusionProviderAttached)
         {
@@ -202,7 +202,7 @@ namespace GameWIP::Desktop::Renderer
         }
         renderer->occlusionProviderAttached = false;
 
-        if(Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+        if(Internal::PresentationPublicationState *publication = Internal::WindowAccess::presentationPublication(window))
         {
             publication->publishOccluded(false);
         }
@@ -210,7 +210,7 @@ namespace GameWIP::Desktop::Renderer
         if(renderer->occluded)
         {
             renderer->occluded = false;
-            static_cast<void>(Detail::enqueueEvent(*state, Types::Events::OcclusionChanged{false}));
+            static_cast<void>(Internal::enqueueEvent(*state, Types::Events::OcclusionChanged{false}));
         }
 
         return IO::successStatus();
@@ -243,7 +243,7 @@ namespace GameWIP::Desktop::Renderer
     /// @brief Reserves a generation and exact target size for a two-phase hit-mask publication.
     Types::Result<Types::Renderer::PointerHitMaskTarget> beginPointerHitMaskUpdate(Window &window) noexcept
     {
-        Detail::WindowState *state = nullptr;
+        Internal::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
 
         if(!status.ok())
@@ -251,7 +251,7 @@ namespace GameWIP::Desktop::Renderer
             return {.status = status};
         }
 
-        Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
         const bool enabledForTesting = renderer != nullptr && renderer->pointerHitMaskBackendSupportedForTesting;
 
         if(!window.supports(Types::Capability::PointerHitMask) && !enabledForTesting)
@@ -306,7 +306,7 @@ namespace GameWIP::Desktop::Renderer
         std::uint64_t generation,
         std::span<const Types::Renderer::PointerHitMaskWord> words) noexcept
     {
-        Detail::WindowState *state = nullptr;
+        Internal::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
 
         if(!status.ok())
@@ -314,7 +314,7 @@ namespace GameWIP::Desktop::Renderer
             return status;
         }
 
-        Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
 
         if(renderer == nullptr || generation == 0 || generation != renderer->pointerHitMaskTargetGeneration)
         {
@@ -361,7 +361,7 @@ namespace GameWIP::Desktop::Renderer
 
         try
         {
-            if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
             }
@@ -387,7 +387,7 @@ namespace GameWIP::Desktop::Renderer
     /// @brief Invalidates the active hit mask without replacing the renderer integration state.
     IO::Types::Status clearPointerHitMask(Window &window) noexcept
     {
-        Detail::WindowState *state = nullptr;
+        Internal::WindowState *state = nullptr;
         IO::Types::Status status = requireOwner(window, state);
 
         if(!status.ok())
@@ -395,14 +395,14 @@ namespace GameWIP::Desktop::Renderer
             return status;
         }
 
-        Detail::invalidatePointerHitMask(*state);
+        Internal::invalidatePointerHitMask(*state);
         return IO::successStatus();
     }
 
     bool hasPointerHitMask(const Window &window) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        const Internal::WindowState *state = Internal::WindowAccess::state(window);
+        const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
         return state != nullptr && window.isOpen() && window.ownedByCurrentThread() && renderer != nullptr && !renderer->pointerHitMask.empty() &&
                renderer->pointerHitMaskActiveGeneration != 0 && renderer->pointerHitMaskSize == state->framebufferSize;
     }

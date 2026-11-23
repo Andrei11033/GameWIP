@@ -3,7 +3,7 @@
 
 #include "desktop/internal/child_surface_state.h"
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     namespace
     {
@@ -129,4 +129,4 @@ namespace GameWIP::Desktop::Detail
         ++state.eventCount;
         return ChildSurfaceEnqueueResult::Queued;
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

@@ -20,7 +20,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     struct WindowState;
 
@@ -231,4 +231,4 @@ namespace GameWIP::Desktop::Detail
             return center.state_.get();
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

@@ -2,7 +2,7 @@
 /// @brief Portable Clipboard overload forwarding and single-item composition.
 
 #include "desktop/clipboard.h"
-#include "desktop/internal/clipboard_platform.h"
+#include "desktop/platform/clipboard.h"
 
 #include <array>
 
@@ -19,7 +19,7 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Result<bool> hasFormat(Types::DataTransfer::FormatView format, std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardHasFormat(format, timeout);
+        return Platform::clipboardHasFormat(format, timeout);
     }
 
     Types::Result<std::vector<Types::DataTransfer::Format>> getFormats() noexcept
@@ -29,7 +29,7 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Result<std::vector<Types::DataTransfer::Format>> getFormats(std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardGetFormats(timeout);
+        return Platform::clipboardGetFormats(timeout);
     }
 
     Types::Result<std::string> readText() noexcept
@@ -39,7 +39,7 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Result<std::string> readText(std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardReadText(timeout);
+        return Platform::clipboardReadText(timeout);
     }
 
     Types::Result<std::vector<FileSystem::Types::Path>> readFiles() noexcept
@@ -49,7 +49,7 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Result<std::vector<FileSystem::Types::Path>> readFiles(std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardReadFiles(timeout);
+        return Platform::clipboardReadFiles(timeout);
     }
 
     Types::Result<Types::DataTransfer::Image> readImage() noexcept
@@ -59,7 +59,7 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Result<Types::DataTransfer::Image> readImage(std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardReadImage(timeout);
+        return Platform::clipboardReadImage(timeout);
     }
 
     Types::Result<std::vector<std::byte>> readCustomData(std::string_view formatName) noexcept
@@ -69,7 +69,7 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Result<std::vector<std::byte>> readCustomData(std::string_view formatName, std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardReadCustomData(formatName, timeout);
+        return Platform::clipboardReadCustomData(formatName, timeout);
     }
 
     Types::Clipboard::WriteResult writeText(std::string_view text) noexcept
@@ -123,7 +123,7 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Clipboard::WriteResult write(std::span<const Types::DataTransfer::ItemView> items, std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardWrite(items, timeout);
+        return Platform::clipboardWrite(items, timeout);
     }
 
     Types::Clipboard::ClearResult clear() noexcept
@@ -133,6 +133,6 @@ namespace GameWIP::Desktop::Clipboard
 
     Types::Clipboard::ClearResult clear(std::chrono::milliseconds timeout) noexcept
     {
-        return Detail::Platform::clipboardClear(timeout);
+        return Platform::clipboardClear(timeout);
     }
 } // namespace GameWIP::Desktop::Clipboard

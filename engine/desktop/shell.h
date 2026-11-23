@@ -16,11 +16,11 @@
 
 namespace GameWIP::Desktop
 {
-    namespace Detail
+    namespace Internal
     {
         struct ShellEventQueueState;
         struct ShellEventQueueAccess;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Shell
@@ -141,9 +141,9 @@ namespace GameWIP::Desktop
         /// @}
 
     private:
-        friend struct Detail::ShellEventQueueAccess;
+        friend struct Internal::ShellEventQueueAccess;
 
-        std::unique_ptr<Detail::ShellEventQueueState> state_;
+        std::unique_ptr<Internal::ShellEventQueueState> state_;
     };
 } // namespace GameWIP::Desktop
 

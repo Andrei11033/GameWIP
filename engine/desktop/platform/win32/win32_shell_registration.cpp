@@ -1,7 +1,7 @@
 /// @file win32_shell_registration.cpp
 /// @brief Win32 file and URI registration backend.
 
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/win32/internal/win32_shell_launch.h"
@@ -25,7 +25,7 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     using IO::Types::ErrorCode;
 
@@ -171,7 +171,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status deleteRegistryTree(HKEY key, std::wstring_view name, std::string_view operation)
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ShellRegistryDelete))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellRegistryDelete))
             {
                 return registryStatus(ERROR_ACCESS_DENIED, operation);
             }
@@ -184,7 +184,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status deleteRegistryKey(HKEY root, std::wstring_view path, std::string_view operation)
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ShellRegistryDelete))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellRegistryDelete))
             {
                 return registryStatus(ERROR_ACCESS_DENIED, operation);
             }
@@ -197,7 +197,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status removeRegistryValue(HKEY key, std::wstring_view name)
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ShellRegistryDelete))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellRegistryDelete))
             {
                 return registryStatus(ERROR_ACCESS_DENIED, "remove owned registration value");
             }
@@ -1931,4 +1931,4 @@ namespace GameWIP::Desktop::Detail::Platform
         return unregisterRegistrationTarget(ownerKey, scheme, false);
     }
 
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

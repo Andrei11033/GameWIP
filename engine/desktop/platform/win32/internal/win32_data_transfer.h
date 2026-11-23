@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform::DataTransfer
+namespace GameWIP::Desktop::Platform::DataTransfer
 {
     /// @brief Native clipboard payload prepared for HGLOBAL publication.
     struct PreparedItem
@@ -42,4 +42,4 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
     [[nodiscard]] CLIPFORMAT nativeFormat(const Types::DataTransfer::Format &, IO::Types::Status &) noexcept;
     /// @brief Compares portable formats using the native identity of custom formats.
     [[nodiscard]] bool equivalent(const Types::DataTransfer::Format &, const Types::DataTransfer::Format &) noexcept;
-} // namespace GameWIP::Desktop::Detail::Platform::DataTransfer
+} // namespace GameWIP::Desktop::Platform::DataTransfer

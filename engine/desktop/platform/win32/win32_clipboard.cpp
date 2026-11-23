@@ -1,7 +1,7 @@
 /// @file win32_clipboard.cpp
 /// @brief Win32 Clipboard service backend and native data-transfer conversion.
 
-#include "desktop/internal/clipboard_platform.h"
+#include "desktop/platform/clipboard.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
@@ -21,7 +21,7 @@
 #include <utility>
 #include <variant>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Clipboard ownership and conversion helpers
@@ -177,7 +177,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::time_point::max() - started);
                 const auto deadline = timeout >= maximumWait ? std::chrono::steady_clock::time_point::max() : started + timeout;
 
-                if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAccess))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardAccess))
                 {
                     return status(ErrorCode::ResourceBusy, ERROR_BUSY);
                 }
@@ -215,7 +215,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 }
                 open_ = false;
                 SetLastError(ERROR_SUCCESS);
-                const bool injected = Detail::consumeFailure(TestHooks::FailurePoint::ClipboardClose);
+                const bool injected = Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardClose);
 
                 if(CloseClipboard() == FALSE)
                 {
@@ -344,7 +344,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             for(;;)
             {
-                if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardEnumeration))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardEnumeration))
                 {
                     nativeCode = ERROR_GEN_FAILURE;
                     return 0;
@@ -412,7 +412,7 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Converts one portable item and owns its native clipboard storage.
         [[nodiscard]] IO::Types::Status prepareItem(const Transfer::ItemView &item, PreparedItem &prepared)
         {
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardAllocation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardAllocation))
             {
                 return status(ErrorCode::OutOfMemory);
             }
@@ -570,8 +570,8 @@ namespace GameWIP::Desktop::Detail::Platform
 
             for(;;)
             {
-                if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardEnumeration) ||
-                   Detail::consumeClipboardEnumerationFailure(formats.size()))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardEnumeration) ||
+                   Internal::consumeClipboardEnumerationFailure(formats.size()))
                 {
                     result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
                     break;
@@ -676,7 +676,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 result.status = status(ErrorCode::NotFound);
             }
-            else if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardRead))
+            else if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardRead))
             {
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             }
@@ -732,7 +732,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 result.status = status(ErrorCode::NotFound);
             }
-            else if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardRead))
+            else if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardRead))
             {
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             }
@@ -789,7 +789,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 result.status = IsClipboardFormatAvailable(CF_BITMAP) != FALSE ? status(ErrorCode::Unsupported) : status(ErrorCode::NotFound);
             }
-            else if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardRead))
+            else if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardRead))
             {
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             }
@@ -860,7 +860,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 result.status = nativeCode == ERROR_SUCCESS ? status(ErrorCode::NotFound) : status(ErrorCode::ReadFailed, nativeCode);
             }
-            else if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardRead))
+            else if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardRead))
             {
                 result.status = status(ErrorCode::ReadFailed, ERROR_GEN_FAILURE);
             }
@@ -929,7 +929,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 prepared.push_back(std::move(native));
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardOwnerCreation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardOwnerCreation))
             {
                 result.status = status(ErrorCode::OpenFailed, ERROR_GEN_FAILURE);
                 return result;
@@ -950,7 +950,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             SetLastError(ERROR_SUCCESS);
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardClear) || EmptyClipboard() == FALSE)
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardClear) || EmptyClipboard() == FALSE)
             {
                 result.status = status(ErrorCode::WriteFailed, GetLastError());
                 result.status = closePreservingPrimary(session, std::move(result.status));
@@ -963,7 +963,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 PreparedItem &item = prepared[index];
                 SetLastError(ERROR_SUCCESS);
 
-                if(Detail::consumeClipboardPublicationFailure(index) || SetClipboardData(item.format, item.memory.get()) == nullptr)
+                if(Internal::consumeClipboardPublicationFailure(index) || SetClipboardData(item.format, item.memory.get()) == nullptr)
                 {
                     result.status = status(ErrorCode::WriteFailed, GetLastError());
                     result.commitState =
@@ -1000,7 +1000,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return result;
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardOwnerCreation))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardOwnerCreation))
         {
             result.status = status(ErrorCode::OpenFailed, ERROR_GEN_FAILURE);
             return result;
@@ -1024,7 +1024,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
         SetLastError(ERROR_SUCCESS);
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ClipboardClear) || EmptyClipboard() == FALSE)
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ClipboardClear) || EmptyClipboard() == FALSE)
         {
             result.status = status(ErrorCode::WriteFailed, GetLastError());
         }
@@ -1036,4 +1036,4 @@ namespace GameWIP::Desktop::Detail::Platform
         result.status = closePreservingPrimary(session, std::move(result.status));
         return result;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

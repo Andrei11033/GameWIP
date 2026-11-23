@@ -9,8 +9,18 @@
 #include <exception>
 #include <map>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
+    /// ------------------------------------------------------------
+    /// Shared portable accessibility state
+    /// ------------------------------------------------------------
+
+    namespace A = Internal::A;
+    using Internal::AccessibilityHostGeometry;
+    using Internal::AccessibilityNativeSnapshot;
+    using Internal::AccessibilityNativeState;
+    using Internal::AccessibilityTextCache;
+
     struct UiaState;
     class NodeProvider;
     class TextRangeProvider;
@@ -355,4 +365,4 @@ namespace GameWIP::Desktop::Detail::Platform
 #if defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

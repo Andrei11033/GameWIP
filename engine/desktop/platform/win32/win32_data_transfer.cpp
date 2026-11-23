@@ -16,7 +16,7 @@
 #include <string>
 #include <variant>
 
-namespace GameWIP::Desktop::Detail::Platform::DataTransfer
+namespace GameWIP::Desktop::Platform::DataTransfer
 {
     /// ------------------------------------------------------------
     /// Checked native storage and ownership
@@ -829,4 +829,4 @@ namespace GameWIP::Desktop::Detail::Platform::DataTransfer
         result = getGlobal(object, native, medium);
         return result.ok() ? materializeGlobal(medium.global(), format, out) : result;
     }
-} // namespace GameWIP::Desktop::Detail::Platform::DataTransfer
+} // namespace GameWIP::Desktop::Platform::DataTransfer

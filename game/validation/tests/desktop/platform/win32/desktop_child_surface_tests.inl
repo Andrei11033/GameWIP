@@ -159,7 +159,7 @@ void testChildSurfaces(TestSupport::Context &context)
 
     // Verify visibility, interaction, and sibling stacking behavior.
     static_cast<void>(context.expectTrue("ChildSurface show is idempotent", surface.show().ok()));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::WindowStyleQuery);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::WindowStyleQuery);
     static_cast<void>(context.expectEq("visibility query failure is returned", ErrorCode::NativeFailure, surface.hide().code));
     static_cast<void>(context.expectTrue("visibility query failure preserves cache", surface.visible()));
     static_cast<void>(context.expectTrue(
@@ -260,19 +260,19 @@ void testChildSurfaces(TestSupport::Context &context)
 #if DESKTOP_INTERNAL_TEST_HOOKS
     // Validate DPI normalization and content-scale event coalescing.
     const Desktop::Types::LogicalRect dpiRect{{-15, 12}, {800, 600}};
-    const auto dpi96 = Desktop::TestHooks::calculateChildSurfaceDpiTransition(dpiRect, 96);
-    const auto dpi144 = Desktop::TestHooks::calculateChildSurfaceDpiTransition(dpi96.logicalRect, 144);
-    const auto dpi144Again = Desktop::TestHooks::calculateChildSurfaceDpiTransition(dpi144.logicalRect, 144);
+    const auto dpi96 = Desktop::Internal::TestHooks::calculateChildSurfaceDpiTransition(dpiRect, 96);
+    const auto dpi144 = Desktop::Internal::TestHooks::calculateChildSurfaceDpiTransition(dpi96.logicalRect, 144);
+    const auto dpi144Again = Desktop::Internal::TestHooks::calculateChildSurfaceDpiTransition(dpi144.logicalRect, 144);
     static_cast<void>(context.expectEq("ChildSurface DPI transition preserves logical rect", dpiRect, dpi144.logicalRect));
     static_cast<void>(context.expectEq("ChildSurface DPI transition scales physical pixels", Desktop::Types::PixelSize{1200, 900}, dpi144.pixelSize));
     static_cast<void>(context.expectEq("ChildSurface DPI conversion has no cumulative drift", dpi144.pixelSize, dpi144Again.pixelSize));
 
     // Preserve native-destruction notifications when the queue is full.
     surface.clearEvents();
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         surface,
         ChildEvents::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         surface,
         ChildEvents::ContentScaleChanged{{1.25F, 1.25F}, {1.5F, 1.5F}, {120.0F, 120.0F}, {144.0F, 144.0F}, {1200, 900}}));
     static_cast<void>(context.expectEq("ChildSurface scale transitions coalesce", std::size_t{1}, surface.eventQueueInfo().pendingEvents));
@@ -290,10 +290,10 @@ void testChildSurfaces(TestSupport::Context &context)
         static_cast<void>(context.expectEq("ChildSurface DPI keeps latest result", Desktop::Types::Dpi{144.0F, 144.0F}, scale->dpi));
         static_cast<void>(context.expectEq("ChildSurface scale keeps latest pixels", Desktop::Types::PixelSize{1200, 900}, scale->pixelSize));
     }
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         surface,
         ChildEvents::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         surface,
         ChildEvents::ContentScaleChanged{{1.25F, 1.25F}, {1.0F, 1.0F}, {120.0F, 120.0F}, {96.0F, 96.0F}, {800, 600}}));
     static_cast<void>(context.expectEq("net-zero ChildSurface scale transition is removed", std::size_t{0}, surface.eventQueueInfo().pendingEvents));
@@ -304,7 +304,8 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(surface.setPosition({2, 2}));
     static_cast<void>(surface.show());
     static_cast<void>(context.expectEq("two-slot queue fills", std::size_t{2}, surface.eventQueueInfo().pendingEvents));
-    static_cast<void>(context.expectTrue("unexpected native host destruction succeeds", Desktop::TestHooks::destroyNativeChildSurface(surface).ok()));
+    static_cast<void>(
+        context.expectTrue("unexpected native host destruction succeeds", Desktop::Internal::TestHooks::destroyNativeChildSurface(surface).ok()));
     static_cast<void>(context.expectFalse("unexpected native destruction closes native access", surface.isOpen()));
     static_cast<void>(context.expectEq(
         "unexpected native destruction retains pending-finalize state",
@@ -340,12 +341,12 @@ void testChildSurfaces(TestSupport::Context &context)
         pumpedSurface.lifetimeState()));
     static_cast<void>(pumpedSurface.close());
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     static_cast<void>(context.expectEq(
         "ChildSurface allocation failure is translated",
         ErrorCode::OutOfMemory,
         surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).code));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::NativeCreation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
     static_cast<void>(context.expectEq(
         "ChildSurface native creation failure rolls back",
         ErrorCode::OpenFailed,
@@ -354,7 +355,7 @@ void testChildSurfaces(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "ChildSurface recovers after open rollback",
         surface.open(parent, {}, Desktop::Types::ChildSurface::QueueConfiguration::owned(4)).ok()));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Close);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Close);
     static_cast<void>(context.expectEq("ChildSurface close failure is retryable", ErrorCode::CloseFailed, surface.close().code));
     static_cast<void>(context.expectTrue("failed ChildSurface close preserves native lifetime", surface.isOpen()));
     static_cast<void>(context.expectTrue("ChildSurface close retry succeeds", surface.close().ok()));

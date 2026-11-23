@@ -2,9 +2,10 @@
 /// @brief Win32 process runtime, registries, dispatcher ownership, and native operations.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
-#include "desktop/internal/child_surface_platform.h"
-#include "desktop/internal/drag_drop_platform.h"
-#include "desktop/internal/dialogs_platform.h"
+#include "desktop/platform/child_surface.h"
+#include "desktop/platform/drag_drop.h"
+#include "desktop/platform/dialogs.h"
+#include "desktop/platform/win32/internal/test_hooks.h"
 
 #include <algorithm>
 #include <array>
@@ -12,7 +13,7 @@
 #include <limits>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Process and thread registries
@@ -381,20 +382,12 @@ namespace GameWIP::Desktop::Detail::Platform
         return progressOwnerRestoreMessageState().error.load(std::memory_order_acquire);
     }
 
-#if DESKTOP_INTERNAL_TEST_HOOKS
-    /// @brief Reports whether progress-owner message registration has been attempted.
-    bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
-    {
-        return progressOwnerRestoreMessageState().attempted.load(std::memory_order_acquire);
-    }
-
-#endif
-
     /// @brief Queries a native window value with test-hook injection and error translation.
     IO::Types::Status queryWindowLong(HWND window, int index, LONG_PTR &value, const char *operation) noexcept
     {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-        if((index == GWL_STYLE || index == GWL_EXSTYLE) && Detail::consumeFailure(TestHooks::FailurePoint::WindowStyleQuery))
+        if((index == GWL_STYLE || index == GWL_EXSTYLE) &&
+           Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::WindowStyleQuery))
         {
             value = 0;
             return statusFromWin32(IO::Types::ErrorCode::NativeFailure, ERROR_GEN_FAILURE, operation);
@@ -954,7 +947,7 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Loads a system cursor resource for the portable cursor shape.
     HCURSOR loadCursor(Types::CursorShape shape) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::SystemCursorLoad))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::SystemCursorLoad))
         {
             SetLastError(ERROR_GEN_FAILURE);
             return nullptr;
@@ -1104,7 +1097,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::Cursor))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Cursor))
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
         }
@@ -1230,7 +1223,8 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Leaves exclusive mode and restores the saved desktop display mode.
     IO::Types::Status leaveExclusive(WindowState &state) noexcept
     {
-        if(state.platform && state.mode != Types::WindowMode::Windowed && Detail::consumeFailure(TestHooks::FailurePoint::DisplayRestoration))
+        if(state.platform && state.mode != Types::WindowMode::Windowed &&
+           Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayRestoration))
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
         }
@@ -1454,4 +1448,17 @@ namespace GameWIP::Desktop::Detail::Platform
         return true;
     }
 
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
+
+#if DESKTOP_INTERNAL_TEST_HOOKS
+namespace GameWIP::Desktop::Internal::TestHooks::Platform
+{
+    using namespace GameWIP::Desktop::Platform;
+
+    /// @brief Reports whether progress-owner message registration has been attempted.
+    bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
+    {
+        return progressOwnerRestoreMessageState().attempted.load(std::memory_order_acquire);
+    }
+} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
+#endif

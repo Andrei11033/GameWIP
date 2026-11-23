@@ -22,80 +22,84 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "no effect intersection rejects",
         DD::Effect::None,
-        Desktop::TestHooks::negotiateDragDropEffect(DD::Effect::Copy, DD::Effect::Move, DD::Effect::Move)));
+        Desktop::Internal::TestHooks::negotiateDragDropEffect(DD::Effect::Copy, DD::Effect::Move, DD::Effect::Move)));
     static_cast<void>(context.expectEq(
         "single effect intersection wins",
         DD::Effect::Move,
-        Desktop::TestHooks::negotiateDragDropEffect(all, DD::Effect::Move, DD::Effect::Move)));
-    static_cast<void>(
-        context.expectEq("preferred candidate wins", DD::Effect::Link, Desktop::TestHooks::negotiateDragDropEffect(all, all, DD::Effect::Link)));
-    static_cast<void>(
-        context.expectEq("fallback prefers Copy", DD::Effect::Copy, Desktop::TestHooks::negotiateDragDropEffect(all, all, DD::Effect::None)));
+        Desktop::Internal::TestHooks::negotiateDragDropEffect(all, DD::Effect::Move, DD::Effect::Move)));
+    static_cast<void>(context.expectEq(
+        "preferred candidate wins",
+        DD::Effect::Link,
+        Desktop::Internal::TestHooks::negotiateDragDropEffect(all, all, DD::Effect::Link)));
+    static_cast<void>(context.expectEq(
+        "fallback prefers Copy",
+        DD::Effect::Copy,
+        Desktop::Internal::TestHooks::negotiateDragDropEffect(all, all, DD::Effect::None)));
     static_cast<void>(context.expectEq(
         "fallback prefers Move when Copy is absent",
         DD::Effect::Move,
-        Desktop::TestHooks::negotiateDragDropEffect(DD::Effect::Move | DD::Effect::Link, all, DD::Effect::None)));
+        Desktop::Internal::TestHooks::negotiateDragDropEffect(DD::Effect::Move | DD::Effect::Link, all, DD::Effect::None)));
     static_cast<void>(context.expectEq(
         "fallback selects Link when it is the only candidate",
         DD::Effect::Link,
-        Desktop::TestHooks::negotiateDragDropEffect(DD::Effect::Link, all, DD::Effect::None)));
+        Desktop::Internal::TestHooks::negotiateDragDropEffect(DD::Effect::Link, all, DD::Effect::None)));
     static_cast<void>(context.expectEq(
         "invalid effect bits normalize to None",
         DD::Effect::None,
-        Desktop::TestHooks::negotiateDragDropEffect(static_cast<DD::Effect>(0x80), all, DD::Effect::Copy)));
+        Desktop::Internal::TestHooks::negotiateDragDropEffect(static_cast<DD::Effect>(0x80), all, DD::Effect::Copy)));
 
-    const DD::Result rejectedDrop = Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::None, DD::Effect::Copy);
+    const DD::Result rejectedDrop = Win32TestHooks::droppedDragDropSourceResult(DD::Effect::None, DD::Effect::Copy);
     static_cast<void>(context.expectTrue("rejected native drop completes successfully", rejectedDrop.status.ok()));
     static_cast<void>(context.expectEq("rejected native drop is cancelled", DD::Outcome::Cancelled, rejectedDrop.outcome));
     static_cast<void>(context.expectEq("rejected native drop performs no effect", DD::Effect::None, rejectedDrop.effect));
 
-    const DD::Result acceptedDrop = Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Move, all);
+    const DD::Result acceptedDrop = Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Move, all);
     static_cast<void>(context.expectTrue("accepted native drop completes successfully", acceptedDrop.status.ok()));
     static_cast<void>(context.expectEq("accepted native drop is dropped", DD::Outcome::Dropped, acceptedDrop.outcome));
     static_cast<void>(context.expectEq("accepted native drop reports its effect", DD::Effect::Move, acceptedDrop.effect));
     static_cast<void>(context.expectEq(
         "multiple native completion effects fail",
         ErrorCode::NativeFailure,
-        Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Copy | DD::Effect::Move, all).status.code));
+        Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Copy | DD::Effect::Move, all).status.code));
     static_cast<void>(context.expectEq(
         "unadvertised native completion effect fails",
         ErrorCode::NativeFailure,
-        Desktop::TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status.code));
+        Win32TestHooks::droppedDragDropSourceResult(DD::Effect::Move, DD::Effect::Copy).status.code));
 
     // Validate source payloads before opening a native target, including encoding and allocation failures.
 
     // Validate text payloads.
     std::array<Transfer::ItemView, 1> validTextItems{{Transfer::TextView{"text"}}};
     const DD::Description validSource{validTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left};
-    static_cast<void>(context.expectTrue("valid source data prepares", Desktop::TestHooks::prepareDragDropSource(validSource).ok()));
-    static_cast<void>(context.expectEq("empty source is invalid", ErrorCode::InvalidArgument, Desktop::TestHooks::prepareDragDropSource({}).code));
+    static_cast<void>(context.expectTrue("valid source data prepares", Win32TestHooks::prepareDragDropSource(validSource).ok()));
+    static_cast<void>(context.expectEq("empty source is invalid", ErrorCode::InvalidArgument, Win32TestHooks::prepareDragDropSource({}).code));
     DD::Description invalidSourceEffects = validSource;
     invalidSourceEffects.effects.allowed = static_cast<DD::Effect>(0x80);
     static_cast<void>(context.expectEq(
         "invalid source effect bits are rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource(invalidSourceEffects).code));
+        Win32TestHooks::prepareDragDropSource(invalidSourceEffects).code));
     DD::Description invalidTrigger = validSource;
     invalidTrigger.triggerButton = static_cast<DD::TriggerButton>(99);
     static_cast<void>(context.expectEq(
         "invalid source trigger is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource(invalidTrigger).code));
+        Win32TestHooks::prepareDragDropSource(invalidTrigger).code));
     std::array<Transfer::ItemView, 2> duplicateTextItems{{Transfer::TextView{"one"}, Transfer::TextView{"two"}}};
     static_cast<void>(context.expectEq(
         "duplicate native source formats are rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({duplicateTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({duplicateTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> malformedTextItems{{Transfer::TextView{std::string_view{"\xC3", 1}}}};
     static_cast<void>(context.expectEq(
         "malformed source UTF-8 is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({malformedTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({malformedTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> nulTextItems{{Transfer::TextView{std::string_view{"a\0b", 3}}}};
     static_cast<void>(context.expectEq(
         "source text embedded NUL is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({nulTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({nulTextItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
 
     // Validate custom format names and image dimensions.
     std::array<std::byte, 1> oneByte{std::byte{1}};
@@ -103,35 +107,35 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "malformed source custom name is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({malformedCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({malformedCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> nulCustomItems{{Transfer::CustomView{std::string_view{"a\0b", 3}, oneByte}}};
     static_cast<void>(context.expectEq(
         "source custom name embedded NUL is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({nulCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({nulCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> emptyCustomItems{{Transfer::CustomView{"GameWIP.Empty", {}}}};
     static_cast<void>(context.expectEq(
         "zero-byte custom source is unsupported",
         ErrorCode::Unsupported,
-        Desktop::TestHooks::prepareDragDropSource({emptyCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({emptyCustomItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
 
     std::array<std::byte, 3> invalidImageBytes{};
     std::array<Transfer::ItemView, 1> invalidImageItems{{Transfer::ImageView::strided({1, 1}, 0, invalidImageBytes)}};
     static_cast<void>(context.expectEq(
         "invalid image extent is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({invalidImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({invalidImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<Transfer::ItemView, 1> zeroImageItems{{Transfer::ImageView::strided({0, 1}, 0, {})}};
     static_cast<void>(context.expectEq(
         "zero image dimension is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({zeroImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({zeroImageItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::array<std::byte, 4> onePixel{};
     std::array<Transfer::ItemView, 1> invalidStrideItems{{Transfer::ImageView::strided({1, 1}, 3, onePixel)}};
     static_cast<void>(context.expectEq(
         "undersized image stride is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({invalidStrideItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({invalidStrideItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
 
     // Validate source file paths.
     std::array<GameWIP::FileSystem::Types::Path, 1> relativePaths{{L"relative.txt"}};
@@ -139,7 +143,7 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "relative source file path is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({relativeFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({relativeFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
     std::wstring malformedNativePath = L"C:\\";
     malformedNativePath.push_back(static_cast<wchar_t>(0xD800));
     std::array<GameWIP::FileSystem::Types::Path, 1> malformedPaths{{malformedNativePath}};
@@ -147,21 +151,21 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "malformed native Unicode source path is rejected",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::prepareDragDropSource({malformedFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
+        Win32TestHooks::prepareDragDropSource({malformedFileItems, DD::EffectPolicy::copy(), DD::TriggerButton::Left}).code));
 
     // Verify preparation allocation failure.
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropPreparation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropPreparation);
     static_cast<void>(context.expectEq(
         "source preparation failure is deterministic",
         ErrorCode::OutOfMemory,
-        Desktop::TestHooks::prepareDragDropSource(validSource).code));
+        Win32TestHooks::prepareDragDropSource(validSource).code));
 
     // Check apartment compatibility and native source materialization failures.
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropOleInitialization);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropOleInitialization);
     static_cast<void>(context.expectEq(
         "source OLE initialization failure is deterministic",
         ErrorCode::OpenFailed,
-        Desktop::TestHooks::testDragDropOleInitialization().code));
+        Win32TestHooks::testDragDropOleInitialization().code));
     ErrorCode compatiblePreinitialized = ErrorCode::Unknown;
     ErrorCode incompatibleApartment = ErrorCode::Unknown;
     std::thread compatibleApartmentThread(
@@ -171,7 +175,7 @@ void testDragDrop(TestSupport::Context &context)
 
             if(initialized == S_OK || initialized == S_FALSE)
             {
-                compatiblePreinitialized = Desktop::TestHooks::testDragDropOleInitialization().code;
+                compatiblePreinitialized = Win32TestHooks::testDragDropOleInitialization().code;
             }
 
             if(initialized == S_OK || initialized == S_FALSE)
@@ -188,7 +192,7 @@ void testDragDrop(TestSupport::Context &context)
 
             if(initialized == S_OK || initialized == S_FALSE)
             {
-                incompatibleApartment = Desktop::TestHooks::testDragDropOleInitialization().code;
+                incompatibleApartment = Win32TestHooks::testDragDropOleInitialization().code;
             }
 
             if(initialized == S_OK || initialized == S_FALSE)
@@ -198,12 +202,12 @@ void testDragDrop(TestSupport::Context &context)
         });
     incompatibleApartmentThread.join();
     static_cast<void>(context.expectEq("incompatible OLE apartment is ResourceBusy", ErrorCode::ResourceBusy, incompatibleApartment));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropMaterialization);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropMaterialization);
     static_cast<void>(context.expectEq(
         "target materialization failure is deterministic",
         ErrorCode::ReadFailed,
-        Desktop::TestHooks::testDragDropMaterialization().code));
-    static_cast<void>(context.expectTrue("source COM data-object and enumerator contracts hold", Desktop::TestHooks::dragDropComContractsValid()));
+        Win32TestHooks::testDragDropMaterialization().code));
+    static_cast<void>(context.expectTrue("source COM data-object and enumerator contracts hold", Win32TestHooks::dragDropComContractsValid()));
 
     // Check closed-target behavior and prepare a native Window.
     Desktop::DragDropTarget target;
@@ -326,19 +330,19 @@ void testDragDrop(TestSupport::Context &context)
         "impossible internal queue capacity is invalid",
         ErrorCode::InvalidArgument,
         target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(std::numeric_limits<std::size_t>::max())).code));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropOleInitialization);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropOleInitialization);
     static_cast<void>(context.expectEq(
         "target OLE initialization failure is deterministic",
         ErrorCode::OpenFailed,
         target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3)).code));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropRegistration);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropRegistration);
     static_cast<void>(context.expectEq(
         "native registration failure rolls back",
         ErrorCode::OpenFailed,
         target.open(window, DD::TargetDescription{regions}, DD::QueueConfiguration::owned(3)).code));
     static_cast<void>(context.expectFalse("failed registration leaves target closed", target.isOpen()));
     static_cast<void>(
-        context.expectEq("failed registration removes its active registry entry", std::size_t{0}, Desktop::TestHooks::activeDragDropTargetCount()));
+        context.expectEq("failed registration removes its active registry entry", std::size_t{0}, Win32TestHooks::activeDragDropTargetCount()));
     static_cast<void>(context.expectTrue("failed registration leaves the Window usable", window.isOpen()));
     static_cast<void>(context.expectFalse("failed registration preserves lightweight mode", window.fileDropEnabled()));
 
@@ -354,30 +358,30 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("target opens lazily", target.isOpen()));
     static_cast<void>(context.expectEq("target retains Window identity", window.id(), target.windowId()));
     static_cast<void>(context.expectTrue("target inherits owner thread", target.ownedByCurrentThread()));
-    static_cast<void>(context.expectEq("open copies every supplied region", std::size_t{2}, Desktop::TestHooks::dragDropRegionCount(target)));
+    static_cast<void>(
+        context.expectEq("open copies every supplied region", std::size_t{2}, Desktop::Internal::TestHooks::dragDropRegionCount(target)));
     static_cast<void>(context.expectEq(
         "whole-client region matches outside rectangles",
         DD::RegionId{1},
-        Desktop::TestHooks::matchDragDropRegion(target, {5, 5}, textFormat)));
+        Win32TestHooks::matchDragDropRegion(target, {5, 5}, textFormat)));
     static_cast<void>(
-        context.expectEq("last overlapping region wins", DD::RegionId{2}, Desktop::TestHooks::matchDragDropRegion(target, {30, 30}, textFormat)));
+        context.expectEq("last overlapping region wins", DD::RegionId{2}, Win32TestHooks::matchDragDropRegion(target, {30, 30}, textFormat)));
     regions[1].id = DD::RegionId{77};
     regions[1].rect = Desktop::Types::LogicalRect{{200, 100}, {10, 10}};
     static_cast<void>(context.expectEq(
         "open publishes a copy independent of caller region storage",
         DD::RegionId{2},
-        Desktop::TestHooks::matchDragDropRegion(target, {30, 30}, textFormat)));
+        Win32TestHooks::matchDragDropRegion(target, {30, 30}, textFormat)));
     regions[1] = {DD::RegionId{2}, Desktop::Types::LogicalRect{{20, 20}, {80, 60}}, textFormat, DD::EffectPolicy::copy()};
     std::array<Transfer::FormatView, 1> filesOnly{{Transfer::FormatView::files()}};
-    static_cast<void>(context.expectEq(
-        "unaccepted metadata produces no region",
-        DD::RegionId{},
-        Desktop::TestHooks::matchDragDropRegion(target, {30, 30}, filesOnly)));
+    static_cast<void>(
+        context.expectEq("unaccepted metadata produces no region", DD::RegionId{}, Win32TestHooks::matchDragDropRegion(target, {30, 30}, filesOnly)));
     static_cast<void>(context.expectTrue(
         "session allocation skips wrapped zero",
-        Desktop::TestHooks::nextDragDropSessionId(target, std::numeric_limits<std::uint64_t>::max()).isValid()));
-    static_cast<void>(
-        context.expectTrue("session allocation remains nonzero after wrap", Desktop::TestHooks::nextDragDropSessionId(target, 0).isValid()));
+        Desktop::Internal::TestHooks::nextDragDropSessionId(target, std::numeric_limits<std::uint64_t>::max()).isValid()));
+    static_cast<void>(context.expectTrue(
+        "session allocation remains nonzero after wrap",
+        Desktop::Internal::TestHooks::nextDragDropSessionId(target, 0).isValid()));
     static_cast<void>(
         context.expectEq("target reports internal queue", Desktop::Types::Events::StorageKind::Internal, target.eventQueueInfo().storage));
     static_cast<void>(context.expectEq("second full target is busy", ErrorCode::ResourceBusy, Desktop::DragDropTarget{}.open(window, {}).code));
@@ -387,18 +391,21 @@ void testDragDrop(TestSupport::Context &context)
 
     // Verify terminal events survive a full queue.
     const auto formats = std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Text, {}}});
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{1}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
-    static_cast<void>(
-        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {1, 1}, DD::RegionId{1}, DD::RegionId{1}, DD::Effect::Copy, formats}));
-    static_cast<void>(
-        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{1}, {2, 2}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{1}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueueDragDrop(
+        target,
+        DDEvents::Moved{{1}, {1, 1}, DD::RegionId{1}, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueueDragDrop(
+        target,
+        DDEvents::Moved{{1}, {2, 2}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("compatible movement coalesces", std::size_t{2}, target.eventQueueInfo().pendingEvents));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Left{{1}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Left{{1}}));
     static_cast<void>(context.expectEq("queue is full before terminal insertion", std::size_t{3}, target.eventQueueInfo().pendingEvents));
     Transfer::Payload payload;
     payload.push_back(Transfer::Text{"terminal"});
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Dropped{{1}, {2, 2}, {2}, DD::Effect::Copy, std::move(payload)}, true));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Left{{1}}));
+    static_cast<void>(
+        Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Dropped{{1}, {2, 2}, {2}, DD::Effect::Copy, std::move(payload)}, true));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Left{{1}}));
     static_cast<void>(context.expectEq("terminal eviction and later noise are counted", std::uint64_t{2}, target.eventQueueInfo().droppedEvents));
     std::array<DD::Event, 3> popped;
     static_cast<void>(context.expectEq("all retained events pop", std::size_t{3}, target.popEvents(popped)));
@@ -425,20 +432,19 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq("dropped counter clears", std::uint64_t{0}, target.eventQueueInfo().droppedEvents));
 
     // Verify pump accounting and movement coalescing.
-    const auto pumpQueued =
-        Desktop::TestHooks::routeDragDropDuringPump(target, DDEvents::Entered{{2}, {}, DD::RegionId{1}, DD::Effect::Copy, formats});
+    const auto pumpQueued = Win32TestHooks::routeDragDropDuringPump(target, DDEvents::Entered{{2}, {}, DD::RegionId{1}, DD::Effect::Copy, formats});
     static_cast<void>(context.expectEq("pump counts queued DragDrop event", std::uint64_t{1}, pumpQueued.eventsQueued));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Left{{2}}));
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{3}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
-    const auto pumpDropped = Desktop::TestHooks::routeDragDropDuringPump(target, DDEvents::Left{{3}});
+    static_cast<void>(Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Left{{2}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{3}, {}, DD::RegionId{1}, DD::Effect::Copy, formats}));
+    const auto pumpDropped = Win32TestHooks::routeDragDropDuringPump(target, DDEvents::Left{{3}});
     static_cast<void>(context.expectEq("pump counts dropped DragDrop event", std::uint64_t{1}, pumpDropped.eventsDropped));
     target.clearEvents();
     static_cast<void>(context.expectEq("clear releases all retained queue entries", std::size_t{0}, target.eventQueueInfo().pendingEvents));
 
     static_cast<void>(
-        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
+        Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{1}, DD::RegionId{2}, DD::Effect::Copy, formats}));
     static_cast<void>(
-        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{2}, DD::RegionId{3}, DD::Effect::Copy, formats}));
+        Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{4}, {}, DD::RegionId{2}, DD::RegionId{3}, DD::Effect::Copy, formats}));
     DD::Event coalescedMove;
     static_cast<void>(context.expectTrue("coalesced movement pops", target.popEvent(coalescedMove)));
     const auto *coalesced = coalescedMove.getIf<DDEvents::Moved>();
@@ -454,16 +460,17 @@ void testDragDrop(TestSupport::Context &context)
 
     // Verify unrelated sessions remain separate and popped payloads release storage.
     static_cast<void>(
-        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
+        Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{5}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
     static_cast<void>(
-        Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
+        Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Moved{{6}, {}, std::nullopt, DD::RegionId{1}, DD::Effect::Copy, formats}));
     static_cast<void>(context.expectEq("unrelated session moves do not coalesce", std::size_t{2}, target.eventQueueInfo().pendingEvents));
     target.clearEvents();
 
     auto releasableFormats =
         std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Custom, std::string(2048, 'x')}});
     const std::weak_ptr<const std::vector<Transfer::Format>> releasedFormats = releasableFormats;
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{7}, {}, std::nullopt, DD::Effect::None, releasableFormats}));
+    static_cast<void>(
+        Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{7}, {}, std::nullopt, DD::Effect::None, releasableFormats}));
     releasableFormats.reset();
     DD::Event releasedEvent;
     static_cast<void>(context.expectTrue("retained event pops", target.popEvent(releasedEvent)));
@@ -472,7 +479,8 @@ void testDragDrop(TestSupport::Context &context)
     auto clearableFormats =
         std::make_shared<const std::vector<Transfer::Format>>(std::vector<Transfer::Format>{{Transfer::FormatKind::Custom, std::string(2048, 'y')}});
     const std::weak_ptr<const std::vector<Transfer::Format>> clearedFormats = clearableFormats;
-    static_cast<void>(Desktop::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{8}, {}, std::nullopt, DD::Effect::None, clearableFormats}));
+    static_cast<void>(
+        Desktop::Internal::TestHooks::enqueueDragDrop(target, DDEvents::Entered{{8}, {}, std::nullopt, DD::Effect::None, clearableFormats}));
     clearableFormats.reset();
     target.clearEvents();
     static_cast<void>(context.expectTrue("clear releases retained slot storage", clearedFormats.expired()));
@@ -487,14 +495,14 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "published custom identity is independent of caller storage",
         DD::RegionId{9},
-        Desktop::TestHooks::matchDragDropRegion(target, {}, originalCustomFormat)));
+        Win32TestHooks::matchDragDropRegion(target, {}, originalCustomFormat)));
 
     const auto invalidReplacement = target.setRegions(duplicateRegions);
     static_cast<void>(context.expectEq("invalid replacement is rejected transactionally", ErrorCode::InvalidArgument, invalidReplacement.code));
     static_cast<void>(
-        context.expectEq("failed replacement preserves prior snapshot", std::size_t{1}, Desktop::TestHooks::dragDropRegionCount(target)));
+        context.expectEq("failed replacement preserves prior snapshot", std::size_t{1}, Desktop::Internal::TestHooks::dragDropRegionCount(target)));
     static_cast<void>(context.expectTrue("target survives invalid replacement", target.isOpen()));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropRevocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropRevocation);
     static_cast<void>(context.expectEq("revocation failure is reported", ErrorCode::CloseFailed, target.close().code));
     static_cast<void>(context.expectTrue("failed revocation retains an open retryable target", target.isOpen()));
     static_cast<void>(context.expectTrue("target closes on revocation retry", target.close().ok()));
@@ -526,12 +534,13 @@ void testDragDrop(TestSupport::Context &context)
     static_cast<void>(context.expectEq("wrong-thread target close is busy", ErrorCode::ResourceBusy, wrongThreadClose));
     static_cast<void>(context.expectEq("wrong-thread region replacement is busy", ErrorCode::ResourceBusy, wrongThreadRegions));
     static_cast<void>(context.expectFalse("wrong-thread event consumption is rejected", wrongThreadPop));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropRevocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropRevocation);
     static_cast<void>(context.expectEq("Window close reports target revocation failure", ErrorCode::CloseFailed, window.close().code));
     static_cast<void>(context.expectTrue("failed Window close preserves the native target", target.isOpen()));
     static_cast<void>(context.expectTrue("failed Window close preserves the Window", window.isOpen()));
     const Desktop::Types::WindowId retainedWindowId = window.id();
-    static_cast<void>(context.expectTrue("unexpected native Window destruction succeeds", Desktop::TestHooks::destroyNativeWindow(window).ok()));
+    static_cast<void>(
+        context.expectTrue("unexpected native Window destruction succeeds", Desktop::Internal::TestHooks::destroyNativeWindow(window).ok()));
     static_cast<void>(context.expectFalse("Window closure invalidates target native access", target.isOpen()));
     static_cast<void>(context.expectEq(
         "Window closure leaves target pending finalization",
@@ -568,22 +577,22 @@ void testDragDrop(TestSupport::Context &context)
             static_cast<void>(context.expectEq(
                 "both wrong-thread targets enter deferred ownership",
                 std::size_t{2},
-                Desktop::TestHooks::deferredDragDropTargetCount()));
-            Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DragDropRevocation);
+                Win32TestHooks::deferredDragDropTargetCount()));
+            Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DragDropRevocation);
             static_cast<void>(Desktop::Events::poll());
             static_cast<void>(context.expectEq(
                 "one failed cleanup preserves the complete deferred chain",
                 std::size_t{2},
-                Desktop::TestHooks::deferredDragDropTargetCount()));
+                Win32TestHooks::deferredDragDropTargetCount()));
             static_cast<void>(context.expectEq(
                 "one failed cleanup preserves both active registrations",
                 std::size_t{2},
-                Desktop::TestHooks::activeDragDropTargetCount()));
+                Win32TestHooks::activeDragDropTargetCount()));
             static_cast<void>(Desktop::Events::poll());
             static_cast<void>(
-                context.expectEq("deferred retry processes every target", std::size_t{0}, Desktop::TestHooks::deferredDragDropTargetCount()));
+                context.expectEq("deferred retry processes every target", std::size_t{0}, Win32TestHooks::deferredDragDropTargetCount()));
             static_cast<void>(
-                context.expectEq("deferred retry empties the active registry", std::size_t{0}, Desktop::TestHooks::activeDragDropTargetCount()));
+                context.expectEq("deferred retry empties the active registry", std::size_t{0}, Win32TestHooks::activeDragDropTargetCount()));
             static_cast<void>(
                 context.expectTrue("first Window accepts lightweight mode after deferred cleanup", deferredWindowA.setFileDropEnabled(true).ok()));
             static_cast<void>(

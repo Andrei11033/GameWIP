@@ -9,28 +9,23 @@
 #include "desktop/clipboard.h"
 #include "desktop/cursor.h"
 #include "desktop/description.h"
-#include "desktop/dialogs.h"
 #include "desktop/display_info.h"
 #include "desktop/drag_drop.h"
 #include "desktop/events.h"
 #include "desktop/internal/desktop_test_export.h"
 #include "desktop/renderer_bridge.h"
 #include "desktop/shell.h"
-#include "desktop/shell_jump_lists.h"
-#include "desktop/shell_notifications.h"
-#include "desktop/shell_taskbar.h"
-#include "desktop/shell_tray.h"
 
 #include <array>
-#include <optional>
-#include <string>
-#include <vector>
+#include <cstddef>
+#include <cstdint>
+#include <span>
 
 #ifndef DESKTOP_INTERNAL_TEST_HOOKS
 #define DESKTOP_INTERNAL_TEST_HOOKS 0
 #endif
 
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     /// ------------------------------------------------------------
     /// State snapshots for deterministic tests
@@ -86,135 +81,6 @@ namespace GameWIP::Desktop::TestHooks
         bool visible = false;
         bool interactiveMoveResizeActive = false;
         bool occluded = false;
-    };
-
-    /// ------------------------------------------------------------
-    /// Dialog responses and native snapshots
-    /// ------------------------------------------------------------
-
-    enum class FileDialogOperation
-    {
-        OpenFile,
-        OpenFiles,
-        SaveFile,
-        SelectFolder,
-        SelectFolders
-    };
-
-    struct FileDialogResponse
-    {
-        bool accepted = false;
-        std::vector<FileSystem::Types::Path> paths;
-        std::optional<std::size_t> nativeFilterIndex;
-    };
-
-    struct FileDialogSnapshot
-    {
-        // Dialog title and operation
-        FileDialogOperation operation = FileDialogOperation::OpenFile;
-        std::wstring title;
-
-        // Filter selection
-        std::vector<std::wstring> filterNames;
-        std::vector<std::wstring> filterPatterns;
-        std::optional<std::size_t> preferredFilterIndex;
-
-        // Initial location and file name
-        FileSystem::Types::Path suggestedDirectory;
-        std::wstring suggestedFileName;
-        std::wstring suggestedExtension;
-    };
-
-    struct MessageDialogResponse
-    {
-        Types::Dialogs::Message::Button button = Types::Dialogs::Message::Button::None;
-        bool dismissed = true;
-    };
-
-    struct MessageDialogSnapshot
-    {
-        // Visible message
-        std::wstring title;
-        std::wstring message;
-
-        // Button and severity options
-        Types::Dialogs::Message::Buttons buttons = Types::Dialogs::Message::Buttons::Ok;
-        Types::Dialogs::Message::Button defaultButton = Types::Dialogs::Message::Button::None;
-        Types::Dialogs::Severity severity = Types::Dialogs::Severity::None;
-    };
-
-    struct PromptDialogResponse
-    {
-        std::optional<std::size_t> buttonIndex;
-        std::optional<std::size_t> optionIndex;
-        bool checkBoxChecked = false;
-        bool dismissed = true;
-    };
-
-    struct PromptDialogSnapshot
-    {
-        // Prompt content
-        std::wstring title;
-        std::wstring heading;
-        std::wstring message;
-        std::wstring details;
-        std::wstring supplementalText;
-        std::wstring checkBoxLabel;
-
-        // Native button and option mappings
-        std::vector<int> nativeButtonIds;
-        std::vector<int> nativeOptionIds;
-        std::vector<std::wstring> buttonText;
-        std::vector<std::wstring> optionText;
-
-        // Initial selection and behavior
-        int nativeDefaultButton = 0;
-        int nativeDefaultOption = 0;
-        bool commandLinks = false;
-        bool checkBoxInitiallyChecked = false;
-        Types::Dialogs::Severity severity = Types::Dialogs::Severity::None;
-    };
-
-    /// ------------------------------------------------------------
-    /// Progress dialog snapshots
-    /// ------------------------------------------------------------
-
-    struct NativePixelRect
-    {
-        std::int32_t x = 0;
-        std::int32_t y = 0;
-        std::uint32_t width = 0;
-        std::uint32_t height = 0;
-
-        friend constexpr bool operator==(NativePixelRect, NativePixelRect) noexcept = default;
-    };
-
-    struct ProgressDialogNativeSnapshot
-    {
-        // Geometry
-        NativePixelRect windowBounds;
-        NativePixelRect progressBounds;
-
-        // Display text
-        std::wstring title;
-        std::wstring heading;
-        std::wstring message;
-
-        // Progress state
-        int rangeMinimum = 0;
-        int rangeMaximum = 0;
-        int position = 0;
-        bool marquee = false;
-
-        // Native controls
-        bool nativeWindow = false;
-        bool cancelControl = false;
-
-        // Ownership and teardown
-        bool registered = false;
-        bool classReferenceHeld = false;
-        bool blockingOwner = false;
-        bool nativeDestroyedPendingFinalize = false;
     };
 
     /// ------------------------------------------------------------
@@ -274,7 +140,7 @@ namespace GameWIP::Desktop::TestHooks
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
     /// ------------------------------------------------------------
-    /// Accessibility, dialogs, and apartment hooks
+    /// Accessibility and failure hooks
     /// ------------------------------------------------------------
 
     /// @brief Submits through the real bounded action transport.
@@ -287,35 +153,6 @@ namespace GameWIP::Desktop::TestHooks
     [[nodiscard]] DESKTOP_TEST_EXPORT void *accessibilityProvider(Window &window, Types::Accessibility::NodeId node) noexcept;
     DESKTOP_TEST_EXPORT void failNext(FailurePoint point) noexcept;
     DESKTOP_TEST_EXPORT void resetFailures() noexcept;
-    DESKTOP_TEST_EXPORT void completeNextFileDialog(FileDialogOperation operation, FileDialogResponse response) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT const FileDialogSnapshot &lastFileDialogSnapshot() noexcept;
-    DESKTOP_TEST_EXPORT void completeNextMessageDialog(MessageDialogResponse response) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT const MessageDialogSnapshot &lastMessageDialogSnapshot() noexcept;
-    DESKTOP_TEST_EXPORT void completeNextPromptDialog(PromptDialogResponse response) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT const PromptDialogSnapshot &lastPromptDialogSnapshot() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDialogApartment() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testShellApartment() noexcept;
-
-    /// ------------------------------------------------------------
-    /// Shell and progress dialog hooks
-    /// ------------------------------------------------------------
-
-    /// @brief Returns an owned IShellLinkW as void* for native metadata inspection. Caller must Release it.
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status simulateProgressDialogDpiChange(
-        ProgressDialog &dialog,
-        NativePixelRect suggestedBounds,
-        std::uint32_t dpi) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t activeProgressDialogCount() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t deferredProgressDialogCount() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t progressDialogClassReferenceCount() noexcept;
-    /// @brief Returns whether progress-owner message registration has been attempted in this process.
-    [[nodiscard]] DESKTOP_TEST_EXPORT bool progressOwnerRestoreMessageRegistrationAttempted() noexcept;
-
     /// ------------------------------------------------------------
     /// Window lifecycle and event hooks
     /// ------------------------------------------------------------
@@ -343,24 +180,7 @@ namespace GameWIP::Desktop::TestHooks
         Types::DragDrop::Events::Payload data,
         bool terminal = false) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT Types::DragDrop::SessionId nextDragDropSessionId(DragDropTarget &target, std::uint64_t nextValue) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDragDropOleInitialization() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT IO::Types::Status testDragDropMaterialization() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT Types::DragDrop::Result droppedDragDropSourceResult(
-        Types::DragDrop::Effect performed,
-        Types::DragDrop::Effect allowed) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT bool dragDropComContractsValid() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT Types::Events::PumpResult routeDragDropDuringPump(
-        DragDropTarget &target,
-        Types::DragDrop::Events::Payload data,
-        bool terminal = false) noexcept;
     [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t dragDropRegionCount(const DragDropTarget &target) noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t activeDragDropTargetCount() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT std::size_t deferredDragDropTargetCount() noexcept;
-    [[nodiscard]] DESKTOP_TEST_EXPORT Types::DragDrop::RegionId matchDragDropRegion(
-        const DragDropTarget &target,
-        Types::LogicalPosition position,
-        std::span<const Types::DataTransfer::FormatView> offered) noexcept;
 
     /// ------------------------------------------------------------
     /// Renderer and display hooks
@@ -422,9 +242,9 @@ namespace GameWIP::Desktop::TestHooks
     /// @brief Publishes one synthetic shell event through the queue's normal fixed-capacity path.
     DESKTOP_TEST_EXPORT void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept;
 #endif
-} // namespace GameWIP::Desktop::TestHooks
+} // namespace GameWIP::Desktop::Internal::TestHooks
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
 #if DESKTOP_INTERNAL_TEST_HOOKS
     [[nodiscard]] bool consumeFailure(TestHooks::FailurePoint point) noexcept;
@@ -432,12 +252,6 @@ namespace GameWIP::Desktop::Detail
     [[nodiscard]] bool consumeClipboardPublicationFailure(std::size_t itemIndex) noexcept;
     [[nodiscard]] bool consumeClipboardEnumerationFailure(std::size_t materializedFormats) noexcept;
     [[nodiscard]] bool consumeDragDropRevocationFailure() noexcept;
-    [[nodiscard]] bool consumeFileDialogResponse(TestHooks::FileDialogOperation operation, TestHooks::FileDialogResponse &response) noexcept;
-    void recordFileDialogSnapshot(TestHooks::FileDialogSnapshot snapshot) noexcept;
-    [[nodiscard]] bool consumeMessageDialogResponse(TestHooks::MessageDialogResponse &response) noexcept;
-    void recordMessageDialogSnapshot(TestHooks::MessageDialogSnapshot snapshot) noexcept;
-    [[nodiscard]] bool consumePromptDialogResponse(TestHooks::PromptDialogResponse &response) noexcept;
-    void recordPromptDialogSnapshot(TestHooks::PromptDialogSnapshot snapshot) noexcept;
     void recordCustomCursorCreated() noexcept;
     void recordCustomCursorDestroyed() noexcept;
 #else
@@ -466,25 +280,7 @@ namespace GameWIP::Desktop::Detail
         return false;
     }
 
-    [[nodiscard]] constexpr bool consumeFileDialogResponse(TestHooks::FileDialogOperation, TestHooks::FileDialogResponse &) noexcept
-    {
-        return false;
-    }
-
-    constexpr void recordFileDialogSnapshot(TestHooks::FileDialogSnapshot) noexcept {}
-    [[nodiscard]] constexpr bool consumeMessageDialogResponse(TestHooks::MessageDialogResponse &) noexcept
-    {
-        return false;
-    }
-
-    constexpr void recordMessageDialogSnapshot(TestHooks::MessageDialogSnapshot) noexcept {}
-    [[nodiscard]] constexpr bool consumePromptDialogResponse(TestHooks::PromptDialogResponse &) noexcept
-    {
-        return false;
-    }
-
-    constexpr void recordPromptDialogSnapshot(TestHooks::PromptDialogSnapshot) noexcept {}
     constexpr void recordCustomCursorCreated() noexcept {}
     constexpr void recordCustomCursorDestroyed() noexcept {}
 #endif
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

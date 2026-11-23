@@ -1,5 +1,5 @@
-/// @file window_platform.h
-/// @brief Internal portable-to-native backend contract for Window.
+/// @file window.h
+/// @brief Portable backend contract for Window.
 
 #pragma once
 
@@ -12,10 +12,17 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
-    /// @brief Best-effort color metadata gathered from display configuration and DXGI.
+    /// ------------------------------------------------------------
+    /// Shared portable state
+    /// ------------------------------------------------------------
+
+    using Internal::WindowState;
+
+    /// @brief Best-effort color metadata gathered from display configuration and native queries.
     struct DisplayColorSnapshot
     {
         // Color capabilities
@@ -39,7 +46,7 @@ namespace GameWIP::Desktop::Detail::Platform
         bool resourceClosed = false;
     };
 
-    /// @brief Opaque native module/window pair exposed to the Win32 interop layer.
+    /// @brief Opaque native module/window pair exposed to native interoperability.
     struct NativeHandleView
     {
         void *instance = nullptr;
@@ -125,4 +132,4 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status setCursorShape(WindowState &state, Types::CursorShape shape) noexcept;
     [[nodiscard]] IO::Types::Status setCursorPosition(WindowState &state, Types::LogicalPosition position) noexcept;
     [[nodiscard]] Types::Result<Types::LogicalPosition> cursorPosition(const WindowState &state) noexcept;
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

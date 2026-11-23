@@ -3,11 +3,11 @@
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/internal/accessibility_state.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include <algorithm>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// @brief Pumps the owner-thread dispatcher and optionally waits for native input.
     Types::Events::PumpResult pumpEvents(std::chrono::milliseconds timeout, bool wait) noexcept
@@ -21,7 +21,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return result;
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::EventPump))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::EventPump))
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             return result;
@@ -46,7 +46,7 @@ namespace GameWIP::Desktop::Detail::Platform
         }
 
         if(current.windows.empty() && current.childSurfaces.empty() && (!current.progressDialogs || current.progressDialogs->empty()) &&
-           !hasShellMessageWindows())
+           !hasShellEventSources())
         {
             current.activeResult = nullptr;
             current.pumping = false;
@@ -114,7 +114,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     if(state != nullptr)
                     {
-                        static_cast<void>(Detail::requestClose(*state, Types::Events::CloseRequestSource::System));
+                        static_cast<void>(Internal::requestClose(*state, Types::Events::CloseRequestSource::System));
                     }
                 }
                 continue;
@@ -163,4 +163,4 @@ namespace GameWIP::Desktop::Detail::Platform
         current.pumping = false;
         return result;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

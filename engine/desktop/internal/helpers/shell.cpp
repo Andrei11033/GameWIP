@@ -11,7 +11,7 @@
 #include <thread>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// Shared shell validation and ownership helpers
@@ -142,4 +142,4 @@ namespace GameWIP::Desktop::Detail
             --queue->boundResourceCount;
         }
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

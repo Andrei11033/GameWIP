@@ -4,7 +4,7 @@
 #include "desktop/shell_tray.h"
 
 #include "desktop/internal/shell_helpers.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include "desktop/internal/shell_state.h"
 
 #include <atomic>
@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// Tray description helpers
@@ -173,7 +173,7 @@ namespace GameWIP::Desktop::Detail
             }
         }
     } // namespace
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop
 {
@@ -183,7 +183,7 @@ namespace GameWIP::Desktop
 
     namespace
     {
-        using Detail::TrayIconState;
+        using Internal::TrayIconState;
         using IO::Types::ErrorCode;
 
         /// @brief Builds a portable status from a single error code.
@@ -195,7 +195,7 @@ namespace GameWIP::Desktop
         /// @brief Releases the event-queue binding retained by one tray icon.
         void releaseTrayQueue(TrayIconState &state) noexcept
         {
-            Detail::unbindQueue(state.eventQueue);
+            Internal::unbindQueue(state.eventQueue);
             state.eventQueue = nullptr;
         }
 
@@ -230,8 +230,8 @@ namespace GameWIP::Desktop
         }
         else
         {
-            Detail::Platform::closeTrayBestEffort(*state_);
-            Detail::unbindQueue(state_->eventQueue);
+            Platform::closeTrayBestEffort(*state_);
+            Internal::unbindQueue(state_->eventQueue);
             state_.reset();
         }
     }
@@ -252,21 +252,21 @@ namespace GameWIP::Desktop
         try
         {
             // Copy the description and create the native tray icon before publishing state.
-            auto candidate = std::make_unique<Detail::TrayIconState>();
+            auto candidate = std::make_unique<Internal::TrayIconState>();
             candidate->ownerThread = std::this_thread::get_id();
-            candidate->id = Types::Shell::TrayIconId{Detail::nextShellIdentity()};
-            IO::Types::Status status = Detail::copyDescription(description, *candidate);
+            candidate->id = Types::Shell::TrayIconId{Internal::nextShellIdentity()};
+            IO::Types::Status status = Internal::copyDescription(description, *candidate);
 
             if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
-            status = Detail::Platform::openTray(*candidate);
+            status = Platform::openTray(*candidate);
 
             if(!status.ok())
             {
-                Detail::Platform::closeTrayBestEffort(*candidate);
+                Platform::closeTrayBestEffort(*candidate);
                 return status;
             }
             state_ = std::move(candidate);
@@ -292,29 +292,29 @@ namespace GameWIP::Desktop
         try
         {
             // Copy the description and bind its response queue.
-            auto candidate = std::make_unique<Detail::TrayIconState>();
+            auto candidate = std::make_unique<Internal::TrayIconState>();
             candidate->ownerThread = std::this_thread::get_id();
-            candidate->id = Types::Shell::TrayIconId{Detail::nextShellIdentity()};
-            IO::Types::Status status = Detail::copyDescription(description, *candidate);
+            candidate->id = Types::Shell::TrayIconId{Internal::nextShellIdentity()};
+            IO::Types::Status status = Internal::copyDescription(description, *candidate);
 
             if(!status.ok())
             {
                 return status;
             }
 
-            status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
+            status = Internal::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
             if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
-            status = Detail::Platform::openTray(*candidate);
+            status = Platform::openTray(*candidate);
 
             if(!status.ok())
             {
-                Detail::unbindQueue(candidate->eventQueue);
-                Detail::Platform::closeTrayBestEffort(*candidate);
+                Internal::unbindQueue(candidate->eventQueue);
+                Platform::closeTrayBestEffort(*candidate);
                 return status;
             }
             candidate->menuWasPublished = !candidate->menu.empty();
@@ -355,7 +355,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TrayIcon::bindEventQueue(ShellEventQueue &eventQueue) noexcept
     {
-        IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedTray(Internal::TrayIconAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -366,7 +366,7 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-        return Detail::bindQueue(eventQueue, state_->ownerThread, state_->eventQueue);
+        return Internal::bindQueue(eventQueue, state_->ownerThread, state_->eventQueue);
     }
 
     IO::Types::Status TrayIcon::close() noexcept
@@ -381,7 +381,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::ResourceBusy);
         }
 
-        const IO::Types::Status status = Detail::Platform::closeTray(*state_);
+        const IO::Types::Status status = Platform::closeTray(*state_);
 
         if(!status.ok())
         {
@@ -395,7 +395,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TrayIcon::setIcon(std::span<const Types::IconImageView> icons) noexcept
     {
-        IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedTray(Internal::TrayIconAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -410,13 +410,13 @@ namespace GameWIP::Desktop
         try
         {
             // Copy the replacement icon set before changing retained state.
-            std::vector<Detail::OwnedIconImage> replacement;
+            std::vector<Internal::OwnedIconImage> replacement;
             replacement.reserve(icons.size());
 
             for(Types::IconImageView icon : icons)
             {
-                Detail::OwnedIconImage owned;
-                status = Detail::copyIcon(icon, owned);
+                Internal::OwnedIconImage owned;
+                status = Internal::copyIcon(icon, owned);
 
                 if(!status.ok())
                 {
@@ -429,7 +429,7 @@ namespace GameWIP::Desktop
             state_->icons = std::move(replacement);
 
             // Apply the native update and restore the prior icons on failure.
-            status = Detail::Platform::applyTray(*state_);
+            status = Platform::applyTray(*state_);
 
             if(!status.ok())
             {
@@ -450,14 +450,14 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TrayIcon::setTooltip(std::string_view tooltip) noexcept
     {
-        IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedTray(Internal::TrayIconAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
             return status;
         }
 
-        if(!Detail::validText(tooltip))
+        if(!Internal::validText(tooltip))
         {
             return error(ErrorCode::InvalidArgument);
         }
@@ -467,7 +467,7 @@ namespace GameWIP::Desktop
             // Replace the tooltip only after it passes portable text validation.
             std::string old = std::move(state_->tooltip);
             state_->tooltip = tooltip;
-            status = Detail::Platform::applyTray(*state_);
+            status = Platform::applyTray(*state_);
 
             if(!status.ok())
             {
@@ -489,7 +489,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status TrayIcon::setMenu(const Types::Tray::MenuDescription &menu) noexcept
     {
-        IO::Types::Status status = requireOwnedTray(Detail::TrayIconAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedTray(Internal::TrayIconAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -504,9 +504,9 @@ namespace GameWIP::Desktop
         try
         {
             // Copy the menu before applying it to the native tray icon.
-            std::vector<Detail::OwnedTrayMenuItem> replacement;
+            std::vector<Internal::OwnedTrayMenuItem> replacement;
             std::unordered_set<std::uint32_t> ids;
-            status = Detail::copyMenuItems(menu.items, replacement, ids);
+            status = Internal::copyMenuItems(menu.items, replacement, ids);
 
             if(!status.ok())
             {
@@ -516,7 +516,7 @@ namespace GameWIP::Desktop
             state_->menu = std::move(replacement);
 
             // Restore the prior menu if native publication fails.
-            status = Detail::Platform::applyTray(*state_);
+            status = Platform::applyTray(*state_);
 
             if(!status.ok())
             {

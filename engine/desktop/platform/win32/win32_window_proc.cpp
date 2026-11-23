@@ -3,9 +3,9 @@
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/internal/accessibility_state.h"
-#include "desktop/internal/drag_drop_platform.h"
-#include "desktop/internal/dialogs_platform.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/drag_drop.h"
+#include "desktop/platform/dialogs.h"
+#include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_accessibility.h"
 #include <commctrl.h>
 #include <algorithm>
@@ -14,7 +14,7 @@
 #include <new>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     inline constexpr WORD kTaskbarThumbnailButtonClicked = 0x1800U;
 
@@ -178,7 +178,7 @@ namespace GameWIP::Desktop::Detail::Platform
             const auto *create = reinterpret_cast<const CREATESTRUCTW *>(lParam);
             state = static_cast<WindowState *>(create->lpCreateParams);
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::WindowUserDataInstallation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::WindowUserDataInstallation))
             {
                 SetLastError(ERROR_FUNCTION_FAILED);
                 return FALSE;
@@ -214,7 +214,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             if(message == WM_CREATE)
             {
-                if(Detail::consumeFailure(TestHooks::FailurePoint::WindowCreationCallback))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::WindowCreationCallback))
                 {
                     return -1;
                 }
@@ -315,7 +315,7 @@ namespace GameWIP::Desktop::Detail::Platform
         case WM_CLOSE:
             if(state->controls.closable)
             {
-                static_cast<void>(Detail::requestClose(*state, Types::Events::CloseRequestSource::User));
+                static_cast<void>(Internal::requestClose(*state, Types::Events::CloseRequestSource::User));
             }
 
             return 0;
@@ -415,10 +415,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
             return 0;
         case WM_ENTERSIZEMOVE:
-            static_cast<void>(Detail::setInteractiveMoveResizeActive(*state, true));
+            static_cast<void>(Internal::setInteractiveMoveResizeActive(*state, true));
             return 0;
         case WM_EXITSIZEMOVE:
-            static_cast<void>(Detail::setInteractiveMoveResizeActive(*state, false));
+            static_cast<void>(Internal::setInteractiveMoveResizeActive(*state, false));
             return 0;
         case WM_SIZE:
         {
@@ -843,4 +843,4 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return DefWindowProcW(window, message, wParam, lParam);
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

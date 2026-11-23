@@ -4,7 +4,7 @@
 #include "desktop/shell_notifications.h"
 
 #include "desktop/internal/shell_helpers.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include "desktop/internal/shell_state.h"
 
 #include "base/checked_arithmetic.h"
@@ -23,7 +23,7 @@
 #include <variant>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// Notification description helpers
@@ -160,7 +160,7 @@ namespace GameWIP::Desktop::Detail
             }
         }
     } // namespace
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop
 {
@@ -170,7 +170,7 @@ namespace GameWIP::Desktop
 
     namespace
     {
-        using Detail::NotificationCenterState;
+        using Internal::NotificationCenterState;
         using IO::Types::ErrorCode;
 
         /// @brief Builds a portable status from a single error code.
@@ -182,7 +182,7 @@ namespace GameWIP::Desktop
         /// @brief Releases the event-queue binding retained by one notification center.
         void releaseNotificationQueue(NotificationCenterState &state) noexcept
         {
-            Detail::unbindQueue(state.eventQueue);
+            Internal::unbindQueue(state.eventQueue);
             state.eventQueue = nullptr;
         }
 
@@ -217,8 +217,8 @@ namespace GameWIP::Desktop
         }
         else
         {
-            Detail::Platform::closeNotificationCenterBestEffort(*state_);
-            Detail::unbindQueue(state_->eventQueue);
+            Platform::closeNotificationCenterBestEffort(*state_);
+            Internal::unbindQueue(state_->eventQueue);
             state_.reset();
         }
     }
@@ -232,14 +232,14 @@ namespace GameWIP::Desktop
 
         try
         {
-            auto candidate = std::make_unique<Detail::NotificationCenterState>();
+            auto candidate = std::make_unique<Internal::NotificationCenterState>();
             candidate->ownerThread = std::this_thread::get_id();
             candidate->open = true;
-            const IO::Types::Status status = Detail::Platform::openNotificationCenter(*candidate);
+            const IO::Types::Status status = Platform::openNotificationCenter(*candidate);
 
             if(!status.ok())
             {
-                Detail::Platform::closeNotificationCenterBestEffort(*candidate);
+                Platform::closeNotificationCenterBestEffort(*candidate);
                 return status;
             }
             state_ = std::move(candidate);
@@ -264,21 +264,21 @@ namespace GameWIP::Desktop
 
         try
         {
-            auto candidate = std::make_unique<Detail::NotificationCenterState>();
+            auto candidate = std::make_unique<Internal::NotificationCenterState>();
             candidate->ownerThread = std::this_thread::get_id();
-            IO::Types::Status status = Detail::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
+            IO::Types::Status status = Internal::bindQueue(eventQueue, candidate->ownerThread, candidate->eventQueue);
 
             if(!status.ok())
             {
                 return status;
             }
             candidate->open = true;
-            status = Detail::Platform::openNotificationCenter(*candidate);
+            status = Platform::openNotificationCenter(*candidate);
 
             if(!status.ok())
             {
-                Detail::unbindQueue(candidate->eventQueue);
-                Detail::Platform::closeNotificationCenterBestEffort(*candidate);
+                Internal::unbindQueue(candidate->eventQueue);
+                Platform::closeNotificationCenterBestEffort(*candidate);
                 return status;
             }
             state_ = std::move(candidate);
@@ -321,7 +321,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::ResourceBusy);
         }
 
-        const IO::Types::Status status = Detail::Platform::closeNotificationCenter(*state_);
+        const IO::Types::Status status = Platform::closeNotificationCenter(*state_);
 
         if(!status.ok())
         {
@@ -337,7 +337,7 @@ namespace GameWIP::Desktop
     Types::Result<Types::Shell::NotificationId> NotificationCenter::publish(const Types::Notifications::Description &description) noexcept
     {
         Types::Result<Types::Shell::NotificationId> result{error(ErrorCode::NotOpen), std::nullopt};
-        IO::Types::Status status = requireOwnedNotification(Detail::NotificationCenterAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -358,8 +358,8 @@ namespace GameWIP::Desktop
         try
         {
             // Validate and own the description before assigning a native ID.
-            Detail::OwnedNotificationDescription owned;
-            status = Detail::copyNotificationDescription(description, owned);
+            Internal::OwnedNotificationDescription owned;
+            status = Internal::copyNotificationDescription(description, owned);
 
             if(!status.ok())
             {
@@ -384,7 +384,7 @@ namespace GameWIP::Desktop
             }
 
             // Publish natively, then retain the description for future updates.
-            status = Detail::Platform::publishNotification(*state_, id, owned);
+            status = Platform::publishNotification(*state_, id, owned);
 
             if(!status.ok())
             {
@@ -402,7 +402,7 @@ namespace GameWIP::Desktop
         {
             if(nativePublished)
             {
-                static_cast<void>(Detail::Platform::dismissNotification(*state_, publishedId));
+                static_cast<void>(Platform::dismissNotification(*state_, publishedId));
             }
 
             result.status = error(ErrorCode::OutOfMemory);
@@ -412,7 +412,7 @@ namespace GameWIP::Desktop
         {
             if(nativePublished)
             {
-                static_cast<void>(Detail::Platform::dismissNotification(*state_, publishedId));
+                static_cast<void>(Platform::dismissNotification(*state_, publishedId));
             }
 
             result.status = error(ErrorCode::Unknown);
@@ -422,7 +422,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status NotificationCenter::update(Types::Shell::NotificationId id, const Types::Notifications::Description &description) noexcept
     {
-        IO::Types::Status status = requireOwnedNotification(Detail::NotificationCenterAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -445,14 +445,14 @@ namespace GameWIP::Desktop
         }
 
         bool nativeUpdated = false;
-        std::optional<Detail::OwnedNotificationDescription> previous;
+        std::optional<Internal::OwnedNotificationDescription> previous;
 
         try
         {
             // Keep the current description available for rollback.
             previous = state_->notifications.at(id.value);
-            Detail::OwnedNotificationDescription owned;
-            status = Detail::copyNotificationDescription(description, owned);
+            Internal::OwnedNotificationDescription owned;
+            status = Internal::copyNotificationDescription(description, owned);
 
             if(!status.ok())
             {
@@ -460,7 +460,7 @@ namespace GameWIP::Desktop
             }
 
             // Update the native notification before replacing the retained copy.
-            status = Detail::Platform::updateNotification(*state_, id.value, owned);
+            status = Platform::updateNotification(*state_, id.value, owned);
 
             if(!status.ok())
             {
@@ -474,7 +474,7 @@ namespace GameWIP::Desktop
         {
             if(nativeUpdated && previous.has_value())
             {
-                static_cast<void>(Detail::Platform::updateNotification(*state_, id.value, *previous));
+                static_cast<void>(Platform::updateNotification(*state_, id.value, *previous));
             }
 
             return error(ErrorCode::OutOfMemory);
@@ -483,7 +483,7 @@ namespace GameWIP::Desktop
         {
             if(nativeUpdated && previous.has_value())
             {
-                static_cast<void>(Detail::Platform::updateNotification(*state_, id.value, *previous));
+                static_cast<void>(Platform::updateNotification(*state_, id.value, *previous));
             }
 
             return error(ErrorCode::Unknown);
@@ -492,7 +492,7 @@ namespace GameWIP::Desktop
 
     IO::Types::Status NotificationCenter::dismiss(Types::Shell::NotificationId id) noexcept
     {
-        IO::Types::Status status = requireOwnedNotification(Detail::NotificationCenterAccess::state(*this), ownedByCurrentThread());
+        IO::Types::Status status = requireOwnedNotification(Internal::NotificationCenterAccess::state(*this), ownedByCurrentThread());
 
         if(!status.ok())
         {
@@ -509,7 +509,7 @@ namespace GameWIP::Desktop
             return error(ErrorCode::NotFound);
         }
 
-        status = Detail::Platform::dismissNotification(*state_, id.value);
+        status = Platform::dismissNotification(*state_, id.value);
 
         if(status.ok())
         {

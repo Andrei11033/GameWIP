@@ -4,7 +4,7 @@
 #include "desktop/shell.h"
 
 #include "desktop/internal/shell_helpers.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include "desktop/internal/shell_state.h"
 
 #include <algorithm>
@@ -17,7 +17,7 @@
 #include <utility>
 #include <variant>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// Queue and launch validation helpers
@@ -137,7 +137,7 @@ namespace GameWIP::Desktop::Detail
             ++queue.droppedEvents;
         }
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop
 {
@@ -163,12 +163,12 @@ namespace GameWIP::Desktop
             // Validate direct tasks and category entries.
             for(const Types::JumpLists::Task &task : description.tasks)
             {
-                if(!Detail::validText(task.title, true) || !Detail::validText(task.description))
+                if(!Internal::validText(task.title, true) || !Internal::validText(task.description))
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
-                IO::Types::Status status = Detail::validateLaunchAction(task.action, false);
+                IO::Types::Status status = Internal::validateLaunchAction(task.action, false);
 
                 if(!status.ok())
                 {
@@ -178,19 +178,19 @@ namespace GameWIP::Desktop
 
             for(const Types::JumpLists::Category &category : description.categories)
             {
-                if(!Detail::validText(category.label, true) || category.tasks.empty())
+                if(!Internal::validText(category.label, true) || category.tasks.empty())
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
 
                 for(const Types::JumpLists::Task &task : category.tasks)
                 {
-                    if(!Detail::validText(task.title, true) || !Detail::validText(task.description))
+                    if(!Internal::validText(task.title, true) || !Internal::validText(task.description))
                     {
                         return error(ErrorCode::InvalidArgument);
                     }
 
-                    IO::Types::Status status = Detail::validateLaunchAction(task.action, false);
+                    IO::Types::Status status = Internal::validateLaunchAction(task.action, false);
 
                     if(!status.ok())
                     {
@@ -202,7 +202,7 @@ namespace GameWIP::Desktop
             // Validate recent targets before native publication.
             for(const Types::Shell::TargetView &target : description.recentItems)
             {
-                if(const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target); uri != nullptr && !Detail::validText(uri->uri, true))
+                if(const auto *uri = std::get_if<Types::Shell::UriTargetView>(&target); uri != nullptr && !Internal::validText(uri->uri, true))
                 {
                     return error(ErrorCode::InvalidArgument);
                 }
@@ -214,7 +214,7 @@ namespace GameWIP::Desktop
             }
 
             // Publish only after the complete description passes validation.
-            return Detail::Platform::publishJumpLists(description);
+            return Platform::publishJumpLists(description);
         }
         catch(const std::bad_alloc &)
         {
@@ -238,15 +238,15 @@ namespace GameWIP::Desktop
     {
         Types::Registration::Result result{error(ErrorCode::InvalidArgument), {}, false};
 
-        if(!Detail::validText(description.ownerKey, true) || !Detail::validText(description.extension, true) ||
-           !Detail::validText(description.displayName, true) || !Detail::validText(description.contentType))
+        if(!Internal::validText(description.ownerKey, true) || !Internal::validText(description.extension, true) ||
+           !Internal::validText(description.displayName, true) || !Internal::validText(description.contentType))
         {
             return result;
         }
 
         if(description.defaultAction.has_value())
         {
-            IO::Types::Status status = Detail::validateLaunchAction(*description.defaultAction, true);
+            IO::Types::Status status = Internal::validateLaunchAction(*description.defaultAction, true);
 
             if(!status.ok())
             {
@@ -257,12 +257,12 @@ namespace GameWIP::Desktop
 
         for(const Types::Registration::Verb &verb : description.verbs)
         {
-            if(!Detail::validText(verb.name, true) || !Detail::validText(verb.label, true))
+            if(!Internal::validText(verb.name, true) || !Internal::validText(verb.label, true))
             {
                 return result;
             }
 
-            IO::Types::Status status = Detail::validateLaunchAction(verb.action, true);
+            IO::Types::Status status = Internal::validateLaunchAction(verb.action, true);
 
             if(!status.ok())
             {
@@ -271,22 +271,22 @@ namespace GameWIP::Desktop
             }
         }
 
-        return Detail::Platform::registerFileExtension(description);
+        return Platform::registerFileExtension(description);
     }
 
     Types::Registration::Result Registration::registerUriScheme(const Types::Registration::UriSchemeDescription &description) noexcept
     {
         Types::Registration::Result result{error(ErrorCode::InvalidArgument), {}, false};
 
-        if(!Detail::validText(description.ownerKey, true) || !Detail::validText(description.scheme, true) ||
-           !Detail::validText(description.displayName, true))
+        if(!Internal::validText(description.ownerKey, true) || !Internal::validText(description.scheme, true) ||
+           !Internal::validText(description.displayName, true))
         {
             return result;
         }
 
         if(description.defaultAction.has_value())
         {
-            IO::Types::Status status = Detail::validateLaunchAction(*description.defaultAction, true);
+            IO::Types::Status status = Internal::validateLaunchAction(*description.defaultAction, true);
 
             if(!status.ok())
             {
@@ -297,12 +297,12 @@ namespace GameWIP::Desktop
 
         for(const Types::Registration::Verb &verb : description.verbs)
         {
-            if(!Detail::validText(verb.name, true) || !Detail::validText(verb.label, true))
+            if(!Internal::validText(verb.name, true) || !Internal::validText(verb.label, true))
             {
                 return result;
             }
 
-            IO::Types::Status status = Detail::validateLaunchAction(verb.action, true);
+            IO::Types::Status status = Internal::validateLaunchAction(verb.action, true);
 
             if(!status.ok())
             {
@@ -311,25 +311,25 @@ namespace GameWIP::Desktop
             }
         }
 
-        return Detail::Platform::registerUriScheme(description);
+        return Platform::registerUriScheme(description);
     }
 
     Types::Registration::Result Registration::unregisterFileExtension(std::string_view ownerKey, std::string_view extension) noexcept
     {
-        if(!Detail::validText(ownerKey, true) || !Detail::validText(extension, true))
+        if(!Internal::validText(ownerKey, true) || !Internal::validText(extension, true))
         {
             return {error(ErrorCode::InvalidArgument), {}, false};
         }
-        return Detail::Platform::unregisterFileExtension(ownerKey, extension);
+        return Platform::unregisterFileExtension(ownerKey, extension);
     }
 
     Types::Registration::Result Registration::unregisterUriScheme(std::string_view ownerKey, std::string_view scheme) noexcept
     {
-        if(!Detail::validText(ownerKey, true) || !Detail::validText(scheme, true))
+        if(!Internal::validText(ownerKey, true) || !Internal::validText(scheme, true))
         {
             return {error(ErrorCode::InvalidArgument), {}, false};
         }
-        return Detail::Platform::unregisterUriScheme(ownerKey, scheme);
+        return Platform::unregisterUriScheme(ownerKey, scheme);
     }
 
     /// ------------------------------------------------------------
@@ -371,7 +371,7 @@ namespace GameWIP::Desktop
         try
         {
             // Set up owned or caller-provided event storage.
-            auto candidate = std::make_unique<Detail::ShellEventQueueState>();
+            auto candidate = std::make_unique<Internal::ShellEventQueueState>();
 
             if(ownedQueue != nullptr)
             {
@@ -412,7 +412,7 @@ namespace GameWIP::Desktop
 
     bool ShellEventQueue::ownedByCurrentThread() const noexcept
     {
-        return state_ != nullptr && Detail::ownedByCurrentThread(*state_);
+        return state_ != nullptr && Internal::ownedByCurrentThread(*state_);
     }
 
     IO::Types::Status ShellEventQueue::close() noexcept
@@ -437,7 +437,7 @@ namespace GameWIP::Desktop
             }
 
             // Clear retained events and release storage before closing the queue.
-            Detail::clearEventsUnlocked(*state_);
+            Internal::clearEventsUnlocked(*state_);
             state_->eventStorage = {};
             state_->internalEvents.clear();
             state_->open = false;
@@ -519,7 +519,7 @@ namespace GameWIP::Desktop
 
         if(state_->open)
         {
-            Detail::clearEventsUnlocked(*state_);
+            Internal::clearEventsUnlocked(*state_);
         }
     }
 
@@ -556,7 +556,7 @@ namespace GameWIP::Desktop::Shell
 
     Types::Result<Types::Shell::Capabilities> getCapabilities() noexcept
     {
-        return Detail::Platform::getShellCapabilities();
+        return Platform::getShellCapabilities();
     }
 
     bool supports(Types::Shell::Capability capability) noexcept

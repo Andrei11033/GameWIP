@@ -1,8 +1,10 @@
 /// @file win32_drag_drop.cpp
 /// @brief Lazy OLE target/source implementation for native data drag and drop.
 
-#include "desktop/internal/drag_drop_platform.h"
+#include "desktop/platform/drag_drop.h"
+#include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/window_state.h"
+#include "desktop/platform/win32/internal/test_hooks.h"
 #include "desktop/platform/win32/internal/win32_data_transfer.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 
@@ -13,7 +15,7 @@
 #include <new>
 #include <unordered_set>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Native target state
@@ -130,7 +132,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
                 for(const auto &item : description.items)
                 {
-                    if(Detail::consumeFailure(TestHooks::FailurePoint::DragDropPreparation))
+                    if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropPreparation))
                     {
                         return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
                     }
@@ -166,8 +168,9 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Consumes the materialization failure hook used by drag/drop tests.
         [[nodiscard]] IO::Types::Status materializationStatus() noexcept
         {
-            return Detail::consumeFailure(TestHooks::FailurePoint::DragDropMaterialization) ? IO::makeStatus(IO::Types::ErrorCode::ReadFailed)
-                                                                                            : IO::successStatus();
+            return Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropMaterialization)
+                       ? IO::makeStatus(IO::Types::ErrorCode::ReadFailed)
+                       : IO::successStatus();
         }
 
         /// @brief Tests whether one native format is accepted by a drop region.
@@ -222,7 +225,7 @@ namespace GameWIP::Desktop::Detail::Platform
         public:
             [[nodiscard]] IO::Types::Status acquire() noexcept
             {
-                if(Detail::consumeFailure(TestHooks::FailurePoint::DragDropOleInitialization))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropOleInitialization))
                 {
                     return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
                 }
@@ -353,7 +356,8 @@ namespace GameWIP::Desktop::Detail::Platform
                     const auto pos = clientPosition(*state_, point);
                     active_ = regionAt(*state_, pos, nativeFormats_);
                     const auto selected =
-                        active_ ? negotiateDragDropEffect(sourceEffects_, active_->effects.allowed, active_->effects.preferred) : DD::Effect::None;
+                        active_ ? Internal::negotiateDragDropEffect(sourceEffects_, active_->effects.allowed, active_->effects.preferred)
+                                : DD::Effect::None;
                     currentRegion_ = active_ ? active_->id : DD::RegionId{};
                     routeDragDropEvent(
                         *state_,
@@ -383,7 +387,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 const auto *next = regionAt(*state_, pos, nativeFormats_);
                 const auto region = next ? next->id : DD::RegionId{};
                 const auto selected =
-                    next ? negotiateDragDropEffect(sourceEffects_, next->effects.allowed, next->effects.preferred) : DD::Effect::None;
+                    next ? Internal::negotiateDragDropEffect(sourceEffects_, next->effects.allowed, next->effects.preferred) : DD::Effect::None;
                 routeDragDropEvent(
                     *state_,
                     DD::Events::Moved{
@@ -429,7 +433,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 const auto pos = clientPosition(*state_, point);
                 const auto *region = regionAt(*state_, pos, nativeFormats_);
                 const auto selected =
-                    region ? negotiateDragDropEffect(sourceEffects_, region->effects.allowed, region->effects.preferred) : DD::Effect::None;
+                    region ? Internal::negotiateDragDropEffect(sourceEffects_, region->effects.allowed, region->effects.preferred) : DD::Effect::None;
 
                 if(selected == DD::Effect::None)
                 {
@@ -1064,7 +1068,7 @@ namespace GameWIP::Desktop::Detail::Platform
             data->ownerThreadId = window.platform->ownerThreadId;
             state.ownerNativeThreadId = data->ownerThreadId;
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::DragDropOleInitialization))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropOleInitialization))
             {
                 unregisterTarget(state);
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
@@ -1078,8 +1082,9 @@ namespace GameWIP::Desktop::Detail::Platform
             }
             data->oleHeld = true;
             data->target = new DropTarget(state);
-            const HRESULT hr =
-                Detail::consumeFailure(TestHooks::FailurePoint::DragDropRegistration) ? E_FAIL : RegisterDragDrop(data->window, data->target);
+            const HRESULT hr = Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropRegistration)
+                                   ? E_FAIL
+                                   : RegisterDragDrop(data->window, data->target);
 
             if(FAILED(hr))
             {
@@ -1123,7 +1128,8 @@ namespace GameWIP::Desktop::Detail::Platform
 
         if(state.platform->registered)
         {
-            hr = (Detail::consumeFailure(TestHooks::FailurePoint::DragDropRevocation) || Detail::consumeDragDropRevocationFailure())
+            hr = (Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DragDropRevocation) ||
+                  Internal::consumeDragDropRevocationFailure())
                      ? E_FAIL
                      : RevokeDragDrop(state.platform->window);
         }
@@ -1366,6 +1372,12 @@ namespace GameWIP::Desktop::Detail::Platform
         return result;
     }
 
+} // namespace GameWIP::Desktop::Platform
+
+namespace GameWIP::Desktop::Internal::TestHooks::Platform
+{
+    using namespace GameWIP::Desktop::Platform;
+
     /// @brief Validates and materializes source data without starting OLE.
     IO::Types::Status prepareDragDropSource(const DD::Description &description) noexcept
     {
@@ -1502,4 +1514,4 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return count;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Internal::TestHooks::Platform

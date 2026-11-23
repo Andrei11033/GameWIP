@@ -10,7 +10,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     using IO::Types::ErrorCode;
 
@@ -149,4 +149,4 @@ namespace GameWIP::Desktop::Detail::Platform
         return IO::successStatus();
     }
 
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

@@ -7,7 +7,7 @@
 
 #include <objbase.h>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// COM ownership
@@ -79,4 +79,4 @@ namespace GameWIP::Desktop::Detail::Platform
         IO::Types::Status status_;
         bool ownsInitialization_ = false;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

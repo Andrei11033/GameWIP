@@ -2,7 +2,7 @@
 /// @brief Thread-safe semantic publication and bounded accessibility transport.
 
 #include "desktop/internal/accessibility_state.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/desktop_test_hooks.h"
 #include "unicode/unicode.h"
 
@@ -10,7 +10,7 @@
 #include <cmath>
 #include <new>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// State ownership and host publication
@@ -376,7 +376,7 @@ namespace GameWIP::Desktop::Detail
             Platform::deliverAccessibilityNotification(*runtime, notification);
         }
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop
 {
@@ -387,19 +387,19 @@ namespace GameWIP::Desktop
 } // namespace GameWIP::Desktop
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     Types::Accessibility::ActionResult submitAccessibilityAction(Window &window, Types::Accessibility::ActionRequest request) noexcept
     {
-        const auto *state = Detail::WindowAccess::accessibilityState(window);
+        const auto *state = Internal::WindowAccess::accessibilityState(window);
         const auto runtime = state ? state->runtime.load() : nullptr;
-        return runtime ? Detail::submitAccessibilityAction(*runtime, std::move(request))
+        return runtime ? Internal::submitAccessibilityAction(*runtime, std::move(request))
                        : Types::Accessibility::ActionResult{Types::Accessibility::ActionAcceptance::Closed};
     }
 
     bool popAccessibilityNotification(Window &window, Types::Accessibility::Notification &out) noexcept
     {
-        const auto *state = Detail::WindowAccess::accessibilityState(window);
+        const auto *state = Internal::WindowAccess::accessibilityState(window);
         const auto runtime = state ? state->runtime.load() : nullptr;
 
         if(!runtime || runtime->ownerThread != std::this_thread::get_id())
@@ -425,7 +425,7 @@ namespace GameWIP::Desktop::TestHooks
 
         return true;
     }
-} // namespace GameWIP::Desktop::TestHooks
+} // namespace GameWIP::Desktop::Internal::TestHooks
 #endif
 
 namespace GameWIP::Desktop::Accessibility
@@ -438,9 +438,9 @@ namespace GameWIP::Desktop::Accessibility
         /// Snapshot preparation
         /// ------------------------------------------------------------
 
-        std::shared_ptr<Detail::AccessibilityRuntime> runtimeFor(const Window *window) noexcept
+        std::shared_ptr<Internal::AccessibilityRuntime> runtimeFor(const Window *window) noexcept
         {
-            auto *state = window ? Detail::WindowAccess::accessibilityState(*window) : nullptr;
+            auto *state = window ? Internal::WindowAccess::accessibilityState(*window) : nullptr;
             return state ? state->runtime.load() : nullptr;
         }
 
@@ -452,7 +452,7 @@ namespace GameWIP::Desktop::Accessibility
         }
 
         /// @brief Preconverts native strings and indexes Unicode and annotation boundaries before publication.
-        void indexText(const A::Node &node, Detail::AccessibilityTextCache &cache)
+        void indexText(const A::Node &node, Internal::AccessibilityTextCache &cache)
         {
             cache.name = utf16(node.name);
             cache.description = utf16(node.description);
@@ -545,9 +545,9 @@ namespace GameWIP::Desktop::Accessibility
 
         /// @brief Retains bounded committed-generation diffs, collapsing pressure into one current-tree invalidation.
         void queueDiff(
-            Detail::AccessibilityRuntime &runtime,
-            const std::shared_ptr<const Detail::PublishedSnapshot> &before,
-            const std::shared_ptr<const Detail::PublishedSnapshot> &after)
+            Internal::AccessibilityRuntime &runtime,
+            const std::shared_ptr<const Internal::PublishedSnapshot> &before,
+            const std::shared_ptr<const Internal::PublishedSnapshot> &after)
         {
             std::lock_guard lock(runtime.notificationMutex);
             const auto invalidation = [&]
@@ -830,28 +830,28 @@ namespace GameWIP::Desktop::Accessibility
             return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+        if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
 
         try
         {
-            auto runtime = std::make_shared<Detail::AccessibilityRuntime>();
+            auto runtime = std::make_shared<Internal::AccessibilityRuntime>();
             runtime->limits = options.limits;
             runtime->ownerThread = std::this_thread::get_id();
             runtime->actions.resize(options.limits.maximumActionQueue);
             runtime->notifications.resize(options.limits.maximumNotificationQueue);
 
-            auto &state = Detail::WindowAccess::accessibilityStateOwner(*window_);
+            auto &state = Internal::WindowAccess::accessibilityStateOwner(*window_);
 
             if(!state)
             {
-                state.reset(new Detail::AccessibilityState());
+                state.reset(new Internal::AccessibilityState());
             }
 
-            auto *windowState = Detail::WindowAccess::state(*window_);
-            auto status = Detail::Platform::enableAccessibility(*windowState, runtime);
+            auto *windowState = Internal::WindowAccess::state(*window_);
+            auto status = Platform::enableAccessibility(*windowState, runtime);
 
             if(!status.ok())
             {
@@ -859,7 +859,7 @@ namespace GameWIP::Desktop::Accessibility
             }
             state->runtime.store(runtime);
             windowState->accessibility = state.get();
-            Detail::publishAccessibilityGeometry(*windowState);
+            Internal::publishAccessibilityGeometry(*windowState);
             return {};
         }
         catch(const std::bad_alloc &)
@@ -886,9 +886,9 @@ namespace GameWIP::Desktop::Accessibility
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
 
-        if(auto *state = Detail::WindowAccess::state(*window_))
+        if(auto *state = Internal::WindowAccess::state(*window_))
         {
-            Detail::closeAccessibility(*state);
+            Internal::closeAccessibility(*state);
         }
 
         return {};
@@ -926,14 +926,14 @@ namespace GameWIP::Desktop::Accessibility
             return validation.status;
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+        if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
         {
             return IO::makeStatus(IO::Types::ErrorCode::OutOfMemory);
         }
 
         try
         {
-            auto candidate = std::make_shared<Detail::PublishedSnapshot>();
+            auto candidate = std::make_shared<Internal::PublishedSnapshot>();
             candidate->storage.generation = snapshot.generation;
             candidate->storage.root = snapshot.root;
             candidate->storage.owned.reserve(snapshot.nodes.size());
@@ -943,7 +943,7 @@ namespace GameWIP::Desktop::Accessibility
 
             for(std::size_t i = 0; i < snapshot.nodes.size(); ++i)
             {
-                candidate->storage.owned.push_back(std::make_shared<Detail::OwnedAccessibilityNode>(snapshot.nodes[i]));
+                candidate->storage.owned.push_back(std::make_shared<Internal::OwnedAccessibilityNode>(snapshot.nodes[i]));
                 candidate->storage.nodes.push_back(candidate->storage.owned.back()->node);
                 candidate->index.emplace_back(snapshot.nodes[i].id, i);
 
@@ -956,7 +956,7 @@ namespace GameWIP::Desktop::Accessibility
 
             std::ranges::sort(candidate->index);
 
-            auto *state = Detail::WindowAccess::accessibilityState(*window_);
+            auto *state = Internal::WindowAccess::accessibilityState(*window_);
             std::lock_guard publication(state->publicationMutex);
 
             if(!runtime->live.load())
@@ -975,7 +975,7 @@ namespace GameWIP::Desktop::Accessibility
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument);
             }
 
-            const auto status = Detail::Platform::prepareAccessibilitySnapshot(runtime, *candidate);
+            const auto status = Platform::prepareAccessibilitySnapshot(runtime, *candidate);
 
             if(!status.ok())
             {
@@ -989,7 +989,7 @@ namespace GameWIP::Desktop::Accessibility
             runtime->snapshot.store(candidate);
             state->lastGeneration = snapshot.generation;
             queueDiff(*runtime, before, candidate);
-            Detail::Platform::wakeAccessibility(*runtime);
+            Platform::wakeAccessibility(*runtime);
             return {};
         }
         catch(const std::bad_alloc &)
@@ -1154,7 +1154,7 @@ namespace GameWIP::Desktop::Accessibility
 
         try
         {
-            Detail::AccessibilityPendingNotification pending{
+            Internal::AccessibilityPendingNotification pending{
                 {A::NotificationKind::LiveRegionChanged, snapshot->storage.generation, id},
                 {},
                 snapshot,
@@ -1172,7 +1172,7 @@ namespace GameWIP::Desktop::Accessibility
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
             runtime->notifications[(runtime->notificationHead + runtime->notificationCount++) % runtime->notifications.size()] = std::move(pending);
-            Detail::Platform::wakeAccessibility(*runtime);
+            Platform::wakeAccessibility(*runtime);
             return {};
         }
         catch(...)

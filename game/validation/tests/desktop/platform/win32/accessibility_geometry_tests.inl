@@ -21,15 +21,17 @@ void testGeometryAndExceptionalLifetime(Context &context)
     tree.nodes[1].geometry = A::Geometry{{1, 2, 10, 20}, {0, 1, -1, 0, 50, 40}, A::Rect{30, 42, 10, 8}};
     check(context, "transformed geometry publishes", bridge.publish(tree.view()).ok());
 
-    Desktop::TestHooks::PresentationPublicationSnapshot host;
+    Desktop::Internal::TestHooks::PresentationPublicationSnapshot host;
     host.clientSize = {200, 100};
     host.contentScale = {2, 1.5F};
     host.visible = true;
-    Desktop::TestHooks::applyPresentationPublicationSnapshot(*window, host);
+    Desktop::Internal::TestHooks::applyPresentationPublicationSnapshot(*window, host);
 
     const auto origin = window->clientPosition();
-    const Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
-    const Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
+    const Com<IRawElementProviderSimple> provider(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(*window, 2)));
+    const Com<IRawElementProviderSimple> root(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(*window, 1)));
 
     if(!context.expectTrue("geometry providers exist", provider && root))
     {
@@ -75,7 +77,7 @@ void testGeometryAndExceptionalLifetime(Context &context)
     }
 
     // A destroyed native window must invalidate retained providers immediately.
-    check(context, "unexpected native destruction", Desktop::TestHooks::destroyNativeWindow(*window).ok());
+    check(context, "unexpected native destruction", Desktop::Internal::TestHooks::destroyNativeWindow(*window).ok());
     VARIANT value{};
     equal(context, "native destruction immediately gates retained provider", kUnavailable, provider->GetPropertyValue(UIA_NamePropertyId, &value));
     check(context, "native destruction clears active snapshot", !bridge.snapshotInfo().available);
@@ -89,7 +91,8 @@ void testGeometryAndExceptionalLifetime(Context &context)
 
     check(context, "exceptional lifetime reenable", bridge.enable().ok());
     check(context, "exceptional lifetime fresh publish", bridge.publish(tree.view(2)).ok());
-    const Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 1)));
+    const Com<IRawElementProviderSimple> retained(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(*window, 1)));
     std::thread destroyer(
         [owned = std::move(window)] mutable
         {
@@ -113,7 +116,7 @@ void testConcurrentQueries(Context &context)
     check(context, "concurrent bridge enables", bridge.enable().ok());
     Tree tree;
     check(context, "concurrent initial snapshot", bridge.publish(tree.view()).ok());
-    Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
+    Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 2)));
 
     if(!context.expectTrue("concurrent provider exists", static_cast<bool>(provider)))
     {

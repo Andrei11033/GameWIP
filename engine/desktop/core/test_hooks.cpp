@@ -3,17 +3,14 @@
 
 #include "desktop/internal/desktop_test_hooks.h"
 
-#if DESKTOP_INTERNAL_TEST_HOOKS
 #include "desktop/internal/child_surface_state.h"
-#include "desktop/internal/cursor_platform.h"
+#include "desktop/platform/cursor.h"
 #include "desktop/internal/cursor_state.h"
 #include "desktop/internal/drag_drop_state.h"
-#include "desktop/internal/drag_drop_platform.h"
-#include "desktop/internal/dialogs_platform.h"
-#include "desktop/internal/progress_dialog_state.h"
+#include "desktop/platform/drag_drop.h"
 #include "desktop/internal/shell_state.h"
-#include "desktop/internal/shell_platform.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/shell.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
 
 #include <atomic>
@@ -25,23 +22,16 @@
 namespace
 {
     // These thread-local controls keep injected failures deterministic and owner-thread scoped.
-    thread_local GameWIP::Desktop::TestHooks::FailurePoint armedFailure = GameWIP::Desktop::TestHooks::FailurePoint::None;
+    thread_local GameWIP::Desktop::Internal::TestHooks::FailurePoint armedFailure = GameWIP::Desktop::Internal::TestHooks::FailurePoint::None;
     thread_local std::size_t cursorNativeCreationFailureCountdown = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
     thread_local std::size_t dragDropRevocationFailures = 0;
-    thread_local std::optional<std::pair<GameWIP::Desktop::TestHooks::FileDialogOperation, GameWIP::Desktop::TestHooks::FileDialogResponse>>
-        nextFileDialogResponse;
-    thread_local GameWIP::Desktop::TestHooks::FileDialogSnapshot fileDialogSnapshot;
-    thread_local std::optional<GameWIP::Desktop::TestHooks::MessageDialogResponse> nextMessageDialogResponse;
-    thread_local GameWIP::Desktop::TestHooks::MessageDialogSnapshot messageDialogSnapshot;
-    thread_local std::optional<GameWIP::Desktop::TestHooks::PromptDialogResponse> nextPromptDialogResponse;
-    thread_local GameWIP::Desktop::TestHooks::PromptDialogSnapshot promptDialogSnapshot;
     std::atomic_size_t customCursorsCreated = 0;
     std::atomic_size_t customCursorsDestroyed = 0;
 } // namespace
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// Injected failures and counters
@@ -103,54 +93,6 @@ namespace GameWIP::Desktop::Detail
         return true;
     }
 
-    bool consumeFileDialogResponse(TestHooks::FileDialogOperation operation, TestHooks::FileDialogResponse &response) noexcept
-    {
-        if(!nextFileDialogResponse || nextFileDialogResponse->first != operation)
-        {
-            return false;
-        }
-        response = std::move(nextFileDialogResponse->second);
-        nextFileDialogResponse.reset();
-        return true;
-    }
-
-    void recordFileDialogSnapshot(TestHooks::FileDialogSnapshot snapshot) noexcept
-    {
-        fileDialogSnapshot = std::move(snapshot);
-    }
-
-    bool consumeMessageDialogResponse(TestHooks::MessageDialogResponse &response) noexcept
-    {
-        if(!nextMessageDialogResponse)
-        {
-            return false;
-        }
-        response = *nextMessageDialogResponse;
-        nextMessageDialogResponse.reset();
-        return true;
-    }
-
-    void recordMessageDialogSnapshot(TestHooks::MessageDialogSnapshot snapshot) noexcept
-    {
-        messageDialogSnapshot = std::move(snapshot);
-    }
-
-    bool consumePromptDialogResponse(TestHooks::PromptDialogResponse &response) noexcept
-    {
-        if(!nextPromptDialogResponse)
-        {
-            return false;
-        }
-        response = *nextPromptDialogResponse;
-        nextPromptDialogResponse.reset();
-        return true;
-    }
-
-    void recordPromptDialogSnapshot(TestHooks::PromptDialogSnapshot snapshot) noexcept
-    {
-        promptDialogSnapshot = std::move(snapshot);
-    }
-
     void recordCustomCursorCreated() noexcept
     {
         customCursorsCreated.fetch_add(1, std::memory_order_relaxed);
@@ -160,9 +102,9 @@ namespace GameWIP::Desktop::Detail
     {
         customCursorsDestroyed.fetch_add(1, std::memory_order_relaxed);
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     /// ------------------------------------------------------------
     /// Failure controls
@@ -175,11 +117,11 @@ namespace GameWIP::Desktop::TestHooks
 
     void enqueueShellEvent(ShellEventQueue &queue, Types::Shell::Events::Payload payload) noexcept
     {
-        Detail::ShellEventQueueState *state = Detail::ShellEventQueueAccess::state(queue);
+        Internal::ShellEventQueueState *state = Internal::ShellEventQueueAccess::state(queue);
 
         if(state != nullptr)
         {
-            Detail::publishShellEvent(*state, std::move(payload));
+            Internal::publishShellEvent(*state, std::move(payload));
         }
     }
 
@@ -190,102 +132,6 @@ namespace GameWIP::Desktop::TestHooks
         clipboardPublicationFailureIndex = std::numeric_limits<std::size_t>::max();
         clipboardEnumerationFailureCount = std::numeric_limits<std::size_t>::max();
         dragDropRevocationFailures = 0;
-        nextFileDialogResponse.reset();
-        fileDialogSnapshot = {};
-        nextMessageDialogResponse.reset();
-        messageDialogSnapshot = {};
-        nextPromptDialogResponse.reset();
-        promptDialogSnapshot = {};
-    }
-
-    void completeNextFileDialog(FileDialogOperation operation, FileDialogResponse response) noexcept
-    {
-        nextFileDialogResponse.emplace(operation, std::move(response));
-    }
-
-    const FileDialogSnapshot &lastFileDialogSnapshot() noexcept
-    {
-        return fileDialogSnapshot;
-    }
-
-    void completeNextMessageDialog(MessageDialogResponse response) noexcept
-    {
-        nextMessageDialogResponse = response;
-    }
-
-    const MessageDialogSnapshot &lastMessageDialogSnapshot() noexcept
-    {
-        return messageDialogSnapshot;
-    }
-
-    void completeNextPromptDialog(PromptDialogResponse response) noexcept
-    {
-        nextPromptDialogResponse = response;
-    }
-
-    const PromptDialogSnapshot &lastPromptDialogSnapshot() noexcept
-    {
-        return promptDialogSnapshot;
-    }
-
-    IO::Types::Status testDialogApartment() noexcept
-    {
-        return Detail::Platform::testDialogApartment();
-    }
-
-    IO::Types::Status testShellApartment() noexcept
-    {
-        return Detail::Platform::testShellApartment();
-    }
-
-    IO::Types::Status createJumpLink(const Types::JumpLists::Task &task, void *&out) noexcept
-    {
-        return Detail::Platform::createJumpLinkForTests(task, out);
-    }
-
-    ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialog &dialog) noexcept
-    {
-        return Detail::Platform::inspectProgressDialog(Detail::ProgressDialogAccess::state(dialog));
-    }
-
-    IO::Types::Status requestProgressDialogCancel(ProgressDialog &dialog) noexcept
-    {
-        return Detail::Platform::requestProgressDialogCancel(Detail::ProgressDialogAccess::state(dialog));
-    }
-
-    IO::Types::Status requestProgressDialogClose(ProgressDialog &dialog) noexcept
-    {
-        return Detail::Platform::requestProgressDialogClose(Detail::ProgressDialogAccess::state(dialog));
-    }
-
-    IO::Types::Status destroyNativeProgressDialog(ProgressDialog &dialog) noexcept
-    {
-        return Detail::Platform::destroyNativeProgressDialog(Detail::ProgressDialogAccess::state(dialog));
-    }
-
-    IO::Types::Status simulateProgressDialogDpiChange(ProgressDialog &dialog, NativePixelRect suggestedBounds, std::uint32_t dpi) noexcept
-    {
-        return Detail::Platform::simulateProgressDialogDpiChange(Detail::ProgressDialogAccess::state(dialog), suggestedBounds, dpi);
-    }
-
-    std::size_t activeProgressDialogCount() noexcept
-    {
-        return Detail::Platform::activeProgressDialogCount();
-    }
-
-    std::size_t deferredProgressDialogCount() noexcept
-    {
-        return Detail::Platform::deferredProgressDialogCount();
-    }
-
-    std::size_t progressDialogClassReferenceCount() noexcept
-    {
-        return Detail::Platform::progressDialogClassReferenceCount();
-    }
-
-    bool progressOwnerRestoreMessageRegistrationAttempted() noexcept
-    {
-        return Detail::Platform::progressOwnerRestoreMessageRegistrationAttempted();
     }
 
     /// ------------------------------------------------------------
@@ -297,56 +143,31 @@ namespace GameWIP::Desktop::TestHooks
         Types::DragDrop::Effect target,
         Types::DragDrop::Effect preferred) noexcept
     {
-        return Detail::negotiateDragDropEffect(source, target, preferred);
+        return Internal::negotiateDragDropEffect(source, target, preferred);
     }
 
     IO::Types::Status enqueueDragDrop(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
     {
-        Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        Internal::DragDropState *state = Internal::DragDropAccess::state(target);
 
         if(!state)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-        return Detail::enqueueDragDropEvent(*state, std::move(data), terminal) ? IO::successStatus()
-                                                                               : IO::makeStatus(IO::Types::ErrorCode::StorageFull);
+        return Internal::enqueueDragDropEvent(*state, std::move(data), terminal) ? IO::successStatus()
+                                                                                 : IO::makeStatus(IO::Types::ErrorCode::StorageFull);
     }
 
     Types::DragDrop::SessionId nextDragDropSessionId(DragDropTarget &target, std::uint64_t nextValue) noexcept
     {
-        Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        Internal::DragDropState *state = Internal::DragDropAccess::state(target);
 
         if(state == nullptr)
         {
             return {};
         }
         state->nextSessionId = nextValue;
-        return Detail::allocateDragDropSessionId(*state);
-    }
-
-    IO::Types::Status prepareDragDropSource(const Types::DragDrop::Description &description) noexcept
-    {
-        return Detail::Platform::prepareDragDropSource(description);
-    }
-
-    IO::Types::Status testDragDropOleInitialization() noexcept
-    {
-        return Detail::Platform::testDragDropOleInitialization();
-    }
-
-    IO::Types::Status testDragDropMaterialization() noexcept
-    {
-        return Detail::Platform::testDragDropMaterialization();
-    }
-
-    Types::DragDrop::Result droppedDragDropSourceResult(Types::DragDrop::Effect performed, Types::DragDrop::Effect allowed) noexcept
-    {
-        return Detail::Platform::testDroppedDragDropSourceResult(performed, allowed);
-    }
-
-    bool dragDropComContractsValid() noexcept
-    {
-        return Detail::Platform::testDragDropComContracts();
+        return Internal::allocateDragDropSessionId(*state);
     }
 
     void failDragDropRevocations(std::size_t attempts) noexcept
@@ -354,42 +175,10 @@ namespace GameWIP::Desktop::TestHooks
         dragDropRevocationFailures = attempts;
     }
 
-    Types::Events::PumpResult routeDragDropDuringPump(DragDropTarget &target, Types::DragDrop::Events::Payload data, bool terminal) noexcept
-    {
-        Types::Events::PumpResult result;
-        Detail::DragDropState *state = Detail::DragDropAccess::state(target);
-
-        if(state == nullptr)
-        {
-            result.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen);
-            return result;
-        }
-        return Detail::Platform::testRouteDragDropDuringPump(*state, std::move(data), terminal);
-    }
-
     std::size_t dragDropRegionCount(const DragDropTarget &target) noexcept
     {
-        const Detail::DragDropState *state = Detail::DragDropAccess::state(target);
+        const Internal::DragDropState *state = Internal::DragDropAccess::state(target);
         return state == nullptr ? 0 : state->regions.size();
-    }
-
-    std::size_t activeDragDropTargetCount() noexcept
-    {
-        return Detail::Platform::testActiveDragDropTargetCount();
-    }
-
-    std::size_t deferredDragDropTargetCount() noexcept
-    {
-        return Detail::Platform::testDeferredDragDropTargetCount();
-    }
-
-    Types::DragDrop::RegionId matchDragDropRegion(
-        const DragDropTarget &target,
-        Types::LogicalPosition position,
-        std::span<const Types::DataTransfer::FormatView> offered) noexcept
-    {
-        const Detail::DragDropState *state = Detail::DragDropAccess::state(target);
-        return state == nullptr ? Types::DragDrop::RegionId{} : Detail::Platform::testMatchDragDropRegion(*state, position, offered);
     }
 
     /// ------------------------------------------------------------
@@ -413,19 +202,19 @@ namespace GameWIP::Desktop::TestHooks
 
     std::size_t customCursorVariantCount(const Cursor &cursor) noexcept
     {
-        const auto &state = Detail::CursorAccess::state(cursor);
+        const auto &state = Internal::CursorAccess::state(cursor);
         return state ? state->variants.size() : 0;
     }
 
     std::uint32_t customCursorBindingDpi(const Window &window) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
+        const Internal::WindowState *state = Internal::WindowAccess::state(window);
 
-        if(state == nullptr || !state->platform || !Detail::Platform::hasCustomCursor(*state))
+        if(state == nullptr || !state->platform || !Platform::hasCustomCursor(*state))
         {
             return 0;
         }
-        return Detail::Platform::customCursorBindingDpi(*state);
+        return Platform::customCursorBindingDpi(*state);
     }
 
     std::size_t createdCustomCursorCount() noexcept
@@ -440,13 +229,13 @@ namespace GameWIP::Desktop::TestHooks
 
     CustomCursorNativeSnapshot inspectCustomCursorVariant(const Cursor &cursor, std::size_t index) noexcept
     {
-        const auto &state = Detail::CursorAccess::state(cursor);
+        const auto &state = Internal::CursorAccess::state(cursor);
 
         if(!state || index >= state->variants.size())
         {
             return {};
         }
-        const Detail::Platform::NativeCursorSnapshot snapshot = Detail::Platform::inspectNativeCursor(state->variants[index]);
+        const Platform::NativeCursorSnapshot snapshot = Platform::inspectNativeCursor(state->variants[index]);
         return {{snapshot.hotspotX, snapshot.hotspotY}, snapshot.firstBgraPixel, snapshot.valid};
     }
 
@@ -458,9 +247,9 @@ namespace GameWIP::Desktop::TestHooks
     {
         try
         {
-            if(Detail::WindowAccess::state(window) != nullptr)
+            if(Internal::WindowAccess::state(window) != nullptr)
             {
-                Detail::WindowAccess::ensureRendererIntegration(window)->pointerHitMaskBackendSupportedForTesting = true;
+                Internal::WindowAccess::ensureRendererIntegration(window)->pointerHitMaskBackendSupportedForTesting = true;
             }
         }
         catch(const std::bad_alloc &)
@@ -471,17 +260,17 @@ namespace GameWIP::Desktop::TestHooks
 
     bool hasRendererIntegrationState(const Window &window) noexcept
     {
-        return Detail::WindowAccess::rendererIntegration(window) != nullptr;
+        return Internal::WindowAccess::rendererIntegration(window) != nullptr;
     }
 
     const void *presentationPublicationStorage(const Window &window) noexcept
     {
-        return Detail::WindowAccess::presentationPublication(window);
+        return Internal::WindowAccess::presentationPublication(window);
     }
 
     void setPointerHitMaskGeneration(Window &window, std::uint64_t generation) noexcept
     {
-        Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
 
         if(renderer != nullptr)
         {
@@ -493,8 +282,8 @@ namespace GameWIP::Desktop::TestHooks
 
     bool pointerHitMaskAccepts(const Window &window, Types::LogicalPosition position) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state == nullptr || Detail::pointerHitMaskAccepts(*state, position);
+        const Internal::WindowState *state = Internal::WindowAccess::state(window);
+        return state == nullptr || Internal::pointerHitMaskAccepts(*state, position);
     }
 
     /// ------------------------------------------------------------
@@ -503,7 +292,7 @@ namespace GameWIP::Desktop::TestHooks
 
     IO::Types::Status openPortable(Window &window, std::span<Types::Event> storage) noexcept
     {
-        if(Detail::WindowAccess::state(window) != nullptr)
+        if(Internal::WindowAccess::state(window) != nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::AlreadyOpen);
         }
@@ -515,20 +304,20 @@ namespace GameWIP::Desktop::TestHooks
 
         try
         {
-            auto state = std::make_unique<Detail::WindowState>();
+            auto state = std::make_unique<Internal::WindowState>();
             state->ownerThread = std::this_thread::get_id();
             state->id = {1};
             state->eventStorage = storage;
             state->eventStorageKind = Types::Events::StorageKind::External;
-            Detail::WindowAccess::bindRendererIntegration(window, *state);
+            Internal::WindowAccess::bindRendererIntegration(window, *state);
 
-            if(Detail::WindowAccess::presentationPublication(window) != nullptr)
+            if(Internal::WindowAccess::presentationPublication(window) != nullptr)
             {
-                Detail::WindowAccess::bindPresentationPublication(window, *state);
-                Detail::publishCachedPresentationState(*state);
+                Internal::WindowAccess::bindPresentationPublication(window, *state);
+                Internal::publishCachedPresentationState(*state);
             }
 
-            Detail::WindowAccess::stateOwner(window) = std::move(state);
+            Internal::WindowAccess::stateOwner(window) = std::move(state);
             return IO::successStatus();
         }
         catch(const std::bad_alloc &)
@@ -543,43 +332,43 @@ namespace GameWIP::Desktop::TestHooks
 
     IO::Types::Status enqueue(Window &window, Types::Events::Payload data) noexcept
     {
-        Detail::WindowState *state = Detail::WindowAccess::state(window);
+        Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-        static_cast<void>(Detail::enqueueEvent(*state, std::move(data)));
+        static_cast<void>(Internal::enqueueEvent(*state, std::move(data)));
         return IO::successStatus();
     }
 
     IO::Types::Status enqueue(ChildSurface &surface, Types::ChildSurface::Events::Payload data) noexcept
     {
-        Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
+        Internal::ChildSurfaceState *state = Internal::ChildSurfaceAccess::state(surface);
 
         if(state == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-        static_cast<void>(Detail::enqueueChildSurfaceEvent(*state, data));
+        static_cast<void>(Internal::enqueueChildSurfaceEvent(*state, data));
         return IO::successStatus();
     }
 
     IO::Types::Status requestClose(Window &window, Types::Events::CloseRequestSource source) noexcept
     {
-        Detail::WindowState *state = Detail::WindowAccess::state(window);
+        Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr)
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
-        static_cast<void>(Detail::requestClose(*state, source));
+        static_cast<void>(Internal::requestClose(*state, source));
         return IO::successStatus();
     }
 
     void applyPresentationPublicationSnapshot(Window &window, const PresentationPublicationSnapshot &snapshot) noexcept
     {
-        Detail::WindowState *state = Detail::WindowAccess::state(window);
+        Internal::WindowState *state = Internal::WindowAccess::state(window);
 
         if(state == nullptr)
         {
@@ -593,9 +382,9 @@ namespace GameWIP::Desktop::TestHooks
         state->presentation = snapshot.presentation;
         state->visible = snapshot.visible;
         state->interactiveMoveResizeActive = snapshot.interactiveMoveResizeActive;
-        Detail::publishCachedPresentationState(*state);
+        Internal::publishCachedPresentationState(*state);
 
-        if(Detail::PresentationPublicationState *publication = Detail::WindowAccess::presentationPublication(window))
+        if(Internal::PresentationPublicationState *publication = Internal::WindowAccess::presentationPublication(window))
         {
             publication->publishOccluded(snapshot.occluded);
         }
@@ -603,26 +392,26 @@ namespace GameWIP::Desktop::TestHooks
 
     std::uint64_t pointerHitMaskGeneration(const Window &window) noexcept
     {
-        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
         return renderer != nullptr ? renderer->pointerHitMaskActiveGeneration : 0;
     }
 
     std::size_t pointerHitMaskWordCount(const Window &window) noexcept
     {
-        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
         return renderer != nullptr ? renderer->pointerHitMask.size() : 0;
     }
 
     Types::Renderer::PointerHitMaskWord pointerHitMaskWord(const Window &window, std::size_t index) noexcept
     {
-        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
         return renderer != nullptr && index < renderer->pointerHitMask.size() ? renderer->pointerHitMask[index]
                                                                               : Types::Renderer::PointerHitMaskWord{0};
     }
 
     const void *pointerHitMaskStorage(const Window &window) noexcept
     {
-        const Detail::RendererIntegrationState *renderer = Detail::WindowAccess::rendererIntegration(window);
+        const Internal::RendererIntegrationState *renderer = Internal::WindowAccess::rendererIntegration(window);
         return renderer != nullptr && !renderer->pointerHitMask.empty() ? renderer->pointerHitMask.data() : nullptr;
     }
 
@@ -632,7 +421,7 @@ namespace GameWIP::Desktop::TestHooks
 
     Types::Display::ColorInfo makeDisplayColorInfo(Types::Display::MonitorId monitor, const DisplayColorSnapshot &snapshot) noexcept
     {
-        return Detail::Platform::makeDisplayColorInfo(
+        return Platform::makeDisplayColorInfo(
             monitor,
             {.activeColorSpace = snapshot.activeColorSpace,
              .wideColorGamutSupported = snapshot.wideColorGamutSupported,
@@ -644,5 +433,4 @@ namespace GameWIP::Desktop::TestHooks
              .maximumFullFrameLuminanceNits = snapshot.maximumFullFrameLuminanceNits,
              .sdrWhiteLevelMilli80Nits = snapshot.sdrWhiteLevelMilli80Nits});
     }
-} // namespace GameWIP::Desktop::TestHooks
-#endif
+} // namespace GameWIP::Desktop::Internal::TestHooks

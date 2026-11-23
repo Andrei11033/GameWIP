@@ -15,7 +15,7 @@
 #include <new>
 #include <unordered_map>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Monitor discovery and native metadata
@@ -587,7 +587,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::MonitorQuery))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::MonitorQuery))
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
         }
@@ -692,7 +692,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         Types::Result<std::vector<Types::Display::Info>> result;
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::DisplayEnumeration))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayEnumeration))
         {
             result.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed);
             return result;
@@ -799,7 +799,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::DisplayEnumeration))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayEnumeration))
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
         }
@@ -960,7 +960,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::DisplayColorQuery))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DisplayColorQuery))
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::StatFailed)};
         }
@@ -1061,10 +1061,10 @@ namespace GameWIP::Desktop::Detail::Platform
         displayColorFactory.factory = nullptr;
         displayColorFactory.queried = false;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     /// ------------------------------------------------------------
     /// Validation support
@@ -1073,19 +1073,19 @@ namespace GameWIP::Desktop::TestHooks
     /// @brief Converts a refresh rational into the portable millihertz representation.
     std::uint32_t refreshRateMillihertz(std::uint32_t numerator, std::uint32_t denominator) noexcept
     {
-        return Detail::Platform::rationalMillihertz({numerator, denominator});
+        return Platform::rationalMillihertz({numerator, denominator});
     }
 
     /// @brief Injects a display-color configuration change for validation.
     void simulateDisplayColorConfigurationChange() noexcept
     {
-        Detail::Platform::displayColorFactory.forceConfigurationChange = true;
+        Platform::displayColorFactory.forceConfigurationChange = true;
     }
 
     /// @brief Makes the next display-color metadata query report unavailable metadata.
     void makeNextDisplayColorMetadataUnavailable() noexcept
     {
-        Detail::Platform::displayColorFactory.forceMetadataUnavailable = true;
+        Platform::displayColorFactory.forceMetadataUnavailable = true;
     }
-} // namespace GameWIP::Desktop::TestHooks
+} // namespace GameWIP::Desktop::Internal::TestHooks
 #endif

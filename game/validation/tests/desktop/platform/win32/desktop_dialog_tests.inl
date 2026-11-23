@@ -13,17 +13,19 @@ namespace PromptDialogs = DialogTypes::Prompt;
 /// ------------------------------------------------------------
 
 void armFileDialog(
-    Desktop::TestHooks::FileDialogOperation operation,
+    Win32TestHooks::FileDialogOperation operation,
     bool accepted = false,
     std::vector<GameWIP::FileSystem::Types::Path> paths = {},
     std::optional<std::size_t> nativeFilterIndex = std::nullopt)
 {
-    Desktop::TestHooks::completeNextFileDialog(operation, {.accepted = accepted, .paths = std::move(paths), .nativeFilterIndex = nativeFilterIndex});
+    Win32TestHooks::completeNextFileDialog(operation, {.accepted = accepted, .paths = std::move(paths), .nativeFilterIndex = nativeFilterIndex});
 }
 
 void testFileAndFolderDialogs(TestSupport::Context &context)
 {
-    using FileOperation = Desktop::TestHooks::FileDialogOperation;
+    Win32TestHooks::resetDialogState();
+
+    using FileOperation = Win32TestHooks::FileDialogOperation;
 
     const auto invalidExtension = [&](std::string_view extension)
     {
@@ -62,7 +64,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("cancelled file path is empty", cancelled.path.empty()));
     static_cast<void>(context.expectFalse("cancelled file has no selected filter", cancelled.selectedFilterIndex.has_value()));
 
-    const auto &snapshot = Desktop::TestHooks::lastFileDialogSnapshot();
+    const auto &snapshot = Win32TestHooks::lastFileDialogSnapshot();
     static_cast<void>(
         context.expectEq("file filter names preserve order", std::vector<std::wstring>{L"Images", L"Projects", L"All files"}, snapshot.filterNames));
     static_cast<void>(context.expectEq(
@@ -80,7 +82,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("single file path is exact", GameWIP::FileSystem::Types::Path{L"C:\\chosen.png"}, accepted.path));
     static_cast<void>(context.expectEq("native one-based filter maps to portable zero", std::optional<std::size_t>{0}, accepted.selectedFilterIndex));
     static_cast<void>(
-        context.expectFalse("absent preferred filter remains absent", Desktop::TestHooks::lastFileDialogSnapshot().preferredFilterIndex.has_value()));
+        context.expectFalse("absent preferred filter remains absent", Win32TestHooks::lastFileDialogSnapshot().preferredFilterIndex.has_value()));
 
     open.preferredFilterIndex = filters.size();
     static_cast<void>(
@@ -98,7 +100,7 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "empty extension span means all files",
         std::vector<std::wstring>{L"*.*"},
-        Desktop::TestHooks::lastFileDialogSnapshot().filterPatterns));
+        Win32TestHooks::lastFileDialogSnapshot().filterPatterns));
 
     const std::array malformedExtension{std::string_view{"\xC3", 1}};
     const std::array malformedExtensionFilter{FileDialogs::Filter{"Malformed", malformedExtension}};
@@ -167,18 +169,18 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "save file name reaches native boundary",
         std::wstring{L"project"},
-        Desktop::TestHooks::lastFileDialogSnapshot().suggestedFileName));
+        Win32TestHooks::lastFileDialogSnapshot().suggestedFileName));
     static_cast<void>(context.expectEq(
         "save extension reaches native boundary",
         std::wstring{L"png"},
-        Desktop::TestHooks::lastFileDialogSnapshot().suggestedExtension));
+        Win32TestHooks::lastFileDialogSnapshot().suggestedExtension));
     save.suggestedExtension = "png;jpg";
     armFileDialog(FileOperation::SaveFile);
     static_cast<void>(context.expectTrue("suggested extension semicolon remains portable", Desktop::Dialogs::saveFile(save).status.ok()));
     static_cast<void>(context.expectEq(
         "semicolon suggested extension reaches native boundary unchanged",
         std::wstring{L"png;jpg"},
-        Desktop::TestHooks::lastFileDialogSnapshot().suggestedExtension));
+        Win32TestHooks::lastFileDialogSnapshot().suggestedExtension));
     save.suggestedFileName = std::string_view{"bad\0name", 8};
     static_cast<void>(context.expectEq("suggested file name rejects null", ErrorCode::InvalidArgument, Desktop::Dialogs::saveFile(save).status.code));
     save.suggestedFileName = std::string_view{"\xC3", 1};
@@ -239,23 +241,23 @@ void testFileAndFolderDialogs(TestSupport::Context &context)
         context.expectEq("suggested directory rejects native null", ErrorCode::InvalidArgument, Desktop::Dialogs::selectFolder(folder).status.code));
     folder.suggestedDirectory = GameWIP::FileSystem::Types::Path{L"C:\\MissingSuggestion"};
     armFileDialog(FileOperation::SelectFolder);
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogSuggestedDirectory);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogSuggestedDirectory);
     static_cast<void>(
         context.expectEq("suggested directory native failure maps", ErrorCode::NativeFailure, Desktop::Dialogs::selectFolder(folder).status.code));
 
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
     armFileDialog(FileOperation::OpenFile);
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     static_cast<void>(context.expectEq("file dialog allocation failure maps", ErrorCode::OutOfMemory, Desktop::Dialogs::openFile({}).status.code));
     armFileDialog(FileOperation::OpenFile);
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogConversion);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogConversion);
     static_cast<void>(
         context.expectEq("injected file conversion failure maps", ErrorCode::EncodingFailed, Desktop::Dialogs::openFile({}).status.code));
     armFileDialog(FileOperation::OpenFile);
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogNativeOperation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation);
     static_cast<void>(context.expectEq("file native failure maps", ErrorCode::NativeFailure, Desktop::Dialogs::openFile({}).status.code));
     armFileDialog(FileOperation::OpenFile, true, {GameWIP::FileSystem::Types::Path{L"C:\\result.txt"}});
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogResult);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogResult);
     const auto failedResult = Desktop::Dialogs::openFile({});
     static_cast<void>(context.expectEq("file result failure maps", ErrorCode::NativeFailure, failedResult.status.code));
     static_cast<void>(context.expectTrue("failed file result remains defaulted", failedResult.path.empty() && !failedResult.selectedFilterIndex));
@@ -303,12 +305,12 @@ struct ApartmentObservation
         return 2;
     }
 
-    if(!Desktop::TestHooks::testDialogApartment().ok() || observeApartment().result != CO_E_NOTINITIALIZED)
+    if(!Win32TestHooks::testDialogApartment().ok() || observeApartment().result != CO_E_NOTINITIALIZED)
     {
         return 3;
     }
 
-    return Desktop::TestHooks::testShellApartment().ok() && observeApartment().result == CO_E_NOTINITIALIZED ? 0 : 4;
+    return Win32TestHooks::testShellApartment().ok() && observeApartment().result == CO_E_NOTINITIALIZED ? 0 : 4;
 }
 
 /// ------------------------------------------------------------
@@ -346,8 +348,8 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
 
     using Probe = IO::Types::Status (*)() noexcept;
     const std::array probes{
-        std::pair<std::string_view, Probe>{"dialogs", &Desktop::TestHooks::testDialogApartment},
-        std::pair<std::string_view, Probe>{"shell", &Desktop::TestHooks::testShellApartment}};
+        std::pair<std::string_view, Probe>{"dialogs", &Win32TestHooks::testDialogApartment},
+        std::pair<std::string_view, Probe>{"shell", &Win32TestHooks::testShellApartment}};
 
     for(const auto &[name, probe] : probes)
     {
@@ -427,6 +429,8 @@ void testDialogApartmentContracts(TestSupport::Context &context, const std::file
 
 void testMessageDialogs(TestSupport::Context &context)
 {
+    Win32TestHooks::resetDialogState();
+
     using MessageDialogs::Button;
     using MessageDialogs::Buttons;
 
@@ -447,18 +451,18 @@ void testMessageDialogs(TestSupport::Context &context)
     for(const ButtonSetCase &testCase : cases)
     {
         MessageDialogs::Description description{.title = "Message", .message = "Body", .buttons = testCase.buttons};
-        Desktop::TestHooks::completeNextMessageDialog({.button = testCase.members[0], .dismissed = false});
+        Win32TestHooks::completeNextMessageDialog({.button = testCase.members[0], .dismissed = false});
         const auto nativeDefault = Desktop::Dialogs::showMessage(description);
         static_cast<void>(context.expectTrue("Message native default succeeds", nativeDefault.status.ok()));
         static_cast<void>(context.expectEq("Message selection is accepted", DialogTypes::Outcome::Accepted, nativeDefault.outcome));
         static_cast<void>(context.expectEq("Message selection round trips", testCase.members[0], nativeDefault.button));
         static_cast<void>(
-            context.expectEq("Message default None reaches backend", Button::None, Desktop::TestHooks::lastMessageDialogSnapshot().defaultButton));
+            context.expectEq("Message default None reaches backend", Button::None, Win32TestHooks::lastMessageDialogSnapshot().defaultButton));
 
         for(std::size_t index = 0; index < testCase.memberCount; ++index)
         {
             description.defaultButton = testCase.members[index];
-            Desktop::TestHooks::completeNextMessageDialog({.button = testCase.members[index], .dismissed = false});
+            Win32TestHooks::completeNextMessageDialog({.button = testCase.members[index], .dismissed = false});
             const auto selected = Desktop::Dialogs::showMessage(description);
             const bool cancel = testCase.members[index] == Button::Cancel;
             static_cast<void>(context.expectTrue("valid explicit Message default succeeds", selected.status.ok()));
@@ -470,7 +474,7 @@ void testMessageDialogs(TestSupport::Context &context)
         }
 
         description.defaultButton = Button::None;
-        Desktop::TestHooks::completeNextMessageDialog({.dismissed = true});
+        Win32TestHooks::completeNextMessageDialog({.dismissed = true});
         const auto dismissed = Desktop::Dialogs::showMessage(description);
         static_cast<void>(context.expectTrue("Message native dismissal succeeds", dismissed.status.ok()));
         static_cast<void>(context.expectEq("Message native dismissal is cancelled", DialogTypes::Outcome::Cancelled, dismissed.outcome));
@@ -512,9 +516,9 @@ void testMessageDialogs(TestSupport::Context &context)
     for(const DialogTypes::Severity severity : severities)
     {
         description.severity = severity;
-        Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
+        Win32TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
         static_cast<void>(context.expectTrue("every Message Severity succeeds", Desktop::Dialogs::showMessage(description).status.ok()));
-        static_cast<void>(context.expectEq("Message Severity reaches backend", severity, Desktop::TestHooks::lastMessageDialogSnapshot().severity));
+        static_cast<void>(context.expectEq("Message Severity reaches backend", severity, Win32TestHooks::lastMessageDialogSnapshot().severity));
     }
 
     description.severity = DialogTypes::Severity::None;
@@ -522,7 +526,7 @@ void testMessageDialogs(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("Message title rejects embedded null", ErrorCode::InvalidArgument, Desktop::Dialogs::showMessage(description).status.code));
     description.title = std::string_view{"\xC3", 1};
-    Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
+    Win32TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
     static_cast<void>(
         context.expectEq("Message title rejects malformed UTF-8", ErrorCode::EncodingFailed, Desktop::Dialogs::showMessage(description).status.code));
     description.title = {};
@@ -530,26 +534,26 @@ void testMessageDialogs(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("Message text rejects embedded null", ErrorCode::InvalidArgument, Desktop::Dialogs::showMessage(description).status.code));
     description.message = std::string_view{"\xC3", 1};
-    Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
+    Win32TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
     static_cast<void>(context.expectEq(
         "Message malformed UTF-8 maps at conversion",
         ErrorCode::EncodingFailed,
         Desktop::Dialogs::showMessage(description).status.code));
 
     description.message = "failure";
-    Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    Win32TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     auto failed = Desktop::Dialogs::showMessage(description);
     static_cast<void>(context.expectEq("Message allocation failure maps", ErrorCode::OutOfMemory, failed.status.code));
     static_cast<void>(context.expectEq("failed Message outcome remains default", DialogTypes::Outcome::Cancelled, failed.outcome));
     static_cast<void>(context.expectEq("failed Message button remains default", Button::None, failed.button));
-    Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogNativeOperation);
+    Win32TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation);
     failed = Desktop::Dialogs::showMessage(description);
     static_cast<void>(context.expectEq("Message native failure maps", ErrorCode::NativeFailure, failed.status.code));
     static_cast<void>(context.expectEq("native-failed Message remains defaulted", Button::None, failed.button));
-    Desktop::TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogResult);
+    Win32TestHooks::completeNextMessageDialog({.button = Button::Ok, .dismissed = false});
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogResult);
     failed = Desktop::Dialogs::showMessage(description);
     static_cast<void>(context.expectEq("Message unknown native result maps", ErrorCode::NativeFailure, failed.status.code));
 }
@@ -560,6 +564,8 @@ void testMessageDialogs(TestSupport::Context &context)
 
 void testPromptDialogs(TestSupport::Context &context)
 {
+    Win32TestHooks::resetDialogState();
+
     using PromptDialogs::Button;
     using PromptDialogs::ButtonId;
     using PromptDialogs::Option;
@@ -590,7 +596,7 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("Prompt rejects button-label null", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
     buttons[0].label = std::string_view{"\xC3", 1};
-    Desktop::TestHooks::completeNextPromptDialog({});
+    Win32TestHooks::completeNextPromptDialog({});
     static_cast<void>(
         context.expectEq("Prompt rejects malformed button label", ErrorCode::EncodingFailed, Desktop::Dialogs::showPrompt(description).status.code));
     buttons[0].label = "Proceed";
@@ -600,7 +606,7 @@ void testPromptDialogs(TestSupport::Context &context)
         ErrorCode::InvalidArgument,
         Desktop::Dialogs::showPrompt(description).status.code));
     buttons[0].description = std::string_view{"\xF0\x28\x8C\x28", 4};
-    Desktop::TestHooks::completeNextPromptDialog({});
+    Win32TestHooks::completeNextPromptDialog({});
     static_cast<void>(context.expectEq(
         "Prompt rejects malformed button description",
         ErrorCode::EncodingFailed,
@@ -637,7 +643,7 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("Prompt rejects option-label null", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
     options[0].label = std::string_view{"\xC3", 1};
-    Desktop::TestHooks::completeNextPromptDialog({});
+    Win32TestHooks::completeNextPromptDialog({});
     static_cast<void>(
         context.expectEq("Prompt rejects malformed option label", ErrorCode::EncodingFailed, Desktop::Dialogs::showPrompt(description).status.code));
     options[0].label = "Fast";
@@ -663,7 +669,7 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("Prompt checkbox rejects null", ErrorCode::InvalidArgument, Desktop::Dialogs::showPrompt(description).status.code));
     description.checkBox = PromptDialogs::CheckBox{std::string_view{"\xC3", 1}, false};
-    Desktop::TestHooks::completeNextPromptDialog({});
+    Win32TestHooks::completeNextPromptDialog({});
     static_cast<void>(context.expectEq(
         "Prompt checkbox rejects malformed UTF-8",
         ErrorCode::EncodingFailed,
@@ -678,7 +684,7 @@ void testPromptDialogs(TestSupport::Context &context)
             ErrorCode::InvalidArgument,
             Desktop::Dialogs::showPrompt(description).status.code));
         description.*member = std::string_view{"\xC3", 1};
-        Desktop::TestHooks::completeNextPromptDialog({});
+        Win32TestHooks::completeNextPromptDialog({});
         static_cast<void>(context.expectEq(
             std::format("Prompt {} rejects malformed UTF-8", name),
             ErrorCode::EncodingFailed,
@@ -702,7 +708,7 @@ void testPromptDialogs(TestSupport::Context &context)
     description.details = "Detailed explanation";
     description.supplementalText = "Supplemental note";
     description.checkBox = PromptDialogs::CheckBox{"Remember this", true};
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = 1, .checkBoxChecked = false, .dismissed = false});
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = 1, .checkBoxChecked = false, .dismissed = false});
     const auto accepted = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectTrue("rich Prompt succeeds", accepted.status.ok()));
     static_cast<void>(context.expectEq("rich Prompt accepts selected action", DialogTypes::Outcome::Accepted, accepted.outcome));
@@ -710,7 +716,7 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("portable option ID round trips", options[1].id, accepted.option));
     static_cast<void>(context.expectEq("Prompt final checkbox state returns", std::optional<bool>{false}, accepted.checkBoxChecked));
 
-    const auto &snapshot = Desktop::TestHooks::lastPromptDialogSnapshot();
+    const auto &snapshot = Win32TestHooks::lastPromptDialogSnapshot();
     static_cast<void>(context.expectEq(
         "Prompt descriptions compose command-link text",
         std::wstring{L"Proceed\nUse recommended settings"},
@@ -726,13 +732,13 @@ void testPromptDialogs(TestSupport::Context &context)
     static_cast<void>(context.expectEq("Prompt checkbox label propagates", std::wstring{L"Remember this"}, snapshot.checkBoxLabel));
     static_cast<void>(context.expectTrue("Prompt checkbox initial state propagates", snapshot.checkBoxInitiallyChecked));
 
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 1, .optionIndex = 0, .checkBoxChecked = true, .dismissed = false});
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 1, .optionIndex = 0, .checkBoxChecked = true, .dismissed = false});
     const auto explicitCancel = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("configured cancel action is cancelled", DialogTypes::Outcome::Cancelled, explicitCancel.outcome));
     static_cast<void>(context.expectEq("configured cancel ID round trips", buttons[1].id, explicitCancel.button));
     static_cast<void>(context.expectEq("cancelled Prompt retains final option", options[0].id, explicitCancel.option));
     static_cast<void>(context.expectEq("cancelled Prompt retains final checkbox", std::optional<bool>{true}, explicitCancel.checkBoxChecked));
-    Desktop::TestHooks::completeNextPromptDialog({.optionIndex = 1, .checkBoxChecked = false, .dismissed = true});
+    Win32TestHooks::completeNextPromptDialog({.optionIndex = 1, .checkBoxChecked = false, .dismissed = true});
     const auto dismissed = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("Prompt dismissal is cancelled", DialogTypes::Outcome::Cancelled, dismissed.outcome));
     static_cast<void>(context.expectEq("Prompt dismissal uses semantic cancel ID", buttons[1].id, dismissed.button));
@@ -742,13 +748,13 @@ void testPromptDialogs(TestSupport::Context &context)
     description.options = {};
     description.defaultOption = {};
     description.checkBox.reset();
-    Desktop::TestHooks::completeNextPromptDialog({.dismissed = true});
+    Win32TestHooks::completeNextPromptDialog({.dismissed = true});
     const auto noSemanticCancel = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectFalse("Prompt dismissal without cancel has no ID", noSemanticCancel.button.has_value()));
     static_cast<void>(context.expectFalse("Prompt with no option selection has no option", noSemanticCancel.option.has_value()));
     static_cast<void>(context.expectFalse("Prompt without checkbox returns nullopt", noSemanticCancel.checkBoxChecked.has_value()));
 
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = description.options.size() + 1, .dismissed = false});
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = description.options.size() + 1, .dismissed = false});
     const auto malformedOption = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("malformed Prompt option reports native failure", ErrorCode::NativeFailure, malformedOption.status.code));
     static_cast<void>(context.expectTrue(
@@ -756,7 +762,7 @@ void testPromptDialogs(TestSupport::Context &context)
         malformedOption.status.code == ErrorCode::NativeFailure && malformedOption.outcome == DialogTypes::Outcome::Cancelled &&
             !malformedOption.button.has_value() && !malformedOption.option.has_value() && !malformedOption.checkBoxChecked.has_value()));
 
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = (std::numeric_limits<std::size_t>::max)(), .dismissed = false});
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .optionIndex = (std::numeric_limits<std::size_t>::max)(), .dismissed = false});
     const auto maximumMalformedOption = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectTrue(
         "maximum malformed Prompt option leaves every result field defaulted",
@@ -766,12 +772,12 @@ void testPromptDialogs(TestSupport::Context &context)
 
     description.options = options;
     description.defaultOption = {};
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 2, .dismissed = false});
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 2, .dismissed = false});
     const auto largeId = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("large uint32 Prompt ID is accepted", buttons[2].id, largeId.button));
 
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     auto failed = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("Prompt allocation failure maps", ErrorCode::OutOfMemory, failed.status.code));
     static_cast<void>(context.expectTrue(
@@ -779,14 +785,14 @@ void testPromptDialogs(TestSupport::Context &context)
         failed.outcome == DialogTypes::Outcome::Cancelled && !failed.button.has_value() && !failed.option.has_value() &&
             !failed.checkBoxChecked.has_value()));
 
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogNativeOperation);
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation);
     failed = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("Prompt native failure maps", ErrorCode::NativeFailure, failed.status.code));
     static_cast<void>(context.expectFalse("native-failed Prompt button remains absent", failed.button.has_value()));
 
-    Desktop::TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DialogResult);
+    Win32TestHooks::completeNextPromptDialog({.buttonIndex = 0, .dismissed = false});
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DialogResult);
     failed = Desktop::Dialogs::showPrompt(description);
     static_cast<void>(context.expectEq("Prompt invalid native result maps", ErrorCode::NativeFailure, failed.status.code));
 }

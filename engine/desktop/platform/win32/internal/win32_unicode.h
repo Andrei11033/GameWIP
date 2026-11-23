@@ -13,7 +13,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// @brief Maps a native text-conversion code to the portable encoding failure vocabulary.
     [[nodiscard]] IO::Types::ErrorCode unicodeConversionError(DWORD nativeCode, IO::Types::ErrorCode malformedEncodingFallback) noexcept;
@@ -23,4 +23,4 @@ namespace GameWIP::Desktop::Detail::Platform
 
     /// @brief Converts UTF-16 to strict UTF-8 while returning the native conversion code.
     [[nodiscard]] bool utf16ToUtf8(std::wstring_view text, std::string &output, DWORD &nativeCode);
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

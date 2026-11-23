@@ -20,8 +20,10 @@ void testProviders(Context &context)
     Tree tree;
     tree.nodes[1].value = std::string_view("a\0b", 3);
     check(context, "native tree publishes", bridge.publish(tree.view()).ok());
-    const Com<IRawElementProviderSimple> root(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 1)));
-    const Com<IRawElementProviderSimple> button(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
+    const Com<IRawElementProviderSimple> root(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 1)));
+    const Com<IRawElementProviderSimple> button(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 2)));
 
     if(!context.expectTrue("stable providers exist", root && button))
     {

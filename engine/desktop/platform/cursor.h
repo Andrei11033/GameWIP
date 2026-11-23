@@ -1,5 +1,5 @@
-/// @file cursor_platform.h
-/// @brief Private portable-to-native custom cursor backend contract.
+/// @file cursor.h
+/// @brief Portable backend contract for custom cursors.
 
 #pragma once
 
@@ -13,13 +13,25 @@
 #include <span>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     struct WindowState;
 }
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
+    /// ------------------------------------------------------------
+    /// Shared portable state
+    /// ------------------------------------------------------------
+
+    using Internal::CursorState;
+    using Internal::NativeCursorVariant;
+    using Internal::WindowState;
+
+    /// ------------------------------------------------------------
+    /// Native resource lifetime
+    /// ------------------------------------------------------------
+
     /// @brief Inspection-only snapshot of a materialized native cursor.
     struct NativeCursorSnapshot
     {
@@ -36,7 +48,11 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Destroys native cursor handles after the owning cursor state expires.
     void destroyNativeCursorVariants(std::span<const NativeCursorVariant> variants) noexcept;
 
-    /// @brief Binds a shared cursor state to a Window's native HWND.
+    /// ------------------------------------------------------------
+    /// Window binding and inspection
+    /// ------------------------------------------------------------
+
+    /// @brief Binds a shared cursor state to a native Window.
     [[nodiscard]] IO::Types::Status setCustomCursor(WindowState &window, std::shared_ptr<const CursorState> cursor) noexcept;
     /// @brief Tests whether a Window currently has a custom cursor binding.
     [[nodiscard]] bool hasCustomCursor(const WindowState &window) noexcept;
@@ -44,4 +60,4 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] std::uint32_t customCursorBindingDpi(const WindowState &window) noexcept;
     /// @brief Inspects native cursor pixels for internal validation.
     [[nodiscard]] NativeCursorSnapshot inspectNativeCursor(const NativeCursorVariant &variant) noexcept;
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

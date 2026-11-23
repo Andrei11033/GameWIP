@@ -22,7 +22,8 @@ void testRetainedObjects(Context &context)
     check(context, "retained-object tree publishes", bridge.publish(tree.view()).ok());
 
     const auto reader = bridge.readSnapshot();
-    const Com<IRawElementProviderSimple> provider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(*window, 2)));
+    const Com<IRawElementProviderSimple> provider(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(*window, 2)));
 
     if(!context.expectTrue("retained-object provider exists", static_cast<bool>(provider)))
     {

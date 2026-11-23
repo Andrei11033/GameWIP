@@ -8,7 +8,7 @@
 #include <optional>
 #include <type_traits>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Transition state and rollback
@@ -529,7 +529,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
             status = applyStyle(state);
 
-            if(status.ok() && Detail::consumeFailure(TestHooks::FailurePoint::FullscreenPartial))
+            if(status.ok() && Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::FullscreenPartial))
             {
                 status = IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             }
@@ -734,10 +734,10 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return firstFailure;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     bool exactNativeDisplayModeMatches(
         const Types::Display::Mode &requested,
@@ -754,7 +754,7 @@ namespace GameWIP::Desktop::TestHooks
         native.dmDisplayFrequency = frequencyHertz;
         native.dmBitsPerPel = bitsPerPixel;
         native.dmDisplayFlags = isInterlaced ? DM_INTERLACED : 0;
-        return Detail::Platform::displayModeMatches(native, requested);
+        return Platform::displayModeMatches(native, requested);
     }
-} // namespace GameWIP::Desktop::TestHooks
+} // namespace GameWIP::Desktop::Internal::TestHooks
 #endif

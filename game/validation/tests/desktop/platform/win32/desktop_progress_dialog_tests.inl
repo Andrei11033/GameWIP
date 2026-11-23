@@ -80,22 +80,22 @@ void testProgressDialogValidation(TestSupport::Context &context)
         static_cast<void>(context.expectEq(
             "ProgressDialog boundary reaches native range",
             static_cast<int>(boundary * 10000.0),
-            Desktop::TestHooks::inspectProgressDialog(progress).position));
+            Win32TestHooks::inspectProgressDialog(progress).position));
         static_cast<void>(context.expectTrue("ProgressDialog closes after boundary", progress.close().ok()));
     }
 
     description = progressDescription();
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     static_cast<void>(context.expectEq("ProgressDialog allocation failure maps", ErrorCode::OutOfMemory, progress.open(description).code));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressClassRegistration);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressClassRegistration);
     static_cast<void>(context.expectEq("ProgressDialog class registration failure maps", ErrorCode::OpenFailed, progress.open(description).code));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::NativeCreation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
     static_cast<void>(context.expectEq("ProgressDialog native creation failure maps", ErrorCode::OpenFailed, progress.open(description).code));
     static_cast<void>(context.expectFalse("failed ProgressDialog opens remain reusable", progress.isOpen()));
     static_cast<void>(context.expectEq(
         "failed ProgressDialog opens release class references",
         std::size_t{0},
-        Desktop::TestHooks::progressDialogClassReferenceCount()));
+        Win32TestHooks::progressDialogClassReferenceCount()));
     static_cast<void>(context.expectTrue("ProgressDialog reuses object after failed open", progress.open(description).ok()));
     static_cast<void>(progress.close());
 
@@ -114,7 +114,7 @@ void testProgressDialogValidation(TestSupport::Context &context)
         });
     foreign.join();
     static_cast<void>(context.expectEq("ProgressDialog foreign-thread owner is busy", ErrorCode::ResourceBusy, foreignOwnerCode));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressOwnerBlocking);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerBlocking);
     static_cast<void>(context.expectEq("ProgressDialog owner-blocking failure maps", ErrorCode::NativeFailure, progress.open(description).code));
     static_cast<void>(context.expectTrue("failed owner blocking restores owner interaction", nativeInteractionEnabled(closedOwner)));
     static_cast<void>(closedOwner.close());
@@ -127,11 +127,11 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ownerless ProgressDialog opens", progress.open(description).ok()));
     static_cast<void>(context.expectTrue("open ProgressDialog reports live", progress.isOpen()));
     static_cast<void>(context.expectTrue("opening thread owns ProgressDialog", progress.ownedByCurrentThread()));
-    static_cast<void>(context.expectEq("open ProgressDialog is registered", std::size_t{1}, Desktop::TestHooks::activeProgressDialogCount()));
+    static_cast<void>(context.expectEq("open ProgressDialog is registered", std::size_t{1}, Win32TestHooks::activeProgressDialogCount()));
     static_cast<void>(
-        context.expectEq("open ProgressDialog holds one class reference", std::size_t{1}, Desktop::TestHooks::progressDialogClassReferenceCount()));
+        context.expectEq("open ProgressDialog holds one class reference", std::size_t{1}, Win32TestHooks::progressDialogClassReferenceCount()));
     static_cast<void>(context.expectEq("second ProgressDialog open is AlreadyOpen", ErrorCode::AlreadyOpen, progress.open(description).code));
-    const auto initial = Desktop::TestHooks::inspectProgressDialog(progress);
+    const auto initial = Win32TestHooks::inspectProgressDialog(progress);
     static_cast<void>(context.expectTrue("ProgressDialog owns a native window", initial.nativeWindow));
     static_cast<void>(context.expectTrue("cancelable ProgressDialog owns a Cancel control", initial.cancelControl));
     static_cast<void>(context.expectEq("ProgressDialog native range starts at zero", 0, initial.rangeMinimum));
@@ -149,7 +149,7 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("ProgressDialog title updates live", progress.setTitle("Updated title").ok()));
     static_cast<void>(context.expectTrue("ProgressDialog heading updates live", progress.setHeading("Updated heading").ok()));
     static_cast<void>(context.expectTrue("ProgressDialog message updates live", progress.setMessage("Updated message").ok()));
-    const auto updated = Desktop::TestHooks::inspectProgressDialog(progress);
+    const auto updated = Win32TestHooks::inspectProgressDialog(progress);
     static_cast<void>(context.expectEq("updated title reaches native window", std::wstring{L"Updated title"}, updated.title));
     static_cast<void>(context.expectEq("updated heading reaches native control", std::wstring{L"Updated heading"}, updated.heading));
     static_cast<void>(context.expectEq("updated message reaches native control", std::wstring{L"Updated message"}, updated.message));
@@ -157,34 +157,33 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
         context.expectEq("live title rejects embedded null", ErrorCode::InvalidArgument, progress.setTitle(std::string_view{"a\0b", 3}).code));
     static_cast<void>(
         context.expectEq("live heading rejects malformed UTF-8", ErrorCode::EncodingFailed, progress.setHeading(std::string_view{"\xC3", 1}).code));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressMutation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressMutation);
     static_cast<void>(context.expectEq("native text failure maps", ErrorCode::NativeFailure, progress.setMessage("not applied").code));
     static_cast<void>(context.expectEq(
         "failed text mutation preserves native text",
         std::wstring{L"Updated message"},
-        Desktop::TestHooks::inspectProgressDialog(progress).message));
+        Win32TestHooks::inspectProgressDialog(progress).message));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::WindowStyleQuery);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::WindowStyleQuery);
     static_cast<void>(context.expectEq(
         "ProgressDialog style query failure is returned before mode mutation",
         ErrorCode::NativeFailure,
         progress.setMode(ProgressTypes::Mode::Indeterminate).code));
     static_cast<void>(
-        context.expectFalse("failed ProgressDialog style query keeps determinate mode", Desktop::TestHooks::inspectProgressDialog(progress).marquee));
+        context.expectFalse("failed ProgressDialog style query keeps determinate mode", Win32TestHooks::inspectProgressDialog(progress).marquee));
     static_cast<void>(context.expectTrue("ProgressDialog switches to indeterminate", progress.setMode(ProgressTypes::Mode::Indeterminate).ok()));
-    static_cast<void>(
-        context.expectTrue("indeterminate ProgressDialog enables marquee", Desktop::TestHooks::inspectProgressDialog(progress).marquee));
+    static_cast<void>(context.expectTrue("indeterminate ProgressDialog enables marquee", Win32TestHooks::inspectProgressDialog(progress).marquee));
     static_cast<void>(context.expectTrue("indeterminate ProgressDialog retains numeric updates", progress.setProgress(0.75).ok()));
     static_cast<void>(context.expectTrue("ProgressDialog switches back to determinate", progress.setMode(ProgressTypes::Mode::Determinate).ok()));
     static_cast<void>(
-        context.expectEq("switching back exposes retained numeric value", 7500, Desktop::TestHooks::inspectProgressDialog(progress).position));
+        context.expectEq("switching back exposes retained numeric value", 7500, Win32TestHooks::inspectProgressDialog(progress).position));
     static_cast<void>(context.expectTrue("ProgressDialog accepts live zero", progress.setProgress(0.0).ok()));
-    static_cast<void>(context.expectEq("live zero reaches native control", 0, Desktop::TestHooks::inspectProgressDialog(progress).position));
+    static_cast<void>(context.expectEq("live zero reaches native control", 0, Win32TestHooks::inspectProgressDialog(progress).position));
     static_cast<void>(context.expectTrue("ProgressDialog accepts live one", progress.setProgress(1.0).ok()));
-    static_cast<void>(context.expectEq("live one reaches native control", 10000, Desktop::TestHooks::inspectProgressDialog(progress).position));
+    static_cast<void>(context.expectEq("live one reaches native control", 10000, Win32TestHooks::inspectProgressDialog(progress).position));
     static_cast<void>(context.expectTrue("ProgressDialog rounds native numeric values", progress.setProgress(0.33335).ok()));
     static_cast<void>(
-        context.expectEq("ProgressDialog native rounding is consistent", 3334, Desktop::TestHooks::inspectProgressDialog(progress).position));
+        context.expectEq("ProgressDialog native rounding is consistent", 3334, Win32TestHooks::inspectProgressDialog(progress).position));
     static_cast<void>(context.expectEq(
         "live ProgressDialog rejects NaN",
         ErrorCode::InvalidArgument,
@@ -200,48 +199,45 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
         ErrorCode::InvalidArgument,
         progress.setMode(static_cast<ProgressTypes::Mode>(255)).code));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressMutation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressMutation);
     static_cast<void>(context.expectEq("native progress failure maps", ErrorCode::NativeFailure, progress.setProgress(0.5).code));
     static_cast<void>(
-        context.expectEq("failed progress mutation preserves native position", 3334, Desktop::TestHooks::inspectProgressDialog(progress).position));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressMutation);
+        context.expectEq("failed progress mutation preserves native position", 3334, Win32TestHooks::inspectProgressDialog(progress).position));
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressMutation);
     static_cast<void>(
         context.expectEq("native mode failure maps", ErrorCode::NativeFailure, progress.setMode(ProgressTypes::Mode::Indeterminate).code));
-    static_cast<void>(
-        context.expectFalse("failed mode mutation rolls native style back", Desktop::TestHooks::inspectProgressDialog(progress).marquee));
+    static_cast<void>(context.expectFalse("failed mode mutation rolls native style back", Win32TestHooks::inspectProgressDialog(progress).marquee));
 
     static_cast<void>(context.expectFalse("new ProgressDialog has no cancel request", progress.hasCancelRequest()));
-    static_cast<void>(context.expectTrue("native Cancel request is simulated", Desktop::TestHooks::requestProgressDialogCancel(progress).ok()));
+    static_cast<void>(context.expectTrue("native Cancel request is simulated", Win32TestHooks::requestProgressDialogCancel(progress).ok()));
     static_cast<void>(context.expectTrue("Cancel control sets sticky request", progress.hasCancelRequest()));
     static_cast<void>(context.expectTrue("Cancel request does not close presentation", progress.isOpen()));
     progress.clearCancelRequest();
     static_cast<void>(context.expectFalse("clear resets sticky cancellation", progress.hasCancelRequest()));
-    static_cast<void>(context.expectTrue("native close gesture is simulated", Desktop::TestHooks::requestProgressDialogClose(progress).ok()));
+    static_cast<void>(context.expectTrue("native close gesture is simulated", Win32TestHooks::requestProgressDialogClose(progress).ok()));
     static_cast<void>(context.expectTrue("cancelable close gesture sets sticky request", progress.hasCancelRequest()));
     static_cast<void>(context.expectTrue("cancelable close gesture leaves dialog open", progress.isOpen()));
 
-    const Desktop::TestHooks::NativePixelRect suggested{.x = 40, .y = 60, .width = 520, .height = 260};
+    const Win32TestHooks::NativePixelRect suggested{.x = 40, .y = 60, .width = 520, .height = 260};
     static_cast<void>(context.expectTrue(
         "ProgressDialog DPI transition is simulated",
-        Desktop::TestHooks::simulateProgressDialogDpiChange(progress, suggested, 144).ok()));
-    const auto dpiChanged = Desktop::TestHooks::inspectProgressDialog(progress);
+        Win32TestHooks::simulateProgressDialogDpiChange(progress, suggested, 144).ok()));
+    const auto dpiChanged = Win32TestHooks::inspectProgressDialog(progress);
     static_cast<void>(context.expectEq("WM_DPICHANGED consumes suggested bounds", suggested, dpiChanged.windowBounds));
     static_cast<void>(context.expectTrue(
         "WM_DPICHANGED relayout keeps progress control nonempty",
         dpiChanged.progressBounds.width > 0 && dpiChanged.progressBounds.height > 0));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Close);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Close);
     static_cast<void>(context.expectEq("ProgressDialog native close failure is reported", ErrorCode::CloseFailed, progress.close().code));
     static_cast<void>(context.expectTrue("failed native close retains retryable presentation", progress.isOpen()));
-    static_cast<void>(
-        context.expectEq("failed native close retains active registry", std::size_t{1}, Desktop::TestHooks::activeProgressDialogCount()));
+    static_cast<void>(context.expectEq("failed native close retains active registry", std::size_t{1}, Win32TestHooks::activeProgressDialogCount()));
     static_cast<void>(context.expectTrue("ProgressDialog native close retry succeeds", progress.close().ok()));
     static_cast<void>(context.expectFalse("closed ProgressDialog clears open state", progress.isOpen()));
     static_cast<void>(context.expectFalse("closed ProgressDialog clears owner identity", progress.ownedByCurrentThread()));
     static_cast<void>(context.expectFalse("successful close clears cancellation lifetime", progress.hasCancelRequest()));
-    static_cast<void>(context.expectEq("closed ProgressDialog unregisters", std::size_t{0}, Desktop::TestHooks::activeProgressDialogCount()));
-    static_cast<void>(
-        context.expectEq("closed ProgressDialog releases class", std::size_t{0}, Desktop::TestHooks::progressDialogClassReferenceCount()));
+    static_cast<void>(context.expectEq("closed ProgressDialog unregisters", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
+    static_cast<void>(context.expectEq("closed ProgressDialog releases class", std::size_t{0}, Win32TestHooks::progressDialogClassReferenceCount()));
 
     static_cast<void>(context.expectTrue("ProgressDialog reopens after close", progress.open(description).ok()));
     static_cast<void>(context.expectFalse("reopened ProgressDialog starts without cancellation", progress.hasCancelRequest()));
@@ -250,12 +246,12 @@ void testProgressDialogNativeLifecycle(TestSupport::Context &context)
     description.cancelable = false;
     static_cast<void>(context.expectTrue("noncancelable ProgressDialog opens", progress.open(description).ok()));
     static_cast<void>(
-        context.expectFalse("noncancelable ProgressDialog has no Cancel control", Desktop::TestHooks::inspectProgressDialog(progress).cancelControl));
+        context.expectFalse("noncancelable ProgressDialog has no Cancel control", Win32TestHooks::inspectProgressDialog(progress).cancelControl));
     static_cast<void>(context.expectEq(
         "noncancelable ProgressDialog cannot receive Cancel click",
         ErrorCode::Unsupported,
-        Desktop::TestHooks::requestProgressDialogCancel(progress).code));
-    static_cast<void>(context.expectTrue("noncancelable close gesture is ignored", Desktop::TestHooks::requestProgressDialogClose(progress).ok()));
+        Win32TestHooks::requestProgressDialogCancel(progress).code));
+    static_cast<void>(context.expectTrue("noncancelable close gesture is ignored", Win32TestHooks::requestProgressDialogClose(progress).ok()));
     static_cast<void>(context.expectTrue("noncancelable close gesture leaves presentation open", progress.isOpen()));
     static_cast<void>(context.expectFalse("noncancelable close gesture does not set request", progress.hasCancelRequest()));
     static_cast<void>(progress.close());
@@ -328,15 +324,15 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("owned blocking ProgressDialog disables owner", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue(
         "unexpected owned ProgressDialog destruction succeeds",
-        Desktop::TestHooks::destroyNativeProgressDialog(lostOwnedProgress).ok()));
+        Win32TestHooks::destroyNativeProgressDialog(lostOwnedProgress).ok()));
     static_cast<void>(context.expectFalse("owned native ProgressDialog loss clears isOpen", lostOwnedProgress.isOpen()));
     static_cast<void>(context.expectEq(
         "owned native ProgressDialog loss removes active registry entry",
         std::size_t{0},
-        Desktop::TestHooks::activeProgressDialogCount()));
+        Win32TestHooks::activeProgressDialogCount()));
     static_cast<void>(context.expectFalse(
         "owned native ProgressDialog loss removes blocker contribution",
-        Desktop::TestHooks::inspectProgressDialog(lostOwnedProgress).blockingOwner));
+        Win32TestHooks::inspectProgressDialog(lostOwnedProgress).blockingOwner));
     static_cast<void>(context.expectFalse("owner restoration remains deferred until dispatch", nativeInteractionEnabled(owner)));
     static_cast<void>(context.expectTrue("owner restoration dispatch succeeds", Desktop::Events::poll().status.ok()));
     static_cast<void>(context.expectTrue("live owner is restored after ProgressDialog native loss", nativeInteractionEnabled(owner)));
@@ -345,10 +341,10 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("first blocker opens for failed restore wake", first.open(description).ok()));
     static_cast<void>(context.expectTrue("second blocker opens for failed restore wake", second.open(description).ok()));
     static_cast<void>(context.expectTrue("blocked owner accepts a deferred disabled request", owner.setUserInteractionEnabled(false).ok()));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
     static_cast<void>(context.expectTrue(
         "unexpected ProgressDialog loss survives failed owner-restore wake",
-        Desktop::TestHooks::destroyNativeProgressDialog(first).ok()));
+        Win32TestHooks::destroyNativeProgressDialog(first).ok()));
     const auto failedWakePump = Desktop::Events::poll();
     static_cast<void>(context.expectFalse("failed owner-restore wake is reported by the next pump", failedWakePump.status.ok()));
     static_cast<void>(context.expectFalse("overlapping blocker retains effective disabled state after failed wake", nativeInteractionEnabled(owner)));
@@ -361,7 +357,7 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("owner closes after finalizing ProgressDialog", owner.close().ok()));
     static_cast<void>(context.expectFalse("normal owner close removes ProgressDialog presentation", first.isOpen()));
     static_cast<void>(
-        context.expectEq("normal owner close removes active registry entry", std::size_t{0}, Desktop::TestHooks::activeProgressDialogCount()));
+        context.expectEq("normal owner close removes active registry entry", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
     static_cast<void>(context.expectTrue("ProgressDialog close remains safe after owner close", first.close().ok()));
 
     Desktop::Window unexpectedOwner;
@@ -369,10 +365,10 @@ void testProgressDialogOwnership(TestSupport::Context &context)
     description.owner = &unexpectedOwner;
     static_cast<void>(context.expectTrue("ProgressDialog opens for unexpected owner loss", first.open(description).ok()));
     static_cast<void>(
-        context.expectTrue("unexpected native owner destruction succeeds", Desktop::TestHooks::destroyNativeWindow(unexpectedOwner).ok()));
+        context.expectTrue("unexpected native owner destruction succeeds", Desktop::Internal::TestHooks::destroyNativeWindow(unexpectedOwner).ok()));
     static_cast<void>(context.expectFalse("unexpected owner loss removes ProgressDialog presentation", first.isOpen()));
     static_cast<void>(
-        context.expectEq("unexpected owner loss removes active registry entry", std::size_t{0}, Desktop::TestHooks::activeProgressDialogCount()));
+        context.expectEq("unexpected owner loss removes active registry entry", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
     static_cast<void>(context.expectTrue("unexpected owner-loss restoration dispatch succeeds", Desktop::Events::poll().status.ok()));
     static_cast<void>(context.expectFalse("unexpected owner loss does not restore a dying native owner", nativeInteractionEnabled(unexpectedOwner)));
     static_cast<void>(context.expectTrue("ProgressDialog closes after unexpected owner loss", first.close().ok()));
@@ -385,32 +381,29 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
     Desktop::ProgressDialog progress;
     static_cast<void>(context.expectTrue("ProgressDialog opens for native loss", progress.open(description).ok()));
     static_cast<void>(
-        context.expectTrue("unexpected ProgressDialog destruction succeeds", Desktop::TestHooks::destroyNativeProgressDialog(progress).ok()));
+        context.expectTrue("unexpected ProgressDialog destruction succeeds", Win32TestHooks::destroyNativeProgressDialog(progress).ok()));
     static_cast<void>(context.expectFalse("native ProgressDialog loss clears isOpen", progress.isOpen()));
-    const auto lost = Desktop::TestHooks::inspectProgressDialog(progress);
+    const auto lost = Win32TestHooks::inspectProgressDialog(progress);
     static_cast<void>(context.expectTrue("native loss retains pending-finalize state", lost.nativeDestroyedPendingFinalize));
     static_cast<void>(context.expectFalse("native loss removes active presentation", lost.registered));
     static_cast<void>(
-        context.expectEq("active registry contains only live presentations", std::size_t{0}, Desktop::TestHooks::activeProgressDialogCount()));
+        context.expectEq("active registry contains only live presentations", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
     static_cast<void>(context.expectTrue("close finalizes unexpected native loss", progress.close().ok()));
     static_cast<void>(context.expectTrue("ProgressDialog reopens after native loss finalization", progress.open(description).ok()));
     static_cast<void>(progress.close());
 
     static_cast<void>(context.expectTrue("ProgressDialog opens for class-release failure", progress.open(description).ok()));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressClassRelease);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressClassRelease);
     static_cast<void>(context.expectEq("class-release failure is reported", ErrorCode::CloseFailed, progress.close().code));
     static_cast<void>(context.expectFalse("class-release failure has no active presentation", progress.isOpen()));
     static_cast<void>(context.expectEq(
         "class-release failure retains accurate reference count",
         std::size_t{1},
-        Desktop::TestHooks::progressDialogClassReferenceCount()));
-    static_cast<void>(context.expectEq(
-        "class-release failure does not retain active registry entry",
-        std::size_t{0},
-        Desktop::TestHooks::activeProgressDialogCount()));
-    static_cast<void>(context.expectTrue("class-release retry succeeds", progress.close().ok()));
+        Win32TestHooks::progressDialogClassReferenceCount()));
     static_cast<void>(
-        context.expectEq("class-release retry clears reference", std::size_t{0}, Desktop::TestHooks::progressDialogClassReferenceCount()));
+        context.expectEq("class-release failure does not retain active registry entry", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
+    static_cast<void>(context.expectTrue("class-release retry succeeds", progress.close().ok()));
+    static_cast<void>(context.expectEq("class-release retry clears reference", std::size_t{0}, Win32TestHooks::progressDialogClassReferenceCount()));
 
     static_cast<void>(context.expectTrue("ProgressDialog opens for foreign-thread contract", progress.open(description).ok()));
     bool foreignOpen = true;
@@ -456,14 +449,13 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
             owned.reset();
         });
     destroyForeign.join();
+    static_cast<void>(context.expectEq("wrong-thread destructor transfers cleanup", std::size_t{1}, Win32TestHooks::deferredProgressDialogCount()));
     static_cast<void>(
-        context.expectEq("wrong-thread destructor transfers cleanup", std::size_t{1}, Desktop::TestHooks::deferredProgressDialogCount()));
-    static_cast<void>(
-        context.expectEq("transferred cleanup remains active until owner pump", std::size_t{1}, Desktop::TestHooks::activeProgressDialogCount()));
+        context.expectEq("transferred cleanup remains active until owner pump", std::size_t{1}, Win32TestHooks::activeProgressDialogCount()));
     static_cast<void>(context.expectTrue("owner pump finalizes transferred ProgressDialog", Desktop::Events::poll().status.ok()));
-    static_cast<void>(context.expectEq("owner pump clears transferred cleanup", std::size_t{0}, Desktop::TestHooks::deferredProgressDialogCount()));
+    static_cast<void>(context.expectEq("owner pump clears transferred cleanup", std::size_t{0}, Win32TestHooks::deferredProgressDialogCount()));
     static_cast<void>(
-        context.expectEq("owner pump unregisters transferred ProgressDialog", std::size_t{0}, Desktop::TestHooks::activeProgressDialogCount()));
+        context.expectEq("owner pump unregisters transferred ProgressDialog", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
 
     auto deferredFirst = std::make_unique<Desktop::ProgressDialog>();
     auto deferredSecond = std::make_unique<Desktop::ProgressDialog>();
@@ -476,16 +468,13 @@ void testProgressDialogExceptionalLifetime(TestSupport::Context &context)
             second.reset();
         });
     destroyChain.join();
-    static_cast<void>(
-        context.expectEq("deferred cleanup chain retains both states", std::size_t{2}, Desktop::TestHooks::deferredProgressDialogCount()));
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Close);
+    static_cast<void>(context.expectEq("deferred cleanup chain retains both states", std::size_t{2}, Win32TestHooks::deferredProgressDialogCount()));
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Close);
     static_cast<void>(Desktop::Events::poll());
     static_cast<void>(
-        context.expectEq("one cleanup failure preserves complete later chain", std::size_t{2}, Desktop::TestHooks::deferredProgressDialogCount()));
+        context.expectEq("one cleanup failure preserves complete later chain", std::size_t{2}, Win32TestHooks::deferredProgressDialogCount()));
     static_cast<void>(Desktop::Events::poll());
-    static_cast<void>(
-        context.expectEq("deferred cleanup chain succeeds on retry", std::size_t{0}, Desktop::TestHooks::deferredProgressDialogCount()));
-    static_cast<void>(
-        context.expectEq("cleanup-chain retry removes all presentations", std::size_t{0}, Desktop::TestHooks::activeProgressDialogCount()));
+    static_cast<void>(context.expectEq("deferred cleanup chain succeeds on retry", std::size_t{0}, Win32TestHooks::deferredProgressDialogCount()));
+    static_cast<void>(context.expectEq("cleanup-chain retry removes all presentations", std::size_t{0}, Win32TestHooks::activeProgressDialogCount()));
 }
 #endif

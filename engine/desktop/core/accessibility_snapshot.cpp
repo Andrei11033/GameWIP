@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <new>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// ------------------------------------------------------------
     /// Owned payload copies
@@ -143,7 +143,7 @@ namespace GameWIP::Desktop::Detail
         const auto found = findIndex(id);
         return found < storage.nodes.size() ? &storage.nodes[found] : nullptr;
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop::Accessibility
 {
@@ -293,7 +293,7 @@ namespace GameWIP::Desktop::Accessibility
         {
             if(!state_)
             {
-                state_ = std::make_unique<Detail::SnapshotBuilderState>();
+                state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
             state_->generation = generation;
             return {};
@@ -315,7 +315,7 @@ namespace GameWIP::Desktop::Accessibility
         {
             if(!state_)
             {
-                state_ = std::make_unique<Detail::SnapshotBuilderState>();
+                state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
             state_->root = root;
             return {};
@@ -350,11 +350,11 @@ namespace GameWIP::Desktop::Accessibility
             {
                 return IO::makeStatus(IO::Types::ErrorCode::SizeLimitExceeded);
             }
-            auto owned = std::make_shared<Detail::OwnedAccessibilityNode>(node);
+            auto owned = std::make_shared<Internal::OwnedAccessibilityNode>(node);
 
             if(!state_)
             {
-                state_ = std::make_unique<Detail::SnapshotBuilderState>();
+                state_ = std::make_unique<Internal::SnapshotBuilderState>();
             }
 
             if(state_->nodes.size() == state_->nodes.capacity())
@@ -395,7 +395,7 @@ namespace GameWIP::Desktop::Accessibility
     /// Immutable snapshot inspection
     /// ------------------------------------------------------------
 
-    SnapshotReader::SnapshotReader(std::shared_ptr<const Detail::PublishedSnapshot> snapshot) noexcept
+    SnapshotReader::SnapshotReader(std::shared_ptr<const Internal::PublishedSnapshot> snapshot) noexcept
         : snapshot_(std::move(snapshot))
     {
     }

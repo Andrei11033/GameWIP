@@ -1,10 +1,11 @@
 /// @file win32_dialogs.cpp
 /// @brief Win32 shell file dialogs and TaskDialog one-shot presentations.
 
-#include "desktop/internal/dialogs_platform.h"
+#include "desktop/platform/dialogs.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/window_state.h"
+#include "desktop/platform/win32/internal/test_hooks.h"
 #include "desktop/platform/win32/internal/win32_com.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
@@ -19,8 +20,10 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
+    namespace Win32TestHooks = GameWIP::Desktop::Internal::TestHooks::Win32;
+
     /// ------------------------------------------------------------
     /// COM, text, and file-dialog preparation
     /// ------------------------------------------------------------
@@ -48,7 +51,7 @@ namespace GameWIP::Desktop::Detail::Platform
             {
                 return nullptr;
             }
-            WindowState *state = WindowAccess::state(*owner);
+            WindowState *state = Internal::WindowAccess::state(*owner);
             return state != nullptr ? static_cast<HWND>(nativeHandle(*state).window) : nullptr;
         }
 
@@ -58,7 +61,7 @@ namespace GameWIP::Desktop::Detail::Platform
             try
             {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                if(Detail::consumeFailure(TestHooks::FailurePoint::DialogConversion))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogConversion))
                 {
                     return IO::makeStatus(ErrorCode::EncodingFailed);
                 }
@@ -311,7 +314,7 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
         /// @brief Reuses native preparation rules for deterministic test-hook dialog responses.
         [[nodiscard]] IO::Types::Status prepareSimulatedFileDialog(
-            TestHooks::FileDialogOperation operation,
+            Win32TestHooks::FileDialogOperation operation,
             std::string_view title,
             std::span<const Types::Dialogs::File::Filter> filters,
             std::optional<std::size_t> preferredFilterIndex,
@@ -319,14 +322,14 @@ namespace GameWIP::Desktop::Detail::Platform
             std::string_view suggestedFileName,
             std::string_view suggestedExtension) noexcept
         {
-            if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Allocation))
             {
                 return IO::makeStatus(ErrorCode::OutOfMemory);
             }
 
             try
             {
-                TestHooks::FileDialogSnapshot snapshot;
+                Win32TestHooks::FileDialogSnapshot snapshot;
                 snapshot.operation = operation;
                 snapshot.preferredFilterIndex = preferredFilterIndex;
                 snapshot.suggestedDirectory = suggestedDirectory;
@@ -364,11 +367,11 @@ namespace GameWIP::Desktop::Detail::Platform
                     return IO::makeStatus(ErrorCode::InvalidArgument);
                 }
 
-                if(Detail::consumeFailure(TestHooks::FailurePoint::DialogSuggestedDirectory))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogSuggestedDirectory))
                 {
                     return IO::makeStatus(ErrorCode::NativeFailure);
                 }
-                Detail::recordFileDialogSnapshot(std::move(snapshot));
+                Internal::recordFileDialogSnapshot(std::move(snapshot));
                 return IO::successStatus();
             }
             catch(const std::bad_alloc &)
@@ -383,9 +386,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         /// @brief Completes one deterministic single-file response after shared validation.
         [[nodiscard]] Types::Dialogs::File::Result completeSimulatedSingleFileDialog(
-            TestHooks::FileDialogOperation operation,
+            Win32TestHooks::FileDialogOperation operation,
             const Types::Dialogs::File::OpenDescription &description,
-            TestHooks::FileDialogResponse response,
+            Win32TestHooks::FileDialogResponse response,
             bool folder) noexcept
         {
             Types::Dialogs::File::Result output;
@@ -403,7 +406,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return output;
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation))
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
@@ -415,7 +418,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return output;
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::DialogResult) || response.paths.size() != 1)
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogResult) || response.paths.size() != 1)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
@@ -434,9 +437,9 @@ namespace GameWIP::Desktop::Detail::Platform
 
         /// @brief Completes a deterministic multi-selection or folder response.
         [[nodiscard]] Types::Dialogs::File::ListResult completeSimulatedMultipleFileDialog(
-            TestHooks::FileDialogOperation operation,
+            Win32TestHooks::FileDialogOperation operation,
             const Types::Dialogs::File::OpenDescription &description,
-            TestHooks::FileDialogResponse response,
+            Win32TestHooks::FileDialogResponse response,
             bool folder) noexcept
         {
             Types::Dialogs::File::ListResult output;
@@ -454,7 +457,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return output;
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation))
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
@@ -466,7 +469,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return output;
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::DialogResult) || response.paths.empty())
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogResult) || response.paths.empty())
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
@@ -486,11 +489,11 @@ namespace GameWIP::Desktop::Detail::Platform
         /// @brief Completes a deterministic save response while preserving filter selection.
         [[nodiscard]] Types::Dialogs::File::Result completeSimulatedSaveFileDialog(
             const Types::Dialogs::File::SaveDescription &description,
-            TestHooks::FileDialogResponse response) noexcept
+            Win32TestHooks::FileDialogResponse response) noexcept
         {
             Types::Dialogs::File::Result output;
             output.status = prepareSimulatedFileDialog(
-                TestHooks::FileDialogOperation::SaveFile,
+                Win32TestHooks::FileDialogOperation::SaveFile,
                 description.title,
                 description.filters,
                 description.preferredFilterIndex,
@@ -503,7 +506,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return output;
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation))
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
@@ -515,7 +518,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return output;
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::DialogResult) || response.paths.size() != 1)
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogResult) || response.paths.size() != 1)
             {
                 output.status = IO::makeStatus(ErrorCode::NativeFailure);
                 return output;
@@ -904,11 +907,11 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            TestHooks::FileDialogResponse response;
+            Win32TestHooks::FileDialogResponse response;
 
-            if(Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::OpenFile, response))
+            if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::OpenFile, response))
             {
-                return completeSimulatedSingleFileDialog(TestHooks::FileDialogOperation::OpenFile, description, std::move(response), false);
+                return completeSimulatedSingleFileDialog(Win32TestHooks::FileDialogOperation::OpenFile, description, std::move(response), false);
             }
 #endif
             return singleOpen(description, false);
@@ -932,11 +935,11 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            TestHooks::FileDialogResponse response;
+            Win32TestHooks::FileDialogResponse response;
 
-            if(Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::OpenFiles, response))
+            if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::OpenFiles, response))
             {
-                return completeSimulatedMultipleFileDialog(TestHooks::FileDialogOperation::OpenFiles, description, std::move(response), false);
+                return completeSimulatedMultipleFileDialog(Win32TestHooks::FileDialogOperation::OpenFiles, description, std::move(response), false);
             }
 #endif
             return multipleOpen(description, false);
@@ -961,9 +964,9 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            TestHooks::FileDialogResponse response;
+            Win32TestHooks::FileDialogResponse response;
 
-            if(Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::SaveFile, response))
+            if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::SaveFile, response))
             {
                 return completeSimulatedSaveFileDialog(description, std::move(response));
             }
@@ -1111,11 +1114,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 .title = description.title,
                 .suggestedDirectory = description.suggestedDirectory};
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            TestHooks::FileDialogResponse response;
+            Win32TestHooks::FileDialogResponse response;
 
-            if(Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::SelectFolder, response))
+            if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::SelectFolder, response))
             {
-                return completeSimulatedSingleFileDialog(TestHooks::FileDialogOperation::SelectFolder, translated, std::move(response), true);
+                return completeSimulatedSingleFileDialog(Win32TestHooks::FileDialogOperation::SelectFolder, translated, std::move(response), true);
             }
 #endif
             return singleOpen(translated, true);
@@ -1143,11 +1146,11 @@ namespace GameWIP::Desktop::Detail::Platform
                 .title = description.title,
                 .suggestedDirectory = description.suggestedDirectory};
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            TestHooks::FileDialogResponse response;
+            Win32TestHooks::FileDialogResponse response;
 
-            if(Detail::consumeFileDialogResponse(TestHooks::FileDialogOperation::SelectFolders, response))
+            if(Internal::consumeFileDialogResponse(Win32TestHooks::FileDialogOperation::SelectFolders, response))
             {
-                return completeSimulatedMultipleFileDialog(TestHooks::FileDialogOperation::SelectFolders, translated, std::move(response), true);
+                return completeSimulatedMultipleFileDialog(Win32TestHooks::FileDialogOperation::SelectFolders, translated, std::move(response), true);
             }
 #endif
             return multipleOpen(translated, true);
@@ -1176,10 +1179,10 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            TestHooks::MessageDialogResponse simulatedResponse;
-            const bool simulated = Detail::consumeMessageDialogResponse(simulatedResponse);
+            Win32TestHooks::MessageDialogResponse simulatedResponse;
+            const bool simulated = Internal::consumeMessageDialogResponse(simulatedResponse);
 
-            if(simulated && Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(simulated && Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Allocation))
             {
                 output.status = IO::makeStatus(ErrorCode::OutOfMemory);
                 return output;
@@ -1238,14 +1241,14 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
             if(simulated)
             {
-                Detail::recordMessageDialogSnapshot(
+                Internal::recordMessageDialogSnapshot(
                     {.title = title,
                      .message = message,
                      .buttons = description.buttons,
                      .defaultButton = description.defaultButton,
                      .severity = description.severity});
 
-                if(Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation))
                 {
                     result = E_FAIL;
                 }
@@ -1253,7 +1256,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     selected = simulatedResponse.dismissed ? IDCANCEL : nativeMessageButton(simulatedResponse.button);
 
-                    if(Detail::consumeFailure(TestHooks::FailurePoint::DialogResult))
+                    if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogResult))
                     {
                         selected = std::numeric_limits<int>::min();
                     }
@@ -1310,10 +1313,10 @@ namespace GameWIP::Desktop::Detail::Platform
         try
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            TestHooks::PromptDialogResponse simulatedResponse;
-            const bool simulated = Detail::consumePromptDialogResponse(simulatedResponse);
+            Win32TestHooks::PromptDialogResponse simulatedResponse;
+            const bool simulated = Internal::consumePromptDialogResponse(simulatedResponse);
 
-            if(simulated && Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(simulated && Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Allocation))
             {
                 output.status = IO::makeStatus(ErrorCode::OutOfMemory);
                 return output;
@@ -1480,7 +1483,7 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
             if(simulated)
             {
-                TestHooks::PromptDialogSnapshot snapshot;
+                Win32TestHooks::PromptDialogSnapshot snapshot;
                 snapshot.title = title;
                 snapshot.heading = heading;
                 snapshot.message = message;
@@ -1506,9 +1509,9 @@ namespace GameWIP::Desktop::Detail::Platform
                 {
                     snapshot.nativeOptionIds.push_back(option.nButtonID);
                 }
-                Detail::recordPromptDialogSnapshot(std::move(snapshot));
+                Internal::recordPromptDialogSnapshot(std::move(snapshot));
 
-                if(Detail::consumeFailure(TestHooks::FailurePoint::DialogNativeOperation))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogNativeOperation))
                 {
                     result = E_FAIL;
                 }
@@ -1532,7 +1535,7 @@ namespace GameWIP::Desktop::Detail::Platform
                     }
                     checked = simulatedResponse.checkBoxChecked ? TRUE : FALSE;
 
-                    if(Detail::consumeFailure(TestHooks::FailurePoint::DialogResult))
+                    if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::DialogResult))
                     {
                         selectedButton = std::numeric_limits<int>::min();
                     }
@@ -1599,13 +1602,18 @@ namespace GameWIP::Desktop::Detail::Platform
         return output;
     }
 
+} // namespace GameWIP::Desktop::Platform
+
 #if DESKTOP_INTERNAL_TEST_HOOKS
+namespace GameWIP::Desktop::Internal::TestHooks::Platform
+{
+    using namespace GameWIP::Desktop::Platform;
+
     IO::Types::Status testDialogApartment() noexcept
     {
         ApartmentLease apartment;
         const IO::Types::Status &status = apartment.status();
         return status.ok() ? IO::successStatus() : IO::makeStatus(status.code, status.nativeCode);
     }
-
+} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
 #endif
-} // namespace GameWIP::Desktop::Detail::Platform

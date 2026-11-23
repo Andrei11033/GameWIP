@@ -9,7 +9,7 @@
 #include <span>
 #include <string_view>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// UI Automation projection
@@ -28,4 +28,4 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] HRESULT string(VARIANT *out, std::u16string_view value) noexcept;
     [[nodiscard]] std::span<const A::NodeId> relation(const A::Node &node, A::RelationKind kind) noexcept;
     [[nodiscard]] bool descendant(const PublishedSnapshot &snapshot, const A::Node &node, A::NodeId ancestor) noexcept;
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

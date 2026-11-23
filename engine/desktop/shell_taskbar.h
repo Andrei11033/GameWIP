@@ -18,11 +18,11 @@ namespace GameWIP::Desktop
 {
     class Window;
 
-    namespace Detail
+    namespace Internal
     {
         struct TaskbarItemAccess;
         struct TaskbarItemState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Taskbar
@@ -137,8 +137,8 @@ namespace GameWIP::Desktop
         /// @}
 
     private:
-        friend struct Detail::TaskbarItemAccess;
+        friend struct Internal::TaskbarItemAccess;
 
-        std::unique_ptr<Detail::TaskbarItemState> state_;
+        std::unique_ptr<Internal::TaskbarItemState> state_;
     };
 } // namespace GameWIP::Desktop

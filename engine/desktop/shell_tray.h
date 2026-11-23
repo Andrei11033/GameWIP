@@ -17,11 +17,11 @@
 
 namespace GameWIP::Desktop
 {
-    namespace Detail
+    namespace Internal
     {
         struct TrayIconAccess;
         struct TrayIconState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Tray
@@ -224,8 +224,8 @@ namespace GameWIP::Desktop
         /// @}
 
     private:
-        friend struct Detail::TrayIconAccess;
+        friend struct Internal::TrayIconAccess;
 
-        std::unique_ptr<Detail::TrayIconState> state_;
+        std::unique_ptr<Internal::TrayIconState> state_;
     };
 } // namespace GameWIP::Desktop

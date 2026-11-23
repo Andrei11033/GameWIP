@@ -67,13 +67,18 @@ void testControlPatterns(Context &context)
         return request;
     };
 
-    const Com<IRawElementProviderSimple> table(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
-    const Com<IRawElementProviderSimple> cell(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 3)));
-    const Com<IRawElementProviderSimple> slider(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 4)));
-    const Com<IRawElementProviderSimple> toggle(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 5)));
-    const Com<IRawElementProviderSimple> expand(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 6)));
+    const Com<IRawElementProviderSimple> table(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 2)));
+    const Com<IRawElementProviderSimple> cell(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 3)));
+    const Com<IRawElementProviderSimple> slider(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 4)));
+    const Com<IRawElementProviderSimple> toggle(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 5)));
+    const Com<IRawElementProviderSimple> expand(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 6)));
     const Com<IRawElementProviderSimple> annotationNode(
-        static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 8)));
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 8)));
 
     if(!context.expectTrue("all control providers exist", table && cell && slider && toggle && expand && annotationNode))
     {
@@ -302,10 +307,14 @@ void testGridLookup(Context &context)
     // Resolve cells by semantic membership, independent of node storage order.
     check(context, "nested grids publish", bridge.publish({1, 1, nodes}).ok());
 
-    const Com<IRawElementProviderSimple> outer(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 1)));
-    const Com<IRawElementProviderSimple> cell(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 3)));
-    const Com<IRawElementProviderSimple> inner(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 4)));
-    const Com<IRawElementProviderSimple> nestedCell(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 6)));
+    const Com<IRawElementProviderSimple> outer(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 1)));
+    const Com<IRawElementProviderSimple> cell(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 3)));
+    const Com<IRawElementProviderSimple> inner(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 4)));
+    const Com<IRawElementProviderSimple> nestedCell(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 6)));
 
     if(!context.expectTrue("nested grid providers exist", outer && cell && inner && nestedCell))
     {

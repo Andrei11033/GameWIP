@@ -110,11 +110,11 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
         queue.open(ShellTypes::QueueConfiguration::owned(2)).code));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-    Desktop::TestHooks::enqueueShellEvent(
+    Desktop::Internal::TestHooks::enqueueShellEvent(
         queue,
         ShellTypes::Events::TrayActivated{{11}, ShellTypes::Events::TrayActivationKind::Primary, std::nullopt});
-    Desktop::TestHooks::enqueueShellEvent(queue, ShellTypes::Events::TrayCommandInvoked{{11}, {7}});
-    Desktop::TestHooks::enqueueShellEvent(
+    Desktop::Internal::TestHooks::enqueueShellEvent(queue, ShellTypes::Events::TrayCommandInvoked{{11}, {7}});
+    Desktop::Internal::TestHooks::enqueueShellEvent(
         queue,
         ShellTypes::Events::TrayActivated{{12}, ShellTypes::Events::TrayActivationKind::Secondary, std::nullopt});
     static_cast<void>(context.expectEq("full shell queue drops the newest event", std::uint64_t{1}, queue.eventQueueInfo().droppedEvents));
@@ -156,7 +156,7 @@ void testShellQueueAndCapabilities(TestSupport::Context &context)
         Desktop::Types::Events::StorageKind::External,
         queue.eventQueueInfo().storage));
 #if DESKTOP_INTERNAL_TEST_HOOKS
-    Desktop::TestHooks::enqueueShellEvent(queue, ShellTypes::Events::TrayCommandInvoked{{13}, {8}});
+    Desktop::Internal::TestHooks::enqueueShellEvent(queue, ShellTypes::Events::TrayCommandInvoked{{13}, {8}});
     ShellTypes::Event reopenedEvent;
     static_cast<void>(context.expectTrue("reopened shell queue accepts events", queue.popEvent(reopenedEvent)));
     static_cast<void>(context.expectEq("reopened shell queue restarts sequence numbers", std::uint64_t{1}, reopenedEvent.sequence));
@@ -512,24 +512,24 @@ void testShellNativeLifetimes(TestSupport::Context &context)
 #if DESKTOP_INTERNAL_TEST_HOOKS
 void testShellFailureHooks(TestSupport::Context &context)
 {
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
     Desktop::NotificationCenter notifications;
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ShellNativeOpen);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen);
     static_cast<void>(context.expectEq("shell native-open failure is deterministic", ErrorCode::NativeFailure, notifications.open().code));
 
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
     static_cast<void>(context.expectTrue("notification center opens after injected failure", notifications.open().ok()));
     Desktop::Types::Notifications::Description description;
     description.title = "Shell failure hook";
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ShellNativeApply);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply);
     static_cast<void>(
         context.expectEq("shell native-apply failure is deterministic", ErrorCode::NativeFailure, notifications.publish(description).status.code));
 
-    Desktop::TestHooks::resetFailures();
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ShellNativeClose);
+    Desktop::Internal::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose);
     static_cast<void>(context.expectEq("shell native-close failure is retryable", ErrorCode::NativeFailure, notifications.close().code));
     static_cast<void>(context.expectTrue("shell native-close failure retains the open center", notifications.isOpen()));
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
     static_cast<void>(context.expectTrue("shell native-close retry succeeds", notifications.close().ok()));
 }
 #endif

@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Conversion status and strict text bridges
@@ -130,4 +130,4 @@ namespace GameWIP::Desktop::Detail::Platform
         output.resize(conversion.bytesWritten);
         return true;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

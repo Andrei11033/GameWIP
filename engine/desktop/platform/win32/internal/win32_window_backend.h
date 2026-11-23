@@ -8,7 +8,7 @@
 #include "desktop/internal/child_surface_state.h"
 #include "desktop/internal/drag_drop_state.h"
 #include "desktop/internal/progress_dialog_state.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 
 #include "desktop/native/win32.h"
 
@@ -27,8 +27,19 @@
 #include <unordered_set>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
+    /// ------------------------------------------------------------
+    /// Shared portable state
+    /// ------------------------------------------------------------
+
+    using Internal::ChildSurfaceEnqueueResult;
+    using Internal::ChildSurfaceState;
+    using Internal::DragDropState;
+    using Internal::EnqueueResult;
+    using Internal::ProgressDialogState;
+    using Internal::RendererIntegrationState;
+
     /// @brief Backend-owned state for one native child-host HWND.
     struct ChildSurfaceData
     {
@@ -217,4 +228,4 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] bool supportsTransparentFramebuffer() noexcept;
 
     [[nodiscard]] LRESULT CALLBACK windowProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam);
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

@@ -3,7 +3,7 @@
 
 #include "desktop/platform/win32/internal/win32_com.h"
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// COM status mapping
@@ -96,4 +96,4 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         return status_;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

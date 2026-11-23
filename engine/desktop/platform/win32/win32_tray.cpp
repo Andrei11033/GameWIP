@@ -2,7 +2,7 @@
 /// @brief Implements Win32 tray integration.
 
 #include "desktop/internal/desktop_test_hooks.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_shell_helpers.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
@@ -20,7 +20,7 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Tray helpers
@@ -473,7 +473,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status openTray(TrayIconState &state) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ShellNativeOpen))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen))
         {
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
@@ -542,7 +542,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status applyTray(TrayIconState &state) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ShellNativeApply))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
         {
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
@@ -618,7 +618,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status closeTray(TrayIconState &state) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ShellNativeClose))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose))
         {
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
@@ -657,4 +657,4 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         static_cast<void>(closeTray(state));
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

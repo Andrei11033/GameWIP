@@ -6,20 +6,20 @@ void testFixedEventQueue(TestSupport::Context &context)
 {
     std::array<Desktop::Types::Event, 3> storage;
     Desktop::Window window;
-    static_cast<void>(context.expectTrue("portable queue hook opens", Desktop::TestHooks::openPortable(window, storage).ok()));
+    static_cast<void>(context.expectTrue("portable queue hook opens", Desktop::Internal::TestHooks::openPortable(window, storage).ok()));
     static_cast<void>(
         context.expectEq("hook queue reports external storage", Desktop::Types::Events::StorageKind::External, window.eventQueueInfo().storage));
     static_cast<void>(context.expectEq("native open rejects existing hook state", ErrorCode::AlreadyOpen, window.open({}).code));
 
-    static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{1, 2}}));
-    static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{3, 4}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{1, 2}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{3, 4}}));
     static_cast<void>(context.expectEq("compatible movement coalesces", std::size_t{1}, window.eventQueueInfo().pendingEvents));
 
     window.clearEvents();
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         window,
         Desktop::Types::Events::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         window,
         Desktop::Types::Events::ContentScaleChanged{{1.25F, 1.25F}, {1.5F, 1.5F}, {120.0F, 120.0F}, {144.0F, 144.0F}, {1200, 900}}));
     static_cast<void>(context.expectEq("scale transitions coalesce", std::size_t{1}, window.eventQueueInfo().pendingEvents));
@@ -38,21 +38,21 @@ void testFixedEventQueue(TestSupport::Context &context)
         static_cast<void>(context.expectEq("coalesced scale keeps latest pixels", Desktop::Types::PixelSize{1200, 900}, scale->framebufferSize));
     }
 
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         window,
         Desktop::Types::Events::ContentScaleChanged{{1.0F, 1.0F}, {1.25F, 1.25F}, {96.0F, 96.0F}, {120.0F, 120.0F}, {1000, 750}}));
-    static_cast<void>(Desktop::TestHooks::enqueue(
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(
         window,
         Desktop::Types::Events::ContentScaleChanged{{1.25F, 1.25F}, {1.0F, 1.0F}, {120.0F, 120.0F}, {96.0F, 96.0F}, {800, 600}}));
     static_cast<void>(context.expectEq("net-zero scale transition is removed", std::size_t{0}, window.eventQueueInfo().pendingEvents));
     static_cast<void>(context.expectEq("net-zero scale transition is not dropped", std::uint64_t{0}, window.eventQueueInfo().droppedEvents));
-    static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{1, 2}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{1, 2}}));
 
-    static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::FocusChanged{true}));
-    static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{5, 6}}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::FocusChanged{true}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::ClientPositionChanged{{5, 6}}));
     static_cast<void>(context.expectEq("noncoalescible event is a barrier", std::size_t{3}, window.eventQueueInfo().pendingEvents));
 
-    static_cast<void>(Desktop::TestHooks::enqueue(window, Desktop::Types::Events::RedrawRequested{}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(window, Desktop::Types::Events::RedrawRequested{}));
     static_cast<void>(context.expectEq("full queue evicts oldest coalescible event", std::uint64_t{1}, window.eventQueueInfo().droppedEvents));
 
     Desktop::Types::Event first;
@@ -78,14 +78,14 @@ void testFixedEventQueue(TestSupport::Context &context)
 
     std::array<Desktop::Types::Event, 1> payloadStorage;
     Desktop::Window payloadWindow;
-    static_cast<void>(Desktop::TestHooks::openPortable(payloadWindow, payloadStorage));
+    static_cast<void>(Desktop::Internal::TestHooks::openPortable(payloadWindow, payloadStorage));
     Desktop::Types::Events::FilesDropped dropped;
     dropped.paths.emplace_back("retained-until-close.txt");
-    static_cast<void>(Desktop::TestHooks::enqueue(payloadWindow, std::move(dropped)));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(payloadWindow, std::move(dropped)));
     Desktop::Types::Event removedPayload;
     static_cast<void>(payloadWindow.popEvent(removedPayload));
     static_cast<void>(context.expectEq("pop clears the vacated borrowed event slot", std::uint64_t{0}, payloadStorage[0].sequence));
-    static_cast<void>(Desktop::TestHooks::enqueue(payloadWindow, Desktop::Types::Events::FilesDropped{}));
+    static_cast<void>(Desktop::Internal::TestHooks::enqueue(payloadWindow, Desktop::Types::Events::FilesDropped{}));
     static_cast<void>(payloadWindow.close());
     static_cast<void>(context.expectTrue(
         "close releases payloads from borrowed event slots",
@@ -96,9 +96,9 @@ void testStickyClose(TestSupport::Context &context)
 {
     std::array<Desktop::Types::Event, 4> storage;
     Desktop::Window source;
-    static_cast<void>(Desktop::TestHooks::openPortable(source, storage));
-    static_cast<void>(Desktop::TestHooks::requestClose(source, Desktop::Types::Events::CloseRequestSource::User));
-    static_cast<void>(Desktop::TestHooks::requestClose(source, Desktop::Types::Events::CloseRequestSource::System));
+    static_cast<void>(Desktop::Internal::TestHooks::openPortable(source, storage));
+    static_cast<void>(Desktop::Internal::TestHooks::requestClose(source, Desktop::Types::Events::CloseRequestSource::User));
+    static_cast<void>(Desktop::Internal::TestHooks::requestClose(source, Desktop::Types::Events::CloseRequestSource::System));
     static_cast<void>(context.expectTrue("close request is sticky", source.hasCloseRequest()));
     static_cast<void>(context.expectEq("repeated close request emits once", std::size_t{1}, source.eventQueueInfo().pendingEvents));
 
@@ -152,8 +152,9 @@ void testNativeEventTranslation(TestSupport::Context &context)
         consumeEventOfType<Desktop::Types::Events::WindowModeChanged>(window)));
 #if DESKTOP_INTERNAL_TEST_HOOKS
     window.clearEvents();
-    static_cast<void>(
-        context.expectTrue("synthetic monitor removal recovery succeeds", Desktop::TestHooks::simulateFullscreenMonitorRemoval(window).ok()));
+    static_cast<void>(context.expectTrue(
+        "synthetic monitor removal recovery succeeds",
+        Desktop::Internal::TestHooks::simulateFullscreenMonitorRemoval(window).ok()));
     static_cast<void>(context.expectEq("monitor removal recovers Windowed mode", Desktop::Types::WindowMode::Windowed, window.windowMode()));
     static_cast<void>(context.expectFalse("monitor removal clears fullscreen monitor", window.fullscreenState().monitor.has_value()));
     Desktop::Types::Event recoveryEvent;

@@ -12,16 +12,16 @@
 #include <thread>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     struct DragDropData;
     struct DragDropDataDeleter
     {
         void operator()(DragDropData *) const noexcept;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     struct WindowState;
 
@@ -127,4 +127,4 @@ namespace GameWIP::Desktop::Detail
             return target.state_;
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

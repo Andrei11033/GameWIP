@@ -27,6 +27,10 @@ target_sources(
         win32_window_proc.cpp
 )
 
+if(DESKTOP_ENABLE_TEST_HOOKS)
+    target_sources(Desktop PRIVATE win32_test_hooks.cpp)
+endif()
+
 target_link_libraries(
     Desktop
     PRIVATE advapi32 comctl32 dwmapi dxgi dxguid gdi32 ole32 oleaut32 shell32 shcore user32 uuid uiautomationcore

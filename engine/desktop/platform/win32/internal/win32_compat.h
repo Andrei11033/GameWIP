@@ -9,7 +9,7 @@
 
 #include <cstdint>
 
-namespace GameWIP::Desktop::Detail::Platform::Compat
+namespace GameWIP::Desktop::Platform::Compat
 {
     /// Official DWMWA_REDIRECTIONBITMAP_ALPHA for DwmSetWindowAttribute.
     /// It requires Windows 11 version 24H2 (build 26100). Supported SDKs
@@ -56,4 +56,4 @@ namespace GameWIP::Desktop::Detail::Platform::Compat
     /// @brief Windows 11 wide-color-enabled flag.
     inline constexpr std::uint32_t kWideColorUserEnabled = std::uint32_t{1} << 7U;
     static_assert(sizeof(AdvancedColorInfo2) == 36);
-} // namespace GameWIP::Desktop::Detail::Platform::Compat
+} // namespace GameWIP::Desktop::Platform::Compat

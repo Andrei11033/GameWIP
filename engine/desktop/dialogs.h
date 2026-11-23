@@ -20,11 +20,11 @@ namespace GameWIP::Desktop
 {
     class Window;
 
-    namespace Detail
+    namespace Internal
     {
         struct ProgressDialogAccess;
         struct ProgressDialogState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Dialogs
@@ -392,8 +392,8 @@ namespace GameWIP::Desktop
         [[nodiscard]] IO::Types::Status close() noexcept;
 
     private:
-        friend struct Detail::ProgressDialogAccess;
-        std::unique_ptr<Detail::ProgressDialogState> state_;
+        friend struct Internal::ProgressDialogAccess;
+        std::unique_ptr<Internal::ProgressDialogState> state_;
         std::atomic_uint64_t ownerThreadToken_{0};
     };
 } // namespace GameWIP::Desktop

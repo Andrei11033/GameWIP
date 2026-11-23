@@ -9,7 +9,7 @@
 #include <cstdint>
 #include <memory>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     struct ProgressDialogData;
 
@@ -17,9 +17,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         void operator()(ProgressDialogData *data) const noexcept;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Stable portable state for one owner-thread progress dialog.
     struct ProgressDialogState
@@ -39,7 +39,7 @@ namespace GameWIP::Desktop::Detail
         bool cancelRequested = false;
 
         // Pending native finalization
-        bool nativeDestroyedPendingFinalize = false; ///< HWND is gone and portable close still must run.
+        bool nativeDestroyedPendingFinalize = false; ///< Native dialog is gone; portable close still must run.
         bool ownerRestorePending = false;            ///< Owner re-enable is queued for dispatcher retry.
     };
 
@@ -55,4 +55,4 @@ namespace GameWIP::Desktop::Detail
             return dialog.state_.get();
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

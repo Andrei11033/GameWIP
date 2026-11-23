@@ -4,23 +4,16 @@ target_sources(
     Desktop
     PRIVATE
         accessibility_state.h
-        child_surface_platform.h
         child_surface_state.h
-        clipboard_platform.h
-        cursor_platform.h
         cursor_selection.h
         cursor_state.h
         desktop_test_export.h
         desktop_test_hooks.h
-        dialogs_platform.h
-        drag_drop_platform.h
         drag_drop_state.h
         presentation_publication_state.h
         progress_dialog_state.h
         renderer_integration_state.h
         shell_helpers.h
-        shell_platform.h
         shell_state.h
-        window_platform.h
         window_state.h
 )

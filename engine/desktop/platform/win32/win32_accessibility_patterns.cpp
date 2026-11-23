@@ -12,7 +12,7 @@
 #include <cwchar>
 #include <limits>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Invoke, value, toggle, and expansion patterns
@@ -1059,4 +1059,4 @@ namespace GameWIP::Desktop::Detail::Platform
         return static_cast<UiaState *>(q.runtime->native.get())->range(sourceQuery, annotation->range, out);
     }
 
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

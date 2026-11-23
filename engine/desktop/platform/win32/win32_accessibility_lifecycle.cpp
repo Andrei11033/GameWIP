@@ -8,7 +8,7 @@
 #include <algorithm>
 #include <new>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     namespace
     {
@@ -572,4 +572,4 @@ namespace GameWIP::Desktop::Detail::Platform
         }
         }
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

@@ -10,7 +10,7 @@
 #include <bit>
 #include <cstdint>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Lazy, stable storage used after concurrent presentation reads are enabled.
     /// @details The Window owner thread publishes values; renderer threads only read them. Once allocated, this object persists until Window
@@ -201,4 +201,4 @@ namespace GameWIP::Desktop::Detail
         std::atomic<std::uint64_t> monitor_{0};
         std::atomic<std::uint32_t> flags_{0};
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

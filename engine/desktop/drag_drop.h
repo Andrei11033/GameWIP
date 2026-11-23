@@ -286,11 +286,11 @@ namespace GameWIP::Desktop::Types::DragDrop
 
 namespace GameWIP::Desktop
 {
-    namespace Detail
+    namespace Internal
     {
         struct DragDropAccess;
         struct DragDropState;
-    } // namespace Detail
+    } // namespace Internal
 
     /// ------------------------------------------------------------
     /// Target owner
@@ -380,8 +380,8 @@ namespace GameWIP::Desktop
         /// @}
 
     private:
-        friend struct Detail::DragDropAccess;
-        std::unique_ptr<Detail::DragDropState> state_;
+        friend struct Internal::DragDropAccess;
+        std::unique_ptr<Internal::DragDropState> state_;
     };
 } // namespace GameWIP::Desktop
 

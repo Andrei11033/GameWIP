@@ -22,6 +22,7 @@
 #include "desktop/internal/cursor_selection.h"
 #if DESKTOP_INTERNAL_TEST_HOOKS
 #include "desktop/internal/desktop_test_hooks.h"
+#include "desktop/platform/win32/internal/test_hooks.h"
 #endif
 #include "desktop/native/win32.h"
 #include "desktop/renderer_bridge.h"
@@ -68,6 +69,7 @@ namespace
     namespace IO = GameWIP::IO;
     namespace TestSupport = GameWIP::TestSupport;
     namespace Desktop = GameWIP::Desktop;
+    namespace Win32TestHooks = Desktop::Internal::TestHooks::Win32;
     namespace ShellTypes = Desktop::Types::Shell;
     namespace TaskbarTypes = Desktop::Types::Taskbar;
     namespace TrayTypes = Desktop::Types::Tray;
@@ -242,7 +244,7 @@ namespace
 #if DESKTOP_INTERNAL_TEST_HOOKS
                 if(forceRepeatedRevocationFailure)
                 {
-                    Desktop::TestHooks::failDragDropRevocations(64);
+                    Desktop::Internal::TestHooks::failDragDropRevocations(64);
                 }
 #else
                 static_cast<void>(forceRepeatedRevocationFailure);
@@ -304,7 +306,7 @@ namespace
 #if DESKTOP_INTERNAL_TEST_HOOKS
                 if(forceCloseFailure)
                 {
-                    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Close);
+                    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Close);
                 }
 #else
                 static_cast<void>(forceCloseFailure);
@@ -354,9 +356,9 @@ namespace
             return 3;
         }
 
-        Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
+        Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
 
-        if(!Desktop::TestHooks::destroyNativeProgressDialog(progress).ok())
+        if(!Win32TestHooks::destroyNativeProgressDialog(progress).ok())
         {
             static_cast<void>(progress.close());
             static_cast<void>(owner.close());
@@ -372,7 +374,7 @@ namespace
 #if DESKTOP_INTERNAL_TEST_HOOKS
     [[nodiscard]] int runProgressRestoreMessageLazinessChild() noexcept
     {
-        if(Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted())
+        if(Win32TestHooks::progressOwnerRestoreMessageRegistrationAttempted())
         {
             return 2;
         }
@@ -397,7 +399,7 @@ namespace
             return 5;
         }
 
-        return Desktop::TestHooks::progressOwnerRestoreMessageRegistrationAttempted() ? 6 : 0;
+        return Win32TestHooks::progressOwnerRestoreMessageRegistrationAttempted() ? 6 : 0;
     }
 
 #endif

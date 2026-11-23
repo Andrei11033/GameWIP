@@ -69,13 +69,13 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectEq("wrong-thread Window color query is rejected", ErrorCode::ResourceBusy, wrongThreadCode));
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::DisplayColorQuery);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::DisplayColorQuery);
     static_cast<void>(context.expectEq(
         "display-color native failure is translated",
         ErrorCode::StatFailed,
         Feedback::getColorInfo(window.currentMonitor()).status.code));
 
-    Desktop::TestHooks::makeNextDisplayColorMetadataUnavailable();
+    Desktop::Internal::TestHooks::makeNextDisplayColorMetadataUnavailable();
     const auto runtimeUnavailable = Feedback::getColorInfo(window.currentMonitor());
     static_cast<void>(context.expectTrue("runtime metadata absence still succeeds", runtimeUnavailable.ok()));
     static_cast<void>(context.expectEq(
@@ -85,14 +85,14 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("runtime metadata absence has no precision", runtimeUnavailable->bitsPerColorChannel.has_value()));
 
     const Desktop::Types::Display::MonitorId fixtureMonitor{42};
-    const Desktop::Types::Display::ColorInfo unavailable = Desktop::TestHooks::makeDisplayColorInfo(fixtureMonitor, {});
+    const Desktop::Types::Display::ColorInfo unavailable = Desktop::Internal::TestHooks::makeDisplayColorInfo(fixtureMonitor, {});
     static_cast<void>(context.expectEq("unavailable color metadata preserves identity", fixtureMonitor, unavailable.monitor));
     static_cast<void>(
         context.expectEq("unavailable color metadata remains unknown", Desktop::Types::Display::ColorSpace::Unknown, unavailable.activeColorSpace));
     static_cast<void>(context.expectFalse("unavailable color precision is absent", unavailable.bitsPerColorChannel.has_value()));
     static_cast<void>(context.expectFalse("unavailable SDR white is absent", unavailable.sdrWhiteLevelNits.has_value()));
 
-    const Desktop::Types::Display::ColorInfo hdrDisabled = Desktop::TestHooks::makeDisplayColorInfo(
+    const Desktop::Types::Display::ColorInfo hdrDisabled = Desktop::Internal::TestHooks::makeDisplayColorInfo(
         fixtureMonitor,
         {.activeColorSpace = Desktop::Types::Display::ColorSpace::Srgb,
          .wideColorGamutSupported = true,
@@ -118,7 +118,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
         static_cast<double>(hdrDisabled.sdrWhiteLevelNits.value_or(0.0F)),
         0.001));
 
-    const Desktop::Types::Display::ColorInfo hdrEnabled = Desktop::TestHooks::makeDisplayColorInfo(
+    const Desktop::Types::Display::ColorInfo hdrEnabled = Desktop::Internal::TestHooks::makeDisplayColorInfo(
         fixtureMonitor,
         {.activeColorSpace = Desktop::Types::Display::ColorSpace::Hdr10Pq,
          .wideColorGamutSupported = true,
@@ -132,7 +132,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
         std::numeric_limits<std::uint16_t>::max(),
         hdrEnabled.bitsPerColorChannel.value_or(0)));
 
-    const Desktop::Types::Display::ColorInfo wideColor = Desktop::TestHooks::makeDisplayColorInfo(
+    const Desktop::Types::Display::ColorInfo wideColor = Desktop::Internal::TestHooks::makeDisplayColorInfo(
         fixtureMonitor,
         {.activeColorSpace = Desktop::Types::Display::ColorSpace::WideColorGamut, .wideColorGamutSupported = true});
     static_cast<void>(
@@ -140,7 +140,7 @@ void testDisplayColorInformation(TestSupport::Context &context)
     static_cast<void>(context.expectFalse("wide-gamut SDR is not inferred as HDR", wideColor.hdrEnabled));
 
     window.clearEvents();
-    Desktop::TestHooks::simulateDisplayColorConfigurationChange();
+    Desktop::Internal::TestHooks::simulateDisplayColorConfigurationChange();
     static_cast<void>(context.expectTrue("display-color transition pump succeeds", Desktop::Events::poll().status.ok()));
     static_cast<void>(context.expectTrue(
         "display-color transition reuses display-configuration event",

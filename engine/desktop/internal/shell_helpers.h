@@ -10,7 +10,7 @@
 #include <string_view>
 #include <thread>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Validates shell text and optionally requires a non-empty value.
     [[nodiscard]] bool validText(std::string_view text, bool required = false) noexcept;
@@ -26,4 +26,4 @@ namespace GameWIP::Desktop::Detail
 
     /// @brief Drops one resource binding without closing or destroying its queue.
     void unbindQueue(ShellEventQueueState *queue) noexcept;
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

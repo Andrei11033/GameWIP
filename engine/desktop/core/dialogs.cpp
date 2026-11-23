@@ -3,8 +3,8 @@
 
 #include "desktop/dialogs.h"
 
-#include "desktop/internal/dialogs_platform.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/dialogs.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
 
 #include <new>
@@ -34,13 +34,13 @@ namespace GameWIP::Desktop::Dialogs
             {
                 return IO::successStatus();
             }
-            Detail::WindowState *state = Detail::WindowAccess::state(*owner);
+            Internal::WindowState *state = Internal::WindowAccess::state(*owner);
 
-            if(state == nullptr || !Detail::Platform::hasLiveNativeWindow(*state))
+            if(state == nullptr || !Platform::hasLiveNativeWindow(*state))
             {
                 return error(ErrorCode::NotOpen);
             }
-            return Detail::Platform::ownedByCurrentThread(*state) ? IO::successStatus() : error(ErrorCode::ResourceBusy);
+            return Platform::ownedByCurrentThread(*state) ? IO::successStatus() : error(ErrorCode::ResourceBusy);
         }
 
         /// @brief Returns whether an extension is one native-filter-safe filename component.
@@ -279,7 +279,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
 
-            return result.status.ok() ? Detail::Platform::openFile(description) : result;
+            return result.status.ok() ? Platform::openFile(description) : result;
         }
         catch(const std::bad_alloc &)
         {
@@ -310,7 +310,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = validateFilters(description.filters, description.preferredFilterIndex);
             }
 
-            return result.status.ok() ? Detail::Platform::openFiles(description) : result;
+            return result.status.ok() ? Platform::openFiles(description) : result;
         }
         catch(const std::bad_alloc &)
         {
@@ -356,7 +356,7 @@ namespace GameWIP::Desktop::Dialogs
                 }
             }
 
-            return result.status.ok() ? Detail::Platform::saveFile(description) : result;
+            return result.status.ok() ? Platform::saveFile(description) : result;
         }
         catch(const std::bad_alloc &)
         {
@@ -382,7 +382,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = validateText(description.title);
             }
 
-            return result.status.ok() ? Detail::Platform::selectFolder(description) : result;
+            return result.status.ok() ? Platform::selectFolder(description) : result;
         }
         catch(const std::bad_alloc &)
         {
@@ -408,7 +408,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = validateText(description.title);
             }
 
-            return result.status.ok() ? Detail::Platform::selectFolders(description) : result;
+            return result.status.ok() ? Platform::selectFolders(description) : result;
         }
         catch(const std::bad_alloc &)
         {
@@ -450,7 +450,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = validateText(description.message);
             }
 
-            return result.status.ok() ? Detail::Platform::showMessage(description) : result;
+            return result.status.ok() ? Platform::showMessage(description) : result;
         }
         catch(const std::bad_alloc &)
         {
@@ -476,7 +476,7 @@ namespace GameWIP::Desktop::Dialogs
                 result.status = validatePrompt(description);
             }
 
-            return result.status.ok() ? Detail::Platform::showPrompt(description) : result;
+            return result.status.ok() ? Platform::showPrompt(description) : result;
         }
         catch(const std::bad_alloc &)
         {

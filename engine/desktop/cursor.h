@@ -18,11 +18,11 @@ namespace GameWIP::Desktop
 {
     class Window;
 
-    namespace Detail
+    namespace Internal
     {
         struct CursorAccess;
         struct CursorState;
-    } // namespace Detail
+    } // namespace Internal
 
     /// @brief Immutable shared owner of eagerly materialized native cursor images.
     /// @details Copies share the same native resources. A default-constructed or failed result
@@ -51,11 +51,11 @@ namespace GameWIP::Desktop
         [[nodiscard]] bool isValid() const noexcept;
 
     private:
-        friend struct Detail::CursorAccess;
+        friend struct Internal::CursorAccess;
 
-        explicit Cursor(std::shared_ptr<const Detail::CursorState> state) noexcept;
+        explicit Cursor(std::shared_ptr<const Internal::CursorState> state) noexcept;
 
-        std::shared_ptr<const Detail::CursorState> state_;
+        std::shared_ptr<const Internal::CursorState> state_;
     };
 } // namespace GameWIP::Desktop
 

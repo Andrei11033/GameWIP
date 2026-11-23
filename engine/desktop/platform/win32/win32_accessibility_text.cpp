@@ -7,7 +7,7 @@
 #include <cmath>
 #include <limits>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     namespace
     {
@@ -1409,4 +1409,4 @@ namespace GameWIP::Desktop::Detail::Platform
         *out = array;
         return S_OK;
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

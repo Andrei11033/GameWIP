@@ -1,7 +1,7 @@
 /// @file shell.cpp
 /// @brief Shared state and pixel conversion for Desktop's Win32 shell features.
 
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_shell_helpers.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
@@ -13,7 +13,7 @@
 #include <cstdlib>
 #include <string>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Shell message-window tracking
@@ -35,7 +35,7 @@ namespace GameWIP::Desktop::Detail::Platform
         --shellMessageWindowCount;
     }
 
-    bool hasShellMessageWindows() noexcept
+    bool hasShellEventSources() noexcept
     {
         return shellMessageWindowCount != 0;
     }
@@ -174,4 +174,4 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::successStatus();
         }
     } // namespace Win32
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

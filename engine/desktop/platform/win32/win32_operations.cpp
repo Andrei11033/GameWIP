@@ -10,7 +10,7 @@
 #include <span>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Native geometry and icon helpers
@@ -256,7 +256,7 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         try
         {
-            if(Detail::consumeFailure(TestHooks::FailurePoint::TitleConversion))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::TitleConversion))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::EncodingFailed);
             }
@@ -288,7 +288,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status setIcon(WindowState &state, std::span<const Types::IconImageView> images) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::IconConversion))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::IconConversion))
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
         }
@@ -481,4 +481,4 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

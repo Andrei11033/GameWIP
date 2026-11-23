@@ -4,10 +4,10 @@
 #include "desktop/cursor.h"
 #include "base/checked_arithmetic.h"
 
-#include "desktop/internal/cursor_platform.h"
+#include "desktop/platform/cursor.h"
 #include "desktop/internal/cursor_selection.h"
 #include "desktop/internal/cursor_state.h"
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
 #include "desktop/internal/desktop_test_hooks.h"
 
@@ -109,7 +109,7 @@ namespace GameWIP::Desktop
     Cursor::~Cursor() noexcept = default;
 
     /// @brief Creates a portable cursor handle that shares immutable native variants.
-    Cursor::Cursor(std::shared_ptr<const Detail::CursorState> state) noexcept
+    Cursor::Cursor(std::shared_ptr<const Internal::CursorState> state) noexcept
         : state_(std::move(state))
     {
     }
@@ -119,18 +119,18 @@ namespace GameWIP::Desktop
         return static_cast<bool>(state_);
     }
 
-    Detail::CursorState::CursorState(std::vector<NativeCursorVariant> nativeVariants) noexcept
+    Internal::CursorState::CursorState(std::vector<NativeCursorVariant> nativeVariants) noexcept
         : variants(std::move(nativeVariants))
     {
     }
 
-    Detail::CursorState::~CursorState() noexcept
+    Internal::CursorState::~CursorState() noexcept
     {
-        Detail::Platform::destroyNativeCursorVariants(variants);
+        Platform::destroyNativeCursorVariants(variants);
     }
 
     /// @brief Selects the nearest retained native cursor variant for the requested DPI.
-    const Detail::NativeCursorVariant &Detail::CursorState::variantForDpi(std::uint32_t dpi) const noexcept
+    const Internal::NativeCursorVariant &Internal::CursorState::variantForDpi(std::uint32_t dpi) const noexcept
     {
         std::size_t best = 0;
 
@@ -146,13 +146,13 @@ namespace GameWIP::Desktop
     }
 
     /// @brief Reconstructs the public Cursor wrapper around validated immutable state.
-    Cursor Detail::CursorAccess::make(std::shared_ptr<const CursorState> state) noexcept
+    Cursor Internal::CursorAccess::make(std::shared_ptr<const CursorState> state) noexcept
     {
         return Cursor(std::move(state));
     }
 
     /// @brief Exposes the private shared state to the desktop implementation.
-    const std::shared_ptr<const Detail::CursorState> &Detail::CursorAccess::state(const Cursor &cursor) noexcept
+    const std::shared_ptr<const Internal::CursorState> &Internal::CursorAccess::state(const Cursor &cursor) noexcept
     {
         return cursor.state_;
     }
@@ -174,52 +174,52 @@ namespace GameWIP::Desktop
             return {.status = std::move(status)};
         }
 
-        std::vector<Detail::NativeCursorVariant> nativeVariants;
+        std::vector<Internal::NativeCursorVariant> nativeVariants;
 
         try
         {
-            if(Detail::consumeFailure(TestHooks::FailurePoint::Allocation))
+            if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::Allocation))
             {
                 throw std::bad_alloc{};
             }
             nativeVariants.reserve(variants.size());
-            status = Detail::Platform::createNativeCursorVariants(variants, nativeVariants);
+            status = Platform::createNativeCursorVariants(variants, nativeVariants);
 
             if(!status.ok())
             {
-                Detail::Platform::destroyNativeCursorVariants(nativeVariants);
+                Platform::destroyNativeCursorVariants(nativeVariants);
                 return {.status = std::move(status)};
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::CursorStateAllocation))
+            if(Internal::consumeFailure(Internal::TestHooks::FailurePoint::CursorStateAllocation))
             {
                 throw std::bad_alloc{};
             }
-            auto state = std::make_shared<Detail::CursorState>(std::move(nativeVariants));
-            return {.status = IO::successStatus(), .value = Detail::CursorAccess::make(std::move(state))};
+            auto state = std::make_shared<Internal::CursorState>(std::move(nativeVariants));
+            return {.status = IO::successStatus(), .value = Internal::CursorAccess::make(std::move(state))};
         }
         catch(const std::bad_alloc &)
         {
-            Detail::Platform::destroyNativeCursorVariants(nativeVariants);
+            Platform::destroyNativeCursorVariants(nativeVariants);
             return {.status = error(ErrorCode::OutOfMemory)};
         }
         catch(...)
         {
-            Detail::Platform::destroyNativeCursorVariants(nativeVariants);
+            Platform::destroyNativeCursorVariants(nativeVariants);
             return {.status = error(ErrorCode::Unknown)};
         }
     }
 
     IO::Types::Status setCursor(Window &window, const Cursor &cursor) noexcept
     {
-        Detail::WindowState *state = Detail::WindowAccess::state(window);
+        Internal::WindowState *state = Internal::WindowAccess::state(window);
 
-        if(state == nullptr || !state->platform || !Detail::Platform::hasLiveNativeWindow(*state))
+        if(state == nullptr || !state->platform || !Platform::hasLiveNativeWindow(*state))
         {
             return error(ErrorCode::NotOpen);
         }
 
-        if(!Detail::Platform::ownedByCurrentThread(*state))
+        if(!Platform::ownedByCurrentThread(*state))
         {
             return error(ErrorCode::ResourceBusy);
         }
@@ -228,13 +228,13 @@ namespace GameWIP::Desktop
         {
             return error(ErrorCode::InvalidArgument);
         }
-        return Detail::Platform::setCustomCursor(*state, Detail::CursorAccess::state(cursor));
+        return Platform::setCustomCursor(*state, Internal::CursorAccess::state(cursor));
     }
 
     bool hasCustomCursor(const Window &window) noexcept
     {
-        const Detail::WindowState *state = Detail::WindowAccess::state(window);
-        return state != nullptr && state->platform && Detail::Platform::hasLiveNativeWindow(*state) &&
-               Detail::Platform::ownedByCurrentThread(*state) && Detail::Platform::hasCustomCursor(*state);
+        const Internal::WindowState *state = Internal::WindowAccess::state(window);
+        return state != nullptr && state->platform && Platform::hasLiveNativeWindow(*state) && Platform::ownedByCurrentThread(*state) &&
+               Platform::hasCustomCursor(*state);
     }
 } // namespace GameWIP::Desktop

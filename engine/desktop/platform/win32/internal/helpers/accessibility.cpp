@@ -7,7 +7,7 @@
 #include <array>
 #include <limits>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Geometry and native semantic mapping
@@ -274,4 +274,4 @@ namespace GameWIP::Desktop::Detail::Platform
         return layout[nodeIndex].ordinal > layout[ancestorIndex].ordinal && layout[nodeIndex].ordinal < layout[ancestorIndex].subtreeEnd;
     }
 
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

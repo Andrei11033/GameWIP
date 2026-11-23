@@ -193,7 +193,7 @@ void testLifetime(Context &context)
     check(context, "foreign lifecycle rejected", wrongThreadRejected.load());
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     equal(context, "publication allocation failure", Error::OutOfMemory, bridge.publish(tree.view(4)).code);
     equal(context, "failed publication preserves tree", A::Generation{3}, bridge.snapshotInfo().generation);
 #endif

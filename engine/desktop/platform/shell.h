@@ -1,5 +1,5 @@
-/// @file shell_platform.h
-/// @brief Internal portable-to-native backend contract for Desktop shell integration.
+/// @file shell.h
+/// @brief Portable backend contract for Desktop shell integration.
 
 #pragma once
 
@@ -9,14 +9,33 @@
 #include <cstdint>
 #include <string_view>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
-    /// @brief Returns shell capabilities available on the current Windows host.
+    /// ------------------------------------------------------------
+    /// Shared portable state
+    /// ------------------------------------------------------------
+
+    using Internal::NotificationCenterState;
+    using Internal::OwnedNotificationAction;
+    using Internal::OwnedNotificationDescription;
+    using Internal::OwnedNotificationInput;
+    using Internal::OwnedNotificationMedia;
+    using Internal::OwnedThumbnailButton;
+    using Internal::OwnedTrayMenuItem;
+    using Internal::TaskbarItemState;
+    using Internal::TrayIconState;
+    using Internal::WindowState;
+
+    /// @brief Returns shell capabilities available on the current host.
     [[nodiscard]] Types::Result<Types::Shell::Capabilities> getShellCapabilities() noexcept;
 
-    /// @brief Reports whether the calling thread owns native tray or notification message windows.
+    /// @brief Reports whether the calling thread owns shell event sources.
     /// @details Keeps the shared event pump active without requiring a top-level Window.
-    [[nodiscard]] bool hasShellMessageWindows() noexcept;
+    [[nodiscard]] bool hasShellEventSources() noexcept;
+
+    /// ------------------------------------------------------------
+    /// Taskbar
+    /// ------------------------------------------------------------
 
     /// @brief Creates the taskbar integration for one Window.
     [[nodiscard]] IO::Types::Status openTaskbar(TaskbarItemState &state) noexcept;
@@ -26,10 +45,14 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status closeTaskbar(TaskbarItemState &state) noexcept;
     /// @brief Attempts taskbar cleanup during teardown.
     void closeTaskbarBestEffort(TaskbarItemState &state) noexcept;
-    /// @brief Removes taskbar state after the associated Window HWND is destroyed.
+    /// @brief Removes taskbar state after the associated native Window is destroyed.
     void notifyTaskbarWindowDestroyed(WindowState &window) noexcept;
     /// @brief Routes a taskbar thumbnail command into the shell event queue.
     void routeTaskbarCommand(WindowState &window, std::uint32_t commandId) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Tray
+    /// ------------------------------------------------------------
 
     /// @brief Creates a tray icon.
     [[nodiscard]] IO::Types::Status openTray(TrayIconState &state) noexcept;
@@ -39,6 +62,10 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] IO::Types::Status closeTray(TrayIconState &state) noexcept;
     /// @brief Attempts tray cleanup during teardown.
     void closeTrayBestEffort(TrayIconState &state) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Notifications
+    /// ------------------------------------------------------------
 
     /// @brief Creates the notification center bridge.
     [[nodiscard]] IO::Types::Status openNotificationCenter(NotificationCenterState &state) noexcept;
@@ -59,13 +86,12 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Attempts notification-center cleanup during teardown.
     void closeNotificationCenterBestEffort(NotificationCenterState &state) noexcept;
 
+    /// ------------------------------------------------------------
+    /// Jump lists and registration
+    /// ------------------------------------------------------------
+
     /// @brief Publishes taskbar jump-list entries.
     [[nodiscard]] IO::Types::Status publishJumpLists(const Types::JumpLists::Description &description) noexcept;
-#if DESKTOP_INTERNAL_TEST_HOOKS
-    [[nodiscard]] IO::Types::Status testShellApartment() noexcept;
-    [[nodiscard]] IO::Types::Status createJumpLinkForTests(const Types::JumpLists::Task &task, void *&out) noexcept;
-#endif
-
     /// @brief Registers one file extension with the shell.
     [[nodiscard]] Types::Registration::Result registerFileExtension(const Types::Registration::FileExtensionDescription &description) noexcept;
     /// @brief Registers one URI scheme with the shell.
@@ -74,4 +100,4 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] Types::Registration::Result unregisterFileExtension(std::string_view ownerKey, std::string_view extension) noexcept;
     /// @brief Removes one URI-scheme registration owned by ownerKey.
     [[nodiscard]] Types::Registration::Result unregisterUriScheme(std::string_view ownerKey, std::string_view scheme) noexcept;
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

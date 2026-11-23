@@ -10,9 +10,8 @@
 #include <limits>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
-    // Keep these optional features together while the state remains small and cohesive.
     /// @brief Optional renderer-facing state shared by hit-mask and occlusion bridges.
     struct RendererIntegrationState
     {
@@ -65,4 +64,4 @@ namespace GameWIP::Desktop::Detail
             occluded = false;
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

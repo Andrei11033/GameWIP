@@ -20,11 +20,11 @@
 
 namespace GameWIP::Desktop
 {
-    namespace Detail
+    namespace Internal
     {
         struct NotificationCenterAccess;
         struct NotificationCenterState;
-    } // namespace Detail
+    } // namespace Internal
 } // namespace GameWIP::Desktop
 
 namespace GameWIP::Desktop::Types::Notifications
@@ -213,8 +213,8 @@ namespace GameWIP::Desktop
         /// @}
 
     private:
-        friend struct Detail::NotificationCenterAccess;
+        friend struct Internal::NotificationCenterAccess;
 
-        std::unique_ptr<Detail::NotificationCenterState> state_;
+        std::unique_ptr<Internal::NotificationCenterState> state_;
     };
 } // namespace GameWIP::Desktop

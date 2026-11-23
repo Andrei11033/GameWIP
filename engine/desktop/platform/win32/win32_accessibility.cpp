@@ -10,7 +10,7 @@
 #include <charconv>
 #include <cmath>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Native state and snapshot queries
@@ -23,7 +23,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if(provider)
             {
                 provider->Release();
-            } // namespace GameWIP::Desktop::Detail::Platform
+            } // namespace GameWIP::Desktop::Platform
         }
     }
 
@@ -1194,17 +1194,17 @@ namespace GameWIP::Desktop::Detail::Platform
         return S_OK;
     }
 
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     void *accessibilityProvider(Window &window, Types::Accessibility::NodeId node) noexcept
     {
-        const auto *state = Detail::WindowAccess::accessibilityState(window);
+        const auto *state = Internal::WindowAccess::accessibilityState(window);
         const auto runtime = state ? state->runtime.load() : nullptr;
         const auto snapshot = runtime && runtime->live.load() ? runtime->snapshot.load() : nullptr;
-        auto *provider = snapshot ? Detail::Platform::providerFor(*snapshot, node) : nullptr;
+        auto *provider = snapshot ? Platform::providerFor(*snapshot, node) : nullptr;
 
         if(provider)
         {
@@ -1213,5 +1213,5 @@ namespace GameWIP::Desktop::TestHooks
 
         return provider;
     }
-} // namespace GameWIP::Desktop::TestHooks
+} // namespace GameWIP::Desktop::Internal::TestHooks
 #endif

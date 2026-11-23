@@ -4,7 +4,7 @@
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 
 #include "desktop/child_surface.h"
-#include "desktop/internal/child_surface_platform.h"
+#include "desktop/platform/child_surface.h"
 #include "desktop/native/win32.h"
 
 #include <algorithm>
@@ -12,7 +12,7 @@
 #include <mutex>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// ChildSurface class and geometry helpers
@@ -344,7 +344,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return IO::makeStatus(IO::Types::ErrorCode::InvalidArgument, ERROR_ARITHMETIC_OVERFLOW, "ChildSurface rect exceeds Win32 range");
             }
 
-            if(Detail::consumeFailure(TestHooks::FailurePoint::NativeCreation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::NativeCreation))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
@@ -432,7 +432,7 @@ namespace GameWIP::Desktop::Detail::Platform
             return {IO::makeStatus(IO::Types::ErrorCode::ResourceBusy), false};
         }
 
-        if(Detail::consumeFailure(TestHooks::FailurePoint::Close))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Close))
         {
             return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
         }
@@ -656,30 +656,30 @@ namespace GameWIP::Desktop::Detail::Platform
 
         return IO::successStatus();
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
 namespace GameWIP::Desktop::Native::Win32
 {
     Types::Result<HandleView> getHandle(const GameWIP::Desktop::ChildSurface &surface) noexcept
     {
-        const Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
+        const Internal::ChildSurfaceState *state = Internal::ChildSurfaceAccess::state(surface);
 
-        if(state == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*state))
+        if(state == nullptr || !Platform::hasLiveNativeChildSurface(*state))
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::NotOpen)};
         }
 
-        if(!Detail::Platform::isChildSurfaceOwnedByCurrentThread(*state))
+        if(!Platform::isChildSurfaceOwnedByCurrentThread(*state))
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::ResourceBusy)};
         }
-        const Detail::Platform::NativeHandleView handles = Detail::Platform::childSurfaceNativeHandle(*state);
+        const Platform::NativeHandleView handles = Platform::childSurfaceNativeHandle(*state);
         return {.status = IO::successStatus(), .value = HandleView{static_cast<HINSTANCE>(handles.instance), static_cast<HWND>(handles.window)}};
     }
 } // namespace GameWIP::Desktop::Native::Win32
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-namespace GameWIP::Desktop::TestHooks
+namespace GameWIP::Desktop::Internal::TestHooks
 {
     ChildSurfaceDpiTransitionResult calculateChildSurfaceDpiTransition(Types::LogicalRect logicalRect, std::uint32_t newDpi) noexcept
     {
@@ -687,30 +687,30 @@ namespace GameWIP::Desktop::TestHooks
         {
             return {};
         }
-        return {logicalRect, Detail::Platform::logicalToPhysicalSize(logicalRect.size, newDpi)};
+        return {logicalRect, Platform::logicalToPhysicalSize(logicalRect.size, newDpi)};
     }
 
     IO::Types::Status destroyNativeChildSurface(ChildSurface &surface) noexcept
     {
-        Detail::ChildSurfaceState *state = Detail::ChildSurfaceAccess::state(surface);
+        Internal::ChildSurfaceState *state = Internal::ChildSurfaceAccess::state(surface);
 
-        if(state == nullptr || !Detail::Platform::hasLiveNativeChildSurface(*state))
+        if(state == nullptr || !Platform::hasLiveNativeChildSurface(*state))
         {
             return IO::makeStatus(IO::Types::ErrorCode::NotOpen);
         }
 
-        if(!Detail::Platform::isChildSurfaceOwnedByCurrentThread(*state))
+        if(!Platform::isChildSurfaceOwnedByCurrentThread(*state))
         {
             return IO::makeStatus(IO::Types::ErrorCode::ResourceBusy);
         }
-        const Detail::Platform::NativeHandleView handle = Detail::Platform::childSurfaceNativeHandle(*state);
+        const Platform::NativeHandleView handle = Platform::childSurfaceNativeHandle(*state);
 
         if(DestroyWindow(static_cast<HWND>(handle.window)) == FALSE)
         {
-            return Detail::Platform::statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "test-hook destroy ChildSurface");
+            return Platform::statusFromWin32(IO::Types::ErrorCode::CloseFailed, GetLastError(), "test-hook destroy ChildSurface");
         }
 
         return IO::successStatus();
     }
-} // namespace GameWIP::Desktop::TestHooks
+} // namespace GameWIP::Desktop::Internal::TestHooks
 #endif

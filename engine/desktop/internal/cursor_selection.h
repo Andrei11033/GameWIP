@@ -7,7 +7,7 @@
 #include <cstdint>
 #include <span>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Returns whether one intended DPI is a better match than the current candidate.
     [[nodiscard]] constexpr bool isBetterDpiCandidate(std::uint32_t candidateDpi, std::uint32_t currentDpi, std::uint32_t targetDpi) noexcept
@@ -33,4 +33,4 @@ namespace GameWIP::Desktop::Detail
 
         return best;
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

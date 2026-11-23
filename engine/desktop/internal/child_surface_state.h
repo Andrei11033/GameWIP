@@ -4,6 +4,7 @@
 #pragma once
 
 #include "desktop/child_surface.h"
+#include "desktop/internal/helpers/event_storage.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -12,7 +13,7 @@
 #include <thread>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     struct ChildSurfaceData;
 
@@ -20,9 +21,9 @@ namespace GameWIP::Desktop::Detail::Platform
     {
         void operator()(ChildSurfaceData *data) const noexcept;
     };
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     /// @brief Outcome of inserting one ChildSurface event into fixed storage.
     enum class ChildSurfaceEnqueueResult
@@ -43,16 +44,7 @@ namespace GameWIP::Desktop::Detail
         /// @brief Clears queued payloads and releases the caller-storage view.
         void clearRetainedEvents() noexcept
         {
-            if(!eventStorage.empty())
-            {
-                for(std::size_t index = 0; index < eventCount; ++index)
-                {
-                    eventStorage[(eventHead + index) % eventStorage.size()] = {};
-                }
-            }
-            eventHead = 0;
-            eventCount = 0;
-            eventStorage = {};
+            clearRetainedEventStorage(eventStorage, eventHead, eventCount);
         }
 
         // Native ownership and parent binding
@@ -81,7 +73,7 @@ namespace GameWIP::Desktop::Detail
         bool visible = false;
         bool interactionEnabled = true;
         bool suppressEvents = true;                  ///< Suppresses construction-time native callbacks.
-        bool nativeDestroyedPendingFinalize = false; ///< Native HWND is gone; owner-thread finalization remains.
+        bool nativeDestroyedPendingFinalize = false; ///< Native child surface is gone; owner-thread finalization remains.
     };
 
     [[nodiscard]] bool isChildSurfaceEventCoalescible(const Types::ChildSurface::Events::Payload &data) noexcept;
@@ -104,4 +96,4 @@ namespace GameWIP::Desktop::Detail
             return surface.state_;
         }
     };
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal

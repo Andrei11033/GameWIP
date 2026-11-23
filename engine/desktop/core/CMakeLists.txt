@@ -18,7 +18,10 @@ target_sources(
         renderer_bridge.cpp
         shell.cpp
         taskbar.cpp
-        test_hooks.cpp
         tray.cpp
         window.cpp
 )
+
+if(DESKTOP_ENABLE_TEST_HOOKS)
+    target_sources(Desktop PRIVATE test_hooks.cpp)
+endif()

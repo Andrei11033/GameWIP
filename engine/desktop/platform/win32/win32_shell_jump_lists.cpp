@@ -1,8 +1,9 @@
 /// @file win32_shell_jump_lists.cpp
 /// @brief Win32 Jump List backend.
 
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 
+#include "desktop/platform/win32/internal/test_hooks.h"
 #include "desktop/platform/win32/internal/win32_com.h"
 #include "desktop/platform/win32/internal/win32_shell_launch.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
@@ -21,7 +22,7 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     using IO::Types::ErrorCode;
 
@@ -205,6 +206,12 @@ namespace GameWIP::Desktop::Detail::Platform
     /// ------------------------------------------------------------
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
+} // namespace GameWIP::Desktop::Platform
+
+namespace GameWIP::Desktop::Internal::TestHooks::Platform
+{
+    using namespace GameWIP::Desktop::Platform;
+
     IO::Types::Status testShellApartment() noexcept
     {
         ApartmentLease apartment;
@@ -244,7 +251,11 @@ namespace GameWIP::Desktop::Detail::Platform
             return IO::makeStatus(ErrorCode::Unknown);
         }
     }
+} // namespace GameWIP::Desktop::Internal::TestHooks::Platform
 #endif
+
+namespace GameWIP::Desktop::Platform
+{
 
     IO::Types::Status publishJumpLists(const Types::JumpLists::Description &description) noexcept
     {
@@ -391,4 +402,4 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     }
 
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

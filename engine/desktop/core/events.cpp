@@ -3,12 +3,12 @@
 
 #include "desktop/events.h"
 
-#include "desktop/internal/window_platform.h"
+#include "desktop/platform/window.h"
 #include "desktop/internal/window_state.h"
 
 #include <utility>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     namespace
     {
@@ -171,7 +171,7 @@ namespace GameWIP::Desktop::Detail
 
         return enqueueEvent(state, Types::Events::InteractiveMoveResizeEnded{});
     }
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop::Events
 {
@@ -181,7 +181,7 @@ namespace GameWIP::Desktop::Events
 
     Types::Events::PumpResult poll() noexcept
     {
-        return Detail::Platform::pumpEvents(kNoWait, false);
+        return Platform::pumpEvents(kNoWait, false);
     }
 
     Types::Events::PumpResult wait(std::chrono::milliseconds timeout) noexcept
@@ -190,6 +190,6 @@ namespace GameWIP::Desktop::Events
         {
             return {.status = IO::makeStatus(IO::Types::ErrorCode::InvalidArgument)};
         }
-        return Detail::Platform::pumpEvents(timeout, true);
+        return Platform::pumpEvents(timeout, true);
     }
 } // namespace GameWIP::Desktop::Events

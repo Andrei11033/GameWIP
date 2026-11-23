@@ -51,39 +51,39 @@ void testCursorDpiSelection(TestSupport::Context &context)
     constexpr std::array<std::uint32_t, 3> orderedDpis{96, 144, 192};
 
     static_cast<void>(
-        context.expectEq("cursor DPI selection chooses exact match", std::size_t{1}, Desktop::Detail::selectDpiVariantIndex(orderedDpis, 144)));
+        context.expectEq("cursor DPI selection chooses exact match", std::size_t{1}, Desktop::Internal::selectDpiVariantIndex(orderedDpis, 144)));
 
     static_cast<void>(context.expectEq(
         "cursor DPI selection clamps below supplied range",
         std::size_t{0},
-        Desktop::Detail::selectDpiVariantIndex(orderedDpis, 72)));
+        Desktop::Internal::selectDpiVariantIndex(orderedDpis, 72)));
 
     static_cast<void>(context.expectEq(
         "cursor DPI selection clamps above supplied range",
         std::size_t{2},
-        Desktop::Detail::selectDpiVariantIndex(orderedDpis, 240)));
+        Desktop::Internal::selectDpiVariantIndex(orderedDpis, 240)));
 
     static_cast<void>(context.expectEq(
         "cursor DPI selection chooses nearest lower variant",
         std::size_t{0},
-        Desktop::Detail::selectDpiVariantIndex(orderedDpis, 110)));
+        Desktop::Internal::selectDpiVariantIndex(orderedDpis, 110)));
 
     static_cast<void>(context.expectEq(
         "cursor DPI selection chooses nearest higher variant",
         std::size_t{2},
-        Desktop::Detail::selectDpiVariantIndex(orderedDpis, 170)));
+        Desktop::Internal::selectDpiVariantIndex(orderedDpis, 170)));
 
     static_cast<void>(context.expectEq(
         "cursor DPI selection chooses higher variant on equal distance",
         std::size_t{1},
-        Desktop::Detail::selectDpiVariantIndex(orderedDpis, 120)));
+        Desktop::Internal::selectDpiVariantIndex(orderedDpis, 120)));
 
     constexpr std::array<std::uint32_t, 3> unorderedDpis{192, 96, 144};
 
     static_cast<void>(context.expectEq(
         "cursor DPI selection does not require sorted variants",
         std::size_t{2},
-        Desktop::Detail::selectDpiVariantIndex(unorderedDpis, 120)));
+        Desktop::Internal::selectDpiVariantIndex(unorderedDpis, 120)));
 }
 
 void testCursorValuesAndValidation(TestSupport::Context &context)
@@ -185,15 +185,16 @@ void testCursorValuesAndValidation(TestSupport::Context &context)
 
 void testCursorNativeResources(TestSupport::Context &context)
 {
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
     const CursorTest::Pixels pixels = CursorTest::pixels();
-    const std::size_t createdBefore = Desktop::TestHooks::createdCustomCursorCount();
-    const std::size_t destroyedBefore = Desktop::TestHooks::destroyedCustomCursorCount();
+    const std::size_t createdBefore = Desktop::Internal::TestHooks::createdCustomCursorCount();
+    const std::size_t destroyedBefore = Desktop::Internal::TestHooks::destroyedCustomCursorCount();
     {
         auto one = CursorTest::create(pixels);
         static_cast<void>(context.expectTrue("one native cursor variant creates", one.status.ok()));
-        static_cast<void>(context.expectEq("one native variant is retained", std::size_t{1}, Desktop::TestHooks::customCursorVariantCount(*one)));
-        const auto snapshot = Desktop::TestHooks::inspectCustomCursorVariant(*one, 0);
+        static_cast<void>(
+            context.expectEq("one native variant is retained", std::size_t{1}, Desktop::Internal::TestHooks::customCursorVariantCount(*one)));
+        const auto snapshot = Desktop::Internal::TestHooks::inspectCustomCursorVariant(*one, 0);
         static_cast<void>(context.expectTrue("native cursor variant can be inspected", snapshot.valid));
         static_cast<void>(context.expectEq("custom cursor hotspot x reaches Win32", std::uint32_t{1}, snapshot.hotspot.x));
         static_cast<void>(context.expectEq("custom cursor hotspot y reaches Win32", std::uint32_t{1}, snapshot.hotspot.y));
@@ -208,42 +209,50 @@ void testCursorNativeResources(TestSupport::Context &context)
         static_cast<void>(context.expectEq(
             "copying a Cursor does not duplicate native variants",
             createdBefore + 1,
-            Desktop::TestHooks::createdCustomCursorCount()));
+            Desktop::Internal::TestHooks::createdCustomCursorCount()));
         static_cast<void>(shared.isValid());
     }
-    static_cast<void>(
-        context.expectEq("last Cursor reference destroys its native variant", destroyedBefore + 1, Desktop::TestHooks::destroyedCustomCursorCount()));
+    static_cast<void>(context.expectEq(
+        "last Cursor reference destroys its native variant",
+        destroyedBefore + 1,
+        Desktop::Internal::TestHooks::destroyedCustomCursorCount()));
 
     std::array images{CursorTest::image(pixels, 96), CursorTest::image(pixels, 144), CursorTest::image(pixels, 192)};
     auto multiple = Desktop::createCursor(images);
     static_cast<void>(context.expectTrue("multiple native cursor variants create", multiple.status.ok()));
-    static_cast<void>(
-        context.expectEq("all native variants are eagerly retained", std::size_t{3}, Desktop::TestHooks::customCursorVariantCount(*multiple)));
+    static_cast<void>(context.expectEq(
+        "all native variants are eagerly retained",
+        std::size_t{3},
+        Desktop::Internal::TestHooks::customCursorVariantCount(*multiple)));
 
-    const std::size_t partialCreated = Desktop::TestHooks::createdCustomCursorCount();
-    const std::size_t partialDestroyed = Desktop::TestHooks::destroyedCustomCursorCount();
-    Desktop::TestHooks::failCursorNativeCreationAfter(1);
+    const std::size_t partialCreated = Desktop::Internal::TestHooks::createdCustomCursorCount();
+    const std::size_t partialDestroyed = Desktop::Internal::TestHooks::destroyedCustomCursorCount();
+    Desktop::Internal::TestHooks::failCursorNativeCreationAfter(1);
     auto partial = Desktop::createCursor(images);
     static_cast<void>(context.expectEq("injected native cursor failure is translated", ErrorCode::NativeFailure, partial.status.code));
     static_cast<void>(context.expectFalse("partial native creation publishes no Cursor", partial.value.has_value() && partial->isValid()));
-    static_cast<void>(
-        context.expectEq("partial native creation made exactly one candidate", partialCreated + 1, Desktop::TestHooks::createdCustomCursorCount()));
+    static_cast<void>(context.expectEq(
+        "partial native creation made exactly one candidate",
+        partialCreated + 1,
+        Desktop::Internal::TestHooks::createdCustomCursorCount()));
     static_cast<void>(context.expectEq(
         "partial native creation cleans its earlier candidate",
         partialDestroyed + 1,
-        Desktop::TestHooks::destroyedCustomCursorCount()));
+        Desktop::Internal::TestHooks::destroyedCustomCursorCount()));
 
-    const std::size_t allocationCreated = Desktop::TestHooks::createdCustomCursorCount();
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    const std::size_t allocationCreated = Desktop::Internal::TestHooks::createdCustomCursorCount();
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     auto allocation = CursorTest::create(pixels);
     static_cast<void>(context.expectEq("cursor allocation failure is translated", ErrorCode::OutOfMemory, allocation.status.code));
     static_cast<void>(context.expectFalse("cursor allocation failure publishes no Cursor", allocation.value.has_value() && allocation->isValid()));
-    static_cast<void>(
-        context.expectEq("allocation failure creates no native candidate", allocationCreated, Desktop::TestHooks::createdCustomCursorCount()));
+    static_cast<void>(context.expectEq(
+        "allocation failure creates no native candidate",
+        allocationCreated,
+        Desktop::Internal::TestHooks::createdCustomCursorCount()));
 
-    const std::size_t stateAllocationCreated = Desktop::TestHooks::createdCustomCursorCount();
-    const std::size_t stateAllocationDestroyed = Desktop::TestHooks::destroyedCustomCursorCount();
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::CursorStateAllocation);
+    const std::size_t stateAllocationCreated = Desktop::Internal::TestHooks::createdCustomCursorCount();
+    const std::size_t stateAllocationDestroyed = Desktop::Internal::TestHooks::destroyedCustomCursorCount();
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::CursorStateAllocation);
     auto stateAllocation = Desktop::createCursor(images);
     static_cast<void>(context.expectEq("CursorState allocation failure is translated", ErrorCode::OutOfMemory, stateAllocation.status.code));
     static_cast<void>(
@@ -251,12 +260,12 @@ void testCursorNativeResources(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "CursorState allocation failure materializes all candidates first",
         stateAllocationCreated + images.size(),
-        Desktop::TestHooks::createdCustomCursorCount()));
+        Desktop::Internal::TestHooks::createdCustomCursorCount()));
     static_cast<void>(context.expectEq(
         "CursorState allocation failure cleans all native candidates",
         stateAllocationDestroyed + images.size(),
-        Desktop::TestHooks::destroyedCustomCursorCount()));
-    Desktop::TestHooks::resetFailures();
+        Desktop::Internal::TestHooks::destroyedCustomCursorCount()));
+    Desktop::Internal::TestHooks::resetFailures();
 }
 
 void testCursorWindowIntegration(TestSupport::Context &context)
@@ -295,32 +304,32 @@ void testCursorWindowIntegration(TestSupport::Context &context)
         context.expectEq("custom Cursor leaves cached fallback shape unchanged", Desktop::Types::CursorShape::Arrow, window.cursorShape()));
     static_cast<void>(context.expectTrue("custom-to-custom replacement succeeds", Desktop::setCursor(window, *second).ok()));
     static_cast<void>(
-        context.expectEq("replacement selects its intended DPI", std::uint32_t{144}, Desktop::TestHooks::customCursorBindingDpi(window)));
+        context.expectEq("replacement selects its intended DPI", std::uint32_t{144}, Desktop::Internal::TestHooks::customCursorBindingDpi(window)));
 
     Desktop::Window sharedWindow;
     static_cast<void>(context.expectTrue("second custom cursor fixture opens", sharedWindow.open(description, Desktop::Events::owned(8)).ok()));
-    const std::size_t createdBeforeSharing = Desktop::TestHooks::createdCustomCursorCount();
+    const std::size_t createdBeforeSharing = Desktop::Internal::TestHooks::createdCustomCursorCount();
     static_cast<void>(context.expectTrue("one Cursor can bind a second Window", Desktop::setCursor(sharedWindow, *second).ok()));
     static_cast<void>(
         context.expectTrue("both Windows retain the same custom Cursor", Desktop::hasCustomCursor(window) && Desktop::hasCustomCursor(sharedWindow)));
     static_cast<void>(context.expectEq(
         "sharing a Cursor across Windows creates no native variant",
         createdBeforeSharing,
-        Desktop::TestHooks::createdCustomCursorCount()));
+        Desktop::Internal::TestHooks::createdCustomCursorCount()));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::Allocation);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::Allocation);
     static_cast<void>(context.expectEq("binding allocation failure is translated", ErrorCode::OutOfMemory, Desktop::setCursor(window, *first).code));
     static_cast<void>(context.expectEq(
         "binding allocation failure preserves previous custom selection",
         std::uint32_t{144},
-        Desktop::TestHooks::customCursorBindingDpi(window)));
+        Desktop::Internal::TestHooks::customCursorBindingDpi(window)));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::CursorBinding);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::CursorBinding);
     static_cast<void>(context.expectEq("binding failure is transactional", ErrorCode::NativeFailure, Desktop::setCursor(window, *first).code));
     static_cast<void>(context.expectEq(
         "failed binding preserves previous custom selection",
         std::uint32_t{144},
-        Desktop::TestHooks::customCursorBindingDpi(window)));
+        Desktop::Internal::TestHooks::customCursorBindingDpi(window)));
 
     std::atomic<ErrorCode> wrongThreadCode{ErrorCode::Success};
     std::thread wrongThread(
@@ -340,7 +349,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
     wrongThreadQuery.join();
     static_cast<void>(context.expectFalse("wrong-thread custom Cursor query reports false", wrongThreadHasCustomCursor.load()));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::SystemCursorLoad);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::SystemCursorLoad);
     static_cast<void>(context.expectEq(
         "system cursor load failure is transactional",
         ErrorCode::NativeFailure,
@@ -348,7 +357,7 @@ void testCursorWindowIntegration(TestSupport::Context &context)
     static_cast<void>(context.expectTrue("failed system fallback preserves custom binding", Desktop::hasCustomCursor(window)));
     static_cast<void>(context.expectEq("failed system fallback preserves cached shape", Desktop::Types::CursorShape::Arrow, window.cursorShape()));
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::CursorBinding);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::CursorBinding);
     static_cast<void>(context.expectEq(
         "custom binding removal failure is transactional",
         ErrorCode::NativeFailure,
@@ -415,39 +424,45 @@ void testCursorLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "DPI transition tie chooses higher prebuilt variant",
         std::uint32_t{144},
-        Desktop::TestHooks::customCursorBindingDpi(window)));
+        Desktop::Internal::TestHooks::customCursorBindingDpi(window)));
     static_cast<void>(SendMessageW(native->window, WM_DPICHANGED, MAKEWPARAM(100, 100), reinterpret_cast<LPARAM>(&suggested)));
-    static_cast<void>(
-        context.expectEq("DPI transition chooses nearest prebuilt variant", std::uint32_t{96}, Desktop::TestHooks::customCursorBindingDpi(window)));
-    const std::size_t createdBeforeReselect = Desktop::TestHooks::createdCustomCursorCount();
+    static_cast<void>(context.expectEq(
+        "DPI transition chooses nearest prebuilt variant",
+        std::uint32_t{96},
+        Desktop::Internal::TestHooks::customCursorBindingDpi(window)));
+    const std::size_t createdBeforeReselect = Desktop::Internal::TestHooks::createdCustomCursorCount();
     static_cast<void>(SendMessageW(native->window, WM_DPICHANGED, MAKEWPARAM(144, 144), reinterpret_cast<LPARAM>(&suggested)));
-    static_cast<void>(
-        context.expectEq("DPI transition chooses exact prebuilt variant", std::uint32_t{144}, Desktop::TestHooks::customCursorBindingDpi(window)));
-    static_cast<void>(
-        context.expectEq("DPI reselection creates no native resource", createdBeforeReselect, Desktop::TestHooks::createdCustomCursorCount()));
-    const std::size_t destroyedBeforeNormal = Desktop::TestHooks::destroyedCustomCursorCount();
+    static_cast<void>(context.expectEq(
+        "DPI transition chooses exact prebuilt variant",
+        std::uint32_t{144},
+        Desktop::Internal::TestHooks::customCursorBindingDpi(window)));
+    static_cast<void>(context.expectEq(
+        "DPI reselection creates no native resource",
+        createdBeforeReselect,
+        Desktop::Internal::TestHooks::createdCustomCursorCount()));
+    const std::size_t destroyedBeforeNormal = Desktop::Internal::TestHooks::destroyedCustomCursorCount();
     cursor.value = std::nullopt;
     static_cast<void>(context.expectTrue("DPI cursor fixture closes", window.close().ok()));
     static_cast<void>(context.expectEq(
         "normal close releases the final custom cursor binding",
         destroyedBeforeNormal + images.size(),
-        Desktop::TestHooks::destroyedCustomCursorCount()));
+        Desktop::Internal::TestHooks::destroyedCustomCursorCount()));
 
-    const std::size_t destroyedBeforeUnexpected = Desktop::TestHooks::destroyedCustomCursorCount();
+    const std::size_t destroyedBeforeUnexpected = Desktop::Internal::TestHooks::destroyedCustomCursorCount();
     auto unexpectedCursor = CursorTest::create(pixels);
     Desktop::Window unexpected;
     static_cast<void>(
         context.expectTrue("unexpected-destruction cursor fixture opens", unexpected.open(description, Desktop::Events::owned(4)).ok()));
     static_cast<void>(context.expectTrue("unexpected-destruction cursor binds", Desktop::setCursor(unexpected, *unexpectedCursor).ok()));
     unexpectedCursor.value = std::nullopt;
-    static_cast<void>(context.expectTrue("native Window destruction succeeds", Desktop::TestHooks::destroyNativeWindow(unexpected).ok()));
+    static_cast<void>(context.expectTrue("native Window destruction succeeds", Desktop::Internal::TestHooks::destroyNativeWindow(unexpected).ok()));
     static_cast<void>(context.expectEq(
         "unexpected native destruction releases custom cursor binding",
         destroyedBeforeUnexpected + 1,
-        Desktop::TestHooks::destroyedCustomCursorCount()));
+        Desktop::Internal::TestHooks::destroyedCustomCursorCount()));
     static_cast<void>(context.expectTrue("unexpected native destruction finalizes", unexpected.close().ok()));
 
-    const std::size_t destroyedBeforeDeferred = Desktop::TestHooks::destroyedCustomCursorCount();
+    const std::size_t destroyedBeforeDeferred = Desktop::Internal::TestHooks::destroyedCustomCursorCount();
     auto deferredCursor = CursorTest::create(pixels);
     auto deferred = std::make_unique<Desktop::Window>();
     static_cast<void>(context.expectTrue("deferred cursor fixture opens", deferred->open(description, Desktop::Events::owned(4)).ok()));
@@ -463,6 +478,6 @@ void testCursorLifecycle(TestSupport::Context &context)
     static_cast<void>(context.expectEq(
         "deferred cleanup releases custom cursor binding",
         destroyedBeforeDeferred + 1,
-        Desktop::TestHooks::destroyedCustomCursorCount()));
+        Desktop::Internal::TestHooks::destroyedCustomCursorCount()));
 }
 #endif

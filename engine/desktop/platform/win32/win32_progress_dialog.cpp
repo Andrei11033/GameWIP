@@ -1,10 +1,11 @@
 /// @file win32_progress_dialog.cpp
 /// @brief Modeless Win32 implementation of ProgressDialog.
 
-#include "desktop/internal/dialogs_platform.h"
+#include "desktop/platform/dialogs.h"
 
 #include "desktop/internal/desktop_test_hooks.h"
 #include "desktop/internal/window_state.h"
+#include "desktop/platform/win32/internal/test_hooks.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
 #include "desktop/platform/win32/internal/win32_unicode.h"
 
@@ -18,8 +19,10 @@
 #include <string>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
+    namespace Win32TestHooks = GameWIP::Desktop::Internal::TestHooks::Win32;
+
     /// ------------------------------------------------------------
     /// Native progress-window state and lifecycle helpers
     /// ------------------------------------------------------------
@@ -230,7 +233,7 @@ namespace GameWIP::Desktop::Detail::Platform
                         bool postFailed = false;
                         DWORD postError = ERROR_SUCCESS;
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                        postFailed = Detail::consumeFailure(TestHooks::FailurePoint::ProgressOwnerRestoreWake);
+                        postFailed = Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerRestoreWake);
 
                         if(postFailed)
                         {
@@ -300,7 +303,7 @@ namespace GameWIP::Desktop::Detail::Platform
             windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
             windowClass.lpszClassName = kProgressClassName;
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressClassRegistration))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressClassRegistration))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::OpenFailed);
             }
@@ -341,7 +344,7 @@ namespace GameWIP::Desktop::Detail::Platform
             }
 
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressClassRelease))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressClassRelease))
             {
                 ++progressClassUsers;
                 return IO::makeStatus(IO::Types::ErrorCode::CloseFailed);
@@ -384,7 +387,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status setNativeText(HWND control, std::string_view text) noexcept
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressMutation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressMutation))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             }
@@ -411,7 +414,7 @@ namespace GameWIP::Desktop::Detail::Platform
         [[nodiscard]] IO::Types::Status applyProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept
         {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressMutation))
+            if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressMutation))
             {
                 return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
             }
@@ -539,7 +542,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if(data.handle != nullptr)
             {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                if(Detail::consumeFailure(TestHooks::FailurePoint::Close))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::Close))
                 {
                     return {IO::makeStatus(IO::Types::ErrorCode::CloseFailed), false};
                 }
@@ -846,7 +849,7 @@ namespace GameWIP::Desktop::Detail::Platform
                 return statusFromWin32(IO::Types::ErrorCode::OpenFailed, GetLastError(), "AdjustWindowRectExForDpi ProgressDialog");
             }
 #if DESKTOP_INTERNAL_TEST_HOOKS
-            const bool failNativeCreation = Detail::consumeFailure(TestHooks::FailurePoint::NativeCreation);
+            const bool failNativeCreation = Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::NativeCreation);
 #else
             constexpr bool failNativeCreation = false;
 #endif
@@ -1002,7 +1005,7 @@ namespace GameWIP::Desktop::Detail::Platform
             if(state.ownerId.isValid() && state.blocksOwner)
             {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-                if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressOwnerBlocking))
+                if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressOwnerBlocking))
                 {
                     rollbackProgressOpenBestEffort(state);
                     return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
@@ -1225,7 +1228,7 @@ namespace GameWIP::Desktop::Detail::Platform
     IO::Types::Status setProgressValue(ProgressDialogState &state, double progress) noexcept
     {
 #if DESKTOP_INTERNAL_TEST_HOOKS
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ProgressMutation))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ProgressMutation))
         {
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure);
         }
@@ -1243,7 +1246,7 @@ namespace GameWIP::Desktop::Detail::Platform
 #if DESKTOP_INTERNAL_TEST_HOOKS
     namespace
     {
-        [[nodiscard]] TestHooks::NativePixelRect nativeRect(HWND window) noexcept
+        [[nodiscard]] Win32TestHooks::NativePixelRect nativeRect(HWND window) noexcept
         {
             RECT rect{};
 
@@ -1283,9 +1286,17 @@ namespace GameWIP::Desktop::Detail::Platform
         }
     } // namespace
 
-    TestHooks::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept
+} // namespace GameWIP::Desktop::Platform
+
+namespace GameWIP::Desktop::Internal::TestHooks::Platform
+{
+    using namespace GameWIP::Desktop::Platform;
+    using namespace GameWIP::Desktop::Internal;
+    namespace Win32TestHooks = GameWIP::Desktop::Internal::TestHooks::Win32;
+
+    Win32TestHooks::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept
     {
-        TestHooks::ProgressDialogNativeSnapshot snapshot;
+        Win32TestHooks::ProgressDialogNativeSnapshot snapshot;
 
         if(state == nullptr)
         {
@@ -1392,7 +1403,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status simulateProgressDialogDpiChange(
         ProgressDialogState *state,
-        TestHooks::NativePixelRect suggestedBounds,
+        Win32TestHooks::NativePixelRect suggestedBounds,
         std::uint32_t dpi) noexcept
     {
         const IO::Types::Status status = requireTestProgress(state);
@@ -1448,4 +1459,4 @@ namespace GameWIP::Desktop::Detail::Platform
     }
 
 #endif
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

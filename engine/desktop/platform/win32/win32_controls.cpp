@@ -2,14 +2,14 @@
 /// @brief Win32 presentation, chrome, interaction, and cursor operations for Window.
 
 #include "desktop/platform/win32/internal/win32_window_backend.h"
-#include "desktop/internal/dialogs_platform.h"
-#include "desktop/internal/drag_drop_platform.h"
+#include "desktop/platform/dialogs.h"
+#include "desktop/platform/drag_drop.h"
 
 #include <algorithm>
 #include <cmath>
 #include <utility>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Cached presentation synchronization
@@ -468,4 +468,4 @@ namespace GameWIP::Desktop::Detail::Platform
         const UINT dpi = dpiForWindow(state.platform->handle);
         return {.status = IO::successStatus(), .value = Types::LogicalPosition{physicalToLogical(point.x, dpi), physicalToLogical(point.y, dpi)}};
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

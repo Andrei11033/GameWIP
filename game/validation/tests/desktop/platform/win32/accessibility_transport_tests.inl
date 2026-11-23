@@ -5,7 +5,7 @@ void drain(Desktop::Window &window)
 {
     A::Notification notification;
 
-    while(Desktop::TestHooks::popAccessibilityNotification(window, notification))
+    while(Desktop::Internal::TestHooks::popAccessibilityNotification(window, notification))
     {
     }
 }
@@ -39,7 +39,7 @@ void testQueues(Context &context)
         A::ActionRequest request;
         request.node = 2;
         request.action = kind;
-        return Desktop::TestHooks::submitAccessibilityAction(window, std::move(request));
+        return Desktop::Internal::TestHooks::submitAccessibilityAction(window, std::move(request));
     };
 
     const auto first = submit(A::ActionKind::Focus), replacement = submit(A::ActionKind::Focus);
@@ -79,7 +79,7 @@ void testQueues(Context &context)
     check(context, "pressure still commits snapshot", bridge.publish(tree.view(5)).ok());
     check(context, "pressure collapses to invalidation", bridge.queueInfo().notifications.invalidationPending);
     A::Notification notification;
-    check(context, "invalidation pops", Desktop::TestHooks::popAccessibilityNotification(window, notification));
+    check(context, "invalidation pops", Desktop::Internal::TestHooks::popAccessibilityNotification(window, notification));
     equal(context, "single invalidation category", A::NotificationKind::TreeInvalidated, notification.kind);
     equal(context, "committed latest generation", A::Generation{5}, notification.generation);
 
@@ -97,7 +97,7 @@ void testQueues(Context &context)
         SendMessageW(handles->window, WM_SETFOCUS, 0, 0);
         bool focusEvent = false;
 
-        while(Desktop::TestHooks::popAccessibilityNotification(window, notification))
+        while(Desktop::Internal::TestHooks::popAccessibilityNotification(window, notification))
         {
             focusEvent = focusEvent || (notification.kind == A::NotificationKind::FocusChanged && notification.node == 2);
         }
@@ -127,7 +127,8 @@ void testCapacityAndInteraction(Context &context)
     Tree tree;
     tree.nodes[0].language = "en-US";
     check(context, "bounded registry initial publication", bridge.publish(tree.view()).ok());
-    const Com<IRawElementProviderSimple> retained(static_cast<IRawElementProviderSimple *>(Desktop::TestHooks::accessibilityProvider(window, 2)));
+    const Com<IRawElementProviderSimple> retained(
+        static_cast<IRawElementProviderSimple *>(Desktop::Internal::TestHooks::accessibilityProvider(window, 2)));
 
     if(!context.expectTrue("registry retains initial provider", static_cast<bool>(retained)))
     {
@@ -163,7 +164,7 @@ void testCapacityAndInteraction(Context &context)
         tree.nodes[0].name = "Root again";
         check(context, "diff appended beside announcement", bridge.publish(tree.view(5)).ok());
         A::Notification notification;
-        check(context, "queued announcement remains first", Desktop::TestHooks::popAccessibilityNotification(window, notification));
+        check(context, "queued announcement remains first", Desktop::Internal::TestHooks::popAccessibilityNotification(window, notification));
         equal(context, "explicit announcement not silently lost without pressure", A::NotificationKind::LiveRegionChanged, notification.kind);
     }
 

@@ -119,11 +119,11 @@ namespace GameWIP::Desktop::Types::ChildSurface
 
 namespace GameWIP::Desktop
 {
-    namespace Detail
+    namespace Internal
     {
         struct ChildSurfaceAccess;
         struct ChildSurfaceState;
-    } // namespace Detail
+    } // namespace Internal
 
     /// @brief Non-copyable, non-movable RAII owner of one native child host.
     /// @details A successful open inherits the parent Window owner thread. Cached getters are
@@ -292,7 +292,7 @@ namespace GameWIP::Desktop
         /// @}
 
     private:
-        friend struct Detail::ChildSurfaceAccess;
-        std::unique_ptr<Detail::ChildSurfaceState> state_;
+        friend struct Internal::ChildSurfaceAccess;
+        std::unique_ptr<Internal::ChildSurfaceState> state_;
     };
 } // namespace GameWIP::Desktop

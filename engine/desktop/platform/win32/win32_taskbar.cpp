@@ -2,7 +2,7 @@
 /// @brief Implements Win32 taskbar integration.
 
 #include "desktop/internal/desktop_test_hooks.h"
-#include "desktop/internal/shell_platform.h"
+#include "desktop/platform/shell.h"
 #include "desktop/platform/win32/internal/win32_com.h"
 #include "desktop/platform/win32/internal/win32_shell_helpers.h"
 #include "desktop/platform/win32/internal/win32_window_backend.h"
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
     /// ------------------------------------------------------------
     /// Taskbar helpers
@@ -247,7 +247,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status openTaskbar(TaskbarItemState &state) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ShellNativeOpen))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeOpen))
         {
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
@@ -289,7 +289,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status applyTaskbar(TaskbarItemState &state) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ShellNativeApply))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeApply))
         {
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
@@ -412,7 +412,7 @@ namespace GameWIP::Desktop::Detail::Platform
 
     IO::Types::Status closeTaskbar(TaskbarItemState &state) noexcept
     {
-        if(Detail::consumeFailure(TestHooks::FailurePoint::ShellNativeClose))
+        if(Internal::consumeFailure(GameWIP::Desktop::Internal::TestHooks::FailurePoint::ShellNativeClose))
         {
             return IO::makeStatus(ErrorCode::NativeFailure);
         }
@@ -510,4 +510,4 @@ namespace GameWIP::Desktop::Detail::Platform
             }
         }
     }
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform

@@ -52,7 +52,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     const ShellTypes::LaunchActionView action{ShellTypes::PathTargetView{std::cref(absoluteExecutable)}, arguments};
     const JumpListTypes::Task task{"Native title caf\xC3\xA9 \xF0\x9F\x99\x82", "Distinct task tooltip", action};
     void *rawLink = nullptr;
-    const auto created = Desktop::TestHooks::createJumpLink(task, rawLink);
+    const auto created = Win32TestHooks::createJumpLink(task, rawLink);
     if(!context.expectTrue("native jump link creates", created.ok() && rawLink != nullptr))
     {
         return;
@@ -111,7 +111,7 @@ void testJumpListNativePublication(TestSupport::Context &context, const std::fil
     static_cast<void>(context.expectEq(
         "Win32 jump links require launch arguments",
         ErrorCode::InvalidArgument,
-        Desktop::TestHooks::createJumpLink({"Invalid argument-free task", {}, noArguments}, invalidLink).code));
+        Win32TestHooks::createJumpLink({"Invalid argument-free task", {}, noArguments}, invalidLink).code));
     static_cast<void>(context.expectTrue("rejected jump link is not exposed", invalidLink == nullptr));
 
     TestSupport::Types::Process::Options child;
@@ -444,7 +444,7 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
         }
     } const cleanup{[&]
                     {
-                        Desktop::TestHooks::resetFailures();
+                        Desktop::Internal::TestHooks::resetFailures();
                         static_cast<void>(Desktop::Registration::unregisterFileExtension(owner, target));
                         static_cast<void>(removeApplicationFixture());
                     }};
@@ -573,10 +573,10 @@ void testShellRegistrationApplicationOwnership(TestSupport::Context &context, co
         return;
     }
 
-    Desktop::TestHooks::failNext(Desktop::TestHooks::FailurePoint::ShellRegistryDelete);
+    Desktop::Internal::TestHooks::failNext(Desktop::Internal::TestHooks::FailurePoint::ShellRegistryDelete);
     const auto failedCleanup = Desktop::Registration::unregisterFileExtension(owner, target);
     static_cast<void>(context.expectEq("registry deletion failure is propagated", ErrorCode::PermissionDenied, failedCleanup.status.code));
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
     HKEY retained = nullptr;
     const LONG retainedStatus = RegOpenKeyExW(HKEY_CURRENT_USER, applicationPath.c_str(), 0, KEY_READ, &retained);
 

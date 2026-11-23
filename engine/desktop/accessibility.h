@@ -17,11 +17,11 @@
 #include <string_view>
 #include <vector>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     struct PublishedSnapshot;
     struct SnapshotBuilderState;
-} // namespace GameWIP::Desktop::Detail
+} // namespace GameWIP::Desktop::Internal
 
 namespace GameWIP::Desktop::Types::Accessibility
 {
@@ -844,7 +844,7 @@ namespace GameWIP::Desktop::Accessibility
         /// @}
 
     private:
-        std::unique_ptr<Detail::SnapshotBuilderState> state_;
+        std::unique_ptr<Internal::SnapshotBuilderState> state_;
         Types::Accessibility::Limits limits_;
     };
 
@@ -891,8 +891,8 @@ namespace GameWIP::Desktop::Accessibility
 
     private:
         friend class Facade;
-        explicit SnapshotReader(std::shared_ptr<const Detail::PublishedSnapshot> snapshot) noexcept;
-        std::shared_ptr<const Detail::PublishedSnapshot> snapshot_;
+        explicit SnapshotReader(std::shared_ptr<const Internal::PublishedSnapshot> snapshot) noexcept;
+        std::shared_ptr<const Internal::PublishedSnapshot> snapshot_;
     };
 
     /// ------------------------------------------------------------

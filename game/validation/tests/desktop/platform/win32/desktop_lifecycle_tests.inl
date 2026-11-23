@@ -30,31 +30,36 @@ void testPassiveValuesAndClosedState(TestSupport::Context &context)
         context.expectEq("hit-mask words round each row independently", std::size_t{4}, Desktop::Renderer::requiredPointerHitMaskWords({33, 2})));
     static_cast<void>(context.expectEq("empty hit-mask extent is invalid", std::size_t{0}, Desktop::Renderer::requiredPointerHitMaskWords({0, 8})));
 #if DESKTOP_INTERNAL_TEST_HOOKS
+    static_cast<void>(context.expectEq(
+        "60000/1001 refresh rounds to millihertz",
+        std::uint32_t{59'940},
+        Desktop::Internal::TestHooks::refreshRateMillihertz(60'000, 1'001)));
     static_cast<void>(
-        context.expectEq("60000/1001 refresh rounds to millihertz", std::uint32_t{59'940}, Desktop::TestHooks::refreshRateMillihertz(60'000, 1'001)));
-    static_cast<void>(
-        context.expectEq("unknown rational refresh remains zero", std::uint32_t{0}, Desktop::TestHooks::refreshRateMillihertz(60'000, 0)));
+        context.expectEq("unknown rational refresh remains zero", std::uint32_t{0}, Desktop::Internal::TestHooks::refreshRateMillihertz(60'000, 0)));
     static_cast<void>(context.expectEq(
         "rational refresh conversion saturates",
         std::numeric_limits<std::uint32_t>::max(),
-        Desktop::TestHooks::refreshRateMillihertz(std::numeric_limits<std::uint32_t>::max(), 1)));
+        Desktop::Internal::TestHooks::refreshRateMillihertz(std::numeric_limits<std::uint32_t>::max(), 1)));
     const Desktop::Types::Display::Mode exactMode{{1920, 1080}, 60'000, 32, false};
     static_cast<void>(context.expectTrue(
         "exclusive comparator accepts an exact native mode",
-        Desktop::TestHooks::exactNativeDisplayModeMatches(exactMode, 1920, 1080, 60, 32, false)));
+        Desktop::Internal::TestHooks::exactNativeDisplayModeMatches(exactMode, 1920, 1080, 60, 32, false)));
     Desktop::Types::Display::Mode fractionalMode = exactMode;
     fractionalMode.refreshRateMillihertz = 59'940;
     static_cast<void>(context.expectFalse(
         "exclusive comparator rejects a nearest integer-Hz mode",
-        Desktop::TestHooks::exactNativeDisplayModeMatches(fractionalMode, 1920, 1080, 60, 32, false)));
-    const Desktop::TestHooks::DpiTransitionResult preserveLogical =
-        Desktop::TestHooks::calculateDpiTransition({800, 600}, {800, 600}, 144, Desktop::Types::DpiResizePolicy::PreserveLogicalClientSize);
+        Desktop::Internal::TestHooks::exactNativeDisplayModeMatches(fractionalMode, 1920, 1080, 60, 32, false)));
+    const Desktop::Internal::TestHooks::DpiTransitionResult preserveLogical =
+        Desktop::Internal::TestHooks::calculateDpiTransition({800, 600}, {800, 600}, 144, Desktop::Types::DpiResizePolicy::PreserveLogicalClientSize);
     static_cast<void>(
         context.expectEq("logical-size DPI policy preserves logical extent", Desktop::Types::LogicalSize{800, 600}, preserveLogical.logicalSize));
     static_cast<void>(
         context.expectEq("logical-size DPI policy scales framebuffer", Desktop::Types::PixelSize{1200, 900}, preserveLogical.framebufferSize));
-    const Desktop::TestHooks::DpiTransitionResult preservePhysical =
-        Desktop::TestHooks::calculateDpiTransition({800, 600}, {800, 600}, 144, Desktop::Types::DpiResizePolicy::PreservePhysicalClientSize);
+    const Desktop::Internal::TestHooks::DpiTransitionResult preservePhysical = Desktop::Internal::TestHooks::calculateDpiTransition(
+        {800, 600},
+        {800, 600},
+        144,
+        Desktop::Types::DpiResizePolicy::PreservePhysicalClientSize);
     static_cast<void>(context.expectEq(
         "physical-size DPI policy recalculates logical extent",
         Desktop::Types::LogicalSize{533, 400},
@@ -230,8 +235,8 @@ void testNativeConstructionLifecycle(TestSupport::Context &context)
 #if DESKTOP_INTERNAL_TEST_HOOKS
 void testFailureInjection(TestSupport::Context &context)
 {
-    using Desktop::TestHooks::FailurePoint;
-    Desktop::TestHooks::resetFailures();
+    using Desktop::Internal::TestHooks::FailurePoint;
+    Desktop::Internal::TestHooks::resetFailures();
 
     Desktop::Types::Description description;
     description.title = "Window failure validation";
@@ -241,7 +246,7 @@ void testFailureInjection(TestSupport::Context &context)
     const auto expectFailedOpen = [&context, &description](std::string_view name, FailurePoint point, ErrorCode expected)
     {
         Desktop::Window candidate;
-        Desktop::TestHooks::failNext(point);
+        Desktop::Internal::TestHooks::failNext(point);
         const IO::Types::Status status = candidate.open(description, Desktop::Events::owned(8));
         static_cast<void>(context.expectEq(name, expected, status.code));
         static_cast<void>(context.expectFalse("failed open rolls back native ownership", candidate.isOpen()));
@@ -255,7 +260,7 @@ void testFailureInjection(TestSupport::Context &context)
                 context.expectTrue("same Window reopens after userdata failure", candidate.open(description, Desktop::Events::owned(8)).ok()));
             static_cast<void>(candidate.close());
         }
-        Desktop::TestHooks::resetFailures();
+        Desktop::Internal::TestHooks::resetFailures();
     };
 
     expectFailedOpen("allocation failure is translated", FailurePoint::Allocation, ErrorCode::OutOfMemory);
@@ -274,7 +279,7 @@ void testFailureInjection(TestSupport::Context &context)
     }
     static_cast<void>(context.expectTrue("successful open commits current monitor publication", window.currentMonitor().isValid()));
 
-    Desktop::TestHooks::failNext(FailurePoint::WindowStyleQuery);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::WindowStyleQuery);
     static_cast<void>(context.expectEq(
         "style query failure is returned before control mutation",
         ErrorCode::NativeFailure,
@@ -282,7 +287,7 @@ void testFailureInjection(TestSupport::Context &context)
     static_cast<void>(
         context.expectEq("style query failure rolls back logical decoration state", Desktop::Types::DecorationMode::System, window.decorationMode()));
 
-    Desktop::TestHooks::failNext(FailurePoint::WindowStyleQuery);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::WindowStyleQuery);
     static_cast<void>(context.expectEq(
         "windowed placement query failure aborts fullscreen transition",
         ErrorCode::NativeFailure,
@@ -294,7 +299,7 @@ void testFailureInjection(TestSupport::Context &context)
         "fullscreen transition succeeds after placement query failure",
         window.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(window.currentMonitor())).ok()));
     const Desktop::Types::WindowMode previousMode = window.windowMode();
-    Desktop::TestHooks::failNext(FailurePoint::WindowStyleQuery);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::WindowStyleQuery);
     static_cast<void>(context.expectEq(
         "mode snapshot style query failure aborts transition",
         ErrorCode::NativeFailure,
@@ -302,31 +307,31 @@ void testFailureInjection(TestSupport::Context &context)
     static_cast<void>(context.expectEq("mode snapshot failure preserves previous mode", previousMode, window.windowMode()));
 
     const std::string originalTitle(window.title());
-    Desktop::TestHooks::failNext(FailurePoint::TitleConversion);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::TitleConversion);
     static_cast<void>(context.expectEq("title conversion failure is translated", ErrorCode::EncodingFailed, window.setTitle("changed").code));
     static_cast<void>(context.expectEq("failed title update preserves cache", std::string_view{originalTitle}, window.title()));
 
     const std::array pointerRegions{Desktop::Types::LogicalRect{{0, 0}, {16, 16}}};
-    Desktop::TestHooks::failNext(FailurePoint::RegionCopy);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::RegionCopy);
     const Desktop::Types::CustomChromeLayout chromeLayout{.draggableRegions = pointerRegions};
     static_cast<void>(context.expectEq("region copy failure is translated", ErrorCode::OutOfMemory, window.setCustomChromeLayout(chromeLayout).code));
 
     const std::array<std::byte, 4> pixel{std::byte{0x40}, std::byte{0x80}, std::byte{0xC0}, std::byte{0xFF}};
     const std::array iconImages{Desktop::Types::IconImageView{{1, 1}, pixel}};
-    Desktop::TestHooks::failNext(FailurePoint::IconConversion);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::IconConversion);
     static_cast<void>(context.expectEq("icon conversion failure is translated", ErrorCode::NativeFailure, window.setIcon(iconImages).code));
     static_cast<void>(context.expectTrue("icon operation recovers after failure", window.setIcon(iconImages).ok()));
     static_cast<void>(window.clearIcon());
 
-    Desktop::TestHooks::failNext(FailurePoint::Cursor);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::Cursor);
     static_cast<void>(
         context.expectEq("cursor failure is translated", ErrorCode::NativeFailure, window.setCursorMode(Desktop::Types::CursorMode::Confined).code));
     static_cast<void>(context.expectEq("failed cursor update rolls back cache", Desktop::Types::CursorMode::Normal, window.cursorMode()));
 
-    Desktop::TestHooks::failNext(FailurePoint::MonitorQuery);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::MonitorQuery);
     static_cast<void>(
         context.expectEq("monitor query failure is translated", ErrorCode::StatFailed, Desktop::Display::getPrimaryMonitor().status.code));
-    Desktop::TestHooks::failNext(FailurePoint::DisplayEnumeration);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::DisplayEnumeration);
     static_cast<void>(
         context.expectEq("display enumeration failure is translated", ErrorCode::StatFailed, Desktop::Display::getMonitors().status.code));
 
@@ -334,7 +339,7 @@ void testFailureInjection(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "return to windowed mode before partial fullscreen test",
         window.setWindowMode(Desktop::Types::WindowModes::windowed()).ok()));
-    Desktop::TestHooks::failNext(FailurePoint::FullscreenPartial);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::FullscreenPartial);
     static_cast<void>(context.expectEq(
         "partial fullscreen failure is translated",
         ErrorCode::NativeFailure,
@@ -344,7 +349,7 @@ void testFailureInjection(TestSupport::Context &context)
     static_cast<void>(context.expectTrue(
         "borderless mode opens restoration boundary",
         window.setWindowMode(Desktop::Types::WindowModes::borderlessFullscreen(monitor)).ok()));
-    Desktop::TestHooks::failNext(FailurePoint::DisplayRestoration);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::DisplayRestoration);
     static_cast<void>(context.expectEq(
         "display restoration failure is translated",
         ErrorCode::NativeFailure,
@@ -361,22 +366,22 @@ void testFailureInjection(TestSupport::Context &context)
     if(callbackHandle.status.ok() && callbackHandle->window != nullptr)
     {
         static_cast<void>(SendMessageW(callbackHandle->window, WM_SHOWWINDOW, FALSE, 0));
-        Desktop::TestHooks::failNext(FailurePoint::Cursor);
+        Desktop::Internal::TestHooks::failNext(FailurePoint::Cursor);
         static_cast<void>(SendMessageW(callbackHandle->window, WM_SHOWWINDOW, TRUE, 0));
         static_cast<void>(
             context.expectEq("genuine callback failure is returned by the next pump", ErrorCode::NativeFailure, Desktop::Events::poll().status.code));
         static_cast<void>(SendMessageW(callbackHandle->window, WM_SHOWWINDOW, FALSE, 0));
     }
 
-    Desktop::TestHooks::failNext(FailurePoint::EventPump);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::EventPump);
     static_cast<void>(context.expectEq("event pump failure is translated", ErrorCode::NativeFailure, Desktop::Events::poll().status.code));
     static_cast<void>(context.expectTrue("event pump recovers after failure", Desktop::Events::poll().status.ok()));
 
-    Desktop::TestHooks::failNext(FailurePoint::Close);
+    Desktop::Internal::TestHooks::failNext(FailurePoint::Close);
     static_cast<void>(context.expectEq("close failure is translated", ErrorCode::CloseFailed, window.close().code));
     static_cast<void>(context.expectTrue("failed close preserves ownership", window.isOpen()));
     static_cast<void>(context.expectTrue("close retry succeeds", window.close().ok()));
-    Desktop::TestHooks::resetFailures();
+    Desktop::Internal::TestHooks::resetFailures();
 }
 
 /// ------------------------------------------------------------
@@ -422,7 +427,7 @@ void testThreadingContracts(TestSupport::Context &context)
     const Desktop::Types::Events::PumpResult wakeResult = Desktop::Events::wait(std::chrono::milliseconds{100});
     static_cast<void>(context.expectTrue("owner pump receives cross-thread wake", wakeResult.status.ok() && !wakeResult.timedOut));
     static_cast<void>(
-        context.expectEq("reentrant event pump is rejected", ErrorCode::ResourceBusy, Desktop::TestHooks::pumpReentrantly().status.code));
+        context.expectEq("reentrant event pump is rejected", ErrorCode::ResourceBusy, Desktop::Internal::TestHooks::pumpReentrantly().status.code));
     static_cast<void>(context.expectTrue("threading fixture closes", window.close().ok()));
 }
 
@@ -441,9 +446,9 @@ void testExceptionalLifetime(TestSupport::Context &context)
         static_cast<void>(context.expectTrue(
             "unexpected-destruction fixture enables concurrent reads",
             Desktop::Renderer::enableConcurrentPresentationReads(unexpected).ok()));
-        static_cast<void>(Desktop::TestHooks::enqueue(unexpected, Desktop::Types::Events::RedrawRequested{}));
+        static_cast<void>(Desktop::Internal::TestHooks::enqueue(unexpected, Desktop::Types::Events::RedrawRequested{}));
         static_cast<void>(
-            context.expectTrue("test hook destroys native HWND unexpectedly", Desktop::TestHooks::destroyNativeWindow(unexpected).ok()));
+            context.expectTrue("test hook destroys native HWND unexpectedly", Desktop::Internal::TestHooks::destroyNativeWindow(unexpected).ok()));
         static_cast<void>(context.expectFalse("unexpectedly destroyed HWND is not open", unexpected.isOpen()));
         static_cast<void>(context.expectEq(
             "native destruction clears renderer-facing framebuffer size",

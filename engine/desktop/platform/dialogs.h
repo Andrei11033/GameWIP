@@ -1,30 +1,38 @@
-/// @file dialogs_platform.h
-/// @brief Internal portable-to-native dialog backend contract.
+/// @file dialogs.h
+/// @brief Portable backend contract for dialogs.
 
 #pragma once
 
 #include "desktop/dialogs.h"
 #include "desktop/internal/progress_dialog_state.h"
 
-namespace GameWIP::Desktop::TestHooks
-{
-    struct NativePixelRect;
-    struct ProgressDialogNativeSnapshot;
-} // namespace GameWIP::Desktop::TestHooks
+#include <memory>
+#include <string_view>
 
-namespace GameWIP::Desktop::Detail
+namespace GameWIP::Desktop::Internal
 {
     struct WindowState;
 }
 
-namespace GameWIP::Desktop::Detail::Platform
+namespace GameWIP::Desktop::Platform
 {
+    /// ------------------------------------------------------------
+    /// Shared portable state
+    /// ------------------------------------------------------------
+
+    using Internal::ProgressDialogState;
+    using Internal::WindowState;
+
     /// @brief Result of closing an owner-thread progress dialog.
     struct ProgressCloseResult
     {
         IO::Types::Status status;
         bool resourceClosed = false;
     };
+
+    /// ------------------------------------------------------------
+    /// One-shot dialogs
+    /// ------------------------------------------------------------
 
     /// @brief Opens a native single-file picker.
     [[nodiscard]] Types::Dialogs::File::Result openFile(const Types::Dialogs::File::OpenDescription &description) noexcept;
@@ -40,6 +48,10 @@ namespace GameWIP::Desktop::Detail::Platform
     [[nodiscard]] Types::Dialogs::Message::Result showMessage(const Types::Dialogs::Message::Description &description) noexcept;
     /// @brief Shows a native text prompt.
     [[nodiscard]] Types::Dialogs::Prompt::Result showPrompt(const Types::Dialogs::Prompt::Description &description) noexcept;
+
+    /// ------------------------------------------------------------
+    /// Progress dialog lifecycle
+    /// ------------------------------------------------------------
 
     /// @brief Opens a native progress dialog and binds it to its owner thread.
     [[nodiscard]] IO::Types::Status openProgress(ProgressDialogState &state, const Types::Dialogs::Progress::Description &description) noexcept;
@@ -58,25 +70,14 @@ namespace GameWIP::Desktop::Detail::Platform
     /// @brief Tests whether a Window is blocked by a live progress dialog.
     [[nodiscard]] bool windowHasBlockingProgressDialog(const WindowState &window) noexcept;
 
+    /// ------------------------------------------------------------
+    /// Progress dialog updates
+    /// ------------------------------------------------------------
+
     [[nodiscard]] IO::Types::Status setProgressTitle(ProgressDialogState &state, std::string_view title) noexcept;
     [[nodiscard]] IO::Types::Status setProgressHeading(ProgressDialogState &state, std::string_view heading) noexcept;
     [[nodiscard]] IO::Types::Status setProgressMessage(ProgressDialogState &state, std::string_view message) noexcept;
     [[nodiscard]] IO::Types::Status setProgressMode(ProgressDialogState &state, Types::Dialogs::Progress::Mode mode) noexcept;
     [[nodiscard]] IO::Types::Status setProgressValue(ProgressDialogState &state, double progress) noexcept;
 
-#if DESKTOP_INTERNAL_TEST_HOOKS
-    [[nodiscard]] IO::Types::Status testDialogApartment() noexcept;
-    [[nodiscard]] TestHooks::ProgressDialogNativeSnapshot inspectProgressDialog(const ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status requestProgressDialogCancel(ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status requestProgressDialogClose(ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status destroyNativeProgressDialog(ProgressDialogState *state) noexcept;
-    [[nodiscard]] IO::Types::Status simulateProgressDialogDpiChange(
-        ProgressDialogState *state,
-        TestHooks::NativePixelRect suggestedBounds,
-        std::uint32_t dpi) noexcept;
-    [[nodiscard]] std::size_t activeProgressDialogCount() noexcept;
-    [[nodiscard]] std::size_t deferredProgressDialogCount() noexcept;
-    [[nodiscard]] std::size_t progressDialogClassReferenceCount() noexcept;
-    [[nodiscard]] bool progressOwnerRestoreMessageRegistrationAttempted() noexcept;
-#endif
-} // namespace GameWIP::Desktop::Detail::Platform
+} // namespace GameWIP::Desktop::Platform
