@@ -38,6 +38,7 @@ foreach ($requiredAction in @('menu', 'full', 'check', 'update', 'repair', 'unin
         throw "Missing setup action '$requiredAction'."
     }
 }
+
 $expectedMenuOrder = @('full', 'check', 'repair', 'update', 'repo', 'tool', 'deps', 'msys2', 'system', 'editor', 'doc', 'profiler', 'vs', 'uninstall')
 $actualMenuOrder = @($menuActions | ForEach-Object { [string]$_.Id })
 
@@ -351,9 +352,16 @@ try
     } | ConvertTo-Json | Set-Content -LiteralPath $script:SetupStatePath
     $legacyState = Get-GameWipSetupState
 
-    if ($script:SetupStateReadStatus -ne 'valid' -or @($legacyState.systemPackages).Count -ne 0)
+    if ($script:SetupStateReadStatus -ne 'needs-repair' -or @($legacyState.systemPackages).Count -ne 0)
     {
-        throw 'Setup state created before system package tracking must remain valid.'
+        throw 'Setup state without system package tracking must be recoverable with an empty package list.'
+    }
+
+    $null = Repair-GameWipSetupState
+
+    if ($script:SetupStateReadStatus -ne 'valid' -or @((Get-Content -Raw -LiteralPath $script:SetupStatePath | ConvertFrom-Json).systemPackages).Count -ne 0)
+    {
+        throw 'Setup repair did not persist the normalized package list.'
     }
 
     foreach ($missingField in @('wingetPackages', 'vscodeExtensions', 'msys2InstalledBySetup'))
@@ -369,9 +377,9 @@ try
 
         $invalidState = Get-GameWipSetupState
 
-        if ($script:SetupStateReadStatus -ne 'corrupt' -or $invalidState.schemaVersion -ne 1)
+        if ($script:SetupStateReadStatus -ne 'needs-repair' -or $invalidState.schemaVersion -ne 1)
         {
-            throw "Setup state missing required ownership field '$missingField' was not rejected."
+            throw "Setup state missing ownership field '$missingField' was not marked for repair."
         }
     }
 }
@@ -849,16 +857,16 @@ finally
 
 if (-not (Test-GameWipWindowsHost))
 {
-    # Linux uninstall removes only marked tools and never follows nested links.
-    $testRoot = Resolve-GameWipStoragePath -RelativePath ('temp/linux-uninstall-test-' + [guid]::NewGuid().ToString('N'))
+    # Linux uninstall removes marked external tools and defers build cleanup.
+    $testRoot = Join-Path ([IO.Path]::GetTempPath()) ('gamewip-linux-uninstall-test-' + [guid]::NewGuid().ToString('N'))
     $managedRoot = Join-Path $testRoot 'managed'
     $originalSetupStatePath = $script:SetupStatePath
     $originalLaunchToken = [string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN
     $overrideNames = @(
         'Get-GameWipManagedToolRoot',
         'Get-GameWipSetupState',
-        'Get-GameWipEditorPreferencePath',
         'Invoke-GameWipEditorIntegrationRemoval',
+        'Write-GameWipBuildUninstallRequest',
         'Test-GameWipSetupCommand',
         'Confirm-GameWipMutation',
         'Test-GameWipLinuxCurrentPowerShell',
@@ -937,8 +945,14 @@ if (-not (Test-GameWipWindowsHost))
         )
         $script:LinuxUninstallRemovedPackages = @()
         Set-Item -Path function:Get-GameWipSetupState -Value { return [ordered]@{ vscodeExtensions = @(); systemPackages = $script:LinuxUninstallTestSystemPackages } }
-        Set-Item -Path function:Get-GameWipEditorPreferencePath -Value { return $script:LinuxUninstallTestEditorPreferencePath }
         Set-Item -Path function:Invoke-GameWipEditorIntegrationRemoval -Value { }
+        Set-Item -Path function:Write-GameWipBuildUninstallRequest -Value {
+            param([string]$RepositoryRoot, [string]$LaunchToken)
+            $script:LinuxUninstallBuildCleanupRequest = [pscustomobject]@{
+                RepositoryRoot = $RepositoryRoot
+                LaunchToken = $LaunchToken
+            }
+        }
         Set-Item -Path function:Test-GameWipSetupCommand -Value { return $false }
         Set-Item -Path function:Confirm-GameWipMutation -Value { return $true }
         Set-Item -Path function:Get-GameWipLinuxInstalledPackages -Value { param([string]$Manager, [string[]]$Packages) return $Packages }
@@ -953,26 +967,21 @@ if (-not (Test-GameWipWindowsHost))
         $script:LinuxUninstallTestManagedRoot = $managedRoot
         $script:LinuxUninstallTestEditorPreferencePath = $editorPreferencePath
         $script:LinuxUninstallTestCurrentPowerShell = $powerShellRoot
+        $script:LinuxUninstallBuildCleanupRequest = $null
+        $script:SetupStateReadStatus = 'valid'
         Remove-Item Env:GAMEWIP_SETUP_LAUNCH_TOKEN -ErrorAction SilentlyContinue
 
         $inventory = Get-GameWipLinuxUninstallInventory -RepositoryRoot $repositoryRoot
 
         if ($inventory.RemovePaths -notcontains (Join-Path $managedRoot 'cmake') -or
             $inventory.RemovePaths -notcontains (Join-Path $managedRoot 'tools/llvm-mingw/20261104') -or
-            $inventory.Preserved -notcontains "$powerShellRoot (currently running helper; use system PowerShell to remove it)")
+            $inventory.Preserved -notcontains "$powerShellRoot (currently running helper)")
         {
             throw "Linux uninstall inventory mismatch. Planned: $($inventory.RemovePaths -join ', '). Preserved: $($inventory.Preserved -join ', ')."
         }
 
         $launchToken = '123-456-789'
         $env:GAMEWIP_SETUP_LAUNCH_TOKEN = $launchToken
-        $inventory = Get-GameWipLinuxUninstallInventory -RepositoryRoot $repositoryRoot
-
-        if ($inventory.DeferredPowerShellPaths -notcontains $powerShellRoot)
-        {
-            throw 'Linux uninstall did not schedule its active managed PowerShell runtime for cleanup.'
-        }
-
         Invoke-GameWipUninstall -RepositoryRoot $repositoryRoot
 
         if ($script:LinuxUninstallRemovedPackages -notcontains 'gamewip-test-package')
@@ -1003,16 +1012,16 @@ if (-not (Test-GameWipWindowsHost))
             }
         }
 
-        $cleanupToken = Get-Content -Raw -LiteralPath (Join-Path $powerShellRoot '.gamewip-uninstall-pending')
-
-        if ($cleanupToken -cne $launchToken)
+        if ($null -eq $script:LinuxUninstallBuildCleanupRequest -or
+            $script:LinuxUninstallBuildCleanupRequest.RepositoryRoot -cne $repositoryRoot -or
+            $script:LinuxUninstallBuildCleanupRequest.LaunchToken -cne $launchToken)
         {
-            throw 'Linux uninstall wrote an invalid deferred PowerShell cleanup token.'
+            throw 'Linux uninstall did not schedule build cleanup with the current launcher token.'
         }
 
-        if ((Test-Path -LiteralPath $script:SetupStatePath) -or (Test-Path -LiteralPath $editorPreferencePath))
+        if (-not (Test-Path -LiteralPath $script:SetupStatePath) -or -not (Test-Path -LiteralPath $editorPreferencePath))
         {
-            throw 'Linux uninstall left disposable setup state behind.'
+            throw 'Linux uninstall removed build state before the launcher finalized cleanup.'
         }
     }
 
@@ -1034,8 +1043,8 @@ if (-not (Test-GameWipWindowsHost))
             Set-Item -Path "function:$name" -Value $originalOverrides[$name]
         }
 
-        Remove-Variable -Name LinuxUninstallTestManagedRoot, LinuxUninstallTestEditorPreferencePath, LinuxUninstallTestCurrentPowerShell -Scope Script -ErrorAction SilentlyContinue
-        Remove-Item -LiteralPath $testRoot -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Variable -Name LinuxUninstallTestManagedRoot, LinuxUninstallTestEditorPreferencePath, LinuxUninstallTestCurrentPowerShell, LinuxUninstallBuildCleanupRequest -Scope Script -ErrorAction SilentlyContinue
+        Remove-GameWipOwnedTreeEntries -Path $testRoot
     }
 }
 

@@ -1,4 +1,4 @@
-# Linux setup ownership inventory and conservative removal.
+# Linux uninstall inventory and external tool removal.
 
 # ------------------------------------------------------------
 # Managed tool marker validation
@@ -199,33 +199,6 @@ function Test-GameWipLinuxCurrentPowerShell
     }
 }
 
-function Write-GameWipLinuxPowerShellCleanupRequest
-{
-    param(
-        [Parameter(Mandatory = $true)][string]$Path,
-        [Parameter(Mandatory = $true)][string]$LaunchToken
-    )
-
-    if ($LaunchToken -notmatch '^[0-9]+-[0-9]+-[0-9]+$')
-    {
-        throw 'The setup launcher did not provide a valid PowerShell cleanup token.'
-    }
-
-    $markerPath = Join-Path $Path '.gamewip-uninstall-pending'
-    $stream = [IO.File]::Open($markerPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
-
-    try
-    {
-        $bytes = [Text.Encoding]::ASCII.GetBytes($LaunchToken)
-        $stream.Write($bytes, 0, $bytes.Length)
-    }
-
-    finally
-    {
-        $stream.Dispose()
-    }
-}
-
 # ------------------------------------------------------------
 # Linux tool removal inventory
 # ------------------------------------------------------------
@@ -235,6 +208,20 @@ function Get-GameWipLinuxUninstallInventory
     param([Parameter(Mandatory = $true)][string]$RepositoryRoot)
 
     $toolRoot = Get-GameWipManagedToolRoot
+    $buildRoot = Join-Path $RepositoryRoot 'build'
+
+    if (Test-GameWipPathWithinRoot -Path $toolRoot -Root $buildRoot)
+    {
+        return [pscustomobject]@{
+            ManagedToolRoot = $toolRoot
+            Proven = @()
+            Unknown = @()
+            Planned = @()
+            Preserved = @()
+            RemovePaths = @()
+        }
+    }
+
     $ownership = Get-GameWipManagedToolRootOwnership -Root $toolRoot
     $payload = if ($null -ne $ownership)
     {
@@ -255,7 +242,6 @@ function Get-GameWipLinuxUninstallInventory
     $planned = [System.Collections.Generic.List[string]]::new()
     $preserved = [System.Collections.Generic.List[string]]::new()
     $removePaths = [System.Collections.Generic.List[string]]::new()
-    $deferredPowerShellPaths = [System.Collections.Generic.List[string]]::new()
 
     foreach ($name in @('bin', 'npm', 'python', 'powershell'))
     {
@@ -372,15 +358,7 @@ function Get-GameWipLinuxUninstallInventory
 
                         if (Test-GameWipLinuxCurrentPowerShell -Path $version.FullName)
                         {
-                            if ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN -match '^[0-9]+-[0-9]+-[0-9]+$')
-                            {
-                                $planned.Add("$($version.FullName) (removed after setup exits)") | Out-Null
-                                $deferredPowerShellPaths.Add($version.FullName) | Out-Null
-                            }
-                            else
-                            {
-                                $preserved.Add("$($version.FullName) (currently running helper; use system PowerShell to remove it)") | Out-Null
-                            }
+                            $preserved.Add("$($version.FullName) (currently running helper)") | Out-Null
                             continue
                         }
 
@@ -403,18 +381,13 @@ function Get-GameWipLinuxUninstallInventory
         }
     }
 
-    $statePath = Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot
-
     return [pscustomobject]@{
         ManagedToolRoot = $toolRoot
-        ManagedToolRootOwned = $toolRootOwned
         Proven = $proven.ToArray()
         Unknown = $unknown.ToArray()
         Planned = $planned.ToArray()
         Preserved = $preserved.ToArray()
         RemovePaths = $removePaths.ToArray()
-        DeferredPowerShellPaths = $deferredPowerShellPaths.ToArray()
-        EditorPreferencePath = $statePath
     }
 }
 
@@ -431,6 +404,7 @@ function Invoke-GameWipUninstall
 
     Write-GameWipSection "Uninstall GameWIP development environment$(if ($Preview) { ' (preview)' })"
     $state = Get-GameWipSetupState
+    $stateNeedsRepair = $script:SetupStateReadStatus -in @('needs-repair', 'corrupt')
     $inventory = Get-GameWipLinuxUninstallInventory -RepositoryRoot $RepositoryRoot
     $distribution = Get-GameWipLinuxDistribution
     $manager = [string]$distribution.PackageManager
@@ -454,7 +428,8 @@ function Invoke-GameWipUninstall
     $preserved = [System.Collections.Generic.List[string]]::new()
 
     $proven = [System.Collections.Generic.List[string]]::new()
-    $proven.Add('GameWIP VS Code workflow extension and managed keybinding block') | Out-Null
+    $proven.Add((Join-Path $RepositoryRoot 'build')) | Out-Null
+    $proven.Add('GameWIP VS Code workflow extension and managed keybindings') | Out-Null
     $planned.Add('GameWIP VS Code workflow extension and managed keybinding block') | Out-Null
     $planned.AddRange([string[]]$inventory.Planned)
     $preserved.AddRange([string[]]$inventory.Preserved)
@@ -477,8 +452,16 @@ function Invoke-GameWipUninstall
     }
 
     $preserved.Add('Pre-existing or unrecorded system packages and unrelated software') | Out-Null
-    $preserved.Add('Dependency caches, run receipts, build-target selection, build trees, and checkout files') | Out-Null
-    $preserved.Add('Original VS Code keybindings backup') | Out-Null
+    $planned.Add("$(Join-Path $RepositoryRoot 'build') (all build outputs, tools, caches, setup state, receipts, and diagnostics)") | Out-Null
+
+    if ($stateNeedsRepair)
+    {
+        $planned.Add('Normalize recoverable setup ownership state before uninstall.') | Out-Null
+        Add-GameWipOperationWarning -Message "Setup state requires repair: $script:SetupStateReadError"
+    }
+
+    $preserved.Add('Checkout source and configuration files') | Out-Null
+    $preserved.Add('Existing installations and packages outside build/ that are not recorded as GameWIP-owned') | Out-Null
 
     Write-GameWipUninstallSection -Title 'Proven GameWIP-owned' -Items (@($proven.ToArray()) + @($inventory.Proven))
     Write-GameWipUninstallSection -Title 'Recorded GameWIP-owned' -Items $recorded.ToArray()
@@ -493,13 +476,23 @@ function Invoke-GameWipUninstall
         return
     }
 
-    if (-not (Confirm-GameWipMutation -Summary 'Remove only inventoried GameWIP-owned Linux tools, packages, and editor integration.' -Risk destructive -Plan $planned.ToArray()))
+    Assert-GameWipBuildUninstallLauncher `
+        -RepositoryRoot $RepositoryRoot `
+        -LaunchToken ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN)
+
+    if (-not (Confirm-GameWipMutation -Summary 'Remove recorded GameWIP resources and the checkout build directory.' -Risk destructive -Plan $planned.ToArray()))
     {
         Add-GameWipOperationPreserved -Message 'Uninstall was cancelled; no resources were removed.'
         return
     }
 
     Invoke-GameWipMutationBody -Body {
+        if ($stateNeedsRepair)
+        {
+            $null = Repair-GameWipSetupState
+            Add-GameWipOperationChange -Message 'Normalized recoverable setup ownership state.'
+        }
+
         Invoke-GameWipEditorIntegrationRemoval
 
         if (Test-GameWipSetupCommand -Name code)
@@ -516,30 +509,14 @@ function Invoke-GameWipUninstall
             Add-GameWipOperationChange -Message "Removed managed Linux tool data: $path"
         }
 
-        foreach ($path in $inventory.DeferredPowerShellPaths)
-        {
-            Write-GameWipLinuxPowerShellCleanupRequest `
-                -Path $path `
-                -LaunchToken ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN)
-            Add-GameWipOperationChange -Message 'Scheduled the active PowerShell runtime for removal after setup exits.'
-        }
-
         if ($installedSystemPackages.Count -ne 0)
         {
             Remove-GameWipLinuxSystemPackages -Manager $manager -Packages $installedSystemPackages
             Add-GameWipOperationChange -Message "Removed GameWIP-added $manager packages: $($installedSystemPackages -join ', ')"
         }
 
-        foreach ($path in @($script:SetupStatePath, $inventory.EditorPreferencePath))
-        {
-            if (Test-Path -LiteralPath $path -PathType Leaf)
-            {
-                Set-GameWipMutationStarted
-                Remove-Item -LiteralPath $path -Force
-            }
-        }
-
-        Add-GameWipOperationChange -Message 'Removed setup-owned Linux tools, recorded packages, editor integration, and disposable setup state.'
-        Add-GameWipOperationPreserved -Message 'Unrecorded system packages, unrelated software, caches, run receipts, build trees, and checkout files were preserved.'
+        Add-GameWipOperationChange -Message 'Scheduled build/ removal after setup exits.'
+        Add-GameWipOperationPreserved -Message 'Checkout source and unrecorded external resources were preserved.'
+        Write-GameWipBuildUninstallRequest -RepositoryRoot $RepositoryRoot -LaunchToken ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN)
     }
 }

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$repository_root/scripts/lib/powershell_bootstrap.sh"
+source "$repository_root/scripts/platform/linux/powershell_bootstrap.sh"
 
 if ! gamewip_require_setup_powershell "$repository_root" "$@"; then
     exit 1
@@ -26,7 +26,7 @@ else
     setup_exit_code=$?
 fi
 
-if ! gamewip_finish_setup_uninstall "$repository_root" "$setup_exit_code" "$launch_token"; then
+if ! gamewip_finish_build_uninstall "$repository_root" "$setup_exit_code" "$launch_token"; then
     if [[ "$setup_exit_code" -eq 0 ]]; then
         setup_exit_code=1
     fi

@@ -110,9 +110,9 @@ integration installs Microsoft C++/CMake extensions and packages the local
 workflow extension as a VSIX so the VS Code CLI installs and reports it like any
 other extension. It also writes
 a marked, repository-guarded block at the end of the user's
-`keybindings.json`, after preserving a one-time `.gamewip-backup`; later runs
-replace only that block. This is required because VS Code user rules outrank
-extension defaults.
+`keybindings.json`, after preserving the original under
+`<storage-root>/state/vscode-keybindings.json`; later runs replace only that
+block. This is required because VS Code user rules outrank extension defaults.
 
 The Tracy stage is Windows-only. It checks the installed executables and locked
 source version before building. When they match, setup reuses the installed
@@ -150,15 +150,12 @@ existing installations. On Windows, a non-empty tool root without
 valid ownership proof is never silently adopted. Interactive setup may ask,
 defaulting to No, before adopting it; noninteractive setup remains fail-closed.
 
-Uninstall is available on Windows and Linux. It removes the GameWIP VS Code
-workflow integration and recorded setup-owned extensions. On Windows it also
-removes proven GameWIPTools content, the Tracy cache, and the `build/dev` and
-`build/docs` trees. On Linux it removes the managed tool directories under
-`build/gamewip` when ownership is verified and packages recorded as newly
-installed by setup. It preserves pre-existing or unrecorded system packages,
-dependency caches, run receipts, build-target selection, the checkout, unknown
-tool data, and pre-existing applications. `setup.sh` removes its active managed
-PowerShell runtime after it exits; direct `Setup.ps1` runs preserve that runtime.
+Uninstall is available on Windows and Linux. It removes the checkout's entire
+`build/` directory after setup exits, plus recorded setup-owned extensions and
+system packages. It preserves checkout sources and configuration, unrecorded
+external resources, and existing installations outside `build/`. Run uninstall
+through `setup.bat` or `setup.sh` so the launcher can remove the active helper
+runtime and its receipts safely.
 
 ## Adding or changing setup behavior
 

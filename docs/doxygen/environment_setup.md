@@ -240,12 +240,11 @@ existing installations. On Windows, setup preserves non-empty roots without
 valid GameWIP ownership proof and asks before adopting them. Without an external
 override, managed tool roots remain inside the checkout build tree.
 
-Uninstall removes only resources with sufficient GameWIP ownership evidence.
-Linux uninstall removes verified managed tools, editor integration, and APT or
-pacman packages recorded as newly installed by setup. It preserves pre-existing
-or unrecorded packages, caches, receipts, build trees, and checkout files, plus
-content with unknown ownership. `setup.sh` removes its active managed PowerShell
-runtime after it exits; direct `Setup.ps1` runs preserve that runtime.
+Uninstall removes the checkout's entire `build/` directory after setup exits,
+plus recorded setup-owned extensions and APT or pacman packages. It preserves
+checkout sources and configuration, unrecorded external resources, and existing
+installations outside `build/`. Run uninstall through `setup.bat` or `setup.sh`
+so the launcher can remove the active helper runtime and its receipts safely.
 
 ## Project tools and environment updates
 

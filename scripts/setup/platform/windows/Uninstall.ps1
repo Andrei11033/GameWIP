@@ -6,12 +6,6 @@
 
 Set-StrictMode -Version Latest
 
-function Get-GameWipMsys2Ownership
-{
-    $path = Join-Path (Get-GameWipMsys2Root) '.gamewip-managed.json'
-    return Read-GameWipOwnershipMarker -Path $path -Resource 'msys2'
-}
-
 function Invoke-GameWipUninstall
 {
     param(
@@ -21,10 +15,11 @@ function Invoke-GameWipUninstall
 
     Write-GameWipSection "Uninstall GameWIP development environment$(if ($Preview) { ' (preview)' })"
     $state = Get-GameWipSetupState
+    $stateNeedsRepair = $script:SetupStateReadStatus -in @('needs-repair', 'corrupt')
     $msysRoot = Get-GameWipMsys2Root
     $toolRoot = Get-GameWipManagedToolRoot
+    $buildRoot = Join-Path $RepositoryRoot 'build'
     $toolMarker = Get-GameWipManagedToolRootOwnership -Root $toolRoot
-    $msysState = Get-GameWipMsys2Ownership
 
     $proven = [System.Collections.Generic.List[string]]::new()
     $recorded = [System.Collections.Generic.List[string]]::new()
@@ -32,27 +27,46 @@ function Invoke-GameWipUninstall
     $planned = [System.Collections.Generic.List[string]]::new()
     $preserved = [System.Collections.Generic.List[string]]::new()
 
-    $proven.Add('GameWIP VS Code workflow integration and managed keybinding block') | Out-Null
-    $planned.Add('GameWIP VS Code workflow integration and managed keybinding block') | Out-Null
+    $proven.Add("$buildRoot (project-owned build directory)") | Out-Null
+    $proven.Add('GameWIP VS Code workflow integration and managed keybindings') | Out-Null
+    $planned.Add('GameWIP VS Code workflow integration and managed keybindings') | Out-Null
+    $planned.Add("$buildRoot (all build outputs, tools, caches, setup state, receipts, and diagnostics)") | Out-Null
 
     if ($null -ne $toolMarker)
     {
-        $proven.Add("$toolRoot ($($toolMarker.origin))") | Out-Null
-        $planned.Add($toolRoot) | Out-Null
+        if (Test-GameWipPathWithinRoot -Path $toolRoot -Root $buildRoot)
+        {
+            $proven.Add("$toolRoot (removed with build/)") | Out-Null
+        }
+        else
+        {
+            $proven.Add("$toolRoot ($($toolMarker.origin))") | Out-Null
+            $planned.Add($toolRoot) | Out-Null
+        }
     }
     elseif (Test-Path -LiteralPath $toolRoot)
     {
-        $unknown.Add("$toolRoot has no valid ownership marker") | Out-Null
-        $preserved.Add("$toolRoot (ownership unknown)") | Out-Null
+        if (Test-GameWipPathWithinRoot -Path $toolRoot -Root $buildRoot)
+        {
+            $proven.Add("$toolRoot (removed with build/)") | Out-Null
+        }
+        else
+        {
+            $unknown.Add("$toolRoot has no valid ownership marker") | Out-Null
+            $preserved.Add("$toolRoot (ownership unknown)") | Out-Null
+        }
     }
 
-    if ($msysState.Status -eq 'valid' -and $msysState.Marker.payload.installedBySetup -eq $true)
+    if (Test-GameWipPathWithinRoot -Path $msysRoot -Root $buildRoot)
     {
-        $proven.Add("$msysRoot installation marker") | Out-Null
+        if (Test-Path -LiteralPath $msysRoot)
+        {
+            $proven.Add("$msysRoot (removed with build/)") | Out-Null
+        }
     }
     elseif (Test-Path -LiteralPath $msysRoot)
     {
-        $preserved.Add("$msysRoot (shared/user-modifiable environment; review manually)") | Out-Null
+        $preserved.Add("$msysRoot (existing installation outside build/)") | Out-Null
     }
 
     foreach ($id in @($state.wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
@@ -67,12 +81,17 @@ function Invoke-GameWipUninstall
         $planned.Add("VS Code extension $id") | Out-Null
     }
 
-    foreach ($tree in @((Join-Path (Get-GameWipStorageAreaPath -Area cache) 'tracy'), 'build/dev', 'build/docs', 'disposable setup/editor state'))
+    if ($stateNeedsRepair)
     {
-        $planned.Add($tree) | Out-Null
+        $planned.Add('Normalize recoverable setup ownership state before uninstall.') | Out-Null
     }
-    $preserved.Add('Repository and user-created files') | Out-Null
-    $preserved.Add('Pre-existing or ownership-unknown applications') | Out-Null
+    $preserved.Add('Checkout source and configuration files') | Out-Null
+    $preserved.Add('Existing installations and packages outside build/ that are not recorded as GameWIP-owned') | Out-Null
+
+    if ($stateNeedsRepair)
+    {
+        Add-GameWipOperationWarning -Message "Setup state requires repair: $script:SetupStateReadError"
+    }
 
     Write-GameWipUninstallSection -Title 'Proven GameWIP-owned' -Items $proven.ToArray()
     Write-GameWipUninstallSection -Title 'Recorded GameWIP-owned' -Items $recorded.ToArray()
@@ -87,13 +106,23 @@ function Invoke-GameWipUninstall
         return
     }
 
-    if (-not (Confirm-GameWipMutation -Summary 'Remove only the inventoried GameWIP-owned development resources.' -Risk destructive -Plan $planned.ToArray()))
+    Assert-GameWipBuildUninstallLauncher `
+        -RepositoryRoot $RepositoryRoot `
+        -LaunchToken ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN)
+
+    if (-not (Confirm-GameWipMutation -Summary 'Remove recorded GameWIP resources and the checkout build directory.' -Risk destructive -Plan $planned.ToArray()))
     {
         Add-GameWipOperationPreserved -Message 'Uninstall was cancelled; no resources were removed.'
         return
     }
 
     Invoke-GameWipMutationBody -Body {
+        if ($stateNeedsRepair)
+        {
+            $null = Repair-GameWipSetupState
+            Add-GameWipOperationChange -Message 'Normalized recoverable setup ownership state.'
+        }
+
         Invoke-GameWipEditorIntegrationRemoval
 
         if (Test-GameWipSetupCommand -Name code)
@@ -104,50 +133,19 @@ function Invoke-GameWipUninstall
             }
         }
 
-        if ($null -ne $toolMarker)
+        if ($null -ne $toolMarker -and -not (Test-GameWipPathWithinRoot -Path $toolRoot -Root $buildRoot))
         {
             $toolRootParent = Split-Path -Parent $toolRoot
             Invoke-GameWipOwnedTreeRemoval -Path $toolRoot -OwnedRoot $toolRootParent -RequireMarker -MarkerName '.gamewip-managed.json'
             Add-GameWipOperationChange -Message "Removed managed tool root: $toolRoot"
         }
-        $cacheRoot = Get-GameWipStorageAreaPath -Area cache
-        $tracy = Join-Path $cacheRoot 'tracy'
-
-        if (Test-Path -LiteralPath $tracy)
-        {
-            Invoke-GameWipOwnedTreeRemoval -Path $tracy -OwnedRoot $cacheRoot
-        }
-        $buildRoot = Join-Path $RepositoryRoot 'build'
-
-        foreach ($tree in @('dev', 'docs'))
-        {
-            $path = Join-Path $buildRoot $tree
-
-            if (Test-Path -LiteralPath $path)
-            {
-                Invoke-GameWipOwnedTreeRemoval -Path $path -OwnedRoot $buildRoot
-            }
-        }
-
         foreach ($id in @($state.wingetPackages | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }))
         {
             Uninstall-GameWipWingetPackage -Id $id
         }
 
-        if ($msysState.Status -eq 'valid' -and $msysState.Marker.payload.installedBySetup -eq $true -and (Test-Path -LiteralPath $msysRoot))
-        {
-            Add-GameWipOperationWarning -Message "MSYS2 was installed by GameWIP but may now contain user data. Review '$msysRoot' manually before removing it."
-        }
-
-        foreach ($path in @($script:SetupStatePath, (Get-GameWipEditorPreferencePath -RepositoryRoot $RepositoryRoot)))
-        {
-            if (Test-Path -LiteralPath $path -PathType Leaf)
-            {
-                Set-GameWipMutationStarted
-                Remove-Item -LiteralPath $path -Force
-            }
-        }
-        Add-GameWipOperationChange -Message 'Removed setup-owned integrations, packages, and disposable setup state.'
-        Add-GameWipOperationPreserved -Message 'Repository, unknown resources, and MSYS2 user data were preserved.'
+        Add-GameWipOperationChange -Message 'Scheduled build/ removal after setup exits.'
+        Add-GameWipOperationPreserved -Message 'Checkout source and unrecorded external resources were preserved.'
+        Write-GameWipBuildUninstallRequest -RepositoryRoot $RepositoryRoot -LaunchToken ([string]$env:GAMEWIP_SETUP_LAUNCH_TOKEN)
     }
 }

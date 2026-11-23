@@ -381,17 +381,41 @@ function Install-GameWipVsCodeKeybinding
         throw "The GameWIP workflow extension declares no keybindings in $packagePath."
     }
 
-    # Preserve one original backup before replacing only the marked GameWIP block.
+    # Keep the original under build/ so uninstall removes helper-owned data.
     $userDirectory = Get-GameWipVsCodeUserDirectory
     $keybindingsPath = Join-Path $userDirectory 'keybindings.json'
-    $backupPath = "$keybindingsPath.gamewip-backup"
+    $legacyBackupPath = "$keybindingsPath.gamewip-backup"
+    $backupPath = Join-Path (Get-GameWipStorageAreaPath -Area state) 'vscode-keybindings.json'
     New-Item -ItemType Directory -Path $userDirectory -Force | Out-Null
 
     if (Test-Path -LiteralPath $keybindingsPath)
     {
+        $backupAttributes = Get-GameWipFileSystemAttributes -Path $backupPath
+
+        if ($null -ne $backupAttributes -and
+            (($backupAttributes -band [IO.FileAttributes]::Directory) -ne 0 -or
+            ($backupAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0))
+        {
+            throw "Refusing to write the VS Code keybindings backup through a linked or invalid path '$backupPath'."
+        }
+
         if (-not (Test-Path -LiteralPath $backupPath))
         {
-            Copy-Item -LiteralPath $keybindingsPath -Destination $backupPath
+            New-Item -ItemType Directory -Path (Split-Path -Parent $backupPath) -Force | Out-Null
+            $legacyBackupAttributes = Get-GameWipFileSystemAttributes -Path $legacyBackupPath
+
+            if ($null -ne $legacyBackupAttributes -and
+                ($legacyBackupAttributes -band [IO.FileAttributes]::Directory) -eq 0 -and
+                ($legacyBackupAttributes -band [IO.FileAttributes]::ReparsePoint) -eq 0)
+            {
+                Copy-Item -LiteralPath $legacyBackupPath -Destination $backupPath
+                Remove-Item -LiteralPath $legacyBackupPath -Force
+            }
+            else
+            {
+                Copy-Item -LiteralPath $keybindingsPath -Destination $backupPath
+            }
+
             Write-Host "  Preserved original VS Code keybindings: $backupPath"
         }
         $content = Get-Content -LiteralPath $keybindingsPath -Raw

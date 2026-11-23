@@ -44,6 +44,10 @@ function Invoke-GameWipEditorIntegrationRemoval
     }
 
     $keybindings = Join-Path (Get-GameWipVsCodeUserDirectory) 'keybindings.json'
+    $legacyBackup = "$keybindings.gamewip-backup"
+    $managedBackup = Join-Path (Get-GameWipStorageAreaPath -Area state) 'vscode-keybindings.json'
+    $hasOriginalKeybindings = (Test-Path -LiteralPath $managedBackup -PathType Leaf) -or
+        (Test-Path -LiteralPath $legacyBackup -PathType Leaf)
 
     if (Test-Path -LiteralPath $keybindings -PathType Leaf)
     {
@@ -54,5 +58,23 @@ function Invoke-GameWipEditorIntegrationRemoval
         {
             Write-GameWipTextAtomic -Path $keybindings -Content $updated
         }
+
+        if ($updated -match '^\s*\[\s*\]\s*$' -and -not $hasOriginalKeybindings)
+        {
+            Remove-Item -LiteralPath $keybindings -Force
+        }
+    }
+
+    $legacyBackupAttributes = Get-GameWipFileSystemAttributes -Path $legacyBackup
+
+    if ($null -ne $legacyBackupAttributes -and
+        ($legacyBackupAttributes -band [IO.FileAttributes]::Directory) -eq 0 -and
+        ($legacyBackupAttributes -band [IO.FileAttributes]::ReparsePoint) -eq 0)
+    {
+        Remove-Item -LiteralPath $legacyBackup -Force
+    }
+    elseif ($null -ne $legacyBackupAttributes)
+    {
+        Add-GameWipOperationWarning -Message "Preserved linked or non-file VS Code backup path '$legacyBackup'."
     }
 }

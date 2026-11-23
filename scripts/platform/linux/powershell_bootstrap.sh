@@ -307,106 +307,67 @@ gamewip_require_setup_powershell()
     esac
 }
 
-gamewip_finish_setup_uninstall()
+gamewip_finish_build_uninstall()
 {
     local repository_root="$1"
     local exit_code="$2"
     local launch_token="$3"
-    local runtime_root=""
-    local runtime_parent=""
+    local repository_path=''
+    local build_root=''
+    local build_path=''
     local pending_marker=''
     local pending_token=''
-    local architecture=''
-    local expected_sha256=''
-    local process_executable=''
-    local managed_path=''
 
-    runtime_root="${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}/tools/powershell/$GAMEWIP_POWERSHELL_VERSION"
-    runtime_parent="${runtime_root%/*}"
-
-    if [[ "$GAMEWIP_POWERSHELL_COMMAND" != "$runtime_root/pwsh" || ! -d "$runtime_root" || -L "$runtime_root" ]]; then
+    if [[ ! "$launch_token" =~ ^[0-9]+-[0-9]+-[0-9]+$ ]]; then
+        printf 'Invalid setup launch token; preserved build/.\n' >&2
         return 0
     fi
 
-    for managed_path in \
-        "$repository_root/build" \
-        "${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}" \
-        "${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}/tools" \
-        "${GAMEWIP_STORAGE_ROOT:-$repository_root/build/gamewip}/tools/powershell"; do
-        if [[ -L "$managed_path" ]]; then
-            printf 'Managed PowerShell path crosses a symbolic link; preserved %s.\n' "$runtime_root" >&2
-            return 0
-        fi
-    done
+    build_root="$repository_root/build"
+    pending_marker="$build_root/.gamewip-uninstall-$launch_token.pending"
 
-    pending_marker="$runtime_root/.gamewip-uninstall-pending"
-
-    if [[ ! -f "$pending_marker" || -L "$pending_marker" ]]; then
+    if [[ ! -e "$pending_marker" && ! -L "$pending_marker" ]]; then
         return 0
+    fi
+
+    if [[ ! -d "$build_root" || -L "$build_root" || ! -f "$pending_marker" || -L "$pending_marker" ]]; then
+        printf 'Build cleanup request is linked or invalid; preserved %s.\n' "$build_root" >&2
+        return 1
     fi
 
     pending_token="$(<"$pending_marker")"
 
     if [[ "$pending_token" != "$launch_token" ]]; then
-        printf 'Managed PowerShell cleanup request did not match this setup run; preserving %s.\n' "$runtime_root" >&2
+        printf 'Build cleanup request did not match this setup run; preserved %s.\n' "$build_root" >&2
         return 0
     fi
 
     if [[ "$exit_code" -ne 0 ]]; then
         if ! rm -f -- "$pending_marker"; then
-            printf 'Could not clear the failed uninstall marker: %s\n' "$pending_marker" >&2
+            printf 'Could not clear the failed build cleanup request: %s\n' "$pending_marker" >&2
             return 1
         fi
-        printf 'Setup did not finish cleanly; preserved managed PowerShell at %s.\n' "$runtime_root" >&2
+        printf 'Setup did not finish cleanly; preserved %s for diagnosis.\n' "$build_root" >&2
         return 0
     fi
 
-    if ! command -v readlink >/dev/null 2>&1; then
-        printf 'Cannot check whether managed PowerShell is still in use; preserved %s.\n' "$runtime_root" >&2
-        return 0
-    fi
-
-    case "$(uname -m)" in
-        x86_64 | amd64)
-            architecture='x64'
-            expected_sha256="$GAMEWIP_POWERSHELL_X64_SHA256"
-            ;;
-        aarch64 | arm64)
-            architecture='arm64'
-            expected_sha256="$GAMEWIP_POWERSHELL_ARM64_SHA256"
-            ;;
-        *)
-            printf 'Cannot validate managed PowerShell architecture; preserved %s.\n' "$runtime_root" >&2
-            return 1
-            ;;
-    esac
-
-    if ! gamewip_is_managed_powershell \
-        "$GAMEWIP_POWERSHELL_COMMAND" \
-        "$runtime_root/.gamewip-tool" \
-        "$architecture" \
-        "$expected_sha256"; then
-        printf 'Managed PowerShell ownership check failed; preserved %s.\n' "$runtime_root" >&2
+    if ! command -v realpath >/dev/null 2>&1; then
+        printf 'Cannot verify build cleanup paths; preserved %s.\n' "$build_root" >&2
         return 1
     fi
 
-    for process_executable in /proc/[0-9]*/exe; do
-        [[ -e "$process_executable" ]] || continue
+    repository_path="$(realpath -e -- "$repository_root")" || return 1
+    build_path="$(realpath -e -- "$build_root")" || return 1
 
-        if [[ "$(readlink -- "$process_executable" 2>/dev/null || true)" == "$GAMEWIP_POWERSHELL_COMMAND" ]]; then
-            if ! rm -f -- "$pending_marker"; then
-                printf 'Could not clear the active-runtime uninstall marker: %s\n' "$pending_marker" >&2
-                return 1
-            fi
-            printf 'Managed PowerShell is still in use; preserved %s.\n' "$runtime_root" >&2
-            return 0
-        fi
-    done
-
-    if ! rm -f -- "$pending_marker" || ! rm -rf -- "$runtime_root"; then
-        printf 'Could not remove managed PowerShell at %s.\n' "$runtime_root" >&2
+    if [[ "$build_path" != "$repository_path/build" ]]; then
+        printf 'Refusing build cleanup outside the checkout: %s\n' "$build_path" >&2
         return 1
     fi
-    rmdir -- "$runtime_parent" 2>/dev/null || true
-    printf 'Removed managed PowerShell after setup exited: %s\n' "$runtime_root"
+
+    if ! rm -rf -- "$build_path"; then
+        printf 'Could not remove the checkout build directory: %s\n' "$build_path" >&2
+        return 1
+    fi
+
+    printf 'Removed checkout build directory: %s\n' "$build_path"
 }

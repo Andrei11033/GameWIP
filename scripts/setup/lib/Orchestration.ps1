@@ -581,6 +581,23 @@ function Invoke-GameWipSetupEnvironmentCheck
 {
     Write-GameWipSection 'Environment check'
     $failures = [System.Collections.Generic.List[string]]::new()
+    $null = Get-GameWipSetupState
+
+    if ($script:SetupStateReadStatus -in @('needs-repair', 'corrupt'))
+    {
+        $repairCommand = "$(Get-GameWipSetupHelperCommand) repair"
+        $stateIssue = if ($script:SetupStateReadStatus -eq 'corrupt')
+        {
+            'is unreadable and will be rebuilt'
+        }
+        else
+        {
+            'is incomplete and will be normalized'
+        }
+
+        $failures.Add("Setup state $stateIssue. Run '$repairCommand'.") | Out-Null
+    }
+
     $target = Get-GameWipSelectedBuildTarget
     $toolIds = @(Get-GameWipProjectReadinessToolIds -Target $target)
     $toolchain = Test-GameWipToolchain -ToolIds $toolIds -DisplayStatus -Indent 4
@@ -1003,12 +1020,35 @@ function Invoke-GameWipSetupOperation
         {
             Show-GameWipSetupSizeEstimate
         }
+
         if ($SelectedAction -in @('full', 'repair', 'update', 'msys2', 'tool'))
         {
             Select-GameWipExistingMsys2
         }
+
+        $null = Get-GameWipSetupState
+        $setupStateNeedsRepair = $script:SetupStateReadStatus -in @('needs-repair', 'corrupt')
         $plan = @(Get-GameWipSetupPlan -SelectedAction $SelectedAction)
-        Invoke-GameWipMutation -Summary $actionInfo.Description -Risk ([string]$actionInfo.Risk) -Plan $plan -Body { Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction } | Out-Null
+
+        if ($setupStateNeedsRepair)
+        {
+            $plan += 'Update the disposable setup ownership state in build/gamewip.'
+        }
+
+        if ($setupStateNeedsRepair)
+        {
+            Add-GameWipOperationWarning -Message "Setup state requires repair: $script:SetupStateReadError"
+        }
+
+        Invoke-GameWipMutation -Summary $actionInfo.Description -Risk ([string]$actionInfo.Risk) -Plan $plan -Body {
+            if ($setupStateNeedsRepair)
+            {
+                $null = Repair-GameWipSetupState
+                Add-GameWipOperationChange -Message 'Normalized setup ownership state.'
+            }
+
+            Invoke-GameWipSetupActionBody -SelectedAction $SelectedAction
+        } | Out-Null
     }
 }
 

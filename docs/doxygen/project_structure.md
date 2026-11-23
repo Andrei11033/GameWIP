@@ -19,6 +19,10 @@ and workflow pages describe the behavior inside each area.
 | `engine/` | The maintained Desktop and Input libraries and retained engine reference code. See the engine section below for build status. |
 | `game/` | Executable entry point, runtime facade, startup validation wiring, validation runners, and game-facing integration. |
 | `cmake/` | Repository-wide build, platform, validation, coverage, documentation, packaging, and analysis helpers. |
+| `scripts/lib/` | Shared PowerShell helper libraries used by the project and setup commands. |
+| `scripts/platform/<platform>/` | Host-specific shell bootstrap shared by project and setup entry points. |
+| `scripts/setup/lib/` | Shared setup orchestration, inventory, and editor integration. |
+| `scripts/setup/platform/<platform>/` | Host-specific setup providers and uninstall operations. |
 | `external/` | CMake integration for optional FetchContent dependencies. |
 | `config/quality/` | Explicit formatter and linter policy consumed by the project quality helper. |
 | `docs/doxygen/` | Doxygen sources for the project manual pages. |

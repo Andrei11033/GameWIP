@@ -11,8 +11,8 @@ It also generates a managed block at the
 end of the user's `keybindings.json`, where VS Code gives it priority over
 older personal bindings. Every managed rule keeps the repository setting in
 its `when` clause, so it is inactive outside a GameWIP workspace. Setup keeps a
-one-time `.gamewip-backup` of the original file and only replaces its marked
-managed block on later runs.
+one-time copy of the original file under `<storage-root>/state/` and only
+replaces its marked managed block on later runs.
 
 Open `GameWIP.code-workspace` to enable the bindings. Each shortcut runs the
 corresponding `GameWIP: ...` entry in `.vscode/tasks.json`; the same workflows

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repository_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "$repository_root/scripts/lib/powershell_bootstrap.sh"
+source "$repository_root/scripts/platform/linux/powershell_bootstrap.sh"
 
 if ! gamewip_find_powershell "$repository_root"; then
     printf 'PowerShell 7 is required. Run bash ./setup.sh to install the managed runtime.\n' >&2

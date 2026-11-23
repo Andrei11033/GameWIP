@@ -170,9 +170,9 @@ root (`build/gamewip/`):
 ```
 
 `cache/` contains reproducible data. `state/` is advisory and never sole
-ownership evidence. Missing or corrupt advisory editor/setup state is reported
-and safely reconstructed from configured defaults or persistent evidence rather
-than making the helper unusable. `temp/<operation-id>/` is operation-owned and
+ownership evidence. `check` reports incomplete or unreadable setup state without
+writing; confirmed repair and setup actions normalize recoverable fields or
+rebuild it. `temp/<operation-id>/` is operation-owned and
 marked with the owning process identity. Stale cleanup removes an old directory
 only when GameWIP ownership is valid and the recorded owner is confirmed
 inactive; active, malformed, or ambiguous ownership is preserved. `runs/`
@@ -237,10 +237,11 @@ copies. Use `gamewip ready` to verify the complete declared development
 environment. Use `setup.bat repair` when provider-owned software is missing or
 incompatible.
 
-If advisory setup state is missing or corrupt, setup reports that condition and
-reconstructs what it safely can from persistent evidence. Unknown resources are
-preserved. If an existing `GameWIPTools` tree has no ownership marker, review it
-manually instead of forcing uninstall.
+If setup state is incomplete or unreadable, `check` reports it without writing.
+`repair` and other confirmed setup actions normalize recoverable fields or
+rebuild the state file. Unknown external resources remain preserved. If an
+existing `GameWIPTools` tree has no ownership marker, review it manually
+instead of forcing uninstall.
 
 Managed tools default under `build/gamewip`; set the root variables to reuse
 existing installations. Unmanaged files do not belong in pacman-owned `bin`
