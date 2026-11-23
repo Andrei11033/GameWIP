@@ -21,35 +21,18 @@ set(GAMEWIP_DEPENDENCY_LOCK_FILE "${GAMEWIP_SOURCE_ROOT}/scripts/config/dependen
 if(PROJECT_IS_TOP_LEVEL)
     gamewip_get_storage_path(_gamewip_cache_root cache)
     set(_gamewip_default_dependency_cache "${_gamewip_cache_root}/dependencies")
-
-    # Follow storage-root changes while the dependency cache still uses its default.
-    get_property(_gamewip_dependency_cache_is_cached CACHE GAMEWIP_DEPENDENCY_CACHE_DIR PROPERTY TYPE SET)
-
-    if(NOT _gamewip_dependency_cache_is_cached)
-        set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache")
-        set(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT ON CACHE INTERNAL "Whether the dependency cache follows GameWIP storage" FORCE)
-    elseif(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT)
-        get_filename_component(_gamewip_current_dependency_cache "${GAMEWIP_DEPENDENCY_CACHE_DIR}" ABSOLUTE BASE_DIR "${GAMEWIP_SOURCE_ROOT}")
-        get_filename_component(_gamewip_previous_dependency_default "${GAMEWIP_DEPENDENCY_CACHE_DEFAULT}" ABSOLUTE BASE_DIR "${GAMEWIP_SOURCE_ROOT}")
-
-        if(_gamewip_current_dependency_cache STREQUAL _gamewip_previous_dependency_default)
-            set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache" FORCE)
-        else()
-            set(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT OFF CACHE INTERNAL "Whether the dependency cache follows GameWIP storage" FORCE)
-        endif()
-    endif()
-
-    set(GAMEWIP_DEPENDENCY_CACHE_DEFAULT "${_gamewip_default_dependency_cache}" CACHE INTERNAL "Current default GameWIP dependency cache" FORCE)
 else()
     set(_gamewip_default_dependency_cache "")
-    set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache")
 endif()
+
+set(GAMEWIP_DEPENDENCY_CACHE_DIR "${_gamewip_default_dependency_cache}" CACHE PATH "GameWIP local dependency cache")
+
+# Drop cache metadata from the removed default-path migration.
+unset(GAMEWIP_DEPENDENCY_CACHE_DIR_AUTO_DEFAULT CACHE)
+unset(GAMEWIP_DEPENDENCY_CACHE_DEFAULT CACHE)
 
 unset(_gamewip_default_dependency_cache)
 unset(_gamewip_cache_root)
-unset(_gamewip_dependency_cache_is_cached)
-unset(_gamewip_current_dependency_cache)
-unset(_gamewip_previous_dependency_default)
 
 if(GAMEWIP_DEPENDENCY_CACHE_DIR)
     if(IS_ABSOLUTE "${GAMEWIP_DEPENDENCY_CACHE_DIR}")

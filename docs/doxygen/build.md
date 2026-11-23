@@ -55,6 +55,10 @@ when the storage root has changed. The Windows helper uses the selected
 LLVM-MinGW target;
 AddressSanitizer is available for x64, but not ARM64.
 
+CMake selects the dependency-cache default when it first creates the build
+cache. If the storage root later changes, set `GAMEWIP_DEPENDENCY_CACHE_DIR`
+to the desired cache path.
+
 ## Common workflow
 
 From PowerShell at the repository root, the helper defaults to Windows x64,
