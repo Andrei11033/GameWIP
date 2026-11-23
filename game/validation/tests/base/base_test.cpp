@@ -31,8 +31,11 @@ namespace
     {
         struct Case
         {
+            // Operands
             std::size_t left;
             std::size_t right;
+
+            // Expected overflow results
             bool additionOverflows;
             bool multiplicationOverflows;
         };
@@ -49,10 +52,12 @@ namespace
         };
         const auto check = [&context](const Case &test, std::size_t left, std::size_t right)
         {
+            // Check both operations for the current operand order.
             static_cast<void>(context.expectEq(
                 std::format("addition {} + {} {}", left, right, test.additionOverflows ? "overflows" : "fits"),
                 test.additionOverflows,
                 Base::wouldAddOverflow(left, right)));
+
             static_cast<void>(context.expectEq(
                 std::format("multiplication {} * {} {}", left, right, test.multiplicationOverflows ? "overflows" : "fits"),
                 test.multiplicationOverflows,
@@ -63,6 +68,7 @@ namespace
         {
             check(test, test.left, test.right);
 
+            // Cover the reversed order when the operands differ.
             if(test.left != test.right)
             {
                 check(test, test.right, test.left);
