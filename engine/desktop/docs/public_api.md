@@ -12,7 +12,7 @@ Use this map to find the declaration that owns an operation.
 - `desktop/display_info.h` is the opt-in rich monitor/color inspection surface.
 - `desktop/cursor.h` is the opt-in custom native cursor resource and selection surface.
 - `desktop/child_surface.h` is the opt-in managed native child-host resource, passive description, and typed event surface.
-- `desktop/accessibility.h` is the opt-in immutable semantic snapshot, authoring/inspection, native provider, and bounded action bridge.
+- `desktop/accessibility.h` is the umbrella for the opt-in accessibility bridge; focused type, snapshot, and façade headers are under `desktop/accessibility/`.
 - `desktop/data_transfer.h` is the opt-in shared non-owning/owning transfer vocabulary for Clipboard and drag and drop.
 - `desktop/drag_drop.h` is the opt-in native data target/source API, declarative regions, effects, and typed target events.
 - `desktop/clipboard.h` is the opt-in stateless synchronous Clipboard service and its operation results.

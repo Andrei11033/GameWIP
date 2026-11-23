@@ -10,8 +10,9 @@ configured limits, and handles teardown.
 
 Values live under `Desktop::Types::Accessibility`; `validate()`, `SnapshotBuilder`,
 `SnapshotReader`, and `Facade` live under `Desktop::Accessibility`.
-`Window::accessibility()` returns a non-owning façade by value. Include the
-focused header and link `GameWIP::Desktop`; no additional package is needed.
+`Window::accessibility()` returns a non-owning façade by value. Include
+`desktop/accessibility.h` or a focused header under `desktop/accessibility/`,
+then link `GameWIP::Desktop`.
 Ordinary Windows allocate no bridge storage. Open the Window, check
 `Capability::Accessibility`, and explicitly `enable()` on its opening thread.
 `Options` fixes limits for the activation. Repeated enable returns `AlreadyOpen`.

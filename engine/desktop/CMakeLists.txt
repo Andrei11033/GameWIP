@@ -24,13 +24,14 @@ endif()
 
 add_library(Desktop SHARED)
 add_library(GameWIP::Desktop ALIAS Desktop)
+add_subdirectory(accessibility)
 
 set(DESKTOP_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
 file(MAKE_DIRECTORY "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop")
 # Keep installed headers and generated API documentation in sync.
-set(
-    DESKTOP_PUBLIC_HEADERS
+set(DESKTOP_PUBLIC_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/accessibility.h"
+    ${DESKTOP_ACCESSIBILITY_PUBLIC_HEADERS}
     "${CMAKE_CURRENT_SOURCE_DIR}/child_surface.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/clipboard.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/cursor.h"
@@ -69,9 +70,7 @@ target_sources(
         FILE_SET public_headers
             TYPE HEADERS
             BASE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/.." "${DESKTOP_GENERATED_INCLUDE_DIR}"
-            FILES
-                ${DESKTOP_PUBLIC_HEADERS}
-                "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
+            FILES ${DESKTOP_PUBLIC_HEADERS} "${DESKTOP_GENERATED_INCLUDE_DIR}/desktop/desktop_export.h"
 )
 
 add_subdirectory(core)

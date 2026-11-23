@@ -39,6 +39,8 @@ The supported public headers are:
 - `desktop/native/win32.h` on Win32
 - generated `desktop/desktop_export.h`
 
+`desktop/accessibility.h` remains the umbrella. Focused type, snapshot, and façade headers install under `desktop/accessibility/`.
+
 Internal headers and test hooks are source-tree-only. Every supported entry header is compiled in isolation by repository validation.
 
 `DESKTOP_EXPORT` marks installed production/runtime ABI. `DESKTOP_TEST_EXPORT`
