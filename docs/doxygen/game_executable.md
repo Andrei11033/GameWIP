@@ -32,7 +32,10 @@ integration code and reusable libraries.
 | `game/runtime/diagnostics/window_reports.cpp` | Window event labels, event details, and startup-state reporting. |
 | `game/runtime/diagnostics/input_devices.cpp` | Input device inventory at Debug and grouped descriptors at Trace. |
 | `game/runtime/diagnostics/input_control_events.h` | Internal entry points for opt-in control logging. |
-| `game/runtime/diagnostics/input_control_events.cpp` | Compact control changes at Debug and detailed events at Trace. |
+| `game/runtime/diagnostics/input_control_changes.cpp` | Compact control and raw value changes at Debug. |
+| `game/runtime/diagnostics/input_control_trace.cpp` | Detailed control and text events at Trace. |
+| `game/runtime/diagnostics/internal/input_control_helpers.h` | Private declarations shared by control reports. |
+| `game/runtime/diagnostics/internal/helpers/input_control_helpers.cpp` | Shared device lookup, control classification, and event metadata. |
 | `game/runtime/diagnostics/input_reports.h` | Shared entry point for bounded raw report diagnostics. |
 | `game/runtime/diagnostics/input_reports.cpp` | Bounded per-device report previews and platform-detail dispatch at Trace. |
 | `game/runtime/diagnostics/input_event_format.h` | Shared names and value-formatting declarations for Input diagnostics. |

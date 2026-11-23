@@ -3,8 +3,9 @@ target_sources(
     PRIVATE
         display_report.cpp
         display_report.h
-        input_control_events.cpp
+        input_control_changes.cpp
         input_control_events.h
+        input_control_trace.cpp
         input_devices.cpp
         input_event_format.cpp
         input_event_format.h
@@ -16,3 +17,5 @@ target_sources(
         runtime_status.cpp
         window_reports.cpp
 )
+
+add_subdirectory(internal)
