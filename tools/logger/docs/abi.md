@@ -9,13 +9,13 @@ find_package(Logger ${GAMEWIP_REQUIRED_VERSION} EXACT CONFIG REQUIRED)
 target_link_libraries(MyTarget PRIVATE GameWIP::Logger)
 ```
 
-The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` umbrella, and focused
-`logger/record.h`, `logger/message_format.h`, `logger/logging.h`, and `logger/reports.h` headers. It also installs optional
-`logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h` header, and `GameWIP::Logger`.
+The package installs `logger/types.h`, `logger/config.h`, the `logger/logger.h` umbrella, and focused `logger/record.h`,
+`logger/message_format.h`, `logger/logging.h`, and `logger/reports.h` headers. It also installs optional
+`logger/logger_macros.h`, required detail headers, the generated `logger/logger_export.h`, and `GameWIP::Logger`.
 The detail headers contain template definitions required by the installed API; they are not independent API entry points.
 
-`logger.h` exposes `IO::Types::Status`, so IO is a public package dependency and `LoggerConfig.cmake` resolves the exact matching IO package. Terminal
-remains an installed dependency used by Logger's console implementation. FileSystem and Unicode are private implementation dependencies.
+`logger.h` exposes `IO::Types::Status`, so IO is a public dependency. `LoggerConfig.cmake` resolves the matching exact-version IO package.
+Terminal is installed for Logger's console implementation; FileSystem and Unicode are private implementation dependencies.
 
 ## Shared-library exports
 
@@ -42,8 +42,8 @@ status must be inspected before consuming the UTF-8 path, and changes to its
 layout or the `getLogFilePath()` signature require the normal exact-version
 package and validation review.
 
-The shared-library implementation unregisters its MinGW formatting-scratch FLS callback during module teardown. Consumers that explicitly unload the
-shared library must first quiesce Logger calls and worker threads, as required for any callable code or retained object owned by that module.
+Logger unregisters its MinGW formatting scratch FLS callback during module teardown. Before unloading the shared library, consumers must quiesce
+Logger calls and worker threads so no module code or retained objects remain in use.
 
 ## Source-tree-only interfaces
 
