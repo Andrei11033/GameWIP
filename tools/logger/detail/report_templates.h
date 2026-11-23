@@ -16,7 +16,7 @@
 namespace GameWIP::Logger
 {
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         template <typename Source, typename... Args>
         Types::Report::Result formatAndReportWithRecord(
@@ -138,6 +138,6 @@ namespace GameWIP::Logger
                 return reportFailure(IO::Types::ErrorCode::Unknown);
             }
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 } // namespace GameWIP::Logger

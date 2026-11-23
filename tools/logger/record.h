@@ -23,7 +23,7 @@
 namespace GameWIP::Logger
 {
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         struct RecordAccess;
     }
@@ -42,14 +42,14 @@ namespace GameWIP::Logger
             {
                 return *this;
             }
-            const Detail::Core::RecordLimits limits = Detail::Core::getRecordLimitsForFormatting();
+            const Internal::Core::RecordLimits limits = Internal::Core::getRecordLimitsForFormatting();
             if(fields_.size() >= limits.maxFields)
             {
                 return *this;
             }
 
             // Bound the key and format the value within its configured limit.
-            key = key.substr(0, Detail::Core::utf8PrefixBoundary(key, limits.maxKeyLength));
+            key = key.substr(0, Internal::Core::utf8PrefixBoundary(key, limits.maxKeyLength));
             if(key.empty())
             {
                 return *this;
@@ -62,7 +62,7 @@ namespace GameWIP::Logger
             const std::size_t maxIteratorDistance = static_cast<std::size_t>(std::numeric_limits<std::ptrdiff_t>::max());
             const std::ptrdiff_t boundedOutputLimit = static_cast<std::ptrdiff_t>(std::min(outputLimit, maxIteratorDistance));
             static_cast<void>(std::format_to_n(std::back_inserter(text), boundedOutputLimit, "{}", std::forward<Value>(value)));
-            text.resize(Detail::Core::utf8PrefixBoundary(text, limits.maxValueLength));
+            text.resize(Internal::Core::utf8PrefixBoundary(text, limits.maxValueLength));
 
             // Retain only valid UTF-8 field values.
             if(GameWIP::Unicode::Utf8::validate(text).outcome != GameWIP::Unicode::Types::ValidationOutcome::Valid)
@@ -125,7 +125,7 @@ namespace GameWIP::Logger
         /// @brief Selects a built-in layout for this record's fields.
         Record &layout(FieldLayout value) noexcept
         {
-            layout_ = Detail::isValidFieldLayout(value) ? value : FieldLayout::Adaptive;
+            layout_ = Internal::isValidFieldLayout(value) ? value : FieldLayout::Adaptive;
             hasLayout_ = true;
             return *this;
         }
@@ -133,9 +133,9 @@ namespace GameWIP::Logger
         /// @brief Selects a validated custom layout template for this record.
         Record &layout(LayoutTemplate value)
         {
-            customLayout_ = Detail::isValidLayoutTemplate(value.text) &&
+            customLayout_ = Internal::isValidLayoutTemplate(value.text) &&
                                     GameWIP::Unicode::Utf8::validate(value.text).outcome == GameWIP::Unicode::Types::ValidationOutcome::Valid
-                                ? Detail::compileLayoutTemplate(value.text)
+                                ? Internal::compileLayoutTemplate(value.text)
                                 : std::string{};
             return *this;
         }
@@ -202,7 +202,7 @@ namespace GameWIP::Logger
                     {
                         result.push_back(' ');
                     }
-                    result.append(std::format("process={}", Detail::Core::currentProcessId()));
+                    result.append(std::format("process={}", Internal::Core::currentProcessId()));
                 }
             }
 
@@ -218,10 +218,10 @@ namespace GameWIP::Logger
                 {
                     result.push_back(' ');
                 }
-                result.push_back(Detail::Core::Protocol::kStyleBegin);
+                result.push_back(Internal::Core::Protocol::kStyleBegin);
                 result.push_back('F');
                 result.append(key);
-                result.push_back(Detail::Core::Protocol::kStyleEnd);
+                result.push_back(Internal::Core::Protocol::kStyleEnd);
                 result.push_back('=');
                 result.append(value);
             }
@@ -240,26 +240,26 @@ namespace GameWIP::Logger
                 result.reserve(selectedTemplate.size() + fields.size() + message.size() + 8);
 
                 // Store the selected layout and structured fields.
-                result.push_back(Detail::Core::Protocol::kLayoutBegin);
+                result.push_back(Internal::Core::Protocol::kLayoutBegin);
                 result.append(selectedTemplate);
-                result.push_back(Detail::Core::Protocol::kLayoutSeparator);
+                result.push_back(Internal::Core::Protocol::kLayoutSeparator);
                 result.append(fields);
-                result.push_back(Detail::Core::Protocol::kLayoutSeparator);
+                result.push_back(Internal::Core::Protocol::kLayoutSeparator);
 
                 // Serialize optional source and runtime metadata in envelope order.
                 const auto appendMetadata = [&result](std::string_view value)
                 {
                     result.append(value);
-                    result.push_back(Detail::Core::Protocol::kLayoutSeparator);
+                    result.push_back(Internal::Core::Protocol::kLayoutSeparator);
                 };
                 appendMetadata(includeFile_ ? location_.file_name() : std::string_view{});
                 appendMetadata(includeFunction_ ? location_.function_name() : std::string_view{});
                 appendMetadata(includeLine_ ? std::format("{}", location_.line()) : std::string{});
                 appendMetadata(includeThreadId_ ? std::format("{}", std::this_thread::get_id()) : std::string{});
-                result.append(includeProcessId_ ? std::format("{}", Detail::Core::currentProcessId()) : std::string{});
+                result.append(includeProcessId_ ? std::format("{}", Internal::Core::currentProcessId()) : std::string{});
 
                 // Close the metadata envelope before appending the message.
-                result.push_back(Detail::Core::Protocol::kLayoutBegin);
+                result.push_back(Internal::Core::Protocol::kLayoutBegin);
                 result.append(message);
                 return result;
             }
@@ -319,7 +319,7 @@ namespace GameWIP::Logger
         bool includeLine_ = false;
 
         friend Record record(std::source_location location) noexcept;
-        friend struct Detail::Core::RecordAccess;
+        friend struct Internal::Core::RecordAccess;
     };
 
     /// @brief Starts building optional per-record metadata.
@@ -329,7 +329,7 @@ namespace GameWIP::Logger
     }
 
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         struct RecordAccess
         {
@@ -352,11 +352,11 @@ namespace GameWIP::Logger
                 return record.decorate(message, defaultLayout, layout);
             }
         };
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         template <typename Source>
         void preformattedLogWithRecord(Types::Level level, Source source, const Record &record, std::string_view message) noexcept
@@ -379,7 +379,7 @@ namespace GameWIP::Logger
                 recordAllocationFailure();
             }
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 
 } // namespace GameWIP::Logger

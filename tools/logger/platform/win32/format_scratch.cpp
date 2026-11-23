@@ -19,7 +19,7 @@ namespace
 
     void NTAPI destroyFormatScratch(void *value)
     {
-        delete static_cast<GameWIP::Logger::Detail::FormatScratchStorage *>(value);
+        delete static_cast<GameWIP::Logger::Internal::FormatScratchStorage *>(value);
     }
 
     /// @brief Owns the process-wide FLS index while its callback code remains loaded.
@@ -57,7 +57,7 @@ namespace
         return slot.value();
     }
 
-    GameWIP::Logger::Detail::FormatScratchStorage &formatScratchStorageForThreadFls()
+    GameWIP::Logger::Internal::FormatScratchStorage &formatScratchStorageForThreadFls()
     {
         const DWORD slot = formatScratchSlot();
 
@@ -65,12 +65,12 @@ namespace
         {
             throw std::bad_alloc();
         }
-        auto *storage = static_cast<GameWIP::Logger::Detail::FormatScratchStorage *>(FlsGetValue(slot));
+        auto *storage = static_cast<GameWIP::Logger::Internal::FormatScratchStorage *>(FlsGetValue(slot));
 
         // Create storage lazily and register its thread-exit cleanup.
         if(storage == nullptr)
         {
-            storage = new GameWIP::Logger::Detail::FormatScratchStorage();
+            storage = new GameWIP::Logger::Internal::FormatScratchStorage();
 
             if(!FlsSetValue(slot, storage))
             {
@@ -82,7 +82,7 @@ namespace
         return *storage;
     }
 
-    GameWIP::Logger::Detail::FormatScratchStorage *findFormatScratchStorageForThreadFls() noexcept
+    GameWIP::Logger::Internal::FormatScratchStorage *findFormatScratchStorageForThreadFls() noexcept
     {
         const DWORD slot = formatScratchSlot();
         if(slot == FLS_OUT_OF_INDEXES)
@@ -90,22 +90,22 @@ namespace
             return nullptr;
         }
 
-        return static_cast<GameWIP::Logger::Detail::FormatScratchStorage *>(FlsGetValue(slot));
+        return static_cast<GameWIP::Logger::Internal::FormatScratchStorage *>(FlsGetValue(slot));
     }
 #endif
 
 #if !defined(__MINGW32__)
-    GameWIP::Logger::Detail::FormatScratchStorage &formatScratchStorageForThreadLocal()
+    GameWIP::Logger::Internal::FormatScratchStorage &formatScratchStorageForThreadLocal()
     {
-        thread_local GameWIP::Logger::Detail::FormatScratchStorage storage;
+        thread_local GameWIP::Logger::Internal::FormatScratchStorage storage;
         return storage;
     }
 #endif
 } // namespace
 
-namespace GameWIP::Logger::Detail::Platform
+namespace GameWIP::Logger::Platform
 {
-    FormatScratchStorage &formatScratchStorageForThread()
+    Internal::FormatScratchStorage &formatScratchStorageForThread()
     {
 #if defined(__MINGW32__)
         return formatScratchStorageForThreadFls();
@@ -114,7 +114,7 @@ namespace GameWIP::Logger::Detail::Platform
 #endif
     }
 
-    FormatScratchStorage *findFormatScratchStorageForThread() noexcept
+    Internal::FormatScratchStorage *findFormatScratchStorageForThread() noexcept
     {
 #if defined(__MINGW32__)
         return findFormatScratchStorageForThreadFls();
@@ -122,4 +122,4 @@ namespace GameWIP::Logger::Detail::Platform
         return &formatScratchStorageForThreadLocal();
 #endif
     }
-} // namespace GameWIP::Logger::Detail::Platform
+} // namespace GameWIP::Logger::Platform

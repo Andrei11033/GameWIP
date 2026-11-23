@@ -9,7 +9,7 @@
 #include <immintrin.h>
 #endif
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Shared runtime state and packed hot-path configuration
@@ -472,4 +472,4 @@ namespace GameWIP::Logger::Detail::Core
     {
         return hasConsoleOutput(requested) || fallbackToConsole ? OutputMode::Console : OutputMode::None;
     }
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

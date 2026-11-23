@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Process metadata
@@ -11,6 +11,6 @@ namespace GameWIP::Logger::Detail::Core
 
     std::uint32_t currentProcessId() noexcept
     {
-        return GameWIP::Logger::Detail::Platform::currentProcessId();
+        return GameWIP::Logger::Platform::currentProcessId();
     }
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

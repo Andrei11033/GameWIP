@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -521,4 +521,4 @@ namespace GameWIP::Logger::Detail::Core
         return flushSinksInternal(deadline);
     }
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

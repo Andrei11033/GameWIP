@@ -3,18 +3,18 @@
 
 #include "logger/internal/core.h"
 
-using namespace GameWIP::Logger::Detail::Core;
+using namespace GameWIP::Logger::Internal::Core;
 
 /// ------------------------------------------------------------
 /// Queue submission
 /// ------------------------------------------------------------
 
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, std::string_view source, std::string_view message) noexcept
+void GameWIP::Logger::Internal::Core::enqueuePreformattedMessage(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     enqueuePreformattedMessage(level, source, message, false);
 }
 
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(
+void GameWIP::Logger::Internal::Core::enqueuePreformattedMessage(
     LogLevel level,
     std::string_view source,
     std::string_view message,
@@ -30,12 +30,12 @@ void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(
     }
 }
 
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message) noexcept
+void GameWIP::Logger::Internal::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message) noexcept
 {
     enqueuePreformattedMessage(level, source, message, false);
 }
 
-void GameWIP::Logger::Detail::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool truncated) noexcept
+void GameWIP::Logger::Internal::Core::enqueuePreformattedMessage(LogLevel level, SourceId source, std::string_view message, bool truncated) noexcept
 {
     try
     {

@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Atomic shared-pointer storage
@@ -283,4 +283,4 @@ namespace GameWIP::Logger::Detail::Core
     Status forcedFatalPopupStatus() noexcept;
 #endif
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

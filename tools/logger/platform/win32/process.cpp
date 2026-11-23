@@ -9,7 +9,7 @@
 #include <windows.h>
 #include <psapi.h>
 
-namespace GameWIP::Logger::Detail::Platform
+namespace GameWIP::Logger::Platform
 {
     ProcessMemory queryProcessMemory()
     {
@@ -27,4 +27,4 @@ namespace GameWIP::Logger::Detail::Platform
     {
         return static_cast<std::uint32_t>(GetCurrentProcessId());
     }
-} // namespace GameWIP::Logger::Detail::Platform
+} // namespace GameWIP::Logger::Platform

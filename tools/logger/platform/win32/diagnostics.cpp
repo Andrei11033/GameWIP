@@ -109,7 +109,7 @@ namespace
     }
 } // namespace
 
-namespace GameWIP::Logger::Detail::Platform
+namespace GameWIP::Logger::Platform
 {
     /// ------------------------------------------------------------
     /// Platform diagnostics
@@ -165,4 +165,4 @@ namespace GameWIP::Logger::Detail::Platform
             return IO::makeStatus(IO::Types::ErrorCode::NativeFailure, GetLastError());
         }
     }
-} // namespace GameWIP::Logger::Detail::Platform
+} // namespace GameWIP::Logger::Platform

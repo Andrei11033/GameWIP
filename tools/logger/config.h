@@ -83,9 +83,9 @@ namespace GameWIP::Logger
         Basic basic = Basic::White; ///< Basic color when kind is Basic.
 
         // RGB channels
-        std::uint8_t red = 0;       ///< Red channel when kind is Rgb.
-        std::uint8_t green = 0;     ///< Green channel when kind is Rgb.
-        std::uint8_t blue = 0;      ///< Blue channel when kind is Rgb.
+        std::uint8_t red = 0;   ///< Red channel when kind is Rgb.
+        std::uint8_t green = 0; ///< Green channel when kind is Rgb.
+        std::uint8_t blue = 0;  ///< Blue channel when kind is Rgb.
 
         /// @brief Creates a basic foreground color.
         [[nodiscard]] static constexpr Color basicColor(Basic value) noexcept
@@ -144,7 +144,7 @@ namespace GameWIP::Logger
     };
 
     /// @cond INTERNAL
-    namespace Detail
+    namespace Internal
     {
 
         [[nodiscard]] constexpr bool isValidColor(Color value) noexcept
@@ -193,7 +193,7 @@ namespace GameWIP::Logger
             }
             return true;
         }
-    } // namespace Detail
+    } // namespace Internal
     /// @endcond
 
     /// ------------------------------------------------------------
@@ -210,14 +210,14 @@ namespace GameWIP::Logger
     };
 
     /// @cond INTERNAL
-    namespace Detail
+    namespace Internal
     {
         [[nodiscard]] constexpr bool isValidFieldLayout(FieldLayout value) noexcept
         {
             return value == FieldLayout::Adaptive || value == FieldLayout::Compact || value == FieldLayout::Expanded ||
                    value == FieldLayout::Parenthesized;
         }
-    } // namespace Detail
+    } // namespace Internal
     /// @endcond
 
     /// @brief Factory helpers for built-in field layouts.
@@ -259,7 +259,7 @@ namespace GameWIP::Logger
     template <std::size_t Size> [[nodiscard]] consteval LayoutTemplate makeLayout(const char (&text)[Size])
     {
         const std::string_view layout{text, Size - 1};
-        if(!Detail::isValidLayoutTemplate(layout) || !Detail::isValidUtf8(layout))
+        if(!Internal::isValidLayoutTemplate(layout) || !Internal::isValidUtf8(layout))
         {
             throw std::invalid_argument("Logger layout must use valid UTF-8 and known placeholders");
         }
@@ -355,7 +355,7 @@ namespace GameWIP::Logger
     /// ------------------------------------------------------------
 
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         template <typename Enum, bool IsEnum = std::is_enum_v<Enum>> struct SourceEnumTraits : std::false_type
         {
@@ -385,21 +385,21 @@ namespace GameWIP::Logger
             using Underlying = std::underlying_type_t<std::remove_cvref_t<Enum>>;
             return static_cast<Types::SourceId>(static_cast<Underlying>(value));
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 
     /// @brief Concept for source enums accepted by enum-based Logger APIs.
     /// @details The enum must use an unsigned underlying type no wider than SourceId and must not be a Logger-owned enum.
     /// Registration of individual values remains a runtime Config concern.
     template <typename Enum>
-    concept SourceEnum = Detail::Core::SourceEnum<Enum>;
+    concept SourceEnum = Internal::Core::SourceEnum<Enum>;
 
     /// @brief Creates a registered-source definition from an unsigned enum value and UTF-8 name.
     template <typename Enum>
         requires(SourceEnum<Enum>)
     constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name) noexcept
     {
-        return {Detail::Core::sourceId(value), name};
+        return {Internal::Core::sourceId(value), name};
     }
 
     /// @brief Creates a registered-source definition with a custom area-label color.
@@ -407,7 +407,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Enum>)
     constexpr Types::SourceDefinition defineSource(Enum value, std::string_view name, Color color) noexcept
     {
-        return {Detail::Core::sourceId(value), name, color};
+        return {Internal::Core::sourceId(value), name, color};
     }
 
     /// ------------------------------------------------------------

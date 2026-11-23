@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -178,7 +178,7 @@ namespace GameWIP::Logger::Detail::Core
                     std::string popupLine;
                     buildLogLine(popupLine, getTimestampText(popupTimestamp), getLogStyle(level).text, source, reportMessage);
                     popupLine = plainOutputText(popupLine);
-                    popupStatus = GameWIP::Logger::Detail::Platform::showFatalPopup(popupLine);
+                    popupStatus = GameWIP::Logger::Platform::showFatalPopup(popupLine);
                 }
 
                 if(popupStatus.ok())
@@ -197,14 +197,14 @@ namespace GameWIP::Logger::Detail::Core
 
         return result;
     }
-} // namespace GameWIP::Logger::Detail::Core
-using namespace GameWIP::Logger::Detail::Core;
+} // namespace GameWIP::Logger::Internal::Core
+using namespace GameWIP::Logger::Internal::Core;
 
 /// ------------------------------------------------------------
 /// Synchronous reporting
 /// ------------------------------------------------------------
 
-GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPreformattedMessage(
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::Internal::Core::reportPreformattedMessage(
     LogLevel level,
     std::string_view source,
     std::string_view message,
@@ -219,7 +219,7 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPref
         });
 }
 
-GameWIP::Logger::Types::Report::Result GameWIP::Logger::Detail::Core::reportPreformattedMessage(
+GameWIP::Logger::Types::Report::Result GameWIP::Logger::Internal::Core::reportPreformattedMessage(
     LogLevel level,
     SourceId source,
     std::string_view message,
@@ -350,7 +350,7 @@ GameWIP::Logger::Types::Report::Result GameWIP::Logger::reportFatal(
 /// Debugger output
 /// ------------------------------------------------------------
 
-Status GameWIP::Logger::Detail::Core::writeDebugOutputInternal(LogLevel level, std::string_view source, std::string_view message) noexcept
+Status GameWIP::Logger::Internal::Core::writeDebugOutputInternal(LogLevel level, std::string_view source, std::string_view message) noexcept
 {
     if(!loggerState().debugOutputEnabledAtomic.load(std::memory_order_acquire))
     {
@@ -381,7 +381,7 @@ Status GameWIP::Logger::Detail::Core::writeDebugOutputInternal(LogLevel level, s
         line.push_back('\n');
 
         // Write to the native debugger channel and retain failures in health.
-        const Status status = GameWIP::Logger::Detail::Platform::writeDebugOutput(line);
+        const Status status = GameWIP::Logger::Platform::writeDebugOutput(line);
         if(!status.ok())
         {
             recordHealthFailure(Types::Health::FailureSource::DebugOutput, status, true);
@@ -411,5 +411,5 @@ GameWIP::IO::Types::Status GameWIP::Logger::writeDebugOutput(LogLevel level, std
     {
         return IO::makeStatus(ErrorCode::EncodingFailed);
     }
-    return GameWIP::Logger::Detail::Core::writeDebugOutputInternal(level, source, message);
+    return GameWIP::Logger::Internal::Core::writeDebugOutputInternal(level, source, message);
 }

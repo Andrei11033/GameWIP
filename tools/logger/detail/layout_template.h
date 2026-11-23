@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::Logger::Detail
+namespace GameWIP::Logger::Internal
 {
     /// @cond INTERNAL
 
@@ -360,4 +360,4 @@ namespace GameWIP::Logger::Detail
         return compiled;
     }
     /// @endcond
-} // namespace GameWIP::Logger::Detail
+} // namespace GameWIP::Logger::Internal

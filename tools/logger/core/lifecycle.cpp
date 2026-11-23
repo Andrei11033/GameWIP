@@ -9,7 +9,7 @@
 #include <optional>
 #include <utility>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -45,9 +45,9 @@ namespace GameWIP::Logger::Detail::Core
     {
         GameWIP::Logger::shutdown();
     }
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core
 
-using namespace GameWIP::Logger::Detail::Core;
+using namespace GameWIP::Logger::Internal::Core;
 
 /// ------------------------------------------------------------
 /// Lifecycle
@@ -136,7 +136,7 @@ GameWIP::Logger::Types::FlushResult GameWIP::Logger::flush(std::optional<std::ch
     }
 }
 
-GameWIP::IO::Types::Status GameWIP::Logger::Detail::Core::shutdownImpl()
+GameWIP::IO::Types::Status GameWIP::Logger::Internal::Core::shutdownImpl()
 {
     std::lock_guard<std::mutex> lifecycleLock(loggerState().lifecycleMutex);
     Status status;

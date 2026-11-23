@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Registered sources
@@ -95,4 +95,4 @@ namespace GameWIP::Logger::Detail::Core
         SourceId directSourceBase = 0;
     };
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

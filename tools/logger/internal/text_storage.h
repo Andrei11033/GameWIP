@@ -13,7 +13,7 @@
 #include <string_view>
 #include <utility>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Inline retained text storage
@@ -344,4 +344,4 @@ namespace GameWIP::Logger::Detail::Core
         bool heapActive_ = false;
         std::string heapText_;
     };
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

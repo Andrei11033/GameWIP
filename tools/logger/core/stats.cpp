@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Statistics and retained-memory accounting
@@ -145,9 +145,9 @@ namespace GameWIP::Logger::Detail::Core
         recordDiagnosticFailureCounter(loggerState().stats.formatFailures);
     }
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core
 
-using namespace GameWIP::Logger::Detail::Core;
+using namespace GameWIP::Logger::Internal::Core;
 
 /// ------------------------------------------------------------
 /// Public state queries and statistics
@@ -290,7 +290,7 @@ GameWIP::Logger::Types::MemoryStats GameWIP::Logger::getMemoryStats() noexcept
         }
 
         // Query process counters after releasing the Logger lock.
-        const auto process = GameWIP::Logger::Detail::Platform::queryProcessMemory();
+        const auto process = GameWIP::Logger::Platform::queryProcessMemory();
         memory.processWorkingSetBytes = process.workingSetBytes;
         memory.processPrivateBytes = process.privateBytes;
         memory.processMemoryAvailable = process.available;

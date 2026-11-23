@@ -17,7 +17,7 @@
 #define LOGGER_INTERNAL_TEST_HOOKS 0
 #endif
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Shared aliases and constants
@@ -62,4 +62,4 @@ namespace GameWIP::Logger::Detail::Core
     // Queue publication
     constexpr std::uint32_t kQueueSlotSpinBeforeYield = 64;
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

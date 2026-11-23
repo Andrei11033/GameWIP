@@ -4,7 +4,7 @@
 #include "logger/internal/core.h"
 #include "logger/internal/format_scratch.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Formatting failure counters
@@ -32,7 +32,7 @@ namespace GameWIP::Logger::Detail::Core
 
     std::string &formatScratch()
     {
-        FormatScratchStorage &storage = GameWIP::Logger::Detail::Platform::formatScratchStorageForThread();
+        FormatScratchStorage &storage = GameWIP::Logger::Platform::formatScratchStorageForThread();
 
         if(storage.buffers.size() == storage.depth)
         {
@@ -71,7 +71,7 @@ namespace GameWIP::Logger::Detail::Core
             }
         }
 
-        FormatScratchStorage *storage = GameWIP::Logger::Detail::Platform::findFormatScratchStorageForThread();
+        FormatScratchStorage *storage = GameWIP::Logger::Platform::findFormatScratchStorageForThread();
         if(storage == nullptr || storage->depth == 0)
         {
             return;
@@ -84,4 +84,4 @@ namespace GameWIP::Logger::Detail::Core
             storage->buffers.pop_back();
         }
     }
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

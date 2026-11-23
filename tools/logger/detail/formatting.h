@@ -19,7 +19,7 @@
 namespace GameWIP::Logger
 {
     /// @cond INTERNAL
-    namespace Detail::Core
+    namespace Internal::Core
     {
         // Internal message markers use bytes that cannot occur in valid UTF-8 input.
         // This keeps formatting metadata unambiguous without reserving valid text.
@@ -468,6 +468,6 @@ namespace GameWIP::Logger
                 return reportFailure(IO::Types::ErrorCode::Unknown);
             }
         }
-    } // namespace Detail::Core
+    } // namespace Internal::Core
     /// @endcond
 } // namespace GameWIP::Logger

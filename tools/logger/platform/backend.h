@@ -12,7 +12,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::Logger::Detail::Platform
+namespace GameWIP::Logger::Platform
 {
     /// @brief Best-effort process memory counters for Logger diagnostics.
     struct ProcessMemory
@@ -23,10 +23,10 @@ namespace GameWIP::Logger::Detail::Platform
     };
 
     /// @brief Returns or creates the current thread's formatting scratch storage.
-    [[nodiscard]] FormatScratchStorage &formatScratchStorageForThread();
+    [[nodiscard]] Internal::FormatScratchStorage &formatScratchStorageForThread();
 
     /// @brief Returns current-thread scratch storage without creating it.
-    [[nodiscard]] FormatScratchStorage *findFormatScratchStorageForThread() noexcept;
+    [[nodiscard]] Internal::FormatScratchStorage *findFormatScratchStorageForThread() noexcept;
 
     /// @brief Writes one UTF-8 diagnostic line to the platform debugger channel.
     [[nodiscard]] IO::Types::Status writeDebugOutput(std::string_view line);
@@ -42,4 +42,4 @@ namespace GameWIP::Logger::Detail::Platform
 
     /// @brief Returns the current process identifier.
     [[nodiscard]] std::uint32_t currentProcessId() noexcept;
-} // namespace GameWIP::Logger::Detail::Platform
+} // namespace GameWIP::Logger::Platform

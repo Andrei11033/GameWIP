@@ -11,7 +11,7 @@
 #endif
 
 #if LOGGER_INTERNAL_TEST_HOOKS
-namespace GameWIP::Logger::TestHooks
+namespace GameWIP::Logger::Internal::TestHooks
 {
     /// @brief Clears all pending logger test-hook failures and overrides.
     /// @warning Test-only API. Available only when LOGGER_INTERNAL_TEST_HOOKS is enabled.
@@ -44,5 +44,5 @@ namespace GameWIP::Logger::TestHooks
     /// @brief Releases the worker delivery pause.
     /// @warning Test-only API.
     LOGGER_TEST_EXPORT void releaseWorkerDeliveryPause() noexcept;
-} // namespace GameWIP::Logger::TestHooks
+} // namespace GameWIP::Logger::Internal::TestHooks
 #endif

@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -106,7 +106,7 @@ namespace GameWIP::Logger::Detail::Core
     bool sourceEnabledRuntime(SourceId source)
     {
         const std::shared_ptr<SourceRegistry> registry = loadSourceRegistry();
-        return ::GameWIP::Logger::Detail::Core::sourceEnabledRuntime(registry.get(), source);
+        return ::GameWIP::Logger::Internal::Core::sourceEnabledRuntime(registry.get(), source);
     }
 
     /// @brief Checks the runtime source filter using a caller-owned registry snapshot.
@@ -155,7 +155,7 @@ namespace GameWIP::Logger::Detail::Core
     /// @return True when shouldLogRuntime(level) passes and the source filter allows the source.
     bool shouldLogRuntime(LogLevel level, SourceId source)
     {
-        return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level) && ::GameWIP::Logger::Detail::Core::sourceEnabledRuntime(source);
+        return ::GameWIP::Logger::Internal::Core::shouldLogRuntime(level) && ::GameWIP::Logger::Internal::Core::sourceEnabledRuntime(source);
     }
 
     /// @brief Rechecks a pending entry against the current packed runtime state.
@@ -181,7 +181,7 @@ namespace GameWIP::Logger::Detail::Core
             return {};
         }
 
-        if(entry.usesRegisteredSource && !::GameWIP::Logger::Detail::Core::sourceEnabledRuntime(entry.sourceId))
+        if(entry.usesRegisteredSource && !::GameWIP::Logger::Internal::Core::sourceEnabledRuntime(entry.sourceId))
         {
             return {};
         }
@@ -213,7 +213,7 @@ namespace GameWIP::Logger::Detail::Core
 
             for(const SourceDefinition &definition : definitions)
             {
-                if(definition.name.empty() || (definition.color && !GameWIP::Logger::Detail::isValidColor(*definition.color)))
+                if(definition.name.empty() || (definition.color && !GameWIP::Logger::Internal::isValidColor(*definition.color)))
                 {
                     outStatus = GameWIP::IO::makeStatus(GameWIP::IO::Types::ErrorCode::InvalidArgument);
                     return false;
@@ -336,7 +336,7 @@ namespace GameWIP::Logger::Detail::Core
 
         return true;
     }
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core
 
 /// ------------------------------------------------------------
 /// Public filter API
@@ -344,26 +344,26 @@ namespace GameWIP::Logger::Detail::Core
 
 bool GameWIP::Logger::shouldLog(Types::Level level) noexcept
 {
-    return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level);
+    return ::GameWIP::Logger::Internal::Core::shouldLogRuntime(level);
 }
 
 bool GameWIP::Logger::shouldLog(Types::Level level, std::string_view) noexcept
 {
-    return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level);
+    return ::GameWIP::Logger::Internal::Core::shouldLogRuntime(level);
 }
 
 bool GameWIP::Logger::shouldLog(Types::Level level, Types::SourceId source) noexcept
 {
-    return ::GameWIP::Logger::Detail::Core::shouldLogRuntime(level, source);
+    return ::GameWIP::Logger::Internal::Core::shouldLogRuntime(level, source);
 }
 
 GameWIP::IO::Types::Status GameWIP::Logger::setSourceFilter(Types::SourceId source, bool enabled) noexcept
 {
     try
     {
-        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-        const auto registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
-        const auto *registeredSource = registry ? ::GameWIP::Logger::Detail::Core::findSource(*registry, source) : nullptr;
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Internal::Core::loggerState().logMutex);
+        const auto registry = ::GameWIP::Logger::Internal::Core::loadSourceRegistry();
+        const auto *registeredSource = registry ? ::GameWIP::Logger::Internal::Core::findSource(*registry, source) : nullptr;
 
         if(registeredSource == nullptr)
         {
@@ -391,8 +391,8 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
 {
     try
     {
-        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-        const auto registry = ::GameWIP::Logger::Detail::Core::loadSourceRegistry();
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Internal::Core::loggerState().logMutex);
+        const auto registry = ::GameWIP::Logger::Internal::Core::loadSourceRegistry();
         if(registry)
         {
             for(const auto &source : registry->sources)
@@ -415,7 +415,7 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetSourceFilters() noexcept
 
 GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, bool enabled) noexcept
 {
-    const std::uint8_t bit = ::GameWIP::Logger::Detail::Core::levelBit(level);
+    const std::uint8_t bit = ::GameWIP::Logger::Internal::Core::levelBit(level);
 
     if(bit == 0)
     {
@@ -424,10 +424,10 @@ GameWIP::IO::Types::Status GameWIP::Logger::setLevelFilter(Types::Level level, b
 
     try
     {
-        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-        auto &mask = ::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask;
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Internal::Core::loggerState().logMutex);
+        auto &mask = ::GameWIP::Logger::Internal::Core::loggerState().enabledLevelMask;
         mask = enabled ? static_cast<std::uint8_t>(mask | bit) : static_cast<std::uint8_t>(mask & static_cast<std::uint8_t>(~bit));
-        ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
+        ::GameWIP::Logger::Internal::Core::publishRuntimeStateUnlocked();
         return {};
     }
     catch(...)
@@ -445,9 +445,9 @@ GameWIP::IO::Types::Status GameWIP::Logger::resetLevelFilters() noexcept
 {
     try
     {
-        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Detail::Core::loggerState().logMutex);
-        ::GameWIP::Logger::Detail::Core::loggerState().enabledLevelMask = ::GameWIP::Logger::Detail::Core::kAllLevelMask;
-        ::GameWIP::Logger::Detail::Core::publishRuntimeStateUnlocked();
+        std::lock_guard<std::mutex> lock(::GameWIP::Logger::Internal::Core::loggerState().logMutex);
+        ::GameWIP::Logger::Internal::Core::loggerState().enabledLevelMask = ::GameWIP::Logger::Internal::Core::kAllLevelMask;
+        ::GameWIP::Logger::Internal::Core::publishRuntimeStateUnlocked();
         return {};
     }
     catch(...)

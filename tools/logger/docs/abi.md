@@ -22,7 +22,7 @@ remains an installed dependency used by Logger's console implementation. FileSys
 `LOGGER_EXPORT` marks installed production/runtime ABI. Source-tree validation
 uses `LOGGER_TEST_EXPORT` from an internal header that is never installed.
 
-Public templates in the Logger headers call exported `GameWIP::Logger::Detail::Core` bridges. Those symbols support the public inline/template API
+Public templates in the Logger headers call exported `GameWIP::Logger::Internal::Core` bridges. Those symbols support the public inline/template API
 but are not source-level consumer APIs.
 
 Initialization, report, and health vocabulary is organized under `Types::Init`,

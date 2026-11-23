@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
 #if LOGGER_INTERNAL_TEST_HOOKS
     LoggerTestHookState loggerTestHookState;
@@ -56,12 +56,12 @@ namespace GameWIP::Logger::Detail::Core
     }
 
 #endif
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core
 
-using namespace GameWIP::Logger::Detail::Core;
+using namespace GameWIP::Logger::Internal::Core;
 
 #if LOGGER_INTERNAL_TEST_HOOKS
-namespace GameWIP::Logger::TestHooks
+namespace GameWIP::Logger::Internal::TestHooks
 {
     /// ------------------------------------------------------------
     /// One-shot failure hooks
@@ -114,5 +114,5 @@ namespace GameWIP::Logger::TestHooks
         publishHookMilestone(loggerTestHookState.releaseWorkerDelivery);
     }
 
-} // namespace GameWIP::Logger::TestHooks
+} // namespace GameWIP::Logger::Internal::TestHooks
 #endif

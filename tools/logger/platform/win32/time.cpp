@@ -14,7 +14,7 @@
 #include <ranges>
 #include <string>
 
-namespace GameWIP::Logger::Detail::Platform
+namespace GameWIP::Logger::Platform
 {
     IO::Types::Status formatLocalTime(std::time_t time, std::string_view timeFormat, std::string &outText)
     {
@@ -79,4 +79,4 @@ namespace GameWIP::Logger::Detail::Platform
             return IO::makeStatus(IO::Types::ErrorCode::Unknown);
         }
     }
-} // namespace GameWIP::Logger::Detail::Platform
+} // namespace GameWIP::Logger::Platform

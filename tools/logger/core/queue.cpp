@@ -4,7 +4,7 @@
 #include "logger/internal/core.h"
 #include "base/checked_arithmetic.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -503,4 +503,4 @@ namespace GameWIP::Logger::Detail::Core
 
         return enqueueResult;
     }
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -22,7 +22,7 @@ namespace GameWIP::Logger::Detail::Core
                 }
                 std::string segment;
                 const Status status =
-                    GameWIP::Logger::Detail::Platform::formatLocalTime(time, format.substr(segmentStart, segmentEnd - segmentStart), segment);
+                    GameWIP::Logger::Platform::formatLocalTime(time, format.substr(segmentStart, segmentEnd - segmentStart), segment);
                 if(!status.ok())
                 {
                     outStatus = status;
@@ -95,7 +95,7 @@ namespace GameWIP::Logger::Detail::Core
     std::string formatTimeOrFallback(std::time_t time, std::string_view timeFormat, Status &outStatus)
     {
         std::string text;
-        outStatus = GameWIP::Logger::Detail::Platform::formatLocalTime(time, timeFormat, text);
+        outStatus = GameWIP::Logger::Platform::formatLocalTime(time, timeFormat, text);
 
         if(!outStatus.ok())
         {
@@ -245,4 +245,4 @@ namespace GameWIP::Logger::Detail::Core
         return scratch;
     }
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

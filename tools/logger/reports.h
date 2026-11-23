@@ -47,7 +47,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     Types::Report::Result report(Types::Level level, Source source, std::string_view message) noexcept
     {
-        return report(level, Detail::Core::sourceId(source), message);
+        return report(level, Internal::Core::sourceId(source), message);
     }
 
     /// @brief Synchronously reports an enum-source diagnostic under a bounded deadline.
@@ -55,7 +55,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     Types::Report::Result report(Types::Level level, Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
-        return report(level, Detail::Core::sourceId(source), timeout, message);
+        return report(level, Internal::Core::sourceId(source), timeout, message);
     }
 
     /// @brief Formats and synchronously reports a diagnostic.
@@ -63,14 +63,14 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     Types::Report::Result report(Types::Level level, Source source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return Detail::Core::formatAndReport(level, source, false, nullptr, format, std::forward<Args>(args)...);
+        return Internal::Core::formatAndReport(level, source, false, nullptr, format, std::forward<Args>(args)...);
     }
 
     /// @brief Synchronously reports a preformatted diagnostic with fields and metadata.
     template <typename Source>
     Types::Report::Result report(Types::Level level, Source source, const Record &record, std::string_view message) noexcept
     {
-        return Detail::Core::reportPreformattedWithRecord(level, source, record, false, nullptr, message);
+        return Internal::Core::reportPreformattedWithRecord(level, source, record, false, nullptr, message);
     }
 
     /// @brief Synchronously reports a preformatted diagnostic with a deadline, fields, and metadata.
@@ -82,7 +82,7 @@ namespace GameWIP::Logger
         std::chrono::milliseconds timeout,
         std::string_view message) noexcept
     {
-        return Detail::Core::reportPreformattedWithRecord(level, source, record, false, &timeout, message);
+        return Internal::Core::reportPreformattedWithRecord(level, source, record, false, &timeout, message);
     }
 
     /// @brief Formats and synchronously reports a diagnostic with fields and metadata.
@@ -90,7 +90,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     Types::Report::Result report(Types::Level level, Source source, const Record &record, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return Detail::Core::formatAndReportWithRecord(level, source, record, false, nullptr, format, std::forward<Args>(args)...);
+        return Internal::Core::formatAndReportWithRecord(level, source, record, false, nullptr, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and synchronously reports a diagnostic with a deadline, fields, and metadata.
@@ -104,7 +104,7 @@ namespace GameWIP::Logger
         std::format_string<Args...> format,
         Args &&...args) noexcept
     {
-        return Detail::Core::formatAndReportWithRecord(level, source, record, false, &timeout, format, std::forward<Args>(args)...);
+        return Internal::Core::formatAndReportWithRecord(level, source, record, false, &timeout, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and synchronously reports a diagnostic with fields and metadata.
@@ -112,7 +112,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     Types::Report::Result report(Types::Level level, Source source, const Record &record, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReportWithRecord(level, source, record, false, nullptr, format, args...);
+        return Internal::Core::runtimeFormatAndReportWithRecord(level, source, record, false, nullptr, format, args...);
     }
 
     /// @brief Runtime-formats and synchronously reports a diagnostic with a deadline, fields, and metadata.
@@ -126,7 +126,7 @@ namespace GameWIP::Logger
         Types::RuntimeFormat format,
         Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReportWithRecord(level, source, record, false, &timeout, format, args...);
+        return Internal::Core::runtimeFormatAndReportWithRecord(level, source, record, false, &timeout, format, args...);
     }
 
     /// @brief Formats and synchronously reports a diagnostic under a bounded deadline.
@@ -139,7 +139,7 @@ namespace GameWIP::Logger
         std::format_string<Args...> format,
         Args &&...args) noexcept
     {
-        return Detail::Core::formatAndReport(level, source, false, &timeout, format, std::forward<Args>(args)...);
+        return Internal::Core::formatAndReport(level, source, false, &timeout, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and synchronously reports a diagnostic.
@@ -147,7 +147,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     Types::Report::Result report(Types::Level level, Source source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReport(level, source, false, nullptr, format, args...);
+        return Internal::Core::runtimeFormatAndReport(level, source, false, nullptr, format, args...);
     }
 
     /// @brief Runtime-formats and synchronously reports a diagnostic under a bounded deadline.
@@ -160,7 +160,7 @@ namespace GameWIP::Logger
         Types::RuntimeFormat format,
         Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReport(level, source, false, &timeout, format, args...);
+        return Internal::Core::runtimeFormatAndReport(level, source, false, &timeout, format, args...);
     }
 
     /// @brief Synchronously reports a preformatted Error with a UTF-8 string source.
@@ -197,14 +197,14 @@ namespace GameWIP::Logger
     /// @brief Synchronously reports a preformatted Fatal diagnostic with fields and metadata.
     template <typename Source> Types::Report::Result reportFatal(Source source, const Record &record, std::string_view message) noexcept
     {
-        return Detail::Core::reportPreformattedWithRecord(Types::Level::Fatal, source, record, true, nullptr, message);
+        return Internal::Core::reportPreformattedWithRecord(Types::Level::Fatal, source, record, true, nullptr, message);
     }
 
     /// @brief Synchronously reports a preformatted Fatal diagnostic with a deadline, fields, and metadata.
     template <typename Source>
     Types::Report::Result reportFatal(Source source, const Record &record, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
-        return Detail::Core::reportPreformattedWithRecord(Types::Level::Fatal, source, record, true, &timeout, message);
+        return Internal::Core::reportPreformattedWithRecord(Types::Level::Fatal, source, record, true, &timeout, message);
     }
 
     /// @brief Formats and synchronously reports an Error with fields and metadata.
@@ -233,7 +233,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     Types::Report::Result reportFatal(Source source, const Record &record, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        return Detail::Core::formatAndReportWithRecord(Types::Level::Fatal, source, record, true, nullptr, format, std::forward<Args>(args)...);
+        return Internal::Core::formatAndReportWithRecord(Types::Level::Fatal, source, record, true, nullptr, format, std::forward<Args>(args)...);
     }
 
     /// @brief Formats and synchronously reports a Fatal diagnostic with a deadline, fields, and metadata.
@@ -246,7 +246,7 @@ namespace GameWIP::Logger
         std::format_string<Args...> format,
         Args &&...args) noexcept
     {
-        return Detail::Core::formatAndReportWithRecord(Types::Level::Fatal, source, record, true, &timeout, format, std::forward<Args>(args)...);
+        return Internal::Core::formatAndReportWithRecord(Types::Level::Fatal, source, record, true, &timeout, format, std::forward<Args>(args)...);
     }
 
     /// @brief Runtime-formats and synchronously reports an Error with fields and metadata.
@@ -254,7 +254,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     Types::Report::Result reportError(Source source, const Record &record, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReportWithRecord(Types::Level::Error, source, record, false, nullptr, format, args...);
+        return Internal::Core::runtimeFormatAndReportWithRecord(Types::Level::Error, source, record, false, nullptr, format, args...);
     }
 
     /// @brief Runtime-formats and synchronously reports an Error with a deadline, fields, and metadata.
@@ -267,7 +267,7 @@ namespace GameWIP::Logger
         Types::RuntimeFormat format,
         Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReportWithRecord(Types::Level::Error, source, record, false, &timeout, format, args...);
+        return Internal::Core::runtimeFormatAndReportWithRecord(Types::Level::Error, source, record, false, &timeout, format, args...);
     }
 
     /// @brief Runtime-formats and synchronously reports a Fatal diagnostic with fields and metadata.
@@ -275,7 +275,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     Types::Report::Result reportFatal(Source source, const Record &record, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReportWithRecord(Types::Level::Fatal, source, record, true, nullptr, format, args...);
+        return Internal::Core::runtimeFormatAndReportWithRecord(Types::Level::Fatal, source, record, true, nullptr, format, args...);
     }
 
     /// @brief Runtime-formats and synchronously reports a Fatal diagnostic with a deadline, fields, and metadata.
@@ -288,7 +288,7 @@ namespace GameWIP::Logger
         Types::RuntimeFormat format,
         Args &&...args) noexcept
     {
-        return Detail::Core::runtimeFormatAndReportWithRecord(Types::Level::Fatal, source, record, true, &timeout, format, args...);
+        return Internal::Core::runtimeFormatAndReportWithRecord(Types::Level::Fatal, source, record, true, &timeout, format, args...);
     }
 
     /// @brief Synchronously reports a preformatted Error with an enum source.
@@ -296,7 +296,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     Types::Report::Result reportError(Source source, std::string_view message) noexcept
     {
-        return reportError(Detail::Core::sourceId(source), message);
+        return reportError(Internal::Core::sourceId(source), message);
     }
 
     /// @brief Synchronously reports an enum-source Error under a bounded deadline.
@@ -304,7 +304,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     Types::Report::Result reportError(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
-        return reportError(Detail::Core::sourceId(source), timeout, message);
+        return reportError(Internal::Core::sourceId(source), timeout, message);
     }
 
     /// @brief Synchronously reports a preformatted Fatal diagnostic with an enum source.
@@ -312,7 +312,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     Types::Report::Result reportFatal(Source source, std::string_view message) noexcept
     {
-        return reportFatal(Detail::Core::sourceId(source), message);
+        return reportFatal(Internal::Core::sourceId(source), message);
     }
 
     /// @brief Synchronously reports an enum-source Fatal diagnostic under a bounded deadline.
@@ -320,7 +320,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     Types::Report::Result reportFatal(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
-        return reportFatal(Detail::Core::sourceId(source), timeout, message);
+        return reportFatal(Internal::Core::sourceId(source), timeout, message);
     }
 
     /// @brief Declares formatted fixed-severity report overloads.
@@ -329,25 +329,25 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0) \
     Types::Report::Result name(Source source, std::format_string<Args...> format, Args &&...args) noexcept \
     { \
-        return Detail::Core::formatAndReport(levelValue, source, popupValue, nullptr, format, std::forward<Args>(args)...); \
+        return Internal::Core::formatAndReport(levelValue, source, popupValue, nullptr, format, std::forward<Args>(args)...); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
     Types::Report::Result name(Source source, std::chrono::milliseconds timeout, std::format_string<Args...> format, Args &&...args) noexcept \
     { \
-        return Detail::Core::formatAndReport(levelValue, source, popupValue, &timeout, format, std::forward<Args>(args)...); \
+        return Internal::Core::formatAndReport(levelValue, source, popupValue, &timeout, format, std::forward<Args>(args)...); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
     Types::Report::Result name(Source source, Types::RuntimeFormat format, Args &&...args) noexcept \
     { \
-        return Detail::Core::runtimeFormatAndReport(levelValue, source, popupValue, nullptr, format, args...); \
+        return Internal::Core::runtimeFormatAndReport(levelValue, source, popupValue, nullptr, format, args...); \
     } \
     template <typename Source, typename... Args> \
         requires(sizeof...(Args) > 0) \
     Types::Report::Result name(Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args) noexcept \
     { \
-        return Detail::Core::runtimeFormatAndReport(levelValue, source, popupValue, &timeout, format, args...); \
+        return Internal::Core::runtimeFormatAndReport(levelValue, source, popupValue, &timeout, format, args...); \
     }
 
     LOGGER_DECLARE_FORMATTED_REPORT(reportError, Types::Level::Error, false)
@@ -377,7 +377,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     [[noreturn]] void fatalTerminate(Source source, std::string_view message) noexcept
     {
-        fatalTerminate(Detail::Core::sourceId(source), message);
+        fatalTerminate(Internal::Core::sourceId(source), message);
     }
 
     /// @brief Reports an enum-source Fatal diagnostic under a deadline and then terminates.
@@ -385,7 +385,7 @@ namespace GameWIP::Logger
         requires(SourceEnum<Source>)
     [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, std::string_view message) noexcept
     {
-        fatalTerminate(Detail::Core::sourceId(source), timeout, message);
+        fatalTerminate(Internal::Core::sourceId(source), timeout, message);
     }
 
     /// @brief Formats a Fatal diagnostic, reports it, and then calls std::terminate().
@@ -393,7 +393,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     [[noreturn]] void fatalTerminate(Source source, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        static_cast<void>(Detail::Core::formatAndReport(Types::Level::Fatal, source, true, nullptr, format, std::forward<Args>(args)...));
+        static_cast<void>(Internal::Core::formatAndReport(Types::Level::Fatal, source, true, nullptr, format, std::forward<Args>(args)...));
         std::terminate();
     }
 
@@ -402,7 +402,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, std::format_string<Args...> format, Args &&...args) noexcept
     {
-        static_cast<void>(Detail::Core::formatAndReport(Types::Level::Fatal, source, true, &timeout, format, std::forward<Args>(args)...));
+        static_cast<void>(Internal::Core::formatAndReport(Types::Level::Fatal, source, true, &timeout, format, std::forward<Args>(args)...));
         std::terminate();
     }
 
@@ -411,7 +411,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     [[noreturn]] void fatalTerminate(Source source, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        static_cast<void>(Detail::Core::runtimeFormatAndReport(Types::Level::Fatal, source, true, nullptr, format, args...));
+        static_cast<void>(Internal::Core::runtimeFormatAndReport(Types::Level::Fatal, source, true, nullptr, format, args...));
         std::terminate();
     }
 
@@ -420,7 +420,7 @@ namespace GameWIP::Logger
         requires(sizeof...(Args) > 0)
     [[noreturn]] void fatalTerminate(Source source, std::chrono::milliseconds timeout, Types::RuntimeFormat format, Args &&...args) noexcept
     {
-        static_cast<void>(Detail::Core::runtimeFormatAndReport(Types::Level::Fatal, source, true, &timeout, format, args...));
+        static_cast<void>(Internal::Core::runtimeFormatAndReport(Types::Level::Fatal, source, true, &timeout, format, args...));
         std::terminate();
     }
 

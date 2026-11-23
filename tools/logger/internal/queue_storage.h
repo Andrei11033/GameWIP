@@ -9,7 +9,7 @@
 #include <cstddef>
 #include <string_view>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Queue entries and slots
@@ -56,4 +56,4 @@ namespace GameWIP::Logger::Detail::Core
         QueueSlot(QueueSlot &&) = delete;
         QueueSlot &operator=(QueueSlot &&) = delete;
     };
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

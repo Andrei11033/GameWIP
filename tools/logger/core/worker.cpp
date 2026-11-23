@@ -6,7 +6,7 @@
 #include <mutex>
 #include <string>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Worker helpers
@@ -144,4 +144,4 @@ namespace GameWIP::Logger::Detail::Core
         }
     }
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

@@ -10,7 +10,7 @@
 #include <string>
 #include <string_view>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -19,7 +19,7 @@ namespace GameWIP::Logger::Detail::Core
 
         const std::string &compiledDefaultLogLayout()
         {
-            static const std::string layout = Detail::compileLayoutTemplate(kDefaultLogLayout.text);
+            static const std::string layout = Internal::compileLayoutTemplate(kDefaultLogLayout.text);
             return layout;
         }
 
@@ -139,7 +139,7 @@ namespace GameWIP::Logger::Detail::Core
             char name,
             char alignment,
             std::uint16_t requestedWidth,
-            const std::array<char, Detail::kMaxLayoutColorScopeDepth> &activeColorRoles,
+            const std::array<char, Internal::kMaxLayoutColorScopeDepth> &activeColorRoles,
             std::size_t colorScopeDepth)
         {
             // Compute the requested field width and distribute its padding.
@@ -184,14 +184,14 @@ namespace GameWIP::Logger::Detail::Core
             const LayoutRecordData &data)
         {
             // Reset the output and track nested color scopes while interpreting instructions.
-            std::array<char, Detail::kMaxLayoutColorScopeDepth> activeColorRoles{};
+            std::array<char, Internal::kMaxLayoutColorScopeDepth> activeColorRoles{};
             std::size_t colorScopeDepth = 0;
             outMessage.clear();
 
             for(std::size_t index = 0; index < layout.size(); ++index)
             {
                 // Copy literal text directly.
-                if(layout[index] != Detail::kCompiledLayoutMarker)
+                if(layout[index] != Internal::kCompiledLayoutMarker)
                 {
                     outMessage.push_back(layout[index]);
                     continue;
@@ -291,4 +291,4 @@ namespace GameWIP::Logger::Detail::Core
 
         renderCompiledLayout(outMessage, selectedLayout, timestamp, levelText, source, message, record);
     }
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

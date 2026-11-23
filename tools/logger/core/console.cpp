@@ -3,7 +3,7 @@
 
 #include "logger/internal/core.h"
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Console color resolution and rendering
@@ -181,7 +181,7 @@ namespace GameWIP::Logger::Detail::Core
         // Convert Logger style markers into terminal output segments.
         const auto appendStyledText = [&](std::string_view text, Color baseColor)
         {
-            std::array<Color, Detail::kMaxLayoutColorScopeDepth> colorScopes{};
+            std::array<Color, Internal::kMaxLayoutColorScopeDepth> colorScopes{};
             std::size_t colorScopeDepth = 0;
             std::size_t plainStart = 0;
             std::size_t index = 0;
@@ -290,4 +290,4 @@ namespace GameWIP::Logger::Detail::Core
         return Terminal::writeSegments(stream, segments, options);
     }
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

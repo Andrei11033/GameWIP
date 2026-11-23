@@ -12,7 +12,7 @@
 #include <thread>
 #include <utility>
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     namespace
     {
@@ -75,8 +75,8 @@ namespace GameWIP::Logger::Detail::Core
         {
             // Reject invalid enum values, themes, layouts, and timestamp formats.
             if(!isValidOutputMode(config.output) || !isValidLevel(config.minLevel) || !isValidFormatPolicy(config.formatPolicy) ||
-               !Detail::isValidFieldLayout(config.fieldLayout) || !Detail::isValidTheme(config.theme) ||
-               !Detail::isValidTimestampFormat(config.timestampFormat) || !Detail::isValidLayoutTemplate(config.layout.text))
+               !Internal::isValidFieldLayout(config.fieldLayout) || !Internal::isValidTheme(config.theme) ||
+               !Internal::isValidTimestampFormat(config.timestampFormat) || !Internal::isValidLayoutTemplate(config.layout.text))
             {
                 outStatus = IO::makeStatus(ErrorCode::InvalidArgument);
                 return false;
@@ -95,7 +95,7 @@ namespace GameWIP::Logger::Detail::Core
                 return false;
             }
 
-            prepared.layoutTemplate = std::make_shared<const std::string>(Detail::compileLayoutTemplate(config.layout.text));
+            prepared.layoutTemplate = std::make_shared<const std::string>(Internal::compileLayoutTemplate(config.layout.text));
 
             if(!config.logDirectory.empty() && !validUtf8(config.logDirectory))
             {
@@ -494,4 +494,4 @@ namespace GameWIP::Logger::Detail::Core
         return result;
     }
 
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core

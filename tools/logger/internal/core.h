@@ -27,7 +27,7 @@
 #include "logger/internal/test_hooks.h"
 #endif
 
-namespace GameWIP::Logger::Detail::Core
+namespace GameWIP::Logger::Internal::Core
 {
     /// ------------------------------------------------------------
     /// Runtime value encoding and validation
@@ -225,4 +225,4 @@ namespace GameWIP::Logger::Detail::Core
     Types::FlushResult flushInternal(const FlushDeadline *deadline = nullptr);
     [[nodiscard]] FlushDeadline makeFlushDeadline(std::chrono::milliseconds timeout) noexcept;
     [[nodiscard]] bool lockBefore(std::unique_lock<std::mutex> &lock, FlushDeadline deadline);
-} // namespace GameWIP::Logger::Detail::Core
+} // namespace GameWIP::Logger::Internal::Core
